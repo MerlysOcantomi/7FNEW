@@ -1,0 +1,22 @@
+# v0 runtime files (should only exist in preview, not in git)
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+
+# Common ignores
+node_modules/
+.next/
+.env
+.env*.local
+.DS_Store
+.vercel
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+dev.db
+dev.db-journal
+generated/
+
+# Uploads
+public/uploads/
