@@ -1,7 +1,12 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
+import { createClient } from "@libsql/client"
+import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { PrismaClient } from "../generated/prisma/client"
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" })
+const libsql = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+})
+const adapter = new PrismaLibSQL(libsql)
 const prisma = new PrismaClient({ adapter })
 
 const ADMIN_EMAIL = process.argv[2]
@@ -9,7 +14,6 @@ const ADMIN_EMAIL = process.argv[2]
 async function main() {
   if (!ADMIN_EMAIL) {
     console.error("Uso: npx tsx prisma/seed-admin.ts correo@ejemplo.com")
-    console.error("Ejemplo: npx tsx prisma/seed-admin.ts merlys@7f.com")
     process.exit(1)
   }
 
@@ -21,12 +25,12 @@ async function main() {
       where: { email },
       data: { role: "admin" },
     })
-    console.log(`✓ Email "${email}" actualizado a admin en AllowedEmail`)
+    console.log(`Email "${email}" actualizado a admin en AllowedEmail`)
   } else {
     await prisma.allowedEmail.create({
       data: { email, role: "admin" },
     })
-    console.log(`✓ Email "${email}" agregado como admin en AllowedEmail`)
+    console.log(`Email "${email}" agregado como admin en AllowedEmail`)
   }
 
   const user = await prisma.user.findUnique({ where: { email } })
@@ -35,11 +39,10 @@ async function main() {
       where: { email },
       data: { role: "admin" },
     })
-    console.log(`✓ User "${email}" actualizado a admin`)
+    console.log(`User "${email}" actualizado a admin`)
   }
 
   console.log("\nMerlys esta configurada como administradora.")
-  console.log("Solo ella puede gestionar usuarios y permisos.")
 }
 
 main()
