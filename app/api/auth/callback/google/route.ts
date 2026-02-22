@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error("[7F Auth] Callback error:", error)
-    return NextResponse.redirect(new URL("/login?error=auth_failed", request.url))
+    const msg = error instanceof Error ? error.message : "Unknown error"
+    console.error("[7F Auth] Callback error:", msg, error)
+    return NextResponse.redirect(new URL(`/login?error=auth_failed&detail=${encodeURIComponent(msg)}`, request.url))
   }
 }
