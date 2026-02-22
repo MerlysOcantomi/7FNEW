@@ -39,5 +39,6 @@ export async function GET() {
     checks.prisma_error = err instanceof Error ? err.message : String(err)
   }
 
+  checks.version = "v3"
   return NextResponse.json(checks)
 }

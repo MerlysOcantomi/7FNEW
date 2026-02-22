@@ -24,7 +24,11 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    datasourceUrl: "file:./placeholder.db",
+    datasources: {
+      db: {
+        url: "file:./placeholder.db",
+      },
+    },
   })
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
