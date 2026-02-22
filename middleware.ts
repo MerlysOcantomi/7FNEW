@@ -1,4 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
+
+// AUTH TEMPORARILY DISABLED - allow all requests through
+export async function middleware(_request: NextRequest) {
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+}
+
+/* ORIGINAL MIDDLEWARE - RE-ENABLE WHEN AUTH IS READY
 import { jwtVerify } from "jose"
 
 const COOKIE_NAME = "7f-session"
@@ -61,7 +72,4 @@ export async function middleware(request: NextRequest) {
     return response
   }
 }
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-}
+*/
