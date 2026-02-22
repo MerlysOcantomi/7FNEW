@@ -26,6 +26,7 @@ model Cliente {
   facturas           Factura[]
   eventos            Evento[]
   notasProfesionales Nota[]
+  clientAuth         ClientAuth?
 }
 
 model Proyecto {
@@ -257,6 +258,18 @@ model QRCode {
   label     String?
   createdBy String?
   createdAt DateTime @default(now())
+}
+
+model ClientAuth {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  clienteId    String   @unique
+  lastLogin    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }
 
 model Attachment {

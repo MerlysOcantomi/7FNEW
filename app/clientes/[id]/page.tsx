@@ -21,6 +21,7 @@ import { ActivityTimeline } from "@/components/activity-timeline"
 import { UploadArea } from "@/components/upload-area"
 import { QRButton } from "@/components/qr-code-modal"
 import { SavedQRCodes } from "@/components/saved-qr-codes"
+import { ClientPortalAccess } from "@/components/client-portal-access"
 import {
   Building,
   ArrowLeft,
@@ -355,6 +356,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {/* Archivos adjuntos */}
         <UploadArea module="clientes" recordId={id} />
         <SavedQRCodes module="clientes" recordId={id} />
+
+        {/* Portal de Clientes */}
+        <ClientPortalAccess clienteId={id} clienteEmail={data?.email} />
 
         {/* Comentarios + Actividad */}
         <CommentsSection module="clientes" recordId={id} />

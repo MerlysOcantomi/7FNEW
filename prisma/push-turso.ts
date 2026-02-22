@@ -1,9 +1,19 @@
 import "dotenv/config"
 import { createClient } from "@libsql/client"
 
+const dbUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
+const dbToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN
+
+if (!dbUrl || !dbUrl.startsWith("libsql://")) {
+  console.error("TURSO_DATABASE_URL no configurada. Agrega al .env:")
+  console.error('TURSO_DATABASE_URL="libsql://..."')
+  console.error('TURSO_AUTH_TOKEN="..."')
+  process.exit(1)
+}
+
 const client = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN!,
+  url: dbUrl,
+  authToken: dbToken,
 })
 
 const tables = [
@@ -233,9 +243,21 @@ const tables = [
     "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS "ClientAuth" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "clienteId" TEXT NOT NULL,
+    "lastLogin" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ClientAuth_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
 ]
 
 const uniqueIndexes = [
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ClientAuth_email_key" ON "ClientAuth"("email")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ClientAuth_clienteId_key" ON "ClientAuth"("clienteId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Factura_numero_key" ON "Factura"("numero")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Usuario_email_key" ON "Usuario"("email")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email")`,
