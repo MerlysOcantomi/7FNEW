@@ -1,4 +1,3 @@
-import { createClient } from "@libsql/client"
 import { PrismaLibSql } from "@prisma/adapter-libsql"
 import { PrismaClient } from "@/generated/prisma/client"
 
@@ -13,23 +12,11 @@ if (!dbUrl) {
   throw new Error("DATABASE_URL or TURSO_DATABASE_URL must be set")
 }
 
-const libsql = createClient({
-  url: dbUrl,
-  authToken: dbToken,
-})
-
-const adapter = new PrismaLibSql(libsql)
+const adapter = new PrismaLibSql({ url: dbUrl, authToken: dbToken })
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-    datasources: {
-      db: {
-        url: "file:./placeholder.db",
-      },
-    },
-  })
+  new PrismaClient({ adapter })
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
