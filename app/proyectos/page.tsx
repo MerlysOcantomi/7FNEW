@@ -88,10 +88,14 @@ export default function ProyectosPage() {
   const [search, setSearch] = useState("")
   const [filterStatus, setFilterStatus] = useState("Todos")
   const [filterPriority, setFilterPriority] = useState("Todas")
+  const [filterClienteId, setFilterClienteId] = useState("")
   const [sortIdx, setSortIdx] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [deleteItem, setDeleteItem] = useState<any>(null)
+
+  const { data: clientesRaw } = useFetch<any>("/api/clientes?pageSize=100")
+  const clientes: any[] = Array.isArray(clientesRaw) ? clientesRaw : clientesRaw?.data ?? []
 
   async function handleDelete() {
     if (!deleteItem) return

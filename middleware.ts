@@ -24,11 +24,23 @@ function getSecret(): Uint8Array | null {
   return new TextEncoder().encode(secret)
 }
 
+const ADMIN_PATHS = ["/admin"]
+const EDITOR_PATHS = ["/finanzas", "/facturacion", "/motor", "/calendario", "/contenido", "/agente"]
+type Role = "admin" | "editor" | "viewer"
+const ROLE_LEVEL: Record<Role, number> = { admin: 3, editor: 2, viewer: 1 }
+
+function getRequiredLevel(p: string): number {
+  if (ADMIN_PATHS.some((ap) => p.startsWith(ap))) return ROLE_LEVEL.admin
+  if (EDITOR_PATHS.some((ep) => p.startsWith(ep))) return ROLE_LEVEL.editor
+  return ROLE_LEVEL.viewer
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (isPublic(pathname)) return NextResponse.next()
 
+  // Client portal routes
   if (isClientPortalRoute(pathname)) {
     const token = request.cookies.get(CLIENT_COOKIE)?.value
     if (!token) {
@@ -62,30 +74,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Internal routes: allow all for now (Google OAuth disabled)
-  // When re-enabled, uncomment the block below
-  return NextResponse.next()
-
-  /* INTERNAL AUTH - RE-ENABLE WHEN GOOGLE OAUTH IS READY
-  const ADMIN_PATHS = ["/admin"]
-  const EDITOR_PATHS = ["/finanzas", "/facturacion", "/motor", "/calendario"]
-  type Role = "admin" | "editor" | "viewer"
-  const ROLE_LEVEL: Record<Role, number> = { admin: 3, editor: 2, viewer: 1 }
-
-  function getRequiredLevel(p: string): number {
-    if (ADMIN_PATHS.some((ap) => p.startsWith(ap))) return ROLE_LEVEL.admin
-    if (EDITOR_PATHS.some((ep) => p.startsWith(ep))) return ROLE_LEVEL.editor
-    return ROLE_LEVEL.viewer
+  // Internal routes — Google OAuth authentication
+  const secret = getSecret()
+  if (!secret) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.next()
+    }
+    return NextResponse.redirect(new URL("/login?error=config", request.url))
   }
 
   const token = request.cookies.get(INTERNAL_COOKIE)?.value
   if (!token) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
     return NextResponse.redirect(new URL("/login", request.url))
-  }
-
-  const secret = getSecret()
-  if (!secret) {
-    return NextResponse.redirect(new URL("/login?error=config", request.url))
   }
 
   try {
@@ -104,11 +107,12 @@ export async function middleware(request: NextRequest) {
     headers.set("x-user-role", userRole)
     return NextResponse.next({ request: { headers } })
   } catch {
-    const response = NextResponse.redirect(new URL("/login", request.url))
+    const response = pathname.startsWith("/api/")
+      ? NextResponse.json({ error: "Sesion expirada" }, { status: 401 })
+      : NextResponse.redirect(new URL("/login", request.url))
     response.cookies.set(INTERNAL_COOKIE, "", { path: "/", maxAge: 0 })
     return response
   }
-  */
 }
 
 export const config = {
