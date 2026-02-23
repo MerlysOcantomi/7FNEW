@@ -34,31 +34,40 @@ export async function list(params: ListParams) {
     userId, userRole,
   } = params
 
-  const where: Prisma.ProyectoWhereInput = {
-    ...(estado && { estado }),
-    ...(prioridad && { prioridad }),
-    ...(clienteId && { clienteId }),
-    ...(customId && { customId: { contains: customId } }),
-    ...(assignedTo && { assignedTo: { contains: assignedTo } }),
-    ...(tag && { tags: { contains: tag } }),
-    ...(search && {
+  const conditions: Prisma.ProyectoWhereInput[] = []
+
+  if (estado) conditions.push({ estado })
+  if (prioridad) conditions.push({ prioridad })
+  if (clienteId) conditions.push({ clienteId })
+  if (customId) conditions.push({ customId: { contains: customId } })
+  if (assignedTo) conditions.push({ assignedTo: { contains: assignedTo } })
+  if (tag) conditions.push({ tags: { contains: tag } })
+
+  if (search) {
+    conditions.push({
       OR: [
         { nombre: { contains: search } },
         { descripcion: { contains: search } },
         { customId: { contains: search } },
         { tags: { contains: search } },
+        { assignedTo: { contains: search } },
+        { cliente: { nombre: { contains: search } } },
+        { cliente: { empresa: { contains: search } } },
       ],
-    }),
+    })
   }
 
   if (userId && userRole !== "admin") {
-    where.OR = [
-      ...(Array.isArray(where.OR) ? where.OR : []),
-      { visibility: "public" },
-      { createdBy: userId },
-      { allowedUsers: { contains: userId } },
-    ]
+    conditions.push({
+      OR: [
+        { visibility: "public" },
+        { createdBy: userId },
+        { allowedUsers: { contains: userId } },
+      ],
+    })
   }
+
+  const where: Prisma.ProyectoWhereInput = conditions.length > 0 ? { AND: conditions } : {}
 
   if (dateFrom || dateTo) {
     where.createdAt = {}
