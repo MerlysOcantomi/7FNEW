@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useFetch } from "@/hooks/use-fetch"
 import {
@@ -367,6 +368,12 @@ export default function ArchivosPage() {
                       <Trash2 className="h-3 w-3" /> Eliminar
                     </button>
                   </div>
+                  <Link
+                    href={`/archivos/${selected.id}`}
+                    className="block w-full rounded-lg bg-foreground px-3 py-2 text-center text-xs font-medium text-background transition-opacity hover:opacity-80"
+                  >
+                    Ver detalle completo
+                  </Link>
                 </div>
               </div>
             </div>

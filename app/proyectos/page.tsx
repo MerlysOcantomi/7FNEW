@@ -17,6 +17,9 @@ import {
   Trash2,
   Plus,
   MoreHorizontal,
+  Lock,
+  Globe,
+  Users,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -64,9 +67,28 @@ function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
+const priorityOptions = [
+  { value: "Todas", api: "" },
+  { value: "Urgente", api: "urgente" },
+  { value: "Alta", api: "alta" },
+  { value: "Media", api: "media" },
+  { value: "Baja", api: "baja" },
+]
+
+const sortOptions = [
+  { value: "Reciente", sortBy: "createdAt", sortOrder: "desc" },
+  { value: "Antiguo", sortBy: "createdAt", sortOrder: "asc" },
+  { value: "A-Z", sortBy: "nombre", sortOrder: "asc" },
+  { value: "Z-A", sortBy: "nombre", sortOrder: "desc" },
+  { value: "Progreso ↑", sortBy: "progreso", sortOrder: "asc" },
+  { value: "Progreso ↓", sortBy: "progreso", sortOrder: "desc" },
+]
+
 export default function ProyectosPage() {
   const [search, setSearch] = useState("")
   const [filterStatus, setFilterStatus] = useState("Todos")
+  const [filterPriority, setFilterPriority] = useState("Todas")
+  const [sortIdx, setSortIdx] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [deleteItem, setDeleteItem] = useState<any>(null)
@@ -85,13 +107,18 @@ export default function ProyectosPage() {
   }
 
   const apiEstado = statusOptions.find((o) => o.value === filterStatus)?.api ?? ""
+  const apiPrioridad = priorityOptions.find((o) => o.value === filterPriority)?.api ?? ""
+  const currentSort = sortOptions[sortIdx]
   const url = useMemo(() => {
     const params = new URLSearchParams()
     if (apiEstado) params.set("estado", apiEstado)
+    if (apiPrioridad) params.set("prioridad", apiPrioridad)
     if (search.trim()) params.set("search", search.trim())
+    if (currentSort.sortBy) params.set("sortBy", currentSort.sortBy)
+    if (currentSort.sortOrder) params.set("sortOrder", currentSort.sortOrder)
     const q = params.toString()
     return `/api/proyectos${q ? `?${q}` : ""}`
-  }, [apiEstado, search])
+  }, [apiEstado, apiPrioridad, search, currentSort])
 
   const { data, loading, error, refetch } = useFetch<any>(url)
 
@@ -163,6 +190,26 @@ export default function ProyectosPage() {
                 {status.value}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
+            >
+              {priorityOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.value === "Todas" ? "Prioridad" : o.value}</option>
+              ))}
+            </select>
+            <select
+              value={sortIdx}
+              onChange={(e) => setSortIdx(Number(e.target.value))}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
+            >
+              {sortOptions.map((o, i) => (
+                <option key={o.value} value={i}>{o.value}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -267,6 +314,27 @@ export default function ProyectosPage() {
                       <p className="text-[10px] text-muted-foreground">Prioridad</p>
                     </div>
                   </div>
+
+                  {/* Tags */}
+                  {project.tags && (
+                    <div className="flex flex-wrap gap-1">
+                      {project.tags.split(",").filter(Boolean).slice(0, 3).map((tag: string, i: number) => (
+                        <span key={i} className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Custom ID + Assigned + Visibility */}
+                  {(project.customId || project.assignedTo || (project.visibility && project.visibility !== "public")) && (
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                      {project.customId && <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{project.customId}</span>}
+                      {project.assignedTo && <span>→ {project.assignedTo}</span>}
+                      {project.visibility === "private" && <span className="flex items-center gap-0.5 text-red-500"><Lock className="h-3 w-3" /> Privado</span>}
+                      {project.visibility === "custom" && <span className="flex items-center gap-0.5 text-amber-500"><Users className="h-3 w-3" /> Restringido</span>}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1 border-t border-border pt-3">
                     <Link href={`/proyectos/${project.id}`} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors">

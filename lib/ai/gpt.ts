@@ -1,5 +1,5 @@
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-const OPENAI_MODEL = "gpt-4.1-mini"
+const OPENAI_MODEL = "gpt-4.1"
 
 export async function askGPT(prompt: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY

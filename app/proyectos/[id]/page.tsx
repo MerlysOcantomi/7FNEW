@@ -30,13 +30,17 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
+  Lock,
+  Globe,
+  Users,
+  Eye,
 } from "lucide-react"
 import { TareaForm } from "@/components/forms/tarea-form"
 import { DocumentoForm } from "@/components/forms/documento-form"
 import { TransaccionForm } from "@/components/forms/transaccion-form"
 import { FacturaForm } from "@/components/forms/factura-form"
 import { ConfirmModal } from "@/components/confirm-modal"
-import { CanDelete } from "@/components/role-gate"
+import { CanDelete, CanEdit } from "@/components/role-gate"
 import { CommentsSection } from "@/components/comments-section"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { UploadArea } from "@/components/upload-area"
@@ -270,10 +274,92 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            <div className="pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-1">Descripción</p>
-              <InlineTextarea value={project.descripcion ?? ""} onSave={(v) => saveField("descripcion", v)} rows={3} placeholder="Agregar descripción..." />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">ID editorial</p>
+                <InlineText value={project.customId ?? ""} onSave={(v) => saveField("customId", v || null)} placeholder="Ej: PRJ-001" className="font-mono text-xs" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Entrega estimada</p>
+                <InlineDate value={project.estimatedDelivery} onSave={(v) => saveField("estimatedDelivery", v)} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Entrega real</p>
+                <InlineDate value={project.actualDelivery} onSave={(v) => saveField("actualDelivery", v)} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Asignado a</p>
+                <InlineText value={project.assignedTo ?? ""} onSave={(v) => saveField("assignedTo", v || null)} placeholder="Nombre o equipo" />
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Tags (separados por coma)</p>
+                <InlineText value={project.tags ?? ""} onSave={(v) => saveField("tags", v || null)} placeholder="diseño, web, branding" />
+              </div>
             </div>
+
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-1">Descripcion</p>
+              <InlineTextarea value={project.descripcion ?? ""} onSave={(v) => saveField("descripcion", v)} rows={3} placeholder="Agregar descripcion..." />
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-1">Notas internas</p>
+              <InlineTextarea value={project.internalNotes ?? ""} onSave={(v) => saveField("internalNotes", v || null)} rows={2} placeholder="Notas solo visibles para el equipo..." />
+            </div>
+
+            {/* Privacidad del proyecto */}
+            <CanEdit>
+              <div className="pt-2 border-t border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  {project.visibility === "private" ? (
+                    <Lock className="h-3.5 w-3.5 text-red-500" />
+                  ) : project.visibility === "custom" ? (
+                    <Users className="h-3.5 w-3.5 text-amber-500" />
+                  ) : (
+                    <Globe className="h-3.5 w-3.5 text-emerald-500" />
+                  )}
+                  <p className="text-xs font-medium text-foreground">Privacidad del proyecto</p>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  {(["public", "private", "custom"] as const).map((v) => {
+                    const labels: Record<string, string> = { public: "Publico", private: "Privado", custom: "Personalizado" }
+                    const icons: Record<string, typeof Globe> = { public: Globe, private: Lock, custom: Users }
+                    const VIcon = icons[v]
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => saveField("visibility", v)}
+                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
+                          project.visibility === v
+                            ? "border-foreground/30 bg-foreground/5 text-foreground"
+                            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                        }`}
+                      >
+                        <VIcon className="h-3 w-3" />
+                        {labels[v]}
+                      </button>
+                    )
+                  })}
+                </div>
+                {project.visibility === "public" && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Eye className="h-3 w-3" /> Todos los usuarios internos pueden ver este proyecto</p>
+                )}
+                {project.visibility === "private" && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> Solo admin y el creador pueden ver este proyecto</p>
+                )}
+                {project.visibility === "custom" && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><Users className="h-3 w-3" /> Solo los usuarios incluidos pueden ver este proyecto</p>
+                    <InlineText
+                      value={project.allowedUsers ?? ""}
+                      onSave={(v) => saveField("allowedUsers", v || null)}
+                      placeholder='IDs de usuarios (separados por coma)'
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            </CanEdit>
           </div>
         </div>
 

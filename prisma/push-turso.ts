@@ -19,6 +19,7 @@ const client = createClient({
 const tables = [
   `CREATE TABLE IF NOT EXISTS "Cliente" (
     "id" TEXT NOT NULL PRIMARY KEY,
+    "customId" TEXT,
     "nombre" TEXT NOT NULL,
     "email" TEXT,
     "telefono" TEXT,
@@ -31,6 +32,7 @@ const tables = [
   )`,
   `CREATE TABLE IF NOT EXISTS "Proyecto" (
     "id" TEXT NOT NULL PRIMARY KEY,
+    "customId" TEXT,
     "nombre" TEXT NOT NULL,
     "descripcion" TEXT,
     "estado" TEXT NOT NULL DEFAULT 'planificacion',
@@ -39,6 +41,11 @@ const tables = [
     "presupuesto" REAL,
     "fechaInicio" DATETIME,
     "fechaFin" DATETIME,
+    "estimatedDelivery" DATETIME,
+    "actualDelivery" DATETIME,
+    "tags" TEXT,
+    "internalNotes" TEXT,
+    "assignedTo" TEXT,
     "clienteId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -243,6 +250,36 @@ const tables = [
     "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS "ClientProject" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "clienteId" TEXT NOT NULL,
+    "titulo" TEXT NOT NULL,
+    "descripcion" TEXT,
+    "estado" TEXT NOT NULL DEFAULT 'activo',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ClientProject_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS "ClientInvoice" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "clienteId" TEXT NOT NULL,
+    "monto" REAL NOT NULL,
+    "estado" TEXT NOT NULL DEFAULT 'pendiente',
+    "qrCodeUrl" TEXT,
+    "paymentUrl" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ClientInvoice_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS "ClientFile" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "clienteId" TEXT NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "tamano" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ClientFile_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS "ClientAuth" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
@@ -286,6 +323,36 @@ async function main() {
       console.log(`  Index ${name} OK`)
     } catch (err) {
       console.error(`  Error en index ${name}:`, err)
+    }
+  }
+
+  const alterColumns = [
+    `ALTER TABLE "Cliente" ADD COLUMN "customId" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "customId" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "estimatedDelivery" DATETIME`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "actualDelivery" DATETIME`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "tags" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "internalNotes" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "assignedTo" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "visibility" TEXT NOT NULL DEFAULT 'public'`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "allowedUsers" TEXT`,
+    `ALTER TABLE "Proyecto" ADD COLUMN "createdBy" TEXT`,
+    `ALTER TABLE "User" ADD COLUMN "isPrivate" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "User" ADD COLUMN "visibleProjects" TEXT`,
+  ]
+
+  console.log("\nAgregando columnas nuevas (si no existen)...")
+  for (const sql of alterColumns) {
+    const col = sql.match(/"(\w+)" ADD COLUMN "(\w+)"/)?.[0] ?? "?"
+    try {
+      await client.execute(sql)
+      console.log(`  ALTER ${col} OK`)
+    } catch (err: any) {
+      if (err?.message?.includes("duplicate column") || err?.message?.includes("already exists")) {
+        console.log(`  ALTER ${col} — ya existe, skip`)
+      } else {
+        console.error(`  ALTER ${col} error:`, err?.message)
+      }
     }
   }
 

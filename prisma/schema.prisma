@@ -9,6 +9,7 @@ datasource db {
 
 model Cliente {
   id        String   @id @default(cuid())
+  customId  String?
   nombre    String
   email     String?
   telefono  String?
@@ -27,21 +28,33 @@ model Cliente {
   eventos            Evento[]
   notasProfesionales Nota[]
   clientAuth         ClientAuth?
+  clientProjects     ClientProject[]
+  clientInvoices     ClientInvoice[]
+  clientFiles        ClientFile[]
 }
 
 model Proyecto {
-  id          String    @id @default(cuid())
-  nombre      String
-  descripcion String?
-  estado      String    @default("planificacion")
-  prioridad   String    @default("media")
-  progreso    Int       @default(0)
-  presupuesto Float?
-  fechaInicio DateTime?
-  fechaFin    DateTime?
-  clienteId   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  customId          String?
+  nombre            String
+  descripcion       String?
+  estado            String    @default("planificacion")
+  prioridad         String    @default("media")
+  progreso          Int       @default(0)
+  presupuesto       Float?
+  fechaInicio       DateTime?
+  fechaFin          DateTime?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  tags              String?
+  internalNotes     String?
+  assignedTo        String?
+  visibility        String    @default("public")
+  allowedUsers      String?
+  createdBy         String?
+  clienteId         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   tareas        Tarea[]
@@ -178,14 +191,16 @@ model Usuario {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  nombre    String?
-  avatar    String?
-  role      String   @default("viewer")
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  email           String   @unique
+  nombre          String?
+  avatar          String?
+  role            String   @default("viewer")
+  isPrivate       Boolean  @default(false)
+  visibleProjects String?
+  lastLogin       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   notifications Notification[]
 }
@@ -268,6 +283,42 @@ model ClientAuth {
   lastLogin    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+model ClientProject {
+  id          String   @id @default(cuid())
+  clienteId   String
+  titulo      String
+  descripcion String?
+  estado      String   @default("activo")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+model ClientInvoice {
+  id         String   @id @default(cuid())
+  clienteId  String
+  monto      Float
+  estado     String   @default("pendiente")
+  qrCodeUrl  String?
+  paymentUrl String?
+  createdAt  DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+model ClientFile {
+  id        String   @id @default(cuid())
+  clienteId String
+  nombre    String
+  url       String
+  mimeType  String
+  tamano    Int
+  createdAt DateTime @default(now())
 
   cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }

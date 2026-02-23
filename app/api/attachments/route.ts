@@ -7,14 +7,10 @@ import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { extractText, isScannable } from "@/lib/ocr"
 import { analyzeDocument } from "@/lib/scan"
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 const ALLOWED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -22,11 +18,31 @@ const ALLOWED_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-  "application/x-zip-compressed",
+  "text/plain", "text/csv",
+  "application/zip", "application/x-zip-compressed",
 ])
+
+const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+async function uploadFile(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer()
+  const buffer = Buffer.from(bytes)
+  const timestamp = Date.now()
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+
+  if (useSupabase) {
+    const { uploadToStorage, getStoragePath } = await import("@/lib/supabase")
+    const path = getStoragePath("uploads", safeName)
+    return uploadToStorage(buffer, path, file.type)
+  }
+
+  const fileName = `${timestamp}-${safeName}`
+  const uploadDir = join(process.cwd(), "public", "uploads")
+  await mkdir(uploadDir, { recursive: true })
+  const filePath = join(uploadDir, fileName)
+  await writeFile(filePath, buffer)
+  return `/uploads/${fileName}`
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,21 +87,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION_ERROR", `Tipo de archivo no permitido: ${file.type}`)
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    const timestamp = Date.now()
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
-    const fileName = `${timestamp}-${safeName}`
-
-    const uploadDir = join(process.cwd(), "public", "uploads", module)
-    await mkdir(uploadDir, { recursive: true })
-
-    const filePath = join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
-
-    const url = `/uploads/${module}/${fileName}`
-
+    const url = await uploadFile(file)
     const canScan = isScannable(file.type)
 
     const attachment = await db.attachment.create({

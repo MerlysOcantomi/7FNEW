@@ -195,7 +195,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "automatizaciones", label: "Automatizaciones" },
 ]
 
-type AIMode = "operativo" | "editorial"
+type AIMode = "operativo" | "editorial" | "skina" | "7f" | "cv" | "correccion" | "general"
 
 interface AIQuickAction {
   label: string
@@ -457,7 +457,7 @@ export default function MotorPage() {
 
   return (
     <AppShell currentSection="motor" breadcrumbs={[{ label: "7F" }, { label: "Motor IA" }]}>
-      <SectionPage title="Motor IA" description="Inteligencia artificial operativa y editorial. DeepSeek para razonamiento, GPT-4.1 mini para lenguaje natural.">
+      <SectionPage title="Motor IA" description="IA multimodal con GPT-4.1 y DeepSeek. Modos: Skina, 7F, CV, Correccion, Editorial, Operativo y General.">
 
         {/* Stats - only for rules tabs */}
         {activeTab !== "ia" && (
@@ -514,7 +514,7 @@ export default function MotorPage() {
                   { label: "Prompt", sub: "Texto o modulo", icon: FileText, color: "var(--tab-info)" },
                   { label: "Motor IA", sub: "Router inteligente", icon: Brain, color: "var(--tab-ai)" },
                   { label: "DeepSeek", sub: "Razonamiento", icon: Zap, color: "var(--tab-tasks)" },
-                  { label: "GPT-4.1 mini", sub: "Editorial", icon: Sparkles, color: "var(--tab-phases)" },
+                  { label: "GPT-4.1", sub: "Multimodal", icon: Sparkles, color: "var(--tab-phases)" },
                   { label: "Respuesta", sub: "Texto limpio", icon: CheckCircle2, color: "var(--tab-phases)" },
                 ].map((step, i) => (
                   <div key={step.label} className="flex items-center gap-2 flex-shrink-0">
@@ -535,29 +535,29 @@ export default function MotorPage() {
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Consola IA</p>
-                <div className="flex items-center gap-1.5 rounded-lg border border-border p-0.5">
-                  <button
-                    onClick={() => setAiMode("operativo")}
-                    className={cn(
-                      "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                      aiMode === "operativo"
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5"><Zap className="h-3 w-3" /> Operativo</span>
-                  </button>
-                  <button
-                    onClick={() => setAiMode("editorial")}
-                    className={cn(
-                      "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                      aiMode === "editorial"
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5"><Sparkles className="h-3 w-3" /> Editorial (GPT-4.1 mini)</span>
-                  </button>
+                <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border p-0.5" style={{ scrollbarWidth: "none" }}>
+                  {([
+                    { id: "operativo" as AIMode, label: "Operativo", icon: Zap },
+                    { id: "editorial" as AIMode, label: "Editorial", icon: Sparkles },
+                    { id: "skina" as AIMode, label: "Skina", icon: Sparkles },
+                    { id: "7f" as AIMode, label: "7F", icon: Zap },
+                    { id: "cv" as AIMode, label: "CV", icon: FileText },
+                    { id: "correccion" as AIMode, label: "Correccion", icon: CheckCircle2 },
+                    { id: "general" as AIMode, label: "General", icon: Brain },
+                  ]).map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setAiMode(m.id)}
+                      className={cn(
+                        "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors whitespace-nowrap",
+                        aiMode === m.id
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex items-center gap-1"><m.icon className="h-3 w-3" /> {m.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -581,7 +581,7 @@ export default function MotorPage() {
                 />
                 <div className="flex items-center justify-between mt-3">
                   <p className="text-[10px] text-muted-foreground">
-                    {aiMode === "operativo" ? "DeepSeek R1 — Razonamiento y analisis" : "GPT-4.1 mini — Redaccion y lenguaje natural"} · Ctrl+Enter para ejecutar
+                    {aiMode === "operativo" ? "DeepSeek R1 — Razonamiento" : `GPT-4.1 — Modo ${aiMode}`} · Ctrl+Enter para ejecutar
                   </p>
                   <button
                     onClick={() => executeAI(aiPrompt, aiMode)}
@@ -626,7 +626,7 @@ export default function MotorPage() {
                         <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
                       <p className="text-xs font-medium text-muted-foreground">
-                        Respuesta — {aiMode === "operativo" ? "DeepSeek" : "GPT-4.1 mini"}
+                        Respuesta — {aiMode === "operativo" ? "DeepSeek" : `GPT-4.1 (${aiMode})`}
                       </p>
                     </div>
                     <button
@@ -726,6 +726,9 @@ export default function MotorPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[
                   { method: "POST", path: "/api/ai", desc: "Endpoint unificado (prompt + mode)" },
+                  { method: "POST", path: "/api/ai/chat", desc: "Chat conversacional (skina, 7f, general)" },
+                  { method: "POST", path: "/api/ai/resume", desc: "Resumen y mejora de CV" },
+                  { method: "POST", path: "/api/ai/correct", desc: "Correccion ortografica y redaccion" },
                   { method: "POST", path: "/api/ai/tareas", desc: "prioridad, riesgos, subtareas, resumir_notas" },
                   { method: "POST", path: "/api/ai/proyectos", desc: "analisis, retrasos, siguientes_pasos" },
                   { method: "POST", path: "/api/ai/clientes", desc: "resumen, comunicacion" },

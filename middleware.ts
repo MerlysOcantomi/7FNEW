@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-
-// AUTH TEMPORARILY DISABLED - allow all requests through
-export async function middleware(_request: NextRequest) {
-  return NextResponse.next()
-}
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-}
-
-/* ORIGINAL MIDDLEWARE - RE-ENABLE WHEN AUTH IS READY
 import { jwtVerify } from "jose"
 
-const COOKIE_NAME = "7f-session"
+const INTERNAL_COOKIE = "7f-session"
+const CLIENT_COOKIE = "7f-client-session"
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
@@ -23,16 +13,14 @@ function isPublic(pathname: string): boolean {
   return false
 }
 
-const ADMIN_PATHS = ["/admin"]
-const EDITOR_PATHS = ["/finanzas", "/facturacion", "/motor", "/calendario"]
+function isClientPortalRoute(pathname: string): boolean {
+  return pathname.startsWith("/cliente") || pathname.startsWith("/api/cliente")
+}
 
-type Role = "admin" | "editor" | "viewer"
-const ROLE_LEVEL: Record<Role, number> = { admin: 3, editor: 2, viewer: 1 }
-
-function getRequiredLevel(pathname: string): number {
-  if (ADMIN_PATHS.some((p) => pathname.startsWith(p))) return ROLE_LEVEL.admin
-  if (EDITOR_PATHS.some((p) => pathname.startsWith(p))) return ROLE_LEVEL.editor
-  return ROLE_LEVEL.viewer
+function getSecret(): Uint8Array | null {
+  const secret = process.env.AUTH_SECRET
+  if (!secret) return null
+  return new TextEncoder().encode(secret)
 }
 
 export async function middleware(request: NextRequest) {
@@ -40,18 +28,67 @@ export async function middleware(request: NextRequest) {
 
   if (isPublic(pathname)) return NextResponse.next()
 
-  const token = request.cookies.get(COOKIE_NAME)?.value
+  if (isClientPortalRoute(pathname)) {
+    const token = request.cookies.get(CLIENT_COOKIE)?.value
+    if (!token) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+      }
+      return NextResponse.redirect(new URL("/cliente/login", request.url))
+    }
+
+    const secret = getSecret()
+    if (!secret) {
+      return NextResponse.redirect(new URL("/cliente/login?error=config", request.url))
+    }
+
+    try {
+      const { payload } = await jwtVerify(token, secret)
+      if (payload.type !== "client") {
+        return NextResponse.redirect(new URL("/cliente/login", request.url))
+      }
+
+      const headers = new Headers(request.headers)
+      headers.set("x-client-id", payload.clienteId as string)
+      headers.set("x-client-email", payload.email as string)
+      return NextResponse.next({ request: { headers } })
+    } catch {
+      const response = pathname.startsWith("/api/")
+        ? NextResponse.json({ error: "Sesion expirada" }, { status: 401 })
+        : NextResponse.redirect(new URL("/cliente/login", request.url))
+      response.cookies.set(CLIENT_COOKIE, "", { path: "/", maxAge: 0 })
+      return response
+    }
+  }
+
+  // Internal routes: allow all for now (Google OAuth disabled)
+  // When re-enabled, uncomment the block below
+  return NextResponse.next()
+
+  /* INTERNAL AUTH - RE-ENABLE WHEN GOOGLE OAUTH IS READY
+  const ADMIN_PATHS = ["/admin"]
+  const EDITOR_PATHS = ["/finanzas", "/facturacion", "/motor", "/calendario"]
+  type Role = "admin" | "editor" | "viewer"
+  const ROLE_LEVEL: Record<Role, number> = { admin: 3, editor: 2, viewer: 1 }
+
+  function getRequiredLevel(p: string): number {
+    if (ADMIN_PATHS.some((ap) => p.startsWith(ap))) return ROLE_LEVEL.admin
+    if (EDITOR_PATHS.some((ep) => p.startsWith(ep))) return ROLE_LEVEL.editor
+    return ROLE_LEVEL.viewer
+  }
+
+  const token = request.cookies.get(INTERNAL_COOKIE)?.value
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  try {
-    const secret = process.env.AUTH_SECRET
-    if (!secret) {
-      return NextResponse.redirect(new URL("/login?error=config", request.url))
-    }
+  const secret = getSecret()
+  if (!secret) {
+    return NextResponse.redirect(new URL("/login?error=config", request.url))
+  }
 
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
+  try {
+    const { payload } = await jwtVerify(token, secret)
     const userRole = (payload.role as string) ?? "viewer"
     const userLevel = ROLE_LEVEL[userRole as Role] ?? 1
     const requiredLevel = getRequiredLevel(pathname)
@@ -64,12 +101,15 @@ export async function middleware(request: NextRequest) {
     headers.set("x-user-id", payload.userId as string)
     headers.set("x-user-email", payload.email as string)
     headers.set("x-user-role", userRole)
-
     return NextResponse.next({ request: { headers } })
   } catch {
     const response = NextResponse.redirect(new URL("/login", request.url))
-    response.cookies.set(COOKIE_NAME, "", { path: "/", maxAge: 0 })
+    response.cookies.set(INTERNAL_COOKIE, "", { path: "/", maxAge: 0 })
     return response
   }
+  */
 }
-*/
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+}
