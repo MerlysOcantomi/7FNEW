@@ -28,6 +28,7 @@ export function ClienteForm({ open, onClose, onSuccess, data }: Props) {
   const isEditing = !!data?.id
   const [saving, setSaving] = useState(false)
   const [nombre, setNombre] = useState("")
+  const [customId, setCustomId] = useState("")
   const [email, setEmail] = useState("")
   const [telefono, setTelefono] = useState("")
   const [empresa, setEmpresa] = useState("")
@@ -38,6 +39,7 @@ export function ClienteForm({ open, onClose, onSuccess, data }: Props) {
   useEffect(() => {
     if (open) {
       setNombre(data?.nombre ?? "")
+      setCustomId(data?.customId ?? "")
       setEmail(data?.email ?? "")
       setTelefono(data?.telefono ?? "")
       setEmpresa(data?.empresa ?? "")
@@ -52,7 +54,7 @@ export function ClienteForm({ open, onClose, onSuccess, data }: Props) {
     if (!nombre.trim()) return toast.error("El nombre es requerido")
     setSaving(true)
     try {
-      const body = { nombre: nombre.trim(), email: email || null, telefono: telefono || null, empresa: empresa || null, tipo, estado, notas: notas || null }
+      const body = { nombre: nombre.trim(), customId: customId.trim() || null, email: email || null, telefono: telefono || null, empresa: empresa || null, tipo, estado, notas: notas || null }
       if (isEditing) {
         await apiPatch(`/api/clientes/${data.id}`, body)
         toast.success("Cliente actualizado")
@@ -85,11 +87,14 @@ export function ClienteForm({ open, onClose, onSuccess, data }: Props) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nombre *" className="sm:col-span-2">
+            <Field label="Nombre *">
               <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del cliente" className="input-field" autoFocus />
             </Field>
+            <Field label="ID / Codigo cliente">
+              <input type="text" value={customId} onChange={(e) => setCustomId(e.target.value)} placeholder="CL-001, SKN-042..." className="input-field" />
+            </Field>
             <Field label="Empresa">
-              <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Empresa o razón social" className="input-field" />
+              <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Empresa o razon social" className="input-field" />
             </Field>
             <Field label="Email">
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" className="input-field" />
