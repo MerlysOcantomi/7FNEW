@@ -43,18 +43,39 @@ export async function list(params: ListParams) {
   if (assignedTo) conditions.push({ assignedTo: { contains: assignedTo } })
   if (tag) conditions.push({ tags: { contains: tag } })
 
+  let clienteIdsFromSearch: string[] | null = null
+
   if (search) {
-    conditions.push({
-      OR: [
-        { nombre: { contains: search } },
-        { descripcion: { contains: search } },
-        { customId: { contains: search } },
-        { tags: { contains: search } },
-        { assignedTo: { contains: search } },
-        { cliente: { nombre: { contains: search } } },
-        { cliente: { empresa: { contains: search } } },
-      ],
-    })
+    try {
+      const matchingClientes = await db.cliente.findMany({
+        where: {
+          OR: [
+            { nombre: { contains: search } },
+            { empresa: { contains: search } },
+          ],
+        },
+        select: { id: true },
+      })
+      if (matchingClientes.length > 0) {
+        clienteIdsFromSearch = matchingClientes.map((c) => c.id)
+      }
+    } catch {
+      clienteIdsFromSearch = null
+    }
+
+    const searchOr: Prisma.ProyectoWhereInput[] = [
+      { nombre: { contains: search } },
+      { descripcion: { contains: search } },
+      { customId: { contains: search } },
+      { tags: { contains: search } },
+      { assignedTo: { contains: search } },
+    ]
+
+    if (clienteIdsFromSearch && clienteIdsFromSearch.length > 0) {
+      searchOr.push({ clienteId: { in: clienteIdsFromSearch } })
+    }
+
+    conditions.push({ OR: searchOr })
   }
 
   if (userId && userRole !== "admin") {
