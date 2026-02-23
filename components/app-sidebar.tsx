@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Calendar,
   ShieldCheck,
+  Bot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -67,6 +68,7 @@ const managementSections: SidebarItem[] = [
 ]
 
 const toolsSections: SidebarItem[] = [
+  { id: "agente", label: "Agente Ejecutivo", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
   { id: "motor", label: "Motor IA", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
   { id: "identidad", label: "Resolucion Identidad", icon: Fingerprint, href: "/identidad", roles: ["admin", "editor"] },
   { id: "historial", label: "Historial", icon: History, href: "/historial", roles: ["admin", "editor", "viewer"] },
