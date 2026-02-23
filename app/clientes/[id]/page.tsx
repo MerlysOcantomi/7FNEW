@@ -358,7 +358,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <SavedQRCodes module="clientes" recordId={id} />
 
         {/* Portal de Clientes */}
-        <ClientPortalAccess clienteId={id} clienteEmail={data?.email} />
+        <ClientPortalAccess clienteId={id} clienteEmail={client?.email} />
 
         {/* Comentarios + Actividad */}
         <CommentsSection module="clientes" recordId={id} />
