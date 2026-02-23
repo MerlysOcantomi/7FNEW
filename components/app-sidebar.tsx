@@ -51,7 +51,7 @@ const mainSections: SidebarItem[] = [
   { id: "entrada", label: "Entrada Manual", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
   { id: "clientes", label: "Clientes", icon: Users, href: "/clientes", roles: ["admin", "editor", "viewer"] },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban, href: "/proyectos", roles: ["admin", "editor", "viewer"] },
-  { id: "contenido", label: "Contenido", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
+  { id: "contenido", label: "Campanas & Contenido", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
   { id: "tareas", label: "Tareas", icon: CheckSquare, href: "/tareas", roles: ["admin", "editor", "viewer"] },
   { id: "calendario", label: "Calendario", icon: Calendar, href: "/calendario", roles: ["admin", "editor"] },
   { id: "archivos", label: "Archivos", icon: FolderOpen, href: "/archivos", roles: ["admin", "editor", "viewer"] },

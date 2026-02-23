@@ -31,6 +31,7 @@ model Cliente {
   clientProjects     ClientProject[]
   clientInvoices     ClientInvoice[]
   clientFiles        ClientFile[]
+  campaigns          Campaign[]
 }
 
 model Proyecto {
@@ -63,6 +64,7 @@ model Proyecto {
   facturas      Factura[]
   eventos       Evento[]
   notas         Nota[]
+  campaigns     Campaign[]
 }
 
 model Tarea {
@@ -321,6 +323,72 @@ model ClientFile {
   createdAt DateTime @default(now())
 
   cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  nombre      String
+  descripcion String?
+  estado      String    @default("idea")
+  marca       String    @default("general")
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  presupuesto Float?
+  objetivos   String?
+  clienteId   String?
+  proyectoId  String?
+  visibility  String    @default("public")
+  allowedUsers String?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  piezas   ContentPiece[]
+}
+
+model ContentPiece {
+  id              String    @id @default(cuid())
+  titulo          String
+  copy            String?
+  plataforma      String    @default("instagram")
+  tipo            String    @default("post")
+  estado          String    @default("idea")
+  fechaProgramada DateTime?
+  fechaPublicada  DateTime?
+  hashtags        String?
+  mediaUrl        String?
+  mediaType       String?
+  enlace          String?
+  notas           String?
+  responsable     String?
+  prioridad       String    @default("media")
+  campaignId      String?
+  clienteId       String?
+  proyectoId      String?
+  visibility      String    @default("public")
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+}
+
+model ContentIdea {
+  id         String   @id @default(cuid())
+  titulo     String
+  descripcion String?
+  categoria  String?
+  plataforma String?
+  tags       String?
+  estado     String   @default("nueva")
+  fuente     String   @default("manual")
+  clienteId  String?
+  proyectoId String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Attachment {
