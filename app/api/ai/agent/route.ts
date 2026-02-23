@@ -1,60 +1,75 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
-import { chatCompletion } from "@/lib/openai"
 import { AGENT_SYSTEM_PROMPT } from "@/lib/agent/system-prompt"
+import { AGENT_TOOLS } from "@/lib/agent/tools"
+import { executeToolCall } from "@/lib/agent/executor"
 import { db } from "@/lib/db"
 
 const MAX_HISTORY = 20
 const MAX_INPUT = 12000
+const MAX_TOOL_ROUNDS = 5
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
-interface ContextData {
-  clientes?: any[]
-  proyectos?: any[]
-  tareas?: any[]
-  facturas?: any[]
-  campanas?: any[]
-  calendario?: any[]
+function getApiKey(): string {
+  const key = process.env.OPENAI_API_KEY
+  if (!key) throw new Error("OPENAI_API_KEY no configurada")
+  return key
 }
 
 async function gatherContext(): Promise<string> {
   try {
-    const [clientes, proyectos, tareasPendientes, facturasRecientes, campanasActivas] = await Promise.all([
+    const [clientes, proyectos, tareasPendientes, facturasRecientes, campanasActivas, contenidoReciente] = await Promise.all([
       db.cliente.findMany({ take: 30, orderBy: { updatedAt: "desc" }, select: { id: true, nombre: true, email: true, empresa: true } }),
       db.proyecto.findMany({ where: { estado: { not: "completado" } }, take: 20, orderBy: { updatedAt: "desc" }, select: { id: true, nombre: true, estado: true, prioridad: true, clienteId: true, fechaEntrega: true } }),
       db.tarea.findMany({ where: { estado: { not: "completada" } }, take: 20, orderBy: { fechaVencimiento: "asc" }, select: { id: true, titulo: true, estado: true, prioridad: true, fechaVencimiento: true, proyectoId: true } }),
       db.factura.findMany({ take: 15, orderBy: { createdAt: "desc" }, select: { id: true, numero: true, estado: true, total: true, clienteId: true, fechaEmision: true, fechaVencimiento: true } }),
-      db.campaign.findMany({ where: { estado: { in: ["activa", "planificacion"] } }, take: 10, orderBy: { updatedAt: "desc" }, select: { id: true, nombre: true, estado: true, marca: true, fechaInicio: true, fechaFin: true } }),
+      db.campaign.findMany({ where: { estado: { in: ["activa", "planificacion"] } }, take: 10, orderBy: { updatedAt: "desc" }, select: { id: true, nombre: true, estado: true, marca: true } }),
+      db.contentPiece.findMany({ take: 10, orderBy: { createdAt: "desc" }, select: { id: true, titulo: true, estado: true, plataforma: true, tipo: true } }),
     ])
 
     const parts: string[] = []
+    const today = new Date()
+    parts.push(`FECHA ACTUAL: ${today.toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`)
 
     if (clientes.length > 0) {
-      parts.push(`CLIENTES ACTIVOS (${clientes.length}):\n${clientes.map((c) => `- ${c.nombre}${c.empresa ? ` (${c.empresa})` : ""} — ${c.email || "sin email"}`).join("\n")}`)
+      parts.push(`CLIENTES (${clientes.length}):\n${clientes.map((c) => `- [${c.id}] ${c.nombre}${c.empresa ? ` (${c.empresa})` : ""} — ${c.email || "sin email"}`).join("\n")}`)
     }
-
     if (proyectos.length > 0) {
-      parts.push(`PROYECTOS EN CURSO (${proyectos.length}):\n${proyectos.map((p) => `- ${p.nombre} [${p.estado}] prioridad:${p.prioridad || "normal"}${p.fechaEntrega ? ` entrega:${new Date(p.fechaEntrega).toLocaleDateString("es-MX")}` : ""}`).join("\n")}`)
+      parts.push(`PROYECTOS ACTIVOS (${proyectos.length}):\n${proyectos.map((p) => `- [${p.id}] ${p.nombre} [${p.estado}] prioridad:${p.prioridad || "normal"}${p.fechaEntrega ? ` entrega:${new Date(p.fechaEntrega).toLocaleDateString("es-MX")}` : ""}`).join("\n")}`)
     }
-
     if (tareasPendientes.length > 0) {
-      parts.push(`TAREAS PENDIENTES (${tareasPendientes.length}):\n${tareasPendientes.map((t) => `- ${t.titulo} [${t.estado}] prioridad:${t.prioridad || "normal"}${t.fechaVencimiento ? ` vence:${new Date(t.fechaVencimiento).toLocaleDateString("es-MX")}` : ""}`).join("\n")}`)
+      const atrasadas = tareasPendientes.filter((t) => t.fechaVencimiento && new Date(t.fechaVencimiento) < today)
+      parts.push(`TAREAS PENDIENTES (${tareasPendientes.length}, ${atrasadas.length} atrasadas):\n${tareasPendientes.map((t) => {
+        const vencida = t.fechaVencimiento && new Date(t.fechaVencimiento) < today
+        return `- [${t.id}] ${t.titulo} [${t.estado}] prioridad:${t.prioridad || "normal"}${t.fechaVencimiento ? ` vence:${new Date(t.fechaVencimiento).toLocaleDateString("es-MX")}` : ""}${vencida ? " ⚠ ATRASADA" : ""}`
+      }).join("\n")}`)
     }
-
     if (facturasRecientes.length > 0) {
-      parts.push(`FACTURAS RECIENTES (${facturasRecientes.length}):\n${facturasRecientes.map((f) => `- #${f.numero} [${f.estado}] $${f.total}${f.fechaVencimiento ? ` vence:${new Date(f.fechaVencimiento).toLocaleDateString("es-MX")}` : ""}`).join("\n")}`)
+      const vencidas = facturasRecientes.filter((f) => f.fechaVencimiento && new Date(f.fechaVencimiento) < today && f.estado !== "pagada")
+      parts.push(`FACTURAS (${facturasRecientes.length}, ${vencidas.length} vencidas):\n${facturasRecientes.map((f) => {
+        const vencida = f.fechaVencimiento && new Date(f.fechaVencimiento) < today && f.estado !== "pagada"
+        return `- [${f.id}] #${f.numero} [${f.estado}] $${f.total}${f.fechaVencimiento ? ` vence:${new Date(f.fechaVencimiento).toLocaleDateString("es-MX")}` : ""}${vencida ? " ⚠ VENCIDA" : ""}`
+      }).join("\n")}`)
     }
-
     if (campanasActivas.length > 0) {
-      parts.push(`CAMPANAS ACTIVAS (${campanasActivas.length}):\n${campanasActivas.map((c) => `- ${c.nombre} [${c.estado}] marca:${c.marca}`).join("\n")}`)
+      parts.push(`CAMPANAS (${campanasActivas.length}):\n${campanasActivas.map((c) => `- [${c.id}] ${c.nombre} [${c.estado}] marca:${c.marca}`).join("\n")}`)
     }
-
-    parts.push(`FECHA ACTUAL: ${new Date().toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`)
+    if (contenidoReciente.length > 0) {
+      parts.push(`CONTENIDO RECIENTE (${contenidoReciente.length}):\n${contenidoReciente.map((c) => `- [${c.id}] ${c.titulo} [${c.estado}] ${c.plataforma}/${c.tipo}`).join("\n")}`)
+    }
 
     return parts.join("\n\n")
   } catch (error) {
-    console.error("[Agent] Error gathering context:", error)
-    return `FECHA ACTUAL: ${new Date().toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n(No se pudo cargar contexto de la base de datos)`
+    console.error("[Agent] Context error:", error)
+    return `FECHA ACTUAL: ${new Date().toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n(Error al cargar contexto)`
   }
+}
+
+interface ChatMessage {
+  role: "system" | "user" | "assistant" | "tool"
+  content: string | null
+  tool_calls?: any[]
+  tool_call_id?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -66,29 +81,93 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION", "El mensaje es requerido", 400)
     }
     if (message.length > MAX_INPUT) {
-      return errorResponse("VALIDATION", `El mensaje excede el limite de ${MAX_INPUT} caracteres`, 400)
+      return errorResponse("VALIDATION", `Mensaje excede ${MAX_INPUT} caracteres`, 400)
     }
 
     const context = await gatherContext()
-    const systemMessage = `${AGENT_SYSTEM_PROMPT}\n\n═══════════════════════════════════════════\nCONTEXTO ACTUAL DEL NEGOCIO\n═══════════════════════════════════════════\n\n${context}`
+    const systemContent = `${AGENT_SYSTEM_PROMPT}\n\n═══════════════════════════════════════\nCONTEXTO ACTUAL DEL NEGOCIO\n═══════════════════════════════════════\n\n${context}`
 
-    const cleanHistory = (Array.isArray(history) ? history : [])
+    const cleanHistory: ChatMessage[] = (Array.isArray(history) ? history : [])
       .filter((m: any) => m.role && m.content && ["user", "assistant"].includes(m.role))
       .slice(-MAX_HISTORY)
-      .map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content.slice(0, 4000) }))
+      .map((m: any) => ({ role: m.role, content: (m.content as string).slice(0, 4000) }))
 
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-      { role: "system", content: systemMessage },
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemContent },
       ...cleanHistory,
       { role: "user", content: message },
     ]
 
-    const response = await chatCompletion(messages, {
-      temperature: 0.6,
-      maxTokens: 8192,
-    })
+    let finalText = ""
+    const actions: Array<{ tool: string; args: any; result: any }> = []
+    const images: string[] = []
 
-    return successResponse({ respuesta: response })
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const res = await fetch(OPENAI_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getApiKey()}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1",
+          messages,
+          tools: AGENT_TOOLS,
+          tool_choice: "auto",
+          temperature: 0.6,
+          max_tokens: 8192,
+        }),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text()
+        console.error("[Agent] OpenAI error:", res.status, errBody)
+        throw new Error(`OpenAI error (${res.status})`)
+      }
+
+      const json = await res.json()
+      const choice = json.choices?.[0]
+      const assistantMsg = choice?.message
+
+      if (!assistantMsg) throw new Error("Respuesta vacia de OpenAI")
+
+      messages.push(assistantMsg)
+
+      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
+        for (const toolCall of assistantMsg.tool_calls) {
+          const fnName = toolCall.function.name
+          let fnArgs: Record<string, any> = {}
+          try {
+            fnArgs = JSON.parse(toolCall.function.arguments || "{}")
+          } catch {
+            fnArgs = {}
+          }
+
+          console.log(`[Agent] Tool call: ${fnName}`, fnArgs)
+          const result = await executeToolCall(fnName, fnArgs)
+
+          actions.push({ tool: fnName, args: fnArgs, result })
+          if (result.imageUrl) images.push(result.imageUrl)
+
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result),
+          })
+        }
+
+        if (choice.finish_reason === "tool_calls") continue
+      }
+
+      finalText = assistantMsg.content || ""
+      break
+    }
+
+    return successResponse({
+      respuesta: finalText,
+      actions: actions.length > 0 ? actions : undefined,
+      images: images.length > 0 ? images : undefined,
+    })
   } catch (error) {
     console.error("[Agent] Error:", error)
     return errorResponse("INTERNAL", error instanceof Error ? error.message : "Error del agente", 500)

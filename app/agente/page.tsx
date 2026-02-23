@@ -20,36 +20,69 @@ import {
   Sparkles,
   Trash2,
   Clock,
+  Image as ImageIcon,
+  PenLine,
+  Lightbulb,
+  BarChart3,
+  CheckCircle2,
+  Zap,
+  ExternalLink,
 } from "lucide-react"
+
+interface AgentAction {
+  tool: string
+  args: Record<string, any>
+  result: { success: boolean; data?: any; error?: string; imageUrl?: string }
+}
 
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp: string
+  images?: string[]
+  actions?: AgentAction[]
 }
 
 const quickActions = [
   { id: "prioridades", label: "Prioridades de hoy", icon: ListChecks, prompt: "Dame las prioridades de hoy. Revisa tareas pendientes, facturas vencidas y deadlines proximos. Ordenalas por urgencia." },
   { id: "resumen", label: "Resumen semanal", icon: Clock, prompt: "Prepara un resumen semanal: estado de proyectos, tareas completadas, facturas pendientes, campanas activas y proximos deadlines." },
-  { id: "factura-es", label: "Redactar factura", icon: FileText, prompt: "Necesito redactar una factura. Preguntame los datos: cliente, servicios, cantidades, precios e idioma." },
+  { id: "factura", label: "Redactar factura", icon: FileText, prompt: "Necesito redactar una factura. Preguntame los datos: cliente, servicios, cantidades, precios e idioma." },
   { id: "email", label: "Redactar email", icon: Mail, prompt: "Ayudame a redactar un email profesional. Preguntame el destinatario, el asunto y el idioma." },
-  { id: "contenido", label: "Plan de contenido", icon: Megaphone, prompt: "Propone un plan de contenido para esta semana para Instagram y LinkedIn. Incluye tipo de post, copy y hashtags." },
+  { id: "contenido", label: "Plan de contenido", icon: Megaphone, prompt: "Propone un plan de contenido para esta semana para Instagram y LinkedIn. Incluye tipo de post, copy y hashtags. Crea las piezas directamente en el modulo." },
   { id: "clientes", label: "Estado de clientes", icon: Users, prompt: "Dame un resumen del estado de mis clientes: proyectos activos, facturas pendientes y si alguno necesita seguimiento." },
   { id: "calendario", label: "Revisar calendario", icon: Calendar, prompt: "Revisa mi calendario de esta semana. Identifica conflictos, deadlines y prioridades." },
+  { id: "ideas", label: "Generar ideas", icon: Lightbulb, prompt: "Genera 5 ideas creativas de contenido para redes sociales para esta semana. Guardalas en el banco de ideas." },
+  { id: "imagen", label: "Generar imagen", icon: ImageIcon, prompt: "Genera una imagen editorial minimalista en estilo Skina para un post de Instagram. Tema: inspiracion, creatividad y diseno suizo." },
+  { id: "campana", label: "Crear campana", icon: Zap, prompt: "Crea una campana de marketing para esta quincena con nombre, descripcion, objetivos y fechas. Marca: Skina." },
+  { id: "analisis", label: "Analisis de riesgos", icon: BarChart3, prompt: "Analiza los riesgos actuales del negocio: proyectos retrasados, facturas vencidas, clientes sin respuesta y tareas urgentes sin asignar." },
   { id: "traducir", label: "Traducir contenido", icon: Languages, prompt: "Necesito traducir contenido. Preguntame el texto, el idioma de origen y el de destino." },
 ]
+
+const TOOL_LABELS: Record<string, string> = {
+  buscar_clientes: "Busco clientes",
+  detalle_cliente: "Consulto cliente",
+  detalle_proyecto: "Consulto proyecto",
+  buscar_tareas: "Reviso tareas",
+  buscar_facturas: "Reviso facturas",
+  crear_contenido: "Creo contenido",
+  crear_idea: "Guardo idea",
+  crear_tarea: "Creo tarea",
+  crear_campana: "Creo campana",
+  generar_imagen: "Genero imagen",
+}
 
 export default function AgentePage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [toolsInProgress, setToolsInProgress] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [messages])
+  }, [messages, toolsInProgress])
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return
@@ -58,6 +91,7 @@ export default function AgentePage() {
     setMessages((prev) => [...prev, userMsg])
     setInput("")
     setLoading(true)
+    setToolsInProgress([])
 
     try {
       const history = messages.slice(-20).map((m) => ({ role: m.role, content: m.content }))
@@ -67,18 +101,22 @@ export default function AgentePage() {
         body: JSON.stringify({ message: text.trim(), history }),
       })
       const json = await res.json()
-      const content = json.data?.respuesta ?? json.error?.message ?? "Sin respuesta del agente"
+      const data = json.data ?? {}
+      const content = data.respuesta ?? json.error?.message ?? "Sin respuesta"
       const aiMsg: Message = {
         id: `a-${Date.now()}`,
         role: "assistant",
         content: typeof content === "string" ? content : JSON.stringify(content),
         timestamp: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+        images: data.images ?? undefined,
+        actions: data.actions ?? undefined,
       }
       setMessages((prev) => [...prev, aiMsg])
     } catch {
       toast.error("Error de conexion con el agente")
     } finally {
       setLoading(false)
+      setToolsInProgress([])
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }
@@ -91,20 +129,20 @@ export default function AgentePage() {
   }
 
   return (
-    <AppShell currentSection="agente" breadcrumbs={[{ label: "7F" }, { label: "Agente Ejecutivo" }]}>
-      <SectionPage title="Agente Ejecutivo 7F" description="Asistente autonomo con GPT-4.1. Gestiona facturas, emails, contenido, calendario y clientes.">
+    <AppShell currentSection="agente" breadcrumbs={[{ label: "7F" }, { label: "Agente Hibrido 7F–Skina" }]}>
+      <SectionPage title="Agente Hibrido 7F–Skina" description="Operativo + Creativo + Autonomo. GPT-4.1 con acceso a tu negocio, DALL-E 3 para imagenes.">
 
-        {/* Quick actions */}
+        {/* Quick actions — initial state */}
         {messages.length === 0 && (
           <div className="flex flex-col gap-5">
             <div className="text-center py-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mx-auto mb-4">
-                <Bot className="h-8 w-8 text-muted-foreground" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-muted/50 mx-auto mb-4 border border-border">
+                <Bot className="h-8 w-8 text-foreground/60" />
               </div>
               <h2 className="text-lg font-semibold text-foreground">Hola, Merlys</h2>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                Soy tu agente ejecutivo. Conozco tus clientes, proyectos, facturas y calendario. 
-                Preguntame lo que necesites o usa una accion rapida.
+              <p className="text-sm text-muted-foreground mt-1 max-w-lg mx-auto">
+                Soy tu agente hibrido. Puedo operar tu empresa, crear contenido, generar imagenes, 
+                planificar campanas y gestionar clientes. Todo desde aqui.
               </p>
             </div>
 
@@ -114,7 +152,7 @@ export default function AgentePage() {
                 return (
                   <button key={action.id} onClick={() => sendMessage(action.prompt)} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left hover:bg-muted/30 transition-colors group">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0 group-hover:bg-foreground/10 transition-colors">
-                      <Icon className="h-4.5 w-4.5 text-muted-foreground" />
+                      <Icon className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <span className="text-sm font-medium text-foreground">{action.label}</span>
                   </button>
@@ -124,19 +162,19 @@ export default function AgentePage() {
           </div>
         )}
 
-        {/* Chat */}
+        {/* Chat interface */}
         {messages.length > 0 && (
-          <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ height: "calc(100vh - 280px)", minHeight: "400px" }}>
+          <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border px-5 py-3">
               <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-semibold text-foreground">Agente Ejecutivo</span>
-                <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-medium">GPT-4.1</span>
+                <Bot className="h-4 w-4 text-foreground/60" />
+                <span className="text-xs font-semibold text-foreground">Agente Hibrido</span>
+                <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-medium">GPT-4.1 + DALL-E 3</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">{messages.length} msgs</span>
-                <button onClick={() => setMessages([])} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground" title="Limpiar conversacion">
+                <button onClick={() => setMessages([])} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground" title="Limpiar">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -151,9 +189,38 @@ export default function AgentePage() {
                       <Bot className="h-4 w-4 text-muted-foreground" />
                     </div>
                   )}
-                  <div className={cn("rounded-xl px-4 py-3 max-w-[85%]", msg.role === "user" ? "bg-foreground text-background" : "bg-muted/50 border border-border text-foreground")}>
-                    <div className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</div>
-                    <p className={cn("text-[10px] mt-1.5", msg.role === "user" ? "text-background/60" : "text-muted-foreground")}>{msg.timestamp}</p>
+                  <div className={cn("max-w-[85%] flex flex-col gap-2")}>
+                    {/* Actions executed */}
+                    {msg.actions && msg.actions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {msg.actions.map((a, i) => (
+                          <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium", a.result.success ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400")}>
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            {TOOL_LABELS[a.tool] || a.tool}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Text */}
+                    <div className={cn("rounded-xl px-4 py-3", msg.role === "user" ? "bg-foreground text-background" : "bg-muted/50 border border-border text-foreground")}>
+                      <div className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</div>
+                      <p className={cn("text-[10px] mt-1.5", msg.role === "user" ? "text-background/60" : "text-muted-foreground")}>{msg.timestamp}</p>
+                    </div>
+
+                    {/* Images */}
+                    {msg.images && msg.images.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {msg.images.map((url, i) => (
+                          <div key={i} className="relative group">
+                            <img src={url} alt={`Imagen generada ${i + 1}`} className="rounded-xl border border-border max-w-[300px] max-h-[300px] object-cover" />
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {msg.role === "user" && (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0 mt-0.5">
@@ -162,24 +229,36 @@ export default function AgentePage() {
                   )}
                 </div>
               ))}
+
+              {/* Loading state */}
               {loading && (
                 <div className="flex gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0 mt-0.5">
                     <Bot className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <div className="rounded-xl px-4 py-3 bg-muted/50 border border-border flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Analizando...</span>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="rounded-xl px-4 py-3 bg-muted/50 border border-border flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Procesando...</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Quick action chips */}
+            {/* Quick chips */}
             <div className="border-t border-border px-4 py-2 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              {quickActions.slice(0, 5).map((a) => (
-                <button key={a.id} onClick={() => sendMessage(a.prompt)} disabled={loading} className="flex-shrink-0 rounded-full border border-border px-3 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50">
-                  {a.label}
+              {[
+                { label: "Prioridades", prompt: quickActions[0].prompt },
+                { label: "Ideas", prompt: quickActions[7].prompt },
+                { label: "Contenido", prompt: quickActions[4].prompt },
+                { label: "Imagen", prompt: quickActions[8].prompt },
+                { label: "Clientes", prompt: quickActions[5].prompt },
+                { label: "Campana", prompt: quickActions[9].prompt },
+                { label: "Analisis", prompt: quickActions[10].prompt },
+              ].map((c) => (
+                <button key={c.label} onClick={() => sendMessage(c.prompt)} disabled={loading} className="flex-shrink-0 rounded-full border border-border px-3 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50">
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -187,7 +266,7 @@ export default function AgentePage() {
             {/* Input */}
             <div className="border-t border-border p-4">
               <div className="flex items-end gap-3">
-                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Preguntale al agente..." rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
+                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Preguntale al agente... (operativo, creativo, imagenes, campanas, lo que necesites)" rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
                 <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
                   <Send className="h-4 w-4" />
                 </button>
@@ -196,45 +275,55 @@ export default function AgentePage() {
           </div>
         )}
 
-        {/* Info footer when no messages */}
+        {/* Capabilities footer — initial state */}
         {messages.length === 0 && (
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-semibold text-foreground">Que puede hacer el agente</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-              {[
-                "Redactar facturas en 6 idiomas",
-                "Preparar campanas de marketing",
-                "Generar contenido editorial",
-                "Clasificar y responder emails",
-                "Priorizar tareas del dia",
-                "Preparar resumenes semanales",
-                "Conocer historial de clientes",
-                "Gestionar el calendario",
-                "Detectar facturas vencidas",
-                "Sugerir seguimiento de clientes",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 py-1">
-                  <div className="h-1 w-1 rounded-full bg-foreground/30 flex-shrink-0" />
-                  <span className="text-xs text-muted-foreground">{item}</span>
+          <>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-semibold text-foreground">Capacidades del agente</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Operativo</p>
+                  {["Priorizar tareas del dia", "Detectar facturas vencidas", "Revisar proyectos en riesgo", "Alertas de clientes", "Informes semanales", "Emails multilingues"].map((item) => (
+                    <div key={item} className="flex items-center gap-2 py-0.5">
+                      <div className="h-1 w-1 rounded-full bg-blue-500 flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground">{item}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Creativo</p>
+                  {["Generar ideas de contenido", "Planificar campanas", "Copywriting Skina/7F", "Guiones para reels", "Hashtags y titulos", "Calendarios editoriales"].map((item) => (
+                    <div key={item} className="flex items-center gap-2 py-0.5">
+                      <div className="h-1 w-1 rounded-full bg-purple-500 flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground">{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Generativo</p>
+                  {["Imagenes con DALL-E 3", "Crear piezas de contenido", "Crear tareas y campanas", "Guardar ideas al banco", "Facturas en 6 idiomas", "Acciones en la base de datos"].map((item) => (
+                    <div key={item} className="flex items-center gap-2 py-0.5">
+                      <div className="h-1 w-1 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Invisible input area when no chat yet */}
-        {messages.length === 0 && (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-end gap-3">
-              <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Escribe tu primera consulta al agente..." rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
-              <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+            {/* Initial input */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-end gap-3">
+                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Escribe tu primera consulta..." rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
+                <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
       </SectionPage>
