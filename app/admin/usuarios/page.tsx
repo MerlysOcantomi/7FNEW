@@ -146,6 +146,9 @@ export default function AdminUsuariosPage() {
   return (
     <AppShell currentSection="admin" breadcrumbs={[{ label: "7F" }, { label: "Admin" }, { label: "Usuarios" }]}>
       <SectionPage title="Administracion de Usuarios" description="Gestiona correos autorizados, roles y accesos. Solo la administradora puede modificar permisos.">
+        <p className="text-sm text-muted-foreground -mt-2">
+          Acceso por Google: solo los correos en lista blanca pueden iniciar sesion y cada correo hereda su rol.
+        </p>
         <RoleGate requiredRole="admin">
 
         {/* Tabs */}
