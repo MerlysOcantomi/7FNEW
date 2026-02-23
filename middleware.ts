@@ -14,7 +14,8 @@ function isPublic(pathname: string): boolean {
 }
 
 function isClientPortalRoute(pathname: string): boolean {
-  return pathname.startsWith("/cliente") || pathname.startsWith("/api/cliente")
+  return (pathname === "/cliente" || pathname.startsWith("/cliente/")) ||
+         (pathname.startsWith("/api/cliente/"))
 }
 
 function getSecret(): Uint8Array | null {
