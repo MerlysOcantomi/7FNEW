@@ -1,22 +1,37 @@
-import { createClient } from "@supabase/supabase-js"
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("[Supabase] NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configuradas")
-}
-
-export const supabase = createClient(supabaseUrl ?? "", supabaseKey ?? "")
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 export const STORAGE_BUCKET = "archivos"
+
+let _supabase: SupabaseClient | null = null
+
+export function getSupabase(): SupabaseClient {
+  if (_supabase) return _supabase
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("[Supabase] NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY deben estar configuradas")
+  }
+
+  _supabase = createClient(supabaseUrl, supabaseKey)
+  return _supabase
+}
+
+/** @deprecated Use getSupabase() instead */
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    return (getSupabase() as any)[prop]
+  },
+})
 
 export async function uploadToStorage(
   file: Buffer,
   path: string,
   contentType: string,
 ): Promise<string> {
-  const { data, error } = await supabase.storage
+  const client = getSupabase()
+  const { data, error } = await client.storage
     .from(STORAGE_BUCKET)
     .upload(path, file, {
       contentType,
@@ -25,7 +40,7 @@ export async function uploadToStorage(
 
   if (error) throw new Error(`Error al subir archivo: ${error.message}`)
 
-  const { data: urlData } = supabase.storage
+  const { data: urlData } = client.storage
     .from(STORAGE_BUCKET)
     .getPublicUrl(data.path)
 
@@ -33,7 +48,8 @@ export async function uploadToStorage(
 }
 
 export async function deleteFromStorage(path: string): Promise<void> {
-  const { error } = await supabase.storage
+  const client = getSupabase()
+  const { error } = await client.storage
     .from(STORAGE_BUCKET)
     .remove([path])
 
