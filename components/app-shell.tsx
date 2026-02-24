@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { AppChat } from "@/components/app-chat"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/hooks/use-user"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -13,6 +15,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, currentSection, breadcrumbs = [] }: AppShellProps) {
+  const router = useRouter()
+  const { user, loading } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chatOpen, setChatOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -22,6 +26,24 @@ export function AppShell({ children, currentSection, breadcrumbs = [] }: AppShel
   const toggleChat = useCallback(() => setChatOpen((prev) => !prev), [])
   const toggleMobileSidebar = useCallback(() => setMobileSidebarOpen((prev) => !prev), [])
   const toggleMobileChat = useCallback(() => setMobileChatOpen((prev) => !prev), [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login")
+    }
+  }, [loading, user, router])
+
+  if (loading) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Verificando sesion...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
