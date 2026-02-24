@@ -1,6 +1,4 @@
 import { NextRequest } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
 import { db } from "@/lib/db"
 import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
@@ -22,26 +20,14 @@ const ALLOWED_TYPES = new Set([
   "application/zip", "application/x-zip-compressed",
 ])
 
-const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
-
 async function uploadFile(file: File): Promise<string> {
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
-  const timestamp = Date.now()
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
 
-  if (useSupabase) {
-    const { uploadToStorage, getStoragePath } = await import("@/lib/supabase")
-    const path = getStoragePath("uploads", safeName)
-    return uploadToStorage(buffer, path, file.type)
-  }
-
-  const fileName = `${timestamp}-${safeName}`
-  const uploadDir = join(process.cwd(), "public", "uploads")
-  await mkdir(uploadDir, { recursive: true })
-  const filePath = join(uploadDir, fileName)
-  await writeFile(filePath, buffer)
-  return `/uploads/${fileName}`
+  const { uploadToStorage, getStoragePath } = await import("@/lib/storage")
+  const path = getStoragePath("uploads", safeName)
+  return uploadToStorage(buffer, path, file.type)
 }
 
 export async function GET(request: NextRequest) {

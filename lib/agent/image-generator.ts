@@ -1,8 +1,8 @@
 /**
- * DALL-E 3 image generation + Supabase Storage upload.
+ * DALL-E 3 image generation + Vercel Blob upload.
  */
 
-import { supabase, STORAGE_BUCKET } from "@/lib/supabase"
+import { uploadToStorage } from "@/lib/storage"
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
 
@@ -73,18 +73,7 @@ export async function generateImage(
         const timestamp = Date.now()
         storagePath = `agent-images/${timestamp}.png`
 
-        const { data, error } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(storagePath, buffer, { contentType: "image/png", upsert: false })
-
-        if (!error && data) {
-          const { data: urlData } = supabase.storage
-            .from(STORAGE_BUCKET)
-            .getPublicUrl(data.path)
-          finalUrl = urlData.publicUrl
-        } else {
-          console.warn("[Agent Image] Could not upload to Supabase, using OpenAI URL:", error?.message)
-        }
+        finalUrl = await uploadToStorage(buffer, storagePath, "image/png")
       }
     } catch (uploadErr) {
       console.warn("[Agent Image] Storage upload failed, using OpenAI URL:", uploadErr)
