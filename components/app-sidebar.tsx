@@ -8,14 +8,10 @@ import {
   FileText,
   Settings,
   DollarSign,
-  MessageSquare,
-  BookOpen,
-  UserCircle,
   X,
   Receipt,
   Inbox,
   PenLine,
-  Fingerprint,
   Building2,
   BellRing,
   History,
@@ -23,8 +19,8 @@ import {
   CheckSquare,
   FolderOpen,
   Calendar,
-  ShieldCheck,
   Bot,
+  Wrench,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -46,35 +42,36 @@ interface SidebarItem {
   roles: Role[]
 }
 
-const mainSections: SidebarItem[] = [
-  { id: "direccion", label: "Direccion General", icon: LayoutDashboard, href: "/", roles: ["admin", "editor", "viewer"] },
+const flowSections: SidebarItem[] = [
   { id: "inbox", label: "Inbox Inteligente", icon: Inbox, href: "/inbox", roles: ["admin", "editor"] },
   { id: "entrada", label: "Entrada Manual", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
   { id: "clientes", label: "Clientes", icon: Users, href: "/clientes", roles: ["admin", "editor", "viewer"] },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban, href: "/proyectos", roles: ["admin", "editor", "viewer"] },
-  { id: "contenido", label: "Campanas & Contenido", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
   { id: "tareas", label: "Tareas", icon: CheckSquare, href: "/tareas", roles: ["admin", "editor", "viewer"] },
   { id: "calendario", label: "Calendario", icon: Calendar, href: "/calendario", roles: ["admin", "editor"] },
   { id: "archivos", label: "Archivos", icon: FolderOpen, href: "/archivos", roles: ["admin", "editor", "viewer"] },
+  { id: "departamentos", label: "Departamentos", icon: Building2, href: "/departamentos", roles: ["admin", "editor"] },
 ]
 
-const managementSections: SidebarItem[] = [
-  { id: "departamentos", label: "Departamentos", icon: Building2, href: "/departamentos", roles: ["admin", "editor"] },
-  { id: "administracion", label: "Administracion", icon: Settings, href: "/administracion", roles: ["admin"] },
+const forgeSections: SidebarItem[] = [
+  { id: "contenido", label: "Campanas & Contenido", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
+]
+
+const fundsSections: SidebarItem[] = [
   { id: "finanzas", label: "Finanzas", icon: DollarSign, href: "/finanzas", roles: ["admin"] },
   { id: "facturacion", label: "Facturacion", icon: Receipt, href: "/facturacion", roles: ["admin", "editor"] },
-  { id: "comunicacion", label: "Comunicacion", icon: MessageSquare, href: "/comunicacion", roles: ["admin", "editor"] },
-  { id: "notificaciones", label: "Notificaciones", icon: BellRing, href: "/notificaciones", roles: ["admin", "editor", "viewer"] },
 ]
 
-const toolsSections: SidebarItem[] = [
+const futureSections: SidebarItem[] = [
   { id: "agente", label: "Agente Ejecutivo", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
   { id: "motor", label: "Motor IA", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
-  { id: "identidad", label: "Resolucion Identidad", icon: Fingerprint, href: "/identidad", roles: ["admin", "editor"] },
+]
+
+const frameworkSections: SidebarItem[] = [
+  { id: "notificaciones", label: "Notificaciones", icon: BellRing, href: "/notificaciones", roles: ["admin", "editor", "viewer"] },
   { id: "historial", label: "Historial", icon: History, href: "/historial", roles: ["admin", "editor", "viewer"] },
-  { id: "biblioteca", label: "Biblioteca", icon: BookOpen, href: "/biblioteca", roles: ["admin", "editor", "viewer"] },
-  { id: "usuarios", label: "Usuarios", icon: UserCircle, href: "/usuarios", roles: ["admin"] },
-  { id: "admin", label: "Admin Usuarios", icon: ShieldCheck, href: "/admin/usuarios", roles: ["admin"] },
+  { id: "biblioteca", label: "Herramientas", icon: Wrench, href: "/biblioteca", roles: ["admin", "editor", "viewer"] },
+  { id: "administracion", label: "Gestion", icon: Settings, href: "/administracion", roles: ["admin"] },
 ]
 
 function SidebarGroup({ title, items, currentSection, userRole }: { title: string; items: SidebarItem[]; currentSection: string; userRole: string }) {
@@ -82,8 +79,8 @@ function SidebarGroup({ title, items, currentSection, userRole }: { title: strin
   if (filtered.length === 0) return null
 
   return (
-    <div className="mb-6">
-      <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="mb-5">
+      <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
         {title}
       </p>
       <nav className="flex flex-col gap-0.5">
@@ -95,7 +92,7 @@ function SidebarGroup({ title, items, currentSection, userRole }: { title: strin
               key={item.id}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-foreground"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
@@ -116,7 +113,7 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Logo area */}
+      {/* Logo */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
@@ -133,11 +130,30 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
         </button>
       </div>
 
-      {/* Scrollable navigation */}
       <ScrollArea className="flex-1 px-2 py-4">
-        <SidebarGroup title="Principal" items={mainSections} currentSection={currentSection} userRole={role} />
-        <SidebarGroup title="Gestion" items={managementSections} currentSection={currentSection} userRole={role} />
-        <SidebarGroup title="Herramientas" items={toolsSections} currentSection={currentSection} userRole={role} />
+        {/* Dashboard — fijo arriba */}
+        <div className="mb-5">
+          <nav className="flex flex-col gap-0.5">
+            <Link
+              href="/"
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                currentSection === "dashboard"
+                  ? "bg-sidebar-accent text-sidebar-foreground"
+                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+              <span>Dashboard</span>
+            </Link>
+          </nav>
+        </div>
+
+        <SidebarGroup title="Flow" items={flowSections} currentSection={currentSection} userRole={role} />
+        <SidebarGroup title="Forge" items={forgeSections} currentSection={currentSection} userRole={role} />
+        <SidebarGroup title="Funds" items={fundsSections} currentSection={currentSection} userRole={role} />
+        <SidebarGroup title="Future" items={futureSections} currentSection={currentSection} userRole={role} />
+        <SidebarGroup title="Framework" items={frameworkSections} currentSection={currentSection} userRole={role} />
       </ScrollArea>
 
       {/* User area */}
