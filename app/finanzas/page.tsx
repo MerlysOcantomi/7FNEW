@@ -89,10 +89,10 @@ export default function FinanzasPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Ingresos" value={formatCurrency(stats.ingresos)} icon={TrendingUp} accentColor="var(--tab-phases)" />
-          <StatCard label="Egresos" value={formatCurrency(stats.gastos)} icon={CreditCard} accentColor="var(--tab-tasks)" />
-          <StatCard label="Utilidad neta" value={formatCurrency(stats.balance)} icon={DollarSign} accentColor="var(--tab-info)" />
-          <StatCard label="Movimientos" value={String(transactions.length)} icon={Receipt} accentColor="var(--tab-docs)" />
+          <StatCard label="Ingresos" value={formatCurrency(stats.ingresos)} icon={TrendingUp} accentColor="#2563EB" valueColor="#2563EB" />
+          <StatCard label="Egresos" value={formatCurrency(stats.gastos)} icon={CreditCard} accentColor="#1E40AF" valueColor="#1E40AF" />
+          <StatCard label="Utilidad neta" value={formatCurrency(stats.balance)} icon={DollarSign} accentColor="#7C3AED" valueColor="#7C3AED" />
+          <StatCard label="Movimientos" value={String(transactions.length)} icon={Receipt} accentColor="#9333EA" valueColor="#9333EA" />
         </div>
 
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">

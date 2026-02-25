@@ -6,9 +6,10 @@ interface StatCardProps {
   subtitle?: string
   icon: LucideIcon
   accentColor?: string
+  valueColor?: string
 }
 
-export function StatCard({ label, value, subtitle, icon: Icon, accentColor }: StatCardProps) {
+export function StatCard({ label, value, subtitle, icon: Icon, accentColor, valueColor }: StatCardProps) {
   return (
     <div
       className="rounded-xl border border-border/50 border-l-4 bg-card shadow-sm p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
@@ -17,7 +18,12 @@ export function StatCard({ label, value, subtitle, icon: Icon, accentColor }: St
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-          <p className="text-3xl font-bold text-card-foreground">{value}</p>
+          <p
+            className="text-3xl font-bold"
+            style={{ color: valueColor || "var(--card-foreground)" }}
+          >
+            {value}
+          </p>
           {subtitle && (
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           )}
@@ -27,7 +33,7 @@ export function StatCard({ label, value, subtitle, icon: Icon, accentColor }: St
             className="absolute inset-0"
             style={{ backgroundColor: accentColor || "var(--muted)", opacity: 0.15 }}
           />
-          <Icon className="relative h-5 w-5 text-primary" />
+          <Icon className="relative h-5 w-5" style={{ color: accentColor || "var(--muted-foreground)" }} />
         </div>
       </div>
     </div>

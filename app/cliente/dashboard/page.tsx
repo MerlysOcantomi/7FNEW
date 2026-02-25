@@ -61,10 +61,10 @@ export default function ClienteDashboardPage() {
         <div className="space-y-6">
           {/* Stats */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} />
-            <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} />
-            <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} />
-            <StatCard icon={Files} label="Documentos" value={data.stats.totalDocumentos} />
+            <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} color="#2563EB" />
+            <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} color="#1E40AF" />
+            <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} color="#7C3AED" />
+            <StatCard icon={Files} label="Documentos" value={data.stats.totalDocumentos} color="#9333EA" />
           </div>
 
           {/* Proyectos recientes */}
@@ -169,15 +169,16 @@ export default function ClienteDashboardPage() {
   )
 }
 
-function StatCard({ icon: Icon, label, value, total }: { icon: any; label: string; value: number; total?: number }) {
+function StatCard({ icon: Icon, label, value, total, color }: { icon: any; label: string; value: number; total?: number; color?: string }) {
+  const c = color || "#2563EB"
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: c, opacity: 0.12 }}>
+          <Icon className="h-5 w-5" style={{ color: c, opacity: 1 }} />
         </div>
         <div>
-          <p className="text-2xl font-semibold text-foreground">
+          <p className="text-2xl font-bold" style={{ color: c }}>
             {value}
             {total != null && <span className="text-sm font-normal text-muted-foreground"> / {total}</span>}
           </p>
