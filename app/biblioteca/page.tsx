@@ -34,11 +34,11 @@ export default function BibliotecaPage() {
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {["Branding", "Templates", "Media", "Legal"].map((cat) => (
-            <div key={cat} className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow cursor-pointer">
+            <div key={cat} className="rounded-xl border border-border bg-card shadow-sm p-5 hover:bg-muted/40 transition-colors cursor-pointer group">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted mb-3">
-                <BookOpen className="h-5 w-5 text-muted-foreground" />
+                <BookOpen className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground">{cat}</h3>
+              <h3 className="text-sm font-semibold text-foreground group-hover:text-primary">{cat}</h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {resources.filter((r) => r.category === cat).length} archivos
               </p>
@@ -46,19 +46,19 @@ export default function BibliotecaPage() {
           ))}
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <BookOpen className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Todos los Recursos</h2>
           </div>
           <div className="divide-y divide-border">
             {resources.map((res, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div key={i} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors group">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground flex-shrink-0">
                   {typeIcons[res.type] || <File className="h-4 w-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{res.name}</p>
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary">{res.name}</p>
                   <p className="text-xs text-muted-foreground">{res.type} &middot; {res.size} &middot; {res.category}</p>
                 </div>
                 <span className="hidden sm:block text-xs text-muted-foreground flex-shrink-0">{res.date}</span>

@@ -133,7 +133,7 @@ export default function DepartamentosPage() {
 
         {/* Cross-link */}
         <div className="flex justify-end">
-          <Link href="/usuarios" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/usuarios" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
             Ver todos los usuarios →
           </Link>
         </div>
@@ -165,18 +165,18 @@ export default function DepartamentosPage() {
             const DeptIcon = dept.icon
             const isExpanded = expandedDept === dept.id
             return (
-              <div key={dept.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={dept.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Department header */}
                 <button
                   onClick={() => setExpandedDept(isExpanded ? null : dept.id)}
-                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors"
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors group"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: dept.color }}>
                     <DeptIcon className="h-5 w-5 text-foreground/60" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{dept.name}</h3>
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary">{dept.name}</h3>
                       <span className="text-xs text-muted-foreground">&middot; {dept.members.length} miembros</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Lider: {dept.lead}</p>
@@ -211,12 +211,12 @@ export default function DepartamentosPage() {
                     {/* Members */}
                     <div className="divide-y divide-border">
                       {dept.members.map((member) => (
-                        <div key={member.name} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
+                        <div key={member.name} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors group">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted flex-shrink-0">
                             <span className="text-xs font-bold text-muted-foreground">{member.avatar}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <Link href="/usuarios" className="text-sm font-medium text-foreground hover:underline">{member.name}</Link>
+                            <Link href="/usuarios" className="text-sm font-medium text-primary hover:text-primary/80">{member.name}</Link>
                             <p className="text-xs text-muted-foreground">{member.role}</p>
                           </div>
                           <div className="hidden sm:flex items-center gap-4 flex-shrink-0 text-xs text-muted-foreground">

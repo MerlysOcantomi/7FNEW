@@ -31,14 +31,14 @@ export default function AdministracionPage() {
               <Link
                 key={group.title}
                 href={group.href}
-                className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded-xl border border-border bg-card shadow-sm p-5 hover:bg-muted/40 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 group"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
-                    <Icon className="h-5 w-5 text-muted-foreground" />
+                    <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">{group.title}</h3>
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary">{group.title}</h3>
                     <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{group.description}</p>
                     <p className="mt-2 text-xs text-muted-foreground/60">{group.items}</p>
                   </div>

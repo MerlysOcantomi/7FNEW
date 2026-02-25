@@ -96,10 +96,10 @@ export default function EntradaPage() {
       <SectionPage title="Entrada Manual" description="Escribe lo que dijo el cliente en lenguaje natural. La IA se encarga de clasificar, distribuir y crear las acciones correspondientes.">
 
         {/* Main input area */}
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tab-ai)]">
-              <PenLine className="h-4 w-4 text-foreground/60" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <PenLine className="h-4 w-4 text-primary" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Que paso?</p>
@@ -112,7 +112,7 @@ export default function EntradaPage() {
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Ej: 'Maria de Alpha Corp llamo para decir que le gusto la version 3 pero quiere cambios en el color...'"
             rows={4}
-            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
+            className="w-full rounded-lg bg-muted/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none leading-relaxed"
           />
 
           <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
@@ -131,7 +131,7 @@ export default function EntradaPage() {
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
                 inputText.trim()
-                  ? "bg-foreground text-background hover:opacity-80"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
@@ -160,7 +160,7 @@ export default function EntradaPage() {
 
           <div className="flex flex-col gap-3">
             {recentEntries.map((entry) => (
-              <div key={entry.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={entry.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Entry text */}
                 <div className="px-5 py-4 border-b border-border">
                   <div className="flex items-start justify-between gap-3">
@@ -170,7 +170,7 @@ export default function EntradaPage() {
                         <Clock className="h-3 w-3" /> {entry.time}
                       </p>
                     </div>
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0", statusStyles[entry.status])}>
+                    <span className={cn("rounded-md px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0", statusStyles[entry.status])}>
                       {entry.status}
                     </span>
                   </div>
@@ -179,7 +179,7 @@ export default function EntradaPage() {
                 {/* AI interpretation */}
                 <div className="px-5 py-4 bg-muted/20">
                   <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Interpretacion IA</p>
                     <span className="ml-auto text-[10px] text-muted-foreground">Confianza: {entry.aiResult.confidence}%</span>
                   </div>
@@ -218,7 +218,7 @@ export default function EntradaPage() {
 
                   {entry.status === "pendiente" && (
                     <div className="flex items-center gap-2 mt-3">
-                      <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80">
+                      <button className="flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 shadow-sm transition-opacity">
                         <CheckCircle2 className="h-3 w-3" /> Aplicar
                       </button>
                       <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">

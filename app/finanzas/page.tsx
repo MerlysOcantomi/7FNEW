@@ -77,13 +77,13 @@ export default function FinanzasPage() {
           <CanEdit>
           <button
             onClick={() => { setEditingItem(null); setFormOpen(true) }}
-            className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 whitespace-nowrap flex-shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva transacción
           </button>
           </CanEdit>
-          <Link href="/facturacion" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/facturacion" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
             Ver facturacion detallada →
           </Link>
         </div>
@@ -95,9 +95,9 @@ export default function FinanzasPage() {
           <StatCard label="Movimientos" value={String(transactions.length)} icon={Receipt} accentColor="var(--tab-docs)" />
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <Receipt className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Movimientos Recientes</h2>
           </div>
 
@@ -134,29 +134,29 @@ export default function FinanzasPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {transactions.map((tx: any) => (
-                      <tr key={tx.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-5 py-4 text-sm font-medium text-foreground">{tx.descripcion ?? "—"}</td>
+                      <tr key={tx.id} className="hover:bg-muted/40 transition-colors group">
+                        <td className="px-5 py-4 text-sm font-medium text-foreground group-hover:text-primary">{tx.descripcion ?? "—"}</td>
                         <td className="px-5 py-4">
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tx.tipo === "ingreso" ? "bg-[var(--tab-phases)] text-foreground/70" : "bg-[var(--tab-tasks)] text-foreground/70"}`}>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tx.tipo === "ingreso" ? "bg-primary/10 text-primary" : "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400"}`}>
                             {tx.tipo === "ingreso" ? "Ingreso" : "Gasto"}
                           </span>
                         </td>
                         <td className="px-5 py-4 text-sm text-muted-foreground">{formatDate(tx.fecha)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground text-right">
+                        <td className={`px-5 py-4 text-sm font-bold text-right ${tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                           {tx.tipo === "ingreso" ? "+" : "-"}{formatCurrency(Math.abs(Number(tx.monto) || 0))}
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-1 flex-shrink-0">
                             <button
                               onClick={() => { setEditingItem(tx); setFormOpen(true) }}
-                              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
                               aria-label="Editar"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => setDeleteItem(tx)}
-                              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
+                              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-destructive transition-colors"
                               aria-label="Eliminar"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -171,23 +171,23 @@ export default function FinanzasPage() {
 
               <div className="flex flex-col divide-y divide-border md:hidden">
                 {transactions.map((tx: any) => (
-                  <div key={tx.id} className="p-4 flex flex-col gap-1.5">
+                  <div key={tx.id} className="p-4 flex flex-col gap-1.5 hover:bg-muted/40 transition-colors group">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground flex-1 min-w-0">{tx.descripcion ?? "—"}</p>
-                      <p className="text-sm font-semibold text-foreground flex-shrink-0">
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary flex-1 min-w-0">{tx.descripcion ?? "—"}</p>
+                      <p className={`text-sm font-bold flex-shrink-0 ${tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                         {tx.tipo === "ingreso" ? "+" : "-"}{formatCurrency(Math.abs(Number(tx.monto) || 0))}
                       </p>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           onClick={() => { setEditingItem(tx); setFormOpen(true) }}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
                           aria-label="Editar"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteItem(tx)}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-destructive transition-colors"
                           aria-label="Eliminar"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -195,7 +195,7 @@ export default function FinanzasPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tx.tipo === "ingreso" ? "bg-[var(--tab-phases)] text-foreground/70" : "bg-[var(--tab-tasks)] text-foreground/70"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tx.tipo === "ingreso" ? "bg-primary/10 text-primary" : "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400"}`}>
                         {tx.tipo === "ingreso" ? "Ingreso" : "Gasto"}
                       </span>
                       <span className="text-xs text-muted-foreground">{formatDate(tx.fecha)}</span>

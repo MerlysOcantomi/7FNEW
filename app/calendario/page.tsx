@@ -249,10 +249,10 @@ export default function CalendarioPage() {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+            <button onClick={() => navigate(-1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button onClick={() => navigate(1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+            <button onClick={() => navigate(1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
               <ChevronRight className="h-4 w-4" />
             </button>
             <h2 className="text-lg font-semibold text-foreground ml-2">{headerTitle}</h2>
@@ -303,13 +303,14 @@ export default function CalendarioPage() {
                         className={cn(
                           "min-h-[90px] border-b border-r border-border p-1.5 transition-colors",
                           !inMonth && "bg-muted/20",
+                          isToday && "bg-primary/10 border-primary/30",
                           idx % 7 === 6 && "border-r-0"
                         )}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={cn(
                             "text-xs font-medium",
-                            isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background" : inMonth ? "text-foreground" : "text-muted-foreground/50"
+                            isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground" : inMonth ? "text-foreground" : "text-muted-foreground/50"
                           )}>
                             {date.getDate()}
                           </span>
@@ -342,14 +343,14 @@ export default function CalendarioPage() {
 
             {/* ── Week view ── */}
             {view === "week" && (
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="grid grid-cols-7 border-b border-border">
                   {weekDays.map((d, i) => (
-                    <div key={i} className={cn("px-3 py-3 text-center border-r border-border last:border-r-0", isSameDay(d, today) && "bg-foreground/5")}>
+                    <div key={i} className={cn("px-3 py-3 text-center border-r border-border last:border-r-0", isSameDay(d, today) && "bg-primary/10 border-primary/30")}>
                       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{DAY_NAMES[i]}</p>
                       <p className={cn(
                         "text-lg font-semibold mt-0.5",
-                        isSameDay(d, today) ? "text-foreground" : "text-foreground/70"
+                        isSameDay(d, today) ? "text-primary" : "text-foreground/70"
                       )}>{d.getDate()}</p>
                     </div>
                   ))}
@@ -358,7 +359,7 @@ export default function CalendarioPage() {
                   {weekDays.map((d, i) => {
                     const dayItems = getItemsForDate(d)
                     return (
-                      <div key={i} className={cn("p-2 border-r border-border last:border-r-0 flex flex-col gap-1.5", isSameDay(d, today) && "bg-foreground/5")}>
+                      <div key={i} className={cn("p-2 border-r border-border last:border-r-0 flex flex-col gap-1.5", isSameDay(d, today) && "bg-primary/10 border-primary/30")}>
                         {dayItems.map((item) => {
                           const Icon = typeIcons[item.type]
                           return (
@@ -388,7 +389,7 @@ export default function CalendarioPage() {
 
             {/* ── Day view ── */}
             {view === "day" && (
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-5">
                 {(() => {
                   const dayItems = getItemsForDate(currentDate)
                   if (dayItems.length === 0) {
@@ -458,7 +459,7 @@ export default function CalendarioPage() {
           {/* ── Side panel ── */}
           <div className="hidden lg:flex flex-col gap-3 w-80 flex-shrink-0">
             {/* Today's items */}
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
                 Hoy · {today.getDate()} {MONTH_NAMES[today.getMonth()].slice(0, 3)}
               </p>
@@ -489,10 +490,10 @@ export default function CalendarioPage() {
 
             {/* Selected item detail */}
             {selectedItem && (
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Detalle</p>
-                  <button onClick={() => setSelectedItem(null)} className="text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setSelectedItem(null)} className="text-primary hover:text-primary/80">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -501,7 +502,7 @@ export default function CalendarioPage() {
                   <div>
                     <p className="text-sm font-medium text-foreground">{selectedItem.title}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: typeColors[selectedItem.type], color: "var(--foreground)", opacity: 0.7 }}>
+                      <span className="rounded-md px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: typeColors[selectedItem.type], color: "var(--foreground)", opacity: 0.7 }}>
                         {selectedItem.type}
                       </span>
                       <span className="text-[10px] text-muted-foreground">{selectedItem.status}</span>
@@ -516,15 +517,15 @@ export default function CalendarioPage() {
                   onClick={() => getAISuggestion(selectedItem)}
                   disabled={aiLoading}
                   className={cn(
-                    "flex items-center gap-2 w-full justify-center rounded-lg px-3 py-2 text-xs font-medium transition-all",
-                    aiLoading ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground text-background hover:opacity-80"
+                    "flex items-center gap-2 w-full justify-center rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-all",
+                    aiLoading ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                   )}
                 >
                   {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analizando...</> : <><Sparkles className="h-3 w-3" /> Sugerencia IA</>}
                 </button>
 
                 {aiSuggestion && (
-                  <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                  <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
                     <p className="text-[10px] font-medium text-muted-foreground mb-1">Motor IA</p>
                     <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
                   </div>
@@ -533,7 +534,7 @@ export default function CalendarioPage() {
             )}
 
             {/* Alerts */}
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Alertas</p>
               {(() => {
                 const now = new Date()

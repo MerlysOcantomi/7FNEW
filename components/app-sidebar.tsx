@@ -122,7 +122,7 @@ function SidebarGroup({
       <button
         type="button"
         onClick={onToggle}
-        className="mb-1.5 flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        className="mb-1.5 flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
       >
         <span className="flex items-center gap-2">
           <GroupIcon className="h-3.5 w-3.5" />
@@ -143,8 +143,8 @@ function SidebarGroup({
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                  ? "border-l-2 border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
               )}
             >
               <Icon className="h-4 w-4 flex-shrink-0" />
@@ -181,14 +181,14 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
       {/* Logo */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <Link href="/" className="flex items-center gap-2.5" onClick={onClose}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
-            <span className="text-sm font-bold text-background">7F</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
+            <span className="text-sm font-bold text-sidebar-primary-foreground">7F</span>
           </div>
           <span className="text-base font-semibold text-sidebar-foreground">7F Platform</span>
         </Link>
         <button
           onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
           aria-label="Cerrar sidebar"
         >
           <X className="h-4 w-4" />
@@ -203,8 +203,8 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
           className={cn(
             "mb-4 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
             isDashboardActive
-              ? "bg-sidebar-accent text-sidebar-foreground"
-              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+              ? "border-l-2 border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
           )}
         >
           <House className="h-4 w-4 flex-shrink-0" />

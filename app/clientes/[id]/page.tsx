@@ -55,10 +55,10 @@ const clienteTipoOptions = [
 ]
 
 const estadoBadgeClass = (value: string) => {
-  if (value === "activo") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-  if (value === "inactivo") return "bg-muted text-muted-foreground"
-  if (value === "prospecto") return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-  return "bg-muted text-muted-foreground"
+  if (value === "activo") return "rounded-md font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+  if (value === "inactivo") return "rounded-md font-medium bg-muted text-muted-foreground"
+  if (value === "prospecto") return "rounded-md font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  return "rounded-md font-medium bg-muted text-muted-foreground"
 }
 
 const estadoBadge = (v: string) =>
@@ -138,11 +138,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   if (error || !client) {
     return (
       <AppShell currentSection="clientes" breadcrumbs={[{ label: "7F" }, { label: "Clientes", href: "/clientes" }]}>
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-12 text-center">
           <Building className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-semibold text-foreground">Cliente no encontrado</p>
           <p className="text-xs text-muted-foreground mt-1">{error ?? "No se encontró este cliente."}</p>
-          <Link href="/clientes" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          <Link href="/clientes" className="mt-4 inline-block text-sm font-medium text-primary hover:text-primary/80 transition-colors">
             ← Volver a Clientes
           </Link>
         </div>
@@ -161,7 +161,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col gap-8">
         <Link
           href="/clientes"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-fit"
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors w-fit"
         >
           <ArrowLeft className="h-4 w-4" /> Clientes
         </Link>
@@ -169,8 +169,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted flex-shrink-0">
-              <Building className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 flex-shrink-0">
+              <Building className="h-6 w-6 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
@@ -178,7 +178,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   value={client.nombre ?? ""}
                   onSave={(v) => saveField("nombre", v)}
                   as="h1"
-                  className="text-2xl font-semibold tracking-tight text-foreground"
+                  className="text-2xl md:text-3xl font-bold tracking-tight text-foreground"
                   placeholder="Nombre del cliente"
                 />
                 <InlineSelect
@@ -208,7 +208,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Metadata grid */}
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Empresa</p>
@@ -234,7 +234,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Notas */}
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-6">
           <p className="text-xs font-medium text-muted-foreground mb-2">Notas</p>
           <InlineTextarea value={client.notas ?? ""} onSave={(v) => saveField("notas", v)} placeholder="Agregar notas..." rows={3} />
         </div>
@@ -317,6 +317,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <DetailSection
           title="Transacciones"
           icon={TrendingUp}
+          className="shadow-sm"
           badge={
             <span className="text-sm text-muted-foreground">
               Ingresos: {formatCurrency(totalIngresos)} · Gastos: {formatCurrency(totalGastos)}
@@ -337,7 +338,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           ) : (
             <div className="space-y-2">
               {transacciones.map((tr: { id: string; tipo?: string; monto?: number; descripcion?: string; fecha?: string }) => (
-                <div key={tr.id} className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-border bg-background/50">
+                <div key={tr.id} className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-border bg-background/50 hover:bg-muted/40 transition-colors group">
                   <span className={cn(
                     "rounded-full px-2.5 py-0.5 text-xs font-medium",
                     tr.tipo === "ingreso" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
@@ -358,7 +359,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <SavedQRCodes module="clientes" recordId={id} />
 
         {/* Portal de Clientes */}
-        <ClientPortalAccess clienteId={id} clienteEmail={client?.email} />
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+          <ClientPortalAccess clienteId={id} clienteEmail={client?.email} />
+        </div>
 
         {/* Comentarios + Actividad */}
         <CommentsSection module="clientes" recordId={id} />

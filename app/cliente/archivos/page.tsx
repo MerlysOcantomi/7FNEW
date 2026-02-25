@@ -39,36 +39,36 @@ export default function ClienteArchivosPage() {
     <ClientPortalShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Mis Archivos</h1>
-          <p className="text-sm text-gray-500">Documentos y archivos asociados a tu cuenta</p>
+          <h1 className="text-lg font-semibold text-foreground">Mis Archivos</h1>
+          <p className="text-sm text-muted-foreground">Documentos y archivos asociados a tu cuenta</p>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : allFiles.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
-            <Files className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-900">No hay archivos</p>
-            <p className="mt-1 text-xs text-gray-500">Aun no tienes documentos adjuntos</p>
+          <div className="rounded-xl border border-border bg-card shadow-sm px-6 py-16 text-center">
+            <Files className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">No hay archivos</p>
+            <p className="mt-1 text-xs text-muted-foreground">Aun no tienes documentos adjuntos</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-            <div className="divide-y divide-gray-100">
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="divide-y divide-border">
               {allFiles.map((file: any) => {
                 const Icon = getFileIcon(file.tipo)
                 return (
                   <div
                     key={file.id}
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors group"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 flex-shrink-0">
-                      <Icon className="h-5 w-5 text-gray-500" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                      <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{file.nombre}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary">{file.nombre}</p>
+                      <p className="text-xs text-muted-foreground">
                         {file.tipo}
                         {file.tamano ? ` · ${formatBytes(file.tamano)}` : ""}
                         {" · "}
@@ -79,7 +79,7 @@ export default function ClienteArchivosPage() {
                       href={file.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#1a3a5c] transition-colors flex-shrink-0"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors flex-shrink-0"
                     >
                       <Download className="h-4 w-4" />
                     </a>

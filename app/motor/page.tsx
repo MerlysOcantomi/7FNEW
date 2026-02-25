@@ -181,7 +181,7 @@ const automations = [
 ]
 
 const statusBadge: Record<string, string> = {
-  activa: "bg-[var(--tab-phases)] text-foreground/70",
+  activa: "bg-primary/10 text-primary",
   pausada: "bg-[var(--tab-tasks)] text-foreground/70",
   inactiva: "bg-muted text-muted-foreground",
 }
@@ -279,7 +279,7 @@ function AutomatizacionesTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Summary */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Resumen</p>
         <div className="grid grid-cols-3 gap-4">
           <div>
@@ -298,7 +298,7 @@ function AutomatizacionesTab() {
       </div>
 
       {/* IA Automations */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Automatizaciones inteligentes (IA)</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {iaAutomations.map((auto) => {
@@ -310,16 +310,16 @@ function AutomatizacionesTab() {
                 onClick={() => runAutomation(auto.action)}
                 disabled={!!autoLoading}
                 className={cn(
-                  "flex items-start gap-3 rounded-lg border border-border p-4 text-left transition-all",
+                  "flex items-start gap-3 rounded-lg border border-border p-4 text-left shadow-sm hover:shadow-md transition-all",
                   isRunning
-                    ? "border-foreground/20 bg-muted/30"
+                    ? "border-primary/20 bg-primary/10"
                     : autoLoading
                       ? "opacity-50 cursor-not-allowed"
-                      : "hover:border-foreground/20 hover:bg-muted/30"
+                      : "hover:border-primary/20 hover:bg-primary/5"
                 )}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
-                  {isRunning ? <Loader2 className="h-4 w-4 text-foreground/60 animate-spin" /> : <AutoIcon className="h-4 w-4 text-foreground/60" />}
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                  {isRunning ? <Loader2 className="h-4 w-4 text-primary animate-spin" /> : <AutoIcon className="h-4 w-4 text-primary" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{auto.label}</p>
@@ -349,15 +349,15 @@ function AutomatizacionesTab() {
 
       {/* Result */}
       {autoResult && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
               <p className="text-xs font-medium text-muted-foreground">Resultado — {lastAction.replace(/_/g, " ")}</p>
             </div>
             <button
               onClick={() => { navigator.clipboard.writeText(autoResult); setAutoCopied(true); setTimeout(() => setAutoCopied(false), 2000) }}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-primary hover:text-primary/80 transition-colors"
             >
               {autoCopied ? <><Check className="h-3 w-3" /> Copiado</> : <><Copy className="h-3 w-3" /> Copiar</>}
             </button>
@@ -369,20 +369,20 @@ function AutomatizacionesTab() {
       )}
 
       {/* Static automations */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Automatizaciones programadas</p>
         <div className="flex flex-col gap-2">
           {automations.map((auto) => {
             const AutoIcon = auto.icon
             return (
-              <div key={auto.id} className="flex items-start gap-3 rounded-lg border border-border px-4 py-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
-                  <AutoIcon className="h-3.5 w-3.5 text-foreground/60" />
+              <div key={auto.id} className="flex items-start gap-3 rounded-lg border border-border px-4 py-3 shadow-sm hover:shadow-md transition-all">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                  <AutoIcon className="h-3.5 w-3.5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs font-medium text-foreground">{auto.name}</p>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusBadge[auto.status])}>{auto.status}</span>
+                    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", statusBadge[auto.status])}>{auto.status}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {auto.trigger} → {auto.action} · {auto.runs} ejecuciones
@@ -462,23 +462,23 @@ export default function MotorPage() {
         {/* Stats - only for rules tabs */}
         {activeTab !== "ia" && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reglas totales</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{totalRules}</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activas</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{activeRules}</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Ejecuciones</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{totalExec}</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Precision prom.</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{avgAccuracy}%</p>
-              <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--tab-phases)]" style={{ width: `${avgAccuracy}%` }} />
+                <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${avgAccuracy}%` }} />
               </div>
             </div>
           </div>
@@ -492,13 +492,13 @@ export default function MotorPage() {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "rounded-full px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap",
-                activeTab === tab.id ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                activeTab === tab.id ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
               {tab.label}
             </button>
           ))}
-          <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition-opacity hover:opacity-80">
+          <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
             <Plus className="h-3.5 w-3.5" /> Nueva regla
           </button>
         </div>
@@ -507,7 +507,7 @@ export default function MotorPage() {
         {activeTab === "ia" && (
           <div className="flex flex-col gap-4">
             {/* Architecture overview */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Arquitectura del Motor</p>
               <div className="flex items-center justify-between gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {[
@@ -520,7 +520,7 @@ export default function MotorPage() {
                   <div key={step.label} className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-center gap-1.5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: step.color }}>
-                        <step.icon className="h-4 w-4 text-foreground/60" />
+                        <step.icon className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-xs font-medium text-foreground text-center">{step.label}</p>
                       <p className="text-[10px] text-muted-foreground text-center max-w-20">{step.sub}</p>
@@ -532,7 +532,7 @@ export default function MotorPage() {
             </div>
 
             {/* Prompt panel */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Consola IA</p>
                 <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border p-0.5" style={{ scrollbarWidth: "none" }}>
@@ -551,7 +551,7 @@ export default function MotorPage() {
                       className={cn(
                         "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors whitespace-nowrap",
                         aiMode === m.id
-                          ? "bg-foreground text-background"
+                          ? "bg-primary/10 text-primary border border-primary/20"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -576,7 +576,7 @@ export default function MotorPage() {
                     ? "Escribe un analisis, pregunta operativa o solicitud de razonamiento..."
                     : "Escribe una solicitud de redaccion, resumen o comunicacion..."
                   }
-                  className="w-full min-h-[120px] rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full min-h-[120px] rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
                   disabled={aiLoading}
                 />
                 <div className="flex items-center justify-between mt-3">
@@ -590,7 +590,7 @@ export default function MotorPage() {
                       "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all",
                       aiLoading || !aiPrompt.trim()
                         ? "bg-muted text-muted-foreground cursor-not-allowed"
-                        : "bg-foreground text-background hover:opacity-80"
+                        : "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                     )}
                   >
                     {aiLoading ? (
@@ -621,9 +621,9 @@ export default function MotorPage() {
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
                     <div className="flex items-center gap-2">
                       {aiMode === "operativo" ? (
-                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Zap className="h-3.5 w-3.5 text-primary" />
                       ) : (
-                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
                       )}
                       <p className="text-xs font-medium text-muted-foreground">
                         Respuesta — {aiMode === "operativo" ? "DeepSeek" : `GPT-4.1 (${aiMode})`}
@@ -631,7 +631,7 @@ export default function MotorPage() {
                     </div>
                     <button
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-primary hover:text-primary/80 transition-colors"
                     >
                       {aiCopied ? <><Check className="h-3 w-3" /> Copiado</> : <><Copy className="h-3 w-3" /> Copiar</>}
                     </button>
@@ -644,7 +644,7 @@ export default function MotorPage() {
             </div>
 
             {/* Quick actions */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Acciones rapidas por modulo</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {quickActions.map((action) => {
@@ -687,7 +687,7 @@ export default function MotorPage() {
 
             {/* History */}
             {aiHistory.length > 0 && (
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-5">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Historial de sesion ({aiHistory.length})</p>
                 <div className="flex flex-col gap-2">
                   {aiHistory.map((entry, i) => (
@@ -701,9 +701,9 @@ export default function MotorPage() {
                       className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 text-left hover:bg-muted/20 transition-colors"
                     >
                       {entry.mode === "operativo" ? (
-                        <Zap className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <Zap className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                       ) : (
-                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                       )}
                       <p className="text-xs text-foreground truncate flex-1">{entry.prompt}</p>
                       <span className={cn(
@@ -721,7 +721,7 @@ export default function MotorPage() {
             )}
 
             {/* API reference */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Endpoints disponibles</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[
@@ -737,7 +737,7 @@ export default function MotorPage() {
                 ].map((ep) => (
                   <div key={ep.path} className="rounded-lg border border-border px-4 py-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="rounded bg-[var(--tab-phases)] px-1.5 py-0.5 text-[10px] font-mono font-medium text-foreground/70">{ep.method}</span>
+                      <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-medium text-primary">{ep.method}</span>
                       <span className="text-xs font-mono text-foreground">{ep.path}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground">{ep.desc}</p>
@@ -752,7 +752,7 @@ export default function MotorPage() {
         {activeTab === "clasificacion" && (
           <div className="flex flex-col gap-3">
             {/* Pipeline visual */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Pipeline de clasificacion</p>
               <div className="flex items-center justify-between gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {[
@@ -765,7 +765,7 @@ export default function MotorPage() {
                   <div key={step.label} className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-center gap-1.5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: step.color }}>
-                        <step.icon className="h-4 w-4 text-foreground/60" />
+                        <step.icon className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-xs font-medium text-foreground text-center">{step.label}</p>
                       <p className="text-[10px] text-muted-foreground text-center max-w-20">{step.sub}</p>
@@ -780,19 +780,19 @@ export default function MotorPage() {
             {classificationRules.map((rule) => {
               const isExpanded = expandedRule === rule.id
               return (
-                <div key={rule.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div key={rule.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                   <button
                     onClick={() => setExpandedRule(isExpanded ? null : rule.id)}
-                    className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/20 transition-colors"
+                    className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/40 transition-colors"
                   >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
-                      <Sparkles className="h-4 w-4 text-foreground/60" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                      <Sparkles className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className="text-sm font-medium text-foreground">{rule.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{rule.executions} ejecuciones &middot; {rule.accuracy}% precision</p>
                     </div>
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0", statusBadge[rule.status])}>
+                    <span className={cn("rounded-md px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0", statusBadge[rule.status])}>
                       {rule.status}
                     </span>
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -835,7 +835,7 @@ export default function MotorPage() {
         {/* ── Distribucion tab ── */}
         {activeTab === "distribucion" && (
           <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Pipeline de distribucion</p>
               <div className="flex items-center justify-between gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {[
@@ -847,7 +847,7 @@ export default function MotorPage() {
                   <div key={step.label} className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-center gap-1.5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: step.color }}>
-                        <step.icon className="h-4 w-4 text-foreground/60" />
+                        <step.icon className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-xs font-medium text-foreground text-center">{step.label}</p>
                     </div>
@@ -858,15 +858,15 @@ export default function MotorPage() {
             </div>
 
             {distributionRules.map((rule) => (
-              <div key={rule.id} className="rounded-xl border border-border bg-card px-5 py-4">
+              <div key={rule.id} className="rounded-xl border border-border bg-card shadow-sm px-5 py-4 hover:bg-muted/40 transition-colors">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tab-info)] flex-shrink-0">
-                    <Workflow className="h-4 w-4 text-foreground/60" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                    <Workflow className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-foreground">{rule.name}</p>
-                      <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", statusBadge[rule.status])}>
+                      <span className={cn("rounded-md px-2.5 py-0.5 text-[10px] font-medium", statusBadge[rule.status])}>
                         {rule.status}
                       </span>
                     </div>
@@ -894,7 +894,7 @@ export default function MotorPage() {
         {/* ── Conversion tab ── */}
         {activeTab === "conversion" && (
           <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Pipeline de conversion</p>
               <div className="flex items-center justify-between gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {[
@@ -906,7 +906,7 @@ export default function MotorPage() {
                   <div key={step.label} className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-center gap-1.5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: step.color }}>
-                        <step.icon className="h-4 w-4 text-foreground/60" />
+                        <step.icon className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-xs font-medium text-foreground text-center">{step.label}</p>
                     </div>
@@ -919,13 +919,13 @@ export default function MotorPage() {
             {conversionRules.map((rule) => (
               <div key={rule.id} className="rounded-xl border border-border bg-card px-5 py-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tab-docs)] flex-shrink-0">
-                    <ArrowRight className="h-4 w-4 text-foreground/60" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                    <ArrowRight className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-foreground">{rule.name}</p>
-                      <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", statusBadge[rule.status])}>
+                      <span className={cn("rounded-md px-2.5 py-0.5 text-[10px] font-medium", statusBadge[rule.status])}>
                         {rule.status}
                       </span>
                     </div>

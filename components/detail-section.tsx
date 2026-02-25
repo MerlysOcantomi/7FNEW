@@ -14,14 +14,14 @@ interface DetailSectionProps {
 
 export function DetailSection({ title, icon: Icon, badge, action, children, className }: DetailSectionProps) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-5 md:p-6", className)}>
+    <section className={cn("rounded-xl border border-border bg-card shadow-sm p-5 md:p-6", className)}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
+          {Icon && <Icon className="h-5 w-5 text-primary" />}
           <h2 className="text-lg font-semibold">{title}</h2>
           {badge}
         </div>
-        {action}
+        {action && <div className="[&_button:hover]:bg-primary/10">{action}</div>}
       </div>
       {children}
     </section>

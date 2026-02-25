@@ -222,7 +222,7 @@ export default function ContenidoPage() {
             { label: "Publicados", value: stats.publicados },
             { label: "Campanas activas", value: stats.campanasActivas },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+            <div key={s.label} className="rounded-xl border border-border bg-card shadow-sm p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
               <p className="text-2xl font-semibold text-foreground mt-1">{s.value}</p>
             </div>
@@ -231,11 +231,11 @@ export default function ContenidoPage() {
 
         {/* View switcher + actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card shadow-sm p-1 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
             {views.map((v) => {
               const Icon = v.icon
               return (
-                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
+                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
                   <Icon className="h-4 w-4" /> {v.label}
                 </button>
               )
@@ -243,7 +243,7 @@ export default function ContenidoPage() {
           </div>
           <CanEdit>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setEditingPiece(null); setPieceFormOpen(true) }} className="flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background hover:opacity-80 transition-opacity">
+              <button onClick={() => { setEditingPiece(null); setPieceFormOpen(true) }} className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 shadow-sm transition-opacity">
                 <Plus className="h-3.5 w-3.5" /> Pieza
               </button>
               <button onClick={() => { setEditingCampaign(null); setCampaignFormOpen(true) }} className="flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
@@ -258,7 +258,7 @@ export default function ContenidoPage() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contenido..." className="w-full rounded-lg border border-border bg-card pl-9 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contenido..." className="w-full rounded-lg bg-muted/50 pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
             <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs outline-none">
               <option value="">Estado</option>
@@ -290,7 +290,7 @@ export default function ContenidoPage() {
 
         {/* ── CALENDARIO ── */}
         {activeView === "calendario" && !contentLoading && (
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <button onClick={() => { const d = new Date(calDate); d.setMonth(d.getMonth() - 1); setCalDate(d) }} className="p-1.5 rounded-md hover:bg-accent"><ChevronLeft className="h-4 w-4" /></button>
               <h3 className="text-sm font-semibold">{MONTH_NAMES[calDate.getMonth()]} {calDate.getFullYear()}</h3>
@@ -305,7 +305,7 @@ export default function ContenidoPage() {
                 const isToday = isSameDay(date, today)
                 return (
                   <div key={idx} className={cn("min-h-[85px] border-b border-r border-border p-1.5", !inMonth && "bg-muted/20", idx % 7 === 6 && "border-r-0")}>
-                    <span className={cn("text-xs font-medium", isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background" : inMonth ? "text-foreground" : "text-muted-foreground/50")}>{date.getDate()}</span>
+                    <span className={cn("text-xs font-medium", isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground" : inMonth ? "text-foreground" : "text-muted-foreground/50")}>{date.getDate()}</span>
                     <div className="flex flex-col gap-0.5 mt-0.5">
                       {dayPieces.slice(0, 3).map((p: any) => {
                         const PIcon = PLATAFORMA_ICON[p.plataforma] ?? Globe
@@ -330,26 +330,26 @@ export default function ContenidoPage() {
           <div className="flex flex-col gap-2">
             {pieces.length === 0 && (
               <div className="text-center py-12">
-                <List className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
+                <List className="h-8 w-8 mx-auto text-primary mb-3" />
                 <p className="text-sm text-muted-foreground">No hay piezas de contenido. Crea la primera.</p>
               </div>
             )}
             {pieces.map((p: any) => {
               const PIcon = PLATAFORMA_ICON[p.plataforma] ?? Globe
               return (
-                <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/20 transition-colors">
+                <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-card shadow-sm px-4 py-3 hover:bg-muted/40 transition-colors group">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted flex-shrink-0">
                     <PIcon className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{p.titulo}</p>
+                    <p className="text-sm font-medium text-foreground truncate group-hover:text-primary">{p.titulo}</p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", ESTADO_COLOR[p.estado] ?? "bg-muted text-muted-foreground")}>{p.estado}</span>
+                      <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", ESTADO_COLOR[p.estado] ?? "bg-muted text-muted-foreground")}>{p.estado}</span>
                       <span className="text-[10px] text-muted-foreground">{p.plataforma}</span>
                       <span className="text-[10px] text-muted-foreground">{p.tipo}</span>
                       {p.responsable && <span className="text-[10px] text-muted-foreground">· {p.responsable}</span>}
                       {p.fechaProgramada && <span className="text-[10px] text-muted-foreground">· {fmtDate(p.fechaProgramada)}</span>}
-                      {p.campaign && <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">· {p.campaign.nombre}</span>}
+                      {p.campaign && <span className="text-[10px] font-medium text-primary hover:text-primary/80">· {p.campaign.nombre}</span>}
                     </div>
                   </div>
                   <CanEdit>
@@ -369,18 +369,18 @@ export default function ContenidoPage() {
           <div className="flex flex-col gap-3">
             {campaigns.length === 0 && (
               <div className="text-center py-12">
-                <Megaphone className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
+                <Megaphone className="h-8 w-8 mx-auto text-primary mb-3" />
                 <p className="text-sm text-muted-foreground">No hay campanas. Crea la primera.</p>
               </div>
             )}
             {campaigns.map((c: any) => (
-              <div key={c.id} className="rounded-xl border border-border bg-card p-5">
+              <div key={c.id} className="rounded-xl border border-border bg-card shadow-sm p-5 hover:shadow-md transition-all">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-foreground">{c.nombre}</h3>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", CAMPAIGN_ESTADO_COLOR[c.estado] ?? "bg-muted text-muted-foreground")}>{c.estado}</span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", MARCA_COLOR[c.marca] ?? "bg-muted text-muted-foreground")}>{c.marca}</span>
+                      <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", CAMPAIGN_ESTADO_COLOR[c.estado] ?? "bg-muted text-muted-foreground")}>{c.estado}</span>
+                      <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", MARCA_COLOR[c.marca] ?? "bg-muted text-muted-foreground")}>{c.marca}</span>
                     </div>
                     {c.descripcion && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.descripcion}</p>}
                     <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
@@ -407,12 +407,12 @@ export default function ContenidoPage() {
         {activeView === "ideas" && !ideasLoading && (
           <div className="flex flex-col gap-4">
             {/* New idea form */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Nueva idea</p>
               <div className="flex flex-col gap-2">
-                <input value={newIdeaTitle} onChange={(e) => setNewIdeaTitle(e.target.value)} placeholder="Titulo de la idea..." className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
-                <textarea value={newIdeaDesc} onChange={(e) => setNewIdeaDesc(e.target.value)} placeholder="Descripcion (opcional)" rows={2} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none resize-none" />
-                <button onClick={createIdea} disabled={savingIdea || !newIdeaTitle.trim()} className={cn("self-end rounded-lg px-4 py-2 text-xs font-medium transition-opacity", !newIdeaTitle.trim() ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")}>
+                <input value={newIdeaTitle} onChange={(e) => setNewIdeaTitle(e.target.value)} placeholder="Titulo de la idea..." className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+                <textarea value={newIdeaDesc} onChange={(e) => setNewIdeaDesc(e.target.value)} placeholder="Descripcion (opcional)" rows={2} className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm outline-none resize-none focus:ring-2 focus:ring-primary/20" />
+                <button onClick={createIdea} disabled={savingIdea || !newIdeaTitle.trim()} className={cn("self-end rounded-lg px-4 py-2 text-xs font-medium shadow-sm transition-opacity", !newIdeaTitle.trim() ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90")}>
                   {savingIdea ? "Guardando..." : "Guardar idea"}
                 </button>
               </div>
@@ -421,22 +421,22 @@ export default function ContenidoPage() {
             {/* Ideas list */}
             {ideas.length === 0 && (
               <div className="text-center py-8">
-                <Lightbulb className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
+                <Lightbulb className="h-8 w-8 mx-auto text-primary mb-3" />
                 <p className="text-sm text-muted-foreground">El banco de ideas esta vacio. Agrega tu primera idea.</p>
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {ideas.filter((i: any) => i.estado !== "convertida").map((idea: any) => (
-                <div key={idea.id} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2">
+                <div key={idea.id} className="rounded-xl border border-border bg-card shadow-sm p-4 flex flex-col gap-2 hover:bg-muted/40 transition-colors group">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Lightbulb className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                      <p className="text-sm font-medium text-foreground">{idea.titulo}</p>
+                      <Lightbulb className="h-4 w-4 text-primary flex-shrink-0" />
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary">{idea.titulo}</p>
                     </div>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium flex-shrink-0", idea.estado === "aprobada" ? "bg-emerald-100 text-emerald-700" : idea.estado === "evaluando" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{idea.estado}</span>
+                    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium flex-shrink-0", idea.estado === "aprobada" ? "bg-emerald-100 text-emerald-700" : idea.estado === "evaluando" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{idea.estado}</span>
                   </div>
                   {idea.descripcion && <p className="text-xs text-muted-foreground line-clamp-3">{idea.descripcion}</p>}
-                  {idea.tags && <div className="flex flex-wrap gap-1">{idea.tags.split(",").filter(Boolean).map((t: string, i: number) => <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{t.trim()}</span>)}</div>}
+                  {idea.tags && <div className="flex flex-wrap gap-1">{idea.tags.split(",").filter(Boolean).map((t: string, i: number) => <span key={i} className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium">{t.trim()}</span>)}</div>}
                   <div className="flex items-center gap-1 mt-auto pt-2 border-t border-border">
                     <button onClick={() => convertIdeaToPiece(idea)} className="flex-1 rounded-md py-1.5 text-[10px] font-medium text-foreground hover:bg-muted/50 transition-colors border border-border">Convertir a pieza</button>
                     <button onClick={() => setDeleteItem({ type: "idea", id: idea.id, label: idea.titulo })} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
@@ -448,7 +448,11 @@ export default function ContenidoPage() {
         )}
 
         {/* ── IA EDITORIAL ── */}
-        {activeView === "ia" && <ContentAI />}
+        {activeView === "ia" && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+            <ContentAI />
+          </div>
+        )}
 
         {/* Forms & Modals */}
         <ContentPieceForm open={pieceFormOpen} onClose={() => { setPieceFormOpen(false); setEditingPiece(null) }} onSuccess={refetchContent} data={editingPiece} />

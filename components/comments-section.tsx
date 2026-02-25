@@ -94,7 +94,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
   }, [text])
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Comentarios</h2>
@@ -129,7 +129,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                   text.trim()
-                    ? "bg-foreground text-background hover:opacity-80"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground cursor-not-allowed"
                 )}
               >
@@ -157,7 +157,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm font-semibold text-foreground">
                     {c.userName ?? c.userEmail ?? "Sistema"}
                   </span>
                   <span className="text-[11px] text-muted-foreground">

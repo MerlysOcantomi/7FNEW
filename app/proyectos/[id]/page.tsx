@@ -64,27 +64,27 @@ const PRIORIDAD_OPTIONS = [
 
 const estadoBadge = (v: string) =>
   ({
-    planificacion: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    en_progreso: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    revision: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-    completado: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    cancelado: "bg-muted text-muted-foreground",
-    pendiente: "bg-muted text-muted-foreground",
-    completada: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    cancelada: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    borrador: "bg-muted text-muted-foreground",
-    enviada: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    pagada: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    vencida: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  })[v] ?? "bg-muted text-muted-foreground"
+    planificacion: "rounded-md font-medium bg-amber-100 text-amber-700",
+    en_progreso: "rounded-md font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    revision: "rounded-md font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    completado: "rounded-md font-medium bg-emerald-100 text-emerald-700",
+    cancelado: "rounded-md font-medium bg-muted text-muted-foreground",
+    pendiente: "rounded-md font-medium bg-muted text-muted-foreground",
+    completada: "rounded-md font-medium bg-emerald-100 text-emerald-700",
+    cancelada: "rounded-md font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    borrador: "rounded-md font-medium bg-muted text-muted-foreground",
+    enviada: "rounded-md font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    pagada: "rounded-md font-medium bg-emerald-100 text-emerald-700",
+    vencida: "rounded-md font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  })[v] ?? "rounded-md font-medium bg-muted text-muted-foreground"
 
 const prioridadBadge = (v: string) =>
   ({
-    urgente: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    alta: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-    media: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    baja: "bg-muted text-muted-foreground",
-  })[v] ?? "bg-muted text-muted-foreground"
+    urgente: "rounded-md font-medium bg-red-100 text-red-700",
+    alta: "rounded-md font-medium bg-red-100 text-red-700",
+    media: "rounded-md font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    baja: "rounded-md font-medium bg-muted text-muted-foreground",
+  })[v] ?? "rounded-md font-medium bg-muted text-muted-foreground"
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—"
@@ -136,11 +136,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return (
       <AppShell currentSection="proyectos" breadcrumbs={[{ label: "7F" }, { label: "Proyectos", href: "/proyectos" }, { label: "..." }]}>
         <div className="flex flex-col gap-6">
-          <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit">
+          <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 rounded-md px-2 py-1 hover:bg-primary/10 w-fit transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Proyectos
           </Link>
-          <div className="h-32 rounded-xl border border-border bg-card animate-pulse" />
-          <div className="h-48 rounded-xl border border-border bg-card animate-pulse" />
+          <div className="h-32 rounded-xl border border-border bg-card shadow-sm animate-pulse" />
+          <div className="h-48 rounded-xl border border-border bg-card shadow-sm animate-pulse" />
         </div>
       </AppShell>
     )
@@ -150,7 +150,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return (
       <AppShell currentSection="proyectos" breadcrumbs={[{ label: "7F" }, { label: "Proyectos", href: "/proyectos" }, { label: "Error" }]}>
         <div className="flex flex-col gap-6">
-          <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit">
+          <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 rounded-md px-2 py-1 hover:bg-primary/10 w-fit transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Proyectos
           </Link>
           <p className="text-sm text-destructive">{error || "Proyecto no encontrado"}</p>
@@ -171,15 +171,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       breadcrumbs={[{ label: "7F" }, { label: "Proyectos", href: "/proyectos" }, { label: project.nombre ?? "Proyecto" }]}
     >
       <div className="flex flex-col gap-6 pb-8">
-        <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit">
+        <Link href="/proyectos" className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 rounded-md px-2 py-1 hover:bg-primary/10 w-fit transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Proyectos
         </Link>
 
         {/* Header */}
-        <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <FolderKanban className="h-7 w-7 text-muted-foreground shrink-0" />
+              <FolderKanban className="h-7 w-7 text-primary shrink-0" />
               <InlineText
                 value={project.nombre ?? ""}
                 onSave={(v) => saveField("nombre", v)}
@@ -208,7 +208,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <CanDelete>
                 <button
                   onClick={() => setDeleteOpen(true)}
-                  className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors"
                   aria-label="Eliminar"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -331,7 +331,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         onClick={() => saveField("visibility", v)}
                         className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
                           project.visibility === v
-                            ? "border-foreground/30 bg-foreground/5 text-foreground"
+                            ? "border-primary bg-primary/10 text-primary"
                             : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/30"
                         }`}
                       >
@@ -403,6 +403,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <DetailSection
           title="Transacciones"
           icon={DollarSign}
+          className="shadow-sm"
           badge={
             <span className="text-sm text-muted-foreground">
               <span className="text-emerald-600 dark:text-emerald-400">+{formatCurrency(ingresos)}</span>

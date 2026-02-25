@@ -28,8 +28,8 @@ function LoginContent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-10">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground mb-4">
-            <span className="text-xl font-bold text-background">7F</span>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary mb-4">
+            <span className="text-xl font-bold text-primary-foreground">7F</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">7F Platform</h1>
           <p className="mt-1.5 text-sm text-muted-foreground text-center">
@@ -48,14 +48,14 @@ function LoginContent() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-border bg-card p-8">
+        <div className="rounded-2xl border border-border bg-card shadow-lg p-8">
           <p className="text-sm text-muted-foreground text-center mb-6">
             Inicia sesion con tu cuenta de Google autorizada
           </p>
 
           <a
             href="/api/auth/login/google"
-            className="flex items-center justify-center gap-3 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="flex items-center justify-center gap-3 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm px-4 py-3 text-sm font-medium transition-colors"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />

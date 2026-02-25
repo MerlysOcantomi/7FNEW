@@ -162,13 +162,13 @@ export default function ProyectosPage() {
               placeholder="Buscar por nombre o cliente..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg bg-muted/50 border border-border pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <CanEdit>
             <button
               onClick={() => { setEditingItem(null); setFormOpen(true) }}
-              className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
+              className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-primary/90 whitespace-nowrap flex-shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
               Nuevo proyecto
@@ -187,7 +187,7 @@ export default function ProyectosPage() {
                 className={cn(
                   "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap border",
                   filterStatus === status.value
-                    ? "border-foreground/20 bg-foreground text-background"
+                    ? "bg-primary/10 text-primary border-primary/20"
                     : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20"
                 )}
               >
@@ -199,7 +199,7 @@ export default function ProyectosPage() {
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/20"
             >
               {priorityOptions.map((o) => (
                 <option key={o.value} value={o.value}>{o.value === "Todas" ? "Prioridad" : o.value}</option>
@@ -208,7 +208,7 @@ export default function ProyectosPage() {
             <select
               value={sortIdx}
               onChange={(e) => setSortIdx(Number(e.target.value))}
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/20"
             >
               {sortOptions.map((o, i) => (
                 <option key={o.value} value={i}>{o.value}</option>
@@ -248,7 +248,7 @@ export default function ProyectosPage() {
               return (
                 <div
                   key={project.id}
-                  className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4 transition-shadow hover:shadow-sm group"
+                  className="rounded-xl border border-border bg-card shadow-sm p-5 flex flex-col gap-4 transition-shadow hover:bg-muted/40 group"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -261,7 +261,7 @@ export default function ProyectosPage() {
                       </div>
                     </div>
                     <span className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0",
+                      "rounded-md px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0",
                       statusColors[estadoDisplay] || "bg-muted text-muted-foreground"
                     )}>
                       {estadoDisplay}
@@ -275,15 +275,15 @@ export default function ProyectosPage() {
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${project.progreso ?? 0}%`,
-                          backgroundColor: (project.progreso ?? 0) === 100
-                            ? "var(--tab-phases)"
-                            : (project.progreso ?? 0) >= 60
-                              ? "var(--tab-info)"
-                              : "var(--tab-tasks)",
-                        }}
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          (project.estado ?? "") === "completado"
+                            ? "bg-emerald-500"
+                            : (project.estado ?? "") === "en_progreso" || (project.estado ?? "") === "revision"
+                              ? "bg-blue-500"
+                              : "bg-amber-500"
+                        )}
+                        style={{ width: `${project.progreso ?? 0}%` }}
                       />
                     </div>
                   </div>
@@ -309,7 +309,7 @@ export default function ProyectosPage() {
                     <div className="rounded-lg bg-muted/50 py-1.5">
                       <p className="text-xs font-semibold text-foreground">
                         <span className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          "rounded-md px-1.5 py-0.5 text-[10px] font-medium",
                           priorityColors[prioridadDisplayVal] || "bg-muted text-muted-foreground"
                         )}>
                           {prioridadDisplayVal}
@@ -341,16 +341,16 @@ export default function ProyectosPage() {
                   )}
 
                   <div className="flex items-center gap-1 border-t border-border pt-3">
-                    <Link href={`/proyectos/${project.id}`} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors">
+                    <Link href={`/proyectos/${project.id}`} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-2 text-xs font-medium text-primary hover:text-primary/80 hover:bg-muted/40 transition-colors">
                       Ver proyecto <ArrowUpRight className="h-3 w-3" />
                     </Link>
                     <CanEdit>
-                      <button onClick={() => { setEditingItem(project); setFormOpen(true) }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" aria-label="Editar">
+                      <button onClick={() => { setEditingItem(project); setFormOpen(true) }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors" aria-label="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </CanEdit>
                     <CanDelete>
-                      <button onClick={() => setDeleteItem(project)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-destructive transition-colors" aria-label="Eliminar">
+                      <button onClick={() => setDeleteItem(project)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-primary/10 hover:text-destructive transition-colors" aria-label="Eliminar">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </CanDelete>

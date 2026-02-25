@@ -43,14 +43,14 @@ export function AppHeader({
   return (
     <>
     <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
-    <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-border bg-card px-4 gap-4">
+    <header className="flex h-14 flex-shrink-0 items-center justify-between shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] bg-card px-4 gap-4">
       {/* Left side: sidebar toggle + breadcrumbs */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Desktop sidebar toggle */}
         <button
           onClick={onToggleSidebar}
           className={cn(
-            "hidden md:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            "hidden md:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
           )}
           aria-label={sidebarOpen ? "Ocultar sidebar" : "Mostrar sidebar"}
         >
@@ -60,7 +60,7 @@ export function AppHeader({
         {/* Mobile sidebar toggle */}
         <button
           onClick={onToggleMobileSidebar}
-          className="flex md:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex md:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
           aria-label="Menu"
         >
           <PanelLeft className="h-4 w-4" />
@@ -71,7 +71,7 @@ export function AppHeader({
           {breadcrumbs.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1.5 min-w-0">
               {i > 0 && (
-                <span className="text-muted-foreground/50 text-sm flex-shrink-0">/</span>
+                <span className="text-muted-foreground/60 text-sm flex-shrink-0 font-medium">/</span>
               )}
               <span
                 className={cn(
@@ -93,7 +93,7 @@ export function AppHeader({
         {/* Search bar (opens global search overlay) */}
         <button
           onClick={openSearch}
-          className="hidden sm:flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 cursor-pointer hover:border-foreground/20 transition-colors"
+          className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 cursor-pointer hover:border-foreground/20 shadow-sm transition-colors"
         >
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="w-32 lg:w-48 text-left text-sm text-muted-foreground">Buscar...</span>
@@ -104,7 +104,7 @@ export function AppHeader({
         {/* Mobile search button */}
         <button
           onClick={openSearch}
-          className="flex sm:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex sm:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
           aria-label="Buscar"
         >
           <Search className="h-4 w-4" />
@@ -119,8 +119,8 @@ export function AppHeader({
           className={cn(
             "hidden md:flex h-8 w-8 items-center justify-center rounded-md transition-colors",
             chatOpen
-              ? "bg-accent text-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
           )}
           aria-label={chatOpen ? "Ocultar asistente" : "Mostrar asistente"}
         >
@@ -130,7 +130,7 @@ export function AppHeader({
         {/* Mobile chat toggle */}
         <button
           onClick={onToggleMobileChat}
-          className="flex md:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex md:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
           aria-label="Asistente"
         >
           <MessageCircle className="h-4 w-4" />

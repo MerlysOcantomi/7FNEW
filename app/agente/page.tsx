@@ -136,8 +136,8 @@ export default function AgentePage() {
         {messages.length === 0 && (
           <div className="flex flex-col gap-5">
             <div className="text-center py-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-muted/50 mx-auto mb-4 border border-border">
-                <Bot className="h-8 w-8 text-foreground/60" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-4 border border-border">
+                <Bot className="h-8 w-8 text-primary" />
               </div>
               <h2 className="text-lg font-semibold text-foreground">Hola, Merlys</h2>
               <p className="text-sm text-muted-foreground mt-1 max-w-lg mx-auto">
@@ -150,9 +150,9 @@ export default function AgentePage() {
               {quickActions.map((action) => {
                 const Icon = action.icon
                 return (
-                  <button key={action.id} onClick={() => sendMessage(action.prompt)} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left hover:bg-muted/30 transition-colors group">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0 group-hover:bg-foreground/10 transition-colors">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
+                  <button key={action.id} onClick={() => sendMessage(action.prompt)} className="flex items-center gap-3 rounded-xl border border-border bg-card shadow-sm p-4 text-left hover:bg-muted/30 transition-colors group">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                      <Icon className="h-4 w-4 text-primary" />
                     </div>
                     <span className="text-sm font-medium text-foreground">{action.label}</span>
                   </button>
@@ -164,11 +164,11 @@ export default function AgentePage() {
 
         {/* Chat interface */}
         {messages.length > 0 && (
-          <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border px-5 py-3">
               <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-foreground/60" />
+                <Bot className="h-4 w-4 text-primary" />
                 <span className="text-xs font-semibold text-foreground">Agente Hibrido</span>
                 <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-medium">GPT-4.1 + DALL-E 3</span>
               </div>
@@ -185,8 +185,8 @@ export default function AgentePage() {
               {messages.map((msg) => (
                 <div key={msg.id} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "")}>
                   {msg.role === "assistant" && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0 mt-0.5">
-                      <Bot className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 flex-shrink-0 mt-0.5">
+                      <Bot className="h-4 w-4 text-primary" />
                     </div>
                   )}
                   <div className={cn("max-w-[85%] flex flex-col gap-2")}>
@@ -194,7 +194,7 @@ export default function AgentePage() {
                     {msg.actions && msg.actions.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {msg.actions.map((a, i) => (
-                          <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium", a.result.success ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400")}>
+                          <span key={i} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[10px] font-medium bg-primary/5 border border-primary/20">
                             <CheckCircle2 className="h-2.5 w-2.5" />
                             {TOOL_LABELS[a.tool] || a.tool}
                           </span>
@@ -203,9 +203,9 @@ export default function AgentePage() {
                     )}
 
                     {/* Text */}
-                    <div className={cn("rounded-xl px-4 py-3", msg.role === "user" ? "bg-foreground text-background" : "bg-muted/50 border border-border text-foreground")}>
+                    <div className={cn("rounded-2xl px-4 py-3", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground")}>
                       <div className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</div>
-                      <p className={cn("text-[10px] mt-1.5", msg.role === "user" ? "text-background/60" : "text-muted-foreground")}>{msg.timestamp}</p>
+                      <p className={cn("text-[10px] mt-1.5", msg.role === "user" ? "text-primary-foreground/80" : "text-muted-foreground")}>{msg.timestamp}</p>
                     </div>
 
                     {/* Images */}
@@ -214,7 +214,7 @@ export default function AgentePage() {
                         {msg.images.map((url, i) => (
                           <div key={i} className="relative group">
                             <img src={url} alt={`Imagen generada ${i + 1}`} className="rounded-xl border border-border max-w-[300px] max-h-[300px] object-cover" />
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-black/50 text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary/80">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                           </div>
@@ -233,11 +233,11 @@ export default function AgentePage() {
               {/* Loading state */}
               {loading && (
                 <div className="flex gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0 mt-0.5">
-                    <Bot className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 flex-shrink-0 mt-0.5">
+                    <Bot className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <div className="rounded-xl px-4 py-3 bg-muted/50 border border-border flex items-center gap-2">
+                    <div className="rounded-2xl px-4 py-3 bg-muted flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">Procesando...</span>
                     </div>
@@ -257,7 +257,7 @@ export default function AgentePage() {
                 { label: "Campana", prompt: quickActions[9].prompt },
                 { label: "Analisis", prompt: quickActions[10].prompt },
               ].map((c) => (
-                <button key={c.label} onClick={() => sendMessage(c.prompt)} disabled={loading} className="flex-shrink-0 rounded-full border border-border px-3 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50">
+                <button key={c.label} onClick={() => sendMessage(c.prompt)} disabled={loading} className="flex-shrink-0 rounded-lg px-3 py-1 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50">
                   {c.label}
                 </button>
               ))}
@@ -266,8 +266,8 @@ export default function AgentePage() {
             {/* Input */}
             <div className="border-t border-border p-4">
               <div className="flex items-end gap-3">
-                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Preguntale al agente... (operativo, creativo, imagenes, campanas, lo que necesites)" rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
-                <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
+                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Preguntale al agente... (operativo, creativo, imagenes, campanas, lo que necesites)" rows={2} className="flex-1 rounded-lg bg-muted/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none" autoFocus />
+                <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90")} aria-label="Enviar">
                   <Send className="h-4 w-4" />
                 </button>
               </div>
@@ -278,9 +278,9 @@ export default function AgentePage() {
         {/* Capabilities footer — initial state */}
         {messages.length === 0 && (
           <>
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <Sparkles className="h-4 w-4 text-primary" />
                 <span className="text-xs font-semibold text-foreground">Capacidades del agente</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -315,10 +315,10 @@ export default function AgentePage() {
             </div>
 
             {/* Initial input */}
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-4">
               <div className="flex items-end gap-3">
-                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Escribe tu primera consulta..." rows={2} className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" autoFocus />
-                <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
+                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Escribe tu primera consulta..." rows={2} className="flex-1 rounded-lg bg-muted/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none" autoFocus />
+                <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90")} aria-label="Enviar">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </div>

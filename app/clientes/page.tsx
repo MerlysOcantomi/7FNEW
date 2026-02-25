@@ -57,17 +57,38 @@ export default function ClientesPage() {
       >
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total clientes</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : total}</p>
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total clientes</p>
+                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : total}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
+                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/20">
+                <Building className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Prospectos</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : prospectos}</p>
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Prospectos</p>
+                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : prospectos}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <Mail className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -79,13 +100,13 @@ export default function ClientesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar clientes..."
-              className="w-full rounded-lg border border-border bg-card py-2 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+              className="w-full rounded-lg bg-muted/50 border border-border py-2 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <CanEdit>
             <button
               onClick={() => { setEditingItem(null); setFormOpen(true) }}
-              className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
+              className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 shadow-sm whitespace-nowrap flex-shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
               Nuevo cliente
@@ -104,7 +125,7 @@ export default function ClientesPage() {
                 onClick={() => setFilterEstado(estado)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   filterEstado === estado
-                    ? "bg-foreground text-background"
+                    ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -115,9 +136,9 @@ export default function ClientesPage() {
         </div>
 
         {/* Client list */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Directorio de Clientes</h2>
           </div>
 
@@ -150,20 +171,24 @@ export default function ClientesPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {clientes.map((c: any) => (
-                      <tr key={c.id} className="hover:bg-muted/50 transition-colors group">
+                      <tr key={c.id} className="hover:bg-muted/40 transition-colors group">
                         <td className="px-5 py-4">
-                          <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
+                          <Link href={`/clientes/${c.id}`} className="flex items-center gap-3 text-primary hover:text-primary/80">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                               <Building className="h-4 w-4 text-muted-foreground" />
                             </div>
-                            <span className="text-sm font-medium text-foreground group-hover:underline">{c.nombre}</span>
+                            <span className="text-sm font-medium group-hover:text-primary">{c.nombre}</span>
                           </Link>
                         </td>
                         <td className="px-5 py-4 text-sm text-foreground">{c.empresa ?? "—"}</td>
                         <td className="px-5 py-4 text-sm text-muted-foreground">{c.email ?? "—"}</td>
                         <td className="px-5 py-4 text-sm text-foreground">{c.proyectos?.length ?? 0}</td>
                         <td className="px-5 py-4">
-                          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          <span className={`rounded-md px-2.5 py-0.5 text-xs font-medium ${
+                            c.estado === "activo" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" :
+                            c.estado === "prospecto" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
                             {displayLabel(c.estado ?? "", estadoLabel)}
                           </span>
                         </td>
@@ -172,7 +197,7 @@ export default function ClientesPage() {
                             <CanEdit>
                               <button
                                 onClick={(e) => { e.preventDefault(); setEditingItem(c); setFormOpen(true) }}
-                                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 transition-colors"
                                 aria-label="Editar"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
@@ -181,7 +206,7 @@ export default function ClientesPage() {
                             <CanDelete>
                               <button
                                 onClick={(e) => { e.preventDefault(); setDeleteItem(c) }}
-                                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
+                                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-destructive transition-colors"
                                 aria-label="Eliminar"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -198,17 +223,21 @@ export default function ClientesPage() {
               {/* Cards for mobile */}
               <div className="flex flex-col divide-y divide-border md:hidden">
                 {clientes.map((c: any) => (
-                  <div key={c.id} className="p-4 flex flex-col gap-2 hover:bg-muted/50 transition-colors">
-                    <Link href={`/clientes/${c.id}`} className="flex flex-col gap-2">
+                  <div key={c.id} className="p-4 flex flex-col gap-2 hover:bg-muted/40 transition-colors group">
+                    <Link href={`/clientes/${c.id}`} className="flex flex-col gap-2 text-primary hover:text-primary/80">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted flex-shrink-0">
                           <Building className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground">{c.nombre}</p>
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary">{c.nombre}</p>
                           <p className="text-xs text-muted-foreground">{c.empresa ?? "—"}</p>
                         </div>
-                        <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground flex-shrink-0">
+                        <span className={`ml-auto rounded-md px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ${
+                          c.estado === "activo" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" :
+                          c.estado === "prospecto" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
                           {displayLabel(c.estado ?? "", estadoLabel)}
                         </span>
                       </div>
@@ -221,7 +250,7 @@ export default function ClientesPage() {
                       <CanEdit>
                         <button
                           onClick={(e) => { e.preventDefault(); setEditingItem(c); setFormOpen(true) }}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 transition-colors"
                           aria-label="Editar"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -230,8 +259,8 @@ export default function ClientesPage() {
                       <CanDelete>
                         <button
                           onClick={(e) => { e.preventDefault(); setDeleteItem(c) }}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
-                          aria-label="Eliminar"
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-destructive transition-colors"
+                                aria-label="Eliminar"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

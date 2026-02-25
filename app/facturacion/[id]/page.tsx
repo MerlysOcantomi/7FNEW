@@ -48,12 +48,12 @@ const ESTADO_OPTIONS = [
 
 const estadoBadge = (v: string) =>
   ({
-    borrador: "bg-muted text-muted-foreground",
-    enviada: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    pagada: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    vencida: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    cancelada: "bg-muted text-muted-foreground",
-  })[v] ?? "bg-muted text-muted-foreground"
+    borrador: "rounded-md font-medium bg-gray-100 text-gray-600",
+    enviada: "rounded-md font-medium bg-amber-100 text-amber-700",
+    pagada: "rounded-md font-medium bg-emerald-100 text-emerald-700",
+    vencida: "rounded-md font-medium bg-red-100 text-red-700",
+    cancelada: "rounded-md font-medium bg-gray-100 text-gray-600",
+  })[v] ?? "rounded-md font-medium bg-gray-100 text-gray-600"
 
 function daysUntilDue(fecha: string | null | undefined): { days: number; overdue: boolean } {
   if (!fecha) return { days: 0, overdue: false }
@@ -94,13 +94,13 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
     return (
       <AppShell currentSection="facturacion" breadcrumbs={[{ label: "7F" }, { label: "Facturacion", href: "/facturacion" }, { label: "..." }]}>
         <div className="flex flex-col gap-6">
-          <Link href="/facturacion" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit">
+          <Link href="/facturacion" className="flex items-center gap-1.5 rounded-lg py-1 px-2 -my-1 -mx-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 w-fit transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Facturacion
           </Link>
-          <div className="h-40 rounded-xl border border-border bg-card animate-pulse" />
+          <div className="h-40 rounded-xl border border-border bg-card shadow-sm animate-pulse" />
           <div className="grid gap-6 lg:grid-cols-5">
-            <div className="h-48 rounded-xl border border-border bg-card animate-pulse lg:col-span-3" />
-            <div className="h-64 rounded-xl border border-border bg-card animate-pulse lg:col-span-2" />
+            <div className="h-48 rounded-xl border border-border bg-card shadow-sm animate-pulse lg:col-span-3" />
+            <div className="h-64 rounded-xl border border-border bg-card shadow-sm animate-pulse lg:col-span-2" />
           </div>
         </div>
       </AppShell>
@@ -110,11 +110,11 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
   if (error || !factura) {
     return (
       <AppShell currentSection="facturacion" breadcrumbs={[{ label: "7F" }, { label: "Facturacion", href: "/facturacion" }, { label: "Error" }]}>
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-12">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card shadow-sm p-12">
           <Receipt className="h-12 w-12 text-muted-foreground" />
           <p className="text-sm font-semibold text-foreground">Factura no encontrada</p>
           <p className="text-xs text-muted-foreground">{error ?? "No se encontro esta factura."}</p>
-          <Link href="/facturacion" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/facturacion" className="text-sm font-medium text-primary hover:text-primary/80">
             ← Volver a Facturacion
           </Link>
         </div>
@@ -134,12 +134,12 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
       breadcrumbs={[{ label: "7F" }, { label: "Facturacion", href: "/facturacion" }, { label: factura.numero ?? "Factura" }]}
     >
       <div className="flex flex-col gap-6 pb-8">
-        <Link href="/facturacion" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit">
+        <Link href="/facturacion" className="flex items-center gap-1.5 rounded-lg py-1 px-2 -my-1 -mx-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 w-fit transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Facturacion
         </Link>
 
         {/* Header */}
-        <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <Receipt className="h-7 w-7 text-muted-foreground shrink-0" />
@@ -155,7 +155,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
                   />
                 </CanEdit>
                 {/* Viewer fallback */}
-                <span className="text-2xl font-semibold hidden">{factura.numero}</span>
+                <span className="text-2xl font-bold hidden">{factura.numero}</span>
               </div>
               <CanEdit>
                 <InlineSelect
@@ -186,7 +186,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex flex-wrap items-end gap-6 pt-2 border-t border-border">
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Total</p>
-                <p className="text-3xl font-bold tracking-tight">{formatCurrencyMXN(Number(factura.total ?? 0))}</p>
+                <p className="text-3xl font-bold">{formatCurrencyMXN(Number(factura.total ?? 0))}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Subtotal</p>
@@ -212,7 +212,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
           {/* Columna principal */}
           <div className="flex flex-col gap-6 lg:col-span-3">
             {/* Items / Conceptos */}
-            <DetailSection title="Conceptos" icon={Package} badge={<span className="text-sm text-muted-foreground">({items.length})</span>}>
+            <DetailSection title="Conceptos" icon={Package} badge={<span className="text-sm text-muted-foreground">({items.length})</span>} className="shadow-sm">
               {items.length === 0 ? (
                 <DetailEmpty message="Sin conceptos registrados." />
               ) : (
@@ -228,7 +228,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
                     </thead>
                     <tbody>
                       {items.map((item: any, i: number) => (
-                        <tr key={i} className="border-b border-border last:border-0">
+                        <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                           <td className="py-3 pr-4">{item.descripcion ?? item.concepto ?? `Item ${i + 1}`}</td>
                           <td className="py-3 pr-4 text-right tabular-nums">{item.cantidad ?? 1}</td>
                           <td className="py-3 pr-4 text-right tabular-nums">{formatCurrencyMXN(Number(item.precioUnitario ?? item.precio ?? 0))}</td>
@@ -250,7 +250,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
             </DetailSection>
 
             {/* Exportar PDF Skina */}
-            <DetailSection title="Exportar" icon={Download}>
+            <DetailSection title="Exportar" icon={Download} className="shadow-sm">
               <div className="flex flex-wrap gap-2">
                 <PDFPreviewButton
                   document={
@@ -270,6 +270,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
                   filename={`Factura-${factura.numero ?? "borrador"}.pdf`}
                   title={`Factura ${factura.numero}`}
                   label="Vista previa PDF"
+                  className="hover:bg-primary/10"
                 />
                 <PDFExportButton
                   document={
@@ -288,13 +289,14 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
                   }
                   filename={`Factura-${factura.numero ?? "borrador"}.pdf`}
                   label="Descargar PDF Skina"
+                  className="hover:bg-primary/10"
                 />
               </div>
             </DetailSection>
 
             {/* Acciones rapidas */}
             <CanEdit>
-              <DetailSection title="Acciones" icon={CreditCard}>
+              <DetailSection title="Acciones" icon={CreditCard} className="shadow-sm">
                 <div className="flex flex-wrap gap-2">
                   {!isPaid && factura.estado !== "cancelada" && (
                     <button
@@ -308,7 +310,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
                   {factura.estado === "borrador" && (
                     <button
                       onClick={() => saveField("estado", "enviada")}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       Marcar como enviada
                     </button>
@@ -340,7 +342,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Sidebar */}
           <aside className="flex flex-col gap-4 lg:col-span-2">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Detalles</h2>
               <div className="space-y-0">
                 <DetailMetaRow label="Estado">
@@ -406,7 +408,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Timeline */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Historial</h2>
               <div className="space-y-3">
                 <TimelineItem icon={Calendar} label="Creada" date={factura.createdAt} />
@@ -452,7 +454,7 @@ export default function FacturaDetailPage({ params }: { params: Promise<{ id: st
 function TimelineItem({ icon: Icon, label, date, color }: { icon: any; label: string; date: string; color?: string }) {
   return (
     <div className="flex items-center gap-3">
-      <Icon className={`h-4 w-4 flex-shrink-0 ${color ?? "text-muted-foreground"}`} />
+      <Icon className={`h-4 w-4 flex-shrink-0 ${color ?? "text-primary"}`} />
       <span className="text-sm text-foreground">{label}</span>
       <span className="text-xs text-muted-foreground ml-auto">{formatDateES(date)}</span>
     </div>

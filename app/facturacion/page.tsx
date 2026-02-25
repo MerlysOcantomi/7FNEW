@@ -61,11 +61,11 @@ function formatDate(value: string | null | undefined): string {
 
 const INVOICE_ESTADOS = ["borrador", "enviada", "pagada", "vencida", "cancelada"] as const
 const statusConfig: Record<string, { label: string; bg: string; text: string; icon: typeof CheckCircle2 }> = {
-  borrador: { label: "Borrador", bg: "bg-muted", text: "text-muted-foreground", icon: FileText },
-  enviada: { label: "Enviada", bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
-  pagada: { label: "Pagada", bg: "bg-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
-  vencida: { label: "Vencida", bg: "bg-red-100", text: "text-red-700", icon: AlertCircle },
-  cancelada: { label: "Cancelada", bg: "bg-muted", text: "text-muted-foreground", icon: X },
+  borrador: { label: "Borrador", bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-600 dark:text-gray-400", icon: FileText },
+  enviada: { label: "Enviada", bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-400", icon: Clock },
+  pagada: { label: "Pagada", bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-400", icon: CheckCircle2 },
+  vencida: { label: "Vencida", bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400", icon: AlertCircle },
+  cancelada: { label: "Cancelada", bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-600 dark:text-gray-400", icon: X },
 }
 
 type SortKey = "date" | "total" | "status" | "client"
@@ -245,31 +245,36 @@ export default function FacturacionPage() {
             label="Facturado este mes"
             amount={stats.totalThisMonth}
             icon={Calendar}
-            accentClass="bg-[var(--tab-info)]"
+            accentClass="bg-emerald-50 dark:bg-emerald-900/20"
+            iconClass="text-emerald-600"
           />
           <IndicatorCard
             label="Total cobrado"
             amount={stats.totalPaid}
             icon={CheckCircle2}
-            accentClass="bg-emerald-100"
+            accentClass="bg-emerald-50 dark:bg-emerald-900/20"
+            iconClass="text-emerald-600"
           />
           <IndicatorCard
             label="Pendiente de cobro"
             amount={stats.totalPending}
             icon={Clock}
-            accentClass="bg-amber-100"
+            accentClass="bg-amber-50 dark:bg-amber-900/20"
+            iconClass="text-amber-600"
           />
           <IndicatorCard
             label="Facturas vencidas"
             amount={stats.totalOverdue}
             icon={AlertCircle}
-            accentClass="bg-red-100"
+            accentClass="bg-red-50 dark:bg-red-900/20"
+            iconClass="text-red-600"
           />
           <IndicatorCard
             label="Total general"
             amount={stats.totalAll}
             icon={TrendingUp}
-            accentClass="bg-[var(--tab-phases)]"
+            accentClass="bg-primary/10"
+            iconClass="text-primary"
             className="col-span-2 lg:col-span-1"
           />
         </div>
@@ -308,10 +313,10 @@ export default function FacturacionPage() {
             <button
               onClick={() => setShowAIPanel(!showAIPanel)}
               className={cn(
-                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors shadow-sm",
                 showAIPanel
-                  ? "border-foreground/20 bg-[var(--tab-ai)] text-foreground"
-                  : "border-border bg-card text-foreground hover:bg-accent"
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border bg-primary/10 text-primary hover:bg-primary/20"
               )}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -320,7 +325,7 @@ export default function FacturacionPage() {
             <CanEdit>
               <button
                 onClick={() => { setEditingItem(null); setFormOpen(true) }}
-                className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80"
+                className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-3.5 py-2 text-sm font-medium shadow-sm hover:bg-primary/90 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Crear factura</span>
@@ -331,11 +336,11 @@ export default function FacturacionPage() {
 
         {/* ── AI Panel ── */}
         {showAIPanel && (
-          <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
-                  <Sparkles className="h-4 w-4 text-foreground/70" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                  <Sparkles className="h-4 w-4" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">IA de Facturacion</p>
               </div>
@@ -357,9 +362,9 @@ export default function FacturacionPage() {
               <AIAction title="Mensajes para clientes" description="Genera mensajes de cobro profesionales y cordiales." />
               <AIAction title="Analizar ingresos" description="Desglosa tendencias de ingresos por periodo y cliente." />
             </div>
-            <div className="rounded-lg border border-border bg-background p-4 flex items-start gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0 mt-0.5">
-                <Sparkles className="h-3.5 w-3.5 text-foreground/70" />
+            <div className="rounded-lg border border-border bg-background shadow-sm p-4 flex items-start gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-0.5">
+                <Sparkles className="h-3.5 w-3.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground">Resumen automatico</p>
@@ -385,7 +390,7 @@ export default function FacturacionPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por numero, cliente o proyecto..."
-                className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+                className="w-full rounded-lg bg-muted/50 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 border border-border"
               />
               {search && (
                 <button
@@ -400,9 +405,9 @@ export default function FacturacionPage() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={cn(
-                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors shadow-sm",
                 showFilters
-                  ? "border-foreground/20 bg-accent text-foreground"
+                  ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
             >
@@ -412,7 +417,7 @@ export default function FacturacionPage() {
           </div>
 
           {showFilters && (
-            <div className="rounded-lg border border-border bg-card px-4 py-3 flex flex-col gap-3">
+            <div className="rounded-lg border border-border bg-card shadow-sm px-4 py-3 flex flex-col gap-3">
               {/* Status filter row */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Estado:</span>
@@ -424,7 +429,7 @@ export default function FacturacionPage() {
                       className={cn(
                         "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                         statusFilter === s
-                          ? "bg-foreground text-background"
+                          ? "bg-primary/10 text-primary"
                           : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                       )}
                     >
@@ -443,7 +448,7 @@ export default function FacturacionPage() {
                     className={cn(
                       "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                       clientFilter !== "all"
-                        ? "border-foreground/20 bg-foreground text-background"
+                        ? "border-primary/30 bg-primary/10 text-primary"
                         : "border-border bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                     )}
                   >
@@ -456,7 +461,7 @@ export default function FacturacionPage() {
                         onClick={() => { setClientFilter("all"); setShowClientDropdown(false) }}
                         className={cn(
                           "w-full px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-accent",
-                          clientFilter === "all" ? "text-foreground bg-muted" : "text-muted-foreground"
+                          clientFilter === "all" ? "text-primary bg-primary/10" : "text-muted-foreground"
                         )}
                       >
                         Todos los clientes
@@ -467,7 +472,7 @@ export default function FacturacionPage() {
                           onClick={() => { setClientFilter(c); setShowClientDropdown(false) }}
                           className={cn(
                             "w-full px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-accent",
-                            clientFilter === c ? "text-foreground bg-muted" : "text-muted-foreground"
+                            clientFilter === c ? "text-primary bg-primary/10" : "text-muted-foreground"
                           )}
                         >
                           {c}
@@ -518,7 +523,7 @@ export default function FacturacionPage() {
         </div>
 
         {/* ── Desktop Table ── */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden hidden md:block">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -556,11 +561,11 @@ export default function FacturacionPage() {
                     const sc = statusConfig[inv.estado] || statusConfig.borrador
                     const StatusIcon = sc.icon
                     return (
-                      <tr key={inv.id} className="hover:bg-muted/30 transition-colors group">
+                      <tr key={inv.id} className="hover:bg-muted/40 transition-colors group">
                         <td className="px-5 py-4">
                           <Link
                             href={`/facturacion/${inv.id}`}
-                            className="text-sm font-semibold text-foreground group-hover:underline"
+                            className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
                           >
                             {inv.numero}
                           </Link>
@@ -576,9 +581,9 @@ export default function FacturacionPage() {
                         </td>
                         <td className="px-5 py-4 text-sm text-muted-foreground">{inv.proyecto?.nombre ?? "—"}</td>
                         <td className="px-5 py-4 text-sm text-muted-foreground">{formatDate(inv.fechaEmision)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground text-right">{formatCurrency(Number(inv.total) || 0)}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-foreground text-right">{formatCurrency(Number(inv.total) || 0)}</td>
                         <td className="px-5 py-4">
-                          <span className={cn("flex items-center gap-1.5 w-fit rounded-full px-2.5 py-1 text-xs font-medium", sc.bg, sc.text)}>
+                          <span className={cn("flex items-center gap-1.5 w-fit rounded-md px-2.5 py-1 text-xs font-medium", sc.bg, sc.text)}>
                             <StatusIcon className="h-3 w-3" />
                             {displayLabel(inv.estado ?? "", estadoLabel)}
                           </span>
@@ -677,18 +682,18 @@ export default function FacturacionPage() {
 /* ─────────── Indicator Card ─────────── */
 
 function IndicatorCard({
-  label, amount, icon: Icon, accentClass, className,
+  label, amount, icon: Icon, accentClass, iconClass = "text-foreground/70", className,
 }: {
-  label: string; amount: number; icon: typeof CheckCircle2; accentClass: string; className?: string
+  label: string; amount: number; icon: typeof CheckCircle2; accentClass: string; iconClass?: string; className?: string
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5 flex items-start gap-4", className)}>
+    <div className={cn("rounded-xl border border-border bg-card shadow-sm p-5 flex items-start gap-4", className)}>
       <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0", accentClass)}>
-        <Icon className="h-5 w-5 text-foreground/70" />
+        <Icon className={cn("h-5 w-5", iconClass)} />
       </div>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <p className="text-xl font-semibold text-foreground mt-1">{formatCurrency(amount)}</p>
+        <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(amount)}</p>
       </div>
     </div>
   )
@@ -702,7 +707,7 @@ function BreakdownCard({
   title: string; icon: typeof Users; items: [string, number][]; total: number
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border px-5 py-4">
         <Icon className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -716,13 +721,13 @@ function BreakdownCard({
                 <p className="text-sm font-medium text-foreground truncate">{name}</p>
                 <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-foreground/20"
+                    className="h-full rounded-full bg-primary/30"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-sm font-semibold text-foreground">{formatCurrency(amount)}</p>
+                <p className="text-sm font-bold text-foreground">{formatCurrency(amount)}</p>
                 <p className="text-xs text-muted-foreground">{pct}%</p>
               </div>
             </div>
@@ -740,20 +745,20 @@ function MobileInvoiceCard({ invoice, onView, onEdit, onDelete }: { invoice: any
   const StatusIcon = sc.icon
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 transition-shadow hover:shadow-sm">
+    <div className="rounded-xl border border-border bg-card shadow-sm p-4 flex flex-col gap-3 transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--tab-billing)] flex-shrink-0">
             <Receipt className="h-5 w-5 text-foreground/60" />
           </div>
           <div className="min-w-0">
-            <button onClick={onView} className="text-sm font-semibold text-foreground hover:underline text-left">
+            <button onClick={onView} className="text-sm font-semibold text-primary hover:text-primary/80 text-left transition-colors">
               {invoice.numero}
             </button>
             <p className="text-xs text-muted-foreground mt-0.5">{invoice.cliente?.nombre ?? "—"}</p>
           </div>
         </div>
-        <span className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium flex-shrink-0", sc.bg, sc.text)}>
+        <span className={cn("flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium flex-shrink-0", sc.bg, sc.text)}>
           <StatusIcon className="h-3 w-3" />
           {sc.label}
         </span>
@@ -771,7 +776,7 @@ function MobileInvoiceCard({ invoice, onView, onEdit, onDelete }: { invoice: any
         </span>
       </div>
       <div className="flex items-center justify-between pt-2 border-t border-border">
-        <p className="text-lg font-semibold text-foreground">{formatCurrency(Number(invoice.total) || 0)}</p>
+        <p className="text-lg font-bold text-foreground">{formatCurrency(Number(invoice.total) || 0)}</p>
         <div className="flex items-center gap-2">
           <button
             onClick={onView}
@@ -820,7 +825,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
     <div className="flex flex-col gap-6">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors self-start"
+        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors self-start"
       >
         <ChevronRight className="h-3.5 w-3.5 rotate-180" />
         Volver a facturas
@@ -835,7 +840,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
           <div>
             <h2 className="text-xl font-semibold text-foreground">{invoice.numero}</h2>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <span className={cn("flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", sc.bg, sc.text)}>
+              <span className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", sc.bg, sc.text)}>
                 <StatusIcon className="h-3 w-3" />
                 {displayLabel(invoice.estado ?? "", estadoLabel)}
               </span>
@@ -858,7 +863,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
             Descargar PDF
           </button>
           {invoice.estado !== "pagada" && (
-            <button className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
+            <button className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-3.5 py-2 text-sm font-medium shadow-sm hover:bg-primary/90 transition-colors">
               <CreditCard className="h-4 w-4" />
               Registrar pago
             </button>
@@ -893,7 +898,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
       </div>
 
       {/* Line items */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Desglose de cargos</h3>
         </div>
@@ -928,7 +933,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
               </tr>
               <tr className="border-t border-border bg-muted/30">
                 <td colSpan={3} className="px-5 py-4 text-sm font-semibold text-foreground text-right">Total</td>
-                <td className="px-5 py-4 text-base font-semibold text-foreground text-right">{formatCurrency(total)}</td>
+                <td className="px-5 py-4 text-base font-bold text-foreground text-right">{formatCurrency(total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -952,7 +957,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
               <span>IVA</span>
               <span className="font-medium text-foreground">{formatCurrency(impuesto)}</span>
             </div>
-            <div className="flex items-center justify-between text-sm font-semibold text-foreground pt-2 border-t border-border">
+            <div className="flex items-center justify-between text-sm font-bold text-foreground pt-2 border-t border-border">
               <span>Total</span>
               <span>{formatCurrency(total)}</span>
             </div>
@@ -961,7 +966,7 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
       </div>
 
       {/* Payment history - API does not provide payments; show empty state */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Historial de pagos</h3>
         </div>
@@ -977,9 +982,9 @@ function InvoiceDetail({ invoice, onBack, onEdit, onDelete }: { invoice: any; on
 
 function DetailField({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card shadow-sm p-4">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-sm font-medium", highlight ? "text-foreground text-base font-semibold" : "text-foreground")}>
+      <p className={cn("mt-1 text-sm", highlight ? "text-foreground text-base font-bold" : "font-medium text-foreground")}>
         {value}
       </p>
     </div>
@@ -998,7 +1003,7 @@ function SortButton({
       className={cn(
         "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
         isActive
-          ? "bg-foreground text-background"
+          ? "bg-primary/10 text-primary"
           : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
       )}
     >
@@ -1012,7 +1017,7 @@ function SortButton({
 
 function AIAction({ title, description }: { title: string; description: string }) {
   return (
-    <button className="rounded-xl border border-border bg-background p-4 text-left transition-shadow hover:shadow-sm flex flex-col gap-1.5">
+    <button className="rounded-xl border border-border bg-background shadow-sm p-4 text-left transition-shadow hover:shadow-md flex flex-col gap-1.5">
       <p className="text-sm font-medium text-foreground">{title}</p>
       <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
     </button>

@@ -52,27 +52,27 @@ export default function ClientePerfilPage() {
     <ClientPortalShell>
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Mi Perfil</h1>
-          <p className="text-sm text-gray-500">Informacion de tu cuenta</p>
+          <h1 className="text-lg font-semibold text-foreground">Mi Perfil</h1>
+          <p className="text-sm text-muted-foreground">Informacion de tu cuenta</p>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : !perfil ? (
-          <p className="text-sm text-gray-500">Error al cargar perfil</p>
+          <p className="text-sm text-muted-foreground">Error al cargar perfil</p>
         ) : (
           <>
             {/* Profile header */}
-            <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#1a3a5c] text-2xl font-bold text-white">
+            <div className="flex items-center gap-4 rounded-xl border border-border bg-card shadow-sm p-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
                 {perfil.nombre?.charAt(0)?.toUpperCase() || "C"}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">{perfil.nombre}</h2>
-                <p className="text-sm text-gray-500">{user?.email}</p>
-                <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                <h2 className="text-lg font-semibold text-foreground">{perfil.nombre}</h2>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+                <span className={`mt-1 inline-block rounded-md px-2.5 py-0.5 text-xs font-medium ${
                   perfil.estado === "activo" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                 }`}>
                   {perfil.estado}
@@ -89,49 +89,49 @@ export default function ClientePerfilPage() {
             </div>
 
             {/* Editable fields */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Informacion de contacto</h3>
+            <div className="rounded-xl border border-border bg-card shadow-sm p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-foreground">Informacion de contacto</h3>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Nombre</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Nombre</label>
                 <input
                   type="text"
                   value={perfil.nombre}
                   disabled
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500"
+                  className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                 />
-                <p className="mt-1 text-xs text-gray-400">Contacta al administrador para cambiar tu nombre</p>
+                <p className="mt-1 text-xs text-muted-foreground">Contacta al administrador para cambiar tu nombre</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Telefono</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Telefono</label>
                 <input
                   type="text"
                   value={form.telefono}
                   onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20"
+                  className="w-full rounded-lg bg-muted/50 px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:outline-none border border-border"
                   placeholder="+41 ..."
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Empresa</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Empresa</label>
                 <input
                   type="text"
                   value={form.empresa}
                   onChange={(e) => setForm({ ...form, empresa: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20"
+                  className="w-full rounded-lg bg-muted/50 px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:outline-none border border-border"
                   placeholder="Nombre de empresa"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Notas</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Notas</label>
                 <textarea
                   value={form.notas}
                   onChange={(e) => setForm({ ...form, notas: e.target.value })}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20 resize-none"
+                  className="w-full rounded-lg bg-muted/50 px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:outline-none border border-border resize-none"
                   placeholder="Notas adicionales..."
                 />
               </div>
@@ -140,7 +140,7 @@ export default function ClientePerfilPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 rounded-lg bg-[#1a3a5c] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {saving ? "Guardando..." : "Guardar cambios"}
@@ -154,16 +154,16 @@ export default function ClientePerfilPage() {
             </div>
 
             {/* Account info */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Informacion de cuenta</h3>
+            <div className="rounded-xl border border-border bg-card shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Informacion de cuenta</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Tipo</span>
-                  <span className="text-gray-900">{perfil.tipo}</span>
+                  <span className="text-muted-foreground">Tipo</span>
+                  <span className="text-foreground">{perfil.tipo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Miembro desde</span>
-                  <span className="text-gray-900">{new Date(perfil.createdAt).toLocaleDateString("es")}</span>
+                  <span className="text-muted-foreground">Miembro desde</span>
+                  <span className="text-foreground">{new Date(perfil.createdAt).toLocaleDateString("es")}</span>
                 </div>
               </div>
             </div>
@@ -176,9 +176,9 @@ export default function ClientePerfilPage() {
 
 function StatMini({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
-      <p className="text-2xl font-semibold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="rounded-xl border border-border bg-card shadow-sm p-4 text-center">
+      <p className="text-2xl font-semibold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   )
 }

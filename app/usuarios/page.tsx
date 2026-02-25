@@ -57,7 +57,7 @@ export default function UsuariosPage() {
         <div className="flex items-center justify-end">
           <button
             onClick={() => { setEditingItem(null); setFormOpen(true) }}
-            className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
+            className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 shadow-sm transition-opacity"
           >
             <Plus className="h-3.5 w-3.5" />
             Nuevo usuario
@@ -71,15 +71,15 @@ export default function UsuariosPage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total usuarios</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : totalUsuarios}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Roles unicos</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : rolesUnicos}</p>
           </div>
@@ -88,7 +88,7 @@ export default function UsuariosPage() {
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse">
+              <div key={i} className="rounded-xl border border-border bg-card shadow-sm p-5 animate-pulse">
                 <div className="flex items-start gap-4">
                   <div className="h-11 w-11 rounded-full bg-muted flex-shrink-0" />
                   <div className="flex-1 space-y-2">
@@ -101,7 +101,7 @@ export default function UsuariosPage() {
             ))}
           </div>
         ) : !users?.length ? (
-          <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+          <div className="rounded-xl border border-dashed border-border bg-card shadow-sm p-12 text-center">
             <UserCircle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-sm font-medium text-foreground">No hay usuarios</p>
             <p className="text-xs text-muted-foreground mt-1">No se encontraron usuarios en el sistema.</p>
@@ -109,13 +109,13 @@ export default function UsuariosPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {users.map((user) => (
-              <div key={user.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow">
+              <div key={user.id} className="rounded-xl border border-border bg-card shadow-sm p-5 hover:bg-muted/40 transition-colors group">
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted flex-shrink-0">
                     <UserCircle className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground truncate">{user.nombre}</h3>
+                    <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-primary">{user.nombre}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{displayLabel(user.rol ?? "", rolLabel)}</p>
                     <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
                       <Mail className="h-3 w-3" />
@@ -123,14 +123,14 @@ export default function UsuariosPage() {
                     </div>
                     <Link
                       href="/departamentos"
-                      className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1 mt-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
                     >
                       <Building2 className="h-3 w-3" />
                       <span>{user.departamento ?? "—"}</span>
                       <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
                     </Link>
                     <div className="flex items-center gap-3 mt-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${user.estado === "activo" ? "bg-[var(--tab-phases)] text-foreground/70" : "bg-muted text-muted-foreground"}`}>
+                      <span className={`rounded-md px-2.5 py-0.5 text-xs font-medium ${user.estado === "activo" ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"}`}>
                         {displayLabel(user.estado ?? "", estadoLabel)}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">

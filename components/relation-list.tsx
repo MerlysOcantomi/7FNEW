@@ -155,7 +155,7 @@ export function RelationList({
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 hover:bg-accent/30 transition-colors group"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 hover:bg-muted/40 transition-colors group"
                 >
                   <Link
                     href={`/${module}/${item.id}`}

@@ -124,19 +124,19 @@ export default function NotificacionesPage() {
       <SectionPage title="Notificaciones" description="Alertas y actualizaciones de la plataforma.">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">No leidas</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{unreadCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Hoy</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{todayCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Leidas</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length - unreadCount}</p>
           </div>
@@ -150,8 +150,8 @@ export default function NotificacionesPage() {
                 key={f.value}
                 onClick={() => setActiveFilter(f.value)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  activeFilter === f.value ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
+                  activeFilter === f.value ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 {f.label}
@@ -159,11 +159,11 @@ export default function NotificacionesPage() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                showUnreadOnly ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+<button
+                onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                showUnreadOnly ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
               <Bell className="h-3 w-3" /> Solo no leidas
@@ -171,7 +171,7 @@ export default function NotificacionesPage() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <CheckCheck className="h-3 w-3" /> Marcar todas leidas
               </button>
@@ -196,7 +196,7 @@ export default function NotificacionesPage() {
                   onClick={() => handleClick(n)}
                   className={cn(
                     "flex items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition-all w-full",
-                    n.read ? "border-border bg-card/60 hover:bg-accent/30" : "border-foreground/10 bg-card shadow-sm hover:bg-accent/40",
+                    n.read ? "border-border bg-card shadow-sm hover:bg-muted/40" : "border-primary/20 bg-primary/5 shadow-sm hover:bg-muted/40",
                     n.link && "cursor-pointer"
                   )}
                 >
@@ -208,13 +208,13 @@ export default function NotificacionesPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={cn("text-sm text-foreground", !n.read && "font-semibold")}>{n.title}</p>
-                          {!n.read && <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />}
+                          {!n.read && <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
                         </div>
                         {n.message && (
                           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
                         )}
                         <div className="flex items-center gap-3 mt-1.5">
-                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", iconBg, iconColor)}>
+                          <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", iconBg, iconColor)}>
                             {config.label}
                           </span>
                         </div>
@@ -226,7 +226,7 @@ export default function NotificacionesPage() {
               )
             })}
             {filtered.length === 0 && (
-              <div className="rounded-xl border border-border bg-card/50 p-12 text-center">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-12 text-center">
                 <BellRing className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm font-medium text-muted-foreground">
                   {showUnreadOnly ? "Sin notificaciones no leidas" : "Sin notificaciones"}

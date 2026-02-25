@@ -36,17 +36,17 @@ import { TAREA_COLUMNS } from "@/lib/export/csv"
 /* ── Status / priority config (API values as keys) ── */
 const statusConfig: Record<string, { icon: typeof Circle; colorClass: string }> = {
   pendiente: { icon: Circle, colorClass: "text-muted-foreground" },
-  en_progreso: { icon: Clock, colorClass: "text-chart-1" },
-  revision: { icon: AlertTriangle, colorClass: "text-chart-3" },
-  completada: { icon: CheckCircle2, colorClass: "text-chart-2" },
+  en_progreso: { icon: Clock, colorClass: "text-blue-500" },
+  revision: { icon: AlertTriangle, colorClass: "text-amber-500" },
+  completada: { icon: CheckCircle2, colorClass: "text-emerald-500" },
   cancelada: { icon: Pause, colorClass: "text-muted-foreground" },
 }
 
 const priorityColors: Record<string, string> = {
-  urgente: "bg-[var(--tab-review)] text-foreground/70",
-  alta: "bg-[var(--tab-review)] text-foreground/70",
-  media: "bg-[var(--tab-tasks)] text-foreground/70",
-  baja: "bg-[var(--tab-info)] text-foreground/70",
+  urgente: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-md",
+  alta: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-md",
+  media: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-md",
+  baja: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-md",
 }
 
 const STATUS_OPTIONS = ["todos", "pendiente", "en_progreso", "revision", "completada", "cancelada"] as const
@@ -136,19 +136,19 @@ export default function TareasPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{allTasks.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pendientes</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{pendingCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">En progreso</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{inProgressCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Urgentes</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{urgentCount}</p>
           </div>
@@ -157,7 +157,7 @@ export default function TareasPage() {
         {/* Search + Filters */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+            <div className="flex flex-1 items-center gap-2 rounded-lg bg-muted/50 border border-border focus-within:ring-2 focus-within:ring-primary/20 px-3 py-2 shadow-sm">
               <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
                 type="text"
@@ -175,8 +175,8 @@ export default function TareasPage() {
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                  filterStatus === s ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors border",
+                  filterStatus === s ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground hover:text-foreground border-transparent"
                 )}
               >
                 {s === "todos" ? "Todos" : displayLabel(s, estadoLabel)}
@@ -186,7 +186,7 @@ export default function TareasPage() {
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none shadow-sm"
             >
               <option value="todas">Prioridad</option>
               {PRIORITY_OPTIONS.filter((p) => p !== "todas").map((p) => (
@@ -196,7 +196,7 @@ export default function TareasPage() {
             <select
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
-              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none shadow-sm"
             >
               {clients.map((c) => (
                 <option key={c} value={c}>{c === "Todos" ? "Cliente" : c}</option>
@@ -218,13 +218,13 @@ export default function TareasPage() {
             </div>
 
             {loading && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
                 <p className="text-sm font-medium text-foreground">Cargando...</p>
               </div>
             )}
 
             {!loading && error && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
                 <p className="text-sm font-medium text-destructive">{error}</p>
               </div>
             )}
@@ -238,16 +238,16 @@ export default function TareasPage() {
                   key={task.id}
                   onClick={() => setSelectedTask(isSelected ? null : task.id)}
                   className={cn(
-                    "w-full rounded-xl border bg-card px-4 py-3.5 text-left transition-all hover:shadow-sm",
-                    isSelected ? "border-foreground/30 shadow-sm" : "border-border"
+                    "w-full rounded-xl border bg-card px-4 py-3.5 text-left transition-colors group hover:bg-muted/40 shadow-sm",
+                    isSelected ? "border-primary/30 shadow-sm" : "border-border"
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <StatusIcon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", statusColor)} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-foreground">{task.titulo}</p>
-                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", priorityColors[task.prioridad] || priorityColors.media)}>
+                        <p className="text-sm font-medium text-foreground group-hover:text-primary">{task.titulo}</p>
+                        <span className={cn("px-2 py-0.5 text-[10px] font-medium", priorityColors[task.prioridad] || priorityColors.media)}>
                           {displayLabel(task.prioridad ?? "", prioridadLabel)}
                         </span>
                       </div>
@@ -264,7 +264,7 @@ export default function TareasPage() {
               )
             })}
             {!loading && !error && filtered.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
                 <CheckSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm font-medium text-foreground">No se encontraron tareas</p>
                 <p className="text-xs text-muted-foreground mt-1">Ajusta los filtros o busca con otro termino.</p>
@@ -274,7 +274,7 @@ export default function TareasPage() {
 
           {selected && (
             <div className="lg:col-span-2">
-              <div className="rounded-xl border border-border bg-card sticky top-6">
+              <div className="rounded-xl border border-border bg-card sticky top-6 shadow-lg">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <h3 className="text-sm font-semibold text-foreground">Detalle de tarea</h3>
                   <button onClick={() => setSelectedTask(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
@@ -285,7 +285,7 @@ export default function TareasPage() {
                   <div>
                     <p className="text-base font-semibold text-foreground">{selected.titulo}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", priorityColors[selected.prioridad] || priorityColors.media)}>
+                      <span className={cn("px-2.5 py-0.5 text-xs font-medium", priorityColors[selected.prioridad] || priorityColors.media)}>
                         {displayLabel(selected.prioridad ?? "", prioridadLabel)}
                       </span>
                       <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
@@ -305,12 +305,12 @@ export default function TareasPage() {
                   </div>
                   <div className="flex items-center gap-2 pt-2 border-t border-border">
                     {selected.proyectoId && (
-                      <Link href={`/proyectos/${selected.proyectoId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
+                      <Link href={`/proyectos/${selected.proyectoId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors shadow-sm">
                         <FolderKanban className="h-3 w-3" /> Ver proyecto
                       </Link>
                     )}
                     {selected.clienteId && (
-                      <Link href={`/clientes/${selected.clienteId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
+                      <Link href={`/clientes/${selected.clienteId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors shadow-sm">
                         <Users className="h-3 w-3" /> Ver cliente
                       </Link>
                     )}
@@ -327,7 +327,7 @@ export default function TareasPage() {
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3">
+    <div className="rounded-lg border border-border bg-muted/30 p-3 shadow-sm">
       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-sm font-medium text-foreground">{value}</p>
     </div>

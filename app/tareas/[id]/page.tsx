@@ -48,20 +48,20 @@ const PRIORIDAD_OPTIONS = [
 
 const estadoBadge = (v: string) =>
   ({
-    pendiente: "bg-muted text-muted-foreground",
-    en_progreso: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    revision: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-    completada: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    cancelada: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  })[v] ?? "bg-muted text-muted-foreground"
+    pendiente: "rounded-md font-medium bg-gray-100 text-gray-700",
+    en_progreso: "rounded-md font-medium bg-blue-100 text-blue-700",
+    revision: "rounded-md font-medium bg-amber-100 text-amber-700",
+    completada: "rounded-md font-medium bg-emerald-100 text-emerald-700",
+    cancelada: "rounded-md font-medium bg-gray-100 text-gray-700",
+  })[v] ?? "rounded-md font-medium bg-gray-100 text-gray-700"
 
 const prioridadBadge = (v: string) =>
   ({
-    urgente: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    alta: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-    media: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    baja: "bg-muted text-muted-foreground",
-  })[v] ?? "bg-muted text-muted-foreground"
+    urgente: "rounded-md font-medium bg-red-100 text-red-700",
+    alta: "rounded-md font-medium bg-red-100 text-red-700",
+    media: "rounded-md font-medium bg-amber-100 text-amber-700",
+    baja: "rounded-md font-medium bg-blue-100 text-blue-700",
+  })[v] ?? "rounded-md font-medium bg-muted text-muted-foreground"
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—"
@@ -120,10 +120,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           <div className="h-8 w-48 rounded bg-muted animate-pulse" />
           <div className="grid gap-6 lg:grid-cols-5">
             <div className="space-y-4 lg:col-span-3">
-              <div className="h-32 rounded-xl border border-border bg-card animate-pulse" />
+              <div className="h-32 rounded-xl border border-border bg-card shadow-sm animate-pulse" />
             </div>
             <div className="space-y-4 lg:col-span-2">
-              <div className="h-64 rounded-xl border border-border bg-card animate-pulse" />
+              <div className="h-64 rounded-xl border border-border bg-card shadow-sm animate-pulse" />
             </div>
           </div>
         </div>
@@ -134,10 +134,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   if (error || !taskData) {
     return (
       <AppShell currentSection="tareas" breadcrumbs={[{ label: "7F" }, { label: "Tareas", href: "/tareas" }, { label: "Error" }]}>
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-8">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card shadow-sm p-8">
           <AlertCircle className="h-10 w-10 text-destructive" />
           <p className="text-sm text-muted-foreground">{error ?? "Tarea no encontrada"}</p>
-          <Link href="/tareas" className="text-sm font-medium text-foreground underline hover:no-underline">
+          <Link href="/tareas" className="text-sm font-medium text-primary hover:text-primary/80">
             ← Volver a Tareas
           </Link>
         </div>
@@ -160,7 +160,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       <div className="flex flex-col gap-6">
         <Link
           href="/tareas"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10"
         >
           <ArrowLeft className="h-4 w-4" /> Tareas
         </Link>
@@ -168,13 +168,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-3 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <CheckSquare className="h-7 w-7 text-muted-foreground flex-shrink-0" />
+              <CheckSquare className="h-7 w-7 text-primary flex-shrink-0" />
               <InlineText
                 value={task.titulo ?? ""}
                 onSave={(v) => saveField("titulo", v)}
                 placeholder="Sin título"
                 as="h1"
-                className="text-2xl font-semibold text-foreground"
+                className="text-2xl font-bold text-foreground"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -205,7 +205,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="flex flex-col gap-6 lg:col-span-3">
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="rounded-xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Descripción</h2>
               <InlineTextarea
                 value={task.descripcion ?? ""}
@@ -217,7 +217,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </section>
 
             {task.proyectoId && (
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-xl border border-border bg-card shadow-sm p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-medium text-muted-foreground">Documentos del proyecto</h2>
                   <SmartAction
@@ -240,7 +240,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-foreground hover:underline"
+                          className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground group hover:bg-muted/40 group-hover:text-primary transition-colors"
                         >
                           <FileText className="h-4 w-4 flex-shrink-0" />
                           {doc.nombre ?? doc.tipo}
@@ -255,7 +255,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <aside className="flex flex-col gap-4 lg:col-span-2">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Detalles</h2>
               <div className="space-y-0">
                 <MetaRow label="Estado">
@@ -329,13 +329,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Acciones rápidas</h2>
               <div className="flex flex-col gap-2">
                 {estado === "pendiente" && (
                   <button
                     onClick={() => quickAction("en_progreso")}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-left bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Iniciar tarea
                   </button>
@@ -344,13 +344,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                   <>
                     <button
                       onClick={() => quickAction("revision")}
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-left bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       Enviar a revisión
                     </button>
                     <button
                       onClick={() => quickAction("completada")}
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-left bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       Completar
                     </button>
@@ -359,7 +359,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 {estado === "revision" && (
                   <button
                     onClick={() => quickAction("completada")}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-left bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Completar
                   </button>
@@ -367,7 +367,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 {estado === "completada" && (
                   <button
                     onClick={() => quickAction("pendiente")}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-left bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Reabrir
                   </button>

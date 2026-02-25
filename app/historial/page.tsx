@@ -67,19 +67,19 @@ export default function HistorialPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Eventos hoy</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{historyEvents.filter(e => e.date === "19 feb 2026").length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Acciones IA</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{historyEvents.filter(e => e.type === "ia").length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Actores unicos</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{new Set(historyEvents.map(e => e.actor)).size}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total registros</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{historyEvents.length}</p>
           </div>
@@ -94,7 +94,7 @@ export default function HistorialPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar en historial..."
-              className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg bg-muted/50 pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
@@ -104,7 +104,7 @@ export default function HistorialPage() {
                 onClick={() => setActiveFilter(f)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  activeFilter === f ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  activeFilter === f ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 {f}
@@ -118,7 +118,7 @@ export default function HistorialPage() {
           {Object.entries(grouped).map(([date, events]) => (
             <div key={date}>
               <div className="flex items-center gap-2 mb-4">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">{date}</h3>
                 <span className="text-xs text-muted-foreground">{events.length} eventos</span>
               </div>
@@ -136,11 +136,11 @@ export default function HistorialPage() {
                         <EventIcon className="h-3 w-3 text-foreground/60" />
                       </div>
 
-                      <div className="rounded-xl border border-border bg-card px-4 py-3 hover:shadow-sm transition-shadow">
+                      <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 hover:bg-muted/40 transition-colors group">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm text-foreground leading-relaxed">
-                              <span className="font-medium">{event.actor}</span>
+                              <span className="font-medium group-hover:text-primary">{event.actor}</span>
                               {" "}{event.action}{" "}
                               <span className="font-medium">{event.target}</span>
                             </p>
@@ -169,7 +169,7 @@ export default function HistorialPage() {
         </div>
 
         {filtered.length === 0 && (
-          <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
             <History className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Sin eventos para este filtro</p>
           </div>

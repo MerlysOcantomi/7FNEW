@@ -228,12 +228,12 @@ export default function InboxPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Pendientes", value: stats.nuevos, icon: Inbox, color: "text-blue-500" },
+            { label: "Pendientes", value: stats.nuevos, icon: Inbox, color: "text-primary" },
             { label: "Leads", value: stats.leads, icon: Zap, color: "text-emerald-500" },
             { label: "Tickets", value: stats.tickets, icon: AlertTriangle, color: "text-red-500" },
             { label: "Procesados", value: stats.procesados, icon: CheckCircle2, color: "text-muted-foreground" },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+            <div key={s.label} className="rounded-xl border border-border bg-card shadow-sm p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
                 <s.icon className={cn("h-4 w-4", s.color)} />
@@ -252,7 +252,7 @@ export default function InboxPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar en inbox..."
-              className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg bg-muted/50 pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="flex items-center gap-1.5 overflow-x-auto flex-shrink-0" style={{ scrollbarWidth: "none" }}>
@@ -263,7 +263,7 @@ export default function InboxPage() {
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
                   estadoFilter === f.key
-                    ? "bg-foreground text-background"
+                    ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -274,7 +274,7 @@ export default function InboxPage() {
           <CanEdit>
             <button
               onClick={() => setShowNewForm(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background hover:opacity-80 transition-opacity flex-shrink-0"
+              className="flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3.5 py-2 text-xs font-medium hover:bg-primary/90 shadow-sm transition-opacity flex-shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
               Nueva entrada
@@ -287,12 +287,12 @@ export default function InboxPage() {
           {/* Inbox list */}
           <div className="lg:w-[420px] flex-shrink-0 flex flex-col gap-2">
             {loading ? (
-              <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Cargando...</p>
               </div>
             ) : entries.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+              <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
                 <Inbox className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Sin entradas</p>
               </div>
@@ -333,7 +333,7 @@ export default function InboxPage() {
                         </p>
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                           {entry.tipo && (
-                            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", TIPO_COLORS[entry.tipo] || "bg-muted text-muted-foreground")}>
+                            <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", TIPO_COLORS[entry.tipo] || "bg-muted text-muted-foreground")}>
                               {entry.tipo}
                             </span>
                           )}
@@ -416,18 +416,18 @@ function DetailPanel({
   return (
     <div className="flex-1 flex flex-col gap-4 min-w-0">
       {/* Header */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", TIPO_COLORS[entry.tipo] || "bg-muted text-muted-foreground")}>
+              <span className={cn("rounded-md px-2.5 py-0.5 text-[11px] font-medium", TIPO_COLORS[entry.tipo] || "bg-muted text-muted-foreground")}>
                 {entry.tipo}
               </span>
-              <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", URGENCIA_COLORS[entry.urgencia])}>
+              <span className={cn("rounded-md px-2.5 py-0.5 text-[11px] font-medium", URGENCIA_COLORS[entry.urgencia])}>
                 {entry.urgencia}
               </span>
               {entry.categoria && (
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="rounded-md bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {entry.categoria}
                 </span>
               )}
@@ -471,7 +471,7 @@ function DetailPanel({
           <div className="flex items-center gap-1.5 mt-3 flex-wrap">
             <Tag className="h-3 w-3 text-muted-foreground" />
             {tags.map((tag, i) => (
-              <span key={i} className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+              <span key={i} className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                 {tag}
               </span>
             ))}
@@ -528,14 +528,14 @@ function DetailPanel({
       )}
 
       {/* Message */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-5">
         <p className="text-[11px] text-muted-foreground mb-2 font-medium">Mensaje original</p>
         <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">{entry.mensaje}</p>
       </div>
 
       {/* Notes */}
       {entry.notas && (
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5">
           <p className="text-[11px] text-muted-foreground mb-2 font-medium">Notas IA</p>
           <p className="text-sm text-foreground/70">{entry.notas}</p>
         </div>
@@ -552,7 +552,7 @@ function DetailPanel({
             {entry.clienteId && (
               <Link
                 href={`/clientes/${entry.clienteId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Users className="h-3 w-3 text-muted-foreground" />
                 Ver cliente
@@ -562,7 +562,7 @@ function DetailPanel({
             {entry.proyectoId && (
               <Link
                 href={`/proyectos/${entry.proyectoId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <FolderKanban className="h-3 w-3 text-muted-foreground" />
                 Ver proyecto
@@ -572,7 +572,7 @@ function DetailPanel({
             {entry.tareaId && (
               <Link
                 href={`/tareas/${entry.tareaId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <CheckCircle2 className="h-3 w-3 text-muted-foreground" />
                 Ver tarea
@@ -654,7 +654,7 @@ function ActionButton({
       className={cn(
         "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition-colors",
         primary
-          ? "border-foreground/20 bg-foreground text-background hover:opacity-80"
+          ? "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
           : "border-border bg-card text-foreground hover:bg-accent",
         disabled && "opacity-50 cursor-not-allowed",
       )}
@@ -709,10 +709,10 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-xl bg-card border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-xl bg-card border border-border shadow-sm overflow-hidden animate-in zoom-in-95 fade-in duration-200">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4 text-primary" />
             Nueva entrada al Inbox
           </h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -729,7 +729,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Nombre del remitente"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
@@ -737,7 +737,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
               <select
                 value={fuente}
                 onChange={(e) => setFuente(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="manual">Manual</option>
                 <option value="chatbot-skina">Chatbot Skina</option>
@@ -758,7 +758,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email@ejemplo.com"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
@@ -768,7 +768,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
                 placeholder="+52 55 1234 5678"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -780,7 +780,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
               onChange={(e) => setMensaje(e.target.value)}
               rows={5}
               placeholder="Contenido del mensaje, consulta, solicitud..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              className="w-full rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
               required
             />
           </div>
@@ -789,7 +789,7 @@ function NewEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
             <button
               type="submit"
               disabled={saving || !mensaje.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background hover:opacity-80 transition-opacity disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 shadow-sm transition-opacity disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               {saving ? "Enviando..." : "Enviar y clasificar"}

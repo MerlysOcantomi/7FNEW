@@ -155,7 +155,7 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
 
   if (loading && entries.length === 0) {
     return (
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="rounded-xl border border-border bg-card shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <History className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">Actividad</h2>
@@ -168,7 +168,7 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
         <History className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Actividad</h2>
@@ -190,8 +190,8 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
 
               return (
                 <div key={entry.id} className="relative flex gap-3 pl-0">
-                  <div className={cn("relative z-10 flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0", iconBg)}>
-                    <Icon className={cn("h-3.5 w-3.5", iconColor)} />
+                  <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 bg-primary">
+                    <Icon className="h-3.5 w-3.5 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="flex items-center gap-2 flex-wrap">

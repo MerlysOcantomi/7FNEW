@@ -27,16 +27,16 @@ interface DashboardData {
 }
 
 const estadoColors: Record<string, string> = {
-  planificacion: "bg-blue-100 text-blue-700",
-  "en_progreso": "bg-amber-100 text-amber-700",
-  en_progreso: "bg-amber-100 text-amber-700",
-  completado: "bg-green-100 text-green-700",
-  pausado: "bg-gray-100 text-gray-600",
-  pendiente: "bg-yellow-100 text-yellow-700",
-  enviada: "bg-blue-100 text-blue-700",
-  pagada: "bg-green-100 text-green-700",
-  vencida: "bg-red-100 text-red-700",
-  borrador: "bg-gray-100 text-gray-600",
+  planificacion: "bg-primary/10 text-primary rounded-md font-medium",
+  "en_progreso": "bg-amber-100 text-amber-700 rounded-md font-medium",
+  en_progreso: "bg-amber-100 text-amber-700 rounded-md font-medium",
+  completado: "bg-green-100 text-green-700 rounded-md font-medium",
+  pausado: "bg-gray-100 text-gray-600 rounded-md font-medium",
+  pendiente: "bg-amber-100 text-amber-700 rounded-md font-medium",
+  enviada: "bg-primary/10 text-primary rounded-md font-medium",
+  pagada: "bg-green-100 text-green-700 rounded-md font-medium",
+  vencida: "bg-red-100 text-red-700 rounded-md font-medium",
+  borrador: "bg-gray-100 text-gray-600 rounded-md font-medium",
 }
 
 export default function ClienteDashboardPage() {
@@ -55,7 +55,7 @@ export default function ClienteDashboardPage() {
     <ClientPortalShell>
       {loading || !data ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -68,32 +68,32 @@ export default function ClienteDashboardPage() {
           </div>
 
           {/* Proyectos recientes */}
-          <div className="rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-gray-900">Proyectos recientes</h2>
-              <Link href="/cliente/proyecto" className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline">
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="text-sm font-semibold text-foreground">Proyectos recientes</h2>
+              <Link href="/cliente/proyecto" className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80">
                 Ver todos <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
             {data.proyectosRecientes.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-gray-400">No hay proyectos</p>
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">No hay proyectos</p>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-border">
                 {data.proyectosRecientes.map((p: any) => (
                   <Link
                     key={p.id}
                     href={`/cliente/proyecto/${p.id}`}
-                    className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors group"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
-                      <p className="text-xs text-gray-500">{p.descripcion?.slice(0, 60) || "Sin descripcion"}</p>
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary">{p.nombre}</p>
+                      <p className="text-xs text-muted-foreground">{p.descripcion?.slice(0, 60) || "Sin descripcion"}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       {p.progreso != null && (
-                        <span className="text-xs text-gray-500">{p.progreso}%</span>
+                        <span className="text-xs text-muted-foreground">{p.progreso}%</span>
                       )}
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[p.estado] || "bg-gray-100 text-gray-600"}`}>
+                      <span className={`rounded-md px-2.5 py-0.5 text-xs font-medium ${estadoColors[p.estado] || "bg-gray-100 text-gray-600 rounded-md font-medium"}`}>
                         {p.estado}
                       </span>
                     </div>
@@ -106,28 +106,28 @@ export default function ClienteDashboardPage() {
           {/* Facturas + Tareas */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Facturas */}
-            <div className="rounded-xl border border-gray-200 bg-white">
-              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">Facturas recientes</h2>
-                <Link href="/cliente/facturas" className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline">
+            <div className="rounded-xl border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h2 className="text-sm font-semibold text-foreground">Facturas recientes</h2>
+                <Link href="/cliente/facturas" className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80">
                   Ver todas <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
               {data.facturasRecientes.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-gray-400">No hay facturas</p>
+                <p className="px-5 py-8 text-center text-sm text-muted-foreground">No hay facturas</p>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-border">
                   {data.facturasRecientes.map((f: any) => (
                     <div key={f.id} className="flex items-center justify-between px-5 py-3.5">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">#{f.numero}</p>
-                        <p className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("es")}</p>
+                        <p className="text-sm font-medium text-foreground">#{f.numero}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(f.fechaEmision).toLocaleDateString("es")}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="text-sm font-semibold text-foreground">
                           CHF {f.total?.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                         </span>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[f.estado] || "bg-gray-100 text-gray-600"}`}>
+                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-medium ${estadoColors[f.estado] || "bg-gray-100 text-gray-600"}`}>
                           {f.estado}
                         </span>
                       </div>
@@ -138,23 +138,23 @@ export default function ClienteDashboardPage() {
             </div>
 
             {/* Tareas */}
-            <div className="rounded-xl border border-gray-200 bg-white">
-              <div className="border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">Tareas abiertas</h2>
+            <div className="rounded-xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border px-5 py-4">
+                <h2 className="text-sm font-semibold text-foreground">Tareas abiertas</h2>
               </div>
               {data.tareasAbiertas.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-gray-400">No hay tareas pendientes</p>
+                <p className="px-5 py-8 text-center text-sm text-muted-foreground">No hay tareas pendientes</p>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-border">
                   {data.tareasAbiertas.map((t: any) => (
                     <div key={t.id} className="flex items-center justify-between px-5 py-3.5">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{t.titulo}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium text-foreground">{t.titulo}</p>
+                        <p className="text-xs text-muted-foreground">
                           {t.fechaLimite ? `Fecha limite: ${new Date(t.fechaLimite).toLocaleDateString("es")}` : "Sin fecha limite"}
                         </p>
                       </div>
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[t.estado] || "bg-gray-100 text-gray-600"}`}>
+                      <span className={`rounded-md px-2.5 py-0.5 text-xs font-medium ${estadoColors[t.estado] || "bg-gray-100 text-gray-600"}`}>
                         {t.estado}
                       </span>
                     </div>
@@ -171,17 +171,17 @@ export default function ClienteDashboardPage() {
 
 function StatCard({ icon: Icon, label, value, total }: { icon: any; label: string; value: number; total?: number }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <div className="rounded-xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1a3a5c]/10">
-          <Icon className="h-5 w-5 text-[#1a3a5c]" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-2xl font-semibold text-foreground">
             {value}
-            {total != null && <span className="text-sm font-normal text-gray-400"> / {total}</span>}
+            {total != null && <span className="text-sm font-normal text-muted-foreground"> / {total}</span>}
           </p>
-          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
         </div>
       </div>
     </div>
