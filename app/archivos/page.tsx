@@ -163,22 +163,27 @@ export default function ArchivosPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total archivos</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : allFiles.length}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Almacenamiento</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : totalSize}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Documentos PDF</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : pdfCount}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Imagenes</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : imgCount}</p>
-          </div>
+          {[
+            { label: "Total archivos", value: loading ? "—" : allFiles.length, icon: FileText, color: "#7C3AED" },
+            { label: "Almacenamiento", value: loading ? "—" : totalSize, icon: File, color: "#6D28D9" },
+            { label: "Documentos PDF", value: loading ? "—" : pdfCount, icon: FileSpreadsheet, color: "#9333EA" },
+            { label: "Imagenes", value: loading ? "—" : imgCount, icon: Image, color: "#64748B" },
+          ].map((s) => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: s.color }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">{s.label}</p>
+                    <p className="text-3xl font-bold text-white">{s.value}</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {/* Search + Filters */}

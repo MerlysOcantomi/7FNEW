@@ -228,19 +228,26 @@ export default function InboxPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Pendientes", value: stats.nuevos, icon: Inbox, color: "text-primary" },
-            { label: "Leads", value: stats.leads, icon: Zap, color: "text-emerald-500" },
-            { label: "Tickets", value: stats.tickets, icon: AlertTriangle, color: "text-red-500" },
-            { label: "Procesados", value: stats.procesados, icon: CheckCircle2, color: "text-muted-foreground" },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-card shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
-                <s.icon className={cn("h-4 w-4", s.color)} />
+            { label: "Pendientes", value: stats.nuevos, icon: Inbox, color: "#7C3AED" },
+            { label: "Leads", value: stats.leads, icon: Zap, color: "#6D28D9" },
+            { label: "Tickets", value: stats.tickets, icon: AlertTriangle, color: "#9333EA" },
+            { label: "Procesados", value: stats.procesados, icon: CheckCircle2, color: "#64748B" },
+          ].map((s) => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: s.color }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">{s.label}</p>
+                    <p className="text-3xl font-bold text-white">{s.value}</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
               </div>
-              <p className="mt-1.5 text-2xl font-semibold text-foreground">{s.value}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Search + filters + new */}

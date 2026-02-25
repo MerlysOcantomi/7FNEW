@@ -71,18 +71,26 @@ export default function UsuariosPage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total usuarios</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : totalUsuarios}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Roles unicos</p>
-            <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : rolesUnicos}</p>
-          </div>
+          {[
+            { label: "Total usuarios", value: loading ? "—" : totalUsuarios, icon: UserCircle, color: "#7C3AED" },
+            { label: "Activos", value: loading ? "—" : activos, icon: UserCircle, color: "#6D28D9" },
+            { label: "Roles unicos", value: loading ? "—" : rolesUnicos, icon: Building2, color: "#9333EA" },
+          ].map((s) => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: s.color }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">{s.label}</p>
+                    <p className="text-3xl font-bold text-white">{s.value}</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {loading ? (

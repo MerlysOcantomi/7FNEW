@@ -57,36 +57,36 @@ export default function ClientesPage() {
       >
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#7C3AED" }}>
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total clientes</p>
-                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : total}</p>
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">Total clientes</p>
+                <p className="text-3xl font-bold text-white">{loading ? "—" : total}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                <Users className="h-5 w-5 text-white" />
               </div>
             </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#6D28D9" }}>
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
-                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">Activos</p>
+                <p className="text-3xl font-bold text-white">{loading ? "—" : activos}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/20">
-                <Building className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                <Building className="h-5 w-5 text-white" />
               </div>
             </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#9333EA" }}>
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Prospectos</p>
-                <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : prospectos}</p>
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">Prospectos</p>
+                <p className="text-3xl font-bold text-white">{loading ? "—" : prospectos}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
-                <Mail className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                <Mail className="h-5 w-5 text-white" />
               </div>
             </div>
           </div>

@@ -215,18 +215,28 @@ export default function ContenidoPage() {
         {/* Stats */}
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: "Total", value: stats.total },
-            { label: "Ideas", value: stats.ideas },
-            { label: "En progreso", value: stats.enProgreso },
-            { label: "Programados", value: stats.programados },
-            { label: "Publicados", value: stats.publicados },
-            { label: "Campanas activas", value: stats.campanasActivas },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-card shadow-sm p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
-              <p className="text-2xl font-semibold text-foreground mt-1">{s.value}</p>
-            </div>
-          ))}
+            { label: "Total", value: stats.total, icon: List, color: "#7C3AED" },
+            { label: "Ideas", value: stats.ideas, icon: Lightbulb, color: "#6D28D9" },
+            { label: "En progreso", value: stats.enProgreso, icon: Clock, color: "#9333EA" },
+            { label: "Programados", value: stats.programados, icon: Calendar, color: "#64748B" },
+            { label: "Publicados", value: stats.publicados, icon: CheckCircle2, color: "#7C3AED" },
+            { label: "Campanas activas", value: stats.campanasActivas, icon: Megaphone, color: "#6D28D9" },
+          ].map((s) => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: s.color }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">{s.label}</p>
+                    <p className="text-3xl font-bold text-white">{s.value}</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {/* View switcher + actions */}

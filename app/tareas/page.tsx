@@ -136,21 +136,33 @@ export default function TareasPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{allTasks.length}</p>
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#7C3AED" }}>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+              <CheckSquare className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-white/90">Total</p>
+            <p className="mt-1 text-2xl font-semibold text-white">{allTasks.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pendientes</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{pendingCount}</p>
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#6D28D9" }}>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+              <Circle className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-white/90">Pendientes</p>
+            <p className="mt-1 text-2xl font-semibold text-white">{pendingCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">En progreso</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{inProgressCount}</p>
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#9333EA" }}>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+              <Clock className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-white/90">En progreso</p>
+            <p className="mt-1 text-2xl font-semibold text-white">{inProgressCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Urgentes</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{urgentCount}</p>
+          <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: "#64748B" }}>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+              <AlertTriangle className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-white/90">Urgentes</p>
+            <p className="mt-1 text-2xl font-semibold text-white">{urgentCount}</p>
           </div>
         </div>
 

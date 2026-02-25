@@ -105,16 +105,16 @@ const departments = [
   },
 ]
 
-function LoadBar({ load }: { load: number }) {
+function LoadBar({ load, light }: { load: number; light?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+      <div className={cn("h-1.5 flex-1 rounded-full overflow-hidden", light ? "bg-white/20" : "bg-muted")}>
         <div
-          className={cn("h-full rounded-full transition-all", load >= 85 ? "bg-[var(--tab-review)]" : load >= 65 ? "bg-[var(--tab-tasks)]" : "bg-[var(--tab-phases)]")}
+          className={cn("h-full rounded-full transition-all", light ? "bg-white" : load >= 85 ? "bg-[var(--tab-review)]" : load >= 65 ? "bg-[var(--tab-tasks)]" : "bg-[var(--tab-phases)]")}
           style={{ width: `${load}%` }}
         />
       </div>
-      <span className={cn("text-xs font-medium", load >= 85 ? "text-foreground" : "text-muted-foreground")}>{load}%</span>
+      <span className={cn("text-xs font-medium", light ? "text-white" : load >= 85 ? "text-foreground" : "text-muted-foreground")}>{load}%</span>
     </div>
   )
 }
@@ -140,23 +140,28 @@ export default function DepartamentosPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Departamentos</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{departments.length}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Miembros</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{totalMembers}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Proyectos activos</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{totalProjects}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Carga promedio</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{avgLoad}%</p>
-            <LoadBar load={avgLoad} />
-          </div>
+          {[
+            { label: "Departamentos", value: departments.length, icon: Building2, color: "#7C3AED", showLoadBar: false },
+            { label: "Miembros", value: totalMembers, icon: Users, color: "#6D28D9", showLoadBar: false },
+            { label: "Proyectos activos", value: totalProjects, icon: FolderKanban, color: "#9333EA", showLoadBar: false },
+            { label: "Carga promedio", value: `${avgLoad}%`, icon: BarChart3, color: "#64748B", showLoadBar: true },
+          ].map((s) => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: s.color }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/70">{s.label}</p>
+                    <p className="text-3xl font-bold text-white">{s.value}</p>
+                    {s.showLoadBar && <LoadBar load={avgLoad} light />}
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {/* Department cards */}

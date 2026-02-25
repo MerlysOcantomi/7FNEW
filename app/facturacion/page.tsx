@@ -245,36 +245,31 @@ export default function FacturacionPage() {
             label="Facturado este mes"
             amount={stats.totalThisMonth}
             icon={Calendar}
-            accentClass="bg-emerald-50 dark:bg-emerald-900/20"
-            iconClass="text-emerald-600"
+            bgColor="#7C3AED"
           />
           <IndicatorCard
             label="Total cobrado"
             amount={stats.totalPaid}
             icon={CheckCircle2}
-            accentClass="bg-emerald-50 dark:bg-emerald-900/20"
-            iconClass="text-emerald-600"
+            bgColor="#6D28D9"
           />
           <IndicatorCard
             label="Pendiente de cobro"
             amount={stats.totalPending}
             icon={Clock}
-            accentClass="bg-amber-50 dark:bg-amber-900/20"
-            iconClass="text-amber-600"
+            bgColor="#9333EA"
           />
           <IndicatorCard
             label="Facturas vencidas"
             amount={stats.totalOverdue}
             icon={AlertCircle}
-            accentClass="bg-red-50 dark:bg-red-900/20"
-            iconClass="text-red-600"
+            bgColor="#64748B"
           />
           <IndicatorCard
             label="Total general"
             amount={stats.totalAll}
             icon={TrendingUp}
-            accentClass="bg-primary/10"
-            iconClass="text-primary"
+            bgColor="#475569"
             className="col-span-2 lg:col-span-1"
           />
         </div>
@@ -682,18 +677,21 @@ export default function FacturacionPage() {
 /* ─────────── Indicator Card ─────────── */
 
 function IndicatorCard({
-  label, amount, icon: Icon, accentClass, iconClass = "text-foreground/70", className,
+  label, amount, icon: Icon, bgColor, className,
 }: {
-  label: string; amount: number; icon: typeof CheckCircle2; accentClass: string; iconClass?: string; className?: string
+  label: string; amount: number; icon: typeof CheckCircle2; bgColor: string; className?: string
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card shadow-sm p-5 flex items-start gap-4", className)}>
-      <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0", accentClass)}>
-        <Icon className={cn("h-5 w-5", iconClass)} />
+    <div
+      className={cn("rounded-xl p-5 flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5", className)}
+      style={{ backgroundColor: bgColor }}
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 flex-shrink-0">
+        <Icon className="h-5 w-5 text-white" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(amount)}</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-white">{label}</p>
+        <p className="text-xl font-bold text-white mt-1">{formatCurrency(amount)}</p>
       </div>
     </div>
   )
