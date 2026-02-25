@@ -55,10 +55,6 @@ interface SidebarGroupConfig {
   items: SidebarItem[]
 }
 
-const dashboardSections: SidebarItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: House, href: "/dashboard", roles: ["admin", "editor", "viewer"] },
-]
-
 const flowSections: SidebarItem[] = [
   { id: "inbox", label: "Inbox Inteligente", icon: Inbox, href: "/inbox", roles: ["admin", "editor", "viewer"] },
   { id: "entrada", label: "Entrada Manual", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
@@ -92,7 +88,6 @@ const frameworkSections: SidebarItem[] = [
 ]
 
 const groups: SidebarGroupConfig[] = [
-  { id: "dashboard", title: "Dashboard", icon: House, items: dashboardSections },
   { id: "flow", title: "Flow", icon: Workflow, items: flowSections },
   { id: "forge", title: "Forge", icon: Sparkles, items: forgeSections },
   { id: "funds", title: "Funds", icon: Banknote, items: fundsSections },
@@ -139,8 +134,7 @@ function SidebarGroup({
         <nav className="flex flex-col gap-0.5">
         {filtered.map((item) => {
           const Icon = item.icon
-          const isDashboardActive = item.id === "dashboard" && (currentSection === "dashboard" || currentSection === "direccion")
-          const isActive = currentSection === item.id || isDashboardActive
+          const isActive = currentSection === item.id
           return (
             <Link
               key={item.id}
@@ -167,7 +161,6 @@ function SidebarGroup({
 export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
   const { role } = useUser()
   const [collapsedByGroup, setCollapsedByGroup] = useState<Record<string, boolean>>({
-    dashboard: false,
     flow: false,
     forge: false,
     funds: false,
@@ -181,11 +174,13 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
       [groupId]: !prev[groupId],
     }))
 
+  const isDashboardActive = currentSection === "dashboard"
+
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
-        <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
+        <Link href="/" className="flex items-center gap-2.5" onClick={onClose}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
             <span className="text-sm font-bold text-background">7F</span>
           </div>
@@ -201,6 +196,21 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
       </div>
 
       <ScrollArea className="flex-1 px-2 py-4">
+        {/* Dashboard — fixed link */}
+        <Link
+          href="/"
+          onClick={onClose}
+          className={cn(
+            "mb-4 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
+            isDashboardActive
+              ? "bg-sidebar-accent text-sidebar-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          )}
+        >
+          <House className="h-4 w-4 flex-shrink-0" />
+          <span>Dashboard</span>
+        </Link>
+
         {groups.map((group) => (
           <SidebarGroup
             key={group.id}

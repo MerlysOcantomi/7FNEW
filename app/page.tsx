@@ -24,7 +24,7 @@ function formatDate(value: string): string {
   } catch { return value }
 }
 
-export default function DireccionGeneralPage() {
+export default function DashboardPage() {
   const { data: projectsData, loading: loadingProjects } = useFetch<any>("/api/proyectos")
   const { data: clientsData, loading: loadingClients } = useFetch<any>("/api/clientes")
   const { data: tasksData, loading: loadingTasks } = useFetch<any>("/api/tareas")
@@ -87,11 +87,11 @@ export default function DireccionGeneralPage() {
 
   return (
     <AppShell
-      currentSection="direccion"
-      breadcrumbs={[{ label: "7F" }, { label: "Direccion General" }]}
+      currentSection="dashboard"
+      breadcrumbs={[{ label: "7F" }, { label: "Dashboard" }]}
     >
       <SectionPage
-        title="Direccion General"
+        title="Dashboard"
         description="Vista general del estado de todos los proyectos, clientes y operaciones."
       >
         {/* Stats */}
