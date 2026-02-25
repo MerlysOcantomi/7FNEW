@@ -61,10 +61,10 @@ export default function ClienteDashboardPage() {
         <div className="space-y-6">
           {/* Stats */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} color="#2563EB" />
-            <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} color="#1E40AF" />
-            <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} color="#7C3AED" />
-            <StatCard icon={Files} label="Documentos" value={data.stats.totalDocumentos} color="#9333EA" />
+            <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} color="#7C3AED" />
+            <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} color="#6D28D9" />
+            <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} color="#9333EA" />
+            <StatCard icon={Files} label="Documentos" value={data.stats.totalDocumentos} color="#64748B" />
           </div>
 
           {/* Proyectos recientes */}
@@ -170,19 +170,18 @@ export default function ClienteDashboardPage() {
 }
 
 function StatCard({ icon: Icon, label, value, total, color }: { icon: any; label: string; value: number; total?: number; color?: string }) {
-  const c = color || "#2563EB"
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+    <div className="rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5" style={{ backgroundColor: color || "#7C3AED" }}>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: c, opacity: 0.12 }}>
-          <Icon className="h-5 w-5" style={{ color: c, opacity: 1 }} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+          <Icon className="h-5 w-5 text-white" />
         </div>
         <div>
-          <p className="text-2xl font-bold" style={{ color: c }}>
+          <p className="text-2xl font-bold text-white">
             {value}
-            {total != null && <span className="text-sm font-normal text-muted-foreground"> / {total}</span>}
+            {total != null && <span className="text-sm font-normal text-white/60"> / {total}</span>}
           </p>
-          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-xs text-white/70">{label}</p>
         </div>
       </div>
     </div>

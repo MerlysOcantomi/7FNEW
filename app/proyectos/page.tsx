@@ -147,10 +147,10 @@ export default function ProyectosPage() {
       >
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total proyectos" value={String(totalProjects)} icon={FolderKanban} accentColor="#2563EB" valueColor="#2563EB" />
-          <StatCard label="En progreso" value={String(inProgress)} icon={Clock} accentColor="#1E40AF" valueColor="#1E40AF" />
-          <StatCard label="Completados" value={String(completed)} icon={CheckCircle} accentColor="#7C3AED" valueColor="#7C3AED" />
-          <StatCard label="En revision" value={String(inReview)} icon={AlertCircle} accentColor="#9333EA" valueColor="#9333EA" />
+          <StatCard label="Total proyectos" value={String(totalProjects)} icon={FolderKanban} color="#7C3AED" />
+          <StatCard label="En progreso" value={String(inProgress)} icon={Clock} color="#6D28D9" />
+          <StatCard label="Completados" value={String(completed)} icon={CheckCircle} color="#9333EA" />
+          <StatCard label="En revision" value={String(inReview)} icon={AlertCircle} color="#64748B" />
         </div>
 
         {/* Search + Filters */}

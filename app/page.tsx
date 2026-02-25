@@ -198,32 +198,28 @@ export default function DashboardPage() {
             value={statsLoading ? "\u2014" : String(metrics.proyectosActivos)}
             subtitle={statsLoading ? "" : `${totalProyectos} totales`}
             icon={FolderKanban}
-            accentColor="#2563EB"
-            valueColor="#2563EB"
+            color="#7C3AED"
           />
           <StatCard
             label="Clientes"
             value={statsLoading ? "\u2014" : String(totalClientes)}
             subtitle={statsLoading ? "" : `${clients.filter((c: any) => c.estado === "activo").length} activos`}
             icon={Users}
-            accentColor="#1E40AF"
-            valueColor="#1E40AF"
+            color="#6D28D9"
           />
           <StatCard
             label="Tareas pendientes"
             value={statsLoading ? "\u2014" : String(tareasPendientes)}
             subtitle={statsLoading ? "" : `${metrics.tareasUrgentes} urgentes`}
             icon={CheckSquare}
-            accentColor="#7C3AED"
-            valueColor="#7C3AED"
+            color="#9333EA"
           />
           <StatCard
             label="Ingresos totales"
             value={statsLoading ? "\u2014" : formatCurrency(ingresos)}
             subtitle={statsLoading ? "" : `Gastos: ${formatCurrency(gastos)}`}
             icon={DollarSign}
-            accentColor="#9333EA"
-            valueColor="#9333EA"
+            color="#64748B"
           />
         </div>
 
