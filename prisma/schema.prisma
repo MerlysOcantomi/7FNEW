@@ -7,19 +7,52 @@ datasource db {
   provider = "sqlite"
 }
 
-model Cliente {
+// ── Multi-tenancy ──
+
+model Workspace {
   id        String   @id @default(cuid())
-  customId  String?
   nombre    String
-  email     String?
-  telefono  String?
-  empresa   String?
-  tipo      String   @default("empresa")
-  estado    String   @default("activo")
-  notas     String?
+  slug      String   @unique
+  vertical  String   @default("core")
+  config    String?
+  plan      String   @default("free")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  users          User[]
+  clientes       Cliente[]
+  proyectos      Proyecto[]
+  tareas         Tarea[]
+  documentos     Documento[]
+  transacciones  Transaccion[]
+  facturas       Factura[]
+  eventos        Evento[]
+  notas          Nota[]
+  automatizaciones Automatizacion[]
+  notifications  Notification[]
+  activities     Activity[]
+  inboxEntries   InboxEntry[]
+  attachments    Attachment[]
+  campaigns      Campaign[]
+  contentPieces  ContentPiece[]
+  contentIdeas   ContentIdea[]
+}
+
+model Cliente {
+  id          String   @id @default(cuid())
+  customId    String?
+  nombre      String
+  email       String?
+  telefono    String?
+  empresa     String?
+  tipo        String   @default("empresa")
+  estado      String   @default("activo")
+  notas       String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace          Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   proyectos          Proyecto[]
   tareas             Tarea[]
   documentos         Documento[]
@@ -54,9 +87,11 @@ model Proyecto {
   allowedUsers      String?
   createdBy         String?
   clienteId         String?
+  workspaceId       String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  workspace     Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   tareas        Tarea[]
   documentos    Documento[]
@@ -78,27 +113,31 @@ model Tarea {
   proyectoId  String?
   clienteId   String?
   usuarioId   String?
+  workspaceId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  usuario  Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  usuario   Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 }
 
 model Documento {
-  id         String   @id @default(cuid())
-  nombre     String
-  tipo       String
-  url        String
-  tamano     Int?
-  clienteId  String?
-  proyectoId String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  nombre      String
+  tipo        String
+  url         String
+  tamano      Int?
+  clienteId   String?
+  proyectoId  String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
 }
 
 model Transaccion {
@@ -110,11 +149,13 @@ model Transaccion {
   fecha       DateTime @default(now())
   clienteId   String?
   proyectoId  String?
+  workspaceId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
 }
 
 model Factura {
@@ -130,11 +171,13 @@ model Factura {
   paidAt           DateTime?
   clienteId        String?
   proyectoId       String?
+  workspaceId      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
 }
 
 model Evento {
@@ -147,24 +190,28 @@ model Evento {
   todoElDia   Boolean   @default(false)
   clienteId   String?
   proyectoId  String?
+  workspaceId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
 }
 
 model Nota {
-  id         String   @id @default(cuid())
-  titulo     String
-  contenido  String?
-  clienteId  String?
-  proyectoId String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  titulo      String
+  contenido   String?
+  clienteId   String?
+  proyectoId  String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
 }
 
 model Automatizacion {
@@ -175,8 +222,11 @@ model Automatizacion {
   condiciones String?
   acciones    String
   estado      String   @default("activa")
+  workspaceId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 model Usuario {
@@ -200,10 +250,12 @@ model User {
   role            String   @default("viewer")
   isPrivate       Boolean  @default(false)
   visibleProjects String?
+  workspaceId     String?
   lastLogin       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   notifications Notification[]
 }
 
@@ -215,55 +267,63 @@ model AllowedEmail {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  title     String
-  message   String?
-  link      String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  title       String
+  message     String?
+  link        String?
+  read        Boolean  @default(false)
+  workspaceId String?
+  createdAt   DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  module    String
-  recordId  String
-  type      String
-  userId    String?
-  userName  String?
-  userEmail String?
-  data      String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  module      String
+  recordId    String
+  type        String
+  userId      String?
+  userName    String?
+  userEmail   String?
+  data        String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 model InboxEntry {
-  id          String    @id @default(cuid())
-  nombre      String?
-  email       String?
-  telefono    String?
-  mensaje     String
-  fuente      String    @default("manual")
-  tipo        String    @default("consulta")
-  categoria   String?
-  urgencia    String    @default("media")
-  intencion   String?
-  resumen     String?
-  datosCliente String?
+  id            String    @id @default(cuid())
+  nombre        String?
+  email         String?
+  telefono      String?
+  mensaje       String
+  fuente        String    @default("manual")
+  tipo          String    @default("consulta")
+  categoria     String?
+  urgencia      String    @default("media")
+  intencion     String?
+  resumen       String?
+  datosCliente  String?
   datosProyecto String?
-  notas       String?
-  tags        String?
-  estado      String    @default("nuevo")
-  aiRaw       String?
-  clienteId   String?
-  proyectoId  String?
-  tareaId     String?
-  archivedAt  DateTime?
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  notas         String?
+  tags          String?
+  estado        String    @default("nuevo")
+  aiRaw         String?
+  clienteId     String?
+  proyectoId    String?
+  tareaId       String?
+  workspaceId   String?
+  archivedAt    DateTime?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 model QRCode {
@@ -326,26 +386,28 @@ model ClientFile {
 }
 
 model Campaign {
-  id          String    @id @default(cuid())
-  nombre      String
-  descripcion String?
-  estado      String    @default("idea")
-  marca       String    @default("general")
-  fechaInicio DateTime?
-  fechaFin    DateTime?
-  presupuesto Float?
-  objetivos   String?
-  clienteId   String?
-  proyectoId  String?
-  visibility  String    @default("public")
+  id           String    @id @default(cuid())
+  nombre       String
+  descripcion  String?
+  estado       String    @default("idea")
+  marca        String    @default("general")
+  fechaInicio  DateTime?
+  fechaFin     DateTime?
+  presupuesto  Float?
+  objetivos    String?
+  clienteId    String?
+  proyectoId   String?
+  visibility   String    @default("public")
   allowedUsers String?
-  createdBy   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdBy    String?
+  workspaceId  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  cliente  Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
-  piezas   ContentPiece[]
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  piezas    ContentPiece[]
 }
 
 model ContentPiece {
@@ -369,26 +431,31 @@ model ContentPiece {
   proyectoId      String?
   visibility      String    @default("public")
   createdBy       String?
+  workspaceId     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  campaign  Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 }
 
 model ContentIdea {
-  id         String   @id @default(cuid())
-  titulo     String
+  id          String   @id @default(cuid())
+  titulo      String
   descripcion String?
-  categoria  String?
-  plataforma String?
-  tags       String?
-  estado     String   @default("nueva")
-  fuente     String   @default("manual")
-  clienteId  String?
-  proyectoId String?
-  createdBy  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  categoria   String?
+  plataforma  String?
+  tags        String?
+  estado      String   @default("nueva")
+  fuente      String   @default("manual")
+  clienteId   String?
+  proyectoId  String?
+  createdBy   String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 model Attachment {
@@ -404,5 +471,8 @@ model Attachment {
   ocrText     String?
   scanStatus  String   @default("pending")
   scanResult  String?
+  workspaceId String?
   createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }

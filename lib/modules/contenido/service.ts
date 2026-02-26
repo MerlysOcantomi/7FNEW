@@ -17,16 +17,18 @@ interface ListParams {
   dateTo?: string
   sortBy?: string
   sortOrder?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
   const {
     skip = 0, take = 50,
     estado, plataforma, tipo, campaignId, clienteId, proyectoId,
-    responsable, prioridad, search, dateFrom, dateTo, sortBy, sortOrder,
+    responsable, prioridad, search, dateFrom, dateTo, sortBy, sortOrder, workspaceId,
   } = params
 
   const where: Prisma.ContentPieceWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(estado && { estado }),
     ...(plataforma && { plataforma }),
     ...(tipo && { tipo }),

@@ -7,12 +7,14 @@ interface ListParams {
   estado?: string
   trigger?: string
   search?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, estado, trigger, search } = params
+  const { skip = 0, take = 20, estado, trigger, search, workspaceId } = params
 
   const where: Prisma.AutomatizacionWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(estado && { estado }),
     ...(trigger && { trigger }),
     ...(search && {

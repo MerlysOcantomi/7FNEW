@@ -7,12 +7,14 @@ interface ListParams {
   clienteId?: string
   proyectoId?: string
   search?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, clienteId, proyectoId, search } = params
+  const { skip = 0, take = 20, clienteId, proyectoId, search, workspaceId } = params
 
   const where: Prisma.NotaWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),
     ...(search && {

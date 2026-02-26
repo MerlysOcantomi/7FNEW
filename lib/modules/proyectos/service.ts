@@ -17,6 +17,7 @@ interface ListParams {
   sortOrder?: string
   userId?: string
   userRole?: string
+  workspaceId?: string
 }
 
 const PRIORIDAD_ORDER: Record<string, number> = {
@@ -31,11 +32,12 @@ export async function list(params: ListParams) {
     skip = 0, take = 20,
     estado, prioridad, clienteId, customId, assignedTo, tag,
     search, dateFrom, dateTo, sortBy, sortOrder,
-    userId, userRole,
+    userId, userRole, workspaceId,
   } = params
 
   const conditions: Prisma.ProyectoWhereInput[] = []
 
+  if (workspaceId) conditions.push({ workspaceId })
   if (estado) conditions.push({ estado })
   if (prioridad) conditions.push({ prioridad })
   if (clienteId) conditions.push({ clienteId })

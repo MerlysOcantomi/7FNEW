@@ -10,12 +10,14 @@ interface ListParams {
   desde?: string
   hasta?: string
   search?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, tipo, clienteId, proyectoId, desde, hasta, search } = params
+  const { skip = 0, take = 20, tipo, clienteId, proyectoId, desde, hasta, search, workspaceId } = params
 
   const where: Prisma.EventoWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(tipo && { tipo }),
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),

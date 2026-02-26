@@ -9,12 +9,14 @@ interface ListParams {
   clienteId?: string
   proyectoId?: string
   search?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 50, estado, marca, clienteId, proyectoId, search } = params
+  const { skip = 0, take = 50, estado, marca, clienteId, proyectoId, search, workspaceId } = params
 
   const where: Prisma.CampaignWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(estado && { estado }),
     ...(marca && { marca }),
     ...(clienteId && { clienteId }),

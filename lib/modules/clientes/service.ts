@@ -7,12 +7,14 @@ interface ListParams {
   estado?: string
   tipo?: string
   search?: string
+  workspaceId?: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, estado, tipo, search } = params
+  const { skip = 0, take = 20, estado, tipo, search, workspaceId } = params
 
   const where: Prisma.ClienteWhereInput = {
+    ...(workspaceId && { workspaceId }),
     ...(estado && { estado }),
     ...(tipo && { tipo }),
     ...(search && {
