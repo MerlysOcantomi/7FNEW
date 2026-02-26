@@ -1,10 +1,12 @@
 import { db } from "@/lib/db"
 import { askMotorIA } from "@/lib/ai"
+import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
-export async function detectarRetrasos() {
+export async function detectarRetrasos(workspaceId = DEFAULT_WORKSPACE_ID) {
   const hoy = new Date()
   const tareas = await db.tarea.findMany({
     where: {
+      workspaceId,
       estado: { notIn: ["completada", "cancelada"] },
       fechaLimite: { lt: hoy },
     },
@@ -25,10 +27,11 @@ export async function detectarRetrasos() {
   return { count: tareas.length, tareas: tareas.map((t) => t.id), result }
 }
 
-export async function sugerirReprogramacion() {
+export async function sugerirReprogramacion(workspaceId = DEFAULT_WORKSPACE_ID) {
   const hoy = new Date()
   const tareas = await db.tarea.findMany({
     where: {
+      workspaceId,
       estado: { notIn: ["completada", "cancelada"] },
       fechaLimite: { lt: hoy },
     },
@@ -49,9 +52,10 @@ export async function sugerirReprogramacion() {
   return { count: tareas.length, result }
 }
 
-export async function generarSubtareas() {
+export async function generarSubtareas(workspaceId = DEFAULT_WORKSPACE_ID) {
   const tareas = await db.tarea.findMany({
     where: {
+      workspaceId,
       estado: { in: ["pendiente", "en_progreso"] },
       prioridad: { in: ["alta", "urgente"] },
     },
@@ -73,23 +77,24 @@ export async function generarSubtareas() {
   return { count: tareas.length, result }
 }
 
-export async function resumenDiario() {
+export async function resumenDiario(workspaceId = DEFAULT_WORKSPACE_ID) {
   const hoy = new Date()
   const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
   const fin = new Date(inicio)
   fin.setDate(fin.getDate() + 1)
 
   const [pendientes, completadasHoy, vencidas, total] = await Promise.all([
-    db.tarea.count({ where: { estado: "pendiente" } }),
-    db.tarea.count({ where: { completedAt: { gte: inicio, lt: fin } } }),
+    db.tarea.count({ where: { workspaceId, estado: "pendiente" } }),
+    db.tarea.count({ where: { workspaceId, completedAt: { gte: inicio, lt: fin } } }),
     db.tarea.count({
-      where: { estado: { notIn: ["completada", "cancelada"] }, fechaLimite: { lt: hoy } },
+      where: { workspaceId, estado: { notIn: ["completada", "cancelada"] }, fechaLimite: { lt: hoy } },
     }),
-    db.tarea.count(),
+    db.tarea.count({ where: { workspaceId } }),
   ])
 
   const tareasProximas = await db.tarea.findMany({
     where: {
+      workspaceId,
       estado: { notIn: ["completada", "cancelada"] },
       fechaLimite: { gte: hoy },
     },

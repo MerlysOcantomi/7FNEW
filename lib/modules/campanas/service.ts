@@ -9,14 +9,14 @@ interface ListParams {
   clienteId?: string
   proyectoId?: string
   search?: string
-  workspaceId?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
   const { skip = 0, take = 50, estado, marca, clienteId, proyectoId, search, workspaceId } = params
 
   const where: Prisma.CampaignWhereInput = {
-    ...(workspaceId && { workspaceId }),
+    workspaceId,
     ...(estado && { estado }),
     ...(marca && { marca }),
     ...(clienteId && { clienteId }),
@@ -45,9 +45,9 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.campaign.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.campaign.findFirst({
+    where: { id, workspaceId },
     include: {
       cliente: true,
       proyecto: true,
@@ -56,14 +56,18 @@ export async function getById(id: string) {
   })
 }
 
-export async function create(data: Prisma.CampaignUncheckedCreateInput) {
-  return db.campaign.create({ data })
+export async function create(data: Prisma.CampaignUncheckedCreateInput, workspaceId: string) {
+  return db.campaign.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.CampaignUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.CampaignUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.campaign.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.campaign.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.campaign.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.campaign.delete({ where: { id } })
 }

@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 
 const MAX_PER_GROUP = 5
 
 export async function GET(request: NextRequest) {
   try {
+    const { workspaceId } = await requireReadAccess()
     const q = request.nextUrl.searchParams.get("q")?.trim()
     if (!q || q.length < 2) {
       return successResponse({ clientes: [], proyectos: [], tareas: [], facturas: [], documentos: [] })
@@ -16,6 +18,7 @@ export async function GET(request: NextRequest) {
     const [clientes, proyectos, tareas, facturas, documentos] = await Promise.all([
       db.cliente.findMany({
         where: {
+          workspaceId,
           OR: [
             { nombre: { contains: search } },
             { email: { contains: search } },
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
 
       db.proyecto.findMany({
         where: {
+          workspaceId,
           OR: [
             { nombre: { contains: search } },
             { descripcion: { contains: search } },
@@ -41,6 +45,7 @@ export async function GET(request: NextRequest) {
 
       db.tarea.findMany({
         where: {
+          workspaceId,
           OR: [
             { titulo: { contains: search } },
             { descripcion: { contains: search } },
@@ -56,6 +61,7 @@ export async function GET(request: NextRequest) {
 
       db.factura.findMany({
         where: {
+          workspaceId,
           OR: [
             { numero: { contains: search } },
           ],
@@ -70,6 +76,7 @@ export async function GET(request: NextRequest) {
 
       db.documento.findMany({
         where: {
+          workspaceId,
           OR: [
             { nombre: { contains: search } },
             { tipo: { contains: search } },
@@ -86,6 +93,6 @@ export async function GET(request: NextRequest) {
 
     return successResponse({ clientes, proyectos, tareas, facturas, documentos })
   } catch (err) {
-    return errorResponse("Error en búsqueda", 500)
+    return errorResponse("SEARCH_ERROR", "Error en búsqueda", (err as { status?: number })?.status || 500)
   }
 }

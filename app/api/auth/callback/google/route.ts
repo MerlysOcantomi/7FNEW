@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@/lib/auth/google"
 import { createSession, buildSessionCookie } from "@/lib/auth/session"
 import { db } from "@/lib/db"
+import { ensureUserHasDefaultWorkspace } from "@/lib/workspace"
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log("[7F Auth] Session created for:", user.email, "role:", user.role)
+    const activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
+    console.log("[7F Auth] Session created for:", user.email, "role:", user.role, "workspace:", activeWorkspaceId)
 
     const token = await createSession({
       userId: user.id,
@@ -76,6 +78,13 @@ export async function GET(request: NextRequest) {
       maxAge: cookie.maxAge,
     })
     response.cookies.delete("oauth-state")
+    response.cookies.set("wf_workspace", activeWorkspaceId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    })
 
     return response
   } catch (error) {

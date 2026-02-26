@@ -1,17 +1,15 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess, requireWriteAccess, requireAdminAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-
+    const { workspaceId } = await requireReadAccess()
     const { id } = await params
-    const entry = await db.inboxEntry.findUnique({ where: { id } })
+    const entry = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
     if (!entry) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
 
     let parsedEntry = { ...entry } as Record<string, unknown>
@@ -31,13 +29,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-    if (session.role !== "admin" && session.role !== "editor") {
-      return errorResponse("FORBIDDEN", "No tienes permisos", 403)
-    }
-
+    const { workspaceId } = await requireWriteAccess()
     const { id } = await params
+    const existing = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
+    if (!existing) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
+
     const body = await request.json()
 
     const allowedFields = [
@@ -72,13 +68,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-    if (session.role !== "admin") {
-      return errorResponse("FORBIDDEN", "Solo admin puede eliminar", 403)
-    }
-
+    const { workspaceId } = await requireAdminAccess()
     const { id } = await params
+    const existing = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
+    if (!existing) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
+
     await db.inboxEntry.delete({ where: { id } })
 
     return successResponse({ deleted: true })

@@ -7,14 +7,14 @@ interface ListParams {
   estado?: string
   trigger?: string
   search?: string
-  workspaceId?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
   const { skip = 0, take = 20, estado, trigger, search, workspaceId } = params
 
   const where: Prisma.AutomatizacionWhereInput = {
-    ...(workspaceId && { workspaceId }),
+    workspaceId,
     ...(estado && { estado }),
     ...(trigger && { trigger }),
     ...(search && {
@@ -36,8 +36,8 @@ export async function list(params: ListParams) {
   return { data: parsed, total }
 }
 
-export async function getById(id: string) {
-  const record = await db.automatizacion.findUnique({ where: { id } })
+export async function getById(id: string, workspaceId: string) {
+  const record = await db.automatizacion.findFirst({ where: { id, workspaceId } })
   if (!record) return null
   return {
     ...record,
@@ -46,12 +46,13 @@ export async function getById(id: string) {
   }
 }
 
-export async function create(input: Record<string, unknown>) {
+export async function create(input: Record<string, unknown>, workspaceId: string) {
   const data = {
     ...input,
     condiciones: input.condiciones ? JSON.stringify(input.condiciones) : null,
     acciones: JSON.stringify(input.acciones),
-  } as Prisma.AutomatizacionCreateInput
+    workspaceId,
+  } as Prisma.AutomatizacionUncheckedCreateInput
   const record = await db.automatizacion.create({ data })
   return {
     ...record,
@@ -60,7 +61,9 @@ export async function create(input: Record<string, unknown>) {
   }
 }
 
-export async function update(id: string, input: Record<string, unknown>) {
+export async function update(id: string, input: Record<string, unknown>, workspaceId: string) {
+  const existing = await db.automatizacion.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   const data = { ...input } as Record<string, unknown>
   if (data.condiciones !== undefined) {
     data.condiciones = data.condiciones ? JSON.stringify(data.condiciones) : null
@@ -79,6 +82,8 @@ export async function update(id: string, input: Record<string, unknown>) {
   }
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.automatizacion.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.automatizacion.delete({ where: { id } })
 }

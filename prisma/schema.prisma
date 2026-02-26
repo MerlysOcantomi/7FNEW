@@ -7,17 +7,31 @@ datasource db {
   provider = "sqlite"
 }
 
+// ── Verticals ──
+
+model Vertical {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  name          String
+  description   String?
+  defaultConfig String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 // ── Multi-tenancy ──
 
 model Workspace {
-  id        String   @id @default(cuid())
-  nombre    String
-  slug      String   @unique
-  vertical  String   @default("core")
-  config    String?
-  plan      String   @default("free")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  nombre      String
+  slug        String   @unique
+  vertical    String   @default("creative-agency")
+  verticalKey String   @default("creative-agency")
+  config      String?
+  plan        String   @default("free")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   users          User[]
   clientes       Cliente[]
@@ -36,6 +50,7 @@ model Workspace {
   campaigns      Campaign[]
   contentPieces  ContentPiece[]
   contentIdeas   ContentIdea[]
+  members        WorkspaceMember[]
 }
 
 model Cliente {
@@ -257,6 +272,20 @@ model User {
 
   workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   notifications Notification[]
+  memberships   WorkspaceMember[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String   @default("MEMBER")
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
 }
 
 model AllowedEmail {

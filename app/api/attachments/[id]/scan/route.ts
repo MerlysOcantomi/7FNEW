@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { extractText, isScannable } from "@/lib/ocr"
 import { analyzeDocument } from "@/lib/scan"
 
@@ -9,8 +9,7 @@ type Params = { params: Promise<{ id: string }> }
 
 export async function POST(_request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
+    await requireWriteAccess()
 
     const { id } = await params
 

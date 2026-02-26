@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { extractText, isScannable } from "@/lib/ocr"
 import { analyzeDocument } from "@/lib/scan"
+import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -32,6 +32,7 @@ async function uploadFile(file: File): Promise<string> {
 
 export async function GET(request: NextRequest) {
   try {
+    const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
     const module = searchParams.get("module")
     const recordId = searchParams.get("recordId")
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     const attachments = await db.attachment.findMany({
-      where: { module, recordId },
+      where: { module, recordId, workspaceId },
       orderBy: { createdAt: "desc" },
     })
 
@@ -53,9 +54,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-
+    const { workspaceId, session } = await requireWriteAccess()
     const formData = await request.formData()
     const file = formData.get("file") as File | null
     const module = formData.get("module") as string | null
@@ -87,6 +86,7 @@ export async function POST(request: NextRequest) {
         userId: session.userId,
         userName: session.nombre ?? session.email,
         scanStatus: canScan ? "processing" : "not_applicable",
+        workspaceId,
       },
     })
 

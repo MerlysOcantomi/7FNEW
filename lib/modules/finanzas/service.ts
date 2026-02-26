@@ -9,14 +9,14 @@ interface ListParams {
   clienteId?: string
   proyectoId?: string
   search?: string
-  workspaceId?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
   const { skip = 0, take = 20, tipo, categoria, clienteId, proyectoId, search, workspaceId } = params
 
   const where: Prisma.TransaccionWhereInput = {
-    ...(workspaceId && { workspaceId }),
+    workspaceId,
     ...(tipo && { tipo }),
     ...(categoria && { categoria }),
     ...(clienteId && { clienteId }),
@@ -40,21 +40,25 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.transaccion.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.transaccion.findFirst({
+    where: { id, workspaceId },
     include: { cliente: true, proyecto: true },
   })
 }
 
-export async function create(data: Prisma.TransaccionUncheckedCreateInput) {
-  return db.transaccion.create({ data })
+export async function create(data: Prisma.TransaccionUncheckedCreateInput, workspaceId: string) {
+  return db.transaccion.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.TransaccionUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.TransaccionUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.transaccion.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.transaccion.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.transaccion.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.transaccion.delete({ where: { id } })
 }
