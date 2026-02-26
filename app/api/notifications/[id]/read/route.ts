@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(_request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
+    const { session } = await requireReadAccess()
 
     const { id } = await params
 

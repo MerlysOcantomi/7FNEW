@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
 import { db } from "@/lib/db"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
     const view = searchParams.get("view") ?? "month"
     const dateStr = searchParams.get("date") ?? new Date().toISOString().slice(0, 10)
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
     const [tareas, proyectos, facturas, eventos] = await Promise.all([
       db.tarea.findMany({
         where: {
+          workspaceId,
           fechaLimite: { gte: rangeStart, lt: rangeEnd },
         },
         include: { proyecto: true, cliente: true, usuario: true },
@@ -48,6 +51,7 @@ export async function GET(request: NextRequest) {
       }),
       db.proyecto.findMany({
         where: {
+          workspaceId,
           OR: [
             { fechaInicio: { gte: rangeStart, lt: rangeEnd } },
             { fechaFin: { gte: rangeStart, lt: rangeEnd } },
@@ -64,6 +68,7 @@ export async function GET(request: NextRequest) {
       }),
       db.factura.findMany({
         where: {
+          workspaceId,
           fechaVencimiento: { gte: rangeStart, lt: rangeEnd },
         },
         include: { cliente: true },
@@ -71,6 +76,7 @@ export async function GET(request: NextRequest) {
       }),
       db.evento.findMany({
         where: {
+          workspaceId,
           fechaInicio: { gte: rangeStart, lt: rangeEnd },
         },
         include: { cliente: true, proyecto: true },
@@ -89,6 +95,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("[7F Calendario] Feed error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al cargar calendario", 500)
+    return errorResponse("INTERNAL_ERROR", "Error al cargar calendario", (error as { status?: number })?.status || 500)
   }
 }

@@ -1,17 +1,12 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
+import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { generateQRDataURL, isValidUrl } from "@/lib/qr"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-    if (session.role !== "admin" && session.role !== "editor") {
-      return errorResponse("FORBIDDEN", "No tienes permisos", 403)
-    }
-
+    const { session } = await requireWriteAccess()
     const body = await request.json()
     const { url, module, recordId, label } = body
 
