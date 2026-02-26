@@ -313,7 +313,7 @@ export function InlineNumber({ value, onSave, min = 0, max = 100, suffix = "%", 
   const [draft, setDraft] = useState(value)
   const [changing, setChanging] = useState(false)
   const [saving, setSaving] = useState(false)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout>(undefined)
 
   useEffect(() => { setDraft(value) }, [value])
 
