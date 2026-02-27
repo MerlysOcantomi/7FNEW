@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "Error de seguridad. Intenta de nuevo.",
@@ -97,8 +97,6 @@ function DevLoginForm() {
   const [role, setRole] = useState("admin")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const router = useRouter()
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
@@ -116,7 +114,7 @@ function DevLoginForm() {
         setError(data.error || "Error de autenticación")
         return
       }
-      router.push("/")
+      window.location.href = "/"
     } catch {
       setError("Error de conexión")
     } finally {
