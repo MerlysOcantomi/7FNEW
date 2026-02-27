@@ -54,7 +54,28 @@ export async function ensureUserHasDefaultWorkspace(userId: string): Promise<str
   })
   if (existing) return existing.workspaceId
 
-  const ws = await getOrCreateDefaultWorkspace()
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true, nombre: true },
+  })
+
+  const slugBase = (user?.email?.split("@")[0] ?? userId).toLowerCase().replace(/[^a-z0-9-]/g, "-")
+  let slug = slugBase
+  let attempt = 0
+  while (await db.workspace.findUnique({ where: { slug } })) {
+    attempt++
+    slug = `${slugBase}-${attempt}`
+  }
+
+  const ws = await db.workspace.create({
+    data: {
+      nombre: user?.nombre ? `${user.nombre}'s Workspace` : `Workspace ${slug}`,
+      slug,
+      vertical: "creative-agency",
+      verticalKey: "creative-agency",
+    },
+  })
+
   await db.workspaceMember.create({
     data: {
       userId,
