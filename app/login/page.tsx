@@ -12,7 +12,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   google_disabled: "Google Auth deshabilitado. Usa el formulario de desarrollo.",
 }
 
-const GOOGLE_DISABLED = process.env.NEXT_PUBLIC_DISABLE_GOOGLE_AUTH === "true"
+// TEMP: hardcoded true for multi-tenant testing
+// Revert: change to `process.env.NEXT_PUBLIC_DISABLE_GOOGLE_AUTH === "true"`
+const GOOGLE_DISABLED = true
 
 export default function LoginPage() {
   return (
