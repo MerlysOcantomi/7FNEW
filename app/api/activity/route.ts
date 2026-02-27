@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { logActivity } from "@/lib/activity"
 import { createNotification } from "@/lib/notifications"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
     const module = searchParams.get("module")
     const recordId = searchParams.get("recordId")
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const activities = await db.activity.findMany({
-      where: { module, recordId },
+      where: { module, recordId, workspaceId },
       orderBy: { createdAt: "desc" },
       take: limit,
     })
@@ -35,9 +36,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-
+    const { workspaceId, session } = await requireWriteAccess()
     const body = await request.json()
     const { module, recordId, comment, mentions } = body
 
@@ -63,19 +62,27 @@ export async function POST(request: NextRequest) {
       userId: session.userId,
       userName: session.nombre ?? session.email,
       userEmail: session.email,
+      workspaceId,
     })
 
     const allMentions = [...new Set([...(mentions ?? []), ...mentionedEmails])]
     if (allMentions.length > 0) {
-      const users = await db.user.findMany({
-        where: {
-          OR: [
-            { email: { in: allMentions } },
-            { nombre: { in: allMentions } },
-          ],
-        },
-        select: { id: true, email: true },
+      const memberUserIds = await db.workspaceMember.findMany({
+        where: { workspaceId },
+        select: { userId: true },
       })
+      const users = memberUserIds.length > 0
+        ? await db.user.findMany({
+            where: {
+              id: { in: memberUserIds.map((m) => m.userId) },
+              OR: [
+                { email: { in: allMentions } },
+                { nombre: { in: allMentions } },
+              ],
+            },
+            select: { id: true, email: true },
+          })
+        : []
 
       for (const u of users) {
         if (u.id === session.userId) continue
@@ -85,6 +92,7 @@ export async function POST(request: NextRequest) {
           title: `${session.nombre ?? session.email} te mencionó`,
           message: comment.trim().slice(0, 120),
           link: `/${module}/${recordId}`,
+          workspaceId,
         }).catch(() => {})
       }
     }

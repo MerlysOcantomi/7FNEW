@@ -1,23 +1,18 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-    if (session.role !== "admin" && session.role !== "editor") {
-      return errorResponse("FORBIDDEN", "No tienes permisos", 403)
-    }
-
+    const { workspaceId } = await requireWriteAccess()
     const { id } = await params
     const body = await request.json()
     const { action } = body
 
-    const entry = await db.inboxEntry.findUnique({ where: { id } })
+    const entry = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
     if (!entry) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
 
     let datosCliente: Record<string, string> = {}
@@ -40,6 +35,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           empresa: datosCliente.empresa || null,
           notas: `Origen: Inbox (${entry.fuente})\n${entry.resumen || entry.mensaje.slice(0, 200)}`,
           estado: "activo",
+          workspaceId,
         },
       })
 
@@ -62,6 +58,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           estado: "planificacion",
           prioridad: entry.urgencia === "critica" ? "alta" : entry.urgencia || "media",
           clienteId: clienteIdForRelations,
+          workspaceId,
         },
       })
 
@@ -85,6 +82,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           prioridad: entry.urgencia === "critica" ? "urgente" : entry.urgencia || "media",
           clienteId: clienteIdForRelations,
           proyectoId,
+          workspaceId,
         },
       })
 

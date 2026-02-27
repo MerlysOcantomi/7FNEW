@@ -1,29 +1,26 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
-import { getSessionFromCookies } from "@/lib/auth/session"
-import { isAdmin } from "@/lib/auth/permissions"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireAdminAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
 export async function GET() {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
+  try {
+    await requireAdminAccess()
+
+    const emails = await db.allowedEmail.findMany({
+      orderBy: { createdAt: "desc" },
+    })
+
+    return successResponse(emails)
+  } catch (error) {
+    return handleError(error, "AllowedEmail")
   }
-
-  const emails = await db.allowedEmail.findMany({
-    orderBy: { createdAt: "desc" },
-  })
-
-  return successResponse(emails)
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
-  }
-
   try {
+    await requireAdminAccess()
+
     const body = await request.json()
     const { email, role } = body as { email?: string; role?: string }
 
@@ -51,7 +48,6 @@ export async function POST(request: NextRequest) {
 
     return successResponse(record)
   } catch (error) {
-    console.error("[7F Admin] Add allowed email error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al agregar email", 500)
+    return handleError(error, "AllowedEmail")
   }
 }

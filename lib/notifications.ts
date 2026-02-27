@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export type NotificationType =
   | "tarea_asignada"
@@ -19,6 +20,7 @@ interface CreateNotificationInput {
   title: string
   message?: string
   link?: string
+  workspaceId?: string
 }
 
 export async function createNotification(input: CreateNotificationInput) {
@@ -29,6 +31,7 @@ export async function createNotification(input: CreateNotificationInput) {
       title: input.title,
       message: input.message ?? null,
       link: input.link ?? null,
+      workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,
     },
   })
 }
@@ -39,26 +42,32 @@ export async function createNotificationForRole(
   title: string,
   message?: string,
   link?: string,
-  excludeUserId?: string
+  excludeUserId?: string,
+  workspaceId?: string
 ) {
+  const wsId = workspaceId ?? DEFAULT_WORKSPACE_ID
   const roles = role === "admin" ? ["admin"] : ["admin", "editor"]
-  const users = await db.user.findMany({
-    where: {
-      role: { in: roles },
-      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
-    },
-    select: { id: true },
+
+  const members = await db.workspaceMember.findMany({
+    where: { workspaceId: wsId },
+    include: { user: { select: { id: true, role: true } } },
   })
 
-  if (users.length === 0) return []
+  const targetUsers = members
+    .map((m) => m.user)
+    .filter((u) => roles.includes(u.role))
+    .filter((u) => !excludeUserId || u.id !== excludeUserId)
+
+  if (targetUsers.length === 0) return []
 
   return db.notification.createMany({
-    data: users.map((u) => ({
+    data: targetUsers.map((u) => ({
       userId: u.id,
       type,
       title,
       message: message ?? null,
       link: link ?? null,
+      workspaceId: wsId,
     })),
   })
 }
@@ -68,9 +77,10 @@ export async function notifyAdminsAndEditors(
   title: string,
   message?: string,
   link?: string,
-  excludeUserId?: string
+  excludeUserId?: string,
+  workspaceId?: string
 ) {
-  return createNotificationForRole("editor", type, title, message, link, excludeUserId)
+  return createNotificationForRole("editor", type, title, message, link, excludeUserId, workspaceId)
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {

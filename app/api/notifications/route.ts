@@ -1,19 +1,17 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
-import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { successResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-
+    const { workspaceId, session } = await requireReadAccess()
     const { searchParams } = request.nextUrl
     const type = searchParams.get("type")
     const unreadOnly = searchParams.get("unread") === "true"
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "30")))
 
-    const where: Record<string, unknown> = { userId: session.userId }
+    const where: Record<string, unknown> = { userId: session.userId, workspaceId }
     if (type) where.type = type
     if (unreadOnly) where.read = false
 
@@ -24,7 +22,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       db.notification.count({
-        where: { userId: session.userId, read: false },
+        where: { userId: session.userId, workspaceId, read: false },
       }),
     ])
 

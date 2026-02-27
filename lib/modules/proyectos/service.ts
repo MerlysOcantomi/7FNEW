@@ -17,6 +17,7 @@ interface ListParams {
   sortOrder?: string
   userId?: string
   userRole?: string
+  workspaceId: string
 }
 
 const PRIORIDAD_ORDER: Record<string, number> = {
@@ -31,10 +32,10 @@ export async function list(params: ListParams) {
     skip = 0, take = 20,
     estado, prioridad, clienteId, customId, assignedTo, tag,
     search, dateFrom, dateTo, sortBy, sortOrder,
-    userId, userRole,
+    userId, userRole, workspaceId,
   } = params
 
-  const conditions: Prisma.ProyectoWhereInput[] = []
+  const conditions: Prisma.ProyectoWhereInput[] = [{ workspaceId }]
 
   if (estado) conditions.push({ estado })
   if (prioridad) conditions.push({ prioridad })
@@ -49,6 +50,7 @@ export async function list(params: ListParams) {
     try {
       const matchingClientes = await db.cliente.findMany({
         where: {
+          workspaceId,
           OR: [
             { nombre: { contains: search } },
             { empresa: { contains: search } },
@@ -129,21 +131,25 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.proyecto.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.proyecto.findFirst({
+    where: { id, workspaceId },
     include: { cliente: true, tareas: true },
   })
 }
 
-export async function create(data: Prisma.ProyectoUncheckedCreateInput) {
-  return db.proyecto.create({ data })
+export async function create(data: Prisma.ProyectoUncheckedCreateInput, workspaceId: string) {
+  return db.proyecto.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.ProyectoUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.ProyectoUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.proyecto.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.proyecto.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.proyecto.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.proyecto.delete({ where: { id } })
 }

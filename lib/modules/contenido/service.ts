@@ -17,16 +17,18 @@ interface ListParams {
   dateTo?: string
   sortBy?: string
   sortOrder?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
   const {
     skip = 0, take = 50,
     estado, plataforma, tipo, campaignId, clienteId, proyectoId,
-    responsable, prioridad, search, dateFrom, dateTo, sortBy, sortOrder,
+    responsable, prioridad, search, dateFrom, dateTo, sortBy, sortOrder, workspaceId,
   } = params
 
   const where: Prisma.ContentPieceWhereInput = {
+    workspaceId,
     ...(estado && { estado }),
     ...(plataforma && { plataforma }),
     ...(tipo && { tipo }),
@@ -69,29 +71,34 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.contentPiece.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.contentPiece.findFirst({
+    where: { id, workspaceId },
     include: { campaign: true },
   })
 }
 
-export async function create(data: Prisma.ContentPieceUncheckedCreateInput) {
-  return db.contentPiece.create({ data })
+export async function create(data: Prisma.ContentPieceUncheckedCreateInput, workspaceId: string) {
+  return db.contentPiece.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.ContentPieceUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.ContentPieceUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.contentPiece.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.contentPiece.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.contentPiece.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.contentPiece.delete({ where: { id } })
 }
 
 // Ideas
-export async function listIdeas(params: { skip?: number; take?: number; estado?: string; categoria?: string; search?: string }) {
-  const { skip = 0, take = 50, estado, categoria, search } = params
+export async function listIdeas(params: { skip?: number; take?: number; estado?: string; categoria?: string; search?: string; workspaceId: string }) {
+  const { skip = 0, take = 50, estado, categoria, search, workspaceId } = params
   const where: Prisma.ContentIdeaWhereInput = {
+    workspaceId,
     ...(estado && { estado }),
     ...(categoria && { categoria }),
     ...(search && {
@@ -110,14 +117,18 @@ export async function listIdeas(params: { skip?: number; take?: number; estado?:
   return { data, total }
 }
 
-export async function createIdea(data: Prisma.ContentIdeaUncheckedCreateInput) {
-  return db.contentIdea.create({ data })
+export async function createIdea(data: Prisma.ContentIdeaUncheckedCreateInput, workspaceId: string) {
+  return db.contentIdea.create({ data: { ...data, workspaceId } })
 }
 
-export async function updateIdea(id: string, data: Prisma.ContentIdeaUncheckedUpdateInput) {
+export async function updateIdea(id: string, data: Prisma.ContentIdeaUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.contentIdea.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.contentIdea.update({ where: { id }, data })
 }
 
-export async function removeIdea(id: string) {
+export async function removeIdea(id: string, workspaceId: string) {
+  const existing = await db.contentIdea.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.contentIdea.delete({ where: { id } })
 }

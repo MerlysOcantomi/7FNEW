@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
 import { successResponse, errorResponse, handleError, getPaginationParams } from "@/lib/api"
 import { classifyInboxEntry } from "@/lib/inbox"
+import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionFromCookies()
-    if (!session) return errorResponse("UNAUTHORIZED", "No autenticado", 401)
-
+    const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
     const { page, pageSize, skip } = getPaginationParams(searchParams)
 
@@ -18,7 +16,7 @@ export async function GET(request: NextRequest) {
     const fuente = searchParams.get("fuente")
     const q = searchParams.get("q")
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { workspaceId }
 
     if (estado && estado !== "todos") {
       where.estado = estado
@@ -64,6 +62,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { workspaceId } = await requireWriteAccess()
     const body = await request.json()
     const { nombre, email, telefono, mensaje, fuente = "manual" } = body
 
@@ -79,6 +78,7 @@ export async function POST(request: NextRequest) {
         mensaje: mensaje.trim(),
         fuente,
         estado: "nuevo",
+        workspaceId,
       },
     })
 

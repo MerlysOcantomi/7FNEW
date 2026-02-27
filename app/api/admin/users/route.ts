@@ -1,29 +1,26 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
-import { getSessionFromCookies } from "@/lib/auth/session"
-import { isAdmin } from "@/lib/auth/permissions"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireAdminAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
 export async function GET() {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
+  try {
+    await requireAdminAccess()
+
+    const users = await db.user.findMany({
+      orderBy: { createdAt: "desc" },
+    })
+
+    return successResponse(users)
+  } catch (error) {
+    return handleError(error, "User")
   }
-
-  const users = await db.user.findMany({
-    orderBy: { createdAt: "desc" },
-  })
-
-  return successResponse(users)
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
-  }
-
   try {
+    await requireAdminAccess()
+
     const body = await request.json()
     const { userId, role } = body as { userId?: string; role?: string }
 
@@ -52,18 +49,14 @@ export async function PATCH(request: NextRequest) {
 
     return successResponse(user)
   } catch (error) {
-    console.error("[7F Admin] Update user error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al actualizar usuario", 500)
+    return handleError(error, "User")
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
-  }
-
   try {
+    const { session } = await requireAdminAccess()
+
     const body = await request.json()
     const { userId } = body as { userId?: string }
 
@@ -85,7 +78,6 @@ export async function DELETE(request: NextRequest) {
 
     return successResponse({ deleted: true })
   } catch (error) {
-    console.error("[7F Admin] Delete user error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al eliminar usuario", 500)
+    return handleError(error, "User")
   }
 }

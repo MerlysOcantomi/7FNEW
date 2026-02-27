@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { getSessionFromCookies } from "@/lib/auth/session"
+import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export type ActivityType =
   | "created"
@@ -31,6 +32,7 @@ interface LogActivityInput {
   userId?: string
   userName?: string
   userEmail?: string
+  workspaceId?: string
 }
 
 export async function logActivity(input: LogActivityInput) {
@@ -58,6 +60,7 @@ export async function logActivity(input: LogActivityInput) {
       userName: userName ?? null,
       userEmail: userEmail ?? null,
       data: input.data ? JSON.stringify(input.data) : null,
+      workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,
     },
   })
 }

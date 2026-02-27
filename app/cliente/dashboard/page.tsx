@@ -28,7 +28,6 @@ interface DashboardData {
 
 const estadoColors: Record<string, string> = {
   planificacion: "bg-blue-100 text-blue-700",
-  "en_progreso": "bg-amber-100 text-amber-700",
   en_progreso: "bg-amber-100 text-amber-700",
   completado: "bg-green-100 text-green-700",
   pausado: "bg-gray-100 text-gray-600",

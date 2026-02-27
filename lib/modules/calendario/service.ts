@@ -10,12 +10,14 @@ interface ListParams {
   desde?: string
   hasta?: string
   search?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, tipo, clienteId, proyectoId, desde, hasta, search } = params
+  const { skip = 0, take = 20, tipo, clienteId, proyectoId, desde, hasta, search, workspaceId } = params
 
   const where: Prisma.EventoWhereInput = {
+    workspaceId,
     ...(tipo && { tipo }),
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),
@@ -44,21 +46,25 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.evento.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.evento.findFirst({
+    where: { id, workspaceId },
     include: { cliente: true, proyecto: true },
   })
 }
 
-export async function create(data: Prisma.EventoUncheckedCreateInput) {
-  return db.evento.create({ data })
+export async function create(data: Prisma.EventoUncheckedCreateInput, workspaceId: string) {
+  return db.evento.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.EventoUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.EventoUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.evento.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.evento.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.evento.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.evento.delete({ where: { id } })
 }

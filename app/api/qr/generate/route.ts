@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { generateQRDataURL, isValidUrl } from "@/lib/qr"
 
 export async function POST(request: NextRequest) {
   try {
+    await requireReadAccess()
     const body = await request.json()
     const { url } = body
 

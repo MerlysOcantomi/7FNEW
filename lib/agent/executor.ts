@@ -16,11 +16,11 @@ export async function executeToolCall(name: string, args: Record<string, any>): 
   try {
     switch (name) {
       case "buscar_clientes":
-        return await searchClientes(args)
+        return await searchClientes(args as { search: string })
       case "detalle_cliente":
-        return await getClienteDetail(args)
+        return await getClienteDetail(args as { clienteId: string })
       case "detalle_proyecto":
-        return await getProyectoDetail(args)
+        return await getProyectoDetail(args as { proyectoId: string })
       case "buscar_tareas":
         return await searchTareas(args)
       case "buscar_facturas":
@@ -34,7 +34,7 @@ export async function executeToolCall(name: string, args: Record<string, any>): 
       case "crear_campana":
         return await createCampana(args)
       case "generar_imagen":
-        return await handleGenerateImage(args)
+        return await handleGenerateImage(args as { prompt: string; size?: string; style?: string })
       default:
         return { success: false, error: `Herramienta desconocida: ${name}` }
     }
@@ -78,7 +78,7 @@ async function getProyectoDetail(args: { proyectoId: string }): Promise<ToolResu
     where: { id: args.proyectoId },
     include: {
       cliente: { select: { id: true, nombre: true, empresa: true } },
-      tareas: { select: { id: true, titulo: true, estado: true, prioridad: true, fechaVencimiento: true } },
+      tareas: { select: { id: true, titulo: true, estado: true, prioridad: true, fechaLimite: true } },
     },
   })
   if (!proyecto) return { success: false, error: "Proyecto no encontrado" }
@@ -92,15 +92,15 @@ async function searchTareas(args: { estado?: string; prioridad?: string; proyect
   if (args.proyectoId) where.proyectoId = args.proyectoId
   if (args.search) where.titulo = { contains: args.search }
   if (args.atrasadas) {
-    where.fechaVencimiento = { lt: new Date() }
+    where.fechaLimite = { lt: new Date() }
     where.estado = { not: "completada" }
   }
 
   const tareas = await db.tarea.findMany({
     where,
     take: 25,
-    orderBy: { fechaVencimiento: "asc" },
-    select: { id: true, titulo: true, estado: true, prioridad: true, fechaVencimiento: true, proyectoId: true, descripcion: true },
+    orderBy: { fechaLimite: "asc" },
+    select: { id: true, titulo: true, estado: true, prioridad: true, fechaLimite: true, proyectoId: true, descripcion: true },
   })
   return { success: true, data: tareas }
 }
@@ -166,7 +166,7 @@ async function createTarea(args: any): Promise<ToolResult> {
       estado: args.estado || "pendiente",
       prioridad: args.prioridad || "media",
       proyectoId: args.proyectoId || null,
-      fechaVencimiento: args.fechaVencimiento ? new Date(args.fechaVencimiento) : null,
+      fechaLimite: args.fechaLimite ? new Date(args.fechaLimite) : null,
       updatedAt: new Date(),
     },
   })

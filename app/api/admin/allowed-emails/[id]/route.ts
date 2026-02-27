@@ -1,18 +1,14 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
-import { getSessionFromCookies } from "@/lib/auth/session"
-import { isAdmin } from "@/lib/auth/permissions"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireAdminAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
-  }
-
   try {
+    await requireAdminAccess()
+
     const { id } = await params
     const body = await request.json()
     const { role } = body as { role?: string }
@@ -33,18 +29,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return successResponse(record)
   } catch (error) {
-    console.error("[7F Admin] Update allowed email error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al actualizar email", 500)
+    return handleError(error, "AllowedEmail")
   }
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const session = await getSessionFromCookies()
-  if (!session || !isAdmin(session.role)) {
-    return errorResponse("FORBIDDEN", "Acceso denegado. Solo administradores.", 403)
-  }
-
   try {
+    const { session } = await requireAdminAccess()
+
     const { id } = await params
     const record = await db.allowedEmail.findUnique({ where: { id } })
 
@@ -60,7 +52,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     return successResponse({ deleted: true })
   } catch (error) {
-    console.error("[7F Admin] Delete allowed email error:", error)
-    return errorResponse("INTERNAL_ERROR", "Error al eliminar email", 500)
+    return handleError(error, "AllowedEmail")
   }
 }

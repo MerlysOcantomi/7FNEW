@@ -20,5 +20,10 @@ export async function GET(request: NextRequest) {
     path: cookie.path,
     maxAge: cookie.maxAge,
   })
+  response.cookies.set("wf_workspace", "", {
+    httpOnly: true,
+    path: "/",
+    maxAge: 0,
+  })
   return response
 }

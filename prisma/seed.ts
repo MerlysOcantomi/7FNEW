@@ -1,15 +1,155 @@
-import { createClient } from "@libsql/client"
 import { PrismaLibSql } from "@prisma/adapter-libsql"
 import { PrismaClient } from "../generated/prisma/client"
 
-const libsql = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
+if (!dbUrl) throw new Error("DATABASE_URL or TURSO_DATABASE_URL must be set")
+
+const adapter = new PrismaLibSql({
+  url: dbUrl,
+  authToken: process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN,
 })
-const adapter = new PrismaLibSql(libsql)
 const db = new PrismaClient({ adapter })
 
+async function seedVerticals() {
+  console.log("Seeding verticales...")
+
+  const verticals = [
+    {
+      key: "creative-agency",
+      name: "Agencia Creativa",
+      description: "Agencias de diseño, branding, marketing y producción audiovisual",
+      defaultConfig: JSON.stringify({
+        modules: {
+          advancedProjectPlan: false,
+          crm: true,
+          finance: true,
+          inbox: true,
+          automation: true,
+          campaigns: true,
+          content: true,
+        },
+        ui: {
+          labels: {
+            projects: "Proyectos",
+            clients: "Clientes",
+            tasks: "Tareas",
+            invoices: "Facturas",
+          },
+        },
+      }),
+    },
+    {
+      key: "construction",
+      name: "Construcción",
+      description: "Empresas de construcción, remodelación y obra civil",
+      defaultConfig: JSON.stringify({
+        modules: {
+          advancedProjectPlan: true,
+          crm: true,
+          finance: true,
+          inbox: true,
+          automation: true,
+          campaigns: false,
+          content: false,
+        },
+        ui: {
+          labels: {
+            projects: "Obras",
+            clients: "Clientes",
+            tasks: "Actividades",
+            invoices: "Estimaciones",
+          },
+        },
+      }),
+    },
+    {
+      key: "florals",
+      name: "Floristerías",
+      description: "Floristerías, event styling y decoración floral",
+      defaultConfig: JSON.stringify({
+        modules: {
+          advancedProjectPlan: false,
+          crm: true,
+          finance: true,
+          inbox: true,
+          automation: true,
+          campaigns: true,
+          content: true,
+        },
+        ui: {
+          labels: {
+            projects: "Eventos",
+            clients: "Clientes",
+            tasks: "Pedidos",
+            invoices: "Cotizaciones",
+          },
+        },
+      }),
+    },
+    {
+      key: "clinic",
+      name: "Clínica / Salud",
+      description: "Clínicas, consultorios y centros de salud",
+      defaultConfig: JSON.stringify({
+        modules: {
+          advancedProjectPlan: false,
+          crm: true,
+          finance: true,
+          inbox: true,
+          automation: true,
+          campaigns: false,
+          content: false,
+        },
+        ui: {
+          labels: {
+            projects: "Tratamientos",
+            clients: "Pacientes",
+            tasks: "Citas",
+            invoices: "Facturas",
+          },
+        },
+      }),
+    },
+    {
+      key: "law",
+      name: "Despacho Legal",
+      description: "Despachos de abogados y consultoría legal",
+      defaultConfig: JSON.stringify({
+        modules: {
+          advancedProjectPlan: false,
+          crm: true,
+          finance: true,
+          inbox: true,
+          automation: true,
+          campaigns: false,
+          content: false,
+        },
+        ui: {
+          labels: {
+            projects: "Casos",
+            clients: "Clientes",
+            tasks: "Diligencias",
+            invoices: "Honorarios",
+          },
+        },
+      }),
+    },
+  ]
+
+  for (const v of verticals) {
+    await db.vertical.upsert({
+      where: { key: v.key },
+      update: { name: v.name, description: v.description, defaultConfig: v.defaultConfig },
+      create: v,
+    })
+  }
+
+  console.log(`  ${verticals.length} verticales insertadas`)
+}
+
 async function main() {
+  await seedVerticals()
+
   console.log("Limpiando base de datos...")
   await db.tarea.deleteMany()
   await db.documento.deleteMany()

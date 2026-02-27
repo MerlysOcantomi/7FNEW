@@ -8,12 +8,14 @@ interface ListParams {
   clienteId?: string
   proyectoId?: string
   search?: string
+  workspaceId: string
 }
 
 export async function list(params: ListParams) {
-  const { skip = 0, take = 20, tipo, clienteId, proyectoId, search } = params
+  const { skip = 0, take = 20, tipo, clienteId, proyectoId, search, workspaceId } = params
 
   const where: Prisma.DocumentoWhereInput = {
+    workspaceId,
     ...(tipo && { tipo }),
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),
@@ -36,21 +38,25 @@ export async function list(params: ListParams) {
   return { data, total }
 }
 
-export async function getById(id: string) {
-  return db.documento.findUnique({
-    where: { id },
+export async function getById(id: string, workspaceId: string) {
+  return db.documento.findFirst({
+    where: { id, workspaceId },
     include: { cliente: true, proyecto: true },
   })
 }
 
-export async function create(data: Prisma.DocumentoUncheckedCreateInput) {
-  return db.documento.create({ data })
+export async function create(data: Prisma.DocumentoUncheckedCreateInput, workspaceId: string) {
+  return db.documento.create({ data: { ...data, workspaceId } })
 }
 
-export async function update(id: string, data: Prisma.DocumentoUncheckedUpdateInput) {
+export async function update(id: string, data: Prisma.DocumentoUncheckedUpdateInput, workspaceId: string) {
+  const existing = await db.documento.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.documento.update({ where: { id }, data })
 }
 
-export async function remove(id: string) {
+export async function remove(id: string, workspaceId: string) {
+  const existing = await db.documento.findFirst({ where: { id, workspaceId } })
+  if (!existing) return null
   return db.documento.delete({ where: { id } })
 }
