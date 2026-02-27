@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { getGoogleAuthUrl, getCallbackUrl } from "@/lib/auth/google"
 
 export async function GET(request: NextRequest) {
-  // TEMP: Google auth disabled for multi-tenant testing (hardcoded)
-  // Revert: change `true` to `process.env.DISABLE_GOOGLE_AUTH === "true"`
-  return NextResponse.redirect(new URL("/login?error=google_disabled", request.url))
+  if (process.env.DISABLE_GOOGLE_AUTH === "true") {
+    return NextResponse.redirect(new URL("/login?error=google_disabled", request.url))
+  }
 
   try {
     const state = crypto.randomUUID()
