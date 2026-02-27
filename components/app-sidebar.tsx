@@ -135,6 +135,7 @@ function SidebarGroup({
         {filtered.map((item) => {
           const Icon = item.icon
           const isActive = currentSection === item.id
+          const isPurple = item.id === "agente"
           return (
             <Link
               key={item.id}
@@ -143,11 +144,11 @@ function SidebarGroup({
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-foreground"
+                  ? "bg-blue-50 text-blue-600"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               )}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
+              <Icon className={cn("h-4 w-4 flex-shrink-0", isPurple && !isActive && "text-purple-600")} />
               <span>{item.label}</span>
             </Link>
           )
@@ -203,7 +204,7 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
           className={cn(
             "mb-4 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
             isDashboardActive
-              ? "bg-sidebar-accent text-sidebar-foreground"
+              ? "bg-blue-50 text-blue-600"
               : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           )}
         >
