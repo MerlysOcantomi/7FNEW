@@ -156,7 +156,7 @@ export default function Dashboard() {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+        <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 

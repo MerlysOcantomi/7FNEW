@@ -75,7 +75,7 @@ export default function FinanzasPage() {
   const overdueCount = RECENT_INVOICES.filter((i) => i.status === "Overdue").length;
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 

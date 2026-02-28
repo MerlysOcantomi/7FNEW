@@ -57,7 +57,7 @@ export function AppShell({ children }: AppShellProps) {
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
         <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
-        <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+        <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 

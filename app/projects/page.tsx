@@ -400,7 +400,7 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] font-sans">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
