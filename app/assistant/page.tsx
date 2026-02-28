@@ -91,14 +91,14 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] font-sans">
+    <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
       {/* Full Screen Copilot */}
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
         {/* Top Bar */}
-        <div className="flex items-center justify-between px-6 md:px-8 py-4 border-b border-[#E2E8F0] bg-white shrink-0">
+        <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-[#E2E8F0] bg-white shrink-0">
           <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             <Link
               href="/"
@@ -126,7 +126,7 @@ export default function AssistantPage() {
             <ContextBar className="bg-white shrink-0" />
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-6 md:px-10 xl:px-16 py-8 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 md:px-10 xl:px-16 py-8 space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id} className={cn("max-w-[90%] sm:max-w-2xl", msg.role === "user" && "ml-auto")}>
                   <div className="flex items-center justify-between mb-1.5 gap-3">
@@ -153,7 +153,7 @@ export default function AssistantPage() {
             </div>
 
             {/* Input */}
-            <div className="px-6 md:px-10 xl:px-16 pb-7 pt-3 border-t border-[#E2E8F0] bg-white shrink-0">
+            <div className="px-4 md:px-10 xl:px-16 pb-7 pt-3 border-t border-[#E2E8F0] bg-white shrink-0">
               <div className="max-w-2xl mx-auto flex items-end gap-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 focus-within:border-[#3B82F6] transition-colors">
                 <textarea
                   value={input}

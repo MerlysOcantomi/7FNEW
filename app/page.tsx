@@ -164,7 +164,7 @@ export default function Dashboard() {
           <main className="flex-1 min-w-0 overflow-y-auto">
 
             {/* Header */}
-            <div className="px-6 md:px-8 pt-7 pb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+            <div className="px-4 md:px-8 pt-7 pb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <div>
                 <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
                   7F Copilot

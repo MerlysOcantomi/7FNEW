@@ -246,7 +246,7 @@ export default function Administracion() {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex min-h-screen bg-[#F8FAFC] font-sans">
+        <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
@@ -254,7 +254,7 @@ export default function Administracion() {
           <main className="flex-1 min-w-0 overflow-y-auto">
 
             {/* Header */}
-            <div className="px-6 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="px-4 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
                 <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
                   Sistema
@@ -276,7 +276,7 @@ export default function Administracion() {
             </div>
 
             {/* Body */}
-            <div className="px-6 md:px-8 py-8 space-y-10">
+            <div className="px-4 md:px-8 py-8 space-y-10">
 
               {/* ── SECCIÓN 1: Core del sistema ── */}
               <section>

@@ -325,7 +325,13 @@ export function SidebarNav() {
   );
 }
 
-// ── Mobile Sidebar ────────────────────────────────────────────────────────────
+// ── Mobile Sidebar (Sheet-based) ──────────────────────────────────────────────
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
 export function MobileSidebarNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -351,51 +357,45 @@ export function MobileSidebarNav() {
         </button>
       </header>
 
-      {open && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      <div
-        className={cn(
-          "md:hidden fixed top-0 left-0 z-50 h-full w-64 bg-[#0F172A] transition-transform duration-300 flex flex-col overflow-y-auto",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
-              <span className="text-white text-xs font-bold">7F</span>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="left"
+          className="w-64 p-0 bg-[#0F172A] border-r-0 [&>button]:hidden"
+        >
+          <SheetTitle className="sr-only">Navegacion</SheetTitle>
+          <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
+                <span className="text-white text-xs font-bold">7F</span>
+              </div>
+              <span className="text-white font-semibold text-sm">Copilot</span>
             </div>
-            <span className="text-white font-semibold text-sm">Copilot</span>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-[#94A3B8] hover:text-white"
+              aria-label="Close navigation"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="text-[#94A3B8] hover:text-white"
-            aria-label="Close navigation"
-          >
-            <X size={18} />
-          </button>
-        </div>
 
-        <nav className="px-3 pb-6 flex-1 space-y-1">
-          {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
-            <AccordionSection
-              key={section}
-              section={section}
-              subtitle={subtitle}
-              items={items}
-              dividerAbove={dividerAbove}
-              collapsed={false}
-              isOpen={openSection === section}
-              onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
-              onNavClick={() => setOpen(false)}
-            />
-          ))}
-        </nav>
-      </div>
+          <nav className="px-3 pb-6 flex-1 space-y-1 overflow-y-auto">
+            {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
+              <AccordionSection
+                key={section}
+                section={section}
+                subtitle={subtitle}
+                items={items}
+                dividerAbove={dividerAbove}
+                collapsed={false}
+                isOpen={openSection === section}
+                onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
+                onNavClick={() => setOpen(false)}
+              />
+            ))}
+          </nav>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

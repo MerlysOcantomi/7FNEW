@@ -528,7 +528,7 @@ export default function AgentePage() {
           <main className="flex-1 min-w-0 overflow-y-auto">
 
             {/* Page Header */}
-            <div className="px-6 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+            <div className="px-4 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <div className="flex items-end justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">Future</p>
@@ -560,7 +560,7 @@ export default function AgentePage() {
             </div>
 
             {/* Page Body — 2-column desktop layout */}
-            <div className="px-6 md:px-8 py-8">
+            <div className="px-4 md:px-8 py-8">
               {/* Resumen ejecutivo spans full width */}
               <div className="mb-10">
                 <ResumenEjecutivo />
