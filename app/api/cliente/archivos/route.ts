@@ -1,47 +1,91 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getClientSessionFromCookies } from "@/lib/auth/client-session"
+import { getRequiredPortalContext } from "@/lib/auth/portal-context"
 
-export async function GET() {
-  const session = await getClientSessionFromCookies()
-  if (!session) {
+const VALID_TYPES = ["DOCUMENT", "IMAGE", "LOGO", "VIDEO", "OTHER"]
+
+function inferType(mimeType: string): string {
+  if (mimeType.startsWith("image/")) return "IMAGE"
+  if (mimeType.startsWith("video/")) return "VIDEO"
+  if (
+    mimeType.includes("pdf") ||
+    mimeType.includes("document") ||
+    mimeType.includes("spreadsheet") ||
+    mimeType.includes("text/")
+  )
+    return "DOCUMENT"
+  return "OTHER"
+}
+
+export async function GET(request: NextRequest) {
+  const ctx = await getRequiredPortalContext()
+  if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
-  const [documentos, attachments] = await Promise.all([
-    db.documento.findMany({
-      where: { clienteId: session.clienteId },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.attachment.findMany({
-      where: { module: "clientes", recordId: session.clienteId },
-      orderBy: { createdAt: "desc" },
-    }),
-  ])
+  const typeFilter = request.nextUrl.searchParams.get("type")
+  const search = request.nextUrl.searchParams.get("q")?.trim()
 
-  return NextResponse.json({ documentos, attachments })
+  const where: Record<string, unknown> = {
+    workspaceId: ctx.workspaceId,
+    clienteId: ctx.clienteId,
+  }
+
+  if (typeFilter && VALID_TYPES.includes(typeFilter)) {
+    where.type = typeFilter
+  }
+
+  if (search && search.length >= 2) {
+    where.filename = { contains: search }
+  }
+
+  const assets = await db.clientAsset.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+  })
+
+  const documentos = await db.documento.findMany({
+    where: {
+      workspaceId: ctx.workspaceId,
+      clienteId: ctx.clienteId,
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  return NextResponse.json({ assets, documentos })
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getClientSessionFromCookies()
-  if (!session) {
+  const ctx = await getRequiredPortalContext()
+  if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
   try {
     const body = await request.json()
-    const { nombre, url, tipo, tamano, proyectoId } = body
+    const { filename, url, mimeType, sizeBytes, type, projectId } = body as {
+      filename?: string
+      url?: string
+      mimeType?: string
+      sizeBytes?: number
+      type?: string
+      projectId?: string
+    }
 
-    if (!nombre || !url || !tipo) {
+    if (!filename || !url || !mimeType) {
       return NextResponse.json(
-        { error: "nombre, url y tipo son requeridos" },
+        { error: "filename, url y mimeType son requeridos" },
         { status: 400 }
       )
     }
 
-    if (proyectoId) {
+    if (projectId) {
       const proyecto = await db.proyecto.findFirst({
-        where: { id: proyectoId, clienteId: session.clienteId },
+        where: {
+          id: projectId,
+          workspaceId: ctx.workspaceId,
+          clienteId: ctx.clienteId,
+        },
       })
       if (!proyecto) {
         return NextResponse.json(
@@ -51,20 +95,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const documento = await db.documento.create({
+    const resolvedType =
+      type && VALID_TYPES.includes(type) ? type : inferType(mimeType)
+
+    const asset = await db.clientAsset.create({
       data: {
-        nombre,
+        workspaceId: ctx.workspaceId,
+        clienteId: ctx.clienteId,
+        projectId: projectId || null,
+        type: resolvedType,
+        filename,
+        mimeType,
+        sizeBytes: sizeBytes ? Number(sizeBytes) : 0,
         url,
-        tipo,
-        tamano: tamano ? Number(tamano) : null,
-        clienteId: session.clienteId,
-        proyectoId: proyectoId || null,
+        createdByPortalUserId: ctx.portalUserId,
       },
     })
 
-    return NextResponse.json(documento, { status: 201 })
+    return NextResponse.json(asset, { status: 201 })
   } catch (error) {
-    console.error("Client file upload error:", error)
-    return NextResponse.json({ error: "Error al subir archivo" }, { status: 500 })
+    console.error("Client asset upload error:", error)
+    return NextResponse.json(
+      { error: "Error al subir archivo" },
+      { status: 500 }
+    )
   }
 }

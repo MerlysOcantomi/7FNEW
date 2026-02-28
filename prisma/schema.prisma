@@ -79,6 +79,7 @@ model Cliente {
   clientProjects     ClientProject[]
   clientInvoices     ClientInvoice[]
   clientFiles        ClientFile[]
+  clientAssets       ClientAsset[]
   clientRequests     ClientRequest[]
   campaigns          Campaign[]
 }
@@ -487,6 +488,29 @@ model ContentIdea {
   updatedAt   DateTime @updatedAt
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+// ── Portal Cliente: Assets ──
+
+model ClientAsset {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  clienteId            String
+  projectId            String?
+  requestId            String?
+  type                 String   @default("OTHER")
+  filename             String
+  mimeType             String
+  sizeBytes            Int      @default(0)
+  url                  String
+  createdByPortalUserId String?
+  createdAt            DateTime @default(now())
+
+  cliente  Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([clienteId])
+  @@index([workspaceId, clienteId])
 }
 
 // ── Portal Cliente: Solicitudes ──

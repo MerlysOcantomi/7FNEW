@@ -10,6 +10,8 @@ import {
   Files,
   ArrowRight,
   Loader2,
+  MessageSquarePlus,
+  Upload,
 } from "lucide-react"
 
 interface DashboardData {
@@ -20,10 +22,13 @@ interface DashboardData {
     facturasPendientes: number
     tareasAbiertas: number
     totalDocumentos: number
+    solicitudesAbiertas: number
+    totalAssets: number
   }
   proyectosRecientes: any[]
   facturasRecientes: any[]
   tareasAbiertas: any[]
+  ultimosAssets: any[]
 }
 
 const estadoColors: Record<string, string> = {
@@ -58,24 +63,67 @@ export default function ClienteDashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Quick Actions */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/cliente/solicitudes"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#111827] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1f2937] transition-colors justify-center"
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+              Nueva solicitud
+            </Link>
+            <Link
+              href="/cliente/archivos"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors justify-center"
+            >
+              <Upload className="h-4 w-4" />
+              Subir archivo
+            </Link>
+          </div>
+
           {/* Stats */}
           <div className="grid gap-4 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} />
-            <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} />
-            <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} />
-            <StatCard icon={Files} label="Documentos" value={data.stats.totalDocumentos} />
+            <StatCard
+              icon={FolderKanban}
+              label="Proyectos activos"
+              value={data.stats.proyectosActivos}
+              total={data.stats.totalProyectos}
+            />
+            <StatCard
+              icon={FileText}
+              label="Facturas pendientes"
+              value={data.stats.facturasPendientes}
+              total={data.stats.totalFacturas}
+            />
+            <StatCard
+              icon={MessageSquarePlus}
+              label="Solicitudes abiertas"
+              value={data.stats.solicitudesAbiertas}
+            />
+            <StatCard
+              icon={Files}
+              label="Archivos"
+              value={data.stats.totalAssets + data.stats.totalDocumentos}
+            />
           </div>
 
           {/* Proyectos recientes */}
           <div className="rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-gray-900">Proyectos recientes</h2>
-              <Link href="/cliente/proyecto" className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline">
+              <h2 className="text-sm font-semibold text-gray-900">
+                Tus proyectos recientes
+              </h2>
+              <Link
+                href="/cliente/proyecto"
+                className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline"
+              >
                 Ver todos <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
             {data.proyectosRecientes.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-gray-400">No hay proyectos</p>
+              <p className="px-5 py-8 text-center text-sm text-gray-400">
+                No hay proyectos
+              </p>
             ) : (
               <div className="divide-y divide-gray-100">
                 {data.proyectosRecientes.map((p: any) => (
@@ -85,14 +133,25 @@ export default function ClienteDashboardPage() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3.5 hover:bg-gray-50 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
-                      <p className="text-xs text-gray-500">{p.descripcion?.slice(0, 60) || "Sin descripcion"}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {p.nombre}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {p.descripcion?.slice(0, 60) || "Sin descripcion"}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {p.progreso != null && (
-                        <span className="text-xs text-gray-500">{p.progreso}%</span>
+                        <span className="text-xs text-gray-500">
+                          {p.progreso}%
+                        </span>
                       )}
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[p.estado] || "bg-gray-100 text-gray-600"}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          estadoColors[p.estado] ||
+                          "bg-gray-100 text-gray-600"
+                        }`}
+                      >
                         {p.estado}
                       </span>
                     </div>
@@ -107,26 +166,50 @@ export default function ClienteDashboardPage() {
             {/* Facturas */}
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">Facturas recientes</h2>
-                <Link href="/cliente/facturas" className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  Tus facturas recientes
+                </h2>
+                <Link
+                  href="/cliente/facturas"
+                  className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline"
+                >
                   Ver todas <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
               {data.facturasRecientes.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-gray-400">No hay facturas</p>
+                <p className="px-5 py-8 text-center text-sm text-gray-400">
+                  No hay facturas
+                </p>
               ) : (
                 <div className="divide-y divide-gray-100">
                   {data.facturasRecientes.map((f: any) => (
-                    <div key={f.id} className="flex items-center justify-between px-5 py-3.5">
+                    <div
+                      key={f.id}
+                      className="flex items-center justify-between px-5 py-3.5"
+                    >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">#{f.numero}</p>
-                        <p className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("es")}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          #{f.numero}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(f.fechaEmision).toLocaleDateString(
+                            "es"
+                          )}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-semibold text-gray-900">
-                          CHF {f.total?.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                          CHF{" "}
+                          {f.total?.toLocaleString("de-CH", {
+                            minimumFractionDigits: 2,
+                          })}
                         </span>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[f.estado] || "bg-gray-100 text-gray-600"}`}>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            estadoColors[f.estado] ||
+                            "bg-gray-100 text-gray-600"
+                          }`}
+                        >
                           {f.estado}
                         </span>
                       </div>
@@ -139,21 +222,39 @@ export default function ClienteDashboardPage() {
             {/* Tareas */}
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">Tareas abiertas</h2>
+                <h2 className="text-sm font-semibold text-gray-900">
+                  Tus tareas abiertas
+                </h2>
               </div>
               {data.tareasAbiertas.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-gray-400">No hay tareas pendientes</p>
+                <p className="px-5 py-8 text-center text-sm text-gray-400">
+                  No hay tareas pendientes
+                </p>
               ) : (
                 <div className="divide-y divide-gray-100">
                   {data.tareasAbiertas.map((t: any) => (
-                    <div key={t.id} className="flex items-center justify-between px-5 py-3.5">
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between px-5 py-3.5"
+                    >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{t.titulo}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {t.titulo}
+                        </p>
                         <p className="text-xs text-gray-500">
-                          {t.fechaLimite ? `Fecha limite: ${new Date(t.fechaLimite).toLocaleDateString("es")}` : "Sin fecha limite"}
+                          {t.fechaLimite
+                            ? `Fecha limite: ${new Date(
+                                t.fechaLimite
+                              ).toLocaleDateString("es")}`
+                            : "Sin fecha limite"}
                         </p>
                       </div>
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[t.estado] || "bg-gray-100 text-gray-600"}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          estadoColors[t.estado] ||
+                          "bg-gray-100 text-gray-600"
+                        }`}
+                      >
                         {t.estado}
                       </span>
                     </div>
@@ -168,7 +269,17 @@ export default function ClienteDashboardPage() {
   )
 }
 
-function StatCard({ icon: Icon, label, value, total }: { icon: any; label: string; value: number; total?: number }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  total,
+}: {
+  icon: any
+  label: string
+  value: number
+  total?: number
+}) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-center gap-3">
@@ -178,7 +289,12 @@ function StatCard({ icon: Icon, label, value, total }: { icon: any; label: strin
         <div>
           <p className="text-2xl font-semibold text-gray-900">
             {value}
-            {total != null && <span className="text-sm font-normal text-gray-400"> / {total}</span>}
+            {total != null && (
+              <span className="text-sm font-normal text-gray-400">
+                {" "}
+                / {total}
+              </span>
+            )}
           </p>
           <p className="text-xs text-gray-500">{label}</p>
         </div>
