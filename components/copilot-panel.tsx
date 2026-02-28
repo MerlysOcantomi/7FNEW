@@ -250,7 +250,7 @@ export function CopilotPanel({ defaultContext = "Flow" }: CopilotPanelProps) {
 
         {/* Panel */}
         {!copilotCollapsed && (
-          <aside className="flex flex-col w-80 xl:w-[22rem] border-l border-[#E2E8F0] bg-white h-screen sticky top-0 overflow-hidden">
+          <aside className="flex flex-col w-[20rem] xl:w-[22rem] 2xl:w-[24rem] border-l border-[#E2E8F0] bg-white h-screen sticky top-0 overflow-hidden">
             <PanelContent
               messages={messages}
               defaultContext={defaultContext}
@@ -280,7 +280,7 @@ export function CopilotPanel({ defaultContext = "Flow" }: CopilotPanelProps) {
         )}
         <aside
           className={cn(
-            "fixed top-0 right-0 z-50 h-full w-80 bg-white border-l border-[#E2E8F0] flex flex-col shadow-2xl transition-transform duration-300",
+            "fixed top-0 right-0 z-50 h-full w-full max-w-[24rem] bg-white border-l border-[#E2E8F0] flex flex-col shadow-2xl transition-transform duration-300",
             tabletOpen ? "translate-x-0" : "translate-x-full"
           )}
         >
@@ -312,7 +312,7 @@ export function CopilotPanel({ defaultContext = "Flow" }: CopilotPanelProps) {
               className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
-            <div className="fixed bottom-0 left-0 right-0 z-50 h-[88dvh] bg-white rounded-t-2xl flex flex-col shadow-2xl border-t border-[#E2E8F0]">
+            <div className="fixed bottom-0 left-0 right-0 z-50 h-[85dvh] sm:h-[88dvh] bg-white rounded-t-2xl flex flex-col shadow-2xl border-t border-[#E2E8F0]">
               <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-10 h-1 rounded-full bg-[#E2E8F0]" />
               </div>

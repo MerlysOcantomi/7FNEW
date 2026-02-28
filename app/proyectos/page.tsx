@@ -111,10 +111,10 @@ export default function ProyectosPage() {
           </div>
         </div>
 
-        <div className="px-5 md:px-8 py-7 space-y-8">
+        <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8">
 
           {/* Overview Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
             {OVERVIEW_CARDS.map(({ label, value, sub, icon: Icon, color }) => (
               <div key={label} className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm">
                 <Icon size={16} className={cn("mb-3", color)} strokeWidth={1.75} />
@@ -126,7 +126,7 @@ export default function ProyectosPage() {
           </div>
 
           {/* Search + Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
@@ -138,13 +138,13 @@ export default function ProyectosPage() {
               />
             </div>
             {/* Status */}
-            <div className="relative">
-              <button onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
+            <div className="relative w-full lg:w-auto">
+              <button onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }} className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
                 <span>{statusFilter === "All" ? "Status" : statusFilter}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
                   {["All", "On Track", "At Risk", "Delayed", "Completed"].map((opt) => (
                     <button key={opt} onClick={() => { setStatusFilter(opt); setStatusOpen(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}>{opt}</button>
                   ))}
@@ -152,13 +152,13 @@ export default function ProyectosPage() {
               )}
             </div>
             {/* Priority */}
-            <div className="relative">
-              <button onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
+            <div className="relative w-full lg:w-auto">
+              <button onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }} className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
                 <span>{priorityFilter === "All" ? "Priority" : priorityFilter}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", priorityOpen && "rotate-180")} />
               </button>
               {priorityOpen && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
                   {["All", "High", "Medium", "Low"].map((opt) => (
                     <button key={opt} onClick={() => { setPriorityFilter(opt); setPriorityOpen(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors", priorityFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}>{opt}</button>
                   ))}

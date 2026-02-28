@@ -62,7 +62,7 @@ export function ContextShell({
           <main className="flex-1 min-w-0 flex flex-col overflow-y-auto">
 
             {/* ── Sticky Shell Header ── */}
-            <div className="sticky top-0 z-20 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+            <div className="sticky top-0 z-20 bg-[#F8FAFC]/95 backdrop-blur-sm border-b border-[#E2E8F0]">
 
               {/* Breadcrumb + entity header */}
               <div className="px-5 md:px-8 pt-5 pb-4">
@@ -138,7 +138,7 @@ export function ContextShell({
             </div>
 
             {/* ── Tab Content ── */}
-            <div className="flex-1 px-5 md:px-8 py-7">
+            <div className="flex-1 px-4 sm:px-5 md:px-8 py-6 sm:py-7">
               {children(activeTab)}
             </div>
           </main>

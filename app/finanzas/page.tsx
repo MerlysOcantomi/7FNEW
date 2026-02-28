@@ -96,10 +96,10 @@ export default function FinanzasPage() {
           </div>
         </div>
 
-        <div className="px-5 md:px-8 py-7 space-y-8">
+        <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8">
 
           {/* ── KPI Cards ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: "Total Revenue YTD", value: "$2.48M", delta: "+12% vs last year", trend: "up" as const, icon: DollarSign },
               { label: "AR Outstanding", value: `$${(totalAR / 1000).toFixed(0)}K`, delta: `${overdueCount} overdue invoice${overdueCount !== 1 ? "s" : ""}`, trend: "down" as const, icon: FileText },
@@ -124,7 +124,7 @@ export default function FinanzasPage() {
           <section>
             <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Cashflow — Last 6 Months</h2>
             <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-2 overflow-x-auto pb-1">
                 {CASHFLOW.map((c) => (
                   <CashflowBar key={c.month} {...c} maxVal={maxVal} />
                 ))}

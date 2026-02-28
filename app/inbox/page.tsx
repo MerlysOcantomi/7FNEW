@@ -361,9 +361,9 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="px-5 md:px-8 py-6 space-y-6">
+        <div className="px-4 sm:px-5 md:px-8 py-6 space-y-6">
           {/* Search + Filter */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
@@ -374,10 +374,10 @@ export default function InboxPage() {
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
               />
             </div>
-            <div className="relative">
+            <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => setFilterOpen(!filterOpen)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[140px] justify-between"
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[140px] justify-between"
               >
                 <div className="flex items-center gap-2">
                   <Filter size={13} className="text-[#94A3B8]" />
@@ -385,7 +385,7 @@ export default function InboxPage() {
                 </div>
               </button>
               {filterOpen && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[180px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[180px]">
                   {["All", "Action Required", "Risk", "Opportunity", "FYI", "Update"].map((opt) => (
                     <button
                       key={opt}

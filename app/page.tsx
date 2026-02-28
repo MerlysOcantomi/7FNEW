@@ -156,7 +156,7 @@ export default function Dashboard() {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex min-h-screen bg-[#F8FAFC] font-sans">
+        <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
@@ -182,14 +182,14 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="px-6 md:px-8 py-7 space-y-10">
+            <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8 sm:space-y-10">
 
               {/* ── SECCIÓN 1: RESUMEN GENERAL ── */}
               <section>
                 <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-4">
                   Resumen general
                 </h2>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
                   {kpis.map(({ label, value, delta, trend, icon: Icon, href }) => (
                     <Link
                       key={label}
@@ -220,7 +220,7 @@ export default function Dashboard() {
               </section>
 
               {/* ── GRID: Secciones 2 y 3 en desktop ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
                 {/* ── SECCIÓN 2: ACTIVIDAD RECIENTE (FLOW) ── */}
                 <section>
