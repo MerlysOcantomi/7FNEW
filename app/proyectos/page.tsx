@@ -1,396 +1,244 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { AppShell } from "@/components/app-shell"
-import { SectionPage } from "@/components/section-page"
-import { StatCard } from "@/components/stat-card"
+// Re-export from projects/page.tsx to keep data in one place.
+// The /proyectos route is the canonical greenpalms route.
+
+import { useState } from "react";
+import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
+import { CopilotPanel } from "@/components/copilot-panel";
 import {
-  FolderKanban,
-  Clock,
-  CheckCircle,
-  AlertCircle,
   Search,
-  ArrowUpRight,
-  Calendar,
-  Building,
-  Pencil,
-  Trash2,
+  ChevronDown,
   Plus,
-  MoreHorizontal,
-  Lock,
-  Globe,
-  Users,
-} from "lucide-react"
-import Link from "next/link"
-import { cn } from "@/lib/utils"
-import { ProyectoForm } from "@/components/forms/proyecto-form"
-import { ConfirmModal } from "@/components/confirm-modal"
-import { useFetch } from "@/hooks/use-fetch"
-import { apiDelete, estadoLabel, prioridadLabel, displayLabel } from "@/lib/api-client"
-import { toast } from "sonner"
-import { CanEdit, CanDelete } from "@/components/role-gate"
-import { ExportCSVButton } from "@/components/export-button"
-import { PROYECTO_COLUMNS } from "@/lib/export/csv"
+  ArrowUpRight,
+  X,
+  Briefcase,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  Calendar,
+  TrendingUp,
+  Zap,
+  FileBarChart,
+  DollarSign,
+} from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
-const statusOptions = [
-  { value: "Todos", api: "" },
-  { value: "En progreso", api: "en_progreso" },
-  { value: "Revision", api: "revision" },
-  { value: "Planificacion", api: "planificacion" },
-  { value: "Completado", api: "completado" },
-]
+type StatusType = "On Track" | "At Risk" | "Delayed" | "Completed";
+type Priority = "High" | "Medium" | "Low";
 
-const statusColors: Record<string, string> = {
-  "En progreso": "bg-[var(--tab-info)] text-foreground/70",
-  "En revisión": "bg-[var(--tab-review)] text-foreground/70",
-  "Planificación": "bg-[var(--tab-tasks)] text-foreground/70",
-  Completado: "bg-[var(--tab-phases)] text-foreground/70",
-  Planificacion: "bg-[var(--tab-tasks)] text-foreground/70",
-  Revision: "bg-[var(--tab-review)] text-foreground/70",
+interface Project {
+  id: string;
+  name: string;
+  client: string;
+  status: StatusType;
+  priority: Priority;
+  progress: number;
+  dueDate: string;
+  phase: string;
+  budget: string;
+  lead: string;
 }
 
-const priorityColors: Record<string, string> = {
-  Alta: "bg-[var(--tab-review)]/60 text-foreground/60",
-  Media: "bg-[var(--tab-tasks)]/60 text-foreground/60",
-  Baja: "bg-muted text-muted-foreground",
-  Urgente: "bg-[var(--tab-review)]/80 text-foreground/80",
+const PROJECTS: Project[] = [
+  { id: "p1", name: "Alpha Expansion", client: "Acme Corp", status: "On Track", priority: "High", progress: 60, dueDate: "Jun 30, 2025", phase: "Phase 3 / 5", budget: "$820K", lead: "M. Torres" },
+  { id: "p2", name: "Beta Relaunch", client: "Nexus Holdings", status: "At Risk", priority: "High", progress: 45, dueDate: "May 15, 2025", phase: "Phase 2 / 4", budget: "$540K", lead: "A. Chen" },
+  { id: "p3", name: "Delta Infrastructure", client: "Vertex Capital", status: "On Track", priority: "Medium", progress: 33, dueDate: "Aug 12, 2025", phase: "Phase 1 / 3", budget: "$1.1M", lead: "S. Patel" },
+  { id: "p4", name: "Omega Platform", client: "Blue Arc Group", status: "Delayed", priority: "High", progress: 65, dueDate: "Apr 01, 2025", phase: "Phase 4 / 6", budget: "$730K", lead: "R. Kim" },
+  { id: "p5", name: "Gamma Analytics", client: "Acme Corp", status: "Completed", priority: "Low", progress: 100, dueDate: "Feb 28, 2025", phase: "Phase 5 / 5", budget: "$310K", lead: "L. Nguyen" },
+  { id: "p6", name: "Sigma Compliance", client: "Nexus Holdings", status: "On Track", priority: "Medium", progress: 20, dueDate: "Sep 30, 2025", phase: "Phase 1 / 4", budget: "$460K", lead: "E. Davis" },
+];
+
+const OVERVIEW_CARDS = [
+  { label: "Active", value: "4", sub: "In progress", icon: Briefcase, color: "text-[#3B82F6]" },
+  { label: "At Risk", value: "1", sub: "Needs attention", icon: AlertTriangle, color: "text-[#F59E0B]" },
+  { label: "Delayed", value: "1", sub: "Past due date", icon: Clock, color: "text-[#EF4444]" },
+  { label: "Completed", value: "1", sub: "This quarter", icon: CheckCircle2, color: "text-[#22C55E]" },
+];
+
+const STATUS_MAP: Record<StatusType, { bg: string; text: string }> = {
+  "On Track":  { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
+  "At Risk":   { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]" },
+  "Delayed":   { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]" },
+  "Completed": { bg: "bg-[#F0FDF4]", text: "text-[#166534]" },
+};
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
+      <div className="h-full bg-[#3B82F6] rounded-full" style={{ width: `${value}%` }} />
+    </div>
+  );
 }
 
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—"
-  try {
-    const d = new Date(dateStr)
-    if (Number.isNaN(d.getTime())) return dateStr
-    return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
-  } catch {
-    return dateStr
-  }
+function StatusBadge({ status }: { status: StatusType }) {
+  const s = STATUS_MAP[status];
+  return <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", s.bg, s.text)}>{status}</span>;
 }
-
-const priorityOptions = [
-  { value: "Todas", api: "" },
-  { value: "Urgente", api: "urgente" },
-  { value: "Alta", api: "alta" },
-  { value: "Media", api: "media" },
-  { value: "Baja", api: "baja" },
-]
-
-const sortOptions = [
-  { value: "Reciente", sortBy: "createdAt", sortOrder: "desc" },
-  { value: "Antiguo", sortBy: "createdAt", sortOrder: "asc" },
-  { value: "A-Z", sortBy: "nombre", sortOrder: "asc" },
-  { value: "Z-A", sortBy: "nombre", sortOrder: "desc" },
-  { value: "Progreso ↑", sortBy: "progreso", sortOrder: "asc" },
-  { value: "Progreso ↓", sortBy: "progreso", sortOrder: "desc" },
-]
 
 export default function ProyectosPage() {
-  const [search, setSearch] = useState("")
-  const [filterStatus, setFilterStatus] = useState("Todos")
-  const [filterPriority, setFilterPriority] = useState("Todas")
-  const [filterClienteId, setFilterClienteId] = useState("")
-  const [sortIdx, setSortIdx] = useState(0)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<any>(null)
-  const [deleteItem, setDeleteItem] = useState<any>(null)
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
 
-  const { data: clientesRaw } = useFetch<any>("/api/clientes?pageSize=100")
-  const clientes: any[] = Array.isArray(clientesRaw) ? clientesRaw : clientesRaw?.data ?? []
-
-  async function handleDelete() {
-    if (!deleteItem) return
-    try {
-      await apiDelete(`/api/proyectos/${deleteItem.id}`)
-      toast.success("Proyecto eliminado")
-      refetch()
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar")
-    } finally {
-      setDeleteItem(null)
-    }
-  }
-
-  const apiEstado = statusOptions.find((o) => o.value === filterStatus)?.api ?? ""
-  const apiPrioridad = priorityOptions.find((o) => o.value === filterPriority)?.api ?? ""
-  const currentSort = sortOptions[sortIdx]
-  const url = useMemo(() => {
-    const params = new URLSearchParams()
-    if (apiEstado) params.set("estado", apiEstado)
-    if (apiPrioridad) params.set("prioridad", apiPrioridad)
-    if (search.trim()) params.set("search", search.trim())
-    if (currentSort.sortBy) params.set("sortBy", currentSort.sortBy)
-    if (currentSort.sortOrder) params.set("sortOrder", currentSort.sortOrder)
-    const q = params.toString()
-    return `/api/proyectos${q ? `?${q}` : ""}`
-  }, [apiEstado, apiPrioridad, search, currentSort])
-
-  const { data, loading, error, refetch } = useFetch<any>(url)
-
-  const projects: any[] = Array.isArray(data) ? data : (data && data.data) ? data.data : []
-
-  const totalProjects = projects.length
-  const inProgress = projects.filter((p: any) => p.estado === "en_progreso").length
-  const completed = projects.filter((p: any) => p.estado === "completado").length
-  const inReview = projects.filter((p: any) => p.estado === "revision").length
-
-  const statusDisplay = (estado: string) => displayLabel(estado, estadoLabel)
-  const priorityDisplay = (prioridad: string) => displayLabel(prioridad, prioridadLabel)
+  const filtered = PROJECTS.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.client.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "All" || p.status === statusFilter;
+    const matchPriority = priorityFilter === "All" || p.priority === priorityFilter;
+    return matchSearch && matchStatus && matchPriority;
+  });
 
   return (
-    <AppShell
-      currentSection="proyectos"
-      breadcrumbs={[{ label: "7F" }, { label: "Proyectos" }]}
-    >
-      <SectionPage
-        title="Proyectos"
-        description="Gestiona todos los proyectos activos, su progreso, plazos y equipos asignados."
-      >
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total proyectos" value={String(totalProjects)} icon={FolderKanban} />
-          <StatCard label="En progreso" value={String(inProgress)} icon={Clock} />
-          <StatCard label="Completados" value={String(completed)} icon={CheckCircle} />
-          <StatCard label="En revision" value={String(inReview)} icon={AlertCircle} />
+    <div className="flex min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+      <SidebarNav />
+      <MobileSidebarNav />
+
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        {/* Header */}
+        <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Projects</h1>
+            </div>
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto">
+              <Plus size={14} strokeWidth={2} />
+              New Project
+            </button>
+          </div>
         </div>
 
-        {/* Search + Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o cliente..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-          <CanEdit>
-            <button
-              onClick={() => { setEditingItem(null); setFormOpen(true) }}
-              className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nuevo proyecto
-            </button>
-          </CanEdit>
-          <ExportCSVButton
-            data={projects}
-            columns={PROYECTO_COLUMNS}
-            filename={`proyectos-${new Date().toISOString().slice(0, 10)}`}
-          />
-          <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {statusOptions.map((status) => (
-              <button
-                key={status.value}
-                onClick={() => setFilterStatus(status.value)}
-                className={cn(
-                  "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap border",
-                  filterStatus === status.value
-                    ? "border-foreground/20 bg-foreground text-background"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20"
-                )}
-              >
-                {status.value}
-              </button>
+        <div className="px-5 md:px-8 py-7 space-y-8">
+
+          {/* Overview Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {OVERVIEW_CARDS.map(({ label, value, sub, icon: Icon, color }) => (
+              <div key={label} className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm">
+                <Icon size={16} className={cn("mb-3", color)} strokeWidth={1.75} />
+                <p className="text-2xl font-bold text-[#0F172A] tracking-tight">{value}</p>
+                <p className="text-xs font-medium text-[#0F172A] mt-0.5">{label}</p>
+                <p className="text-[10px] text-[#64748B]">{sub}</p>
+              </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
-            >
-              {priorityOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.value === "Todas" ? "Prioridad" : o.value}</option>
-              ))}
-            </select>
-            <select
-              value={sortIdx}
-              onChange={(e) => setSortIdx(Number(e.target.value))}
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground outline-none"
-            >
-              {sortOptions.map((o, i) => (
-                <option key={o.value} value={i}>{o.value}</option>
-              ))}
-            </select>
+
+          {/* Search + Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search projects or clients..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
+              />
+            </div>
+            {/* Status */}
+            <div className="relative">
+              <button onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
+                <span>{statusFilter === "All" ? "Status" : statusFilter}</span>
+                <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
+              </button>
+              {statusOpen && (
+                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                  {["All", "On Track", "At Risk", "Delayed", "Completed"].map((opt) => (
+                    <button key={opt} onClick={() => { setStatusFilter(opt); setStatusOpen(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}>{opt}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Priority */}
+            <div className="relative">
+              <button onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between">
+                <span>{priorityFilter === "All" ? "Priority" : priorityFilter}</span>
+                <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", priorityOpen && "rotate-180")} />
+              </button>
+              {priorityOpen && (
+                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                  {["All", "High", "Medium", "Low"].map((opt) => (
+                    <button key={opt} onClick={() => { setPriorityFilter(opt); setPriorityOpen(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors", priorityFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}>{opt}</button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="text-center py-12">
-            <p className="text-sm text-muted-foreground">Cargando proyectos...</p>
-          </div>
-        )}
+          {/* Projects List */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">All Projects</h2>
+              <span className="text-xs text-[#94A3B8]">{filtered.length} project{filtered.length !== 1 ? "s" : ""}</span>
+            </div>
 
-        {/* Error */}
-        {error && !loading && (
-          <div className="text-center py-12">
-            <p className="text-sm text-destructive">{error}</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-2 text-xs font-medium text-foreground underline underline-offset-2"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {/* Project grid */}
-        {!loading && !error && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project: any) => {
-              const estadoDisplay = statusDisplay(project.estado ?? "")
-              const prioridadDisplayVal = priorityDisplay(project.prioridad ?? "")
-              const clientName = project.cliente?.nombre ?? (project.clienteId ? String(project.clienteId) : "—")
-              const taskCount = Array.isArray(project.tareas) ? project.tareas.length : null
-              return (
-                <div
-                  key={project.id}
-                  className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4 transition-shadow hover:shadow-sm group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-foreground group-hover:text-foreground/80 truncate text-pretty">
-                        {project.nombre}
-                      </h3>
-                      <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-                        <Building className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{clientName}</span>
-                      </div>
-                    </div>
-                    <span className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0",
-                      statusColors[estadoDisplay] || "bg-muted text-muted-foreground"
-                    )}>
-                      {estadoDisplay}
-                    </span>
+            {/* Desktop list */}
+            <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+              <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
+                <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Project</span>
+                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
+                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
+                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Progress</span>
+                <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due</span>
+                <span className="col-span-1" />
+              </div>
+              {filtered.map((p, i) => (
+                <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < filtered.length - 1 && "border-b border-[#F1F5F9]")}>
+                  <div className="col-span-4 min-w-0">
+                    <p className="text-sm font-medium text-[#0F172A] truncate">{p.name}</p>
+                    <p className="text-[10px] text-[#64748B]">{p.phase}</p>
                   </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-muted-foreground">Progreso general</span>
-                      <span className="text-xs font-semibold text-foreground">{project.progreso ?? 0}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${project.progreso ?? 0}%`,
-                          backgroundColor: (project.progreso ?? 0) === 100
-                            ? "var(--tab-phases)"
-                            : (project.progreso ?? 0) >= 60
-                              ? "var(--tab-info)"
-                              : "var(--tab-tasks)",
-                        }}
-                      />
-                    </div>
+                  <span className="col-span-2 text-sm text-[#64748B] truncate">{p.client}</span>
+                  <div className="col-span-2"><StatusBadge status={p.status} /></div>
+                  <div className="col-span-2 pr-4">
+                    <ProgressBar value={p.progress} />
+                    <p className="text-[10px] text-[#94A3B8] mt-1">{p.progress}%</p>
                   </div>
-
-                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3 w-3 flex-shrink-0" />
-                      <span>{formatDate(project.fechaInicio)} - {formatDate(project.fechaFin)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-muted/50 py-1.5">
-                      <p className="text-xs font-semibold text-foreground">
-                        {project.presupuesto != null ? `$${Number(project.presupuesto).toLocaleString("es-MX")}` : "—"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">Presupuesto</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 py-1.5">
-                      <p className="text-xs font-semibold text-foreground">{taskCount != null ? taskCount : "—"}</p>
-                      <p className="text-[10px] text-muted-foreground">Tareas</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 py-1.5">
-                      <p className="text-xs font-semibold text-foreground">
-                        <span className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                          priorityColors[prioridadDisplayVal] || "bg-muted text-muted-foreground"
-                        )}>
-                          {prioridadDisplayVal}
-                        </span>
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">Prioridad</p>
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  {project.tags && (
-                    <div className="flex flex-wrap gap-1">
-                      {project.tags.split(",").filter(Boolean).slice(0, 3).map((tag: string, i: number) => (
-                        <span key={i} className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-                          {tag.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Custom ID + Assigned + Visibility */}
-                  {(project.customId || project.assignedTo || (project.visibility && project.visibility !== "public")) && (
-                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                      {project.customId && <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{project.customId}</span>}
-                      {project.assignedTo && <span>→ {project.assignedTo}</span>}
-                      {project.visibility === "private" && <span className="flex items-center gap-0.5 text-red-500"><Lock className="h-3 w-3" /> Privado</span>}
-                      {project.visibility === "custom" && <span className="flex items-center gap-0.5 text-amber-500"><Users className="h-3 w-3" /> Restringido</span>}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-1 border-t border-border pt-3">
-                    <Link href={`/proyectos/${project.id}`} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors">
-                      Ver proyecto <ArrowUpRight className="h-3 w-3" />
+                  <span className="col-span-1 text-xs text-[#64748B] whitespace-nowrap">{p.dueDate.split(",")[0]}</span>
+                  <div className="col-span-1 flex justify-end">
+                    <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                      View <ArrowUpRight size={11} />
                     </Link>
-                    <CanEdit>
-                      <button onClick={() => { setEditingItem(project); setFormOpen(true) }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" aria-label="Editar">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    </CanEdit>
-                    <CanDelete>
-                      <button onClick={() => setDeleteItem(project)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-destructive transition-colors" aria-label="Eliminar">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </CanDelete>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-5 py-12 text-center text-sm text-[#64748B]">No projects match your filters.</div>
+              )}
+            </div>
 
-        {/* Empty state */}
-        {!loading && !error && projects.length === 0 && (
-          <div className="text-center py-12">
-            <FolderKanban className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No se encontraron proyectos con los filtros seleccionados.</p>
-            <button
-              onClick={() => { setSearch(""); setFilterStatus("Todos") }}
-              className="mt-2 text-xs font-medium text-foreground underline underline-offset-2"
-            >
-              Limpiar filtros
-            </button>
-          </div>
-        )}
+            {/* Mobile cards */}
+            <div className="sm:hidden space-y-3">
+              {filtered.map((p) => (
+                <div key={p.id} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">{p.name}</p>
+                      <p className="text-xs text-[#64748B]">{p.client} · {p.phase}</p>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="mb-3">
+                    <ProgressBar value={p.progress} />
+                    <p className="text-[10px] text-[#94A3B8] mt-1">{p.progress}% · Due {p.dueDate}</p>
+                  </div>
+                  <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
+                    View Project <ArrowUpRight size={11} />
+                  </Link>
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="py-12 text-center text-sm text-[#64748B]">No projects match your filters.</div>
+              )}
+            </div>
+          </section>
 
-        <ProyectoForm
-          open={formOpen}
-          onClose={() => { setFormOpen(false); setEditingItem(null) }}
-          onSuccess={refetch}
-          data={editingItem}
-        />
-        <ConfirmModal
-          open={!!deleteItem}
-          title="Eliminar proyecto"
-          description={`¿Seguro que quieres eliminar "${deleteItem?.nombre}"? Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
-          variant="danger"
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteItem(null)}
-        />
-      </SectionPage>
-    </AppShell>
-  )
+        </div>
+      </main>
+
+      <CopilotPanel defaultContext="Projects" />
+    </div>
+  );
 }

@@ -1,458 +1,614 @@
-"use client"
+"use client";
 
-import { use, useCallback, useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ContextShell } from "@/components/context-shell"
+import { useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ContextShell } from "@/components/context-shell";
+import { cn } from "@/lib/utils";
 import {
-  InlineText,
-  InlineSelect,
-  InlineTextarea,
-  InlineDate,
-  InlineNumber,
-} from "@/components/inline-edit"
-import { RelationList } from "@/components/relation-list"
-import { RelationSelect } from "@/components/relation-select"
-import { DetailSection } from "@/components/detail-section"
-import { SmartAction } from "@/components/smart-action"
-import { apiPatch, apiDelete } from "@/lib/api-client"
-import { useFetch } from "@/hooks/use-fetch"
-import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import {
-  FolderKanban,
-  Trash2,
-  FileText,
-  Receipt,
-  Building2,
-  DollarSign,
-  CheckSquare,
-  TrendingUp,
-  TrendingDown,
-  Plus,
-  Lock,
-  Globe,
-  Users,
-  Eye,
-  Calendar,
-  User,
-  Pencil,
-} from "lucide-react"
-import { TareaForm } from "@/components/forms/tarea-form"
-import { DocumentoForm } from "@/components/forms/documento-form"
-import { TransaccionForm } from "@/components/forms/transaccion-form"
-import { FacturaForm } from "@/components/forms/factura-form"
-import { ConfirmModal } from "@/components/confirm-modal"
-import { CanDelete, CanEdit } from "@/components/role-gate"
-import { CommentsSection } from "@/components/comments-section"
-import { ActivityTimeline } from "@/components/activity-timeline"
-import { UploadArea } from "@/components/upload-area"
-import { QRButton } from "@/components/qr-code-modal"
-import { SavedQRCodes } from "@/components/saved-qr-codes"
-import { AppShell } from "@/components/app-shell"
+  Calendar, Building2, User, DollarSign, AlertTriangle,
+  CheckCircle2, Circle, Clock, FileBarChart, Plus, Pencil,
+  ArrowUpRight, Paperclip, Download, FileText, MapPin,
+} from "lucide-react";
 
-const ESTADO_OPTIONS = [
-  { value: "planificacion", label: "Planificacion" },
-  { value: "en_progreso", label: "En progreso" },
-  { value: "revision", label: "En revision" },
-  { value: "completado", label: "Completado" },
-  { value: "cancelado", label: "Cancelado" },
-]
+// ── Types & Data ──────────────────────────────────────────────────────────────
 
-const PRIORIDAD_OPTIONS = [
-  { value: "baja", label: "Baja" },
-  { value: "media", label: "Media" },
-  { value: "alta", label: "Alta" },
-  { value: "urgente", label: "Urgente" },
-]
+type ProjectStatus = "En marcha" | "En riesgo" | "Retrasado" | "Completado";
+type MilestoneStatus = "Completado" | "En progreso" | "Pendiente";
+type RiskLevel = "Alto" | "Medio" | "Bajo";
 
-const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  planificacion: { bg: "bg-[#FEF3C7]", text: "text-[#92400E]" },
-  en_progreso: { bg: "bg-[#DBEAFE]", text: "text-[#1E40AF]" },
-  revision: { bg: "bg-[#EDE9FE]", text: "text-[#5B21B6]" },
-  completado: { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
-  cancelado: { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
+interface Project {
+  id: string;
+  name: string;
+  client: string;
+  clientId: string;
+  location: string;
+  status: ProjectStatus;
+  progress: number;
+  dueDate: string;
+  startDate: string;
+  phase: string;
+  budget: string;
+  budgetUsed: string;
+  budgetRemaining: string;
+  lead: string;
+  description: string;
+  nextMilestone: string;
+  riskLevel: RiskLevel;
+  keyMetrics: { label: string; value: string }[];
+  milestones: { label: string; date: string; status: MilestoneStatus; description?: string }[];
+  tasks: { label: string; assignee: string; due: string; status: MilestoneStatus; category: string }[];
+  risks: { title: string; level: RiskLevel; description: string; action: string }[];
+  files: { name: string; type: string; size: string; date: string }[];
+  notes: { author: string; date: string; content: string }[];
+  financialNote: string;
+  financialItems: { label: string; value: string; variant: "neutral" | "positive" | "warning" }[];
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  planificacion: "Planificacion",
-  en_progreso: "En progreso",
-  revision: "En revision",
-  completado: "Completado",
-  cancelado: "Cancelado",
+const PROJECT_DATA: Record<string, Project> = {
+  p1: {
+    id: "p1",
+    name: "Alpha Expansion",
+    client: "Acme Corp",
+    clientId: "c1",
+    location: "Noreste, Medio Oeste y Pacífico",
+    status: "En marcha",
+    progress: 60,
+    dueDate: "30 jun 2025",
+    startDate: "5 ene 2025",
+    phase: "Fase 3 / 5",
+    budget: "$820.000",
+    budgetUsed: "62%",
+    budgetRemaining: "$311.600",
+    lead: "M. Torres",
+    nextMilestone: "Expansión Regional — Fase A",
+    riskLevel: "Medio",
+    description:
+      "Expansión operativa a escala completa en tres nuevos mercados regionales. Incluye infraestructura, permisos, incorporación de equipos e integración de clientes en los corredores Noreste, Medio Oeste y Pacífico. Estructurado en cinco fases de entrega con compromiso de lanzamiento en Q2.",
+    keyMetrics: [
+      { label: "Presupuesto usado", value: "62%" },
+      { label: "Tareas completadas", value: "34 / 56" },
+      { label: "Riesgos activos", value: "2" },
+      { label: "Días restantes", value: "47" },
+    ],
+    milestones: [
+      { label: "Descubrimiento y alcance", date: "15 ene 2025", status: "Completado", description: "Evaluaciones de sitio completadas. Documentos de alcance firmados." },
+      { label: "Planificación de infraestructura", date: "28 feb 2025", status: "Completado", description: "Planos de ingeniería aprobados. Lista de adquisiciones finalizada." },
+      { label: "Expansión Regional — Fase A", date: "10 abr 2025", status: "En progreso", description: "Corredor Noreste en progreso. Dos confirmaciones de proveedores pendientes." },
+      { label: "Incorporación e integración de equipos", date: "20 may 2025", status: "Pendiente", description: "Responsables regionales identificados. Materiales de formación en desarrollo." },
+      { label: "Lanzamiento y entrega al cliente", date: "30 jun 2025", status: "Pendiente", description: "Revisión final y aprobación de Acme Corp planificada." },
+    ],
+    tasks: [
+      { label: "Confirmar acuerdos con proveedores — región Noreste", assignee: "M. Torres", due: "5 mar", status: "En progreso", category: "Adquisición" },
+      { label: "Enviar documentos de cumplimiento Fase 3", assignee: "E. Davis", due: "8 mar", status: "Pendiente", category: "Legal" },
+      { label: "Auditoría de infraestructura — Medio Oeste", assignee: "S. Patel", due: "12 mar", status: "Pendiente", category: "Ingeniería" },
+      { label: "Presentación de incorporación cliente — Acme", assignee: "A. Chen", due: "20 mar", status: "Pendiente", category: "Cliente" },
+      { label: "Retrospectiva Fase 2 cerrada", assignee: "M. Torres", due: "28 feb", status: "Completado", category: "Gestión" },
+      { label: "Trámites de permisos — corredor Pacífico", assignee: "R. Kim", due: "25 mar", status: "Pendiente", category: "Legal" },
+    ],
+    risks: [
+      { title: "Retraso de proveedor — Nivel 2 Noreste", level: "Alto", description: "Dos proveedores no han confirmado compromisos de hito.", action: "Escalar al responsable de adquisiciones antes del 6 de marzo." },
+      { title: "Variación presupuestaria — infraestructura", level: "Medio", description: "Costes de infraestructura con tendencia al 4% por encima del estimado.", action: "Registrar en la revisión financiera mensual." },
+    ],
+    files: [
+      { name: "Alpha_Expansion_SOW_v3.pdf", type: "PDF", size: "2,4 MB", date: "12 feb 2025" },
+      { name: "Phase2_Retrospectiva.xlsx", type: "Excel", size: "840 KB", date: "1 mar 2025" },
+      { name: "Noreste_Plan_Infraestructura.pdf", type: "PDF", size: "5,1 MB", date: "28 feb 2025" },
+      { name: "Acme_Presentacion_v1.pptx", type: "PowerPoint", size: "3,7 MB", date: "3 mar 2025" },
+    ],
+    notes: [
+      { author: "M. Torres", date: "3 mar 2025", content: "Acme Corp confirmó reunión Fase A para el 11 de marzo. Se necesitan resultados de auditoría de infraestructura antes." },
+      { author: "E. Davis", date: "27 feb 2025", content: "El equipo de cumplimiento señaló dos elementos de permisos para el corredor Pacífico. Seguimiento en módulo legal." },
+    ],
+    financialNote: "Fondo de Crecimiento III parcialmente asignado. Seguimiento activo de desviación presupuestaria. Informe de varianza mensual previsto el 15 de marzo.",
+    financialItems: [
+      { label: "Presupuesto total", value: "$820.000", variant: "neutral" },
+      { label: "Gastado hasta la fecha", value: "$508.400 (62%)", variant: "neutral" },
+      { label: "Restante", value: "$311.600", variant: "positive" },
+      { label: "Varianza", value: "+$18.200 sobre estimado", variant: "warning" },
+    ],
+  },
+  p2: {
+    id: "p2",
+    name: "Beta Relaunch",
+    client: "Nexus Holdings",
+    clientId: "c2",
+    location: "Remoto / Empresarial",
+    status: "En riesgo",
+    progress: 45,
+    dueDate: "15 may 2025",
+    startDate: "20 nov 2024",
+    phase: "Fase 2 / 4",
+    budget: "$540.000",
+    budgetUsed: "51%",
+    budgetRemaining: "$264.600",
+    lead: "A. Chen",
+    nextMilestone: "Pruebas Beta Empresarial",
+    riskLevel: "Alto",
+    description:
+      "Iniciativa de relanzamiento de producto orientada a la reactivación del segmento empresarial. Retrasada por dependencia de confirmación de API de proveedor para entregables principales.",
+    keyMetrics: [
+      { label: "Presupuesto usado", value: "51%" },
+      { label: "Tareas completadas", value: "18 / 40" },
+      { label: "Riesgos activos", value: "4" },
+      { label: "Días restantes", value: "19" },
+    ],
+    milestones: [
+      { label: "Auditoría de producto", date: "20 dic 2024", status: "Completado", description: "Plataforma auditada. Análisis de brechas completado." },
+      { label: "Rediseño y prototipo", date: "10 feb 2025", status: "En progreso", description: "Renovación de interfaz al 70%. Pendiente confirmación de API." },
+      { label: "Pruebas Beta Empresarial", date: "30 mar 2025", status: "Pendiente", description: "Grupo de prueba de 12 clientes empresariales seleccionado." },
+      { label: "Lanzamiento completo", date: "15 may 2025", status: "Pendiente", description: "Evento de lanzamiento pendiente de aprobación beta." },
+    ],
+    tasks: [
+      { label: "Confirmación proveedor — integraciones API", assignee: "A. Chen", due: "4 mar", status: "En progreso", category: "Proveedor" },
+      { label: "Configuración entorno beta", assignee: "R. Kim", due: "10 mar", status: "Pendiente", category: "Ingeniería" },
+      { label: "Selección grupo de prueba cliente", assignee: "A. Chen", due: "15 mar", status: "Pendiente", category: "Cliente" },
+      { label: "Documentación de alcance Fase 1", assignee: "E. Davis", due: "15 feb", status: "Completado", category: "Gestión" },
+    ],
+    risks: [
+      { title: "Retrasos API del proveedor", level: "Alto", description: "El proveedor principal no ha confirmado disponibilidad de API. Plazo en riesgo.", action: "Escalar a CTO e identificar proveedor alternativo." },
+      { title: "Expansión de alcance — Fase 2", level: "Medio", description: "Nuevas solicitudes de funciones fuera del alcance original.", action: "Programar revisión de alcance con partes interesadas." },
+    ],
+    files: [
+      { name: "BetaRelaunch_Alcance_v2.pdf", type: "PDF", size: "1,9 MB", date: "10 ene 2025" },
+      { name: "Prototipo_Rediseno_UI.fig", type: "Figma", size: "14,2 MB", date: "8 feb 2025" },
+    ],
+    notes: [
+      { author: "A. Chen", date: "2 mar 2025", content: "El proveedor envió confirmación preliminar pero no definitiva. Seguimiento mañana." },
+    ],
+    financialNote: "Presupuesto al 51% en punto medio — antes de lo proyectado. Se recomienda revisión de fin de mes.",
+    financialItems: [
+      { label: "Presupuesto total", value: "$540.000", variant: "neutral" },
+      { label: "Gastado hasta la fecha", value: "$275.400 (51%)", variant: "neutral" },
+      { label: "Restante", value: "$264.600", variant: "positive" },
+      { label: "Varianza", value: "En estimado", variant: "positive" },
+    ],
+  },
+  p3: {
+    id: "p3",
+    name: "Delta Infrastructure",
+    client: "Vertex Capital",
+    clientId: "c3",
+    location: "Multi-sede / 4 Unidades de Negocio",
+    status: "En marcha",
+    progress: 33,
+    dueDate: "12 ago 2025",
+    startDate: "15 ene 2025",
+    phase: "Fase 1 / 3",
+    budget: "$1.100.000",
+    budgetUsed: "29%",
+    budgetRemaining: "$781.000",
+    lead: "S. Patel",
+    nextMilestone: "Evaluación y Arquitectura",
+    riskLevel: "Bajo",
+    description:
+      "Programa de modernización de infraestructura a largo plazo que cubre migración de centros de datos y consolidación de plataformas en cuatro unidades de negocio.",
+    keyMetrics: [
+      { label: "Presupuesto usado", value: "29%" },
+      { label: "Tareas completadas", value: "12 / 36" },
+      { label: "Riesgos activos", value: "1" },
+      { label: "Días restantes", value: "128" },
+    ],
+    milestones: [
+      { label: "Evaluación y Arquitectura", date: "1 feb 2025", status: "En progreso", description: "Auditoría de centro de datos al 80%. Diagramas de arquitectura en revisión." },
+      { label: "Migración Fase A", date: "15 may 2025", status: "Pendiente", description: "Unidades de negocio 1 y 2 programadas para migración." },
+      { label: "Consolidación y pruebas", date: "12 ago 2025", status: "Pendiente", description: "Consolidación completa de plataforma y pruebas de carga." },
+    ],
+    tasks: [
+      { label: "Finalización auditoría del centro de datos", assignee: "S. Patel", due: "10 mar", status: "En progreso", category: "Ingeniería" },
+      { label: "Adquisición de proveedor — hardware", assignee: "M. Torres", due: "25 mar", status: "Pendiente", category: "Adquisición" },
+      { label: "Revisión de arquitectura de red", assignee: "R. Kim", due: "1 abr", status: "Pendiente", category: "Ingeniería" },
+    ],
+    risks: [
+      { title: "Compatibilidad con sistemas heredados", level: "Medio", description: "Dos sistemas heredados pueden requerir herramientas de migración personalizadas.", action: "Evaluación antes del 1 de abril." },
+    ],
+    files: [
+      { name: "Delta_Infrastructure_Brief.pdf", type: "PDF", size: "3,2 MB", date: "18 ene 2025" },
+      { name: "DC_Auditoria_Borrador.xlsx", type: "Excel", size: "1,1 MB", date: "25 feb 2025" },
+    ],
+    notes: [
+      { author: "S. Patel", date: "28 feb 2025", content: "La auditoría progresa bien. Dos servidores señalados para revisión de compatibilidad." },
+    ],
+    financialNote: "Varianza favorable. Consumo presupuestario 4 semanas adelantado — bien dentro del margen.",
+    financialItems: [
+      { label: "Presupuesto total", value: "$1.100.000", variant: "neutral" },
+      { label: "Gastado hasta la fecha", value: "$319.000 (29%)", variant: "neutral" },
+      { label: "Restante", value: "$781.000", variant: "positive" },
+      { label: "Varianza", value: "−$22.000 bajo estimado", variant: "positive" },
+    ],
+  },
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<ProjectStatus, { bg: string; text: string }> = {
+  "En marcha":   { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
+  "En riesgo":   { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]" },
+  "Retrasado":   { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]" },
+  "Completado":  { bg: "bg-[#F0FDF4]", text: "text-[#166534]" },
+};
+
+const STATUS_LABEL: Record<ProjectStatus, string> = {
+  "En marcha": "En marcha",
+  "En riesgo": "En riesgo",
+  "Retrasado": "Retrasado",
+  "Completado": "Completado",
+};
+
+const RISK_STYLE: Record<RiskLevel, { bg: string; text: string; dot: string }> = {
+  Alto:  { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]", dot: "bg-[#EF4444]" },
+  Medio: { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]", dot: "bg-[#F59E0B]" },
+  Bajo:  { bg: "bg-[#F1F5F9]", text: "text-[#64748B]", dot: "bg-[#94A3B8]" },
+};
+
+const MILESTONE_BADGE: Record<MilestoneStatus, string> = {
+  "Completado":  "bg-[#DCFCE7] text-[#166534]",
+  "En progreso": "bg-[#EFF6FF] text-[#1D4ED8]",
+  "Pendiente":   "bg-[#F1F5F9] text-[#64748B]",
+};
+
+const FIN_VARIANT: Record<"neutral" | "positive" | "warning", string> = {
+  neutral: "text-[#334155]",
+  positive: "text-[#166534]",
+  warning: "text-[#854D0E]",
+};
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
+      <div className="h-full bg-[#3B82F6] rounded-full transition-all" style={{ width: `${value}%` }} />
+    </div>
+  );
 }
 
-const estadoBadge = (v: string) =>
-  ({
-    planificacion: "bg-amber-100 text-amber-700",
-    en_progreso: "bg-blue-100 text-blue-700",
-    revision: "bg-purple-100 text-purple-700",
-    completado: "bg-emerald-100 text-emerald-700",
-    cancelado: "bg-muted text-muted-foreground",
-    pendiente: "bg-muted text-muted-foreground",
-    completada: "bg-emerald-100 text-emerald-700",
-    cancelada: "bg-red-100 text-red-700",
-    borrador: "bg-muted text-muted-foreground",
-    enviada: "bg-blue-100 text-blue-700",
-    pagada: "bg-emerald-100 text-emerald-700",
-    vencida: "bg-red-100 text-red-700",
-  })[v] ?? "bg-muted text-muted-foreground"
-
-const prioridadBadge = (v: string) =>
-  ({
-    urgente: "bg-red-100 text-red-700",
-    alta: "bg-orange-100 text-orange-700",
-    media: "bg-amber-100 text-amber-700",
-    baja: "bg-muted text-muted-foreground",
-  })[v] ?? "bg-muted text-muted-foreground"
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—"
-  try {
-    const d = new Date(dateStr)
-    if (Number.isNaN(d.getTime())) return "—"
-    return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
-  } catch {
-    return "—"
-  }
+function MilestoneIcon({ status }: { status: MilestoneStatus }) {
+  if (status === "Completado")  return <CheckCircle2 size={15} className="text-[#22C55E] shrink-0" strokeWidth={1.75} />;
+  if (status === "En progreso") return <Clock size={15} className="text-[#3B82F6] shrink-0" strokeWidth={1.75} />;
+  return <Circle size={15} className="text-[#CBD5E1] shrink-0" strokeWidth={1.75} />;
 }
 
-function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n)
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">{children}</h3>;
 }
 
-function daysRemaining(fechaFin: string | null | undefined): number {
-  if (!fechaFin) return 0
-  const target = new Date(fechaFin)
-  if (Number.isNaN(target.getTime())) return 0
-  const diff = Math.ceil((target.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  return Math.max(0, diff)
+// ── Tab content panels ────────────────────────────────────────────────────────
+
+function TabResumen({ project }: { project: Project }) {
+  const riskStyle = RISK_STYLE[project.riskLevel];
+  return (
+    <div className="space-y-8">
+      {/* KPI bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {project.keyMetrics.map(({ label, value }) => (
+          <div key={label} className="bg-[#EFF6FF] rounded-xl p-4">
+            <p className="text-xl font-bold text-[#0F172A] tracking-tight">{value}</p>
+            <p className="text-[10px] text-[#64748B] mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Description + risk */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-[#E2E8F0] p-5">
+          <SectionLabel>Descripción del proyecto</SectionLabel>
+          <p className="text-sm text-[#334155] leading-relaxed">{project.description}</p>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {[
+              { label: "Responsable", value: project.lead },
+              { label: "Inicio", value: project.startDate },
+              { label: "Vencimiento", value: project.dueDate },
+              { label: "Fase", value: project.phase },
+              { label: "Próximo hito", value: project.nextMilestone },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[10px] text-[#94A3B8] mb-0.5">{label}</p>
+                <p className="text-xs font-medium text-[#334155]">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {/* Progress card */}
+          <div className="bg-[#DBEAFE] rounded-xl p-4">
+            <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mb-2">Progreso general</p>
+            <div className="flex items-end gap-2 mb-2">
+              <span className="text-2xl font-bold text-[#0F172A]">{project.progress}%</span>
+            </div>
+            <ProgressBar value={project.progress} />
+          </div>
+          {/* Risk badge */}
+          <div className={cn("rounded-xl p-4", riskStyle.bg)}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "inherit" }}>Nivel de riesgo</p>
+            <div className="flex items-center gap-2">
+              <span className={cn("w-2 h-2 rounded-full shrink-0", riskStyle.dot)} />
+              <span className={cn("text-sm font-semibold", riskStyle.text)}>{project.riskLevel}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-const PROJECT_TABS = [
-  { key: "resumen", label: "Resumen" },
-  { key: "tareas", label: "Tareas" },
-  { key: "finanzas", label: "Finanzas" },
+function TabTareas({ project }: { project: Project }) {
+  const statusBadge: Record<MilestoneStatus, string> = {
+    "Completado":  "bg-[#DCFCE7] text-[#166534]",
+    "En progreso": "bg-[#EFF6FF] text-[#1D4ED8]",
+    "Pendiente":   "bg-[#F1F5F9] text-[#64748B]",
+  };
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <SectionLabel>Tareas del proyecto</SectionLabel>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
+          <Plus size={12} strokeWidth={2.5} />
+          Nueva tarea
+        </button>
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+        <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
+          <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Tarea</span>
+          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Responsable</span>
+          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vencimiento</span>
+          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Categoría</span>
+          <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
+        </div>
+        {project.tasks.map((task, i) => (
+          <div key={i} className={cn("grid grid-cols-12 items-center px-5 py-3.5 hover:bg-[#F8FAFC] transition-colors", i < project.tasks.length - 1 && "border-b border-[#F1F5F9]")}>
+            <span className="col-span-5 text-sm text-[#334155] pr-3">{task.label}</span>
+            <span className="col-span-2 text-xs text-[#64748B]">{task.assignee}</span>
+            <span className="col-span-2 text-xs text-[#64748B]">{task.due}</span>
+            <span className="col-span-2 text-xs text-[#64748B]">{task.category}</span>
+            <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", statusBadge[task.status])}>{task.status}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {project.tasks.map((task, i) => (
+          <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="text-sm font-medium text-[#334155] leading-snug">{task.label}</p>
+              <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", statusBadge[task.status])}>{task.status}</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] text-[#94A3B8]">{task.assignee}</span>
+              <span className="text-[10px] text-[#94A3B8]">·</span>
+              <span className="text-[10px] text-[#94A3B8]">Vence {task.due}</span>
+              <span className="text-[10px] text-[#94A3B8]">·</span>
+              <span className="text-[10px] text-[#94A3B8]">{task.category}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabHitos({ project }: { project: Project }) {
+  return (
+    <div className="space-y-3">
+      <SectionLabel>Cronograma de hitos</SectionLabel>
+      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+        {project.milestones.map((m, i) => (
+          <div key={i} className={cn("flex items-start gap-4 px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < project.milestones.length - 1 && "border-b border-[#F1F5F9]")}>
+            <MilestoneIcon status={m.status} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap mb-0.5">
+                <p className="text-sm font-medium text-[#0F172A]">{m.label}</p>
+                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", MILESTONE_BADGE[m.status])}>{m.status}</span>
+              </div>
+              {m.description && <p className="text-xs text-[#64748B] leading-relaxed">{m.description}</p>}
+            </div>
+            <span className="shrink-0 text-xs text-[#94A3B8] font-medium">{m.date}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Risks */}
+      {project.risks.length > 0 && (
+        <div className="mt-6">
+          <SectionLabel>Riesgos identificados</SectionLabel>
+          <div className="space-y-3">
+            {project.risks.map((risk, i) => {
+              const rs = RISK_STYLE[risk.level];
+              return (
+                <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-4">
+                  <div className="flex items-center gap-3 flex-wrap mb-2">
+                    <span className={cn("flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded", rs.bg, rs.text)}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full", rs.dot)} />
+                      {risk.level}
+                    </span>
+                    <p className="text-sm font-medium text-[#0F172A]">{risk.title}</p>
+                  </div>
+                  <p className="text-xs text-[#64748B] mb-1.5">{risk.description}</p>
+                  <p className="text-xs font-medium text-[#334155]">Acción: {risk.action}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabArchivos({ project }: { project: Project }) {
+  const typeColors: Record<string, string> = {
+    PDF: "bg-[#FEE2E2] text-[#991B1B]",
+    Excel: "bg-[#DCFCE7] text-[#166534]",
+    PowerPoint: "bg-[#FEF9C3] text-[#854D0E]",
+    Figma: "bg-[#EFF6FF] text-[#1D4ED8]",
+    Word: "bg-[#F1F5F9] text-[#64748B]",
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <SectionLabel>Archivos del proyecto</SectionLabel>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
+          <Plus size={12} strokeWidth={2.5} />
+          Subir archivo
+        </button>
+      </div>
+      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+        {project.files.map((file, i) => (
+          <div key={i} className={cn("flex items-center gap-4 px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < project.files.length - 1 && "border-b border-[#F1F5F9]")}>
+            <Paperclip size={14} className="text-[#94A3B8] shrink-0" strokeWidth={1.75} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#334155] truncate">{file.name}</p>
+              <p className="text-[10px] text-[#94A3B8] mt-0.5">{file.size} · {file.date}</p>
+            </div>
+            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", typeColors[file.type] ?? "bg-[#F1F5F9] text-[#64748B]")}>
+              {file.type}
+            </span>
+            <button className="shrink-0 p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#3B82F6] hover:border-[#BFDBFE] transition-colors">
+              <Download size={13} strokeWidth={1.75} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabFinanzas({ project }: { project: Project }) {
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {project.financialItems.map(({ label, value, variant }) => (
+          <div key={label} className={cn("rounded-xl p-4", variant === "warning" ? "bg-[#FEF9C3]" : variant === "positive" ? "bg-[#DCFCE7]" : "bg-[#EFF6FF]")}>
+            <p className={cn("text-base font-bold tracking-tight", FIN_VARIANT[variant])}>{value}</p>
+            <p className="text-[10px] text-[#64748B] mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Note */}
+      <div className="bg-[#DBEAFE] rounded-xl p-5">
+        <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mb-2">Nota financiera</p>
+        <p className="text-sm text-[#334155] leading-relaxed">{project.financialNote}</p>
+      </div>
+
+      {/* Link to Funds */}
+      <div className="flex items-center justify-end">
+        <Link href="/finanzas" className="flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
+          Ver en Funds <ArrowUpRight size={12} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function TabNotas({ project }: { project: Project }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <SectionLabel>Notas del proyecto</SectionLabel>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
+          <Plus size={12} strokeWidth={2.5} />
+          Añadir nota
+        </button>
+      </div>
+      <div className="space-y-3">
+        {project.notes.map((note, i) => (
+          <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-5">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#DBEAFE] flex items-center justify-center">
+                  <span className="text-[9px] font-bold text-[#2563EB]">{note.author.split(".")[0]}</span>
+                </div>
+                <span className="text-xs font-semibold text-[#334155]">{note.author}</span>
+              </div>
+              <span className="text-[10px] text-[#94A3B8]">{note.date}</span>
+            </div>
+            <p className="text-sm text-[#64748B] leading-relaxed">{note.content}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { key: "resumen",  label: "Resumen" },
+  { key: "tareas",   label: "Tareas" },
+  { key: "hitos",    label: "Hitos" },
   { key: "archivos", label: "Archivos" },
-  { key: "actividad", label: "Actividad" },
-]
+  { key: "finanzas", label: "Finanzas" },
+];
 
-export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
-  const router = useRouter()
-  const { data: project, loading, error, refetch } = useFetch<any>(`/api/proyectos/${id}`)
-  const { data: finanzasRaw, refetch: refetchFinanzas } = useFetch<any>(id ? `/api/finanzas?proyectoId=${id}` : null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-
-  const saveField = useCallback(
-    async (field: string, value: unknown) => {
-      await apiPatch(`/api/proyectos/${id}`, { [field]: value })
-      toast.success("Guardado")
-      refetch()
-    },
-    [id, refetch],
-  )
-
-  const handleDelete = useCallback(async () => {
-    await apiDelete(`/api/proyectos/${id}`)
-    toast.success("Proyecto eliminado")
-    router.push("/proyectos")
-  }, [id, router])
-
-  if (loading) {
-    return (
-      <AppShell>
-        <div className="flex flex-col gap-6 animate-pulse">
-          <div className="h-6 w-48 bg-[#E2E8F0] rounded" />
-          <div className="h-32 bg-[#E2E8F0] rounded-xl" />
-        </div>
-      </AppShell>
-    )
-  }
-
-  if (error || !project) {
-    return (
-      <AppShell>
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-[#E2E8F0] bg-white p-12">
-          <FolderKanban className="h-12 w-12 text-[#94A3B8]" />
-          <p className="text-sm font-semibold text-[#0F172A]">Proyecto no encontrado</p>
-          <Link href="/proyectos" className="text-sm font-medium text-[#2563EB] hover:underline">← Volver a Proyectos</Link>
-        </div>
-      </AppShell>
-    )
-  }
-
-  const finanzas = Array.isArray(finanzasRaw) ? finanzasRaw : []
-  const tareas = Array.isArray(project.tareas) ? project.tareas : []
-  const cliente = project.cliente ?? null
-  const ingresos = finanzas.filter((t: any) => t.tipo === "ingreso").reduce((s: number, t: any) => s + Number(t.monto ?? 0), 0)
-  const gastos = finanzas.filter((t: any) => t.tipo === "gasto").reduce((s: number, t: any) => s + Number(t.monto ?? 0), 0)
-  const statusStyle = STATUS_STYLE[project.estado] ?? STATUS_STYLE.planificacion
+export default function ProjectDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const project = PROJECT_DATA[id as string] ?? PROJECT_DATA["p1"];
+  const statusStyle = STATUS_STYLE[project.status];
 
   return (
     <ContextShell
       breadcrumbs={[
-        { label: "Flow", href: "/proyectos" },
+        { label: "Flow", href: "/" },
         { label: "Proyectos", href: "/proyectos" },
-        { label: project.nombre ?? "Proyecto" },
+        { label: project.name },
       ]}
       heading={
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">{project.nombre ?? "Proyecto"}</h1>
+          <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight text-balance">{project.name}</h1>
           <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", statusStyle.bg, statusStyle.text)}>
-            {STATUS_LABEL[project.estado] ?? project.estado}
+            {STATUS_LABEL[project.status]}
           </span>
-          {project.prioridad && (
-            <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", prioridadBadge(project.prioridad))}>
-              {project.prioridad}
-            </span>
-          )}
+          <span className="text-xs text-[#94A3B8] font-medium">{project.phase}</span>
         </div>
       }
       meta={
         <div className="flex items-center gap-4 flex-wrap">
-          {cliente && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Building2 size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              <Link href={`/clientes/${project.clienteId}`} className="hover:text-[#3B82F6] transition-colors">{cliente.nombre}</Link>
-            </span>
-          )}
-          {project.fechaFin && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Calendar size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              Vence {formatDate(project.fechaFin)}
-            </span>
-          )}
-          {project.assignedTo && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <User size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              {project.assignedTo}
-            </span>
-          )}
           <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-            {daysRemaining(project.fechaFin)} dias restantes
+            <Building2 size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            <Link href={`/clientes/${project.clientId}`} className="hover:text-[#3B82F6] transition-colors">{project.client}</Link>
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
+            <MapPin size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            {project.location}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
+            <Calendar size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            Vence {project.dueDate}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
+            <User size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            {project.lead}
           </span>
         </div>
       }
       actions={
         <>
-          <QRButton
-            module="proyectos"
-            recordId={id}
-            defaultUrl={typeof window !== "undefined" ? `${window.location.origin}/proyectos/${id}` : `/proyectos/${id}`}
-          />
-          <CanDelete>
-            <button
-              onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#94A3B8] text-xs font-medium hover:text-red-600 hover:border-red-200 transition-colors"
-            >
-              <Trash2 size={13} strokeWidth={1.75} />
-              Eliminar
-            </button>
-          </CanDelete>
+          <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:bg-[#F8FAFC] transition-colors">
+            <Pencil size={13} strokeWidth={1.75} />
+            Actualizar
+          </button>
+          <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
+            <FileBarChart size={13} strokeWidth={1.75} />
+            Generar informe
+          </button>
         </>
       }
-      tabs={PROJECT_TABS}
+      tabs={TABS}
       defaultTab="resumen"
       copilotContext="Flow"
     >
-      {(activeTab) => (
-        <>
-          {/* ─── RESUMEN ─── */}
-          {activeTab === "resumen" && (
-            <div className="flex flex-col gap-6">
-              {/* Progress */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Progreso</p>
-                  <span className="text-sm font-bold text-[#0F172A]">{project.progreso ?? 0}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F1F5F9] overflow-hidden">
-                  <div className="h-full rounded-full bg-[#3B82F6] transition-all" style={{ width: `${project.progreso ?? 0}%` }} />
-                </div>
-              </div>
-
-              {/* Key Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MetricCard label="Presupuesto" value={project.presupuesto ? formatCurrency(Number(project.presupuesto)) : "—"} variant="neutral" />
-                <MetricCard label="Tareas" value={`${tareas.filter((t: any) => t.estado === "completada").length} / ${tareas.length}`} variant="neutral" />
-                <MetricCard label="Ingresos" value={formatCurrency(ingresos)} variant="positive" />
-                <MetricCard label="Gastos" value={formatCurrency(gastos)} variant="warning" />
-              </div>
-
-              {/* Details card */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8] mb-4">Detalles del proyecto</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">Cliente</p>
-                    <RelationSelect label="Cliente" icon={Building2} value={project.clienteId ?? null} field="clienteId" targetModule="clientes" sourceModule="proyectos" sourceId={id} displayField="nombre" currentDisplay={cliente?.nombre} onSaved={refetch} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">Fecha inicio</p>
-                    <InlineDate value={project.fechaInicio} onSave={(v) => saveField("fechaInicio", v)} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">Fecha fin</p>
-                    <InlineDate value={project.fechaFin} onSave={(v) => saveField("fechaFin", v)} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">Presupuesto</p>
-                    <InlineText
-                      value={project.presupuesto != null ? String(project.presupuesto) : ""}
-                      onSave={async (v) => {
-                        const trimmed = v.trim()
-                        const num = trimmed === "" ? null : parseFloat(trimmed.replace(/[^0-9.-]/g, ""))
-                        if (trimmed !== "" && Number.isNaN(num)) return
-                        await saveField("presupuesto", num)
-                      }}
-                      placeholder="0"
-                      className="tabular-nums"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">ID editorial</p>
-                    <InlineText value={project.customId ?? ""} onSave={(v) => saveField("customId", v || null)} placeholder="Ej: PRJ-001" className="font-mono text-xs" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#94A3B8] mb-1">Asignado a</p>
-                    <InlineText value={project.assignedTo ?? ""} onSave={(v) => saveField("assignedTo", v || null)} placeholder="Nombre o equipo" />
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-[#F1F5F9]">
-                  <p className="text-[10px] text-[#94A3B8] mb-1">Descripcion</p>
-                  <InlineTextarea value={project.descripcion ?? ""} onSave={(v) => saveField("descripcion", v)} rows={3} placeholder="Agregar descripcion..." />
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-[#F1F5F9]">
-                  <p className="text-[10px] text-[#94A3B8] mb-1">Notas internas</p>
-                  <InlineTextarea value={project.internalNotes ?? ""} onSave={(v) => saveField("internalNotes", v || null)} rows={2} placeholder="Notas solo visibles para el equipo..." />
-                </div>
-              </div>
-
-              {/* Privacy */}
-              <CanEdit>
-                <div className="bg-white rounded-xl border border-[#E2E8F0] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    {project.visibility === "private" ? <Lock className="h-3.5 w-3.5 text-red-500" /> : project.visibility === "custom" ? <Users className="h-3.5 w-3.5 text-amber-500" /> : <Globe className="h-3.5 w-3.5 text-emerald-500" />}
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Privacidad</p>
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    {(["public", "private", "custom"] as const).map((v) => {
-                      const labels: Record<string, string> = { public: "Publico", private: "Privado", custom: "Personalizado" }
-                      const icons: Record<string, typeof Globe> = { public: Globe, private: Lock, custom: Users }
-                      const VIcon = icons[v]
-                      return (
-                        <button key={v} onClick={() => saveField("visibility", v)} className={cn("flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border", project.visibility === v ? "border-[#0F172A]/20 bg-[#0F172A]/5 text-[#0F172A]" : "border-[#E2E8F0] text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F8FAFC]")}>
-                          <VIcon className="h-3 w-3" />
-                          {labels[v]}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {project.visibility === "public" && <p className="text-[10px] text-[#94A3B8] flex items-center gap-1"><Eye className="h-3 w-3" /> Todos los usuarios internos pueden ver este proyecto</p>}
-                  {project.visibility === "private" && <p className="text-[10px] text-[#94A3B8] flex items-center gap-1"><Lock className="h-3 w-3" /> Solo admin y el creador</p>}
-                  {project.visibility === "custom" && (
-                    <div>
-                      <p className="text-[10px] text-[#94A3B8] mb-1 flex items-center gap-1"><Users className="h-3 w-3" /> Solo usuarios incluidos</p>
-                      <InlineText value={project.allowedUsers ?? ""} onSave={(v) => saveField("allowedUsers", v || null)} placeholder="IDs separados por coma" className="font-mono text-xs" />
-                    </div>
-                  )}
-                </div>
-              </CanEdit>
-            </div>
-          )}
-
-          {/* ─── TAREAS ─── */}
-          {activeTab === "tareas" && (
-            <RelationList
-              title="Tareas"
-              icon={CheckSquare}
-              module="tareas"
-              parentField="proyectoId"
-              parentId={id}
-              titleField="titulo"
-              statusField="estado"
-              dateField="fechaLimite"
-              items={tareas}
-              canCreate
-              canAssign
-              canUnlink
-              FormComponent={TareaForm}
-              formData={{ clienteId: project.clienteId ?? undefined }}
-              onRefresh={refetch}
-              statusBadge={estadoBadge}
-              emptyMessage="No hay tareas. Crea una para empezar."
-            />
-          )}
-
-          {/* ─── FINANZAS ─── */}
-          {activeTab === "finanzas" && (
-            <div className="flex flex-col gap-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MetricCard label="Ingresos" value={formatCurrency(ingresos)} variant="positive" />
-                <MetricCard label="Gastos" value={formatCurrency(gastos)} variant="warning" />
-                <MetricCard label="Balance" value={formatCurrency(ingresos - gastos)} variant={ingresos - gastos >= 0 ? "positive" : "warning"} />
-                <MetricCard label="Presupuesto" value={project.presupuesto ? formatCurrency(Number(project.presupuesto)) : "—"} variant="neutral" />
-              </div>
-
-              <DetailSection
-                title="Transacciones"
-                icon={DollarSign}
-                action={<SmartAction label="Nueva transaccion" icon={Plus} FormComponent={TransaccionForm} defaultValues={{ proyectoId: id, clienteId: project.clienteId ?? undefined }} onCreated={refetchFinanzas} />}
-              >
-                {finanzas.length === 0 ? (
-                  <p className="text-sm text-[#94A3B8] py-4">No hay transacciones.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {finanzas.map((t: any) => (
-                      <li key={t.id} className="flex items-center gap-2 py-2 border-b border-[#F1F5F9] last:border-0">
-                        {t.tipo === "ingreso" ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-                        <span className="text-sm flex-1 truncate">{t.descripcion || "Sin descripcion"}</span>
-                        <span className={t.tipo === "ingreso" ? "text-emerald-600 font-medium" : "text-red-600 font-medium"}>{t.tipo === "ingreso" ? "+" : "−"}{formatCurrency(Number(t.monto ?? 0))}</span>
-                        <span className="text-xs text-[#94A3B8]">{formatDate(t.fecha)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </DetailSection>
-
-              <RelationList title="Facturas" icon={Receipt} module="facturacion" parentField="proyectoId" parentId={id} titleField="numero" statusField="estado" dateField="fechaVencimiento" canCreate canAssign FormComponent={FacturaForm} formData={{ clienteId: project.clienteId ?? undefined }} onRefresh={refetch} statusBadge={estadoBadge} emptyMessage="No hay facturas." />
-            </div>
-          )}
-
-          {/* ─── ARCHIVOS ─── */}
-          {activeTab === "archivos" && (
-            <div className="flex flex-col gap-6">
-              <RelationList title="Documentos" icon={FileText} module="documentos" parentField="proyectoId" parentId={id} titleField="nombre" canCreate canAssign FormComponent={DocumentoForm} onRefresh={refetch} emptyMessage="No hay documentos." />
-              <UploadArea module="proyectos" recordId={id} />
-              <SavedQRCodes module="proyectos" recordId={id} />
-            </div>
-          )}
-
-          {/* ─── ACTIVIDAD ─── */}
-          {activeTab === "actividad" && (
-            <div className="flex flex-col gap-6">
-              <CommentsSection module="proyectos" recordId={id} />
-              <ActivityTimeline module="proyectos" recordId={id} />
-            </div>
-          )}
-
-          <ConfirmModal open={deleteOpen} title="Eliminar proyecto" description="¿Estas seguro? Esta accion no se puede deshacer." confirmLabel="Eliminar" variant="danger" onConfirm={handleDelete} onCancel={() => setDeleteOpen(false)} />
-        </>
-      )}
+      {(activeTab) => {
+        if (activeTab === "resumen")  return <TabResumen project={project} />;
+        if (activeTab === "tareas")   return <TabTareas project={project} />;
+        if (activeTab === "hitos")    return <TabHitos project={project} />;
+        if (activeTab === "archivos") return <TabArchivos project={project} />;
+        if (activeTab === "finanzas") return <TabFinanzas project={project} />;
+        return null;
+      }}
     </ContextShell>
-  )
-}
-
-function MetricCard({ label, value, variant }: { label: string; value: string; variant: "neutral" | "positive" | "warning" }) {
-  const bg = variant === "warning" ? "bg-[#FEF9C3]" : variant === "positive" ? "bg-[#DCFCE7]" : "bg-[#EFF6FF]"
-  const text = variant === "warning" ? "text-[#92400E]" : variant === "positive" ? "text-[#166534]" : "text-[#1E40AF]"
-  return (
-    <div className={cn("rounded-xl p-4", bg)}>
-      <p className={cn("text-base font-bold tracking-tight", text)}>{value}</p>
-      <p className="text-[10px] text-[#64748B] mt-0.5">{label}</p>
-    </div>
-  )
+  );
 }

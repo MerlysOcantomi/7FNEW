@@ -1,417 +1,431 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { AppShell } from "@/components/app-shell"
-import { StatCard } from "@/components/stat-card"
+import { useState } from "react";
+import Link from "next/link";
+import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
+import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
 import {
-  FolderKanban, Users, CheckSquare, DollarSign, TrendingUp, Clock,
-  Receipt, AlertCircle, ArrowUpRight, ArrowDownRight, Sparkles,
-} from "lucide-react"
-import Link from "next/link"
-import { useFetch } from "@/hooks/use-fetch"
-import { estadoLabel, prioridadLabel, displayLabel } from "@/lib/api-client"
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  FolderKanban,
+  DollarSign,
+  Bell,
+  Clock,
+  CalendarDays,
+  ArrowUpRight,
+  FileText,
+  Lightbulb,
+  ChevronRight,
+  FileBarChart,
+} from "lucide-react";
 
-function formatCurrency(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}k`
-  return `$${n.toFixed(0)}`
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+const kpis = [
+  {
+    label: "Proyectos activos",
+    value: "14",
+    delta: "+2 este mes",
+    trend: "up",
+    icon: FolderKanban,
+    href: "/proyectos",
+  },
+  {
+    label: "Proyectos en riesgo",
+    value: "3",
+    delta: "Requieren atención",
+    trend: "down",
+    icon: AlertTriangle,
+    href: "/proyectos",
+  },
+  {
+    label: "Facturación del mes",
+    value: "$148.200",
+    delta: "+12% vs mes anterior",
+    trend: "up",
+    icon: DollarSign,
+    href: "/facturacion",
+  },
+  {
+    label: "Alertas críticas",
+    value: "2",
+    delta: "Sin resolver",
+    trend: "down",
+    icon: Bell,
+    href: "/inbox",
+  },
+];
+
+const actividadReciente = [
+  {
+    tipo: "tarea",
+    label: "Nueva tarea creada",
+    detalle: "Revisión de contrato — Proyecto Alcántara",
+    tiempo: "Hace 18 min",
+    icon: Clock,
+  },
+  {
+    tipo: "proyecto",
+    label: "Cambio en proyecto",
+    detalle: "Urbanización Montblanc pasó a estado En riesgo",
+    tiempo: "Hace 1 h",
+    icon: FolderKanban,
+  },
+  {
+    tipo: "evento",
+    label: "Evento próximo",
+    detalle: "Reunión de avance — Proyecto Alcántara · mañana 10:00",
+    tiempo: "En 18 h",
+    icon: CalendarDays,
+  },
+  {
+    tipo: "tarea",
+    label: "Tarea vencida",
+    detalle: "Entrega de planos — Torre Sur",
+    tiempo: "Ayer",
+    icon: Clock,
+  },
+  {
+    tipo: "proyecto",
+    label: "Nuevo proyecto",
+    detalle: "Residencial Las Flores iniciado en fase 1",
+    tiempo: "Hace 2 días",
+    icon: FolderKanban,
+  },
+];
+
+const estadoFinanciero = {
+  ingresos: 148200,
+  gastos: 97400,
+  facturasPendientes: 4,
+  montoFacturasPendientes: 38500,
+  desviacion: +2.4,
+};
+
+const insights = [
+  {
+    tipo: "insight",
+    titulo: "Concentración de riesgo en ejecución",
+    cuerpo:
+      "3 de los 14 proyectos activos están en fase crítica simultáneamente. El equipo de obra presenta sobrecarga operativa estimada en un 22%.",
+    icon: Lightbulb,
+  },
+  {
+    tipo: "insight",
+    titulo: "Ventana de facturación óptima",
+    cuerpo:
+      "5 hitos certificables se acumulan en los próximos 12 días. Facturar antes del cierre de mes podría adelantar $62.000 en ingresos.",
+    icon: TrendingUp,
+  },
+  {
+    tipo: "riesgo",
+    titulo: "Riesgo: retraso en Montblanc",
+    cuerpo:
+      "El proveedor de estructura no ha confirmado entrega. Si no se escala antes del viernes, el hito Q2 queda comprometido.",
+    icon: AlertTriangle,
+  },
+  {
+    tipo: "oportunidad",
+    titulo: "Oportunidad: Cliente Ferrer en renovación",
+    cuerpo:
+      "El contrato del cliente Ferrer vence en 28 días. Hay margen para ampliar el alcance en un 15% basado en historial de pagos.",
+    icon: ArrowUpRight,
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function ProgressBar({ value, max }: { value: number; max: number }) {
+  const pct = Math.round((value / max) * 100);
+  return (
+    <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
+      <div className="h-full bg-[#3B82F6] rounded-full transition-all" style={{ width: `${pct}%` }} />
+    </div>
+  );
 }
 
-function formatDate(value: string): string {
-  try {
-    return new Date(value).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
-  } catch { return value }
+function fmt(n: number) {
+  return "$" + n.toLocaleString("es-AR");
 }
 
-function buildExecutiveSummary(metrics: {
-  tareasUrgentes: number
-  proyectosActivos: number
-  facturasVencidas: number
-  facturasPendientes: number
-}, tareasPendientes: number): string {
-  const parts: string[] = []
-
-  if (metrics.tareasUrgentes > 0) {
-    parts.push(`${metrics.tareasUrgentes} tarea${metrics.tareasUrgentes > 1 ? "s" : ""} urgente${metrics.tareasUrgentes > 1 ? "s" : ""} requieren atencion`)
-  } else {
-    parts.push("No hay tareas urgentes")
-  }
-
-  if (metrics.proyectosActivos > 0) {
-    parts.push(`${metrics.proyectosActivos} proyecto${metrics.proyectosActivos > 1 ? "s" : ""} activo${metrics.proyectosActivos > 1 ? "s" : ""}`)
-  } else {
-    parts.push("no hay proyectos activos")
-  }
-
-  if (metrics.facturasVencidas > 0) {
-    parts.push(`${formatCurrency(metrics.facturasVencidas)} en facturas vencidas`)
-  } else if (metrics.facturasPendientes > 0) {
-    parts.push(`${formatCurrency(metrics.facturasPendientes)} pendiente de cobro`)
-  } else {
-    parts.push("sin pagos pendientes")
-  }
-
-  const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1)
-  return `${first}. Tienes ${parts.slice(1).join(" y ")}.`
-}
-
-export default function DashboardPage() {
-  const { data: projectsData, loading: loadingProjects } = useFetch<any>("/api/proyectos")
-  const { data: clientsData, loading: loadingClients } = useFetch<any>("/api/clientes")
-  const { data: tasksData, loading: loadingTasks } = useFetch<any>("/api/tareas")
-  const { data: finanzasData, loading: loadingFinanzas } = useFetch<any>("/api/finanzas")
-  const { data: usuariosData, loading: loadingUsuarios } = useFetch<any>("/api/usuarios")
-  const { data: facturasData, loading: loadingFacturas } = useFetch<any>("/api/facturacion")
-
-  const projects = useMemo(() => (Array.isArray(projectsData) ? projectsData : []), [projectsData])
-  const clients = useMemo(() => (Array.isArray(clientsData) ? clientsData : []), [clientsData])
-  const tasks = useMemo(() => (Array.isArray(tasksData) ? tasksData : []), [tasksData])
-  const usuarios = useMemo(() => (Array.isArray(usuariosData) ? usuariosData : []), [usuariosData])
-  const facturas = useMemo(() => (Array.isArray(facturasData) ? facturasData : []), [facturasData])
-  const transacciones = useMemo(() => {
-    const d = finanzasData ?? {}
-    return Array.isArray(d) ? d : (Array.isArray((d as any)?.transacciones) ? (d as any).transacciones : [])
-  }, [finanzasData])
-
-  const totalProyectos = projects.length
-  const totalClientes = clients.length
-  const tareasPendientes = useMemo(() => tasks.filter((t: any) => t.estado === "pendiente" || t.estado === "en_progreso").length, [tasks])
-  const tareasCompletadas = useMemo(() => tasks.filter((t: any) => t.estado === "completada").length, [tasks])
-  const ingresos = useMemo(() =>
-    transacciones.filter((t: any) => (t.tipo ?? "").toLowerCase() === "ingreso").reduce((s: number, t: any) => s + (Number(t.monto) || 0), 0),
-  [transacciones])
-  const gastos = useMemo(() =>
-    transacciones.filter((t: any) => (t.tipo ?? "").toLowerCase() === "gasto").reduce((s: number, t: any) => s + (Number(t.monto) || 0), 0),
-  [transacciones])
-
-  const recentProjects = useMemo(() => projects.slice(0, 5), [projects])
-
-  const statsLoading = loadingProjects || loadingClients || loadingTasks || loadingFinanzas
-
-  const metrics = useMemo(() => {
-    const now = new Date()
-    const proyectosActivos = projects.filter((p: any) => p.estado === "en_progreso" || p.estado === "planificacion").length
-    const proyectosTiempo = projects.filter((p: any) => {
-      if (!p.fechaFin) return true
-      return new Date(p.fechaFin) >= now || p.estado === "completado"
-    }).length
-    const pctTiempo = projects.length > 0 ? Math.round((proyectosTiempo / projects.length) * 100) : 0
-
-    const tareasUrgentes = tasks.filter((t: any) => t.prioridad === "urgente" || t.prioridad === "alta").length
-    const completionRate = tasks.length > 0 ? Math.round((tareasCompletadas / tasks.length) * 100) : 0
-
-    const usuariosActivos = usuarios.filter((u: any) => u.estado === "activo").length
-    const cargaPromedio = usuariosActivos > 0 ? (tareasPendientes / usuariosActivos).toFixed(1) : "0"
-
-    const facturasPendientes = facturas.filter((f: any) => f.estado === "enviada").reduce((s: number, f: any) => s + (Number(f.total) || 0), 0)
-    const facturasVencidas = facturas.filter((f: any) => f.estado === "vencida").reduce((s: number, f: any) => s + (Number(f.total) || 0), 0)
-    const margen = ingresos > 0 ? Math.round(((ingresos - gastos) / ingresos) * 100) : 0
-
-    return {
-      proyectosActivos, pctTiempo, tareasUrgentes, completionRate,
-      usuariosActivos, cargaPromedio,
-      facturasPendientes, facturasVencidas, margen, gastos,
-    }
-  }, [projects, tasks, tareasCompletadas, tareasPendientes, usuarios, facturas, ingresos, gastos])
-
-  const allLoading = statsLoading || loadingUsuarios || loadingFacturas
-
-  const executiveSummary = useMemo(() => {
-    if (allLoading) return ""
-    return buildExecutiveSummary(metrics, tareasPendientes)
-  }, [allLoading, metrics, tareasPendientes])
+// ── Page ──────────────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [copilotCollapsed, setCopilotCollapsed] = useState(false);
 
   return (
-    <AppShell
-      currentSection="dashboard"
-      breadcrumbs={[{ label: "7F" }, { label: "Dashboard" }]}
-    >
-      <div className="flex flex-col gap-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#111827]">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Vista general del estado de operaciones.</p>
-        </div>
+    <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
+      <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
+        <div className="flex min-h-screen bg-[#F8FAFC] font-sans">
+          <SidebarNav />
+          <MobileSidebarNav />
 
-        {/* ─── PANORAMA GENERAL ─── */}
-        <div className="rounded-xl border border-border bg-white shadow-sm">
-          <div className="h-1 rounded-t-xl bg-purple-600/80" />
-          <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-purple-50">
-                  <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-                </div>
-                <h2 className="text-sm font-semibold text-[#111827] tracking-tight">Panorama General</h2>
+          {/* Main Content */}
+          <main className="flex-1 min-w-0 overflow-y-auto">
+
+            {/* Header */}
+            <div className="px-6 md:px-8 pt-7 pb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+              <div>
+                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
+                  7F Copilot
+                </p>
+                <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
+                  Panel Ejecutivo
+                </h1>
+                <p className="text-xs text-[#64748B] mt-1 text-pretty">
+                  Visión general del estado operativo y estratégico del workspace
+                </p>
               </div>
-              {allLoading ? (
-                <div className="h-5 w-80 animate-pulse rounded bg-muted" />
-              ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">{executiveSummary}</p>
-              )}
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm shrink-0 self-start sm:self-auto">
+                <FileBarChart size={14} strokeWidth={1.75} />
+                Generar reporte ejecutivo
+              </button>
             </div>
-            <Link
-              href="/agente"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#1d4ed8] flex-shrink-0"
-            >
-              Analizar situacion
-            </Link>
-          </div>
-        </div>
 
-        {/* ─── KPIs ─── */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Proyectos activos"
-            value={statsLoading ? "—" : String(metrics.proyectosActivos)}
-            subtitle={statsLoading ? "" : `${totalProyectos} totales`}
-            icon={FolderKanban}
-          />
-          <StatCard
-            label="Clientes"
-            value={statsLoading ? "—" : String(totalClientes)}
-            subtitle={statsLoading ? "" : `${clients.filter((c: any) => c.estado === "activo").length} activos`}
-            icon={Users}
-          />
-          <StatCard
-            label="Tareas pendientes"
-            value={statsLoading ? "—" : String(tareasPendientes)}
-            subtitle={statsLoading ? "" : `${metrics.tareasUrgentes} urgentes`}
-            icon={CheckSquare}
-          />
-          <StatCard
-            label="Ingresos totales"
-            value={statsLoading ? "—" : formatCurrency(ingresos)}
-            subtitle={statsLoading ? "" : `Gastos: ${formatCurrency(gastos)}`}
-            icon={DollarSign}
-            accent="finance"
-          />
-        </div>
+            <div className="px-6 md:px-8 py-7 space-y-10">
 
-        {/* ─── PROYECTOS & FINANZAS (tier 2) ─── */}
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <div className="rounded-xl border border-border bg-card">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                    <FolderKanban className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h2 className="text-sm font-semibold text-[#111827]">Proyectos Recientes</h2>
-                </div>
-                <Link href="/proyectos" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                  Ver todos →
-                </Link>
-              </div>
-              {loadingProjects ? (
-                <div className="divide-y divide-border">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-4 w-40 bg-muted rounded" />
-                        <div className="h-3 w-24 bg-muted rounded" />
+              {/* ── SECCIÓN 1: RESUMEN GENERAL ── */}
+              <section>
+                <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-4">
+                  Resumen general
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {kpis.map(({ label, value, delta, trend, icon: Icon, href }) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[#BFDBFE] border border-transparent transition-all group"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <Icon
+                          size={15}
+                          className={trend === "down" && label !== "Proyectos en riesgo" ? "text-[#3B82F6]" : trend === "down" ? "text-[#DC2626]" : "text-[#3B82F6]"}
+                          strokeWidth={1.75}
+                        />
+                        <span
+                          className={`flex items-center gap-0.5 text-[10px] font-medium ${
+                            trend === "up" ? "text-[#16A34A]" : "text-[#DC2626]"
+                          }`}
+                        >
+                          {trend === "up" ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                          <span className="hidden sm:inline">{delta}</span>
+                        </span>
                       </div>
+                      <p className="text-2xl font-bold text-[#0F172A] tracking-tight">{value}</p>
+                      <p className="text-xs text-[#64748B] mt-0.5 leading-snug">{label}</p>
+                      <p className="text-[10px] text-[#DC2626] mt-0.5 sm:hidden font-medium">{trend === "down" ? delta : ""}</p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+
+              {/* ── GRID: Secciones 2 y 3 en desktop ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* ── SECCIÓN 2: ACTIVIDAD RECIENTE (FLOW) ── */}
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
+                      Actividad reciente
+                      <span className="ml-1.5 text-[#3B82F6]">· Flow</span>
+                    </h2>
+                    <Link
+                      href="/inbox"
+                      className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
+                    >
+                      Ver todo <ChevronRight size={11} />
+                    </Link>
+                  </div>
+                  <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    {actividadReciente.map(({ label, detalle, tiempo, icon: Icon }, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-3 px-4 py-3.5 ${
+                          i < actividadReciente.length - 1 ? "border-b border-[#F1F5F9]" : ""
+                        }`}
+                      >
+                        <div className="w-6 h-6 rounded-md bg-[#EFF6FF] flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon size={12} className="text-[#3B82F6]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide leading-none mb-0.5">
+                            {label}
+                          </p>
+                          <p className="text-sm text-[#0F172A] leading-snug">{detalle}</p>
+                        </div>
+                        <span className="text-[10px] text-[#94A3B8] whitespace-nowrap shrink-0 mt-0.5">
+                          {tiempo}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* ── SECCIÓN 3: ESTADO FINANCIERO (FUNDS) ── */}
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
+                      Estado financiero
+                      <span className="ml-1.5 text-[#3B82F6]">· Funds</span>
+                    </h2>
+                    <Link
+                      href="/finanzas"
+                      className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
+                    >
+                      Ver finanzas <ChevronRight size={11} />
+                    </Link>
+                  </div>
+                  <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+
+                    {/* Ingresos vs Gastos */}
+                    <div className="px-5 py-4 border-b border-[#F1F5F9]">
+                      <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-3">
+                        Ingresos vs Gastos — este mes
+                      </p>
+                      <div className="space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-[#334155]">Ingresos</span>
+                            <span className="text-xs font-semibold text-[#16A34A]">
+                              {fmt(estadoFinanciero.ingresos)}
+                            </span>
+                          </div>
+                          <ProgressBar value={estadoFinanciero.ingresos} max={200000} />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-[#334155]">Gastos</span>
+                            <span className="text-xs font-semibold text-[#DC2626]">
+                              {fmt(estadoFinanciero.gastos)}
+                            </span>
+                          </div>
+                          <ProgressBar value={estadoFinanciero.gastos} max={200000} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Facturas pendientes */}
+                    <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-md bg-[#FEF9C3] flex items-center justify-center">
+                          <FileText size={13} className="text-[#854D0E]" strokeWidth={1.75} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-[#0F172A]">Facturas pendientes</p>
+                          <p className="text-[10px] text-[#64748B]">
+                            {estadoFinanciero.facturasPendientes} facturas · {fmt(estadoFinanciero.montoFacturasPendientes)}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        href="/facturacion"
+                        className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5 shrink-0"
+                      >
+                        Ver <ChevronRight size={11} />
+                      </Link>
+                    </div>
+
+                    {/* Desviación */}
+                    <div className="px-5 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-0.5">
+                            Desviación presupuestaria
+                          </p>
+                          <p className="text-xs text-[#334155]">
+                            Gasto real vs presupuesto aprobado del mes
+                          </p>
+                        </div>
+                        <span
+                          className={`text-lg font-bold ${
+                            estadoFinanciero.desviacion >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"
+                          }`}
+                        >
+                          {estadoFinanciero.desviacion >= 0 ? "+" : ""}
+                          {estadoFinanciero.desviacion}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* ── SECCIÓN 4: INSIGHTS ESTRATÉGICOS (FORESIGHT) ── */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
+                    Insights estratégicos
+                    <span className="ml-1.5 text-[#3B82F6]">· Foresight</span>
+                  </h2>
+                  <Link
+                    href="/agente"
+                    className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
+                  >
+                    Ver análisis completo <ArrowUpRight size={11} />
+                  </Link>
+                </div>
+
+                {/* Highlight strip */}
+                <div className="bg-[#0F172A] rounded-xl px-5 py-4 mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-md bg-[#1E293B] flex items-center justify-center shrink-0 mt-0.5">
+                      <Lightbulb size={13} className="text-[#60A5FA]" strokeWidth={1.75} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-[#60A5FA] uppercase tracking-widest mb-0.5">
+                        Síntesis ejecutiva · Foresight
+                      </p>
+                      <p className="text-sm text-[#CBD5E1] leading-relaxed text-pretty">
+                        El workspace presenta señales de sobrecarga en ejecución simultánea. La ventana financiera
+                        de los próximos 12 días es estratégicamente favorable. Se recomienda escalar el riesgo de
+                        Montblanc y activar proceso de renovación con cliente Ferrer esta semana.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/agente"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#1E293B] text-[#60A5FA] text-xs font-medium hover:bg-[#2D3F58] transition-colors shrink-0 border border-[#334155]"
+                  >
+                    Ver análisis completo <ArrowUpRight size={12} />
+                  </Link>
+                </div>
+
+                {/* Insight cards grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {insights.map(({ tipo, titulo, cuerpo, icon: Icon }) => (
+                    <div key={titulo} className="bg-[#DBEAFE] rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="w-6 h-6 rounded-md bg-[#BFDBFE] flex items-center justify-center shrink-0">
+                          <Icon size={12} className="text-[#2563EB]" strokeWidth={1.75} />
+                        </div>
+                        <span
+                          className={`text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded ${
+                            tipo === "riesgo"
+                              ? "bg-[#FEE2E2] text-[#991B1B]"
+                              : tipo === "oportunidad"
+                              ? "bg-[#DCFCE7] text-[#166534]"
+                              : "bg-[#EFF6FF] text-[#1D4ED8]"
+                          }`}
+                        >
+                          {tipo === "riesgo" ? "Riesgo" : tipo === "oportunidad" ? "Oportunidad" : "Insight"}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-[#0F172A] leading-snug mb-1.5 text-pretty">
+                        {titulo}
+                      </p>
+                      <p className="text-xs text-[#334155] leading-relaxed">{cuerpo}</p>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {recentProjects.length === 0 ? (
-                    <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-                      No hay proyectos
-                    </div>
-                  ) : (
-                    recentProjects.map((project: any) => (
-                      <Link
-                        href={`/proyectos/${project.id}`}
-                        key={project.id ?? project.nombre}
-                        className="flex items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#111827] truncate">{project.nombre}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{project.cliente?.nombre ?? "—"}</p>
-                        </div>
-                        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
-                          <div className="w-20">
-                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                              <div className="h-full rounded-full bg-blue-500/50" style={{ width: `${project.progreso ?? 0}%` }} />
-                            </div>
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground w-8 text-right">{project.progreso ?? 0}%</span>
-                        </div>
-                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground flex-shrink-0">
-                          {displayLabel(project.estado ?? "", estadoLabel) || "—"}
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+              </section>
 
-          {/* Actividad + Facturación */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                </div>
-                <h2 className="text-sm font-semibold text-[#111827]">Actividad Reciente</h2>
-              </div>
-              <div className="divide-y divide-border">
-                {loadingTasks ? (
-                  [1, 2].map((i) => (
-                    <div key={i} className="px-5 py-3.5 animate-pulse space-y-2">
-                      <div className="h-4 w-32 bg-muted rounded" />
-                      <div className="h-3 w-48 bg-muted rounded" />
-                    </div>
-                  ))
-                ) : (
-                  (() => {
-                    const recentTasks = (tasks as any[]).slice(0, 5)
-                    if (recentTasks.length === 0) {
-                      return (
-                        <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-                          Sin actividad reciente
-                        </div>
-                      )
-                    }
-                    return recentTasks.map((t: any) => (
-                      <div key={t.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/30 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#111827] truncate">{t.titulo ?? t.nombre ?? "Tarea"}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-muted-foreground">{displayLabel(t.estado ?? "", estadoLabel)}</span>
-                            {t.prioridad && (
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                t.prioridad === "urgente" ? "bg-red-50 text-red-600"
-                                : t.prioridad === "alta" ? "bg-amber-50 text-amber-600"
-                                : "bg-muted text-muted-foreground"
-                              }`}>{displayLabel(t.prioridad, prioridadLabel)}</span>
-                            )}
-                          </div>
-                        </div>
-                        {t.updatedAt && (
-                          <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">{formatDate(t.updatedAt)}</span>
-                        )}
-                      </div>
-                    ))
-                  })()
-                )}
-              </div>
             </div>
+          </main>
 
-            {!loadingFacturas && (metrics.facturasPendientes > 0 || metrics.facturasVencidas > 0) && (
-              <div className="rounded-xl border border-border border-l-4 border-l-blue-600 bg-card p-5">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                    <Receipt className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-[#111827]">Facturacion</h3>
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  {metrics.facturasPendientes > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" /> Pendiente de cobro
-                      </span>
-                      <span className="text-sm font-bold text-amber-600">{formatCurrency(metrics.facturasPendientes)}</span>
-                    </div>
-                  )}
-                  {metrics.facturasVencidas > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <AlertCircle className="h-3 w-3" /> Facturas vencidas
-                      </span>
-                      <span className="text-sm font-bold text-red-600">{formatCurrency(metrics.facturasVencidas)}</span>
-                    </div>
-                  )}
-                  <Link href="/facturacion" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors mt-1">
-                    Ver facturacion →
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Copilot Panel */}
+          <CopilotPanel defaultContext="Flow" />
         </div>
-
-        {/* ─── METRICAS SECUNDARIAS (tier 3) ─── */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5 transition-all hover:shadow-md">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-[#111827]">Rendimiento</h3>
-            </div>
-            <div className="flex flex-col gap-3">
-              <MetricRow label="Proyectos a tiempo" value={allLoading ? "—" : `${metrics.pctTiempo}%`} />
-              <MetricRow label="Tasa de completado" value={allLoading ? "—" : `${metrics.completionRate}%`} />
-              <MetricRow label="Tareas completadas" value={allLoading ? "—" : String(tareasCompletadas)} />
-              <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-blue-500/40 transition-all" style={{ width: `${metrics.completionRate}%` }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-5 transition-all hover:shadow-md">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                <Users className="h-4 w-4 text-blue-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-[#111827]">Equipo</h3>
-            </div>
-            <div className="flex flex-col gap-3">
-              <MetricRow label="Miembros activos" value={allLoading ? "—" : String(metrics.usuariosActivos)} />
-              <MetricRow label="Tareas/persona" value={allLoading ? "—" : metrics.cargaPromedio} />
-              <MetricRow label="Total usuarios" value={allLoading ? "—" : String(usuarios.length)} />
-              <Link href="/usuarios" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors mt-1">
-                Gestionar equipo →
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border border-l-4 border-l-blue-600 bg-card p-5 transition-all hover:shadow-md">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-                <DollarSign className="h-4 w-4 text-blue-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-[#111827]">Finanzas</h3>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Ingresos</span>
-                <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
-                  <ArrowUpRight className="h-3 w-3" />{allLoading ? "—" : formatCurrency(ingresos)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Gastos</span>
-                <span className="flex items-center gap-1 text-sm font-bold text-red-500">
-                  <ArrowDownRight className="h-3 w-3" />{allLoading ? "—" : formatCurrency(gastos)}
-                </span>
-              </div>
-              <MetricRow label="Margen operativo" value={allLoading ? "—" : `${metrics.margen}%`} />
-              <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${metrics.margen >= 0 ? "bg-emerald-500/40" : "bg-red-500/40"}`}
-                  style={{ width: `${Math.min(Math.abs(metrics.margen), 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppShell>
-  )
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-bold text-[#111827]">{value}</span>
-    </div>
-  )
+      </CopilotCollapseContext.Provider>
+    </SidebarCollapseContext.Provider>
+  );
 }

@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Inbox,
@@ -25,77 +25,75 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  LogIn,
   ChevronDown,
-  PenLine,
-} from "lucide-react"
-import { useState, createContext, useContext } from "react"
-import { UserMenu } from "@/components/user-menu"
-import { useUser } from "@/hooks/use-user"
+} from "lucide-react";
+import { useState, createContext, useContext } from "react";
 
+// ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
-  collapsed: boolean
-  setCollapsed: (v: boolean) => void
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
 }
 export const SidebarCollapseContext = createContext<SidebarCollapseContextType>({
   collapsed: false,
   setCollapsed: () => {},
-})
+});
 export function useSidebarCollapse() {
-  return useContext(SidebarCollapseContext)
+  return useContext(SidebarCollapseContext);
 }
 
-type Role = "admin" | "editor" | "viewer"
-type NavItem = { label: string; href: string; icon: React.ElementType; roles: Role[] }
+// ── Types ────────────────────────────────────────────────────────────────────
+type NavItem = { label: string; href: string; icon: React.ElementType };
 type NavSection = {
-  section: string
-  subtitle: string
-  items: NavItem[]
-  dividerAbove?: boolean
-}
+  section: string;
+  subtitle: string;
+  items: NavItem[];
+  dividerAbove?: boolean;
+};
 
+// ── Navigation Structure ─────────────────────────────────────────────────────
 const NAV_SECTIONS: NavSection[] = [
   {
     section: "Dashboard",
     subtitle: "",
-    items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "editor", "viewer"] },
-    ],
+    items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
     section: "Flow",
-    subtitle: "Operacion diaria",
+    subtitle: "Operación diaria",
     items: [
-      { label: "Inbox", href: "/inbox", icon: Inbox, roles: ["admin", "editor", "viewer"] },
-      { label: "Entrada", href: "/entrada", icon: PenLine, roles: ["admin", "editor"] },
-      { label: "Clientes", href: "/clientes", icon: Users, roles: ["admin", "editor", "viewer"] },
-      { label: "Proyectos", href: "/proyectos", icon: FolderKanban, roles: ["admin", "editor", "viewer"] },
-      { label: "Tareas", href: "/tareas", icon: CheckSquare, roles: ["admin", "editor", "viewer"] },
-      { label: "Calendario", href: "/calendario", icon: CalendarDays, roles: ["admin", "editor", "viewer"] },
-      { label: "Archivos", href: "/archivos", icon: Files, roles: ["admin", "editor", "viewer"] },
-      { label: "Departamentos", href: "/departamentos", icon: Building2, roles: ["admin", "editor"] },
+      { label: "Inbox", href: "/inbox", icon: Inbox },
+      { label: "Entrada", href: "/entrada", icon: LogIn },
+      { label: "Clientes", href: "/clientes", icon: Users },
+      { label: "Proyectos", href: "/proyectos", icon: FolderKanban },
+      { label: "Tareas", href: "/tareas", icon: CheckSquare },
+      { label: "Calendario", href: "/calendario", icon: CalendarDays },
+      { label: "Archivos", href: "/archivos", icon: Files },
+      { label: "Departamentos", href: "/departamentos", icon: Building2 },
     ],
   },
   {
     section: "Forge",
-    subtitle: "Creacion y contenido",
+    subtitle: "Creación y contenido",
     items: [
-      { label: "Campañas & Contenido", href: "/contenido", icon: FileEdit, roles: ["admin", "editor"] },
+      { label: "Contenido", href: "/contenido", icon: FileEdit },
     ],
   },
   {
     section: "Funds",
     subtitle: "Finanzas",
     items: [
-      { label: "Finanzas", href: "/finanzas", icon: DollarSign, roles: ["admin", "editor"] },
-      { label: "Facturacion", href: "/facturacion", icon: FileText, roles: ["admin", "editor"] },
+      { label: "Finanzas", href: "/finanzas", icon: DollarSign },
+      { label: "Facturación", href: "/facturacion", icon: FileText },
     ],
   },
   {
     section: "Future",
-    subtitle: "Inteligencia y estrategia",
+    subtitle: "Planificación estratégica",
     items: [
-      { label: "Asistente", href: "/agente", icon: Bot, roles: ["admin", "editor"] },
-      { label: "Motor IA", href: "/motor", icon: Cpu, roles: ["admin", "editor"] },
+      { label: "Agente", href: "/agente", icon: Bot },
+      { label: "Motor IA", href: "/motor", icon: Cpu },
     ],
   },
   {
@@ -103,34 +101,37 @@ const NAV_SECTIONS: NavSection[] = [
     subtitle: "Sistema",
     dividerAbove: true,
     items: [
-      { label: "Notificaciones", href: "/notificaciones", icon: Bell, roles: ["admin", "editor", "viewer"] },
-      { label: "Historial", href: "/historial", icon: History, roles: ["admin", "editor"] },
-      { label: "Herramientas", href: "/biblioteca", icon: BookOpen, roles: ["admin", "editor"] },
-      { label: "Gestion", href: "/administracion", icon: Settings, roles: ["admin"] },
+      { label: "Notificaciones", href: "/notificaciones", icon: Bell },
+      { label: "Historial", href: "/historial", icon: History },
+      { label: "Herramientas", href: "/biblioteca", icon: BookOpen },
+      { label: "Gestión", href: "/administracion", icon: Settings },
     ],
   },
-]
+];
 
+// ── Helper: determine which section contains active route ────────────────────
 function getActiveSectionFor(pathname: string): string {
   for (const { section, items } of NAV_SECTIONS) {
     for (const { href } of items) {
       if (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/")) {
-        return section
+        return section;
       }
     }
   }
-  return "Flow"
+  return "Flow";
 }
 
+// ── NavLink ──────────────────────────────────────────────────────────────────
 function NavLink({
   href,
   icon: Icon,
   label,
   collapsed,
   onClick,
-}: { href: string; icon: React.ElementType; label: string; collapsed?: boolean; onClick?: () => void }) {
-  const pathname = usePathname()
-  const isActive = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/")
+}: NavItem & { collapsed?: boolean; onClick?: () => void }) {
+  const pathname = usePathname();
+  const isActive =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   return (
     <Link
@@ -138,7 +139,7 @@ function NavLink({
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 relative group",
+        "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group",
         collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
         isActive
           ? "text-white bg-[#1E293B] shadow-[0_0_0_1px_#3B82F6,0_0_8px_0_rgba(59,130,246,0.18)]"
@@ -155,9 +156,10 @@ function NavLink({
       />
       {!collapsed && label}
     </Link>
-  )
+  );
 }
 
+// ── Accordion Section ────────────────────────────────────────────────────────
 function AccordionSection({
   section,
   subtitle,
@@ -167,37 +169,33 @@ function AccordionSection({
   isOpen,
   onToggle,
   onNavClick,
-  userRole,
 }: NavSection & {
-  collapsed: boolean
-  isOpen: boolean
-  onToggle: () => void
-  onNavClick?: () => void
-  userRole: string
+  collapsed: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onNavClick?: () => void;
 }) {
-  const filtered = items.filter((item) => item.roles.includes(userRole as Role))
-  if (filtered.length === 0) return null
-
-  const isDashboard = section === "Dashboard"
+  const isDashboard = section === "Dashboard";
 
   if (isDashboard) {
     return (
       <div className={cn(dividerAbove && "pt-3 border-t border-[#1E293B]")}>
-        {filtered.map((item) => (
-          <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} collapsed={collapsed} onClick={onNavClick} />
+        {items.map((item) => (
+          <NavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
         ))}
       </div>
-    )
+    );
   }
 
   if (collapsed) {
+    // Icon-only: just render links without accordion
     return (
       <div className={cn("space-y-0.5", dividerAbove && "pt-3 border-t border-[#1E293B]")}>
-        {filtered.map((item) => (
-          <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} collapsed onClick={onNavClick} />
+        {items.map((item) => (
+          <NavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
         ))}
       </div>
-    )
+    );
   }
 
   return (
@@ -225,20 +223,24 @@ function AccordionSection({
       </button>
       {isOpen && (
         <div className="space-y-0.5">
-          {filtered.map((item) => (
-            <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} collapsed={false} onClick={onNavClick} />
+          {items.map((item) => (
+            <NavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
+// ── Desktop Sidebar ──────────────────────────────────────────────────────────
 export function SidebarNav() {
-  const pathname = usePathname()
-  const { role } = useUser()
-  const { collapsed, setCollapsed } = useSidebarCollapse()
-  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname))
+  const pathname = usePathname();
+  const { collapsed, setCollapsed } = useSidebarCollapse();
+  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname));
+
+  const toggleSection = (section: string) => {
+    setOpenSection((prev) => (prev === section ? "" : section));
+  };
 
   return (
     <aside
@@ -247,14 +249,15 @@ export function SidebarNav() {
         collapsed ? "w-14" : "w-52"
       )}
     >
+      {/* Logo + Collapse Toggle */}
       <div className={cn("flex items-center shrink-0 px-3 pt-5 pb-4", collapsed ? "justify-center" : "justify-between px-5")}>
         {!collapsed && (
-          <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold tracking-tight">7F</span>
             </div>
-            <span className="text-white font-semibold text-sm tracking-wide">Platform</span>
-          </Link>
+            <span className="text-white font-semibold text-sm tracking-wide">Copilot</span>
+          </div>
         )}
         {collapsed && (
           <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
@@ -267,12 +270,14 @@ export function SidebarNav() {
             "text-[#475569] hover:text-[#94A3B8] transition-colors p-1 rounded",
             collapsed && "mt-1"
           )}
-          aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </button>
       </div>
 
+      {/* Navigation */}
       <nav className={cn("flex-1 pb-4 space-y-1", collapsed ? "px-1.5" : "px-3")}>
         {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
           <AccordionSection
@@ -283,38 +288,58 @@ export function SidebarNav() {
             dividerAbove={dividerAbove}
             collapsed={collapsed}
             isOpen={openSection === section}
-            onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
-            userRole={role}
+            onToggle={() => toggleSection(section)}
           />
         ))}
       </nav>
 
-      <div className={cn("border-t border-[#1E293B] shrink-0", collapsed ? "px-1.5 py-3" : "px-3 py-2.5")}>
-        <UserMenu />
-      </div>
+      {/* Footer */}
+      {!collapsed && (
+        <div className="px-4 pb-5 pt-4 border-t border-[#1E293B] shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-[#1E293B] flex items-center justify-center text-xs font-medium text-[#94A3B8]">
+              EA
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-medium text-[#E2E8F0] truncate">Executive Admin</span>
+              <span className="text-[10px] text-[#64748B] truncate">admin@7fcopilot.com</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {collapsed && (
+        <div className="pb-5 pt-4 border-t border-[#1E293B] shrink-0 flex justify-center">
+          <div
+            className="w-7 h-7 rounded-full bg-[#1E293B] flex items-center justify-center text-xs font-medium text-[#94A3B8]"
+            title="Executive Admin"
+          >
+            EA
+          </div>
+        </div>
+      )}
     </aside>
-  )
+  );
 }
 
+// ── Mobile Sidebar ────────────────────────────────────────────────────────────
 export function MobileSidebarNav() {
-  const pathname = usePathname()
-  const { role } = useUser()
-  const [open, setOpen] = useState(false)
-  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname))
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname));
 
   return (
     <>
       <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[#0F172A] sticky top-0 z-50">
-        <Link href="/" className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-[#3B82F6] flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">7F</span>
           </div>
-          <span className="text-white font-semibold text-sm">Platform</span>
-        </Link>
+          <span className="text-white font-semibold text-sm">Copilot</span>
+        </div>
         <button
           onClick={() => setOpen(true)}
           className="text-[#94A3B8] hover:text-white p-1"
-          aria-label="Abrir navegacion"
+          aria-label="Open navigation"
         >
           <Menu size={20} />
         </button>
@@ -334,16 +359,16 @@ export function MobileSidebarNav() {
         )}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+          <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
               <span className="text-white text-xs font-bold">7F</span>
             </div>
-            <span className="text-white font-semibold text-sm">Platform</span>
-          </Link>
+            <span className="text-white font-semibold text-sm">Copilot</span>
+          </div>
           <button
             onClick={() => setOpen(false)}
             className="text-[#94A3B8] hover:text-white"
-            aria-label="Cerrar navegacion"
+            aria-label="Close navigation"
           >
             <X size={18} />
           </button>
@@ -361,15 +386,10 @@ export function MobileSidebarNav() {
               isOpen={openSection === section}
               onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
               onNavClick={() => setOpen(false)}
-              userRole={role}
             />
           ))}
         </nav>
-
-        <div className="border-t border-[#1E293B] px-3 py-2.5 shrink-0">
-          <UserMenu />
-        </div>
       </div>
     </>
-  )
+  );
 }
