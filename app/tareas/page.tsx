@@ -135,7 +135,7 @@ export default function TareasPage() {
       <SectionPage title="Tareas" description="Vista global de todas las tareas de todos los proyectos y clientes del sistema.">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{allTasks.length}</p>
@@ -156,7 +156,7 @@ export default function TareasPage() {
 
         {/* Search + Filters */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
               <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
@@ -175,18 +175,18 @@ export default function TareasPage() {
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-full px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap",
                   filterStatus === s ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 {s === "todos" ? "Todos" : displayLabel(s, estadoLabel)}
               </button>
             ))}
-            <span className="mx-1 h-4 w-px bg-border" />
+            <span className="hidden sm:block mx-1 h-4 w-px bg-border" />
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-foreground outline-none w-full sm:w-auto"
             >
               <option value="todas">Prioridad</option>
               {PRIORITY_OPTIONS.filter((p) => p !== "todas").map((p) => (
@@ -196,7 +196,7 @@ export default function TareasPage() {
             <select
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
-              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none"
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-foreground outline-none w-full sm:w-auto"
             >
               {clients.map((c) => (
                 <option key={c} value={c}>{c === "Todos" ? "Cliente" : c}</option>
@@ -206,15 +206,17 @@ export default function TareasPage() {
         </div>
 
         {/* Task list + detail panel */}
-        <div className="grid gap-4 lg:grid-cols-5">
+        <div className="grid gap-4 xl:grid-cols-5">
           <div className={cn("flex flex-col gap-2", selected ? "lg:col-span-3" : "lg:col-span-5")}>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">{loading ? "Cargando..." : `${filtered.length} tareas`}</p>
-              <ExportCSVButton
-                data={filtered}
-                columns={TAREA_COLUMNS}
-                filename={`tareas-${new Date().toISOString().slice(0, 10)}`}
-              />
+              <div className="scale-90 sm:scale-100 origin-right">
+                <ExportCSVButton
+                  data={filtered}
+                  columns={TAREA_COLUMNS}
+                  filename={`tareas-${new Date().toISOString().slice(0, 10)}`}
+                />
+              </div>
             </div>
 
             {loading && (
@@ -251,7 +253,7 @@ export default function TareasPage() {
                           {displayLabel(task.prioridad ?? "", prioridadLabel)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1"><FolderKanban className="h-3 w-3" />{task.proyecto?.nombre ?? "—"}</span>
                         <span className="flex items-center gap-1"><Users className="h-3 w-3" />{task.cliente?.nombre ?? "—"}</span>
                         <span className="flex items-center gap-1"><User className="h-3 w-3" />{task.usuario?.nombre ?? "—"}</span>
@@ -273,8 +275,8 @@ export default function TareasPage() {
           </div>
 
           {selected && (
-            <div className="lg:col-span-2">
-              <div className="rounded-xl border border-border bg-card sticky top-6">
+            <div className="xl:col-span-2">
+              <div className="rounded-xl border border-border bg-card xl:sticky xl:top-6">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <h3 className="text-sm font-semibold text-foreground">Detalle de tarea</h3>
                   <button onClick={() => setSelectedTask(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
@@ -293,7 +295,7 @@ export default function TareasPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <DetailField label="Proyecto" value={selected.proyecto?.nombre ?? "—"} />
                     <DetailField label="Cliente" value={selected.cliente?.nombre ?? "—"} />
                     <DetailField label="Responsable" value={selected.usuario?.nombre ?? "—"} />

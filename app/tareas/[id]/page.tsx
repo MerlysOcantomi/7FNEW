@@ -157,7 +157,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         { label: task.titulo || "Tarea" },
       ]}
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5 sm:gap-6">
         <Link
           href="/tareas"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -165,7 +165,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft className="h-4 w-4" /> Tareas
         </Link>
 
-        <header className="flex flex-wrap items-start justify-between gap-4">
+        <header className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
           <div className="flex flex-col gap-3 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <CheckSquare className="h-7 w-7 text-muted-foreground flex-shrink-0" />
@@ -186,7 +186,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <QRButton
               module="tareas"
               recordId={id}
@@ -195,7 +195,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             <CanDelete>
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 sm:px-3 py-2 text-xs sm:text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
               >
                 <Trash2 className="h-4 w-4" /> Eliminar
               </button>
@@ -203,8 +203,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="flex flex-col gap-6 lg:col-span-3">
+        <div className="grid gap-6 xl:grid-cols-5">
+          <div className="flex flex-col gap-6 xl:col-span-3">
             <section className="rounded-xl border border-border bg-card p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Descripción</h2>
               <InlineTextarea
@@ -254,7 +254,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          <aside className="flex flex-col gap-4 lg:col-span-2">
+          <aside className="flex flex-col gap-4 xl:col-span-2">
             <div className="rounded-xl border border-border bg-card p-5">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">Detalles</h2>
               <div className="space-y-0">
