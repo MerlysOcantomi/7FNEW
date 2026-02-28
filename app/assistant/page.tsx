@@ -99,18 +99,18 @@ export default function AssistantPage() {
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
         {/* Top Bar */}
         <div className="flex items-center justify-between px-6 md:px-8 py-4 border-b border-[#E2E8F0] bg-white shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             <Link
               href="/"
-              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#0F172A] transition-colors font-medium"
+              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#0F172A] transition-colors font-medium shrink-0"
             >
               <ArrowLeft size={13} />
               Dashboard
             </Link>
-            <span className="text-[#E2E8F0]">/</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-[#3B82F6]" />
-              <span className="text-sm font-semibold text-[#0F172A]">Copilot — Full Screen</span>
+            <span className="text-[#E2E8F0] shrink-0">/</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-[#3B82F6] shrink-0" />
+              <span className="text-sm font-semibold text-[#0F172A] truncate">Copilot — Full Screen</span>
             </div>
           </div>
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFF6FF]">
@@ -128,7 +128,7 @@ export default function AssistantPage() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-6 md:px-10 xl:px-16 py-8 space-y-4">
               {messages.map((msg) => (
-                <div key={msg.id} className={cn("max-w-2xl", msg.role === "user" && "ml-auto")}>
+                <div key={msg.id} className={cn("max-w-[90%] sm:max-w-2xl", msg.role === "user" && "ml-auto")}>
                   <div className="flex items-center justify-between mb-1.5 gap-3">
                     <span className={cn("text-[10px] font-semibold uppercase tracking-wider", msg.role === "assistant" ? "text-[#3B82F6]" : "text-[#94A3B8]")}>
                       {msg.role === "assistant" ? "Copilot" : "You"}

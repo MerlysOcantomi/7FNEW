@@ -213,7 +213,7 @@ export default function ContenidoPage() {
       <SectionPage title="Campanas & Contenido" description="Cerebro editorial. Planifica, crea y ejecuta la narrativa de marca.">
 
         {/* Stats */}
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 grid-cols-2 min-[480px]:grid-cols-3 lg:grid-cols-6">
           {[
             { label: "Total", value: stats.total },
             { label: "Ideas", value: stats.ideas },
@@ -235,7 +235,7 @@ export default function ContenidoPage() {
             {views.map((v) => {
               const Icon = v.icon
               return (
-                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
+                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
                   <Icon className="h-4 w-4" /> {v.label}
                 </button>
               )
@@ -255,12 +255,12 @@ export default function ContenidoPage() {
 
         {/* Search + filters (for lista/calendario) */}
         {(activeView === "lista" || activeView === "calendario") && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1 min-w-[140px] sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contenido..." className="w-full rounded-lg border border-border bg-card pl-9 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
             </div>
-            <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs outline-none">
+            <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="w-full sm:w-auto rounded-lg border border-border bg-card px-3 py-2 text-xs outline-none">
               <option value="">Estado</option>
               <option value="idea">Idea</option>
               <option value="borrador">Borrador</option>
@@ -269,7 +269,7 @@ export default function ContenidoPage() {
               <option value="programado">Programado</option>
               <option value="publicado">Publicado</option>
             </select>
-            <select value={filterPlataforma} onChange={(e) => setFilterPlataforma(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs outline-none">
+            <select value={filterPlataforma} onChange={(e) => setFilterPlataforma(e.target.value)} className="w-full sm:w-auto rounded-lg border border-border bg-card px-3 py-2 text-xs outline-none">
               <option value="">Plataforma</option>
               <option value="instagram">Instagram</option>
               <option value="tiktok">TikTok</option>
@@ -304,7 +304,7 @@ export default function ContenidoPage() {
                 const dayPieces = getPiecesForDate(date)
                 const isToday = isSameDay(date, today)
                 return (
-                  <div key={idx} className={cn("min-h-[85px] border-b border-r border-border p-1.5", !inMonth && "bg-muted/20", idx % 7 === 6 && "border-r-0")}>
+                  <div key={idx} className={cn("min-h-[55px] sm:min-h-[85px] border-b border-r border-border p-1.5", !inMonth && "bg-muted/20", idx % 7 === 6 && "border-r-0")}>
                     <span className={cn("text-xs font-medium", isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background" : inMonth ? "text-foreground" : "text-muted-foreground/50")}>{date.getDate()}</span>
                     <div className="flex flex-col gap-0.5 mt-0.5">
                       {dayPieces.slice(0, 3).map((p: any) => {

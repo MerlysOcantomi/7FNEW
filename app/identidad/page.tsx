@@ -161,7 +161,7 @@ export default function IdentidadPage() {
               className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
             {statusFilters.map((f) => (
               <button
                 key={f}
@@ -260,7 +260,7 @@ export default function IdentidadPage() {
                   <div>
                     <p className="text-sm font-medium text-foreground">Conflicto detectado</p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{selected.conflictNote}</p>
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                       <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity">
                         <Link2 className="h-3 w-3" /> Fusionar registros
                       </button>

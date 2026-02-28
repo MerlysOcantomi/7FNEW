@@ -36,6 +36,7 @@ const MONTH_NAMES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 const DAY_NAMES = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+const DAY_NAMES_SHORT = ["L", "M", "X", "J", "V", "S", "D"]
 const DAY_NAMES_FULL = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
 
 function formatDateParam(d: Date): string {
@@ -268,7 +269,7 @@ export default function CalendarioPage() {
                   key={v}
                   onClick={() => setView(v)}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    "rounded-md px-3 py-1.5 text-[10px] sm:text-xs font-medium transition-colors",
                     view === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -287,9 +288,10 @@ export default function CalendarioPage() {
             {view === "month" && (
               <div className="rounded-xl border border-border bg-card overflow-hidden">
                 <div className="grid grid-cols-7 border-b border-border">
-                  {DAY_NAMES.map((d) => (
+                  {DAY_NAMES.map((d, i) => (
                     <div key={d} className="px-2 py-2.5 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      {d}
+                      <span className="hidden sm:inline">{d}</span>
+                      <span className="sm:hidden">{DAY_NAMES_SHORT[i]}</span>
                     </div>
                   ))}
                 </div>
@@ -301,7 +303,7 @@ export default function CalendarioPage() {
                       <div
                         key={idx}
                         className={cn(
-                          "min-h-[90px] border-b border-r border-border p-1.5 transition-colors",
+                          "min-h-[60px] sm:min-h-[90px] border-b border-r border-border p-1.5 transition-colors",
                           !inMonth && "bg-muted/20",
                           idx % 7 === 6 && "border-r-0"
                         )}
@@ -354,7 +356,8 @@ export default function CalendarioPage() {
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 min-h-[400px]">
+                <div className="overflow-x-auto">
+                <div className="grid grid-cols-7 min-h-[250px] sm:min-h-[400px] min-w-[600px]">
                   {weekDays.map((d, i) => {
                     const dayItems = getItemsForDate(d)
                     return (
@@ -382,6 +385,7 @@ export default function CalendarioPage() {
                       </div>
                     )
                   })}
+                </div>
                 </div>
               </div>
             )}
@@ -574,6 +578,49 @@ export default function CalendarioPage() {
             </div>
           </div>
         </div>
+
+        {/* Mobile detail overlay */}
+        {selectedItem && (
+          <div className="lg:hidden rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Detalle</p>
+              <button onClick={() => setSelectedItem(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex items-start gap-2 mb-3">
+              {(() => { const Icon = typeIcons[selectedItem.type]; return <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: typeColors[selectedItem.type] }} /> })()}
+              <div>
+                <p className="text-sm font-medium text-foreground">{selectedItem.title}</p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: typeColors[selectedItem.type], color: "var(--foreground)", opacity: 0.7 }}>
+                    {selectedItem.type}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{selectedItem.status}</span>
+                  {selectedItem.priority && <span className="text-[10px] text-muted-foreground">· {selectedItem.priority}</span>}
+                </div>
+                {selectedItem.extra && <p className="text-[10px] text-muted-foreground mt-1">{selectedItem.extra}</p>}
+                <p className="text-[10px] text-muted-foreground mt-1">{new Date(selectedItem.date).toLocaleDateString("es", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => getAISuggestion(selectedItem)}
+              disabled={aiLoading}
+              className={cn(
+                "flex items-center gap-2 w-full justify-center rounded-lg px-3 py-2 text-xs font-medium transition-all",
+                aiLoading ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground text-background hover:opacity-80"
+              )}
+            >
+              {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analizando...</> : <><Sparkles className="h-3 w-3" /> Sugerencia IA</>}
+            </button>
+            {aiSuggestion && (
+              <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Motor IA</p>
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
+              </div>
+            )}
+          </div>
+        )}
       </SectionPage>
     </AppShell>
   )

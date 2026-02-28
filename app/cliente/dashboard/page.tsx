@@ -59,7 +59,7 @@ export default function ClienteDashboardPage() {
       ) : (
         <div className="space-y-6">
           {/* Stats */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4">
             <StatCard icon={FolderKanban} label="Proyectos activos" value={data.stats.proyectosActivos} total={data.stats.totalProyectos} />
             <StatCard icon={FileText} label="Facturas pendientes" value={data.stats.facturasPendientes} total={data.stats.totalFacturas} />
             <StatCard icon={CheckSquare} label="Tareas abiertas" value={data.stats.tareasAbiertas} />
@@ -82,13 +82,13 @@ export default function ClienteDashboardPage() {
                   <Link
                     key={p.id}
                     href={`/cliente/proyecto/${p.id}`}
-                    className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3.5 hover:bg-gray-50 transition-colors"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
                       <p className="text-xs text-gray-500">{p.descripcion?.slice(0, 60) || "Sin descripcion"}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                       {p.progreso != null && (
                         <span className="text-xs text-gray-500">{p.progreso}%</span>
                       )}

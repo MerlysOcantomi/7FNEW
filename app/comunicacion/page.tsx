@@ -88,7 +88,7 @@ export default function ComunicacionPage() {
 
         {/* View tabs + search */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {(["canales", "directos", "clientes"] as ViewType[]).map(v => (
               <button
                 key={v}
@@ -120,7 +120,7 @@ export default function ComunicacionPage() {
         {/* Thread list + chat view */}
         <div className="grid gap-4 lg:grid-cols-5">
           {/* Thread list */}
-          <div className={cn("flex flex-col gap-1.5", selectedThread ? "lg:col-span-2" : "lg:col-span-5")}>
+          <div className={cn("flex flex-col gap-1.5", selectedThread ? "hidden lg:flex lg:col-span-2" : "lg:col-span-5")}>
             {filtered.map(item => {
               const isSelected = selectedThread === item.id
               return (
@@ -191,7 +191,7 @@ export default function ComunicacionPage() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0">
                         <span className="text-[10px] font-bold text-muted-foreground">{msg.avatar}</span>
                       </div>
-                      <div className={cn("max-w-[75%]")}>
+                      <div className={cn("max-w-[85%] sm:max-w-[75%]")}>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium text-foreground">{msg.author}</span>
                           <span className="text-[10px] text-muted-foreground">{msg.time}</span>

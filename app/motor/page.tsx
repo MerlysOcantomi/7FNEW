@@ -141,7 +141,8 @@ export default function MotorPage() {
             </div>
             <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors text-xs font-medium">
               <RefreshCw size={13} strokeWidth={1.75} />
-              Save Changes
+              <span className="hidden sm:inline">Save Changes</span>
+              <span className="sm:hidden">Save</span>
             </button>
           </div>
         </div>
@@ -263,7 +264,7 @@ export default function MotorPage() {
                 <textarea
                   defaultValue="You are 7F Copilot, an executive intelligence assistant for a professional services firm. You have access to project portfolio data, fund performance metrics, client CRM records, and operational risk feeds. Always respond with precision, brevity, and strategic framing. Do not speculate beyond available data."
                   rows={5}
-                  className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-4 py-3 text-sm text-[#334155] font-mono leading-relaxed resize-none focus:outline-none focus:border-[#3B82F6] transition-colors"
+                  className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-4 py-3 text-xs sm:text-sm text-[#334155] font-mono leading-relaxed resize-none focus:outline-none focus:border-[#3B82F6] transition-colors"
                 />
               </div>
             </div>
@@ -274,18 +275,31 @@ export default function MotorPage() {
             <div className="space-y-5">
               <SectionHeader title="Intent Router" description="Rules that determine which model handles specific query types." />
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                  <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Trigger</span>
-                  <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Model</span>
-                  <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Reason</span>
-                </div>
-                {ROUTER_RULES.map((rule, i) => (
-                  <div key={rule.trigger} className={cn("grid grid-cols-12 items-center px-5 py-4", i < ROUTER_RULES.length - 1 && "border-b border-[#F1F5F9]")}>
-                    <span className="col-span-4 text-sm font-medium text-[#0F172A]">{rule.trigger}</span>
-                    <span className="col-span-3 text-xs font-mono text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded w-fit">{rule.model}</span>
-                    <span className="col-span-5 text-xs text-[#64748B] pl-3">{rule.reason}</span>
+                {/* Desktop table */}
+                <div className="hidden sm:block">
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
+                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Trigger</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Model</span>
+                    <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Reason</span>
                   </div>
-                ))}
+                  {ROUTER_RULES.map((rule, i) => (
+                    <div key={rule.trigger} className={cn("grid grid-cols-12 items-center px-5 py-4", i < ROUTER_RULES.length - 1 && "border-b border-[#F1F5F9]")}>
+                      <span className="col-span-4 text-sm font-medium text-[#0F172A]">{rule.trigger}</span>
+                      <span className="col-span-3 text-xs font-mono text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded w-fit">{rule.model}</span>
+                      <span className="col-span-5 text-xs text-[#64748B] pl-3">{rule.reason}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Mobile cards */}
+                <div className="sm:hidden divide-y divide-[#F1F5F9]">
+                  {ROUTER_RULES.map((rule) => (
+                    <div key={rule.trigger} className="px-4 py-4 space-y-2">
+                      <p className="text-sm font-medium text-[#0F172A]">{rule.trigger}</p>
+                      <span className="inline-block text-xs font-mono text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded">{rule.model}</span>
+                      <p className="text-xs text-[#64748B]">{rule.reason}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="bg-[#EFF6FF] rounded-xl p-4 border border-[#BFDBFE]">
                 <p className="text-xs text-[#334155] leading-relaxed">
@@ -315,26 +329,49 @@ export default function MotorPage() {
             <div className="space-y-5">
               <SectionHeader title="System Health" description="Real-time status of AI infrastructure components." />
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                  <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Component</span>
-                  <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
-                  <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Latency</span>
-                </div>
-                {SYSTEM_STATUS.map((item, i) => (
-                  <div key={item.label} className={cn("grid grid-cols-12 items-center px-5 py-4", i < SYSTEM_STATUS.length - 1 && "border-b border-[#F1F5F9]")}>
-                    <span className="col-span-5 text-sm font-medium text-[#0F172A]">{item.label}</span>
-                    <div className="col-span-4 flex items-center gap-2">
-                      <StatusDot status={item.status} />
-                      <span className={cn(
-                        "text-xs font-semibold",
-                        item.status === "ok" ? "text-[#166534]" : item.status === "warning" ? "text-[#854D0E]" : "text-[#991B1B]"
-                      )}>
-                        {item.status === "ok" ? "Operational" : item.status === "warning" ? "Degraded" : "Error"}
-                      </span>
-                    </div>
-                    <span className="col-span-3 text-xs font-mono text-[#64748B]">{item.latency}</span>
+                {/* Desktop table */}
+                <div className="hidden sm:block">
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
+                    <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Component</span>
+                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Latency</span>
                   </div>
-                ))}
+                  {SYSTEM_STATUS.map((item, i) => (
+                    <div key={item.label} className={cn("grid grid-cols-12 items-center px-5 py-4", i < SYSTEM_STATUS.length - 1 && "border-b border-[#F1F5F9]")}>
+                      <span className="col-span-5 text-sm font-medium text-[#0F172A]">{item.label}</span>
+                      <div className="col-span-4 flex items-center gap-2">
+                        <StatusDot status={item.status} />
+                        <span className={cn(
+                          "text-xs font-semibold",
+                          item.status === "ok" ? "text-[#166534]" : item.status === "warning" ? "text-[#854D0E]" : "text-[#991B1B]"
+                        )}>
+                          {item.status === "ok" ? "Operational" : item.status === "warning" ? "Degraded" : "Error"}
+                        </span>
+                      </div>
+                      <span className="col-span-3 text-xs font-mono text-[#64748B]">{item.latency}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Mobile cards */}
+                <div className="sm:hidden divide-y divide-[#F1F5F9]">
+                  {SYSTEM_STATUS.map((item) => (
+                    <div key={item.label} className="px-4 py-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <StatusDot status={item.status} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#0F172A]">{item.label}</p>
+                          <span className={cn(
+                            "text-xs font-semibold",
+                            item.status === "ok" ? "text-[#166534]" : item.status === "warning" ? "text-[#854D0E]" : "text-[#991B1B]"
+                          )}>
+                            {item.status === "ok" ? "Operational" : item.status === "warning" ? "Degraded" : "Error"}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono text-[#64748B] shrink-0">{item.latency}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="bg-[#FEF9C3] border border-[#FDE68A] rounded-xl p-4">
                 <div className="flex items-start gap-2.5">

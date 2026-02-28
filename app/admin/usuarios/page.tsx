@@ -182,7 +182,7 @@ export default function AdminUsuariosPage() {
         {activeTab === "users" && (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-4">
                 <div>
                   <p className="text-2xl font-semibold text-foreground">{users.length}</p>
                   <p className="text-xs text-muted-foreground">Usuarios registrados</p>
@@ -223,7 +223,7 @@ export default function AdminUsuariosPage() {
                     </div>
 
                     {editingId === user.id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2">
                         <select
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value)}
@@ -233,19 +233,21 @@ export default function AdminUsuariosPage() {
                           <option value="editor">Editor</option>
                           <option value="viewer">Solo lectura</option>
                         </select>
-                        <button
-                          onClick={() => handleUpdateRole("user", user.id, editRole)}
-                          disabled={actionLoading === user.id}
-                          className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background hover:opacity-80"
-                        >
-                          {actionLoading === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent">
-                          <X className="h-3 w-3" />
-                        </button>
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <button
+                            onClick={() => handleUpdateRole("user", user.id, editRole)}
+                            disabled={actionLoading === user.id}
+                            className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background hover:opacity-80"
+                          >
+                            {actionLoading === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          </button>
+                          <button onClick={() => setEditingId(null)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
                         <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", ROLE_COLORS[user.role] ?? ROLE_COLORS.viewer)}>
                           {ROLE_LABELS[user.role] ?? user.role}
                         </span>
@@ -282,14 +284,14 @@ export default function AdminUsuariosPage() {
         {/* ── Whitelist Tab ── */}
         {activeTab === "whitelist" && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="rounded-xl border border-border bg-card p-4 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="rounded-xl border border-border bg-card p-4 flex-1 min-w-0">
                 <p className="text-2xl font-semibold text-foreground">{allowedEmails.length}</p>
                 <p className="text-xs text-muted-foreground">Correos autorizados</p>
               </div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="ml-3 flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition-opacity hover:opacity-80"
+                className="flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition-opacity hover:opacity-80"
               >
                 <UserPlus className="h-3.5 w-3.5" /> Agregar correo
               </button>
@@ -357,7 +359,7 @@ export default function AdminUsuariosPage() {
                     </div>
 
                     {editingId === entry.id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2">
                         <select
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value)}
@@ -367,19 +369,21 @@ export default function AdminUsuariosPage() {
                           <option value="editor">Editor</option>
                           <option value="viewer">Solo lectura</option>
                         </select>
-                        <button
-                          onClick={() => handleUpdateRole("email", entry.id, editRole)}
-                          disabled={actionLoading === entry.id}
-                          className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background hover:opacity-80"
-                        >
-                          {actionLoading === entry.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent">
-                          <X className="h-3 w-3" />
-                        </button>
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <button
+                            onClick={() => handleUpdateRole("email", entry.id, editRole)}
+                            disabled={actionLoading === entry.id}
+                            className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background hover:opacity-80"
+                          >
+                            {actionLoading === entry.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          </button>
+                          <button onClick={() => setEditingId(null)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
                         <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", ROLE_COLORS[entry.role] ?? ROLE_COLORS.viewer)}>
                           {ROLE_LABELS[entry.role] ?? entry.role}
                         </span>

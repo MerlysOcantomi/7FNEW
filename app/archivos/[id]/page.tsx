@@ -184,12 +184,12 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                 <a
                   href={doc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
+                  className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 w-full sm:w-auto justify-center"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Descargar
@@ -294,16 +294,16 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
               <h2 className="text-sm font-semibold text-foreground">Ubicacion del archivo</h2>
             </div>
             <div className="px-5 py-4">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   readOnly
                   value={doc.url}
-                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground min-w-0"
                 />
                 <button
                   onClick={() => { navigator.clipboard.writeText(doc.url); toast.success("URL copiada") }}
-                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors flex-shrink-0"
                 >
                   Copiar
                 </button>

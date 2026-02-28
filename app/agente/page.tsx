@@ -270,7 +270,7 @@ function ResumenEjecutivo() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-[#DBEAFE]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 divide-x-0 sm:divide-x divide-y divide-[#DBEAFE]">
           {INDICADORES.map(({ label, value, trend, delta }) => (
             <div key={label} className="px-5 py-4">
               <div className="flex items-center gap-1.5 mb-1">
@@ -318,7 +318,7 @@ function PrioridadesSistema() {
               </div>
               <NivelBadge nivel={p.nivel} />
             </div>
-            <div className="flex items-center gap-3 pl-10 flex-wrap">
+            <div className="flex items-center gap-3 pl-6 sm:pl-10 flex-wrap">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#DBEAFE] text-[#1D4ED8] text-[10px] font-bold uppercase tracking-wider">
                 {p.modulo}
               </span>
@@ -350,7 +350,7 @@ function RiesgosDetectados() {
               </div>
               <NivelBadge nivel={r.nivel} />
             </div>
-            <div className="flex items-start gap-4 pl-10 flex-wrap">
+            <div className="flex items-start gap-4 pl-6 sm:pl-10 flex-wrap">
               <span className="text-[11px] text-[#64748B] shrink-0">
                 <span className="font-medium text-[#334155]">Proyecto: </span>{r.proyecto}
               </span>
@@ -493,7 +493,7 @@ function HistorialAnalisis() {
                   </p>
                 </div>
               </div>
-              <button className="flex items-center gap-1 text-xs font-semibold text-[#3B82F6] hover:text-[#1D4ED8] transition-colors shrink-0 opacity-0 group-hover:opacity-100">
+              <button className="flex items-center gap-1 text-xs font-semibold text-[#3B82F6] hover:text-[#1D4ED8] transition-colors shrink-0 sm:opacity-0 sm:group-hover:opacity-100">
                 Ver detalle
                 <ChevronRight size={11} />
               </button>

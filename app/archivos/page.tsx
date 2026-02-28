@@ -183,7 +183,7 @@ export default function ArchivosPage() {
 
         {/* Search + Filters */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
               <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
@@ -194,19 +194,21 @@ export default function ArchivosPage() {
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
-              <button onClick={() => setViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista lista"><List className="h-4 w-4" /></button>
-              <button onClick={() => setViewMode("grid")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "grid" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista grid"><Grid3X3 className="h-4 w-4" /></button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+                <button onClick={() => setViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista lista"><List className="h-4 w-4" /></button>
+                <button onClick={() => setViewMode("grid")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "grid" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista grid"><Grid3X3 className="h-4 w-4" /></button>
+              </div>
+              <button
+                onClick={() => { setEditingItem(null); setFormOpen(true) }}
+                className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Nuevo</span>
+              </button>
             </div>
-            <button
-              onClick={() => { setEditingItem(null); setFormOpen(true) }}
-              className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Nuevo</span>
-            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-2 overflow-x-auto">
             {fileTypes.map(t => (
               <button
                 key={t}
@@ -220,10 +222,10 @@ export default function ArchivosPage() {
               </button>
             ))}
             <span className="mx-1 h-4 w-px bg-border" />
-            <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none">
+            <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none flex-shrink-0">
               {fileClients.map(c => <option key={c} value={c}>{c === "Todos" ? "Cliente" : c}</option>)}
             </select>
-            <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none">
+            <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none flex-shrink-0">
               {fileProjects.map(p => <option key={p} value={p}>{p === "Todos" ? "Proyecto" : p}</option>)}
             </select>
           </div>
@@ -324,7 +326,7 @@ export default function ArchivosPage() {
           {/* Detail panel */}
           {selected && (
             <div className="lg:col-span-2">
-              <div className="rounded-xl border border-border bg-card sticky top-6">
+              <div className="rounded-xl border border-border bg-card lg:sticky lg:top-6">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <h3 className="text-sm font-semibold text-foreground">Detalle del archivo</h3>
                   <button onClick={() => setSelectedFile(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
