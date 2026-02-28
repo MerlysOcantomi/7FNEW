@@ -14,12 +14,14 @@ import {
   Menu,
   X,
   Loader2,
+  MessageSquarePlus,
 } from "lucide-react"
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/cliente/dashboard", icon: LayoutDashboard },
   { label: "Proyectos", href: "/cliente/proyecto", icon: FolderKanban },
   { label: "Facturas", href: "/cliente/facturas", icon: FileText },
+  { label: "Solicitudes", href: "/cliente/solicitudes", icon: MessageSquarePlus },
   { label: "Archivos", href: "/cliente/archivos", icon: Files },
   { label: "Mi Perfil", href: "/cliente/perfil", icon: UserCircle },
 ]

@@ -79,6 +79,7 @@ model Cliente {
   clientProjects     ClientProject[]
   clientInvoices     ClientInvoice[]
   clientFiles        ClientFile[]
+  clientRequests     ClientRequest[]
   campaigns          Campaign[]
 }
 
@@ -106,15 +107,16 @@ model Proyecto {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  workspace     Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  tareas        Tarea[]
-  documentos    Documento[]
-  transacciones Transaccion[]
-  facturas      Factura[]
-  eventos       Evento[]
-  notas         Nota[]
-  campaigns     Campaign[]
+  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cliente        Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  tareas         Tarea[]
+  documentos     Documento[]
+  transacciones  Transaccion[]
+  facturas       Factura[]
+  eventos        Evento[]
+  notas          Nota[]
+  campaigns      Campaign[]
+  clientRequests ClientRequest[]
 }
 
 model Tarea {
@@ -485,6 +487,42 @@ model ContentIdea {
   updatedAt   DateTime @updatedAt
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+// ── Portal Cliente: Solicitudes ──
+
+model ClientRequest {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  clienteId            String
+  proyectoId           String?
+  title                String
+  description          String?
+  status               String   @default("OPEN")
+  priority             String   @default("MEDIUM")
+  createdByPortalUserId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente  Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  proyecto Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  assets   ClientRequestAsset[]
+
+  @@index([workspaceId])
+  @@index([clienteId])
+  @@index([workspaceId, clienteId])
+}
+
+model ClientRequestAsset {
+  id        String @id @default(cuid())
+  requestId String
+  assetUrl  String
+  assetName String
+  createdAt DateTime @default(now())
+
+  request ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
 }
 
 model Attachment {
