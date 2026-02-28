@@ -236,7 +236,9 @@ function AccordionSection({
 export function SidebarNav() {
   const pathname = usePathname();
   const { collapsed, setCollapsed } = useSidebarCollapse();
-  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname));
+  const [openSection, setOpenSection] = useState<string>(
+    pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
+  );
 
   const toggleSection = (section: string) => {
     setOpenSection((prev) => (prev === section ? "" : section));
@@ -325,7 +327,9 @@ export function SidebarNav() {
 export function MobileSidebarNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string>(getActiveSectionFor(pathname));
+  const [openSection, setOpenSection] = useState<string>(
+    pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
+  );
 
   return (
     <>
