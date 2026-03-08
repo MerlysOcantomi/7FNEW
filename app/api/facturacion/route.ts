@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const data = createFacturaSchema.parse(body)
     const record = await service.create(data, workspaceId)
 
-    logActivity({ module: "facturacion", recordId: (record as any).id, type: "created", data: { label: (record as any).numero } }).catch(() => {})
+    logActivity({ module: "facturacion", recordId: (record as any).id, type: "created", data: { label: (record as any).numero }, workspaceId }).catch(() => {})
 
     notifyAdminsAndEditors(
       "factura_creada",

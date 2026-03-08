@@ -10,12 +10,20 @@ export async function GET(request: NextRequest) {
     const { workspaceId } = await requireReadAccess()
     const q = request.nextUrl.searchParams.get("q")?.trim()
     if (!q || q.length < 2) {
-      return successResponse({ clientes: [], proyectos: [], tareas: [], facturas: [], documentos: [] })
+      return successResponse({
+        clientes: [],
+        proyectos: [],
+        tareas: [],
+        facturas: [],
+        documentos: [],
+        notas: [],
+        archivos: [],
+      })
     }
 
     const search = q
 
-    const [clientes, proyectos, tareas, facturas, documentos] = await Promise.all([
+    const [clientes, proyectos, tareas, facturas, documentos, notas, archivos] = await Promise.all([
       db.cliente.findMany({
         where: {
           workspaceId,
@@ -89,9 +97,46 @@ export async function GET(request: NextRequest) {
         take: MAX_PER_GROUP,
         orderBy: { createdAt: "desc" },
       }),
+
+      db.nota.findMany({
+        where: {
+          workspaceId,
+          OR: [
+            { titulo: { contains: search } },
+            { contenido: { contains: search } },
+          ],
+        },
+        select: {
+          id: true, titulo: true, clienteId: true, proyectoId: true,
+          cliente: { select: { nombre: true } },
+          proyecto: { select: { nombre: true } },
+        },
+        take: MAX_PER_GROUP,
+        orderBy: { updatedAt: "desc" },
+      }),
+
+      db.attachment.findMany({
+        where: {
+          workspaceId,
+          nombre: { contains: search },
+        },
+        select: {
+          id: true, nombre: true, module: true, recordId: true,
+        },
+        take: MAX_PER_GROUP,
+        orderBy: { createdAt: "desc" },
+      }),
     ])
 
-    return successResponse({ clientes, proyectos, tareas, facturas, documentos })
+    return successResponse({
+      clientes,
+      proyectos,
+      tareas,
+      facturas,
+      documentos,
+      notas,
+      archivos,
+    })
   } catch (err) {
     return errorResponse("SEARCH_ERROR", "Error en búsqueda", (err as { status?: number })?.status || 500)
   }

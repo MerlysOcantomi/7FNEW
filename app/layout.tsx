@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ToastProvider } from '@/components/toast-provider'
 import { UserProvider } from '@/hooks/use-user'
+import { GlobalSearchProvider } from '@/components/global-search-provider'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -41,7 +42,9 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <UserProvider>
           <ToastProvider>
-            {children}
+            <GlobalSearchProvider>
+              {children}
+            </GlobalSearchProvider>
           </ToastProvider>
         </UserProvider>
         <Analytics />

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel"
-import { GlobalSearch } from "@/components/global-search"
+import { useGlobalSearch } from "@/components/global-search-provider"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { useUser } from "@/hooks/use-user"
 
@@ -18,28 +18,15 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter()
   const { user, loading } = useUser()
+  const { openSearch } = useGlobalSearch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [copilotCollapsed, setCopilotCollapsed] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-
-  const openSearch = useCallback(() => setSearchOpen(true), [])
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login")
     }
   }, [loading, user, router])
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
 
   if (loading) {
     return (
@@ -56,7 +43,6 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />

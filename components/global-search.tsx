@@ -14,8 +14,6 @@ import {
   FolderOpen,
   Loader2,
   CornerDownLeft,
-  ArrowUp,
-  ArrowDown,
   LayoutDashboard,
   Inbox,
   PenLine,
@@ -30,6 +28,8 @@ import {
   Fingerprint,
   BookOpen,
   UserCircle,
+  StickyNote,
+  Paperclip,
 } from "lucide-react"
 
 // ── Static quick-links (shown when query is empty) ──────────────────
@@ -61,7 +61,9 @@ interface SearchResults {
   proyectos: { id: string; nombre: string; estado: string; cliente?: { nombre: string } | null }[]
   tareas: { id: string; titulo: string; estado: string; prioridad: string; proyecto?: { nombre: string } | null }[]
   facturas: { id: string; numero: string; estado: string; total: number; cliente?: { nombre: string } | null }[]
-  documentos: { id: string; nombre: string; tipo: string; tamano?: string | null; proyecto?: { nombre: string } | null }[]
+  documentos: { id: string; nombre: string; tipo: string; tamano?: number | null; proyecto?: { nombre: string } | null }[]
+  notas?: { id: string; titulo: string; clienteId?: string | null; proyectoId?: string | null; cliente?: { nombre: string } | null; proyecto?: { nombre: string } | null }[]
+  archivos?: { id: string; nombre: string; module: string; recordId: string }[]
 }
 
 interface FlatResult {
@@ -157,6 +159,34 @@ function flattenResults(data: SearchResults): FlatResult[] {
     })
   }
 
+  for (const n of data.notas ?? []) {
+    const href = n.clienteId
+      ? `/clientes/${n.clienteId}`
+      : n.proyectoId
+      ? `/proyectos/${n.proyectoId}`
+      : null
+    if (!href) continue
+    results.push({
+      id: `nota-${n.id}`,
+      title: n.titulo,
+      subtitle: n.cliente?.nombre ?? n.proyecto?.nombre ?? "Nota",
+      href,
+      group: "Notas",
+      icon: StickyNote,
+    })
+  }
+
+  for (const a of data.archivos ?? []) {
+    results.push({
+      id: `archivo-${a.id}`,
+      title: a.nombre,
+      subtitle: `${a.module} · adjunto`,
+      href: `/${a.module}/${a.recordId}`,
+      group: "Archivos adjuntos",
+      icon: Paperclip,
+    })
+  }
+
   return results
 }
 
@@ -197,8 +227,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
       const json = await res.json()
-      if (json.data) {
+      if (json.success && json.data) {
         setResults(flattenResults(json.data))
+      } else {
+        setResults([])
       }
     } catch {
       setResults([])

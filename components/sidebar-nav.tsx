@@ -28,8 +28,10 @@ import {
   PanelLeftOpen,
   LogIn,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import { useState, createContext, useContext } from "react";
+import { useGlobalSearch } from "@/components/global-search-provider";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -281,6 +283,22 @@ export function SidebarNav() {
         </button>
       </div>
 
+      {/* Search trigger */}
+      <div className={cn("shrink-0 px-3 pb-3", collapsed && "px-1.5")}>
+        <button
+          onClick={openSearch}
+          className={cn(
+            "w-full flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150",
+            collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
+            "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#1E293B]/60"
+          )}
+          title="Buscar (Ctrl+K)"
+        >
+          <Search size={15} strokeWidth={1.75} />
+          {!collapsed && <span>Buscar</span>}
+        </button>
+      </div>
+
       {/* Navigation */}
       <nav className={cn("flex-1 pb-4 space-y-1", collapsed ? "px-1.5" : "px-3")}>
         {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
@@ -334,6 +352,7 @@ import {
 
 export function MobileSidebarNav() {
   const pathname = usePathname();
+  const { openSearch } = useGlobalSearch();
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
@@ -348,13 +367,22 @@ export function MobileSidebarNav() {
           </div>
           <span className="text-white font-semibold text-sm">Copilot</span>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="text-[#94A3B8] hover:text-white p-1"
-          aria-label="Open navigation"
-        >
-          <Menu size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={openSearch}
+            className="text-[#94A3B8] hover:text-white p-1"
+            aria-label="Buscar"
+          >
+            <Search size={20} />
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="text-[#94A3B8] hover:text-white p-1"
+            aria-label="Open navigation"
+          >
+            <Menu size={20} />
+          </button>
+        </div>
       </header>
 
       <Sheet open={open} onOpenChange={setOpen}>

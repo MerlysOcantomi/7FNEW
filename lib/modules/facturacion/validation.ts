@@ -16,6 +16,7 @@ export const createFacturaSchema = z.object({
   items: z.array(facturaItemSchema).min(1, "Se requiere al menos un item"),
   fechaEmision: z.string().datetime().optional(),
   fechaVencimiento: z.string().datetime().optional().nullable(),
+  paidAt: z.string().datetime().optional().nullable(),
   clienteId: z.string().optional().nullable(),
   proyectoId: z.string().optional().nullable(),
 })

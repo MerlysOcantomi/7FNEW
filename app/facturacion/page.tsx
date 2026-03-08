@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
 import { CopilotPanel } from "@/components/copilot-panel";
 import Link from "next/link";
@@ -15,87 +15,93 @@ import {
   Clock,
   CheckCircle2,
   DollarSign,
+  Loader2,
+  Receipt,
 } from "lucide-react";
+import { useFetch } from "@/hooks/use-fetch";
+import { FacturaForm } from "@/components/forms/factura-form";
+import { displayLabel, estadoLabel } from "@/lib/api-client";
 
-// ── Types & Data ──────────────────────────────────────────────────────────────
-
-type InvoiceStatus = "Paid" | "Pending" | "Overdue" | "Draft";
-
-interface Invoice {
-  id: string;
-  client: string;
-  project: string;
-  amount: string;
-  amountRaw: number;
-  status: InvoiceStatus;
-  issued: string;
-  due: string;
-}
-
-const INVOICES: Invoice[] = [
-  { id: "INV-0042", client: "Acme Corp", project: "Alpha Expansion", amount: "$48,000", amountRaw: 48000, status: "Paid", issued: "Feb 1, 2025", due: "Feb 15, 2025" },
-  { id: "INV-0043", client: "Nexus Holdings", project: "Beta Relaunch", amount: "$32,500", amountRaw: 32500, status: "Pending", issued: "Feb 25, 2025", due: "Mar 10, 2025" },
-  { id: "INV-0044", client: "Vertex Capital", project: "Delta Infrastructure", amount: "$75,000", amountRaw: 75000, status: "Overdue", issued: "Feb 10, 2025", due: "Feb 28, 2025" },
-  { id: "INV-0045", client: "Blue Arc Group", project: "Omega Platform", amount: "$21,000", amountRaw: 21000, status: "Paid", issued: "Feb 18, 2025", due: "Mar 1, 2025" },
-  { id: "INV-0046", client: "Acme Corp", project: "Alpha Expansion", amount: "$52,000", amountRaw: 52000, status: "Pending", issued: "Feb 27, 2025", due: "Mar 20, 2025" },
-  { id: "INV-0047", client: "Nexus Holdings", project: "Sigma Compliance", amount: "$18,000", amountRaw: 18000, status: "Draft", issued: "—", due: "—" },
-  { id: "INV-0041", client: "Blue Arc Group", project: "Omega Platform", amount: "$21,000", amountRaw: 21000, status: "Paid", issued: "Jan 15, 2025", due: "Feb 1, 2025" },
-  { id: "INV-0040", client: "Vertex Capital", project: "Delta Infrastructure", amount: "$40,000", amountRaw: 40000, status: "Paid", issued: "Jan 10, 2025", due: "Jan 28, 2025" },
+// API estado: borrador, enviada, pagada, vencida, cancelada
+const ESTADO_OPTIONS = [
+  { value: "", label: "Todos" },
+  { value: "pagada", label: "Pagada" },
+  { value: "enviada", label: "Pendiente" },
+  { value: "vencida", label: "Vencida" },
+  { value: "borrador", label: "Borrador" },
+  { value: "cancelada", label: "Cancelada" },
 ];
 
-const STATUS_MAP: Record<InvoiceStatus, { bg: string; text: string }> = {
-  Paid:    { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
-  Pending: { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]" },
-  Overdue: { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]" },
-  Draft:   { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
+const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
+  pagada: { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
+  enviada: { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]" },
+  vencida: { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]" },
+  borrador: { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
+  cancelada: { bg: "bg-[#F1F5F9]", text: "text-[#94A3B8]" },
 };
 
-const OVERVIEW = [
-  {
-    label: "Total Invoiced",
-    value: "$307.5K",
-    sub: "Last 90 days",
-    icon: DollarSign,
-    color: "text-[#3B82F6]",
-  },
-  {
-    label: "Collected",
-    value: "$200K",
-    sub: "4 invoices paid",
-    icon: CheckCircle2,
-    color: "text-[#22C55E]",
-  },
-  {
-    label: "Pending",
-    value: "$84.5K",
-    sub: "2 invoices pending",
-    icon: Clock,
-    color: "text-[#3B82F6]",
-  },
-  {
-    label: "Overdue",
-    value: "$75K",
-    sub: "1 invoice — action needed",
-    icon: AlertTriangle,
-    color: "text-[#EF4444]",
-  },
-];
+function formatDate(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return "—";
+  }
+}
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+function formatCurrency(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return new Intl.NumberFormat("es", { style: "currency", currency: "CHF" }).format(value);
+}
 
 export default function FacturacionPage() {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [clienteFilter, setClienteFilter] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
+  const [clienteOpen, setClienteOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const filtered = INVOICES.filter((inv) => {
-    const matchSearch =
-      inv.id.toLowerCase().includes(search.toLowerCase()) ||
-      inv.client.toLowerCase().includes(search.toLowerCase()) ||
-      inv.project.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || inv.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const { data: clientesData } = useFetch<any[]>("/api/clientes");
+  const clientes = Array.isArray(clientesData) ? clientesData : [];
+
+  const query = new URLSearchParams();
+  if (search.trim()) query.set("search", search.trim());
+  if (statusFilter) query.set("estado", statusFilter);
+  if (clienteFilter) query.set("clienteId", clienteFilter);
+  query.set("pageSize", "100");
+  const qs = query.toString();
+  const url = qs ? `/api/facturacion?${qs}` : "/api/facturacion";
+
+  const { data: apiData, loading, error, refetch } = useFetch<any>(url, { refreshKey });
+  const facturas = Array.isArray(apiData) ? apiData : [];
+
+  const overview = useMemo(() => {
+    const totalFacturado = facturas.reduce((s: number, f: any) => s + (f.total ?? 0), 0);
+    const cobrado = facturas.filter((f: any) => f.estado === "pagada").reduce((s: number, f: any) => s + (f.total ?? 0), 0);
+    const pendiente = facturas.filter((f: any) => f.estado === "enviada").reduce((s: number, f: any) => s + (f.total ?? 0), 0);
+    const vencido = facturas.filter((f: any) => f.estado === "vencida").reduce((s: number, f: any) => s + (f.total ?? 0), 0);
+    const countPagadas = facturas.filter((f: any) => f.estado === "pagada").length;
+    const countPendientes = facturas.filter((f: any) => f.estado === "enviada").length;
+    const countVencidas = facturas.filter((f: any) => f.estado === "vencida").length;
+    return [
+      { label: "Total facturado", value: formatCurrency(totalFacturado), sub: "Todas las facturas", icon: DollarSign, color: "text-[#3B82F6]" },
+      { label: "Cobrado", value: formatCurrency(cobrado), sub: `${countPagadas} factura${countPagadas !== 1 ? "s" : ""} pagada${countPagadas !== 1 ? "s" : ""}`, icon: CheckCircle2, color: "text-[#22C55E]" },
+      { label: "Pendiente", value: formatCurrency(pendiente), sub: `${countPendientes} factura${countPendientes !== 1 ? "s" : ""} pendiente${countPendientes !== 1 ? "s" : ""}`, icon: Clock, color: "text-[#3B82F6]" },
+      { label: "Vencido", value: formatCurrency(vencido), sub: countVencidas > 0 ? `${countVencidas} factura${countVencidas !== 1 ? "s" : ""} — requiere atención` : "Sin vencidos", icon: AlertTriangle, color: "text-[#EF4444]" },
+    ];
+  }, [facturas]);
+
+  const primeraVencida = useMemo(() => {
+    return facturas.find((f: any) => f.estado === "vencida");
+  }, [facturas]);
+
+  function handleFormSuccess() {
+    setRefreshKey((k) => k + 1);
+    refetch();
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
@@ -103,27 +109,28 @@ export default function FacturacionPage() {
       <MobileSidebarNav />
 
       <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Header */}
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
           <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Funds</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <Link href="/finanzas" className="text-sm text-[#64748B] hover:text-[#0F172A] transition-colors font-medium">Finance</Link>
+              <Link href="/finanzas" className="text-sm text-[#64748B] hover:text-[#0F172A] transition-colors font-medium">Finanzas</Link>
               <span className="text-[#E2E8F0]">/</span>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Invoicing</h1>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Facturación</h1>
             </div>
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto">
+            <button
+              onClick={() => setFormOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto"
+            >
               <Plus size={14} strokeWidth={2} />
-              New Invoice
+              Nueva factura
             </button>
           </div>
         </div>
 
         <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8">
-
           {/* Overview Cards */}
           <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
-            {OVERVIEW.map(({ label, value, sub, icon: Icon, color }) => (
+            {overview.map(({ label, value, sub, icon: Icon, color }) => (
               <div key={label} className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm">
                 <Icon size={16} className={cn("mb-3", color)} strokeWidth={1.75} />
                 <p className="text-xl font-bold text-[#0F172A] tracking-tight">{value}</p>
@@ -134,15 +141,21 @@ export default function FacturacionPage() {
           </div>
 
           {/* Overdue alert */}
-          {INVOICES.some((i) => i.status === "Overdue") && (
+          {primeraVencida && (
             <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-xl p-4 flex items-start gap-3">
               <AlertTriangle size={15} className="text-[#DC2626] mt-0.5 shrink-0" strokeWidth={1.75} />
               <div>
-                <p className="text-sm font-semibold text-[#991B1B]">Overdue Invoice — Immediate Action Required</p>
+                <p className="text-sm font-semibold text-[#991B1B]">Factura vencida — Acción requerida</p>
                 <p className="text-xs text-[#991B1B] mt-0.5">
-                  INV-0044 from Vertex Capital ($75,000) was due Feb 28. Follow-up recommended before end of week.
+                  {primeraVencida.numero} de {primeraVencida.cliente?.nombre ?? "Cliente"} ({formatCurrency(primeraVencida.total)}) venció el {formatDate(primeraVencida.fechaVencimiento)}.
                 </p>
               </div>
+              <Link
+                href={`/facturacion/${primeraVencida.id}`}
+                className="shrink-0 text-xs font-medium text-[#991B1B] hover:underline"
+              >
+                Ver factura
+              </Link>
             </div>
           )}
 
@@ -154,27 +167,55 @@ export default function FacturacionPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search invoices, clients or projects..."
+                placeholder="Buscar por número de factura..."
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
               />
             </div>
             <div className="relative w-full lg:w-auto">
               <button
-                onClick={() => setStatusOpen(!statusOpen)}
+                onClick={() => { setClienteOpen(false); setStatusOpen(!statusOpen); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
               >
-                <span>{statusFilter === "All" ? "Status" : statusFilter}</span>
+                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Estado"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
                 <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
-                  {["All", "Paid", "Pending", "Overdue", "Draft"].map((opt) => (
+                  {ESTADO_OPTIONS.map((opt) => (
                     <button
-                      key={opt}
-                      onClick={() => { setStatusFilter(opt); setStatusOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
+                      key={opt.value || "all"}
+                      onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
+                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt.value ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
                     >
-                      {opt}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="relative w-full lg:w-auto">
+              <button
+                onClick={() => { setStatusOpen(false); setClienteOpen(!clienteOpen); }}
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[140px] justify-between"
+              >
+                <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? "Cliente") : "Cliente"}</span>
+                <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", clienteOpen && "rotate-180")} />
+              </button>
+              {clienteOpen && (
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[180px] max-h-60 overflow-y-auto">
+                  <button
+                    onClick={() => { setClienteFilter(""); setClienteOpen(false); }}
+                    className={cn("w-full text-left px-4 py-2 text-sm transition-colors", !clienteFilter ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
+                  >
+                    Todos
+                  </button>
+                  {clientes.map((c: any) => (
+                    <button
+                      key={c.id}
+                      onClick={() => { setClienteFilter(c.id); setClienteOpen(false); }}
+                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors truncate", clienteFilter === c.id ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
+                    >
+                      {c.nombre}
                     </button>
                   ))}
                 </div>
@@ -185,73 +226,108 @@ export default function FacturacionPage() {
           {/* Invoice List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">All Invoices</h2>
-              <span className="text-xs text-[#94A3B8]">{filtered.length} invoice{filtered.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Todas las facturas</h2>
+              <span className="text-xs text-[#94A3B8]">{facturas.length} factura{facturas.length !== 1 ? "s" : ""}</span>
             </div>
 
-            {/* Desktop list */}
-            <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-              <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Invoice</span>
-                <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
-                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Project</span>
-                <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Amount</span>
-                <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due</span>
-                <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
-                <span className="col-span-1" />
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-[#94A3B8]" />
               </div>
-              {filtered.map((inv, i) => {
-                const s = STATUS_MAP[inv.status];
-                return (
-                  <div key={inv.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < filtered.length - 1 && "border-b border-[#F1F5F9]")}>
-                    <div className="col-span-2 flex items-center gap-1.5">
-                      <FileText size={13} className="text-[#94A3B8]" strokeWidth={1.75} />
-                      <Link href={`/facturacion/${inv.id}`} className="text-sm font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors">{inv.id}</Link>
-                    </div>
-                    <span className="col-span-3 text-sm text-[#334155] truncate">{inv.client}</span>
-                    <span className="col-span-2 text-xs text-[#64748B] truncate">{inv.project}</span>
-                    <span className="col-span-2 text-sm font-medium text-[#0F172A]">{inv.amount}</span>
-                    <span className="col-span-1 text-xs text-[#64748B]">{inv.due === "—" ? "—" : inv.due.split(",")[0]}</span>
-                    <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s.bg, s.text)}>{inv.status}</span>
-                    <div className="col-span-1 flex justify-end">
-                      <Link href={`/facturacion/${inv.id}`} className="text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors flex items-center gap-0.5">
-                        View <ArrowUpRight size={11} />
-                      </Link>
-                    </div>
+            ) : error ? (
+              <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
+                <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
+                <p className="text-sm font-medium text-[#991B1B]">{error}</p>
+                <p className="text-xs text-[#B91C1C] mt-1">No se pudieron cargar las facturas</p>
+              </div>
+            ) : facturas.length === 0 ? (
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-16 text-center">
+                <Receipt className="mx-auto h-12 w-12 text-[#CBD5E1] mb-4" />
+                <p className="text-sm font-medium text-[#334155]">No hay facturas</p>
+                <p className="text-xs text-[#64748B] mt-1">
+                  {search || statusFilter || clienteFilter ? "No hay resultados para los filtros aplicados." : "Crea tu primera factura para comenzar."}
+                </p>
+                {!search && !statusFilter && !clienteFilter && (
+                  <button
+                    onClick={() => setFormOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
+                  >
+                    <Plus size={14} />
+                    Nueva factura
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Desktop list */}
+                <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Factura</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Cliente</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Proyecto</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Importe</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Emisión</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vence</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
+                    <span className="col-span-1" />
                   </div>
-                );
-              })}
-              {filtered.length === 0 && (
-                <div className="px-5 py-12 text-center text-sm text-[#64748B]">No invoices match your search.</div>
-              )}
-            </div>
+                  {facturas.map((f: any, i: number) => {
+                    const s = STATUS_STYLE[f.estado] ?? { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" };
+                    return (
+                      <div key={f.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < facturas.length - 1 && "border-b border-[#F1F5F9]")}>
+                        <div className="col-span-2 flex items-center gap-1.5">
+                          <FileText size={13} className="text-[#94A3B8]" strokeWidth={1.75} />
+                          <Link href={`/facturacion/${f.id}`} className="text-sm font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors">#{f.numero}</Link>
+                        </div>
+                        <span className="col-span-2 text-sm text-[#334155] truncate">{f.cliente?.nombre ?? "—"}</span>
+                        <span className="col-span-2 text-xs text-[#64748B] truncate">{f.proyecto?.nombre ?? "—"}</span>
+                        <span className="col-span-2 text-sm font-medium text-[#0F172A]">{formatCurrency(f.total)}</span>
+                        <span className="col-span-1 text-xs text-[#64748B]">{formatDate(f.fechaEmision)}</span>
+                        <span className="col-span-1 text-xs text-[#64748B]">{formatDate(f.fechaVencimiento)}</span>
+                        <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s.bg, s.text)}>
+                          {displayLabel(f.estado, estadoLabel)}
+                        </span>
+                        <div className="col-span-1 flex justify-end">
+                          <Link href={`/facturacion/${f.id}`} className="text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors flex items-center gap-0.5">
+                            Ver <ArrowUpRight size={11} />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-            {/* Mobile cards */}
-            <div className="sm:hidden space-y-3">
-              {filtered.map((inv) => {
-                const s = STATUS_MAP[inv.status];
-                return (
-                  <div key={inv.id} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Link href={`/facturacion/${inv.id}`} className="text-sm font-semibold text-[#3B82F6]">{inv.id}</Link>
-                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s.bg, s.text)}>{inv.status}</span>
-                    </div>
-                    <p className="text-sm font-medium text-[#0F172A]">{inv.amount}</p>
-                    <p className="text-xs text-[#64748B] mt-0.5">{inv.client} · {inv.project}</p>
-                    {inv.due !== "—" && <p className="text-[10px] text-[#94A3B8] mt-0.5">Due {inv.due}</p>}
-                  </div>
-                );
-              })}
-              {filtered.length === 0 && (
-                <div className="py-12 text-center text-sm text-[#64748B]">No invoices match your search.</div>
-              )}
-            </div>
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-3">
+                  {facturas.map((f: any) => {
+                    const s = STATUS_STYLE[f.estado] ?? { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" };
+                    return (
+                      <div key={f.id} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <Link href={`/facturacion/${f.id}`} className="text-sm font-semibold text-[#3B82F6]">#{f.numero}</Link>
+                          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s.bg, s.text)}>
+                            {displayLabel(f.estado, estadoLabel)}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-[#0F172A]">{formatCurrency(f.total)}</p>
+                        <p className="text-xs text-[#64748B] mt-0.5">{f.cliente?.nombre ?? "—"} · {f.proyecto?.nombre ?? "—"}</p>
+                        <p className="text-[10px] text-[#94A3B8] mt-0.5">
+                          Emitida {formatDate(f.fechaEmision)}
+                          {f.fechaVencimiento && <> · Vence {formatDate(f.fechaVencimiento)}</>}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </section>
-
         </div>
       </main>
 
       <CopilotPanel defaultContext="Funds" />
+
+      <FacturaForm open={formOpen} onClose={() => setFormOpen(false)} onSuccess={handleFormSuccess} />
     </div>
   );
 }
