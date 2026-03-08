@@ -240,6 +240,7 @@ function AccordionSection({
 export function SidebarNav() {
   const pathname = usePathname();
   const { collapsed, setCollapsed } = useSidebarCollapse();
+  const { openSearch } = useGlobalSearch();
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
   );
