@@ -23,6 +23,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = createClienteSchema.parse(body)
     const record = await service.create(data, workspaceId)
+    const { logActivity } = await import("@/lib/activity")
+    logActivity({ module: "clientes", recordId: (record as any).id, type: "created", data: { label: (record as any).nombre }, workspaceId }).catch(() => {})
     return successResponse(record)
   } catch (error) {
     return handleError(error, "Cliente")

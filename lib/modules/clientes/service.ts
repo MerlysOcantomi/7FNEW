@@ -27,7 +27,13 @@ export async function list(params: ListParams) {
   }
 
   const [data, total] = await Promise.all([
-    db.cliente.findMany({ where, skip, take, orderBy: { createdAt: "desc" } }),
+    db.cliente.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { proyectos: true, facturas: true } } },
+    }),
     db.cliente.count({ where }),
   ])
 
@@ -37,7 +43,11 @@ export async function list(params: ListParams) {
 export async function getById(id: string, workspaceId: string) {
   return db.cliente.findFirst({
     where: { id, workspaceId },
-    include: { proyectos: true, tareas: true },
+    include: {
+      proyectos: { orderBy: { updatedAt: "desc" } },
+      facturas: { orderBy: { fechaEmision: "desc" } },
+      notasProfesionales: { orderBy: { createdAt: "desc" } },
+    },
   })
 }
 

@@ -134,7 +134,15 @@ export async function list(params: ListParams) {
 export async function getById(id: string, workspaceId: string) {
   return db.proyecto.findFirst({
     where: { id, workspaceId },
-    include: { cliente: true, tareas: true },
+    include: {
+      cliente: true,
+      tareas: { orderBy: { createdAt: "desc" }, include: { usuario: true } },
+      documentos: { orderBy: { createdAt: "desc" } },
+      facturas: { orderBy: { createdAt: "desc" } },
+      transacciones: { orderBy: { fecha: "desc" } },
+      notas: { orderBy: { createdAt: "desc" } },
+      eventos: { orderBy: { fechaInicio: "asc" } },
+    },
   })
 }
 
