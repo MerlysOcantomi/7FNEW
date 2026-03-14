@@ -1,6 +1,5 @@
 import { db } from "@/lib/db"
 import { getClientSessionFromCookies } from "@/lib/auth/client-session"
-import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export interface PortalContext {
   clienteId: string
@@ -19,11 +18,11 @@ export async function getRequiredPortalContext(): Promise<PortalContext | null> 
     select: { workspaceId: true },
   })
 
-  const workspaceId = cliente?.workspaceId ?? DEFAULT_WORKSPACE_ID
+  if (!cliente?.workspaceId) return null
 
   return {
     clienteId: session.clienteId,
-    workspaceId,
+    workspaceId: cliente.workspaceId,
     portalUserId: session.clientAuthId,
     email: session.email,
     nombre: session.nombre,

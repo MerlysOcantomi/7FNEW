@@ -51,6 +51,13 @@ model Workspace {
   contentPieces  ContentPiece[]
   contentIdeas   ContentIdea[]
   members        WorkspaceMember[]
+  contacts       Contact[]
+  conversations  Conversation[]
+  messages       Message[]
+  conversationActions ConversationAction[]
+  aiClassifications AIClassification[]
+  conversationHandoffs ConversationHandoff[]
+  conversationDrafts ConversationDraft[]
 }
 
 model Cliente {
@@ -82,6 +89,8 @@ model Cliente {
   clientAssets       ClientAsset[]
   clientRequests     ClientRequest[]
   campaigns          Campaign[]
+  contacts           Contact[]
+  conversations      Conversation[]
 }
 
 model Proyecto {
@@ -118,6 +127,7 @@ model Proyecto {
   notas          Nota[]
   campaigns      Campaign[]
   clientRequests ClientRequest[]
+  conversations  Conversation[]
 }
 
 model Tarea {
@@ -328,6 +338,205 @@ model Activity {
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
+model Contact {
+  id          String   @id @default(cuid())
+  nombre      String?
+  email       String?
+  telefono    String?
+  empresa     String?
+  tipo        String   @default("visitante")
+  canal       String   @default("manual")
+  source      String?
+  leadScore   Int?
+  metadata    String?
+  notas       String?
+  clienteId   String?
+  workspaceId String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  cliente       Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  conversations Conversation[]
+  inboxEntries  InboxEntry[]
+
+  @@index([workspaceId, email])
+  @@index([workspaceId, telefono])
+  @@index([workspaceId, clienteId])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  contactId     String
+  channel       String   @default("manual")
+  source        String?
+  status        String   @default("new")
+  subject       String?
+  summary       String?
+  intent        String?
+  sector        String?
+  leadScore     Int?
+  urgency       String   @default("media")
+  sentiment     String?
+  assignedTo    String?
+  clienteId     String?
+  proyectoId    String?
+  isPublic      Boolean  @default(false)
+  lastMessageAt DateTime @default(now())
+  messageCount  Int      @default(0)
+  closedAt      DateTime?
+  workspaceId   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  cliente        Cliente?             @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  proyecto       Proyecto?            @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  messages       Message[]
+  actions        ConversationAction[]
+  classification AIClassification?
+  handoff        ConversationHandoff?
+  drafts         ConversationDraft[]
+  inboxEntries   InboxEntry[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, lastMessageAt])
+  @@index([contactId])
+  @@index([clienteId])
+  @@index([proyectoId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  role            String
+  direction       String   @default("inbound")
+  content         String
+  contentType     String   @default("text")
+  metadata        String?
+  isInternal      Boolean  @default(false)
+  sourceMessageId String?
+  workspaceId     String
+  createdAt       DateTime @default(now())
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+model ConversationAction {
+  id            String   @id @default(cuid())
+  conversationId String
+  type          String
+  status        String   @default("suggested")
+  data          String?
+  resultId      String?
+  resultModule  String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  workspaceId   String
+  createdAt     DateTime @default(now())
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([workspaceId, status])
+}
+
+model AIClassification {
+  id                   String   @id @default(cuid())
+  conversationId       String   @unique
+  intent               String?
+  sector               String?
+  urgency              String?
+  leadScore            Int?
+  sentiment            String?
+  summary              String?
+  suggestedTags        String?
+  briefData            String?
+  facts                String?
+  pendingItems         String?
+  risks                String?
+  nextBestAction       String?
+  confidence           Float?
+  model                String?
+  promptVersion        String?
+  pipelineVersion      String?
+  scoreReasoning       String?
+  lastProcessedMessageId String?
+  lastProcessedAt      DateTime?
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  sourceConversationId String?
+  workspaceId          String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, leadScore])
+}
+
+model ConversationHandoff {
+  id                    String   @id @default(cuid())
+  conversationId        String   @unique
+  status                String   @default("generated")
+  headline              String?
+  summary               String?
+  facts                 String?
+  decisions             String?
+  pendingItems          String?
+  risks                 String?
+  nextRecommendedAction String?
+  sourceMessageId       String?
+  confidence            Float?
+  model                 String?
+  promptVersion         String?
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  workspaceId           String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+model ConversationDraft {
+  id              String   @id @default(cuid())
+  conversationId  String
+  type            String   @default("ghost_reply")
+  status          String   @default("draft")
+  title           String?
+  content         String
+  tone            String?
+  targetChannel   String?
+  sourceMessageId String?
+  generatedFrom   String?
+  model           String?
+  promptVersion   String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  workspaceId     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([workspaceId, status])
+}
+
 model InboxEntry {
   id            String    @id @default(cuid())
   nombre        String?
@@ -349,13 +558,20 @@ model InboxEntry {
   clienteId     String?
   proyectoId    String?
   tareaId       String?
+  contactId     String?
+  conversationId String?
   workspaceId   String?
   archivedAt    DateTime?
   processedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, conversationId])
+  @@index([workspaceId, contactId])
 }
 
 model QRCode {

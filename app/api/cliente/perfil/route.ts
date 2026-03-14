@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getClientSessionFromCookies } from "@/lib/auth/client-session"
+import { getRequiredPortalContext } from "@/lib/auth/portal-context"
 
 export async function GET() {
-  const session = await getClientSessionFromCookies()
-  if (!session) {
+  const ctx = await getRequiredPortalContext()
+  if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
   const cliente = await db.cliente.findUnique({
-    where: { id: session.clienteId },
+    where: { id: ctx.clienteId },
     include: {
       _count: {
         select: {
@@ -30,8 +30,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await getClientSessionFromCookies()
-  if (!session) {
+  const ctx = await getRequiredPortalContext()
+  if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const cliente = await db.cliente.update({
-    where: { id: session.clienteId },
+    where: { id: ctx.clienteId },
     data,
   })
 

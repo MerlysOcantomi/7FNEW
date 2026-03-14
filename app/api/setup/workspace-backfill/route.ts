@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getOrCreateDefaultWorkspace, DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
+import { getOrCreateDefaultWorkspace } from "@/lib/workspace"
+import { requireOwnerAccess } from "@/lib/auth/workspace-auth"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    await requireOwnerAccess(request)
     const workspace = await getOrCreateDefaultWorkspace()
 
     const tables = [
@@ -19,6 +21,11 @@ export async function POST() {
       "notification",
       "activity",
       "inboxEntry",
+      "contact",
+      "conversation",
+      "message",
+      "conversationAction",
+      "aIClassification",
       "attachment",
       "campaign",
       "contentPiece",

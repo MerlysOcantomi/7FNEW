@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       `Nueva factura: ${(record as any).numero}`,
       `Factura creada por ${(record as any).total ? `$${(record as any).total}` : "—"}`,
       `/facturacion/${(record as any).id}`,
-      session?.userId
+      session?.userId,
+      workspaceId
     ).catch(() => {})
 
     return successResponse(record)

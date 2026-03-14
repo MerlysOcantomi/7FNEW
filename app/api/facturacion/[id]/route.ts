@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     if (previous && record) {
-      logChanges("facturacion", id, previous as any, data as any, TRACKED_FIELDS).catch(() => {})
+      logChanges("facturacion", id, previous as any, data as any, TRACKED_FIELDS, workspaceId).catch(() => {})
 
       if (data.estado && data.estado !== previous.estado) {
         const numero = (record as any).numero ?? id
@@ -43,7 +43,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           `Factura ${numero}: ${data.estado}`,
           `Estado cambiado a "${data.estado}"`,
           `/facturacion/${id}`,
-          session?.userId
+          session?.userId,
+          workspaceId
         ).catch(() => {})
       }
     }
@@ -59,7 +60,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const { workspaceId } = await requireWriteAccess()
     const { id } = await params
     const record = await service.getById(id, workspaceId)
-    logActivity({ module: "facturacion", recordId: id, type: "deleted", data: { label: (record as any)?.numero } }).catch(() => {})
+    logActivity({ module: "facturacion", recordId: id, type: "deleted", data: { label: (record as any)?.numero }, workspaceId }).catch(() => {})
     const result = await service.remove(id, workspaceId)
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return successResponse({ deleted: true })

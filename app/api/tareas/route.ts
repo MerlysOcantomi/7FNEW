@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const data = createTareaSchema.parse(body)
     const record = await service.create(data, workspaceId)
 
-    logActivity({ module: "tareas", recordId: (record as any).id, type: "created", data: { label: (record as any).titulo } }).catch(() => {})
+    logActivity({ module: "tareas", recordId: (record as any).id, type: "created", data: { label: (record as any).titulo }, workspaceId }).catch(() => {})
 
     return successResponse(record)
   } catch (error) {

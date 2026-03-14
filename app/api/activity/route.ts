@@ -11,12 +11,42 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl
     const module = searchParams.get("module")
     const recordId = searchParams.get("recordId")
+    const type = searchParams.get("type")
+    const search = searchParams.get("search")?.trim()
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50")))
 
+    // Modo global: sin module/recordId → listado por workspace
     if (!module || !recordId) {
-      return errorResponse("VALIDATION_ERROR", "module y recordId son requeridos")
+      const where: Record<string, unknown> = { workspaceId }
+      if (module) where.module = module
+      if (type) where.type = type
+
+      let activities = await db.activity.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      })
+
+      if (search && activities.length > 0) {
+        const q = search.toLowerCase()
+        activities = activities.filter((a) => {
+          const data = a.data ? JSON.parse(a.data) : null
+          const label = String(data?.label ?? "").toLowerCase()
+          const comment = String(data?.comment ?? "").toLowerCase()
+          const userName = String(a.userName ?? "").toLowerCase()
+          const userEmail = String(a.userEmail ?? "").toLowerCase()
+          return label.includes(q) || comment.includes(q) || userName.includes(q) || userEmail.includes(q)
+        })
+      }
+
+      const parsed = activities.map((a) => ({
+        ...a,
+        data: a.data ? JSON.parse(a.data) : null,
+      }))
+      return successResponse(parsed)
     }
 
+    // Modo por entidad: module + recordId
     const activities = await db.activity.findMany({
       where: { module, recordId, workspaceId },
       orderBy: { createdAt: "desc" },

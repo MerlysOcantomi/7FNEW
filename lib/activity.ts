@@ -1,6 +1,5 @@
 import { db } from "@/lib/db"
 import { getSessionFromCookies } from "@/lib/auth/session"
-import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export type ActivityType =
   | "created"
@@ -36,6 +35,10 @@ interface LogActivityInput {
 }
 
 export async function logActivity(input: LogActivityInput) {
+  if (!input.workspaceId) {
+    throw new Error("workspaceId es requerido para registrar actividad")
+  }
+
   let { userId, userName, userEmail } = input
 
   if (!userId) {
@@ -60,7 +63,7 @@ export async function logActivity(input: LogActivityInput) {
       userName: userName ?? null,
       userEmail: userEmail ?? null,
       data: input.data ? JSON.stringify(input.data) : null,
-      workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,
+      workspaceId: input.workspaceId,
     },
   })
 }
@@ -89,7 +92,8 @@ export async function logChanges(
   recordId: string,
   previous: Record<string, unknown>,
   updateData: Record<string, unknown>,
-  trackedFields: string[]
+  trackedFields: string[],
+  workspaceId: string
 ) {
   const changes = detectChanges(previous, updateData, trackedFields)
   if (changes.length === 0) return
@@ -106,6 +110,7 @@ export async function logChanges(
         recordId,
         type: "status_change",
         data: { field: "estado", oldValue: statusChange.oldValue, newValue: statusChange.newValue },
+        workspaceId,
       })
     )
   }
@@ -117,6 +122,7 @@ export async function logChanges(
         recordId,
         type: assignChange.newValue ? "assigned" : "unassigned",
         data: { field: "usuarioId", oldValue: assignChange.oldValue, newValue: assignChange.newValue },
+        workspaceId,
       })
     )
   }
@@ -129,6 +135,7 @@ export async function logChanges(
         recordId,
         type: "updated",
         data: { changes: otherChanges },
+        workspaceId,
       })
     )
   }

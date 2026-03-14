@@ -1,456 +1,550 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
-import { CopilotPanel } from "@/components/copilot-panel";
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { AppShell } from "@/components/app-shell"
+import { SectionPage } from "@/components/section-page"
+import { useFetch } from "@/hooks/use-fetch"
+import { cn } from "@/lib/utils"
 import {
-  Search,
+  AlertTriangle,
+  Bot,
+  Briefcase,
+  Building2,
   CheckSquare,
+  Clock3,
   FolderKanban,
-  Sparkles,
-  Reply,
-  Tag,
-  MoreHorizontal,
-  Paperclip,
+  History,
+  Loader2,
   Mail,
   MessageSquare,
-  Bell,
-  Filter,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Search,
+  Sparkles,
+  User,
+  WandSparkles,
+} from "lucide-react"
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-type InboxSource = "Email" | "System" | "Client" | "Internal";
-type InboxClass = "Action Required" | "FYI" | "Risk" | "Opportunity" | "Update";
-
-interface InboxEntry {
-  id: string;
-  source: InboxSource;
-  subject: string;
-  preview: string;
-  from: string;
-  time: string;
-  group: "Today" | "This Week" | "Older";
-  classification: InboxClass;
-  unread: boolean;
-  hasAttachment?: boolean;
+interface ConversationListItem {
+  id: string
+  channel: string
+  status: string
+  subject: string | null
+  summary: string | null
+  intent: string | null
+  urgency: string
+  leadScore: number | null
+  lastMessageAt: string
+  messageCount: number
+  contact: {
+    id: string
+    nombre: string | null
+    email: string | null
+    empresa: string | null
+    tipo: string
+  }
+  classification?: {
+    summary?: string | null
+  } | null
+  messages?: Array<{ content: string; role: string }>
 }
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-
-const ENTRIES: InboxEntry[] = [
-  {
-    id: "i1",
-    source: "Client",
-    subject: "Phase 3 Sign-Off — Alpha Expansion",
-    preview: "Acme Corp has reviewed the Phase 3 deliverables and is requesting a call before formal sign-off. Two clarifications pending on infrastructure scope.",
-    from: "J. Mitchell — Acme Corp",
-    time: "09:42",
-    group: "Today",
-    classification: "Action Required",
-    unread: true,
-  },
-  {
-    id: "i2",
-    source: "System",
-    subject: "Risk Alert: Beta Relaunch — Vendor Delay",
-    preview: "Two tier-2 vendors have not confirmed milestone commitments. Estimated impact: 8–12 day delay on Phase 2 delivery.",
-    from: "7F Risk Monitor",
-    time: "08:15",
-    group: "Today",
-    classification: "Risk",
-    unread: true,
-  },
-  {
-    id: "i3",
-    source: "Internal",
-    subject: "Q2 Budget Review — Funds Module",
-    preview: "Finance team has uploaded the Q2 budget variance report. Growth Fund III shows a 3.2% deviation. Review recommended before Thursday.",
-    from: "E. Davis — Finance",
-    time: "Yesterday",
-    group: "Today",
-    classification: "Action Required",
-    unread: false,
-    hasAttachment: true,
-  },
-  {
-    id: "i4",
-    source: "Email",
-    subject: "Enterprise Outreach — Partner Summit Proposal",
-    preview: "Blue Arc Group has submitted a partnership summit proposal for Q2. Estimated revenue opportunity of $180K if accepted by March 15.",
-    from: "K. Walsh — Blue Arc Group",
-    time: "Mon",
-    group: "This Week",
-    classification: "Opportunity",
-    unread: true,
-  },
-  {
-    id: "i5",
-    source: "Client",
-    subject: "Omega Platform — Scope Change Request",
-    preview: "Blue Arc's CTO is requesting a formal scope extension for the reporting module. Change order documentation attached for review.",
-    from: "T. Brooks — Blue Arc Group",
-    time: "Mon",
-    group: "This Week",
-    classification: "Action Required",
-    unread: false,
-    hasAttachment: true,
-  },
-  {
-    id: "i6",
-    source: "System",
-    subject: "Weekly Portfolio Summary — Week 8",
-    preview: "Your weekly intelligence summary is ready. 12 active projects, 3 risks flagged, 2 renewal opportunities, 1 fund deviation tracked.",
-    from: "7F Intelligence Engine",
-    time: "Sun",
-    group: "This Week",
-    classification: "FYI",
-    unread: false,
-  },
-  {
-    id: "i7",
-    source: "Internal",
-    subject: "Delta Infrastructure — Phase 1 Completion Report",
-    preview: "Phase 1 milestone completed on schedule. Documentation package submitted by S. Patel. Client has been notified.",
-    from: "S. Patel — Operations",
-    time: "Feb 21",
-    group: "This Week",
-    classification: "Update",
-    unread: false,
-  },
-  {
-    id: "i8",
-    source: "Email",
-    subject: "Renewal Notice — Nexus Holdings (ARR $240K)",
-    preview: "Nexus Holdings contract enters the 30-day renewal window. Decision point by March 28. Account history and usage data attached.",
-    from: "CRM System",
-    time: "Feb 19",
-    group: "Older",
-    classification: "Action Required",
-    unread: false,
-    hasAttachment: true,
-  },
-  {
-    id: "i9",
-    source: "System",
-    subject: "Gamma Analytics — Final Delivery Confirmed",
-    preview: "Client sign-off received. Project closed successfully. All deliverables archived in the Files module.",
-    from: "7F Project Engine",
-    time: "Feb 18",
-    group: "Older",
-    classification: "FYI",
-    unread: false,
-  },
-];
-
-// ── Classification badge config ───────────────────────────────────────────────
-
-const CLASS_MAP: Record<InboxClass, { bg: string; text: string }> = {
-  "Action Required": { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]" },
-  "Risk":            { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]" },
-  "Opportunity":     { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
-  "FYI":             { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
-  "Update":          { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]" },
-};
-
-const SOURCE_ICON: Record<InboxSource, React.ElementType> = {
-  Email: Mail,
-  System: Bell,
-  Client: MessageSquare,
-  Internal: MessageSquare,
-};
-
-const SOURCE_COLOR: Record<InboxSource, string> = {
-  Email:    "text-[#3B82F6]",
-  System:   "text-[#F59E0B]",
-  Client:   "text-[#10B981]",
-  Internal: "text-[#94A3B8]",
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function ClassBadge({ cls }: { cls: InboxClass }) {
-  const { bg, text } = CLASS_MAP[cls];
-  return (
-    <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap", bg, text)}>
-      {cls}
-    </span>
-  );
+interface ConversationDetail extends ConversationListItem {
+  sector: string | null
+  sentiment: string | null
+  clienteId: string | null
+  proyectoId: string | null
+  cliente?: { id: string; nombre: string; email: string | null; empresa: string | null } | null
+  proyecto?: { id: string; nombre: string; estado: string } | null
+  classification?: {
+    intent?: string | null
+    urgency?: string | null
+    leadScore?: number | null
+    summary?: string | null
+    suggestedTags?: string[] | null
+    briefData?: Record<string, unknown> | null
+  } | null
+  actions?: Array<{
+    id: string
+    type: string
+    status: string
+    data?: Record<string, unknown> | null
+    resultModule?: string | null
+    resultId?: string | null
+    createdAt: string
+  }>
+  messages: Array<{
+    id: string
+    role: string
+    direction: string
+    content: string
+    isInternal: boolean
+    createdAt: string
+  }>
+  inboxEntries?: Array<{
+    id: string
+    clienteId?: string | null
+    proyectoId?: string | null
+    tareaId?: string | null
+  }>
 }
 
-function QuickActions({ entry, onAction }: { entry: InboxEntry; onAction: (label: string) => void }) {
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {[
-        { label: "Convert to Task", icon: CheckSquare },
-        { label: "Attach to Project", icon: FolderKanban },
-        { label: "Summarize", icon: Sparkles },
-        { label: "Reply Draft", icon: Reply },
-      ].map(({ label, icon: Icon }) => (
-        <button
-          key={label}
-          onClick={(e) => { e.stopPropagation(); onAction(label); }}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#0F172A] text-white text-[10px] font-medium hover:bg-[#1E293B] transition-colors"
-        >
-          <Icon size={10} strokeWidth={2} />
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+const STATUS_OPTIONS = [
+  "todos",
+  "new",
+  "triaged",
+  "assigned",
+  "awaiting_response",
+  "lead_detected",
+  "converted",
+  "closed",
+  "archived",
+]
+const CHANNEL_OPTIONS = ["todos", "manual", "web_chat", "email", "portal", "whatsapp"]
+
+function formatRelativeDate(value: string) {
+  const date = new Date(value)
+  const diff = Date.now() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return "Ahora"
+  if (minutes < 60) return `Hace ${minutes} min`
+  if (hours < 24) return `Hace ${hours} h`
+  if (days < 7) return `Hace ${days} d`
+  return date.toLocaleDateString("es", { day: "numeric", month: "short" })
 }
 
-// Desktop row
-function EntryRow({
-  entry,
+function statusBadge(status: string) {
+  switch (status) {
+    case "lead_detected":
+      return "bg-[#DCFCE7] text-[#166534]"
+    case "converted":
+      return "bg-[#DBEAFE] text-[#1D4ED8]"
+    case "assigned":
+      return "bg-[#EDE9FE] text-[#6D28D9]"
+    case "awaiting_response":
+      return "bg-[#FCE7F3] text-[#BE185D]"
+    case "closed":
+    case "archived":
+      return "bg-[#F1F5F9] text-[#64748B]"
+    case "triaged":
+      return "bg-[#FEF3C7] text-[#92400E]"
+    case "new":
+    default:
+      return "bg-[#FEE2E2] text-[#991B1B]"
+  }
+}
+
+function urgencyBadge(urgency: string) {
+  switch (urgency) {
+    case "critica":
+      return "bg-[#FEE2E2] text-[#991B1B]"
+    case "alta":
+      return "bg-[#FEF3C7] text-[#92400E]"
+    case "media":
+      return "bg-[#DBEAFE] text-[#1D4ED8]"
+    default:
+      return "bg-[#F1F5F9] text-[#64748B]"
+  }
+}
+
+function channelLabel(channel: string) {
+  return {
+    manual: "Manual",
+    web_chat: "Chat web",
+    email: "Email",
+    portal: "Portal",
+    whatsapp: "WhatsApp",
+  }[channel] ?? channel
+}
+
+function ConversationCard({
+  item,
   selected,
-  onSelect,
-  onAction,
+  onClick,
 }: {
-  entry: InboxEntry;
-  selected: boolean;
-  onSelect: () => void;
-  onAction: (label: string) => void;
+  item: ConversationListItem
+  selected: boolean
+  onClick: () => void
 }) {
-  const SourceIcon = SOURCE_ICON[entry.source];
+  const preview = item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "Sin resumen"
+
   return (
-    <div
-      onClick={onSelect}
+    <button
+      onClick={onClick}
       className={cn(
-        "px-5 py-4 flex items-start gap-4 cursor-pointer border-b border-[#F1F5F9] transition-colors group",
-        selected
-          ? "bg-[#EFF6FF] shadow-[inset_0_0_0_1px_#BFDBFE]"
-          : entry.unread
-          ? "bg-white hover:bg-[#F8FAFC]"
-          : "bg-[#FAFBFC] hover:bg-[#F8FAFC]"
+        "w-full rounded-xl border p-4 text-left transition-colors",
+        selected ? "border-[#BFDBFE] bg-[#EFF6FF]" : "border-[#E2E8F0] bg-white hover:border-[#BFDBFE]"
       )}
     >
-      {/* Source icon */}
-      <div className="mt-0.5 shrink-0">
-        <SourceIcon size={15} strokeWidth={1.75} className={SOURCE_COLOR[entry.source]} />
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start gap-3 mb-1">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              {entry.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] shrink-0" />}
-              <p className={cn("text-sm truncate", entry.unread ? "font-semibold text-[#0F172A]" : "font-medium text-[#334155]")}>
-                {entry.subject}
-              </p>
-            </div>
-            <p className="text-xs text-[#64748B]">{entry.from}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-[#0F172A] truncate">
+              {item.subject || item.contact.nombre || "Nueva conversación"}
+            </p>
+            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusBadge(item.status))}>
+              {item.status}
+            </span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {entry.hasAttachment && <Paperclip size={11} className="text-[#94A3B8]" />}
-            <ClassBadge cls={entry.classification} />
-            <span className="text-[10px] text-[#94A3B8]">{entry.time}</span>
-          </div>
-        </div>
-        <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">{entry.preview}</p>
-
-        {/* Quick actions on expand/select */}
-        {selected && (
-          <div className="mt-3">
-            <QuickActions entry={entry} onAction={onAction} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Mobile card
-function EntryCard({
-  entry,
-  selected,
-  onSelect,
-  onAction,
-}: {
-  entry: InboxEntry;
-  selected: boolean;
-  onSelect: () => void;
-  onAction: (label: string) => void;
-}) {
-  const SourceIcon = SOURCE_ICON[entry.source];
-  return (
-    <div
-      onClick={onSelect}
-      className={cn(
-        "rounded-xl p-4 border transition-colors cursor-pointer",
-        selected
-          ? "bg-[#EFF6FF] border-[#BFDBFE]"
-          : "bg-white border-[#E2E8F0] hover:border-[#BFDBFE]"
-      )}
-    >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {entry.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] shrink-0" />}
-          <SourceIcon size={13} strokeWidth={1.75} className={cn("shrink-0", SOURCE_COLOR[entry.source])} />
-          <p className={cn("text-sm truncate", entry.unread ? "font-semibold text-[#0F172A]" : "font-medium text-[#334155]")}>
-            {entry.subject}
+          <p className="mt-1 text-xs text-[#64748B] truncate">
+            {item.contact.nombre || item.contact.email || "Contacto sin identificar"}
+            {item.contact.empresa ? ` · ${item.contact.empresa}` : ""}
           </p>
         </div>
-        <span className="text-[10px] text-[#94A3B8] shrink-0">{entry.time}</span>
+        <span className="text-[10px] text-[#94A3B8]">{formatRelativeDate(item.lastMessageAt)}</span>
       </div>
-      <p className="text-xs text-[#64748B] mb-2">{entry.from}</p>
-      <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2 mb-3">{entry.preview}</p>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <ClassBadge cls={entry.classification} />
-        {entry.hasAttachment && <Paperclip size={11} className="text-[#94A3B8]" />}
+
+      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[#64748B]">
+        {preview}
+      </p>
+
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
+        <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
+          {channelLabel(item.channel)}
+        </span>
+        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", urgencyBadge(item.urgency))}>
+          {item.urgency}
+        </span>
+        {typeof item.leadScore === "number" && (
+          <span className="rounded-full bg-[#0F172A] px-2 py-0.5 text-[10px] font-medium text-white">
+            Lead {item.leadScore}
+          </span>
+        )}
       </div>
-      {selected && (
-        <div className="mt-3 pt-3 border-t border-[#DBEAFE]">
-          <QuickActions entry={entry} onAction={onAction} />
-        </div>
-      )}
-    </div>
-  );
+    </button>
+  )
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
-const GROUPS = ["Today", "This Week", "Older"] as const;
-
 export default function InboxPage() {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-  const [classFilter, setClassFilter] = useState<string>("All");
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [search, setSearch] = useState("")
+  const [status, setStatus] = useState("todos")
+  const [channel, setChannel] = useState("todos")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [actionState, setActionState] = useState<string | null>(null)
 
-  const filtered = ENTRIES.filter((e) => {
-    const matchSearch =
-      e.subject.toLowerCase().includes(search.toLowerCase()) ||
-      e.from.toLowerCase().includes(search.toLowerCase());
-    const matchClass = classFilter === "All" || e.classification === classFilter;
-    return matchSearch && matchClass;
-  });
+  const params = new URLSearchParams()
+  params.set("pageSize", "100")
+  if (search.trim()) params.set("q", search.trim())
+  if (status !== "todos") params.set("status", status)
+  if (channel !== "todos") params.set("channel", channel)
 
-  const unreadCount = ENTRIES.filter((e) => e.unread).length;
+  const {
+    data: conversationsData,
+    loading,
+    error,
+    refetch,
+  } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey })
 
-  const handleAction = (label: string) => {
-    // placeholder: action acknowledged
-  };
+  const conversations = Array.isArray(conversationsData) ? conversationsData : []
 
-  const handleSelect = (id: string) => {
-    setSelected((prev) => (prev === id ? null : id));
-  };
+  useEffect(() => {
+    if (!selectedId && conversations.length > 0) {
+      setSelectedId(conversations[0].id)
+    }
+    if (selectedId && !conversations.some((item) => item.id === selectedId)) {
+      setSelectedId(conversations[0]?.id ?? null)
+    }
+  }, [conversations, selectedId])
+
+  const {
+    data: detailData,
+    loading: detailLoading,
+    error: detailError,
+    refetch: refetchDetail,
+  } = useFetch<ConversationDetail>(
+    selectedId ? `/api/inbox/conversations/${selectedId}` : null,
+    { refreshKey },
+  )
+
+  const selected = detailData ?? null
+
+  const stats = useMemo(() => {
+    return {
+      total: conversations.length,
+      leads: conversations.filter((item) => item.status === "lead_detected").length,
+      converted: conversations.filter((item) => item.status === "converted").length,
+      urgent: conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
+    }
+  }, [conversations])
+
+  async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
+    if (!selectedId) return
+
+    setActionState("Procesando...")
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "Error ejecutando acción")
+
+      setActionState("Acción aplicada")
+      setRefreshKey((value) => value + 1)
+      refetch()
+      refetchDetail()
+    } catch (err) {
+      setActionState(err instanceof Error ? err.message : "Error desconocido")
+    }
+  }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
-      <SidebarNav />
-      <MobileSidebarNav />
-
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Header */}
-        <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Inbox</h1>
-                {unreadCount > 0 && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] text-[10px] font-bold">
-                    {unreadCount} new
-                  </span>
-                )}
-              </div>
-            </div>
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
+      <SectionPage
+        title="Smart Inbox"
+        description="Capa conversacional del negocio: conversaciones, clasificación IA, contexto operativo y transición a CRM sin salir de 7F."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Conversaciones</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.total}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Leads detectados</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.leads}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Convertidas</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.converted}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Alta prioridad</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.urgent}</p>
           </div>
         </div>
 
-        <div className="px-4 sm:px-5 md:px-8 py-6 space-y-6">
-          {/* Search + Filter */}
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search inbox..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
-              />
-            </div>
-            <div className="relative w-full lg:w-auto">
-              <button
-                onClick={() => setFilterOpen(!filterOpen)}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[140px] justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <Filter size={13} className="text-[#94A3B8]" />
-                  <span>{classFilter === "All" ? "Classification" : classFilter}</span>
+        <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-col gap-3 md:flex-row">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar por contacto, asunto o contexto..."
+                    className="w-full rounded-lg border border-border bg-background py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors focus:border-[#3B82F6]"
+                  />
                 </div>
-              </button>
-              {filterOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[180px]">
-                  {["All", "Action Required", "Risk", "Opportunity", "FYI", "Update"].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => { setClassFilter(opt); setFilterOpen(false); }}
-                      className={cn(
-                        "w-full text-left px-4 py-2 text-sm transition-colors",
-                        classFilter === opt ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]"
-                      )}
-                    >
-                      {opt}
-                    </button>
+                <select
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option === "todos" ? "Todos los estados" : option}
+                    </option>
                   ))}
-                </div>
-              )}
+                </select>
+                <select
+                  value={channel}
+                  onChange={(event) => setChannel(event.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none"
+                >
+                  {CHANNEL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option === "todos" ? "Todos los canales" : channelLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Grouped entries */}
-          <div className="space-y-8">
-            {GROUPS.map((group) => {
-              const groupEntries = filtered.filter((e) => e.group === group);
-              if (groupEntries.length === 0) return null;
-              return (
-                <section key={group}>
-                  <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">{group}</h2>
-
-                  {/* Desktop list */}
-                  <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                    {groupEntries.map((entry) => (
-                      <EntryRow
-                        key={entry.id}
-                        entry={entry}
-                        selected={selected === entry.id}
-                        onSelect={() => handleSelect(entry.id)}
-                        onAction={handleAction}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Mobile cards */}
-                  <div className="sm:hidden space-y-3">
-                    {groupEntries.map((entry) => (
-                      <EntryCard
-                        key={entry.id}
-                        entry={entry}
-                        selected={selected === entry.id}
-                        onSelect={() => handleSelect(entry.id)}
-                        onAction={handleAction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-sm text-[#64748B]">No inbox items match your search.</p>
+            {loading ? (
+              <div className="flex items-center justify-center rounded-xl border border-border bg-card py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : error ? (
+              <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-6 text-center">
+                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#EF4444]" />
+                <p className="text-sm font-medium text-[#991B1B]">{error}</p>
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+                <History className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-foreground">No hay conversaciones aún</p>
+                <p className="mt-1 text-xs text-muted-foreground">Las conversaciones creadas desde el inbox aparecerán aquí.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {conversations.map((item) => (
+                  <ConversationCard
+                    key={item.id}
+                    item={item}
+                    selected={selectedId === item.id}
+                    onClick={() => setSelectedId(item.id)}
+                  />
+                ))}
               </div>
             )}
           </div>
-        </div>
-      </main>
 
-      <CopilotPanel defaultContext="Clients" />
-    </div>
-  );
+          <div className="space-y-4">
+            {!selectedId ? (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <MessageSquare className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Selecciona una conversación.</p>
+              </div>
+            ) : detailLoading && !selected ? (
+              <div className="flex items-center justify-center rounded-xl border border-border bg-card py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : detailError ? (
+              <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-6 text-center">
+                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#EF4444]" />
+                <p className="text-sm font-medium text-[#991B1B]">{detailError}</p>
+              </div>
+            ) : selected ? (
+              <>
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold text-foreground">
+                        {selected.subject || selected.contact.nombre || "Conversación"}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {selected.contact.nombre || selected.contact.email || "Contacto sin identificar"}
+                        {selected.contact.empresa ? ` · ${selected.contact.empresa}` : ""}
+                      </p>
+                    </div>
+                    <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold", statusBadge(selected.status))}>
+                      {selected.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg bg-[#F8FAFC] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Canal</p>
+                      <p className="mt-1 text-sm font-medium text-[#0F172A]">{channelLabel(selected.channel)}</p>
+                    </div>
+                    <div className="rounded-lg bg-[#F8FAFC] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Lead score</p>
+                      <p className="mt-1 text-sm font-medium text-[#0F172A]">{selected.leadScore ?? "Sin score"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#DBEAFE] bg-[#EFF6FF] p-5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[#2563EB]" />
+                    <p className="text-sm font-semibold text-[#1D4ED8]">Smart Handoff</p>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-[#1E3A8A]">
+                    {selected.classification?.summary || selected.summary || "La IA todavía no generó un contexto resumido para esta conversación."}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selected.classification?.intent && (
+                      <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
+                        Intent: {selected.classification.intent}
+                      </span>
+                    )}
+                    {selected.classification?.suggestedTags?.map((tag) => (
+                      <span key={tag} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-center gap-2">
+                    <WandSparkles className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold text-foreground">Acciones sugeridas</p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleConvert("cliente")}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B]"
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      Crear cliente
+                    </button>
+                    <button
+                      onClick={() => handleConvert("proyecto")}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
+                    >
+                      <FolderKanban className="h-3.5 w-3.5" />
+                      Crear proyecto
+                    </button>
+                    <button
+                      onClick={() => handleConvert("tarea")}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
+                    >
+                      <CheckSquare className="h-3.5 w-3.5" />
+                      Crear tarea
+                    </button>
+                  </div>
+                  {actionState && <p className="mt-3 text-xs text-muted-foreground">{actionState}</p>}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold text-foreground">Mensajes</p>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {selected.messages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sin mensajes.</p>
+                    ) : (
+                      selected.messages.map((message) => (
+                        <div key={message.id} className="rounded-lg border border-border bg-background p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                              {message.role}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {formatRelativeDate(message.createdAt)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-foreground">{message.content}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold text-foreground">Contexto de negocio</p>
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <span>{selected.contact.email || "Sin email"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span>{selected.contact.empresa || "Sin empresa"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Clock3 className="h-4 w-4" />
+                      <span>{selected.messageCount} mensajes</span>
+                    </div>
+                    {selected.cliente && (
+                      <Link href={`/clientes/${selected.cliente.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline">
+                        <User className="h-4 w-4" />
+                        Cliente vinculado: {selected.cliente.nombre}
+                      </Link>
+                    )}
+                    {selected.proyecto && (
+                      <Link href={`/proyectos/${selected.proyecto.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline">
+                        <FolderKanban className="h-4 w-4" />
+                        Proyecto vinculado: {selected.proyecto.nombre}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </SectionPage>
+    </AppShell>
+  )
 }

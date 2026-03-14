@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const record = await service.create(data, workspaceId)
 
     const { logActivity } = await import("@/lib/activity")
-    logActivity({ module: "proyectos", recordId: (record as any).id, type: "created", data: { label: (record as any).nombre } }).catch(() => {})
+    logActivity({ module: "proyectos", recordId: (record as any).id, type: "created", data: { label: (record as any).nombre }, workspaceId }).catch(() => {})
 
     return successResponse(record)
   } catch (error) {

@@ -1,5 +1,4 @@
 import { db } from "@/lib/db"
-import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export type NotificationType =
   | "tarea_asignada"
@@ -24,6 +23,10 @@ interface CreateNotificationInput {
 }
 
 export async function createNotification(input: CreateNotificationInput) {
+  if (!input.workspaceId) {
+    throw new Error("workspaceId es requerido para crear notificaciones")
+  }
+
   return db.notification.create({
     data: {
       userId: input.userId,
@@ -31,7 +34,7 @@ export async function createNotification(input: CreateNotificationInput) {
       title: input.title,
       message: input.message ?? null,
       link: input.link ?? null,
-      workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,
+      workspaceId: input.workspaceId,
     },
   })
 }
@@ -45,7 +48,11 @@ export async function createNotificationForRole(
   excludeUserId?: string,
   workspaceId?: string
 ) {
-  const wsId = workspaceId ?? DEFAULT_WORKSPACE_ID
+  if (!workspaceId) {
+    throw new Error("workspaceId es requerido para notificaciones por rol")
+  }
+
+  const wsId = workspaceId
   const roles = role === "admin" ? ["admin"] : ["admin", "editor"]
 
   const members = await db.workspaceMember.findMany({

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@libsql/client"
+import { requireOwnerAccess } from "@/lib/auth/workspace-auth"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    await requireOwnerAccess(request)
     const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
     const dbToken = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN
 

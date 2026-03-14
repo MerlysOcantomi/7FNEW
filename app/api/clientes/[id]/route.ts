@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     if (previous) {
-      logChanges("clientes", id, previous as any, data as any, TRACKED_FIELDS).catch(() => {})
+      logChanges("clientes", id, previous as any, data as any, TRACKED_FIELDS, workspaceId).catch(() => {})
     }
 
     return successResponse(record)
@@ -49,7 +49,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    logActivity({ module: "clientes", recordId: id, type: "deleted", data: { label: (record as any)?.nombre } }).catch(() => {})
+    logActivity({ module: "clientes", recordId: id, type: "deleted", data: { label: (record as any)?.nombre }, workspaceId }).catch(() => {})
     const result = await service.remove(id, workspaceId)
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return successResponse({ deleted: true })

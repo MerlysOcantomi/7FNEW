@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { ProyectoForm } from "@/components/forms/proyecto-form";
+import { ActivityTimeline } from "@/components/activity-timeline";
 import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -418,6 +419,7 @@ const TABS = [
   { key: "archivos", label: "Archivos" },
   { key: "finanzas", label: "Finanzas" },
   { key: "notas", label: "Notas" },
+  { key: "actividad", label: "Actividad" },
 ];
 
 export default function ProjectDetailPage() {
@@ -534,6 +536,7 @@ export default function ProjectDetailPage() {
           if (activeTab === "archivos") return <TabArchivos project={project} />;
           if (activeTab === "finanzas") return <TabFinanzas project={project} />;
           if (activeTab === "notas") return <TabNotas project={project} />;
+          if (activeTab === "actividad") return <ActivityTimeline module="proyectos" recordId={id!} />;
           return null;
         }}
       </ContextShell>

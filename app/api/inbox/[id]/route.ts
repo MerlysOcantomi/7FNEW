@@ -2,6 +2,8 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess, requireAdminAccess } from "@/lib/auth/workspace-auth"
+import { parseConversationJsonFields, transitionConversation } from "@/lib/modules/inbox/service"
+import { normalizeLegacyInboxStatus } from "@/lib/modules/inbox/state"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -9,7 +11,20 @@ export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const { workspaceId } = await requireReadAccess()
     const { id } = await params
-    const entry = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
+    const entry = await db.inboxEntry.findFirst({
+      where: { id, workspaceId },
+      include: {
+        contact: true,
+        conversation: {
+          include: {
+            contact: true,
+            classification: true,
+            messages: { orderBy: { createdAt: "asc" } },
+            actions: { orderBy: { createdAt: "desc" } },
+          },
+        },
+      },
+    })
     if (!entry) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
 
     let parsedEntry = { ...entry } as Record<string, unknown>
@@ -19,6 +34,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
           parsedEntry[field] = JSON.parse(entry[field] as string)
         } catch { /* keep string */ }
       }
+    }
+
+    if (entry.conversation) {
+      parsedEntry.conversation = parseConversationJsonFields(entry.conversation as Record<string, unknown>)
     }
 
     return successResponse(parsedEntry)
@@ -59,6 +78,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       where: { id },
       data,
     })
+
+    const normalizedConversationStatus =
+      typeof body.estado === "string" ? normalizeLegacyInboxStatus(body.estado) : null
+
+    if (existing.conversationId && normalizedConversationStatus) {
+      await transitionConversation({
+        workspaceId,
+        conversationId: existing.conversationId,
+        requestedStatus: normalizedConversationStatus,
+      }).catch(() => null)
+    }
 
     return successResponse(updated)
   } catch (error) {

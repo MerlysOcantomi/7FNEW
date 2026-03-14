@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getClientSessionFromCookies } from "@/lib/auth/client-session"
+import { getRequiredPortalContext } from "@/lib/auth/portal-context"
 
 export async function GET() {
-  const session = await getClientSessionFromCookies()
-  if (!session) {
+  const ctx = await getRequiredPortalContext()
+  if (!ctx) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
   const proyectos = await db.proyecto.findMany({
-    where: { clienteId: session.clienteId },
+    where: {
+      workspaceId: ctx.workspaceId,
+      clienteId: ctx.clienteId,
+    },
     orderBy: { createdAt: "desc" },
     include: {
       tareas: { select: { id: true, titulo: true, estado: true, prioridad: true } },

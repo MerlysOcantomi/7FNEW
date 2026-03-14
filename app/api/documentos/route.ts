@@ -26,14 +26,15 @@ export async function POST(request: NextRequest) {
     const data = createDocumentoSchema.parse(body)
     const record = await service.create(data, workspaceId)
 
-    logActivity({ module: "documentos", recordId: (record as any).id, type: "created", data: { label: (record as any).nombre } }).catch(() => {})
+    logActivity({ module: "documentos", recordId: (record as any).id, type: "created", data: { label: (record as any).nombre }, workspaceId }).catch(() => {})
 
     notifyAdminsAndEditors(
       "documento_subido",
       `Documento subido: ${(record as any).nombre}`,
       `Tipo: ${(record as any).tipo}`,
       undefined,
-      session?.userId
+      session?.userId,
+      workspaceId
     ).catch(() => {})
 
     return successResponse(record)

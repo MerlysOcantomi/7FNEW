@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError, getPaginationParams } from "@/lib/api"
-import { classifyInboxEntry } from "@/lib/inbox"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
+import { createConversationFromInboxEntry } from "@/lib/modules/inbox/service"
+import { runConversationIntelligence } from "@/lib/modules/inbox/intelligence"
 
 export async function GET(request: NextRequest) {
   try {
@@ -82,55 +83,52 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    classifyInBackground(entry.id, {
+    const conversationResult = await createConversationFromInboxEntry({
+      inboxEntryId: entry.id,
+      workspaceId,
       nombre,
       email,
       telefono,
       mensaje: mensaje.trim(),
       fuente,
     })
+    const { conversation, contact } = conversationResult
 
-    return successResponse(entry)
-  } catch (error) {
-    return handleError(error, "InboxEntry")
-  }
-}
-
-function classifyInBackground(
-  entryId: string,
-  input: { nombre?: string; email?: string; telefono?: string; mensaje: string; fuente: string },
-) {
-  ;(async () => {
     try {
-      console.log("[7F Inbox] Clasificando en background:", entryId)
-      const classification = await classifyInboxEntry(input)
-
-      await db.inboxEntry.update({
-        where: { id: entryId },
-        data: {
-          tipo: classification.tipo,
-          categoria: classification.categoria,
-          urgencia: classification.urgencia,
-          intencion: classification.intencion,
-          resumen: classification.resumen,
-          datosCliente: JSON.stringify(classification.datosCliente),
-          datosProyecto: JSON.stringify(classification.datosProyecto),
-          notas: classification.notas,
-          tags: JSON.stringify(classification.tags),
-          aiRaw: JSON.stringify(classification),
-          estado: "clasificado",
-        },
+      await runConversationIntelligence({
+        workspaceId,
+        conversationId: conversation.id,
+        trigger: "inbox_post",
+        sourceInboxEntryId: entry.id,
       })
-      console.log("[7F Inbox] Clasificacion completada:", entryId)
+
+      return successResponse({
+        ...entry,
+        estado: "clasificado",
+        contactId: contact.id,
+        conversationId: conversation.id,
+        reusedConversation: conversationResult.reused,
+        reopenedConversation: conversationResult.reopened,
+      })
     } catch (err) {
-      console.error("[7F Inbox] Error clasificando:", err)
       await db.inboxEntry.update({
-        where: { id: entryId },
+        where: { id: entry.id },
         data: {
           estado: "error",
           notas: `Error de clasificacion: ${err instanceof Error ? err.message : "desconocido"}`,
         },
-      }).catch(() => {})
+      })
+
+      return successResponse({
+        ...entry,
+        estado: "error",
+        contactId: contact.id,
+        conversationId: conversation.id,
+        reusedConversation: conversationResult.reused,
+        reopenedConversation: conversationResult.reopened,
+      })
     }
-  })()
+  } catch (error) {
+    return handleError(error, "InboxEntry")
+  }
 }

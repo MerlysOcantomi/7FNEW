@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { hashPassword } from "@/lib/auth/password"
+import { requireAdminAccess } from "@/lib/auth/workspace-auth"
+import { handleError } from "@/lib/api"
 
 export async function POST(request: NextRequest) {
   try {
+    const { workspaceId } = await requireAdminAccess(request)
     const { clienteId, email, password } = await request.json()
 
     if (!clienteId || !email || !password) {
@@ -20,7 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const cliente = await db.cliente.findUnique({ where: { id: clienteId } })
+    const cliente = await db.cliente.findFirst({ where: { id: clienteId, workspaceId } })
     if (!cliente) {
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
     }
@@ -51,7 +54,6 @@ export async function POST(request: NextRequest) {
       clienteId: clientAuth.clienteId,
     })
   } catch (error) {
-    console.error("Client register error:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    return handleError(error, "ClientAuth")
   }
 }

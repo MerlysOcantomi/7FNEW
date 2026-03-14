@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (previous && record) {
       const title = (record as any).titulo ?? "Tarea"
 
-      logChanges("tareas", id, previous as any, data as any, TRACKED_FIELDS).catch(() => {})
+      logChanges("tareas", id, previous as any, data as any, TRACKED_FIELDS, workspaceId).catch(() => {})
 
       if (data.usuarioId && data.usuarioId !== previous.usuarioId) {
         const usuario = await db.usuario.findUnique({ where: { id: data.usuarioId as string }, select: { email: true, nombre: true } })
@@ -51,6 +51,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
               title: `Tarea asignada: ${title}`,
               message: `Se te ha asignado la tarea "${title}"`,
               link: `/tareas/${id}`,
+              workspaceId,
             }).catch(() => {})
           }
         }
@@ -62,7 +63,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           `Tarea actualizada: ${title}`,
           `Estado cambiado a "${data.estado}"`,
           `/tareas/${id}`,
-          session?.userId
+          session?.userId,
+          workspaceId
         ).catch(() => {})
       }
     }
@@ -79,7 +81,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    logActivity({ module: "tareas", recordId: id, type: "deleted", data: { label: (record as any)?.titulo } }).catch(() => {})
+    logActivity({ module: "tareas", recordId: id, type: "deleted", data: { label: (record as any)?.titulo }, workspaceId }).catch(() => {})
     const result = await service.remove(id, workspaceId)
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return successResponse({ deleted: true })
