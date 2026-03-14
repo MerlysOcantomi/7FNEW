@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
+import { InlineSelect, InlineText, InlineTextarea } from "@/components/inline-edit"
 import { SectionPage } from "@/components/section-page"
 import { useFetch } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
@@ -14,6 +15,7 @@ import {
   Check,
   CheckSquare,
   Clock3,
+  FileText,
   Play,
   FolderKanban,
   History,
@@ -67,6 +69,35 @@ interface ConversationDetail extends ConversationListItem {
     suggestedTags?: string[] | null
     briefData?: Record<string, unknown> | null
   } | null
+  handoff?: {
+    id: string
+    status: string
+    headline?: string | null
+    summary?: string | null
+    facts?: string[] | null
+    decisions?: string[] | null
+    pendingItems?: string[] | null
+    risks?: string[] | null
+    nextRecommendedAction?: string | null
+    confidence?: number | null
+    reviewedBy?: string | null
+    reviewedAt?: string | null
+    sourceMessageId?: string | null
+  } | null
+  drafts?: Array<{
+    id: string
+    type: string
+    status: string
+    title?: string | null
+    content: string
+    tone?: string | null
+    targetChannel?: string | null
+    sourceMessageId?: string | null
+    reviewedBy?: string | null
+    reviewedAt?: string | null
+    generatedFrom?: Record<string, unknown> | null
+    createdAt: string
+  }>
   actions?: Array<{
     id: string
     type: string
@@ -202,6 +233,56 @@ function confidenceLabel(value?: number | null) {
   return `${Math.round(value * 100)}%`
 }
 
+function handoffStatusBadge(status: string) {
+  switch (status) {
+    case "reviewed":
+      return "bg-[#DCFCE7] text-[#166534]"
+    case "stale":
+      return "bg-[#FEF3C7] text-[#92400E]"
+    case "generated":
+    default:
+      return "bg-[#DBEAFE] text-[#1D4ED8]"
+  }
+}
+
+function draftStatusBadge(status: string) {
+  switch (status) {
+    case "approved":
+      return "bg-[#EDE9FE] text-[#6D28D9]"
+    case "sent":
+      return "bg-[#DCFCE7] text-[#166534]"
+    case "discarded":
+    case "superseded":
+      return "bg-[#F1F5F9] text-[#64748B]"
+    case "edited":
+      return "bg-[#FEF3C7] text-[#92400E]"
+    case "draft":
+    default:
+      return "bg-[#DBEAFE] text-[#1D4ED8]"
+  }
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return null
+  return new Date(value).toLocaleString("es", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function linesToText(value?: string[] | null) {
+  return Array.isArray(value) ? value.join("\n") : ""
+}
+
+function textToLines(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
 function ConversationCard({
   item,
   selected,
@@ -268,6 +349,8 @@ export default function InboxPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
+  const [handoffState, setHandoffState] = useState<string | null>(null)
+  const [draftState, setDraftState] = useState<string | null>(null)
 
   const params = new URLSearchParams()
   params.set("pageSize", "100")
@@ -391,6 +474,46 @@ export default function InboxPage() {
       setActionState(err instanceof Error ? err.message : "Error desconocido")
     } finally {
       setPendingActionId(null)
+    }
+  }
+
+  async function updateHandoff(payload: Record<string, unknown>, successMessage = "Handoff actualizado") {
+    if (!selectedId) return
+    setHandoffState("Guardando handoff...")
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}/handoff`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "No se pudo guardar el handoff")
+      setHandoffState(successMessage)
+      setRefreshKey((value) => value + 1)
+      refetchDetail()
+    } catch (err) {
+      setHandoffState(err instanceof Error ? err.message : "Error desconocido")
+      throw err
+    }
+  }
+
+  async function updateDraft(draftId: string, payload: Record<string, unknown>, successMessage = "Draft actualizado") {
+    if (!selectedId) return
+    setDraftState("Guardando draft...")
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}/drafts/${draftId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "No se pudo guardar el draft")
+      setDraftState(successMessage)
+      setRefreshKey((value) => value + 1)
+      refetchDetail()
+    } catch (err) {
+      setDraftState(err instanceof Error ? err.message : "Error desconocido")
+      throw err
     }
   }
 
@@ -536,21 +659,233 @@ export default function InboxPage() {
                     <Sparkles className="h-4 w-4 text-[#2563EB]" />
                     <p className="text-sm font-semibold text-[#1D4ED8]">Smart Handoff</p>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-[#1E3A8A]">
-                    {selected.classification?.summary || selected.summary || "La IA todavía no generó un contexto resumido para esta conversación."}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selected.classification?.intent && (
-                      <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
-                        Intent: {selected.classification.intent}
-                      </span>
-                    )}
-                    {selected.classification?.suggestedTags?.map((tag) => (
-                      <span key={tag} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
-                        {tag}
-                      </span>
-                    ))}
+                  {selected.handoff ? (
+                    <>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={cn("rounded-full px-2 py-1 text-[10px] font-semibold", handoffStatusBadge(selected.handoff.status))}>
+                          {selected.handoff.status}
+                        </span>
+                        {confidenceLabel(selected.handoff.confidence) && (
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
+                            Confianza {confidenceLabel(selected.handoff.confidence)}
+                          </span>
+                        )}
+                        {selected.handoff.reviewedAt && (
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
+                            Revisado {formatDateTime(selected.handoff.reviewedAt)}
+                          </span>
+                        )}
+                        {selected.handoff.status === "stale" && (
+                          <span className="rounded-full bg-[#FEF3C7] px-2 py-1 text-[10px] font-medium text-[#92400E]">
+                            Requiere revisión
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-4 space-y-4">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Headline</p>
+                          <div className="mt-1 text-[#1E3A8A]">
+                            <InlineText
+                              value={selected.handoff.headline || ""}
+                              placeholder="Agregar headline operativo..."
+                              className="text-sm font-semibold"
+                              onSave={(value) => updateHandoff({ headline: value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Resumen</p>
+                          <InlineTextarea
+                            value={selected.handoff.summary || ""}
+                            placeholder="Agregar resumen operativo..."
+                            className="mt-1 bg-white/70 text-[#1E3A8A]"
+                            rows={4}
+                            onSave={(value) => updateHandoff({ summary: value })}
+                          />
+                        </div>
+
+                        <div className="grid gap-3">
+                          <div className="rounded-lg bg-white/80 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Facts</p>
+                            <InlineTextarea
+                              value={linesToText(selected.handoff.facts)}
+                              placeholder="Un hecho por línea..."
+                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
+                              rows={3}
+                              onSave={(value) => updateHandoff({ facts: textToLines(value) })}
+                            />
+                          </div>
+                          <div className="rounded-lg bg-white/80 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Decisiones</p>
+                            <InlineTextarea
+                              value={linesToText(selected.handoff.decisions)}
+                              placeholder="Una decisión por línea..."
+                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
+                              rows={3}
+                              onSave={(value) => updateHandoff({ decisions: textToLines(value) })}
+                            />
+                          </div>
+                          <div className="rounded-lg bg-white/80 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Pendientes</p>
+                            <InlineTextarea
+                              value={linesToText(selected.handoff.pendingItems)}
+                              placeholder="Un pendiente por línea..."
+                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
+                              rows={3}
+                              onSave={(value) => updateHandoff({ pendingItems: textToLines(value) })}
+                            />
+                          </div>
+                          <div className="rounded-lg bg-white/80 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Riesgos</p>
+                            <InlineTextarea
+                              value={linesToText(selected.handoff.risks)}
+                              placeholder="Un riesgo por línea..."
+                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
+                              rows={3}
+                              onSave={(value) => updateHandoff({ risks: textToLines(value) })}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Siguiente acción recomendada</p>
+                          <InlineTextarea
+                            value={selected.handoff.nextRecommendedAction || ""}
+                            placeholder="Agregar siguiente paso recomendado..."
+                            className="mt-1 bg-white/70 text-[#1E3A8A]"
+                            rows={2}
+                            onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marcado como revisado")}
+                            className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#1D4ED8] hover:bg-[#DBEAFE]"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Marcar como revisado
+                          </button>
+                          {selected.handoff.reviewedBy && (
+                            <span className="text-xs text-[#475569]">
+                              Revisado por {selected.handoff.reviewedBy}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-3 text-sm leading-relaxed text-[#1E3A8A]">
+                        {selected.classification?.summary || selected.summary || "La IA todavía no generó un contexto resumido para esta conversación."}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selected.classification?.intent && (
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
+                            Intent: {selected.classification.intent}
+                          </span>
+                        )}
+                        {selected.classification?.suggestedTags?.map((tag) => (
+                          <span key={tag} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {handoffState && <p className="mt-3 text-xs text-[#475569]">{handoffState}</p>}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold text-foreground">Ghost Drafts</p>
                   </div>
+                  <div className="mt-4 space-y-3">
+                    {!selected.drafts || selected.drafts.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                        No hay drafts persistidos para esta conversación.
+                      </div>
+                    ) : (
+                      selected.drafts.map((draft) => (
+                        <div key={draft.id} className="rounded-lg border border-border bg-background p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <InlineText
+                                  value={draft.title || ""}
+                                  placeholder="Título del draft..."
+                                  className="text-sm font-semibold text-foreground"
+                                  onSave={(value) => updateDraft(draft.id, { title: value })}
+                                />
+                                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", draftStatusBadge(draft.status))}>
+                                  {draft.status}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+                                {draft.type}
+                                {draft.targetChannel ? ` · ${channelLabel(draft.targetChannel)}` : ""}
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              {formatRelativeDate(draft.createdAt)}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Estado</p>
+                              <div className="mt-1">
+                                <InlineSelect
+                                  value={draft.status}
+                                  options={[
+                                    { value: "draft", label: "draft" },
+                                    { value: "edited", label: "edited" },
+                                    { value: "approved", label: "approved" },
+                                    { value: "discarded", label: "discarded" },
+                                    { value: "sent", label: "sent" },
+                                  ]}
+                                  onSave={(value) => updateDraft(draft.id, { status: value }, "Estado del draft actualizado")}
+                                  badgeClassName={(value) => draftStatusBadge(value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tono</p>
+                              <div className="mt-1">
+                                <InlineText
+                                  value={draft.tone || ""}
+                                  placeholder="Definir tono..."
+                                  className="text-sm text-foreground"
+                                  onSave={(value) => updateDraft(draft.id, { tone: value })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Contenido</p>
+                            <InlineTextarea
+                              value={draft.content || ""}
+                              placeholder="Contenido del borrador..."
+                              className="mt-1"
+                              rows={6}
+                              onSave={(value) => updateDraft(draft.id, { content: value })}
+                            />
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            {draft.sourceMessageId && <span>Mensaje origen: {draft.sourceMessageId}</span>}
+                            {draft.reviewedBy && <span>Revisado por: {draft.reviewedBy}</span>}
+                            {draft.reviewedAt && <span>Revisado: {formatDateTime(draft.reviewedAt)}</span>}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {draftState && <p className="mt-3 text-xs text-muted-foreground">{draftState}</p>}
                 </div>
 
                 <div className="rounded-xl border border-border bg-card p-5">
