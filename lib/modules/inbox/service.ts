@@ -111,6 +111,30 @@ function mapSourceToChannel(source?: string | null) {
   }
 }
 
+function getStringValue(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null
+}
+
+function pickFirstString(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = getStringValue(value)
+    if (normalized) return normalized
+  }
+  return null
+}
+
+function getObjectStringValue(
+  record: Record<string, unknown> | null | undefined,
+  keys: string[],
+) {
+  if (!record) return null
+  for (const key of keys) {
+    const value = getStringValue(record[key])
+    if (value) return value
+  }
+  return null
+}
+
 function inferInitialRole(channel: string) {
   return channel === "portal" ? "client" : "visitor"
 }
@@ -486,12 +510,14 @@ function parseConversationClassification(classification?: {
   intent?: string | null
   leadScore?: number | null
   urgency?: string | null
+  sector?: string | null
 } | null) {
   return {
     summary: classification?.summary ?? null,
     intent: classification?.intent ?? null,
     leadScore: classification?.leadScore ?? null,
     urgency: classification?.urgency ?? null,
+    sector: classification?.sector ?? null,
     suggestedTags: parseJson<string[]>(classification?.suggestedTags),
     briefData: parseJson<Record<string, unknown>>(classification?.briefData),
   }
@@ -700,6 +726,7 @@ export async function updateConversationDraft(input: {
     targetChannel?: string | null
   }
 }) {
+  const allowedEditableStatuses = new Set(["draft", "edited", "approved", "discarded"])
   const existing = await db.conversationDraft.findFirst({
     where: {
       id: input.draftId,
@@ -710,8 +737,13 @@ export async function updateConversationDraft(input: {
 
   if (!existing) return null
 
+  const requestedStatus =
+    input.data.status && allowedEditableStatuses.has(input.data.status)
+      ? input.data.status
+      : undefined
+
   const nextStatus =
-    input.data.status
+    requestedStatus
     ?? (input.data.content !== undefined || input.data.title !== undefined || input.data.tone !== undefined ? "edited" : existing.status)
 
   return db.conversationDraft.update({
@@ -903,12 +935,28 @@ export async function executeConversationAction(input: {
         throw new Error("assignedTo es requerido para ejecutar assign_operator")
       }
 
-      await db.$transaction([
-        db.conversation.update({
+      await db.$transaction(async (tx) => {
+        const conversation = await tx.conversation.findFirst({
+          where: {
+            id: input.conversationId,
+            workspaceId: input.workspaceId,
+          },
+          select: { status: true },
+        })
+
+        if (!conversation) {
+          throw new Error("Conversación no encontrada")
+        }
+
+        await tx.conversation.update({
           where: { id: input.conversationId },
-          data: { assignedTo },
-        }),
-        db.conversationAction.update({
+          data: {
+            assignedTo,
+            status: transitionConversationStatus(conversation.status, "assigned"),
+          },
+        })
+
+        await tx.conversationAction.update({
           where: { id: action.id },
           data: {
             status: "executed",
@@ -919,8 +967,8 @@ export async function executeConversationAction(input: {
             reviewedAt: new Date(),
             errorMessage: null,
           },
-        }),
-      ])
+        })
+      })
 
       return {
         action: await db.conversationAction.findFirst({ where: { id: action.id } }),
@@ -991,14 +1039,72 @@ export async function convertConversationToRecords(
     conversation.messages.find((message) => message.direction === "inbound" && !message.isInternal)
     ?? conversation.messages[0]
     ?? null
+  const latestInboundMessage =
+    [...conversation.messages].reverse().find((message) => message.direction === "inbound" && !message.isInternal)
+    ?? null
 
-  const sourceText = firstInboundMessage?.content ?? latestLegacyEntry?.mensaje ?? ""
+  const sourceText =
+    pickFirstString(
+      firstInboundMessage?.content,
+      latestInboundMessage?.content,
+      latestLegacyEntry?.mensaje,
+    )
+    ?? ""
   const clienteSnapshot = latestLegacyEntry?.datosCliente
     ? parseJson<Record<string, string>>(latestLegacyEntry.datosCliente)
     : null
   const proyectoSnapshot = latestLegacyEntry?.datosProyecto
     ? parseJson<Record<string, string>>(latestLegacyEntry.datosProyecto)
     : null
+  const briefData = classification.briefData ?? null
+  const contactName = pickFirstString(
+    conversation.contact.nombre,
+    getObjectStringValue(briefData, ["nombreCliente", "clientName", "customerName", "contactName", "nombreContacto"]),
+    getObjectStringValue(clienteSnapshot, ["nombre"]),
+  )
+  const contactEmail = pickFirstString(
+    conversation.contact.email,
+    getObjectStringValue(briefData, ["emailCliente", "clientEmail", "customerEmail", "email"]),
+    getObjectStringValue(clienteSnapshot, ["email"]),
+  )
+  const contactPhone = pickFirstString(
+    conversation.contact.telefono,
+    getObjectStringValue(briefData, ["telefonoCliente", "clientPhone", "customerPhone", "telefono"]),
+    getObjectStringValue(clienteSnapshot, ["telefono"]),
+  )
+  const contactCompany = pickFirstString(
+    conversation.contact.empresa,
+    getObjectStringValue(briefData, ["empresaCliente", "clientCompany", "customerCompany", "businessName", "empresa"]),
+    getObjectStringValue(clienteSnapshot, ["empresa"]),
+  )
+  const projectName = pickFirstString(
+    getObjectStringValue(briefData, ["nombre", "projectName", "nombreProyecto"]),
+    conversation.summary,
+    conversation.intent,
+    conversation.subject,
+    getObjectStringValue(proyectoSnapshot, ["nombre"]),
+    latestLegacyEntry?.resumen,
+  )
+  const projectDescription = pickFirstString(
+    getObjectStringValue(briefData, ["descripcion", "projectDescription", "alcance"]),
+    conversation.summary,
+    classification.summary,
+    sourceText.slice(0, 500),
+    getObjectStringValue(proyectoSnapshot, ["descripcion"]),
+  )
+  const projectBudget = pickFirstString(
+    getObjectStringValue(briefData, ["presupuesto", "budget"]),
+    getObjectStringValue(proyectoSnapshot, ["presupuesto"]),
+  )
+  const conversationSummary = pickFirstString(
+    classification.summary,
+    conversation.summary,
+    conversation.intent,
+    classification.sector,
+    conversation.sector,
+    latestLegacyEntry?.resumen,
+    sourceText.slice(0, 200),
+  )
 
   const results = await db.$transaction(async (tx) => {
     const output: ConversationConversionResult = {
@@ -1026,22 +1132,18 @@ export async function convertConversationToRecords(
         const cliente = await tx.cliente.create({
           data: {
             nombre:
-              clienteSnapshot?.nombre
-              || conversation.contact.nombre
+              contactName
               || "Cliente desde Inbox",
             email:
-              clienteSnapshot?.email
-              || conversation.contact.email
+              contactEmail
               || null,
             telefono:
-              clienteSnapshot?.telefono
-              || conversation.contact.telefono
+              contactPhone
               || null,
             empresa:
-              clienteSnapshot?.empresa
-              || conversation.contact.empresa
+              contactCompany
               || null,
-            notas: `Origen: Inbox (${conversation.channel})\n${classification.summary || sourceText.slice(0, 200)}`,
+            notas: `Origen: Inbox (${conversation.channel})\n${conversationSummary || sourceText.slice(0, 200)}`,
             estado: "activo",
             workspaceId: input.workspaceId,
           },
@@ -1061,18 +1163,15 @@ export async function convertConversationToRecords(
         const proyecto = await tx.proyecto.create({
           data: {
             nombre:
-              proyectoSnapshot?.nombre
-              || String(classification.briefData?.nombre ?? "")
-              || classification.summary
-              || latestLegacyEntry?.resumen
+              projectName
               || "Proyecto desde Inbox",
             descripcion:
-              proyectoSnapshot?.descripcion
-              || String(classification.briefData?.descripcion ?? "")
+              projectDescription
               || sourceText.slice(0, 500),
             estado: "planificacion",
             prioridad:
               conversation.urgency === "critica" ? "alta" : conversation.urgency || "media",
+            presupuesto: projectBudget ? Number(projectBudget.replace(/[^\d.,-]/g, "").replace(",", ".")) || undefined : undefined,
             clienteId: output.ids.clienteId,
             workspaceId: input.workspaceId,
           },
@@ -1094,7 +1193,7 @@ export async function convertConversationToRecords(
             titulo:
               classification.intent
               || conversation.intent
-              || classification.summary
+              || conversationSummary
               || latestLegacyEntry?.intencion
               || "Tarea desde Inbox",
             descripcion: sourceText.slice(0, 1000),

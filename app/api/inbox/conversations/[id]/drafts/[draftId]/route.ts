@@ -5,6 +5,8 @@ import { parseConversationJsonFields, updateConversationDraft } from "@/lib/modu
 
 type Params = { params: Promise<{ id: string; draftId: string }> }
 
+const EDITABLE_DRAFT_STATUSES = new Set(["draft", "edited", "approved", "discarded"])
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { workspaceId, session } = await requireWriteAccess()
@@ -17,7 +19,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       draftId,
       reviewedBy: session.userId,
       data: {
-        status: typeof body.status === "string" ? body.status : undefined,
+        status:
+          typeof body.status === "string" && EDITABLE_DRAFT_STATUSES.has(body.status)
+            ? body.status
+            : undefined,
         title: typeof body.title === "string" ? body.title : undefined,
         content: typeof body.content === "string" ? body.content : undefined,
         tone: typeof body.tone === "string" ? body.tone : undefined,

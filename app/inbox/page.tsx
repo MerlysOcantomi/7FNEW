@@ -283,6 +283,21 @@ function textToLines(value: string) {
     .filter(Boolean)
 }
 
+function editableDraftStatusOptions(currentStatus: string) {
+  const options = [
+    { value: "draft", label: "draft" },
+    { value: "edited", label: "edited" },
+    { value: "approved", label: "approved" },
+    { value: "discarded", label: "discarded" },
+  ]
+
+  if (currentStatus === "sent") {
+    return [{ value: "sent", label: "sent" }, ...options]
+  }
+
+  return options
+}
+
 function ConversationCard({
   item,
   selected,
@@ -840,13 +855,7 @@ export default function InboxPage() {
                               <div className="mt-1">
                                 <InlineSelect
                                   value={draft.status}
-                                  options={[
-                                    { value: "draft", label: "draft" },
-                                    { value: "edited", label: "edited" },
-                                    { value: "approved", label: "approved" },
-                                    { value: "discarded", label: "discarded" },
-                                    { value: "sent", label: "sent" },
-                                  ]}
+                                  options={editableDraftStatusOptions(draft.status)}
                                   onSave={(value) => updateDraft(draft.id, { status: value }, "Estado del draft actualizado")}
                                   badgeClassName={(value) => draftStatusBadge(value)}
                                 />
