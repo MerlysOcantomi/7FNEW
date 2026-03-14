@@ -2,9 +2,18 @@ import { db } from "@/lib/db"
 import { generateConversationIntelligence } from "@/lib/inbox"
 import { transitionConversationStatus } from "@/lib/modules/inbox/state"
 
-const PIPELINE_VERSION = "2a"
-const PROMPT_VERSION = "conversation-v1"
+const PIPELINE_VERSION = "2b"
+const PROMPT_VERSION = "conversation-v2"
 const MODEL_NAME = "operativo"
+const ACTION_SOURCE = "ai"
+const ALLOWED_ACTION_TYPES = new Set([
+  "create_client",
+  "create_project",
+  "create_task",
+  "schedule_followup",
+  "assign_operator",
+  "generate_proposal",
+])
 
 function parseJson<T>(value?: string | null): T | null {
   if (!value) return null
@@ -26,6 +35,69 @@ function deriveConversationStatus(currentStatus: string, leadScore: number) {
       : transitionConversationStatus(currentStatus, "triaged")
   }
   return currentStatus
+}
+
+function shouldSuggestAction(input: {
+  type: string
+  conversation: {
+    clienteId?: string | null
+    proyectoId?: string | null
+    assignedTo?: string | null
+    channel: string
+  }
+}) {
+  switch (input.type) {
+    case "create_client":
+      return !input.conversation.clienteId
+    case "create_project":
+      return !input.conversation.proyectoId
+    case "assign_operator":
+      return !input.conversation.assignedTo
+    case "schedule_followup":
+      return input.conversation.channel !== "manual"
+    default:
+      return true
+  }
+}
+
+function normalizeSuggestedActions(input: {
+  suggestedActions: Array<{
+    type: string
+    title: string
+    description: string
+    confidence: number
+  }>
+  nextBestAction: { type: string; description: string } | null
+  conversation: {
+    clienteId?: string | null
+    proyectoId?: string | null
+    assignedTo?: string | null
+    channel: string
+  }
+}) {
+  const raw = [...input.suggestedActions]
+
+  if (input.nextBestAction?.type === "assign_operator") {
+    raw.push({
+      type: "assign_operator",
+      title: "Asignar operador",
+      description: input.nextBestAction.description,
+      confidence: 0.72,
+    })
+  }
+
+  const normalized = new Map<string, { type: string; title: string; description: string; confidence: number }>()
+  for (const action of raw) {
+    if (!ALLOWED_ACTION_TYPES.has(action.type)) continue
+    if (!shouldSuggestAction({ type: action.type, conversation: input.conversation })) continue
+
+    const existing = normalized.get(action.type)
+    if (!existing || existing.confidence < action.confidence) {
+      normalized.set(action.type, action)
+    }
+  }
+
+  return Array.from(normalized.values())
 }
 
 function shouldGenerateDraft(input: {
@@ -54,6 +126,10 @@ export async function runConversationIntelligence(input: {
       contact: true,
       classification: true,
       handoff: true,
+      actions: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
       drafts: {
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -79,6 +155,9 @@ export async function runConversationIntelligence(input: {
     channel: conversation.channel,
     status: conversation.status,
     subject: conversation.subject,
+    clienteId: conversation.clienteId,
+    proyectoId: conversation.proyectoId,
+    assignedTo: conversation.assignedTo,
     contact: {
       nombre: conversation.contact.nombre,
       email: conversation.contact.email,
@@ -106,6 +185,16 @@ export async function runConversationIntelligence(input: {
   })
 
   const nextStatus = deriveConversationStatus(conversation.status, intelligence.leadScore)
+  const normalizedSuggestedActions = normalizeSuggestedActions({
+    suggestedActions: intelligence.suggestedActions,
+    nextBestAction: intelligence.nextBestAction,
+    conversation: {
+      clienteId: conversation.clienteId,
+      proyectoId: conversation.proyectoId,
+      assignedTo: conversation.assignedTo,
+      channel: conversation.channel,
+    },
+  })
 
   const result = await db.$transaction(async (tx) => {
     const classification = await tx.aIClassification.upsert({
@@ -273,6 +362,61 @@ export async function runConversationIntelligence(input: {
             }),
             model: MODEL_NAME,
             promptVersion: PROMPT_VERSION,
+          },
+        })
+      }
+    }
+
+    for (const action of normalizedSuggestedActions) {
+      const latestActionOfType = conversation.actions.find((item) =>
+        item.type === action.type
+        && item.source === ACTION_SOURCE
+      )
+
+      if (
+        latestActionOfType?.sourceMessageId
+        && latestMessage?.id
+        && latestActionOfType.sourceMessageId === latestMessage.id
+        && (latestActionOfType.status === "dismissed" || latestActionOfType.status === "failed")
+      ) {
+        continue
+      }
+
+      if (latestActionOfType?.status === "executed" || latestActionOfType?.status === "approved") {
+        continue
+      }
+
+      const payload = {
+        title: action.title,
+        description: action.description,
+        pipelineVersion: PIPELINE_VERSION,
+        trigger: input.trigger,
+      }
+
+      if (latestActionOfType?.status === "suggested") {
+        await tx.conversationAction.update({
+          where: { id: latestActionOfType.id },
+          data: {
+            source: ACTION_SOURCE,
+            status: "suggested",
+            confidence: action.confidence,
+            sourceMessageId: latestMessage?.id ?? latestActionOfType.sourceMessageId,
+            data: stringifyJson(payload),
+            dismissedAt: null,
+            errorMessage: null,
+          },
+        })
+      } else {
+        await tx.conversationAction.create({
+          data: {
+            workspaceId: input.workspaceId,
+            conversationId: conversation.id,
+            type: action.type,
+            status: "suggested",
+            source: ACTION_SOURCE,
+            confidence: action.confidence,
+            sourceMessageId: latestMessage?.id ?? null,
+            data: stringifyJson(payload),
           },
         })
       }

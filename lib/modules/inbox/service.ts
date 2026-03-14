@@ -59,6 +59,8 @@ interface ConvertConversationInput {
     userName?: string | null
     userEmail?: string | null
   }
+  actionRecordId?: string | null
+  executionNotes?: string | null
 }
 
 interface ConversationConversionResult {
@@ -538,6 +540,13 @@ export async function listConversations(params: ListConversationsParams) {
   return { data, total }
 }
 
+export async function listConversationActions(conversationId: string, workspaceId: string) {
+  return db.conversationAction.findMany({
+    where: { conversationId, workspaceId },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
 export async function getConversationById(id: string, workspaceId: string) {
   return db.conversation.findFirst({
     where: { id, workspaceId },
@@ -724,9 +733,17 @@ export async function createConversationAction(input: {
   conversationId: string
   type: string
   status?: string
+  source?: string
+  confidence?: number | null
+  sourceMessageId?: string | null
   data?: Record<string, unknown> | null
   resultId?: string | null
   resultModule?: string | null
+  approvedBy?: string | null
+  approvedAt?: Date | null
+  dismissedAt?: Date | null
+  executionNotes?: string | null
+  errorMessage?: string | null
   reviewedBy?: string | null
 }) {
   return db.conversationAction.create({
@@ -735,13 +752,220 @@ export async function createConversationAction(input: {
       conversationId: input.conversationId,
       type: input.type,
       status: input.status ?? "executed",
+      source: input.source ?? "system",
+      confidence: input.confidence ?? null,
+      sourceMessageId: input.sourceMessageId ?? null,
       data: input.data ? JSON.stringify(input.data) : null,
       resultId: input.resultId ?? null,
       resultModule: input.resultModule ?? null,
+      approvedBy: input.approvedBy ?? null,
+      approvedAt: input.approvedAt ?? null,
+      dismissedAt: input.dismissedAt ?? null,
+      executionNotes: input.executionNotes ?? null,
+      errorMessage: input.errorMessage ?? null,
       reviewedBy: input.reviewedBy ?? null,
       reviewedAt: input.reviewedBy ? new Date() : null,
     },
   })
+}
+
+export async function approveConversationAction(input: {
+  workspaceId: string
+  conversationId: string
+  actionId: string
+  approvedBy: string
+}) {
+  const existing = await db.conversationAction.findFirst({
+    where: {
+      id: input.actionId,
+      conversationId: input.conversationId,
+      workspaceId: input.workspaceId,
+    },
+  })
+
+  if (!existing) return null
+
+  if (!["suggested", "approved"].includes(existing.status)) {
+    throw new Error("La acción no puede aprobarse en su estado actual")
+  }
+
+  return db.conversationAction.update({
+    where: { id: input.actionId },
+    data: {
+      status: "approved",
+      approvedBy: input.approvedBy,
+      approvedAt: new Date(),
+      dismissedAt: null,
+      errorMessage: null,
+    },
+  })
+}
+
+export async function dismissConversationAction(input: {
+  workspaceId: string
+  conversationId: string
+  actionId: string
+  dismissedBy: string
+  executionNotes?: string | null
+}) {
+  const existing = await db.conversationAction.findFirst({
+    where: {
+      id: input.actionId,
+      conversationId: input.conversationId,
+      workspaceId: input.workspaceId,
+    },
+  })
+
+  if (!existing) return null
+
+  if (["executed", "dismissed"].includes(existing.status)) {
+    throw new Error("La acción no puede descartarse en su estado actual")
+  }
+
+  return db.conversationAction.update({
+    where: { id: input.actionId },
+    data: {
+      status: "dismissed",
+      dismissedAt: new Date(),
+      reviewedBy: input.dismissedBy,
+      reviewedAt: new Date(),
+      executionNotes: input.executionNotes ?? existing.executionNotes,
+    },
+  })
+}
+
+export async function getConversationAction(input: {
+  workspaceId: string
+  conversationId: string
+  actionId: string
+}) {
+  return db.conversationAction.findFirst({
+    where: {
+      id: input.actionId,
+      conversationId: input.conversationId,
+      workspaceId: input.workspaceId,
+    },
+  })
+}
+
+export async function executeConversationAction(input: {
+  workspaceId: string
+  conversationId: string
+  actionId: string
+  executedBy: {
+    userId: string
+    userName?: string | null
+    userEmail?: string | null
+  }
+  payload?: Record<string, unknown>
+}) {
+  const action = await getConversationAction({
+    workspaceId: input.workspaceId,
+    conversationId: input.conversationId,
+    actionId: input.actionId,
+  })
+
+  if (!action) return null
+
+  if (action.status !== "approved") {
+    throw new Error("La acción debe estar aprobada antes de ejecutarse")
+  }
+
+  const executionNotes =
+    typeof input.payload?.executionNotes === "string" ? input.payload.executionNotes : null
+
+  try {
+    if (action.type === "create_client" || action.type === "create_project" || action.type === "create_task") {
+      const results = await convertConversationToRecords({
+        workspaceId: input.workspaceId,
+        conversationId: input.conversationId,
+        action:
+          action.type === "create_client"
+            ? "cliente"
+            : action.type === "create_project"
+              ? "proyecto"
+              : "tarea",
+        reviewedBy: input.executedBy,
+        actionRecordId: action.id,
+        executionNotes,
+      })
+
+      return {
+        action: await db.conversationAction.findFirst({ where: { id: action.id } }),
+        results,
+      }
+    }
+
+    if (action.type === "assign_operator") {
+      const assignedTo =
+        typeof input.payload?.assignedTo === "string" ? input.payload.assignedTo.trim() : ""
+      if (!assignedTo) {
+        throw new Error("assignedTo es requerido para ejecutar assign_operator")
+      }
+
+      await db.$transaction([
+        db.conversation.update({
+          where: { id: input.conversationId },
+          data: { assignedTo },
+        }),
+        db.conversationAction.update({
+          where: { id: action.id },
+          data: {
+            status: "executed",
+            resultId: input.conversationId,
+            resultModule: "conversations",
+            executionNotes: executionNotes ?? `Asignado a ${assignedTo}`,
+            reviewedBy: input.executedBy.userId,
+            reviewedAt: new Date(),
+            errorMessage: null,
+          },
+        }),
+      ])
+
+      return {
+        action: await db.conversationAction.findFirst({ where: { id: action.id } }),
+        results: { assignedTo },
+      }
+    }
+
+    if (action.type === "schedule_followup" || action.type === "generate_proposal") {
+      if (!executionNotes) {
+        throw new Error("executionNotes es requerido para registrar esta ejecución supervisada")
+      }
+
+      await db.conversationAction.update({
+        where: { id: action.id },
+        data: {
+          status: "executed",
+          resultId: input.conversationId,
+          resultModule: "conversations",
+          executionNotes,
+          reviewedBy: input.executedBy.userId,
+          reviewedAt: new Date(),
+          errorMessage: null,
+        },
+      })
+
+      return {
+        action: await db.conversationAction.findFirst({ where: { id: action.id } }),
+        results: { executionNotes },
+      }
+    }
+
+    throw new Error("Tipo de acción no soportado")
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error ejecutando acción"
+    await db.conversationAction.update({
+      where: { id: action.id },
+      data: {
+        status: "failed",
+        errorMessage: message,
+        reviewedBy: input.executedBy.userId,
+        reviewedAt: new Date(),
+      },
+    }).catch(() => null)
+    throw error
+  }
 }
 
 export async function convertConversationToRecords(
@@ -924,24 +1148,49 @@ export async function convertConversationToRecords(
       output.created.tarea && output.ids.tareaId ? { type: "create_task", resultId: output.ids.tareaId, resultModule: "tareas" } : null,
     ].filter(Boolean) as { type: string; resultId: string; resultModule: string }[]
 
-    await Promise.all(actionMap.map((item) =>
-      tx.conversationAction.create({
+    if (input.actionRecordId) {
+      const primaryResult =
+        input.action === "cliente"
+          ? { resultId: output.ids.clienteId, resultModule: "clientes" }
+          : input.action === "proyecto"
+            ? { resultId: output.ids.proyectoId, resultModule: "proyectos" }
+            : input.action === "tarea"
+              ? { resultId: output.ids.tareaId, resultModule: "tareas" }
+              : { resultId: null, resultModule: null }
+
+      await tx.conversationAction.update({
+        where: { id: input.actionRecordId },
         data: {
-          workspaceId: input.workspaceId,
-          conversationId: input.conversationId,
-          type: item.type,
           status: "executed",
-          resultId: item.resultId,
-          resultModule: item.resultModule,
+          resultId: primaryResult.resultId,
+          resultModule: primaryResult.resultModule,
+          executionNotes: input.executionNotes ?? null,
           reviewedBy: input.reviewedBy?.userId ?? null,
           reviewedAt: input.reviewedBy?.userId ? new Date() : null,
-          data: JSON.stringify({
-            action: input.action,
-            sourceConversationId: input.conversationId,
-          }),
+          errorMessage: null,
         },
       })
-    ))
+    } else {
+      await Promise.all(actionMap.map((item) =>
+        tx.conversationAction.create({
+          data: {
+            workspaceId: input.workspaceId,
+            conversationId: input.conversationId,
+            type: item.type,
+            status: "executed",
+            source: "system",
+            resultId: item.resultId,
+            resultModule: item.resultModule,
+            reviewedBy: input.reviewedBy?.userId ?? null,
+            reviewedAt: input.reviewedBy?.userId ? new Date() : null,
+            data: JSON.stringify({
+              action: input.action,
+              sourceConversationId: input.conversationId,
+            }),
+          },
+        })
+      ))
+    }
 
     return output
   })

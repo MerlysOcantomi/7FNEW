@@ -11,17 +11,21 @@ import {
   Bot,
   Briefcase,
   Building2,
+  Check,
   CheckSquare,
   Clock3,
+  Play,
   FolderKanban,
   History,
   Loader2,
   Mail,
   MessageSquare,
+  ShieldCheck,
   Search,
   Sparkles,
   User,
   WandSparkles,
+  X,
 } from "lucide-react"
 
 interface ConversationListItem {
@@ -67,9 +71,16 @@ interface ConversationDetail extends ConversationListItem {
     id: string
     type: string
     status: string
+    source?: string | null
+    confidence?: number | null
+    sourceMessageId?: string | null
     data?: Record<string, unknown> | null
     resultModule?: string | null
     resultId?: string | null
+    executionNotes?: string | null
+    errorMessage?: string | null
+    approvedAt?: string | null
+    dismissedAt?: string | null
     createdAt: string
   }>
   messages: Array<{
@@ -159,6 +170,38 @@ function channelLabel(channel: string) {
   }[channel] ?? channel
 }
 
+function actionTypeLabel(type: string) {
+  return {
+    create_client: "Crear cliente",
+    create_project: "Crear proyecto",
+    create_task: "Crear tarea",
+    schedule_followup: "Programar seguimiento",
+    assign_operator: "Asignar operador",
+    generate_proposal: "Generar propuesta",
+  }[type] ?? type
+}
+
+function actionStatusBadge(status: string) {
+  switch (status) {
+    case "approved":
+      return "bg-[#EDE9FE] text-[#6D28D9]"
+    case "executed":
+      return "bg-[#DCFCE7] text-[#166534]"
+    case "dismissed":
+      return "bg-[#F1F5F9] text-[#64748B]"
+    case "failed":
+      return "bg-[#FEE2E2] text-[#991B1B]"
+    case "suggested":
+    default:
+      return "bg-[#DBEAFE] text-[#1D4ED8]"
+  }
+}
+
+function confidenceLabel(value?: number | null) {
+  if (typeof value !== "number") return null
+  return `${Math.round(value * 100)}%`
+}
+
 function ConversationCard({
   item,
   selected,
@@ -224,6 +267,7 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null)
 
   const params = new URLSearchParams()
   params.set("pageSize", "100")
@@ -289,6 +333,64 @@ export default function InboxPage() {
       refetchDetail()
     } catch (err) {
       setActionState(err instanceof Error ? err.message : "Error desconocido")
+    }
+  }
+
+  async function handleSuggestedAction(action: NonNullable<ConversationDetail["actions"]>[number], operation: "approve" | "dismiss" | "execute") {
+    if (!selectedId) return
+
+    let payload: Record<string, unknown> = {}
+
+    if (operation === "dismiss") {
+      const executionNotes = window.prompt("Motivo del descarte (opcional):", "") ?? ""
+      payload = executionNotes.trim() ? { executionNotes: executionNotes.trim() } : {}
+    }
+
+    if (operation === "execute") {
+      if (action.type === "assign_operator") {
+        const assignedTo = window.prompt("Ingresa el responsable para esta conversación:", "") ?? ""
+        if (!assignedTo.trim()) return
+        payload = { assignedTo: assignedTo.trim() }
+      } else if (action.type === "schedule_followup" || action.type === "generate_proposal") {
+        const executionNotes = window.prompt("Describe cómo se ejecutó esta acción:", "") ?? ""
+        if (!executionNotes.trim()) return
+        payload = { executionNotes: executionNotes.trim() }
+      }
+    }
+
+    setPendingActionId(action.id)
+    setActionState("Procesando acción...")
+
+    try {
+      const endpoint =
+        operation === "approve"
+          ? `/api/inbox/conversations/${selectedId}/actions/${action.id}/approve`
+          : operation === "dismiss"
+            ? `/api/inbox/conversations/${selectedId}/actions/${action.id}/dismiss`
+            : `/api/inbox/conversations/${selectedId}/actions/${action.id}/execute`
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "No se pudo operar la acción")
+
+      setActionState(
+        operation === "approve"
+          ? "Acción aprobada"
+          : operation === "dismiss"
+            ? "Acción descartada"
+            : "Acción ejecutada",
+      )
+      setRefreshKey((value) => value + 1)
+      refetch()
+      refetchDetail()
+    } catch (err) {
+      setActionState(err instanceof Error ? err.message : "Error desconocido")
+    } finally {
+      setPendingActionId(null)
     }
   }
 
@@ -455,6 +557,113 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <WandSparkles className="h-4 w-4 text-muted-foreground" />
                     <p className="text-sm font-semibold text-foreground">Acciones sugeridas</p>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {!selected.actions || selected.actions.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                        La IA todavía no sugirió acciones para esta conversación.
+                      </div>
+                    ) : (
+                      selected.actions.map((action) => {
+                        const title =
+                          typeof action.data?.title === "string" && action.data.title.trim()
+                            ? action.data.title
+                            : actionTypeLabel(action.type)
+                        const description =
+                          typeof action.data?.description === "string" ? action.data.description : null
+                        const isPending = pendingActionId === action.id
+
+                        return (
+                          <div key={action.id} className="rounded-lg border border-border bg-background p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-foreground">{title}</p>
+                                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
+                                    {action.status}
+                                  </span>
+                                  {confidenceLabel(action.confidence) && (
+                                    <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
+                                      Confianza {confidenceLabel(action.confidence)}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+                                  {actionTypeLabel(action.type)}
+                                </p>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatRelativeDate(action.createdAt)}
+                              </span>
+                            </div>
+
+                            {description && (
+                              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                            )}
+
+                            {action.executionNotes && (
+                              <div className="mt-3 rounded-md bg-[#F8FAFC] p-3 text-xs text-[#475569]">
+                                <span className="font-semibold text-[#0F172A]">Notas:</span> {action.executionNotes}
+                              </div>
+                            )}
+
+                            {action.errorMessage && (
+                              <div className="mt-3 rounded-md bg-[#FEF2F2] p-3 text-xs text-[#991B1B]">
+                                <span className="font-semibold">Error:</span> {action.errorMessage}
+                              </div>
+                            )}
+
+                            {action.resultModule && action.resultId && (
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                Resultado: {action.resultModule} · {action.resultId}
+                              </p>
+                            )}
+
+                            {action.status === "suggested" && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => handleSuggestedAction(action, "approve")}
+                                  disabled={isPending}
+                                  className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B] disabled:opacity-50"
+                                >
+                                  {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                                  Aprobar
+                                </button>
+                                <button
+                                  onClick={() => handleSuggestedAction(action, "dismiss")}
+                                  disabled={isPending}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  Descartar
+                                </button>
+                              </div>
+                            )}
+
+                            {action.status === "approved" && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => handleSuggestedAction(action, "execute")}
+                                  disabled={isPending}
+                                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+                                >
+                                  {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                                  Ejecutar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                  {actionState && <p className="mt-3 text-xs text-muted-foreground">{actionState}</p>}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold text-foreground">Acciones manuales</p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button

@@ -43,6 +43,12 @@ export interface ConversationIntelligenceOutput {
     type: string
     description: string
   } | null
+  suggestedActions: Array<{
+    type: "create_client" | "create_project" | "create_task" | "schedule_followup" | "assign_operator" | "generate_proposal"
+    title: string
+    description: string
+    confidence: number
+  }>
   handoff: {
     headline: string
     summary: string
@@ -174,6 +180,9 @@ export async function generateConversationIntelligence(input: {
   channel: string
   status: string
   subject?: string | null
+  clienteId?: string | null
+  proyectoId?: string | null
+  assignedTo?: string | null
   contact: {
     nombre?: string | null
     email?: string | null
@@ -215,6 +224,9 @@ CONTEXTO:
 - Canal: ${input.channel}
 - Estado actual: ${input.status}
 ${input.subject ? `- Asunto: ${input.subject}` : ""}
+${input.clienteId ? `- Cliente vinculado: ${input.clienteId}` : ""}
+${input.proyectoId ? `- Proyecto vinculado: ${input.proyectoId}` : ""}
+${input.assignedTo ? `- Responsable actual: ${input.assignedTo}` : ""}
 ${input.contact.nombre ? `- Contacto: ${input.contact.nombre}` : ""}
 ${input.contact.email ? `- Email: ${input.contact.email}` : ""}
 ${input.contact.telefono ? `- Telefono: ${input.contact.telefono}` : ""}
@@ -260,6 +272,14 @@ Devuelve:
     "type": "follow_up | clarify_scope | assign_operator | prepare_quote | wait_human",
     "description": "siguiente mejor acción"
   },
+  "suggestedActions": [
+    {
+      "type": "create_client | create_project | create_task | schedule_followup | assign_operator | generate_proposal",
+      "title": "titulo corto de la accion",
+      "description": "descripcion ejecutiva de por que conviene",
+      "confidence": 0.0
+    }
+  ],
   "handoff": {
     "headline": "titulo corto para operador",
     "summary": "contexto operativo para handoff",
@@ -283,6 +303,7 @@ Devuelve:
 REGLAS:
 - facts, pendingItems, risks y decisions deben ser listas breves y concretas.
 - No inventes datos privados ni afirmes hechos no respaldados por la conversación.
+- suggestedActions debe incluir solo acciones realmente útiles y evitar duplicados conceptuales.
 - Si no corresponde crear borrador, usa draft.shouldCreate=false y deja content vacío.
 - El handoff debe servir a un operador humano y ser más operativo que el resumen general.
 - Mantén el JSON compacto y válido.`
@@ -315,6 +336,20 @@ REGLAS:
             description: parsed.nextBestAction.description ?? "Revisión humana recomendada.",
           }
         : null,
+      suggestedActions: Array.isArray(parsed.suggestedActions)
+        ? parsed.suggestedActions
+          .filter((action): action is NonNullable<ConversationIntelligenceOutput["suggestedActions"]>[number] =>
+            typeof action?.type === "string"
+            && typeof action?.title === "string"
+            && typeof action?.description === "string",
+          )
+          .map((action) => ({
+            type: action.type,
+            title: action.title,
+            description: action.description,
+            confidence: clampNumber(action.confidence, 0, 1, 0.6),
+          }))
+        : [],
       handoff: {
         headline: parsed.handoff?.headline ?? "Contexto operativo listo para revisión",
         summary: parsed.handoff?.summary ?? parsed.resumen ?? input.previousSummary ?? "Sin contexto generado.",
@@ -367,6 +402,7 @@ REGLAS:
       type: "wait_human",
       description: "Revisión humana recomendada antes de operar.",
     },
+    suggestedActions: [],
     handoff: {
       headline: "Revisión manual recomendada",
       summary: fallbackSummary,
