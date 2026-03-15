@@ -23,9 +23,11 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@core/*": ["./core/*"],
+      "@modules/*": ["./modules/*"],
+      "@engines/*": ["./engines/*"],
+      "@tools/*": ["./tools/*"]
     }
   },
   "include": [
