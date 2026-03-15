@@ -4,22 +4,22 @@ overview: Mapa completo de lo que falta por migrar en Fase 1, clasificado por ri
 todos:
   - id: step-c
     content: "Paso C: migrar lib/activity.ts a core/activity.ts"
-    status: pending
+    status: completed
   - id: step-d
     content: "Paso D: migrar lib/verticals.ts a core/verticals.ts"
-    status: pending
+    status: completed
   - id: step-e
     content: "Paso E: migrar lib/workspace-context.ts a core/workspace-context.ts"
-    status: pending
+    status: completed
   - id: step-f
     content: "Paso F: migrar lib/workspace.ts a core/workspace.ts"
-    status: pending
+    status: completed
   - id: step-g
     content: "Paso G: migrar lib/auth/portal-context.ts a core/auth/portal-context.ts"
-    status: pending
+    status: completed
   - id: step-h
     content: "Paso H: migrar lib/auth/workspace-auth.ts a core/auth/workspace-auth.ts"
-    status: pending
+    status: completed
 isProject: false
 ---
 
