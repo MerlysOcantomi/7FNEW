@@ -1,7 +1,15 @@
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 const DEEPSEEK_MODEL = "deepseek-reasoner"
 
-export async function askDeepSeek(prompt: string): Promise<string> {
+const DEFAULT_SYSTEM_PROMPT =
+  "Eres el motor operativo de 7F, una plataforma de gestion empresarial. " +
+  "Respondes con analisis claros, logicos y accionables. " +
+  "Usas formato estructurado cuando es util. Responde siempre en español."
+
+export async function askDeepSeek(
+  prompt: string,
+  systemPrompt: string = DEFAULT_SYSTEM_PROMPT,
+): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
     throw new Error("DEEPSEEK_API_KEY no configurada en variables de entorno")
@@ -18,13 +26,7 @@ export async function askDeepSeek(prompt: string): Promise<string> {
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
       messages: [
-        {
-          role: "system",
-          content:
-            "Eres el motor operativo de 7F, una plataforma de gestion empresarial. " +
-            "Respondes con analisis claros, logicos y accionables. " +
-            "Usas formato estructurado cuando es util. Responde siempre en español.",
-        },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
