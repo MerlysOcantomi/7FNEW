@@ -5,11 +5,15 @@ import {
   sugerirReprogramacion,
   generarSubtareas,
   resumenDiario,
+} from "@modules/automatizaciones/tasks"
+import {
   detectarBloqueos,
   sugerirSiguientesPasos,
+} from "@modules/automatizaciones/projects"
+import {
   detectarVencimientos,
   generarRecordatorios,
-} from "@/lib/automations"
+} from "@modules/automatizaciones/invoices"
 
 const VALID_ACTIONS = [
   "detectar_retrasos",
