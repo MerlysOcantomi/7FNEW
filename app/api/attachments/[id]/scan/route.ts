@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { extractText, isScannable } from "@/lib/ocr"
-import { analyzeDocument } from "@/lib/scan"
+import { analyzeDocument } from "@tools/scan"
 
 type Params = { params: Promise<{ id: string }> }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@/lib/auth/google"
+import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@core/auth/google"
 import { createSession, buildSessionCookie } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 import { ensureUserHasDefaultWorkspace } from "@/lib/workspace"

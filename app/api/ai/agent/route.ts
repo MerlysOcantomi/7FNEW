@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
-import { AGENT_SYSTEM_PROMPT } from "@/lib/agent/system-prompt"
-import { AGENT_TOOLS } from "@/lib/agent/tools"
-import { executeToolCall } from "@/lib/agent/executor"
+import { AGENT_SYSTEM_PROMPT } from "@/agents/forte/system-prompt"
+import { AGENT_TOOLS } from "@/agents/forte/tools"
+import { executeToolCall } from "@/agents/forte/executor"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { gatherBusinessContext } from "@tools/context/gather-business-context"
 

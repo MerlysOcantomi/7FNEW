@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { extractText, isScannable } from "@/lib/ocr"
-import { analyzeDocument } from "@/lib/scan"
+import { analyzeDocument } from "@tools/scan"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024

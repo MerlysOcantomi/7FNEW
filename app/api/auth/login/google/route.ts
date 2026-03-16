@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getGoogleAuthUrl, getCallbackUrl } from "@/lib/auth/google"
+import { getGoogleAuthUrl, getCallbackUrl } from "@core/auth/google"
 
 export async function GET(request: NextRequest) {
   if (process.env.DISABLE_GOOGLE_AUTH === "true") {
