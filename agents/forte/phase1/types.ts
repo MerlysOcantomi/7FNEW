@@ -1,3 +1,8 @@
+import type {
+  ModuleComplexityLevelName,
+  ModuleProgressionProfile,
+} from "@core/registry"
+
 export type ForteBusinessType =
   | "agency"
   | "consultancy"
@@ -63,6 +68,7 @@ export interface ForteCatalogEntry {
   businessValue: string
   useCases: string[]
   maturityNote?: string
+  progression?: ModuleProgressionProfile
 }
 
 export interface ForteCatalogSnapshot {
@@ -93,6 +99,8 @@ export interface ForteRecommendationItem {
   dependencies: string[]
   source: ForteCatalogSource
   optional: boolean
+  recommendedLevel?: ModuleComplexityLevelName
+  availableLevels?: ModuleComplexityLevelName[]
 }
 
 export interface ForteVerticalSuggestion {

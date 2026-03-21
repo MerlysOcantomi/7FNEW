@@ -5,6 +5,7 @@ import {
   type ModuleManifest,
   type ToolManifest,
 } from "@core/registry"
+import { getModuleProgression } from "./module-levels"
 import type { ForteCatalogEntry, ForteCatalogSnapshot } from "./types"
 
 type Phase1Profile = Omit<ForteCatalogEntry, "source">
@@ -184,6 +185,7 @@ function mergeModuleProfile(profile: Phase1Profile, manifest?: ModuleManifest): 
     dependencies: manifest?.dependencies ?? profile.dependencies,
     optional: manifest?.optional ?? profile.optional,
     source: manifest ? "manifest" : "phase1-profile",
+    progression: manifest?.progression ?? getModuleProgression(profile.id),
   }
 }
 

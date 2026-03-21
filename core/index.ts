@@ -7,6 +7,8 @@
 export { registry } from "./registry";
 export type {
   ModuleManifest,
+  ModuleComplexityLevelName,
+  ModuleProgressionProfile,
   EngineManifest,
   ToolManifest,
   AgentToolDefinition,

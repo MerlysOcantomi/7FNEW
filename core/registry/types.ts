@@ -54,6 +54,25 @@ export interface ModuleLifecycleHooks {
   onDeactivate?: (workspaceId: string) => Promise<void>;
 }
 
+export type ModuleComplexityLevelName = "basic" | "intermediate" | "advanced";
+
+export interface ModuleComplexityLevelDefinition {
+  level: ModuleComplexityLevelName;
+  label: string;
+  summary: string;
+  businessValue: string;
+  includedCapabilities: string[];
+  suitableFor: string[];
+  unlocksNext?: string[];
+}
+
+export interface ModuleProgressionProfile {
+  moduleId: string;
+  defaultLevel: ModuleComplexityLevelName;
+  recommendedStart?: ModuleComplexityLevelName;
+  levels: ModuleComplexityLevelDefinition[];
+}
+
 export interface ModuleManifest {
   id: string;
   name: string;
@@ -87,6 +106,13 @@ export interface ModuleManifest {
    * Defaults to false during registration when omitted.
    */
   optional?: boolean;
+
+  /**
+   * Progressive complexity metadata for the module.
+   * Describes how the same domain can grow from basic to advanced without
+   * splitting into duplicate modules.
+   */
+  progression?: ModuleProgressionProfile;
 
   capabilities: ModuleCapabilities;
 

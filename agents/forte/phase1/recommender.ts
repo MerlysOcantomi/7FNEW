@@ -1,4 +1,5 @@
 import { getFortePhase1Catalog } from "./catalog"
+import type { ModuleComplexityLevelName } from "@core/registry"
 import type {
   ForteCatalogEntry,
   ForteCatalogKind,
@@ -28,6 +29,7 @@ interface NormalizedSignals {
 
 interface NormalizedInput {
   summary: string
+  size?: ForteRecommendationInput["size"]
   serves: ForteRelationshipModel[]
   painPoints: string[]
   inferredSignals: string[]
@@ -193,6 +195,7 @@ function normalizeInput(input: ForteRecommendationInput): NormalizedInput {
 
   return {
     summary: `${businessLabel} se interpreta como un negocio de tipo ${input.businessType}${relationshipLabel}.`,
+    size: input.size,
     serves,
     painPoints: input.painPoints ?? [],
     inferredSignals,
@@ -211,6 +214,7 @@ function toRecommendationItem(
   entry: ForteCatalogEntry,
   priority: ForteRecommendationItem["priority"],
   reason: string,
+  recommendedLevel?: ModuleComplexityLevelName,
 ): ForteRecommendationItem {
   return {
     id: entry.id,
@@ -223,6 +227,71 @@ function toRecommendationItem(
     dependencies: entry.dependencies,
     source: entry.source,
     optional: entry.optional,
+    recommendedLevel,
+    availableLevels: entry.progression?.levels.map((level) => level.level),
+  }
+}
+
+function getRecommendedLevel(
+  entry: ForteCatalogEntry,
+  normalized: NormalizedInput,
+): ModuleComplexityLevelName | undefined {
+  if (!entry.progression) return undefined
+
+  switch (entry.id) {
+    case "clientes":
+      if (
+        normalized.signals.smartInbox
+        || normalized.signals.automations
+        || normalized.serves.includes("leads")
+      ) {
+        return "advanced"
+      }
+      if (
+        normalized.signals.projectDelivery
+        || normalized.signals.invoicing
+        || normalized.signals.taskManagement
+      ) {
+        return "intermediate"
+      }
+      return "basic"
+
+    case "proyectos":
+      if (
+        normalized.signals.financeControl
+        || normalized.signals.automations
+        || (normalized.size === "growing" || normalized.size === "established")
+      ) {
+        return "advanced"
+      }
+      if (
+        normalized.signals.taskManagement
+        || normalized.signals.crm
+        || normalized.signals.documents
+      ) {
+        return "intermediate"
+      }
+      return "basic"
+
+    case "inbox":
+      if (
+        normalized.signals.automations
+        || normalized.signals.aiAssistance
+        || normalized.signals.portal
+      ) {
+        return "advanced"
+      }
+      if (
+        normalized.signals.taskManagement
+        || normalized.signals.crm
+        || normalized.signals.projectDelivery
+      ) {
+        return "intermediate"
+      }
+      return "basic"
+
+    default:
+      return entry.progression.defaultLevel
   }
 }
 
@@ -231,9 +300,12 @@ function addRecommendation(
   entry: ForteCatalogEntry | undefined,
   priority: ForteRecommendationItem["priority"],
   reason: string,
+  normalized: NormalizedInput,
 ) {
   if (!entry || collection.some((item) => item.id === entry.id)) return
-  collection.push(toRecommendationItem(entry, priority, reason))
+  collection.push(
+    toRecommendationItem(entry, priority, reason, getRecommendedLevel(entry, normalized)),
+  )
 }
 
 function getSuggestedVertical(serves: ForteRelationshipModel[]): ForteVerticalSuggestion | undefined {
@@ -337,6 +409,7 @@ export function recommendForteArchitecture(
     getCatalogEntry("module", "usuarios", catalog),
     "core",
     "Da una base minima para operar con equipo, responsables y usuarios internos.",
+    normalized,
   )
 
   if (normalized.signals.crm) {
@@ -345,6 +418,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "clientes", catalog),
       "core",
       "Centraliza relaciones con clientes, leads o cuentas para que el negocio no opere en hojas sueltas.",
+      normalized,
     )
   }
 
@@ -354,6 +428,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "proyectos", catalog),
       "core",
       "Ordena entregables y seguimiento de trabajo por cliente o iniciativa.",
+      normalized,
     )
     why.push("Hay una necesidad clara de coordinar trabajo entregable o seguimiento por iniciativas.")
   }
@@ -364,6 +439,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "tareas", catalog),
       normalized.signals.projectDelivery ? "core" : "recommended",
       "Convierte la operacion en acciones concretas, prioridades y seguimiento diario.",
+      normalized,
     )
   }
 
@@ -373,6 +449,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "facturacion", catalog),
       "recommended",
       "Ayuda a aterrizar cobros, estados y relacion con clientes o proyectos.",
+      normalized,
     )
   }
 
@@ -382,6 +459,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "finanzas", catalog),
       "recommended",
       "Aporta visibilidad financiera para tomar decisiones y entender rentabilidad.",
+      normalized,
     )
   }
 
@@ -391,6 +469,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "documentos", catalog),
       "recommended",
       "Da orden a contratos, adjuntos y archivos operativos del negocio.",
+      normalized,
     )
   }
 
@@ -400,6 +479,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "inbox", catalog),
       "recommended",
       "Permite convertir entradas y mensajes en conversaciones con seguimiento real.",
+      normalized,
     )
     why.push("Hay senales de friccion en comunicacion, seguimiento o captacion de demanda.")
   }
@@ -410,6 +490,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "contenido", catalog),
       "recommended",
       "Conviene si el negocio necesita sostener una maquina editorial o de contenido constante.",
+      normalized,
     )
   }
 
@@ -419,6 +500,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "campanas", catalog),
       "recommended",
       "Ayuda a organizar iniciativas de marketing con objetivos, fechas y piezas relacionadas.",
+      normalized,
     )
   }
 
@@ -428,6 +510,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("module", "automatizaciones", catalog),
       "recommended",
       "Reduce trabajo repetitivo y prepara procesos que luego se puedan activar con mas precision.",
+      normalized,
     )
   }
 
@@ -437,6 +520,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("engine", "ai", catalog),
       "recommended",
       "Hace posible clasificacion, analisis y generacion asistida sin acoplar la decision a un prompt unico.",
+      normalized,
     )
     why.push("Hay necesidades donde la capa AI aporta valor real: analisis, generacion o automatizacion.")
   }
@@ -447,6 +531,7 @@ export function recommendForteArchitecture(
       getCatalogEntry("tool", "scan", catalog),
       "recommended",
       "Encaja cuando hay que leer documentos, extraer datos o clasificar informacion entrante.",
+      normalized,
     )
   }
 

@@ -8,6 +8,9 @@ export {
 } from "./pilot-manifests";
 export type {
   ModuleManifest,
+  ModuleComplexityLevelName,
+  ModuleComplexityLevelDefinition,
+  ModuleProgressionProfile,
   EngineManifest,
   ToolManifest,
   AgentToolDefinition,
