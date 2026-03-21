@@ -10,4 +10,5 @@ export type {
   EngineManifest,
   ToolManifest,
   AgentToolDefinition,
+  RegistryEntryKind,
 } from "./registry";

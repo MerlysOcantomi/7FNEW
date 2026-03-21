@@ -61,8 +61,32 @@ export interface ModuleManifest {
   version: string;
   icon?: string;
 
+  /**
+   * Architectural intent of the module.
+   * Defaults to "core" during registration when omitted.
+   */
+  kind?: "core" | "tool" | "vertical";
+
+  /**
+   * Stable, machine-readable namespace.
+   * Example: "core.inbox", "tool.automations", "vertical.education.students"
+   */
+  namespace?: string;
+
   dependencies: string[];
   optionalDependencies?: string[];
+
+  /**
+   * Capabilities or business resources exposed by the module.
+   * Defaults to `models` during registration when omitted.
+   */
+  provides?: string[];
+
+  /**
+   * Whether the module is optional/activatable at runtime.
+   * Defaults to false during registration when omitted.
+   */
+  optional?: boolean;
 
   capabilities: ModuleCapabilities;
 
@@ -105,10 +129,28 @@ export interface EngineManifest {
   description: string;
   version: string;
 
+  /**
+   * Architectural intent of the registry entry.
+   * Defaults to "engine" during registration when omitted.
+   */
+  kind?: "engine";
+
+  /**
+   * Stable, machine-readable namespace.
+   * Example: "engine.ai"
+   */
+  namespace?: string;
+
   dependencies: string[];
 
   /** Capabilities this engine makes available to the system. */
   provides: string[];
+
+  /**
+   * Whether the engine is optional/activatable at runtime.
+   * Defaults to false during registration when omitted.
+   */
+  optional?: boolean;
 
   providers?: EngineProvider[];
   extensionPoints?: EngineExtensionPoint[];
@@ -124,7 +166,31 @@ export interface ToolManifest {
   description: string;
   version: string;
 
+  /**
+   * Architectural intent of the registry entry.
+   * Defaults to "tool" during registration when omitted.
+   */
+  kind?: "tool";
+
+  /**
+   * Stable, machine-readable namespace.
+   * Example: "tool.scan"
+   */
+  namespace?: string;
+
   dependencies: string[];
+
+  /**
+   * Capabilities exposed by the tool.
+   * Defaults to `[id]` during registration when omitted.
+   */
+  provides?: string[];
+
+  /**
+   * Whether the tool is optional/activatable at runtime.
+   * Defaults to false during registration when omitted.
+   */
+  optional?: boolean;
 
   /** What kind of utility this tool provides. */
   category: "generation" | "export" | "processing" | "integration";
@@ -135,5 +201,14 @@ export interface ToolManifest {
 // ---------------------------------------------------------------------------
 
 export type ManifestKind = "module" | "engine" | "tool";
+
+/**
+ * Semantic architecture kind.
+ *
+ * This is intentionally different from ManifestKind:
+ * - ManifestKind = technical bucket in the registry
+ * - RegistryEntryKind = architectural intent of the entry
+ */
+export type RegistryEntryKind = "core" | "tool" | "vertical" | "engine";
 
 export type AnyManifest = ModuleManifest | EngineManifest | ToolManifest;

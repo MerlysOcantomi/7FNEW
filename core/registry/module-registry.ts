@@ -5,6 +5,36 @@ import type {
   AgentToolDefinition,
 } from "./types";
 
+function normalizeModuleManifest(manifest: ModuleManifest): ModuleManifest {
+  const kind = manifest.kind ?? "core";
+  return {
+    ...manifest,
+    kind,
+    namespace: manifest.namespace ?? `${kind}.${manifest.id}`,
+    provides: manifest.provides ?? manifest.models,
+    optional: manifest.optional ?? false,
+  };
+}
+
+function normalizeEngineManifest(manifest: EngineManifest): EngineManifest {
+  return {
+    ...manifest,
+    kind: "engine",
+    namespace: manifest.namespace ?? `engine.${manifest.id}`,
+    optional: manifest.optional ?? false,
+  };
+}
+
+function normalizeToolManifest(manifest: ToolManifest): ToolManifest {
+  return {
+    ...manifest,
+    kind: "tool",
+    namespace: manifest.namespace ?? `tool.${manifest.id}`,
+    provides: manifest.provides ?? [manifest.id],
+    optional: manifest.optional ?? false,
+  };
+}
+
 /**
  * Central registry for modules, engines, and tools.
  *
@@ -20,24 +50,27 @@ class ModuleRegistry {
   // ---- Registration -------------------------------------------------------
 
   registerModule(manifest: ModuleManifest): void {
-    if (this.modules.has(manifest.id)) {
-      throw new Error(`Module "${manifest.id}" is already registered`);
+    const normalized = normalizeModuleManifest(manifest);
+    if (this.modules.has(normalized.id)) {
+      throw new Error(`Module "${normalized.id}" is already registered`);
     }
-    this.modules.set(manifest.id, manifest);
+    this.modules.set(normalized.id, normalized);
   }
 
   registerEngine(manifest: EngineManifest): void {
-    if (this.engines.has(manifest.id)) {
-      throw new Error(`Engine "${manifest.id}" is already registered`);
+    const normalized = normalizeEngineManifest(manifest);
+    if (this.engines.has(normalized.id)) {
+      throw new Error(`Engine "${normalized.id}" is already registered`);
     }
-    this.engines.set(manifest.id, manifest);
+    this.engines.set(normalized.id, normalized);
   }
 
   registerTool(manifest: ToolManifest): void {
-    if (this.tools.has(manifest.id)) {
-      throw new Error(`Tool "${manifest.id}" is already registered`);
+    const normalized = normalizeToolManifest(manifest);
+    if (this.tools.has(normalized.id)) {
+      throw new Error(`Tool "${normalized.id}" is already registered`);
     }
-    this.tools.set(manifest.id, manifest);
+    this.tools.set(normalized.id, normalized);
   }
 
   // ---- Queries — Modules --------------------------------------------------

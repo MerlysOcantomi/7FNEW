@@ -11,5 +11,6 @@ export type {
   EngineProvider,
   EngineExtensionPoint,
   ManifestKind,
+  RegistryEntryKind,
   AnyManifest,
 } from "./types";
