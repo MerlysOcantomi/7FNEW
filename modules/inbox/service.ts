@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import type { Prisma } from "@/generated/prisma/client"
-import type { InboxClassification } from "@/lib/inbox"
+import type { InboxClassification } from "./types"
 import {
   canTransitionConversationStatus,
   CONVERSATION_ACTIVE_STATUSES,
