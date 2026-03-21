@@ -1,13 +1,14 @@
 /**
- * @modules — Business domain modules (CRUD + validation + manifest).
+ * @modules — Canonical home of 7F business modules.
  *
- * Future modules: clientes, proyectos, tareas, facturacion, finanzas,
- * calendario, contenido, campanas, notas, documentos, usuarios,
- * automatizaciones.
+ * Active module code lives in this directory (for example `clientes`,
+ * `proyectos`, `tareas`, `facturacion`, `finanzas`, `calendario`,
+ * `contenido`, `campanas`, `documentos`, `notas`, `usuarios`,
+ * `automatizaciones`, `inbox`).
  *
- * Each module will be migrated from lib/modules/<name>/ and enriched
- * with a manifest.ts for registry-based discovery.
+ * Canonical imports should point to `@modules/<module>/<file>`.
+ * `lib/modules/*` remains only as a temporary compatibility layer.
  *
- * NOTE: lib/modules/ still contains the active code.
- * This directory will receive migrated modules starting in Phase 2.
+ * This entrypoint intentionally does not re-export module files to avoid
+ * introducing an ambiguous top-level barrel during the cleanup phase.
  */
