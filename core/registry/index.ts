@@ -1,4 +1,10 @@
 export { registry } from "./module-registry";
+export {
+  pilotModuleManifests,
+  pilotEngineManifests,
+  pilotToolManifests,
+  registerPilotManifests,
+} from "./pilot-manifests";
 export type {
   ModuleManifest,
   EngineManifest,
