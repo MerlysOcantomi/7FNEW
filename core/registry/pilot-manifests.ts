@@ -14,18 +14,28 @@ export const pilotToolManifests = [scanToolManifest]
  * runtime entrypoints. It exists only to validate the current registry
  * contract with a few real examples.
  */
-export function registerPilotManifests() {
+export function ensurePilotManifestsRegistered() {
   for (const manifest of pilotEngineManifests) {
-    registry.registerEngine(manifest)
+    if (!registry.getEngine(manifest.id)) {
+      registry.registerEngine(manifest)
+    }
   }
 
   for (const manifest of pilotToolManifests) {
-    registry.registerTool(manifest)
+    if (!registry.getTool(manifest.id)) {
+      registry.registerTool(manifest)
+    }
   }
 
   for (const manifest of pilotModuleManifests) {
-    registry.registerModule(manifest)
+    if (!registry.getModule(manifest.id)) {
+      registry.registerModule(manifest)
+    }
   }
 
   return registry.stats
+}
+
+export function registerPilotManifests() {
+  return ensurePilotManifestsRegistered()
 }
