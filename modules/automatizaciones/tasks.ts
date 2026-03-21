@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { askMotorIA } from "@/lib/ai"
+import { askMotorIA } from "@engines/ai"
 import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 
 export async function detectarRetrasos(workspaceId = DEFAULT_WORKSPACE_ID) {

@@ -1,4 +1,4 @@
-import { askMotorIA } from "@/lib/ai"
+import { askMotorIA } from "@engines/ai"
 import { db } from "@/lib/db"
 import type {
   ConversationIntelligenceOutput,
