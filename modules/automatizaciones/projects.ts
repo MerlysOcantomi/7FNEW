@@ -1,4 +1,4 @@
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 import { askMotorIA } from "@engines/ai"
 import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
 

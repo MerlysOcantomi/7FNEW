@@ -1,5 +1,5 @@
 import { askMotorIA } from "@engines/ai"
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 import type {
   ConversationIntelligenceOutput,
   InboxClassification,

@@ -1,4 +1,4 @@
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
 
 interface ListParams {
