@@ -1,6 +1,6 @@
 /**
  * @tools — Standalone, reusable utilities.
  *
- * Future tools: qr, csv-export.
- * Each tool will be migrated from lib/ and given a manifest.ts.
+ * Canonical tool implementations live under this directory.
+ * Some tools already have compatibility bridges in `lib/` during cleanup.
  */

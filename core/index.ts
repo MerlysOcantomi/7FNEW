@@ -1,8 +1,8 @@
 /**
  * @core — 7F system infrastructure.
  *
- * This barrel will grow as we migrate files from lib/ into core/.
- * For now it only exposes the registry (Phase 0).
+ * Canonical core implementations live under this directory.
+ * The barrel stays intentionally small and currently exposes registry types.
  */
 export { registry } from "./registry";
 export type {

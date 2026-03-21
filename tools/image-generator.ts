@@ -2,7 +2,7 @@
  * DALL-E 3 image generation + Vercel Blob upload.
  */
 
-import { uploadToStorage } from "@/lib/storage"
+import { uploadToStorage } from "@core/storage"
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
 
