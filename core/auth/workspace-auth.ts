@@ -1,6 +1,6 @@
 import { getSessionFromCookies, type SessionUser } from "@/lib/auth/session"
-import { getRequiredWorkspaceId } from "@/lib/workspace-context"
-import { checkMembership } from "@/lib/workspace"
+import { getRequiredWorkspaceId } from "@core/workspace-context"
+import { checkMembership } from "@core/workspace"
 
 export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
@@ -48,7 +48,7 @@ export async function requireWorkspaceRole(
 ): Promise<WorkspaceAuth> {
   const session = await getSessionFromCookies()
   if (!session) {
-    const { WorkspaceError } = await import("@/lib/workspace-context")
+    const { WorkspaceError } = await import("@core/workspace-context")
     throw new WorkspaceError("UNAUTHORIZED", "No autenticado", 401)
   }
 

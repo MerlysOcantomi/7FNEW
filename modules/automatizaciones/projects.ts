@@ -1,6 +1,6 @@
 import { db } from "@core/db"
 import { askMotorIA } from "@engines/ai"
-import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace"
+import { DEFAULT_WORKSPACE_ID } from "@core/workspace"
 
 export async function detectarBloqueos(workspaceId = DEFAULT_WORKSPACE_ID) {
   const proyectos = await db.proyecto.findMany({
