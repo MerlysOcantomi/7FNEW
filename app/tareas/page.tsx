@@ -49,14 +49,14 @@ const priorityColors: Record<string, string> = {
   baja: "bg-[var(--tab-info)] text-foreground/70",
 }
 
-const STATUS_OPTIONS = ["todos", "pendiente", "en_progreso", "revision", "completada", "cancelada"] as const
-const PRIORITY_OPTIONS = ["todas", "urgente", "alta", "media", "baja"] as const
+const STATUS_OPTIONS = ["all", "pendiente", "en_progreso", "revision", "completada", "cancelada"] as const
+const PRIORITY_OPTIONS = ["all", "urgente", "alta", "media", "baja"] as const
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—"
   try {
     const d = new Date(value)
-    return isNaN(d.getTime()) ? value : d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+    return isNaN(d.getTime()) ? value : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
   } catch {
     return value
   }
@@ -64,9 +64,9 @@ function formatDate(value: string | null | undefined): string {
 
 export default function TareasPage() {
   const [search, setSearch] = useState("")
-  const [filterStatus, setFilterStatus] = useState<string>("todos")
-  const [filterPriority, setFilterPriority] = useState<string>("todas")
-  const [filterClient, setFilterClient] = useState("Todos")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterPriority, setFilterPriority] = useState<string>("all")
+  const [filterClient, setFilterClient] = useState("All")
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"due" | "priority">("due")
   const [formOpen, setFormOpen] = useState(false)
@@ -75,8 +75,8 @@ export default function TareasPage() {
 
   const query = new URLSearchParams()
   if (search.trim()) query.set("search", search.trim())
-  if (filterStatus !== "todos") query.set("estado", filterStatus)
-  if (filterPriority !== "todas") query.set("prioridad", filterPriority)
+  if (filterStatus !== "all") query.set("estado", filterStatus)
+  if (filterPriority !== "all") query.set("prioridad", filterPriority)
   const qs = query.toString()
   const url = qs ? `/api/tareas?${qs}` : "/api/tareas"
 
@@ -89,12 +89,12 @@ export default function TareasPage() {
       const name = t.cliente?.nombre
       if (name) set.add(name)
     })
-    return ["Todos", ...Array.from(set).sort()]
+    return ["All", ...Array.from(set).sort()]
   }, [allTasks])
 
   const filtered = useMemo(() => {
     let list = allTasks.filter((t: any) => {
-      const matchClient = filterClient === "Todos" || (t.cliente?.nombre === filterClient)
+      const matchClient = filterClient === "All" || (t.cliente?.nombre === filterClient)
       return matchClient
     })
     if (sortBy === "due") {
@@ -120,19 +120,19 @@ export default function TareasPage() {
     if (!deleteItem) return
     try {
       await apiDelete(`/api/tareas/${deleteItem.id}`)
-      toast.success("Tarea eliminada")
+      toast.success("Task deleted")
       refetch()
       if (selectedTask === deleteItem.id) setSelectedTask(null)
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar")
+      toast.error(err instanceof Error ? err.message : "Delete failed")
     } finally {
       setDeleteItem(null)
     }
   }
 
   return (
-    <AppShell currentSection="tareas" breadcrumbs={[{ label: "7F" }, { label: "Tareas" }]}>
-      <SectionPage title="Tareas" description="Vista global de todas las tareas de todos los proyectos y clientes del sistema.">
+    <AppShell currentSection="tareas" breadcrumbs={[{ label: "7F" }, { label: "Tasks" }]}>
+      <SectionPage title="Tasks" description="Global view of all tasks across every project and client in the system.">
 
         {/* Stats */}
         <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -141,15 +141,15 @@ export default function TareasPage() {
             <p className="mt-1 text-2xl font-semibold text-foreground">{allTasks.length}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pendientes</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pending</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{pendingCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">En progreso</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">In progress</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{inProgressCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Urgentes</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Urgent</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{urgentCount}</p>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function TareasPage() {
               <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
                 type="text"
-                placeholder="Buscar tarea, proyecto o responsable..."
+                placeholder="Search task, project, or owner..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -179,7 +179,7 @@ export default function TareasPage() {
                   filterStatus === s ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
-                {s === "todos" ? "Todos" : displayLabel(s, estadoLabel)}
+                {s === "all" ? "All" : displayLabel(s, estadoLabel)}
               </button>
             ))}
             <span className="hidden sm:block mx-1 h-4 w-px bg-border" />
@@ -188,8 +188,8 @@ export default function TareasPage() {
               onChange={(e) => setFilterPriority(e.target.value)}
               className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-foreground outline-none w-full sm:w-auto"
             >
-              <option value="todas">Prioridad</option>
-              {PRIORITY_OPTIONS.filter((p) => p !== "todas").map((p) => (
+              <option value="all">Priority</option>
+              {PRIORITY_OPTIONS.filter((p) => p !== "all").map((p) => (
                 <option key={p} value={p}>{displayLabel(p, prioridadLabel)}</option>
               ))}
             </select>
@@ -199,7 +199,7 @@ export default function TareasPage() {
               className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-foreground outline-none w-full sm:w-auto"
             >
               {clients.map((c) => (
-                <option key={c} value={c}>{c === "Todos" ? "Cliente" : c}</option>
+                <option key={c} value={c}>{c === "All" ? "Client" : c}</option>
               ))}
             </select>
           </div>
@@ -209,19 +209,19 @@ export default function TareasPage() {
         <div className="grid gap-4 xl:grid-cols-5">
           <div className={cn("flex flex-col gap-2", selected ? "lg:col-span-3" : "lg:col-span-5")}>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{loading ? "Cargando..." : `${filtered.length} tareas`}</p>
+              <p className="text-xs text-muted-foreground">{loading ? "Loading..." : `${filtered.length} tasks`}</p>
               <div className="scale-90 sm:scale-100 origin-right">
                 <ExportCSVButton
                   data={filtered}
                   columns={TAREA_COLUMNS}
-                  filename={`tareas-${new Date().toISOString().slice(0, 10)}`}
+                  filename={`tasks-${new Date().toISOString().slice(0, 10)}`}
                 />
               </div>
             </div>
 
             {loading && (
               <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
-                <p className="text-sm font-medium text-foreground">Cargando...</p>
+                <p className="text-sm font-medium text-foreground">Loading...</p>
               </div>
             )}
 
@@ -268,8 +268,8 @@ export default function TareasPage() {
             {!loading && !error && filtered.length === 0 && (
               <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
                 <CheckSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">No se encontraron tareas</p>
-                <p className="text-xs text-muted-foreground mt-1">Ajusta los filtros o busca con otro termino.</p>
+                <p className="text-sm font-medium text-foreground">No tasks found</p>
+                <p className="text-xs text-muted-foreground mt-1">Adjust the filters or try another search term.</p>
               </div>
             )}
           </div>
@@ -278,8 +278,8 @@ export default function TareasPage() {
             <div className="xl:col-span-2">
               <div className="rounded-xl border border-border bg-card xl:sticky xl:top-6">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                  <h3 className="text-sm font-semibold text-foreground">Detalle de tarea</h3>
-                  <button onClick={() => setSelectedTask(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
+                  <h3 className="text-sm font-semibold text-foreground">Task details</h3>
+                  <button onClick={() => setSelectedTask(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -296,24 +296,24 @@ export default function TareasPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <DetailField label="Proyecto" value={selected.proyecto?.nombre ?? "—"} />
-                    <DetailField label="Cliente" value={selected.cliente?.nombre ?? "—"} />
-                    <DetailField label="Responsable" value={selected.usuario?.nombre ?? "—"} />
-                    <DetailField label="Fecha limite" value={formatDate(selected.fechaLimite)} />
+                    <DetailField label="Project" value={selected.proyecto?.nombre ?? "—"} />
+                    <DetailField label="Client" value={selected.cliente?.nombre ?? "—"} />
+                    <DetailField label="Owner" value={selected.usuario?.nombre ?? "—"} />
+                    <DetailField label="Due date" value={formatDate(selected.fechaLimite)} />
                   </div>
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Descripcion</p>
-                    <p className="text-sm text-foreground/70 leading-relaxed">{selected.descripcion || "Sin descripcion."}</p>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Description</p>
+                    <p className="text-sm text-foreground/70 leading-relaxed">{selected.descripcion || "No description."}</p>
                   </div>
                   <div className="flex items-center gap-2 pt-2 border-t border-border">
                     {selected.proyectoId && (
                       <Link href={`/proyectos/${selected.proyectoId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-                        <FolderKanban className="h-3 w-3" /> Ver proyecto
+                        <FolderKanban className="h-3 w-3" /> View project
                       </Link>
                     )}
                     {selected.clienteId && (
                       <Link href={`/clientes/${selected.clienteId}`} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-                        <Users className="h-3 w-3" /> Ver cliente
+                        <Users className="h-3 w-3" /> View client
                       </Link>
                     )}
                   </div>

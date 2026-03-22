@@ -73,7 +73,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 }
 
 function fmt(n: number) {
-  return "$" + n.toLocaleString("es-AR");
+  return "$" + n.toLocaleString("en-US");
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -84,12 +84,12 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Hace un momento";
-  if (diffMins < 60) return `Hace ${diffMins} min`;
-  if (diffHours < 24) return `Hace ${diffHours} h`;
-  if (diffDays === 1) return "Ayer";
-  if (diffDays < 7) return `Hace ${diffDays} días`;
-  return date.toLocaleDateString("es", { day: "numeric", month: "short" });
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
 
 function getActivityIcon(module: string, type: string) {
@@ -114,33 +114,33 @@ export default function Dashboard() {
   const kpiCards = kpis
     ? [
         {
-          label: "Proyectos activos",
+          label: "Active projects",
           value: String(kpis.proyectosActivos),
-          delta: kpis.proyectosActivos > 0 ? "En ejecución" : "Sin proyectos activos",
+          delta: kpis.proyectosActivos > 0 ? "In progress" : "No active projects",
           trend: "up" as const,
           icon: FolderKanban,
           href: "/proyectos",
         },
         {
-          label: "Tareas vencidas",
+          label: "Overdue tasks",
           value: String(kpis.tareasVencidas),
-          delta: kpis.tareasVencidas > 0 ? "Requieren atención" : "Al día",
+          delta: kpis.tareasVencidas > 0 ? "Need attention" : "On track",
           trend: (kpis.tareasVencidas > 0 ? "down" : "up") as "up" | "down",
           icon: AlertTriangle,
           href: "/tareas",
         },
         {
-          label: "Facturación del mes",
+          label: "Monthly billing",
           value: fmt(kpis.facturacionMes),
-          delta: "Este mes",
+          delta: "This month",
           trend: "up" as const,
           icon: DollarSign,
           href: "/facturacion",
         },
         {
-          label: "Facturas pendientes",
+          label: "Pending invoices",
           value: String(kpis.facturasPendientes),
-          delta: kpis.facturasPendientes > 0 ? `${fmt(finance?.montoFacturasPendientes ?? 0)} por cobrar` : "Sin pendientes",
+          delta: kpis.facturasPendientes > 0 ? `${fmt(finance?.montoFacturasPendientes ?? 0)} outstanding` : "No pending invoices",
           trend: (kpis.facturasPendientes > 0 ? "down" : "up") as "up" | "down",
           icon: Bell,
           href: "/facturacion",
@@ -166,15 +166,15 @@ export default function Dashboard() {
                   7F Copilot
                 </p>
                 <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
-                  Panel Ejecutivo
+                  Executive Dashboard
                 </h1>
                 <p className="text-xs text-[#64748B] mt-1 text-pretty">
-                  Visión general del estado operativo y estratégico del workspace
+                  High-level view of the workspace's operational and strategic status
                 </p>
               </div>
               <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm shrink-0 self-start sm:self-auto">
                 <FileBarChart size={14} strokeWidth={1.75} />
-                Generar reporte ejecutivo
+                Generate executive report
               </button>
             </div>
 
@@ -187,14 +187,14 @@ export default function Dashboard() {
                 <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
                   <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
                   <p className="text-sm font-medium text-[#991B1B]">{error}</p>
-                  <p className="text-xs text-[#B91C1C] mt-1">No se pudo cargar el resumen del dashboard</p>
+                  <p className="text-xs text-[#B91C1C] mt-1">Dashboard summary could not be loaded</p>
                 </div>
               ) : (
                 <>
-                  {/* ── SECCIÓN 1: RESUMEN GENERAL ── */}
+                  {/* Overview */}
                   <section>
                     <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-4">
-                      Resumen general
+                      Overview
                     </h2>
                     <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
                       {kpiCards.map(({ label, value, delta, trend, icon: Icon, href }) => (
@@ -207,7 +207,7 @@ export default function Dashboard() {
                             <Icon
                               size={15}
                               className={
-                                trend === "down" && (label === "Tareas vencidas" || label === "Facturas pendientes")
+                                trend === "down" && (label === "Overdue tasks" || label === "Pending invoices")
                                   ? "text-[#DC2626]"
                                   : "text-[#3B82F6]"
                               }
@@ -234,27 +234,27 @@ export default function Dashboard() {
 
                   {/* ── GRID: Secciones 2 y 3 en desktop ── */}
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {/* ── SECCIÓN 2: ACTIVIDAD RECIENTE (FLOW) ── */}
+                    {/* Recent activity */}
                     <section>
                       <div className="flex items-center justify-between mb-4">
                         <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
-                          Actividad reciente
+                          Recent activity
                           <span className="ml-1.5 text-[#3B82F6]">· Flow</span>
                         </h2>
                         <Link
                           href="/inbox"
                           className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                         >
-                          Ver todo <ChevronRight size={11} />
+                          View all <ChevronRight size={11} />
                         </Link>
                       </div>
                       <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                         {activity.length === 0 ? (
                           <div className="px-5 py-12 text-center">
                             <Activity size={24} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-                            <p className="text-sm font-medium text-[#334155]">Sin actividad reciente</p>
+                            <p className="text-sm font-medium text-[#334155]">No recent activity</p>
                             <p className="text-xs text-[#94A3B8] mt-1">
-                              Los cambios y comentarios aparecerán aquí
+                              Changes and comments will appear here
                             </p>
                           </div>
                         ) : (
@@ -290,18 +290,18 @@ export default function Dashboard() {
                       </div>
                     </section>
 
-                    {/* ── SECCIÓN 3: ESTADO FINANCIERO (FUNDS) ── */}
+                    {/* Financial status */}
                     <section>
                       <div className="flex items-center justify-between mb-4">
                         <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
-                          Estado financiero
+                          Financial status
                           <span className="ml-1.5 text-[#3B82F6]">· Funds</span>
                         </h2>
                         <Link
                           href="/finanzas"
                           className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                         >
-                          Ver finanzas <ChevronRight size={11} />
+                          View finance <ChevronRight size={11} />
                         </Link>
                       </div>
                       <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
@@ -309,12 +309,12 @@ export default function Dashboard() {
                           <>
                             <div className="px-5 py-4 border-b border-[#F1F5F9]">
                               <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-3">
-                                Ingresos vs Gastos — este mes
+                                Revenue vs expenses — this month
                               </p>
                               <div className="space-y-2.5">
                                 <div>
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs text-[#334155]">Ingresos</span>
+                                    <span className="text-xs text-[#334155]">Revenue</span>
                                     <span className="text-xs font-semibold text-[#16A34A]">
                                       {fmt(finance.ingresosMes)}
                                     </span>
@@ -323,7 +323,7 @@ export default function Dashboard() {
                                 </div>
                                 <div>
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs text-[#334155]">Gastos</span>
+                                    <span className="text-xs text-[#334155]">Expenses</span>
                                     <span className="text-xs font-semibold text-[#DC2626]">
                                       {fmt(finance.gastosMes)}
                                     </span>
@@ -339,9 +339,9 @@ export default function Dashboard() {
                                   <FileText size={13} className="text-[#854D0E]" strokeWidth={1.75} />
                                 </div>
                                 <div>
-                                  <p className="text-xs font-medium text-[#0F172A]">Facturas pendientes</p>
+                                  <p className="text-xs font-medium text-[#0F172A]">Pending invoices</p>
                                   <p className="text-[10px] text-[#64748B]">
-                                    {finance.facturasPendientes} facturas · {fmt(finance.montoFacturasPendientes)}
+                                    {finance.facturasPendientes} invoices · {fmt(finance.montoFacturasPendientes)}
                                   </p>
                                 </div>
                               </div>
@@ -349,7 +349,7 @@ export default function Dashboard() {
                                 href="/facturacion"
                                 className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5 shrink-0"
                               >
-                                Ver <ChevronRight size={11} />
+                                View <ChevronRight size={11} />
                               </Link>
                             </div>
 
@@ -358,10 +358,10 @@ export default function Dashboard() {
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-0.5">
-                                      Desviación presupuestaria
+                                      Budget variance
                                     </p>
                                     <p className="text-xs text-[#334155]">
-                                      Gasto real vs presupuesto aprobado del mes
+                                      Actual spend vs approved monthly budget
                                     </p>
                                   </div>
                                   <span
@@ -377,10 +377,10 @@ export default function Dashboard() {
                             ) : (
                               <div className="px-5 py-4">
                                 <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-0.5">
-                                  Desviación presupuestaria
+                                      Budget variance
                                 </p>
                                 <p className="text-xs text-[#94A3B8]">
-                                  No hay presupuesto configurado para calcular la desviación
+                                      No budget has been configured to calculate variance
                                 </p>
                               </div>
                             )}
@@ -388,25 +388,25 @@ export default function Dashboard() {
                         ) : (
                           <div className="px-5 py-12 text-center">
                             <DollarSign size={24} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-                            <p className="text-sm font-medium text-[#334155]">Sin datos financieros</p>
+                            <p className="text-sm font-medium text-[#334155]">No financial data</p>
                           </div>
                         )}
                       </div>
                     </section>
                   </div>
 
-                  {/* ── SECCIÓN 4: INSIGHTS ESTRATÉGICOS (FORESIGHT) ── */}
+                  {/* Strategic insights */}
                   <section>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
-                        Insights estratégicos
+                        Strategic insights
                         <span className="ml-1.5 text-[#3B82F6]">· Foresight</span>
                       </h2>
                       <Link
                         href="/agente"
                         className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                       >
-                        Ver análisis completo <ArrowUpRight size={11} />
+                        View full analysis <ArrowUpRight size={11} />
                       </Link>
                     </div>
 
@@ -417,11 +417,11 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-[10px] font-semibold text-[#60A5FA] uppercase tracking-widest mb-0.5">
-                            Síntesis ejecutiva · Foresight
+                            Executive summary · Foresight
                           </p>
                           <p className="text-sm text-[#CBD5E1] leading-relaxed text-pretty">
-                            Próximamente: resumen ejecutivo asistido por IA. Esta sección mostrará análisis
-                            estratégicos basados en los datos del workspace cuando esté disponible.
+                            Coming soon: AI-assisted executive summary. This section will show strategic
+                            analysis based on workspace data once available.
                           </p>
                         </div>
                       </div>
@@ -429,7 +429,7 @@ export default function Dashboard() {
                         href="/agente"
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#1E293B] text-[#60A5FA] text-xs font-medium hover:bg-[#2D3F58] transition-colors shrink-0 border border-[#334155]"
                       >
-                        Ir al agente <ArrowUpRight size={12} />
+                        Go to agent <ArrowUpRight size={12} />
                       </Link>
                     </div>
                   </section>

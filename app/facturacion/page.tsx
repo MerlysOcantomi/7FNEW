@@ -24,12 +24,12 @@ import { displayLabel, estadoLabel } from "@/lib/api-client";
 
 // API estado: borrador, enviada, pagada, vencida, cancelada
 const ESTADO_OPTIONS = [
-  { value: "", label: "Todos" },
-  { value: "pagada", label: "Pagada" },
-  { value: "enviada", label: "Pendiente" },
-  { value: "vencida", label: "Vencida" },
-  { value: "borrador", label: "Borrador" },
-  { value: "cancelada", label: "Cancelada" },
+  { value: "", label: "All" },
+  { value: "pagada", label: "Paid" },
+  { value: "enviada", label: "Pending" },
+  { value: "vencida", label: "Overdue" },
+  { value: "borrador", label: "Draft" },
+  { value: "cancelada", label: "Canceled" },
 ];
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -44,7 +44,7 @@ function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "—";
   }
@@ -52,7 +52,7 @@ function formatDate(value: string | Date | null | undefined): string {
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("es", { style: "currency", currency: "CHF" }).format(value);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "CHF" }).format(value);
 }
 
 export default function FacturacionPage() {
@@ -87,10 +87,10 @@ export default function FacturacionPage() {
     const countPendientes = facturas.filter((f: any) => f.estado === "enviada").length;
     const countVencidas = facturas.filter((f: any) => f.estado === "vencida").length;
     return [
-      { label: "Total facturado", value: formatCurrency(totalFacturado), sub: "Todas las facturas", icon: DollarSign, color: "text-[#3B82F6]" },
-      { label: "Cobrado", value: formatCurrency(cobrado), sub: `${countPagadas} factura${countPagadas !== 1 ? "s" : ""} pagada${countPagadas !== 1 ? "s" : ""}`, icon: CheckCircle2, color: "text-[#22C55E]" },
-      { label: "Pendiente", value: formatCurrency(pendiente), sub: `${countPendientes} factura${countPendientes !== 1 ? "s" : ""} pendiente${countPendientes !== 1 ? "s" : ""}`, icon: Clock, color: "text-[#3B82F6]" },
-      { label: "Vencido", value: formatCurrency(vencido), sub: countVencidas > 0 ? `${countVencidas} factura${countVencidas !== 1 ? "s" : ""} — requiere atención` : "Sin vencidos", icon: AlertTriangle, color: "text-[#EF4444]" },
+      { label: "Total billed", value: formatCurrency(totalFacturado), sub: "All invoices", icon: DollarSign, color: "text-[#3B82F6]" },
+      { label: "Collected", value: formatCurrency(cobrado), sub: `${countPagadas} paid invoice${countPagadas !== 1 ? "s" : ""}`, icon: CheckCircle2, color: "text-[#22C55E]" },
+      { label: "Pending", value: formatCurrency(pendiente), sub: `${countPendientes} pending invoice${countPendientes !== 1 ? "s" : ""}`, icon: Clock, color: "text-[#3B82F6]" },
+      { label: "Overdue", value: formatCurrency(vencido), sub: countVencidas > 0 ? `${countVencidas} invoice${countVencidas !== 1 ? "s" : ""} — needs attention` : "No overdue invoices", icon: AlertTriangle, color: "text-[#EF4444]" },
     ];
   }, [facturas]);
 
@@ -113,16 +113,16 @@ export default function FacturacionPage() {
           <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Funds</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <Link href="/finanzas" className="text-sm text-[#64748B] hover:text-[#0F172A] transition-colors font-medium">Finanzas</Link>
+              <Link href="/finanzas" className="text-sm text-[#64748B] hover:text-[#0F172A] transition-colors font-medium">Finance</Link>
               <span className="text-[#E2E8F0]">/</span>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Facturación</h1>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Billing</h1>
             </div>
             <button
               onClick={() => setFormOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto"
             >
               <Plus size={14} strokeWidth={2} />
-              Nueva factura
+              New invoice
             </button>
           </div>
         </div>
@@ -145,16 +145,16 @@ export default function FacturacionPage() {
             <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-xl p-4 flex items-start gap-3">
               <AlertTriangle size={15} className="text-[#DC2626] mt-0.5 shrink-0" strokeWidth={1.75} />
               <div>
-                <p className="text-sm font-semibold text-[#991B1B]">Factura vencida — Acción requerida</p>
+                <p className="text-sm font-semibold text-[#991B1B]">Overdue invoice — action required</p>
                 <p className="text-xs text-[#991B1B] mt-0.5">
-                  {primeraVencida.numero} de {primeraVencida.cliente?.nombre ?? "Cliente"} ({formatCurrency(primeraVencida.total)}) venció el {formatDate(primeraVencida.fechaVencimiento)}.
+                  {primeraVencida.numero} for {primeraVencida.cliente?.nombre ?? "Client"} ({formatCurrency(primeraVencida.total)}) became overdue on {formatDate(primeraVencida.fechaVencimiento)}.
                 </p>
               </div>
               <Link
                 href={`/facturacion/${primeraVencida.id}`}
                 className="shrink-0 text-xs font-medium text-[#991B1B] hover:underline"
               >
-                Ver factura
+                View invoice
               </Link>
             </div>
           )}
@@ -167,7 +167,7 @@ export default function FacturacionPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por número de factura..."
+                placeholder="Search by invoice number..."
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
               />
             </div>
@@ -176,7 +176,7 @@ export default function FacturacionPage() {
                 onClick={() => { setClienteOpen(false); setStatusOpen(!statusOpen); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Estado"}</span>
+                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
@@ -198,7 +198,7 @@ export default function FacturacionPage() {
                 onClick={() => { setStatusOpen(false); setClienteOpen(!clienteOpen); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[140px] justify-between"
               >
-                <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? "Cliente") : "Cliente"}</span>
+                <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? "Client") : "Client"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", clienteOpen && "rotate-180")} />
               </button>
               {clienteOpen && (
@@ -207,7 +207,7 @@ export default function FacturacionPage() {
                     onClick={() => { setClienteFilter(""); setClienteOpen(false); }}
                     className={cn("w-full text-left px-4 py-2 text-sm transition-colors", !clienteFilter ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
                   >
-                    Todos
+                    All
                   </button>
                   {clientes.map((c: any) => (
                     <button
@@ -226,8 +226,8 @@ export default function FacturacionPage() {
           {/* Invoice List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Todas las facturas</h2>
-              <span className="text-xs text-[#94A3B8]">{facturas.length} factura{facturas.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">All invoices</h2>
+              <span className="text-xs text-[#94A3B8]">{facturas.length} invoice{facturas.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
@@ -238,14 +238,14 @@ export default function FacturacionPage() {
               <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
                 <p className="text-sm font-medium text-[#991B1B]">{error}</p>
-                <p className="text-xs text-[#B91C1C] mt-1">No se pudieron cargar las facturas</p>
+                <p className="text-xs text-[#B91C1C] mt-1">Invoices could not be loaded</p>
               </div>
             ) : facturas.length === 0 ? (
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-16 text-center">
                 <Receipt className="mx-auto h-12 w-12 text-[#CBD5E1] mb-4" />
-                <p className="text-sm font-medium text-[#334155]">No hay facturas</p>
+                <p className="text-sm font-medium text-[#334155]">No invoices yet</p>
                 <p className="text-xs text-[#64748B] mt-1">
-                  {search || statusFilter || clienteFilter ? "No hay resultados para los filtros aplicados." : "Crea tu primera factura para comenzar."}
+                  {search || statusFilter || clienteFilter ? "No results for the selected filters." : "Create your first invoice to get started."}
                 </p>
                 {!search && !statusFilter && !clienteFilter && (
                   <button
@@ -253,7 +253,7 @@ export default function FacturacionPage() {
                     className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
                   >
                     <Plus size={14} />
-                    Nueva factura
+                    New invoice
                   </button>
                 )}
               </div>
@@ -262,13 +262,13 @@ export default function FacturacionPage() {
                 {/* Desktop list */}
                 <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Factura</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Cliente</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Proyecto</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Importe</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Emisión</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vence</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Invoice</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Project</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Amount</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Issued</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
                     <span className="col-span-1" />
                   </div>
                   {facturas.map((f: any, i: number) => {
@@ -289,7 +289,7 @@ export default function FacturacionPage() {
                         </span>
                         <div className="col-span-1 flex justify-end">
                           <Link href={`/facturacion/${f.id}`} className="text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors flex items-center gap-0.5">
-                            Ver <ArrowUpRight size={11} />
+                            View <ArrowUpRight size={11} />
                           </Link>
                         </div>
                       </div>
@@ -312,8 +312,8 @@ export default function FacturacionPage() {
                         <p className="text-sm font-medium text-[#0F172A]">{formatCurrency(f.total)}</p>
                         <p className="text-xs text-[#64748B] mt-0.5">{f.cliente?.nombre ?? "—"} · {f.proyecto?.nombre ?? "—"}</p>
                         <p className="text-[10px] text-[#94A3B8] mt-0.5">
-                          Emitida {formatDate(f.fechaEmision)}
-                          {f.fechaVencimiento && <> · Vence {formatDate(f.fechaVencimiento)}</>}
+                          Issued {formatDate(f.fechaEmision)}
+                          {f.fechaVencimiento && <> · Due {formatDate(f.fechaVencimiento)}</>}
                         </p>
                       </div>
                     );

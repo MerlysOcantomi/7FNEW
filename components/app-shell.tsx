@@ -31,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
   if (loading) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#F8FAFC]">
-        <p className="text-sm text-[#94A3B8]">Verificando sesion...</p>
+        <p className="text-sm text-[#94A3B8]">Checking session...</p>
       </div>
     )
   }
@@ -55,7 +55,7 @@ export function AppShell({ children }: AppShellProps) {
                 className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 cursor-pointer hover:border-[#3B82F6]/30 transition-colors"
               >
                 <Search className="h-3.5 w-3.5 text-[#94A3B8]" />
-                <span className="w-32 lg:w-48 text-left text-sm text-[#94A3B8]">Buscar...</span>
+                <span className="w-32 lg:w-48 text-left text-sm text-[#94A3B8]">Search...</span>
                 <kbd className="ml-auto text-[10px] font-mono text-[#94A3B8]/60 border border-[#E2E8F0] rounded px-1 py-0.5">
                   Ctrl+K
                 </kbd>

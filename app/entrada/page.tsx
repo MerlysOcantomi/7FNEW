@@ -24,61 +24,61 @@ const recentEntries = [
   {
     id: "ent-1",
     text: "Maria de Alpha Corp llamo para decir que le gusto la version 3 del logotipo pero quiere el icono mas oscuro",
-    time: "Hace 20 min",
+    time: "20 min ago",
     aiResult: {
       client: "Alpha Corp",
       project: "Rebranding Alpha Corp",
-      actions: ["Crear tarea: Ajustar color de icono en logotipo v3", "Notificar a Ana Rodriguez (disenadora)"],
-      type: "Solicitud de cambio",
+      actions: ["Create task: Adjust icon color in logo v3", "Notify Ana Rodriguez (designer)"],
+      type: "Change request",
       confidence: 94,
     },
-    status: "aplicado",
+    status: "applied",
   },
   {
     id: "ent-2",
     text: "Nuevo lead: Fernando Reyes de Nexus Solutions necesita sitio web corporativo con blog. Tel 55 9876 5432",
-    time: "Hace 1h",
+    time: "1h ago",
     aiResult: {
-      client: "Nexus Solutions (nuevo)",
+      client: "Nexus Solutions (new)",
       project: null,
-      actions: ["Crear cliente: Nexus Solutions", "Crear contacto: Fernando Reyes", "Crear proyecto prospecto"],
-      type: "Nuevo prospecto",
+      actions: ["Create client: Nexus Solutions", "Create contact: Fernando Reyes", "Create prospect project"],
+      type: "New prospect",
       confidence: 87,
     },
-    status: "pendiente",
+    status: "pending",
   },
   {
     id: "ent-3",
     text: "Roberto confirmo la fase 2 de Beta Labs, dice que manda la OC manana",
-    time: "Hace 3h",
+    time: "3h ago",
     aiResult: {
       client: "Beta Labs",
       project: "Portal Beta Labs",
-      actions: ["Mover proyecto a Fase 2", "Programar recordatorio: OC Beta Labs manana"],
-      type: "Aprobacion de fase",
+      actions: ["Move project to Phase 2", "Schedule reminder: Beta Labs PO tomorrow"],
+      type: "Phase approval",
       confidence: 91,
     },
-    status: "aplicado",
+    status: "applied",
   },
   {
     id: "ent-4",
     text: "Sofia envio las fotos finales de Gamma. 45 imagenes en alta",
-    time: "Hace 5h",
+    time: "5h ago",
     aiResult: {
       client: "Gamma Inc",
-      project: "Catalogo Gamma Inc",
-      actions: ["Registrar entrega de materiales fotograficos", "Notificar al equipo de diseno"],
-      type: "Entrega de materiales",
+      project: "Gamma Inc Catalog",
+      actions: ["Register delivery of photo assets", "Notify the design team"],
+      type: "Asset delivery",
       confidence: 85,
     },
-    status: "ignorado",
+    status: "ignored",
   },
 ]
 
 const statusStyles: Record<string, string> = {
-  aplicado: "bg-[var(--tab-phases)] text-foreground/70",
-  pendiente: "bg-[var(--tab-tasks)] text-foreground/70",
-  ignorado: "bg-muted text-muted-foreground",
+  applied: "bg-[var(--tab-phases)] text-foreground/70",
+  pending: "bg-[var(--tab-tasks)] text-foreground/70",
+  ignored: "bg-muted text-muted-foreground",
 }
 
 export default function EntradaPage() {
@@ -92,8 +92,8 @@ export default function EntradaPage() {
   }
 
   return (
-    <AppShell currentSection="entrada" breadcrumbs={[{ label: "7F" }, { label: "Entrada Manual" }]}>
-      <SectionPage title="Entrada Manual" description="Escribe lo que dijo el cliente en lenguaje natural. La IA se encarga de clasificar, distribuir y crear las acciones correspondientes.">
+    <AppShell currentSection="entrada" breadcrumbs={[{ label: "7F" }, { label: "Manual Intake" }]}>
+      <SectionPage title="Manual Intake" description="Write what the client said in natural language. AI will classify it, route it, and create the relevant actions.">
 
         {/* Main input area */}
         <div className="rounded-xl border border-border bg-card p-6">
@@ -102,15 +102,15 @@ export default function EntradaPage() {
               <PenLine className="h-4 w-4 text-foreground/60" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Que paso?</p>
-              <p className="text-xs text-muted-foreground">Escribe lo que dijo el cliente, una nota de llamada, o cualquier informacion nueva.</p>
+              <p className="text-sm font-semibold text-foreground">What happened?</p>
+              <p className="text-xs text-muted-foreground">Write what the client said, a call note, or any new information.</p>
             </div>
           </div>
 
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Ej: 'Maria de Alpha Corp llamo para decir que le gusto la version 3 pero quiere cambios en el color...'"
+            placeholder="Ex: 'Maria from Alpha Corp called to say she liked version 3 but wants color changes...'"
             rows={4}
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
           />
@@ -118,11 +118,11 @@ export default function EntradaPage() {
           <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent">
-                <Mic className="h-3.5 w-3.5" /> Dictar
+                <Mic className="h-3.5 w-3.5" /> Dictate
               </button>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lightbulb className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Escribe en lenguaje natural, la IA interpreta el contexto</span>
+                <span className="hidden sm:inline">Write naturally, the AI will interpret the context</span>
               </div>
             </div>
             <button
@@ -136,9 +136,9 @@ export default function EntradaPage() {
               )}
             >
               {isProcessing ? (
-                <><RefreshCw className="h-4 w-4 animate-spin" /> Procesando...</>
+                <><RefreshCw className="h-4 w-4 animate-spin" /> Processing...</>
               ) : (
-                <><Send className="h-4 w-4" /> Procesar con IA</>
+                <><Send className="h-4 w-4" /> Process with AI</>
               )}
             </button>
           </div>
@@ -147,15 +147,15 @@ export default function EntradaPage() {
         {/* AI processing preview placeholder */}
         <div className="rounded-xl border border-dashed border-[var(--tab-ai)]/50 bg-[var(--tab-ai)]/5 p-6 text-center">
           <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">El resultado del procesamiento aparecera aqui</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">La IA identificara cliente, proyecto, tipo de accion y creara tareas automaticamente</p>
+          <p className="text-sm text-muted-foreground">The processing result will appear here</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">AI will identify the client, project, action type, and create tasks automatically</p>
         </div>
 
         {/* Recent entries */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Entradas recientes</h3>
-            <p className="text-xs text-muted-foreground">{recentEntries.length} entradas</p>
+            <h3 className="text-lg font-semibold text-foreground">Recent entries</h3>
+            <p className="text-xs text-muted-foreground">{recentEntries.length} entries</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -180,32 +180,32 @@ export default function EntradaPage() {
                 <div className="px-5 py-4 bg-muted/20">
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Interpretacion IA</p>
-                    <span className="ml-auto text-[10px] text-muted-foreground">Confianza: {entry.aiResult.confidence}%</span>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">AI interpretation</p>
+                    <span className="ml-auto text-[10px] text-muted-foreground">Confidence: {entry.aiResult.confidence}%</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                     <div className="flex items-center gap-2 text-xs">
                       <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground">Cliente:</span>
+                      <span className="text-muted-foreground">Client:</span>
                       <span className="font-medium text-foreground">{entry.aiResult.client}</span>
                     </div>
                     {entry.aiResult.project && (
                       <div className="flex items-center gap-2 text-xs">
                         <FolderKanban className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground">Proyecto:</span>
+                        <span className="text-muted-foreground">Project:</span>
                         <span className="font-medium text-foreground">{entry.aiResult.project}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-xs">
                       <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground">Tipo:</span>
+                      <span className="text-muted-foreground">Type:</span>
                       <span className="font-medium text-foreground">{entry.aiResult.type}</span>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">Acciones propuestas:</p>
+                    <p className="text-xs text-muted-foreground mb-1.5">Suggested actions:</p>
                     <div className="flex flex-col gap-1">
                       {entry.aiResult.actions.map((action, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs">
@@ -216,16 +216,16 @@ export default function EntradaPage() {
                     </div>
                   </div>
 
-                  {entry.status === "pendiente" && (
+                  {entry.status === "pending" && (
                     <div className="flex items-center gap-2 mt-3">
                       <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80">
-                        <CheckCircle2 className="h-3 w-3" /> Aplicar
+                        <CheckCircle2 className="h-3 w-3" /> Apply
                       </button>
                       <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                        Editar
+                        Edit
                       </button>
                       <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                        Ignorar
+                        Ignore
                       </button>
                     </div>
                   )}

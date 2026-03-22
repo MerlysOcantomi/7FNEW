@@ -56,31 +56,31 @@ export async function apiDelete(path: string): Promise<void> {
 }
 
 export const estadoLabel: Record<string, string> = {
-  activo: "Activo",
-  inactivo: "Inactivo",
-  prospecto: "Prospecto",
-  planificacion: "Planificación",
-  en_progreso: "En progreso",
-  revision: "En revisión",
-  completado: "Completado",
-  cancelado: "Cancelado",
-  pendiente: "Pendiente",
-  completada: "Completada",
-  cancelada: "Cancelada",
-  borrador: "Borrador",
-  enviada: "Enviada",
-  pagada: "Pagada",
-  vencida: "Vencida",
-  activa: "Activa",
-  pausada: "Pausada",
-  en_pausa: "En pausa",
+  activo: "Active",
+  inactivo: "Inactive",
+  prospecto: "Prospect",
+  planificacion: "Planning",
+  en_progreso: "In progress",
+  revision: "In review",
+  completado: "Completed",
+  cancelado: "Canceled",
+  pendiente: "Pending",
+  completada: "Completed",
+  cancelada: "Canceled",
+  borrador: "Draft",
+  enviada: "Sent",
+  pagada: "Paid",
+  vencida: "Overdue",
+  activa: "Active",
+  pausada: "Paused",
+  en_pausa: "On hold",
 }
 
 export const prioridadLabel: Record<string, string> = {
-  baja: "Baja",
-  media: "Media",
-  alta: "Alta",
-  urgente: "Urgente",
+  baja: "Low",
+  media: "Medium",
+  alta: "High",
+  urgente: "Urgent",
 }
 
 export function displayLabel(value: string, map: Record<string, string>): string {

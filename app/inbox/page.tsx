@@ -131,7 +131,7 @@ interface ConversationDetail extends ConversationListItem {
 }
 
 const STATUS_OPTIONS = [
-  "todos",
+  "all",
   "new",
   "triaged",
   "assigned",
@@ -141,7 +141,7 @@ const STATUS_OPTIONS = [
   "closed",
   "archived",
 ]
-const CHANNEL_OPTIONS = ["todos", "manual", "web_chat", "email", "portal", "whatsapp"]
+const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 
 function formatRelativeDate(value: string) {
   const date = new Date(value)
@@ -150,11 +150,11 @@ function formatRelativeDate(value: string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return "Ahora"
-  if (minutes < 60) return `Hace ${minutes} min`
-  if (hours < 24) return `Hace ${hours} h`
-  if (days < 7) return `Hace ${days} d`
-  return date.toLocaleDateString("es", { day: "numeric", month: "short" })
+  if (minutes < 1) return "Now"
+  if (minutes < 60) return `${minutes} min ago`
+  if (hours < 24) return `${hours} h ago`
+  if (days < 7) return `${days} d ago`
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 function statusBadge(status: string) {
@@ -178,6 +178,19 @@ function statusBadge(status: string) {
   }
 }
 
+function statusLabel(status: string) {
+  return {
+    new: "New",
+    triaged: "Triaged",
+    assigned: "Assigned",
+    awaiting_response: "Awaiting response",
+    lead_detected: "Lead detected",
+    converted: "Converted",
+    closed: "Closed",
+    archived: "Archived",
+  }[status] ?? status
+}
+
 function urgencyBadge(urgency: string) {
   switch (urgency) {
     case "critica":
@@ -191,10 +204,19 @@ function urgencyBadge(urgency: string) {
   }
 }
 
+function urgencyLabel(urgency: string) {
+  return {
+    critica: "Critical",
+    alta: "High",
+    media: "Medium",
+    baja: "Low",
+  }[urgency] ?? urgency
+}
+
 function channelLabel(channel: string) {
   return {
     manual: "Manual",
-    web_chat: "Chat web",
+    web_chat: "Web chat",
     email: "Email",
     portal: "Portal",
     whatsapp: "WhatsApp",
@@ -203,12 +225,12 @@ function channelLabel(channel: string) {
 
 function actionTypeLabel(type: string) {
   return {
-    create_client: "Crear cliente",
-    create_project: "Crear proyecto",
-    create_task: "Crear tarea",
-    schedule_followup: "Programar seguimiento",
-    assign_operator: "Asignar operador",
-    generate_proposal: "Generar propuesta",
+    create_client: "Create client",
+    create_project: "Create project",
+    create_task: "Create task",
+    schedule_followup: "Schedule follow-up",
+    assign_operator: "Assign owner",
+    generate_proposal: "Generate proposal",
   }[type] ?? type
 }
 
@@ -228,6 +250,16 @@ function actionStatusBadge(status: string) {
   }
 }
 
+function actionStatusLabel(status: string) {
+  return {
+    suggested: "Suggested",
+    approved: "Approved",
+    executed: "Executed",
+    dismissed: "Dismissed",
+    failed: "Failed",
+  }[status] ?? status
+}
+
 function confidenceLabel(value?: number | null) {
   if (typeof value !== "number") return null
   return `${Math.round(value * 100)}%`
@@ -243,6 +275,14 @@ function handoffStatusBadge(status: string) {
     default:
       return "bg-[#DBEAFE] text-[#1D4ED8]"
   }
+}
+
+function handoffStatusLabel(status: string) {
+  return {
+    generated: "Generated",
+    reviewed: "Reviewed",
+    stale: "Stale",
+  }[status] ?? status
 }
 
 function draftStatusBadge(status: string) {
@@ -262,9 +302,20 @@ function draftStatusBadge(status: string) {
   }
 }
 
+function draftStatusLabel(status: string) {
+  return {
+    draft: "Draft",
+    edited: "Edited",
+    approved: "Approved",
+    sent: "Sent",
+    discarded: "Discarded",
+    superseded: "Superseded",
+  }[status] ?? status
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return null
-  return new Date(value).toLocaleString("es", {
+  return new Date(value).toLocaleString("en-US", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -307,7 +358,7 @@ function ConversationCard({
   selected: boolean
   onClick: () => void
 }) {
-  const preview = item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "Sin resumen"
+  const preview = item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "No summary"
 
   return (
     <button
@@ -321,14 +372,14 @@ function ConversationCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-[#0F172A] truncate">
-              {item.subject || item.contact.nombre || "Nueva conversación"}
+              {item.subject || item.contact.nombre || "New conversation"}
             </p>
             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusBadge(item.status))}>
-              {item.status}
+              {statusLabel(item.status)}
             </span>
           </div>
           <p className="mt-1 text-xs text-[#64748B] truncate">
-            {item.contact.nombre || item.contact.email || "Contacto sin identificar"}
+            {item.contact.nombre || item.contact.email || "Unidentified contact"}
             {item.contact.empresa ? ` · ${item.contact.empresa}` : ""}
           </p>
         </div>
@@ -344,7 +395,7 @@ function ConversationCard({
           {channelLabel(item.channel)}
         </span>
         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", urgencyBadge(item.urgency))}>
-          {item.urgency}
+          {urgencyLabel(item.urgency)}
         </span>
         {typeof item.leadScore === "number" && (
           <span className="rounded-full bg-[#0F172A] px-2 py-0.5 text-[10px] font-medium text-white">
@@ -358,8 +409,8 @@ function ConversationCard({
 
 export default function InboxPage() {
   const [search, setSearch] = useState("")
-  const [status, setStatus] = useState("todos")
-  const [channel, setChannel] = useState("todos")
+  const [status, setStatus] = useState("all")
+  const [channel, setChannel] = useState("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
@@ -370,8 +421,8 @@ export default function InboxPage() {
   const params = new URLSearchParams()
   params.set("pageSize", "100")
   if (search.trim()) params.set("q", search.trim())
-  if (status !== "todos") params.set("status", status)
-  if (channel !== "todos") params.set("channel", channel)
+  if (status !== "all") params.set("status", status)
+  if (channel !== "all") params.set("channel", channel)
 
   const {
     data: conversationsData,
@@ -415,7 +466,7 @@ export default function InboxPage() {
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
 
-    setActionState("Procesando...")
+    setActionState("Processing...")
     try {
       const res = await fetch(`/api/inbox/conversations/${selectedId}/convert`, {
         method: "POST",
@@ -423,14 +474,14 @@ export default function InboxPage() {
         body: JSON.stringify({ action }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Error ejecutando acción")
+      if (!json.success) throw new Error(json.error?.message || "Action failed")
 
-      setActionState("Acción aplicada")
+      setActionState("Action applied")
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
     } catch (err) {
-      setActionState(err instanceof Error ? err.message : "Error desconocido")
+      setActionState(err instanceof Error ? err.message : "Unknown error")
     }
   }
 
@@ -440,24 +491,24 @@ export default function InboxPage() {
     let payload: Record<string, unknown> = {}
 
     if (operation === "dismiss") {
-      const executionNotes = window.prompt("Motivo del descarte (opcional):", "") ?? ""
+      const executionNotes = window.prompt("Dismiss reason (optional):", "") ?? ""
       payload = executionNotes.trim() ? { executionNotes: executionNotes.trim() } : {}
     }
 
     if (operation === "execute") {
       if (action.type === "assign_operator") {
-        const assignedTo = window.prompt("Ingresa el responsable para esta conversación:", "") ?? ""
+        const assignedTo = window.prompt("Enter the owner for this conversation:", "") ?? ""
         if (!assignedTo.trim()) return
         payload = { assignedTo: assignedTo.trim() }
       } else if (action.type === "schedule_followup" || action.type === "generate_proposal") {
-        const executionNotes = window.prompt("Describe cómo se ejecutó esta acción:", "") ?? ""
+        const executionNotes = window.prompt("Describe how this action was executed:", "") ?? ""
         if (!executionNotes.trim()) return
         payload = { executionNotes: executionNotes.trim() }
       }
     }
 
     setPendingActionId(action.id)
-    setActionState("Procesando acción...")
+    setActionState("Processing action...")
 
     try {
       const endpoint =
@@ -473,28 +524,28 @@ export default function InboxPage() {
         body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "No se pudo operar la acción")
+      if (!json.success) throw new Error(json.error?.message || "Could not perform the action")
 
       setActionState(
         operation === "approve"
-          ? "Acción aprobada"
+          ? "Action approved"
           : operation === "dismiss"
-            ? "Acción descartada"
-            : "Acción ejecutada",
+            ? "Action dismissed"
+            : "Action executed",
       )
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
     } catch (err) {
-      setActionState(err instanceof Error ? err.message : "Error desconocido")
+      setActionState(err instanceof Error ? err.message : "Unknown error")
     } finally {
       setPendingActionId(null)
     }
   }
 
-  async function updateHandoff(payload: Record<string, unknown>, successMessage = "Handoff actualizado") {
+  async function updateHandoff(payload: Record<string, unknown>, successMessage = "Handoff updated") {
     if (!selectedId) return
-    setHandoffState("Guardando handoff...")
+    setHandoffState("Saving handoff...")
     try {
       const res = await fetch(`/api/inbox/conversations/${selectedId}/handoff`, {
         method: "PATCH",
@@ -502,19 +553,19 @@ export default function InboxPage() {
         body: JSON.stringify(payload),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "No se pudo guardar el handoff")
+      if (!json.success) throw new Error(json.error?.message || "Could not save the handoff")
       setHandoffState(successMessage)
       setRefreshKey((value) => value + 1)
       refetchDetail()
     } catch (err) {
-      setHandoffState(err instanceof Error ? err.message : "Error desconocido")
+      setHandoffState(err instanceof Error ? err.message : "Unknown error")
       throw err
     }
   }
 
-  async function updateDraft(draftId: string, payload: Record<string, unknown>, successMessage = "Draft actualizado") {
+  async function updateDraft(draftId: string, payload: Record<string, unknown>, successMessage = "Draft updated") {
     if (!selectedId) return
-    setDraftState("Guardando draft...")
+    setDraftState("Saving draft...")
     try {
       const res = await fetch(`/api/inbox/conversations/${selectedId}/drafts/${draftId}`, {
         method: "PATCH",
@@ -522,12 +573,12 @@ export default function InboxPage() {
         body: JSON.stringify(payload),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "No se pudo guardar el draft")
+      if (!json.success) throw new Error(json.error?.message || "Could not save the draft")
       setDraftState(successMessage)
       setRefreshKey((value) => value + 1)
       refetchDetail()
     } catch (err) {
-      setDraftState(err instanceof Error ? err.message : "Error desconocido")
+      setDraftState(err instanceof Error ? err.message : "Unknown error")
       throw err
     }
   }
@@ -536,23 +587,23 @@ export default function InboxPage() {
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <SectionPage
         title="Smart Inbox"
-        description="Capa conversacional del negocio: conversaciones, clasificación IA, contexto operativo y transición a CRM sin salir de 7F."
+        description="Conversational business layer: conversations, AI classification, operational context, and CRM transition without leaving 7F."
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Conversaciones</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Conversations</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.total}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Leads detectados</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Detected leads</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.leads}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Convertidas</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Converted</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.converted}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Alta prioridad</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">High priority</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "—" : stats.urgent}</p>
           </div>
         </div>
@@ -566,7 +617,7 @@ export default function InboxPage() {
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar por contacto, asunto o contexto..."
+                    placeholder="Search by contact, subject, or context..."
                     className="w-full rounded-lg border border-border bg-background py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors focus:border-[#3B82F6]"
                   />
                 </div>
@@ -577,7 +628,7 @@ export default function InboxPage() {
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      {option === "todos" ? "Todos los estados" : option}
+                      {option === "all" ? "All statuses" : option}
                     </option>
                   ))}
                 </select>
@@ -588,7 +639,7 @@ export default function InboxPage() {
                 >
                   {CHANNEL_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      {option === "todos" ? "Todos los canales" : channelLabel(option)}
+                      {option === "all" ? "All channels" : channelLabel(option)}
                     </option>
                   ))}
                 </select>
@@ -607,8 +658,8 @@ export default function InboxPage() {
             ) : conversations.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
                 <History className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm font-medium text-foreground">No hay conversaciones aún</p>
-                <p className="mt-1 text-xs text-muted-foreground">Las conversaciones creadas desde el inbox aparecerán aquí.</p>
+                <p className="text-sm font-medium text-foreground">No conversations yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">Conversations created from the inbox will appear here.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -628,7 +679,7 @@ export default function InboxPage() {
             {!selectedId ? (
               <div className="rounded-xl border border-border bg-card p-8 text-center">
                 <MessageSquare className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">Selecciona una conversación.</p>
+                <p className="text-sm text-muted-foreground">Select a conversation.</p>
               </div>
             ) : detailLoading && !selected ? (
               <div className="flex items-center justify-center rounded-xl border border-border bg-card py-20">
@@ -645,26 +696,26 @@ export default function InboxPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-lg font-semibold text-foreground">
-                        {selected.subject || selected.contact.nombre || "Conversación"}
+                        {selected.subject || selected.contact.nombre || "Conversation"}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {selected.contact.nombre || selected.contact.email || "Contacto sin identificar"}
+                        {selected.contact.nombre || selected.contact.email || "Unidentified contact"}
                         {selected.contact.empresa ? ` · ${selected.contact.empresa}` : ""}
                       </p>
                     </div>
                     <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold", statusBadge(selected.status))}>
-                      {selected.status}
+                      {statusLabel(selected.status)}
                     </span>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg bg-[#F8FAFC] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Canal</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Channel</p>
                       <p className="mt-1 text-sm font-medium text-[#0F172A]">{channelLabel(selected.channel)}</p>
                     </div>
                     <div className="rounded-lg bg-[#F8FAFC] p-3">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Lead score</p>
-                      <p className="mt-1 text-sm font-medium text-[#0F172A]">{selected.leadScore ?? "Sin score"}</p>
+                      <p className="mt-1 text-sm font-medium text-[#0F172A]">{selected.leadScore ?? "No score"}</p>
                     </div>
                   </div>
                 </div>
@@ -678,21 +729,21 @@ export default function InboxPage() {
                     <>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <span className={cn("rounded-full px-2 py-1 text-[10px] font-semibold", handoffStatusBadge(selected.handoff.status))}>
-                          {selected.handoff.status}
+                          {handoffStatusLabel(selected.handoff.status)}
                         </span>
                         {confidenceLabel(selected.handoff.confidence) && (
                           <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
-                            Confianza {confidenceLabel(selected.handoff.confidence)}
+                            Confidence {confidenceLabel(selected.handoff.confidence)}
                           </span>
                         )}
                         {selected.handoff.reviewedAt && (
                           <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
-                            Revisado {formatDateTime(selected.handoff.reviewedAt)}
+                            Reviewed {formatDateTime(selected.handoff.reviewedAt)}
                           </span>
                         )}
                         {selected.handoff.status === "stale" && (
                           <span className="rounded-full bg-[#FEF3C7] px-2 py-1 text-[10px] font-medium text-[#92400E]">
-                            Requiere revisión
+                            Needs review
                           </span>
                         )}
                       </div>
@@ -711,7 +762,7 @@ export default function InboxPage() {
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Resumen</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Summary</p>
                           <InlineTextarea
                             value={selected.handoff.summary || ""}
                             placeholder="Agregar resumen operativo..."
@@ -726,7 +777,7 @@ export default function InboxPage() {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Facts</p>
                             <InlineTextarea
                               value={linesToText(selected.handoff.facts)}
-                              placeholder="Un hecho por línea..."
+                              placeholder="One fact per line..."
                               className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
                               rows={3}
                               onSave={(value) => updateHandoff({ facts: textToLines(value) })}
@@ -736,27 +787,27 @@ export default function InboxPage() {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Decisiones</p>
                             <InlineTextarea
                               value={linesToText(selected.handoff.decisions)}
-                              placeholder="Una decisión por línea..."
+                              placeholder="One decision per line..."
                               className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
                               rows={3}
                               onSave={(value) => updateHandoff({ decisions: textToLines(value) })}
                             />
                           </div>
                           <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Pendientes</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Pending items</p>
                             <InlineTextarea
                               value={linesToText(selected.handoff.pendingItems)}
-                              placeholder="Un pendiente por línea..."
+                              placeholder="One pending item per line..."
                               className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
                               rows={3}
                               onSave={(value) => updateHandoff({ pendingItems: textToLines(value) })}
                             />
                           </div>
                           <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Riesgos</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Risks</p>
                             <InlineTextarea
                               value={linesToText(selected.handoff.risks)}
-                              placeholder="Un riesgo por línea..."
+                              placeholder="One risk per line..."
                               className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
                               rows={3}
                               onSave={(value) => updateHandoff({ risks: textToLines(value) })}
@@ -765,7 +816,7 @@ export default function InboxPage() {
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Siguiente acción recomendada</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Next recommended action</p>
                           <InlineTextarea
                             value={selected.handoff.nextRecommendedAction || ""}
                             placeholder="Agregar siguiente paso recomendado..."
@@ -777,15 +828,15 @@ export default function InboxPage() {
 
                         <div className="flex flex-wrap items-center gap-2">
                           <button
-                            onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marcado como revisado")}
+                            onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed")}
                             className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#1D4ED8] hover:bg-[#DBEAFE]"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
-                            Marcar como revisado
+                            Mark as reviewed
                           </button>
                           {selected.handoff.reviewedBy && (
                             <span className="text-xs text-[#475569]">
-                              Revisado por {selected.handoff.reviewedBy}
+                              Reviewed by {selected.handoff.reviewedBy}
                             </span>
                           )}
                         </div>
@@ -794,7 +845,7 @@ export default function InboxPage() {
                   ) : (
                     <>
                       <p className="mt-3 text-sm leading-relaxed text-[#1E3A8A]">
-                        {selected.classification?.summary || selected.summary || "La IA todavía no generó un contexto resumido para esta conversación."}
+                        {selected.classification?.summary || selected.summary || "AI has not generated a summary for this conversation yet."}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {selected.classification?.intent && (
@@ -821,7 +872,7 @@ export default function InboxPage() {
                   <div className="mt-4 space-y-3">
                     {!selected.drafts || selected.drafts.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                        No hay drafts persistidos para esta conversación.
+                        No saved drafts for this conversation yet.
                       </div>
                     ) : (
                       selected.drafts.map((draft) => (
@@ -831,12 +882,12 @@ export default function InboxPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <InlineText
                                   value={draft.title || ""}
-                                  placeholder="Título del draft..."
+                                  placeholder="Draft title..."
                                   className="text-sm font-semibold text-foreground"
                                   onSave={(value) => updateDraft(draft.id, { title: value })}
                                 />
                                 <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", draftStatusBadge(draft.status))}>
-                                  {draft.status}
+                                  {draftStatusLabel(draft.status)}
                                 </span>
                               </div>
                               <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -851,22 +902,22 @@ export default function InboxPage() {
 
                           <div className="mt-3 grid gap-3 sm:grid-cols-2">
                             <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Estado</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</p>
                               <div className="mt-1">
                                 <InlineSelect
                                   value={draft.status}
                                   options={editableDraftStatusOptions(draft.status)}
-                                  onSave={(value) => updateDraft(draft.id, { status: value }, "Estado del draft actualizado")}
+                                  onSave={(value) => updateDraft(draft.id, { status: value }, "Draft status updated")}
                                   badgeClassName={(value) => draftStatusBadge(value)}
                                 />
                               </div>
                             </div>
                             <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tono</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tone</p>
                               <div className="mt-1">
                                 <InlineText
                                   value={draft.tone || ""}
-                                  placeholder="Definir tono..."
+                                  placeholder="Define tone..."
                                   className="text-sm text-foreground"
                                   onSave={(value) => updateDraft(draft.id, { tone: value })}
                                 />
@@ -875,10 +926,10 @@ export default function InboxPage() {
                           </div>
 
                           <div className="mt-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Contenido</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Content</p>
                             <InlineTextarea
                               value={draft.content || ""}
-                              placeholder="Contenido del borrador..."
+                              placeholder="Draft content..."
                               className="mt-1"
                               rows={6}
                               onSave={(value) => updateDraft(draft.id, { content: value })}
@@ -886,9 +937,9 @@ export default function InboxPage() {
                           </div>
 
                           <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {draft.sourceMessageId && <span>Mensaje origen: {draft.sourceMessageId}</span>}
-                            {draft.reviewedBy && <span>Revisado por: {draft.reviewedBy}</span>}
-                            {draft.reviewedAt && <span>Revisado: {formatDateTime(draft.reviewedAt)}</span>}
+                            {draft.sourceMessageId && <span>Source message: {draft.sourceMessageId}</span>}
+                            {draft.reviewedBy && <span>Reviewed by: {draft.reviewedBy}</span>}
+                            {draft.reviewedAt && <span>Reviewed: {formatDateTime(draft.reviewedAt)}</span>}
                           </div>
                         </div>
                       ))
@@ -900,12 +951,12 @@ export default function InboxPage() {
                 <div className="rounded-xl border border-border bg-card p-5">
                   <div className="flex items-center gap-2">
                     <WandSparkles className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Acciones sugeridas</p>
+                    <p className="text-sm font-semibold text-foreground">Suggested actions</p>
                   </div>
                   <div className="mt-4 space-y-3">
                     {!selected.actions || selected.actions.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                        La IA todavía no sugirió acciones para esta conversación.
+                        AI has not suggested actions for this conversation yet.
                       </div>
                     ) : (
                       selected.actions.map((action) => {
@@ -924,11 +975,11 @@ export default function InboxPage() {
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-semibold text-foreground">{title}</p>
                                   <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
-                                    {action.status}
+                                    {actionStatusLabel(action.status)}
                                   </span>
                                   {confidenceLabel(action.confidence) && (
                                     <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
-                                      Confianza {confidenceLabel(action.confidence)}
+                                      Confidence {confidenceLabel(action.confidence)}
                                     </span>
                                   )}
                                 </div>
@@ -947,7 +998,7 @@ export default function InboxPage() {
 
                             {action.executionNotes && (
                               <div className="mt-3 rounded-md bg-[#F8FAFC] p-3 text-xs text-[#475569]">
-                                <span className="font-semibold text-[#0F172A]">Notas:</span> {action.executionNotes}
+                                <span className="font-semibold text-[#0F172A]">Notes:</span> {action.executionNotes}
                               </div>
                             )}
 
@@ -959,7 +1010,7 @@ export default function InboxPage() {
 
                             {action.resultModule && action.resultId && (
                               <p className="mt-3 text-xs text-muted-foreground">
-                                Resultado: {action.resultModule} · {action.resultId}
+                                Result: {action.resultModule} · {action.resultId}
                               </p>
                             )}
 
@@ -971,7 +1022,7 @@ export default function InboxPage() {
                                   className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B] disabled:opacity-50"
                                 >
                                   {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                                  Aprobar
+                                  Approve
                                 </button>
                                 <button
                                   onClick={() => handleSuggestedAction(action, "dismiss")}
@@ -979,7 +1030,7 @@ export default function InboxPage() {
                                   className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
                                 >
                                   <X className="h-3.5 w-3.5" />
-                                  Descartar
+                                  Dismiss
                                 </button>
                               </div>
                             )}
@@ -992,7 +1043,7 @@ export default function InboxPage() {
                                   className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50"
                                 >
                                   {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                                  Ejecutar
+                                  Execute
                                 </button>
                               </div>
                             )}
@@ -1007,7 +1058,7 @@ export default function InboxPage() {
                 <div className="rounded-xl border border-border bg-card p-5">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Acciones manuales</p>
+                    <p className="text-sm font-semibold text-foreground">Manual actions</p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
@@ -1015,21 +1066,21 @@ export default function InboxPage() {
                       className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B]"
                     >
                       <User className="h-3.5 w-3.5" />
-                      Crear cliente
+                      Create client
                     </button>
                     <button
                       onClick={() => handleConvert("proyecto")}
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
                     >
                       <FolderKanban className="h-3.5 w-3.5" />
-                      Crear proyecto
+                      Create project
                     </button>
                     <button
                       onClick={() => handleConvert("tarea")}
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
                     >
                       <CheckSquare className="h-3.5 w-3.5" />
-                      Crear tarea
+                      Create task
                     </button>
                   </div>
                   {actionState && <p className="mt-3 text-xs text-muted-foreground">{actionState}</p>}
@@ -1038,11 +1089,11 @@ export default function InboxPage() {
                 <div className="rounded-xl border border-border bg-card p-5">
                   <div className="flex items-center gap-2">
                     <Bot className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Mensajes</p>
+                    <p className="text-sm font-semibold text-foreground">Messages</p>
                   </div>
                   <div className="mt-4 space-y-3">
                     {selected.messages.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Sin mensajes.</p>
+                      <p className="text-sm text-muted-foreground">No messages.</p>
                     ) : (
                       selected.messages.map((message) => (
                         <div key={message.id} className="rounded-lg border border-border bg-background p-3">
@@ -1082,13 +1133,13 @@ export default function InboxPage() {
                     {selected.cliente && (
                       <Link href={`/clientes/${selected.cliente.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline">
                         <User className="h-4 w-4" />
-                        Cliente vinculado: {selected.cliente.nombre}
+                        Linked client: {selected.cliente.nombre}
                       </Link>
                     )}
                     {selected.proyecto && (
                       <Link href={`/proyectos/${selected.proyecto.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline">
                         <FolderKanban className="h-4 w-4" />
-                        Proyecto vinculado: {selected.proyecto.nombre}
+                        Linked project: {selected.proyecto.nombre}
                       </Link>
                     )}
                   </div>

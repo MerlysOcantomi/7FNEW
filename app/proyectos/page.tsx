@@ -26,20 +26,20 @@ import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
 // API prioridad: baja, media, alta, urgente
 
 const ESTADO_OPTIONS = [
-  { value: "", label: "Todos" },
-  { value: "planificacion", label: "Planificación" },
-  { value: "en_progreso", label: "En progreso" },
-  { value: "revision", label: "En revisión" },
-  { value: "completado", label: "Completado" },
-  { value: "cancelado", label: "Cancelado" },
+  { value: "", label: "All" },
+  { value: "planificacion", label: "Planning" },
+  { value: "en_progreso", label: "In progress" },
+  { value: "revision", label: "In review" },
+  { value: "completado", label: "Completed" },
+  { value: "cancelado", label: "Canceled" },
 ];
 
 const PRIORIDAD_OPTIONS = [
-  { value: "", label: "Todas" },
-  { value: "urgente", label: "Urgente" },
-  { value: "alta", label: "Alta" },
-  { value: "media", label: "Media" },
-  { value: "baja", label: "Baja" },
+  { value: "", label: "All" },
+  { value: "urgente", label: "Urgent" },
+  { value: "alta", label: "High" },
+  { value: "media", label: "Medium" },
+  { value: "baja", label: "Low" },
 ];
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -72,7 +72,7 @@ function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "—";
   }
@@ -108,10 +108,10 @@ export default function ProyectosPage() {
       return new Date(p.fechaFin) < hoy;
     }).length;
     return [
-      { label: "En progreso", value: String(enProgreso), sub: "Activos", icon: Briefcase, color: "text-[#3B82F6]" },
-      { label: "En revisión", value: String(revision), sub: "Requieren atención", icon: AlertTriangle, color: "text-[#F59E0B]" },
-      { label: "Vencidos", value: String(vencidos), sub: "Pasaron fecha fin", icon: Clock, color: "text-[#EF4444]" },
-      { label: "Completados", value: String(completado), sub: "Finalizados", icon: CheckCircle2, color: "text-[#22C55E]" },
+      { label: "In progress", value: String(enProgreso), sub: "Active", icon: Briefcase, color: "text-[#3B82F6]" },
+      { label: "In review", value: String(revision), sub: "Need attention", icon: AlertTriangle, color: "text-[#F59E0B]" },
+      { label: "Overdue", value: String(vencidos), sub: "Past due date", icon: Clock, color: "text-[#EF4444]" },
+      { label: "Completed", value: String(completado), sub: "Finished", icon: CheckCircle2, color: "text-[#22C55E]" },
     ];
   }, [proyectos]);
 
@@ -131,14 +131,14 @@ export default function ProyectosPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Proyectos</h1>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Projects</h1>
             </div>
             <button
               onClick={() => setFormOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto"
             >
               <Plus size={14} strokeWidth={2} />
-              Nuevo proyecto
+              New project
             </button>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function ProyectosPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar proyectos o clientes..."
+                placeholder="Search projects or clients..."
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
               />
             </div>
@@ -173,7 +173,7 @@ export default function ProyectosPage() {
                 onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Estado"}</span>
+                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
@@ -195,7 +195,7 @@ export default function ProyectosPage() {
                 onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
               >
-                <span>{PRIORIDAD_OPTIONS.find((o) => o.value === priorityFilter)?.label ?? "Prioridad"}</span>
+                <span>{PRIORIDAD_OPTIONS.find((o) => o.value === priorityFilter)?.label ?? "Priority"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", priorityOpen && "rotate-180")} />
               </button>
               {priorityOpen && (
@@ -217,8 +217,8 @@ export default function ProyectosPage() {
           {/* Projects List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">Todos los proyectos</h2>
-              <span className="text-xs text-[#94A3B8]">{proyectos.length} proyecto{proyectos.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">All projects</h2>
+              <span className="text-xs text-[#94A3B8]">{proyectos.length} project{proyectos.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
@@ -229,14 +229,14 @@ export default function ProyectosPage() {
               <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
                 <p className="text-sm font-medium text-[#991B1B]">{error}</p>
-                <p className="text-xs text-[#B91C1C] mt-1">No se pudieron cargar los proyectos</p>
+                <p className="text-xs text-[#B91C1C] mt-1">Projects could not be loaded</p>
               </div>
             ) : proyectos.length === 0 ? (
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-16 text-center">
                 <FolderKanban className="mx-auto h-12 w-12 text-[#CBD5E1] mb-4" />
-                <p className="text-sm font-medium text-[#334155]">No hay proyectos</p>
+                <p className="text-sm font-medium text-[#334155]">No projects yet</p>
                 <p className="text-xs text-[#64748B] mt-1">
-                  {search || statusFilter || priorityFilter ? "No hay resultados para los filtros aplicados." : "Crea tu primer proyecto para comenzar."}
+                  {search || statusFilter || priorityFilter ? "No results for the selected filters." : "Create your first project to get started."}
                 </p>
                 {!search && !statusFilter && !priorityFilter && (
                   <button
@@ -244,7 +244,7 @@ export default function ProyectosPage() {
                     className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
                   >
                     <Plus size={14} />
-                    Nuevo proyecto
+                    New project
                   </button>
                 )}
               </div>
@@ -253,11 +253,11 @@ export default function ProyectosPage() {
                 {/* Desktop list */}
                 <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Proyecto</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Cliente</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Progreso</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vencimiento</span>
+                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Project</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Progress</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due date</span>
                     <span className="col-span-1" />
                   </div>
                   {proyectos.map((p: any, i: number) => (

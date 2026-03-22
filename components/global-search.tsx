@@ -34,25 +34,25 @@ import {
 
 // ── Static quick-links (shown when query is empty) ──────────────────
 const quickLinks = [
-  { label: "Dirección General", href: "/", icon: LayoutDashboard, keywords: "dashboard inicio home" },
-  { label: "Inbox Inteligente", href: "/inbox", icon: Inbox, keywords: "bandeja entrada mensajes" },
-  { label: "Entrada Manual", href: "/entrada", icon: PenLine, keywords: "entrada manual captura" },
-  { label: "Clientes", href: "/clientes", icon: Users, keywords: "clientes empresas contactos" },
-  { label: "Proyectos", href: "/proyectos", icon: FolderKanban, keywords: "proyectos trabajo" },
-  { label: "Contenido", href: "/contenido", icon: FileText, keywords: "contenido editorial calendario" },
-  { label: "Tareas", href: "/tareas", icon: CheckSquare, keywords: "tareas pendientes asignaciones" },
-  { label: "Archivos", href: "/archivos", icon: FolderOpen, keywords: "archivos documentos files" },
-  { label: "Departamentos", href: "/departamentos", icon: Building2, keywords: "departamentos equipos areas" },
-  { label: "Administración", href: "/administracion", icon: Settings, keywords: "configuracion admin" },
-  { label: "Finanzas", href: "/finanzas", icon: DollarSign, keywords: "finanzas dinero ingresos gastos" },
-  { label: "Facturación", href: "/facturacion", icon: Receipt, keywords: "facturas cobros pagos" },
-  { label: "Comunicación", href: "/comunicacion", icon: MessageSquare, keywords: "mensajes chat hilos" },
-  { label: "Notificaciones", href: "/notificaciones", icon: BellRing, keywords: "alertas avisos" },
-  { label: "Motor IA", href: "/motor", icon: Workflow, keywords: "motor ia clasificacion reglas automatizaciones" },
-  { label: "Resolución Identidad", href: "/identidad", icon: Fingerprint, keywords: "identidad duplicados" },
-  { label: "Historial", href: "/historial", icon: History, keywords: "historial log actividad" },
-  { label: "Biblioteca", href: "/biblioteca", icon: BookOpen, keywords: "recursos plantillas guias" },
-  { label: "Usuarios", href: "/usuarios", icon: UserCircle, keywords: "equipo miembros roles" },
+  { label: "Executive Dashboard", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
+  { label: "Smart Inbox", href: "/inbox", icon: Inbox, keywords: "inbox messages conversations" },
+  { label: "Manual Intake", href: "/entrada", icon: PenLine, keywords: "manual intake capture" },
+  { label: "Clients", href: "/clientes", icon: Users, keywords: "clients companies contacts" },
+  { label: "Projects", href: "/proyectos", icon: FolderKanban, keywords: "projects work" },
+  { label: "Content", href: "/contenido", icon: FileText, keywords: "content editorial calendar" },
+  { label: "Tasks", href: "/tareas", icon: CheckSquare, keywords: "tasks pending assignments" },
+  { label: "Files", href: "/archivos", icon: FolderOpen, keywords: "files documents assets" },
+  { label: "Departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
+  { label: "Management", href: "/administracion", icon: Settings, keywords: "configuration admin" },
+  { label: "Finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
+  { label: "Billing", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments" },
+  { label: "Communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },
+  { label: "Notifications", href: "/notificaciones", icon: BellRing, keywords: "alerts notices" },
+  { label: "AI Engine", href: "/motor", icon: Workflow, keywords: "ai engine classification rules automations" },
+  { label: "Identity Resolution", href: "/identidad", icon: Fingerprint, keywords: "identity duplicates" },
+  { label: "History", href: "/historial", icon: History, keywords: "history activity log" },
+  { label: "Library", href: "/biblioteca", icon: BookOpen, keywords: "resources templates guides" },
+  { label: "Users", href: "/usuarios", icon: UserCircle, keywords: "team members roles" },
 ]
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -100,9 +100,9 @@ function flattenResults(data: SearchResults): FlatResult[] {
     results.push({
       id: `cliente-${c.id}`,
       title: c.nombre,
-      subtitle: c.empresa || "Sin empresa",
+      subtitle: c.empresa || "No company",
       href: `/clientes/${c.id}`,
-      group: "Clientes",
+      group: "Clients",
       icon: Users,
       badge: c.estado,
       badgeColor: estadoColors[c.estado] || "",
@@ -113,9 +113,9 @@ function flattenResults(data: SearchResults): FlatResult[] {
     results.push({
       id: `proyecto-${p.id}`,
       title: p.nombre,
-      subtitle: p.cliente?.nombre || "Sin cliente",
+      subtitle: p.cliente?.nombre || "No client",
       href: `/proyectos/${p.id}`,
-      group: "Proyectos",
+      group: "Projects",
       icon: FolderKanban,
       badge: p.estado,
       badgeColor: estadoColors[p.estado] || "",
@@ -126,9 +126,9 @@ function flattenResults(data: SearchResults): FlatResult[] {
     results.push({
       id: `tarea-${t.id}`,
       title: t.titulo,
-      subtitle: t.proyecto?.nombre || "Sin proyecto",
+      subtitle: t.proyecto?.nombre || "No project",
       href: `/tareas/${t.id}`,
-      group: "Tareas",
+      group: "Tasks",
       icon: CheckSquare,
       badge: t.estado,
       badgeColor: estadoColors[t.estado] || "",
@@ -138,10 +138,10 @@ function flattenResults(data: SearchResults): FlatResult[] {
   for (const f of data.facturas) {
     results.push({
       id: `factura-${f.id}`,
-      title: `Factura ${f.numero}`,
-      subtitle: f.cliente?.nombre || "Sin cliente",
+      title: `Invoice ${f.numero}`,
+      subtitle: f.cliente?.nombre || "No client",
       href: `/facturacion/${f.id}`,
-      group: "Facturas",
+      group: "Invoices",
       icon: Receipt,
       badge: f.estado,
       badgeColor: estadoColors[f.estado] || "",
@@ -154,7 +154,7 @@ function flattenResults(data: SearchResults): FlatResult[] {
       title: d.nombre,
       subtitle: d.proyecto?.nombre || d.tipo,
       href: `/archivos/${d.id}`,
-      group: "Documentos",
+      group: "Documents",
       icon: FolderOpen,
     })
   }
@@ -169,9 +169,9 @@ function flattenResults(data: SearchResults): FlatResult[] {
     results.push({
       id: `nota-${n.id}`,
       title: n.titulo,
-      subtitle: n.cliente?.nombre ?? n.proyecto?.nombre ?? "Nota",
+      subtitle: n.cliente?.nombre ?? n.proyecto?.nombre ?? "Note",
       href,
-      group: "Notas",
+      group: "Notes",
       icon: StickyNote,
     })
   }
@@ -180,9 +180,9 @@ function flattenResults(data: SearchResults): FlatResult[] {
     results.push({
       id: `archivo-${a.id}`,
       title: a.nombre,
-      subtitle: `${a.module} · adjunto`,
+      subtitle: `${a.module} · attachment`,
       href: `/${a.module}/${a.recordId}`,
-      group: "Archivos adjuntos",
+      group: "Attachments",
       icon: Paperclip,
     })
   }
@@ -332,7 +332,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Buscar clientes, proyectos, tareas, facturas..."
+            placeholder="Search clients, projects, tasks, invoices..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -341,7 +341,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           <button
             onClick={onClose}
             className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Cerrar"
+            aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -356,7 +356,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                 <>
                   <div className="px-3 py-1.5">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      {query.length === 0 ? "Navegación rápida" : "Páginas"}
+                      {query.length === 0 ? "Quick navigation" : "Pages"}
                     </span>
                   </div>
                   {filteredLinks.map((route, i) => {
@@ -481,7 +481,7 @@ function EmptyState({ query }: { query: string }) {
         Sin resultados para <span className="font-medium text-foreground">&quot;{query}&quot;</span>
       </p>
       <p className="text-xs text-muted-foreground/60 mt-1">
-        Intenta con otro término de búsqueda
+        Try another search term
       </p>
     </div>
   )

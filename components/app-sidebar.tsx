@@ -56,35 +56,35 @@ interface SidebarGroupConfig {
 }
 
 const flowSections: SidebarItem[] = [
-  { id: "inbox", label: "Inbox Inteligente", icon: Inbox, href: "/inbox", roles: ["admin", "editor", "viewer"] },
-  { id: "entrada", label: "Entrada Manual", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
-  { id: "clientes", label: "Clientes", icon: Users, href: "/clientes", roles: ["admin", "editor", "viewer"] },
-  { id: "proyectos", label: "Proyectos", icon: FolderKanban, href: "/proyectos", roles: ["admin", "editor", "viewer"] },
-  { id: "tareas", label: "Tareas", icon: CheckSquare, href: "/tareas", roles: ["admin", "editor", "viewer"] },
-  { id: "calendario", label: "Calendario", icon: Calendar, href: "/calendario", roles: ["admin", "editor", "viewer"] },
-  { id: "archivos", label: "Archivos", icon: FolderOpen, href: "/archivos", roles: ["admin", "editor", "viewer"] },
-  { id: "departamentos", label: "Departamentos", icon: Building2, href: "/departamentos", roles: ["admin", "editor"] },
+  { id: "inbox", label: "Smart Inbox", icon: Inbox, href: "/inbox", roles: ["admin", "editor", "viewer"] },
+  { id: "entrada", label: "Manual Intake", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
+  { id: "clientes", label: "Clients", icon: Users, href: "/clientes", roles: ["admin", "editor", "viewer"] },
+  { id: "proyectos", label: "Projects", icon: FolderKanban, href: "/proyectos", roles: ["admin", "editor", "viewer"] },
+  { id: "tareas", label: "Tasks", icon: CheckSquare, href: "/tareas", roles: ["admin", "editor", "viewer"] },
+  { id: "calendario", label: "Calendar", icon: Calendar, href: "/calendario", roles: ["admin", "editor", "viewer"] },
+  { id: "archivos", label: "Files", icon: FolderOpen, href: "/archivos", roles: ["admin", "editor", "viewer"] },
+  { id: "departamentos", label: "Departments", icon: Building2, href: "/departamentos", roles: ["admin", "editor"] },
 ]
 
 const forgeSections: SidebarItem[] = [
-  { id: "contenido", label: "Campañas & Contenido", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
+  { id: "contenido", label: "Campaigns & Content", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
 ]
 
 const fundsSections: SidebarItem[] = [
-  { id: "finanzas", label: "Finanzas", icon: DollarSign, href: "/finanzas", roles: ["admin", "editor"] },
-  { id: "facturacion", label: "Facturación", icon: Receipt, href: "/facturacion", roles: ["admin", "editor"] },
+  { id: "finanzas", label: "Finance", icon: DollarSign, href: "/finanzas", roles: ["admin", "editor"] },
+  { id: "facturacion", label: "Billing", icon: Receipt, href: "/facturacion", roles: ["admin", "editor"] },
 ]
 
 const futureSections: SidebarItem[] = [
-  { id: "agente", label: "Agente Ejecutivo", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
-  { id: "motor", label: "Motor IA", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
+  { id: "agente", label: "Executive Agent", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
+  { id: "motor", label: "AI Engine", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
 ]
 
 const frameworkSections: SidebarItem[] = [
-  { id: "notificaciones", label: "Notificaciones", icon: BellRing, href: "/notificaciones", roles: ["admin", "editor", "viewer"] },
-  { id: "historial", label: "Historial", icon: History, href: "/historial", roles: ["admin", "editor"] },
-  { id: "biblioteca", label: "Herramientas", icon: Wrench, href: "/biblioteca", roles: ["admin", "editor"] },
-  { id: "administracion", label: "Gestión", icon: Settings, href: "/administracion", roles: ["admin"] },
+  { id: "notificaciones", label: "Notifications", icon: BellRing, href: "/notificaciones", roles: ["admin", "editor", "viewer"] },
+  { id: "historial", label: "History", icon: History, href: "/historial", roles: ["admin", "editor"] },
+  { id: "biblioteca", label: "Tools", icon: Wrench, href: "/biblioteca", roles: ["admin", "editor"] },
+  { id: "administracion", label: "Management", icon: Settings, href: "/administracion", roles: ["admin"] },
 ]
 
 const groups: SidebarGroupConfig[] = [
@@ -189,7 +189,7 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
         <button
           onClick={onClose}
           className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
-          aria-label="Cerrar sidebar"
+          aria-label="Close sidebar"
         >
           <X className="h-4 w-4" />
         </button>

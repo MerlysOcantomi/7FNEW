@@ -29,7 +29,7 @@ import {
 
 type RiesgoNivel = "alto" | "medio" | "bajo";
 type PrioridadNivel = "alto" | "medio" | "bajo";
-type AnalisisTipo = "Riesgo" | "Oportunidad" | "Estratégico" | "Financiero" | "Operativo";
+type AnalisisTipo = "Risk" | "Opportunity" | "Strategic" | "Financial" | "Operational";
 
 interface IndicadorClave {
   label: string;
@@ -77,82 +77,82 @@ interface AnalisisHistorial {
 // ── Static data ───────────────────────────────────────────────────────────────
 
 const INDICADORES: IndicadorClave[] = [
-  { label: "Proyectos en riesgo",          value: "2 / 4",  trend: "up",     delta: "+1 esta semana" },
-  { label: "Desviaciones financieras",     value: "3.2%",   trend: "up",     delta: "Fondo Crecimiento III" },
-  { label: "Oportunidades detectadas",     value: "3",      trend: "up",     delta: "Nuevas esta semana" },
-  { label: "Acciones pendientes",          value: "5",      trend: "stable", delta: "Sin cambio" },
-  { label: "ARR en riesgo de renovación",  value: "$640K",  trend: "up",     delta: "Vence en 30 días" },
-  { label: "Tasa de entrega",              value: "91%",    trend: "down",   delta: "-2% vs trimestre anterior" },
+  { label: "Projects at risk",             value: "2 / 4",  trend: "up",     delta: "+1 this week" },
+  { label: "Financial variances",          value: "3.2%",   trend: "up",     delta: "Growth Fund III" },
+  { label: "Detected opportunities",       value: "3",      trend: "up",     delta: "New this week" },
+  { label: "Pending actions",              value: "5",      trend: "stable", delta: "No change" },
+  { label: "ARR at renewal risk",          value: "$640K",  trend: "up",     delta: "Due in 30 days" },
+  { label: "Delivery rate",                value: "91%",    trend: "down",   delta: "-2% vs previous quarter" },
 ];
 
 const PRIORIDADES: Prioridad[] = [
   {
-    titulo: "Sincronizar hitos de Forge con fechas de desembolso",
+    titulo: "Sync Forge milestones with disbursement dates",
     nivel: "alto",
     modulo: "Flow",
-    accion: "Revisar calendario en Forge antes del 6 de marzo para evitar impacto en flujo de caja.",
+    accion: "Review the Forge calendar before March 6 to avoid cash flow impact.",
   },
   {
-    titulo: "Iniciar contacto ejecutivo con Nexus Holdings",
+    titulo: "Start executive outreach with Nexus Holdings",
     nivel: "alto",
     modulo: "Funds",
-    accion: "Ventana de renovación activa de $640K ARR. Acción esta semana.",
+    accion: "$640K ARR renewal window is active. Action needed this week.",
   },
   {
-    titulo: "Revisar alcance de proyectos en Fase 3",
+    titulo: "Review project scope in Phase 3",
     nivel: "medio",
     modulo: "Flow",
-    accion: "El 75% de retrasos detectados provienen de cambios de alcance tardíos en Fase 3.",
+    accion: "75% of detected delays come from late scope changes in Phase 3.",
   },
 ];
 
 const RIESGOS: Riesgo[] = [
   {
-    titulo: "Retraso en cadena de suministro",
+    titulo: "Supply chain delay",
     nivel: "alto",
     proyecto: "Alpha Expansion",
-    accion: "Escalar a Forge antes del 6 de marzo para evitar retraso en Fase 3.",
+    accion: "Escalate to Forge before March 6 to avoid a Phase 3 delay.",
   },
   {
-    titulo: "Tasa de entrega por debajo del objetivo",
+    titulo: "Delivery rate below target",
     nivel: "medio",
     proyecto: "Omega Platform",
-    accion: "Revisar cambios de alcance tardíos en 3 proyectos con patrón de retraso detectado.",
+    accion: "Review late scope changes in 3 projects with a detected delay pattern.",
   },
   {
-    titulo: "Renovación de cliente sin contacto ejecutivo",
+    titulo: "Client renewal without executive outreach",
     nivel: "medio",
     proyecto: "Nexus Holdings",
-    accion: "Iniciar contacto ejecutivo esta semana. Ventana de 30 días activa.",
+    accion: "Start executive outreach this week. 30-day window is active.",
   },
   {
-    titulo: "Desviación de fondo persistente",
+    titulo: "Persistent fund variance",
     nivel: "bajo",
-    proyecto: "Fondo Crecimiento III",
-    accion: "Reasignación recomendada antes del cierre de mes.",
+    proyecto: "Growth Fund III",
+    accion: "Reallocation recommended before month-end.",
   },
 ];
 
 const OPORTUNIDADES: Oportunidad[] = [
   {
-    titulo: "Renovación de 4 cuentas enterprise",
-    entidad: "Nexus Holdings + 3 más",
-    impacto: "$640K ARR protegido",
-    accion: "Redactar comunicación ejecutiva",
+    titulo: "Renewal of 4 enterprise accounts",
+    entidad: "Nexus Holdings + 3 more",
+    impacto: "$640K ARR protected",
+    accion: "Draft executive communication",
     icon: Target,
   },
   {
-    titulo: "Reasignación estratégica de fondos",
-    entidad: "Fondo Crecimiento III",
-    impacto: "Recuperación de 15% en Q2",
-    accion: "Generar análisis de reasignación",
+    titulo: "Strategic fund reallocation",
+    entidad: "Growth Fund III",
+    impacto: "15% recovery in Q2",
+    accion: "Generate reallocation analysis",
     icon: TrendingUp,
   },
   {
-    titulo: "Expansión de servicio — cliente activo",
+    titulo: "Service expansion — active client",
     entidad: "Blue Arc Group",
-    impacto: "Upsell estimado $120K",
-    accion: "Preparar propuesta de expansión",
+    impacto: "Estimated $120K upsell",
+    accion: "Prepare expansion proposal",
     icon: Zap,
   },
 ];
@@ -160,59 +160,59 @@ const OPORTUNIDADES: Oportunidad[] = [
 const RELACIONES_CRUZADAS: RelacionCruzada[] = [
   {
     areas: ["Flow", "Funds"],
-    tendencia: "Retrasos en proyectos generan presión en flujo de caja",
+    tendencia: "Project delays are creating cash flow pressure",
     insight:
-      "Dos proyectos en Fase 3 con retrasos coinciden con las semanas de mayor desviación del Fondo Crecimiento III. Se recomienda sincronizar hitos de Forge con fechas de desembolso en Funds.",
+      "Two Phase 3 projects with delays overlap with the weeks of highest variance in Growth Fund III. Syncing Forge milestones with disbursement dates in Funds is recommended.",
   },
   {
     areas: ["Flow", "Future"],
-    tendencia: "Patrón de cambios de alcance tardíos sistemático",
+    tendencia: "Systemic late scope-change pattern",
     insight:
-      "El 75% de los proyectos retrasados comparten un patrón: cambios de alcance en Fase 3 o superior. La IA recomienda introducir un proceso de congelación de alcance como estándar de operación.",
+      "75% of delayed projects share the same pattern: scope changes in Phase 3 or later. AI recommends introducing a scope-freeze process as a standard operating practice.",
   },
   {
     areas: ["Funds", "Future"],
-    tendencia: "Ventana de renovación coincide con presión financiera",
+    tendencia: "Renewal window overlaps with financial pressure",
     insight:
-      "Las 4 renovaciones enterprise vencen en el mismo período de mayor desviación de fondos. Una pérdida de $640K ARR agravaría significativamente la desviación detectada.",
+      "All 4 enterprise renewals fall within the same period of highest fund variance. Losing $640K ARR would significantly worsen the detected variance.",
   },
 ];
 
 const HISTORIAL: AnalisisHistorial[] = [
   {
     id: 1,
-    fecha: "24 feb 2026",
-    tipo: "Estratégico",
-    titulo: "Análisis semanal — semana 8",
-    resumen: "Convergencia de riesgo operativo y financiero en Alpha Expansion y Nexus Holdings.",
+    fecha: "Feb 24, 2026",
+    tipo: "Strategic",
+    titulo: "Weekly analysis — week 8",
+    resumen: "Convergence of operational and financial risk in Alpha Expansion and Nexus Holdings.",
   },
   {
     id: 2,
-    fecha: "17 feb 2026",
-    tipo: "Financiero",
-    titulo: "Revisión de desviación — Fondo Crecimiento III",
-    resumen: "Desviación acumulada del 3.2% en últimas 6 semanas. Tres escenarios de reasignación generados.",
+    fecha: "Feb 17, 2026",
+    tipo: "Financial",
+    titulo: "Variance review — Growth Fund III",
+    resumen: "3.2% accumulated variance over the last 6 weeks. Three reallocation scenarios generated.",
   },
   {
     id: 3,
-    fecha: "10 feb 2026",
-    tipo: "Operativo",
-    titulo: "Análisis de tasa de entrega Q1 2026",
-    resumen: "Caída de 4 puntos en tasa de entrega. Patrón de cambios de alcance identificado.",
+    fecha: "Feb 10, 2026",
+    tipo: "Operational",
+    titulo: "Delivery rate analysis Q1 2026",
+    resumen: "4-point drop in delivery rate. Scope-change pattern identified.",
   },
   {
     id: 4,
-    fecha: "3 feb 2026",
-    tipo: "Oportunidad",
-    titulo: "Oportunidades de expansión — cartera activa",
-    resumen: "Tres clientes activos con potencial de upsell identificado: $220K combinados.",
+    fecha: "Feb 3, 2026",
+    tipo: "Opportunity",
+    titulo: "Expansion opportunities — active portfolio",
+    resumen: "Three active clients with identified upsell potential: $220K combined.",
   },
   {
     id: 5,
-    fecha: "27 ene 2026",
-    tipo: "Riesgo",
-    titulo: "Mapa de riesgos — cierre enero",
-    resumen: "5 riesgos activos, 2 escalados a equipo ejecutivo. Omega Platform bajo observación.",
+    fecha: "Jan 27, 2026",
+    tipo: "Risk",
+    titulo: "Risk map — January close",
+    resumen: "5 active risks, 2 escalated to the executive team. Omega Platform under watch.",
   },
 ];
 
@@ -225,19 +225,21 @@ const NIVEL_STYLE: Record<RiesgoNivel, { pill: string; dot: string }> = {
 };
 
 const TIPO_STYLE: Record<AnalisisTipo, string> = {
-  Riesgo:      "bg-[#FEE2E2] text-[#991B1B]",
-  Oportunidad: "bg-[#DCFCE7] text-[#166534]",
-  Estratégico: "bg-[#EFF6FF] text-[#1D4ED8]",
-  Financiero:  "bg-[#FEF9C3] text-[#854D0E]",
-  Operativo:   "bg-[#F1F5F9] text-[#475569]",
+  Risk:        "bg-[#FEE2E2] text-[#991B1B]",
+  Opportunity: "bg-[#DCFCE7] text-[#166534]",
+  Strategic:   "bg-[#EFF6FF] text-[#1D4ED8]",
+  Financial:   "bg-[#FEF9C3] text-[#854D0E]",
+  Operational: "bg-[#F1F5F9] text-[#475569]",
 };
 
 function NivelBadge({ nivel }: { nivel: RiesgoNivel }) {
   const s = NIVEL_STYLE[nivel];
+  const levelLabel =
+    nivel === "alto" ? "high" : nivel === "medio" ? "medium" : "low";
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0", s.pill)}>
       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", s.dot)} />
-      {nivel}
+      {levelLabel}
     </span>
   );
 }
@@ -255,18 +257,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function ResumenEjecutivo() {
   return (
     <section>
-      <SectionLabel>Resumen ejecutivo del sistema</SectionLabel>
+      <SectionLabel>System executive summary</SectionLabel>
       <div className="bg-[#EFF6FF] rounded-xl shadow-sm overflow-hidden border border-[#DBEAFE]">
         <div className="px-5 py-4 border-b border-[#DBEAFE] flex items-center justify-between flex-wrap gap-2">
           <div>
-            <p className="text-sm font-semibold text-[#0F172A]">Síntesis semanal automática</p>
+            <p className="text-sm font-semibold text-[#0F172A]">Automatic weekly summary</p>
             <p className="text-[11px] text-[#64748B] mt-0.5">
-              Semana del {new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+              Week of {new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
             </p>
           </div>
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#BFDBFE]">
             <Sparkles size={9} className="text-[#3B82F6]" />
-            <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">IA activa</span>
+            <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">AI active</span>
           </span>
         </div>
 
@@ -286,12 +288,12 @@ function ResumenEjecutivo() {
 
         <div className="px-5 py-4 border-t border-[#DBEAFE]">
           <p className="text-[13px] text-[#334155] leading-relaxed">
-            La cartera mantiene estabilidad operativa con{" "}
-            <strong className="text-[#0F172A] font-semibold">dos proyectos en riesgo activo</strong>{" "}
-            y una desviación financiera persistente en Fondo Crecimiento III. Se han detectado{" "}
-            <strong className="text-[#0F172A] font-semibold">tres oportunidades de alto impacto</strong>{" "}
-            esta semana, incluyendo una ventana de renovación enterprise de $640K ARR. La tasa de entrega ha
-            descendido 2 puntos — se recomienda revisión de procesos antes del cierre de trimestre.
+            The portfolio remains operationally stable with{" "}
+            <strong className="text-[#0F172A] font-semibold">two projects at active risk</strong>{" "}
+            and a persistent financial variance in Growth Fund III.{" "}
+            <strong className="text-[#0F172A] font-semibold">Three high-impact opportunities</strong>{" "}
+            were detected this week, including a $640K ARR enterprise renewal window. Delivery rate is down
+            by 2 points, so a process review is recommended before quarter close.
           </p>
         </div>
       </div>
@@ -302,7 +304,7 @@ function ResumenEjecutivo() {
 function PrioridadesSistema() {
   return (
     <section>
-      <SectionLabel>Prioridades del sistema</SectionLabel>
+      <SectionLabel>System priorities</SectionLabel>
       <div className="space-y-3">
         {PRIORIDADES.map((p) => (
           <div
@@ -334,7 +336,7 @@ function PrioridadesSistema() {
 function RiesgosDetectados() {
   return (
     <section>
-      <SectionLabel>Riesgos detectados</SectionLabel>
+      <SectionLabel>Detected risks</SectionLabel>
       <div className="space-y-3">
         {RIESGOS.map((r) => (
           <div
@@ -352,7 +354,7 @@ function RiesgosDetectados() {
             </div>
             <div className="flex items-start gap-4 pl-6 sm:pl-10 flex-wrap">
               <span className="text-[11px] text-[#64748B] shrink-0">
-                <span className="font-medium text-[#334155]">Proyecto: </span>{r.proyecto}
+                <span className="font-medium text-[#334155]">Project: </span>{r.proyecto}
               </span>
               <p className="text-[11px] text-[#64748B] leading-relaxed">{r.accion}</p>
             </div>
@@ -366,7 +368,7 @@ function RiesgosDetectados() {
 function Oportunidades() {
   return (
     <section>
-      <SectionLabel>Oportunidades detectadas</SectionLabel>
+      <SectionLabel>Detected opportunities</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-4">
         {OPORTUNIDADES.map(({ titulo, entidad, impacto, accion, icon: Icon }) => (
           <div key={titulo} className="bg-[#DBEAFE] rounded-xl p-5 shadow-sm border border-[#BFDBFE] flex flex-col gap-3">
@@ -381,7 +383,7 @@ function Oportunidades() {
             </div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="bg-white/70 rounded-lg px-3 py-1.5">
-                <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Impacto estimado</p>
+                <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Estimated impact</p>
                 <p className="text-sm font-bold text-[#1D4ED8]">{impacto}</p>
               </div>
               <button className="flex items-center gap-1 text-xs font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors shrink-0">
@@ -399,12 +401,12 @@ function Oportunidades() {
 function AnalisisCruzado() {
   return (
     <section>
-      <SectionLabel>Análisis transversal</SectionLabel>
+      <SectionLabel>Cross-analysis</SectionLabel>
 
       <div className="bg-[#EFF6FF] rounded-xl shadow-sm overflow-hidden border border-[#DBEAFE] mb-4">
         <div className="px-5 py-4 border-b border-[#DBEAFE] flex items-center gap-2 flex-wrap">
           <BarChart3 size={13} className="text-[#3B82F6]" strokeWidth={1.75} />
-          <p className="text-sm font-semibold text-[#0F172A]">Relaciones entre módulos del sistema</p>
+          <p className="text-sm font-semibold text-[#0F172A]">Relationships between system modules</p>
           <span className="text-[10px] font-semibold text-[#94A3B8] ml-auto hidden sm:block">
             Flow · Forge · Funds · Future
           </span>
@@ -438,14 +440,14 @@ function AnalisisCruzado() {
           <Lightbulb size={15} className="text-[#60A5FA] mt-0.5 shrink-0" strokeWidth={1.75} />
           <div>
             <p className="text-[9px] font-bold text-[#3B82F6] uppercase tracking-[0.12em] mb-2">
-              Insight estratégico sintetizado
+              Synthesized strategic insight
             </p>
             <p className="text-[13px] text-[#CBD5E1] leading-relaxed">
-              El patrón dominante esta semana es la{" "}
-              <span className="text-white font-semibold">convergencia de riesgo financiero y operativo</span>{" "}
-              en el mismo período. La desviación de Fondo Crecimiento III, el retraso en Alpha Expansion y
-              la ventana de renovación enterprise coinciden en las próximas tres semanas. La IA recomienda
-              priorizar estas tres decisiones antes del 14 de marzo para evitar impacto compuesto.
+              The dominant pattern this week is the{" "}
+              <span className="text-white font-semibold">convergence of financial and operational risk</span>{" "}
+              within the same period. The Growth Fund III variance, the Alpha Expansion delay, and the
+              enterprise renewal window all converge over the next three weeks. AI recommends prioritizing
+              these three decisions before March 14 to avoid compounded impact.
             </p>
           </div>
         </div>
@@ -457,11 +459,11 @@ function AnalisisCruzado() {
 function HistorialAnalisis() {
   return (
     <section>
-      <SectionLabel>Historial de análisis</SectionLabel>
+      <SectionLabel>Analysis history</SectionLabel>
       <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-center gap-2">
           <History size={13} className="text-[#64748B]" strokeWidth={1.75} />
-          <p className="text-sm font-semibold text-[#0F172A]">Análisis anteriores</p>
+          <p className="text-sm font-semibold text-[#0F172A]">Previous analyses</p>
         </div>
         <div className="divide-y divide-[#F1F5F9]">
           {HISTORIAL.map((item) => (
@@ -502,7 +504,7 @@ function HistorialAnalisis() {
         </div>
         <div className="px-5 py-3 border-t border-[#F1F5F9] flex justify-end">
           <button className="flex items-center gap-1 text-xs font-semibold text-[#64748B] hover:text-[#334155] transition-colors">
-            Ver historial completo
+            View full history
             <ArrowUpRight size={11} />
           </button>
         </div>
@@ -537,23 +539,23 @@ export default function AgentePage() {
                     <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Foresight</h1>
                     <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]">
                       <Sparkles size={9} className="text-[#3B82F6]" />
-                      <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">IA activa</span>
+                      <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">AI active</span>
                     </span>
                   </div>
                   <p className="text-xs text-[#64748B]">
-                    Análisis transversal del sistema para detectar riesgos, oportunidades y decisiones prioritarias.
+                    Cross-system analysis to detect risks, opportunities, and priority decisions.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB] text-xs font-semibold hover:bg-[#DBEAFE] transition-colors">
                     <FlaskConical size={12} strokeWidth={1.75} />
-                    <span className="hidden sm:inline">Simular escenario</span>
-                    <span className="sm:hidden">Simular</span>
+                    <span className="hidden sm:inline">Simulate scenario</span>
+                    <span className="sm:hidden">Simulate</span>
                   </button>
                   <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-semibold hover:bg-[#1E293B] transition-colors shadow-sm">
                     <FileBarChart size={13} strokeWidth={1.75} />
-                    <span className="hidden sm:inline">Generar análisis estratégico</span>
-                    <span className="sm:hidden">Analizar</span>
+                    <span className="hidden sm:inline">Generate strategic analysis</span>
+                    <span className="sm:hidden">Analyze</span>
                   </button>
                 </div>
               </div>

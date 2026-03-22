@@ -27,10 +27,10 @@ import { displayLabel, estadoLabel } from "@/lib/api-client";
 
 // API estado: activo, inactivo, prospecto
 const ESTADO_OPTIONS = [
-  { value: "", label: "Todos" },
-  { value: "activo", label: "Activo" },
-  { value: "inactivo", label: "Inactivo" },
-  { value: "prospecto", label: "Prospecto" },
+  { value: "", label: "All" },
+  { value: "activo", label: "Active" },
+  { value: "inactivo", label: "Inactive" },
+  { value: "prospecto", label: "Prospect" },
 ];
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -43,7 +43,7 @@ function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "—";
   }
@@ -65,7 +65,7 @@ function RowActions({ clientId }: { clientId: string }) {
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="p-1.5 rounded-md hover:bg-[#F1F5F9] text-[#94A3B8] hover:text-[#334155] transition-colors"
-        aria-label="Acciones del cliente"
+        aria-label="Client actions"
       >
         <MoreHorizontal size={14} />
       </button>
@@ -79,7 +79,7 @@ function RowActions({ clientId }: { clientId: string }) {
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#334155] hover:bg-[#F8FAFC] transition-colors"
             >
               <ArrowUpRight size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              Ver cliente
+              View client
             </Link>
             <Link
               href="/proyectos"
@@ -87,7 +87,7 @@ function RowActions({ clientId }: { clientId: string }) {
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#334155] hover:bg-[#F8FAFC] transition-colors"
             >
               <FolderKanban size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              Nuevo proyecto
+              New project
             </Link>
           </div>
         </>
@@ -118,10 +118,10 @@ export default function ClientesPage() {
     const inactivos = clientes.filter((c: any) => c.estado === "inactivo").length;
     const prospectos = clientes.filter((c: any) => c.estado === "prospecto").length;
     return [
-      { label: "Total", value: String(clientes.length), sub: "Clientes", icon: Users, color: "text-[#3B82F6]" },
-      { label: "Activos", value: String(activos), sub: "Con actividad", icon: CheckCircle2, color: "text-[#22C55E]" },
-      { label: "Prospectos", value: String(prospectos), sub: "Por captar", icon: AlertTriangle, color: "text-[#F59E0B]" },
-      { label: "Inactivos", value: String(inactivos), sub: "Sin actividad", icon: Clock, color: "text-[#94A3B8]" },
+      { label: "Total", value: String(clientes.length), sub: "Clients", icon: Users, color: "text-[#3B82F6]" },
+      { label: "Active", value: String(activos), sub: "With activity", icon: CheckCircle2, color: "text-[#22C55E]" },
+      { label: "Prospects", value: String(prospectos), sub: "To convert", icon: AlertTriangle, color: "text-[#F59E0B]" },
+      { label: "Inactive", value: String(inactivos), sub: "No activity", icon: Clock, color: "text-[#94A3B8]" },
     ];
   }, [clientes]);
 
@@ -139,13 +139,13 @@ export default function ClientesPage() {
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
           <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Clientes</h1>
+            <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Clients</h1>
             <button
               onClick={() => setFormOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto"
             >
               <Plus size={14} strokeWidth={2} />
-              Nuevo cliente
+              New client
             </button>
           </div>
         </div>
@@ -171,7 +171,7 @@ export default function ClientesPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar clientes, empresa o email..."
+                placeholder="Search clients, company, or email..."
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
               />
             </div>
@@ -180,7 +180,7 @@ export default function ClientesPage() {
                 onClick={() => setStatusOpen(!statusOpen)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Estado"}</span>
+                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
                 <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
@@ -202,8 +202,8 @@ export default function ClientesPage() {
           {/* Client List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">Todos los clientes</h2>
-              <span className="text-xs text-[#94A3B8]">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">All clients</h2>
+              <span className="text-xs text-[#94A3B8]">{clientes.length} client{clientes.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
@@ -214,14 +214,14 @@ export default function ClientesPage() {
               <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
                 <p className="text-sm font-medium text-[#991B1B]">{error}</p>
-                <p className="text-xs text-[#B91C1C] mt-1">No se pudieron cargar los clientes</p>
+                <p className="text-xs text-[#B91C1C] mt-1">Clients could not be loaded</p>
               </div>
             ) : clientes.length === 0 ? (
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-16 text-center">
                 <UserCircle className="mx-auto h-12 w-12 text-[#CBD5E1] mb-4" />
-                <p className="text-sm font-medium text-[#334155]">No hay clientes</p>
+                <p className="text-sm font-medium text-[#334155]">No clients yet</p>
                 <p className="text-xs text-[#64748B] mt-1">
-                  {search || statusFilter ? "No hay resultados para los filtros aplicados." : "Crea tu primer cliente para comenzar."}
+                  {search || statusFilter ? "No results for the selected filters." : "Create your first client to get started."}
                 </p>
                 {!search && !statusFilter && (
                   <button
@@ -229,7 +229,7 @@ export default function ClientesPage() {
                     className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
                   >
                     <Plus size={14} />
-                    Nuevo cliente
+                    New client
                   </button>
                 )}
               </div>
@@ -238,12 +238,12 @@ export default function ClientesPage() {
                 {/* Desktop list */}
                 <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Cliente</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Empresa</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Contacto</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Proyectos</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Actualizado</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Company</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Contact</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Projects</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Updated</span>
                     <span className="col-span-1" />
                   </div>
                   {clientes.map((c: any, i: number) => {
@@ -326,7 +326,7 @@ export default function ClientesPage() {
                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F1F5F9]">
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="text-xs text-[#64748B]">{count.proyectos ?? 0} proyecto{(count.proyectos ?? 0) !== 1 ? "s" : ""}</span>
-                            <span className="text-[10px] text-[#94A3B8]">Actualizado {formatDate(c.updatedAt)}</span>
+                            <span className="text-[10px] text-[#94A3B8]">Updated {formatDate(c.updatedAt)}</span>
                           </div>
                           <Link
                             href={`/clientes/${c.id}`}

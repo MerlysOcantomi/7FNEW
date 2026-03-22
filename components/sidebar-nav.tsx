@@ -64,51 +64,51 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     section: "Flow",
-    subtitle: "Operación diaria",
+    subtitle: "Daily operations",
     items: [
       { label: "Inbox", href: "/inbox", icon: Inbox },
-      { label: "Entrada", href: "/entrada", icon: LogIn },
-      { label: "Clientes", href: "/clientes", icon: Users },
-      { label: "Solicitudes", href: "/requests", icon: MessageSquarePlus },
-      { label: "Proyectos", href: "/proyectos", icon: FolderKanban },
-      { label: "Tareas", href: "/tareas", icon: CheckSquare },
-      { label: "Calendario", href: "/calendario", icon: CalendarDays },
-      { label: "Archivos", href: "/archivos", icon: Files },
-      { label: "Departamentos", href: "/departamentos", icon: Building2 },
+      { label: "Intake", href: "/entrada", icon: LogIn },
+      { label: "Clients", href: "/clientes", icon: Users },
+      { label: "Requests", href: "/requests", icon: MessageSquarePlus },
+      { label: "Projects", href: "/proyectos", icon: FolderKanban },
+      { label: "Tasks", href: "/tareas", icon: CheckSquare },
+      { label: "Calendar", href: "/calendario", icon: CalendarDays },
+      { label: "Files", href: "/archivos", icon: Files },
+      { label: "Departments", href: "/departamentos", icon: Building2 },
     ],
   },
   {
     section: "Forge",
-    subtitle: "Creación y contenido",
+    subtitle: "Creation and content",
     items: [
-      { label: "Contenido", href: "/contenido", icon: FileEdit },
+      { label: "Content", href: "/contenido", icon: FileEdit },
     ],
   },
   {
     section: "Funds",
-    subtitle: "Finanzas",
+    subtitle: "Finance",
     items: [
-      { label: "Finanzas", href: "/finanzas", icon: DollarSign },
-      { label: "Facturación", href: "/facturacion", icon: FileText },
+      { label: "Finance", href: "/finanzas", icon: DollarSign },
+      { label: "Billing", href: "/facturacion", icon: FileText },
     ],
   },
   {
     section: "Future",
-    subtitle: "Planificación estratégica",
+    subtitle: "Strategic planning",
     items: [
-      { label: "Agente", href: "/agente", icon: Bot },
-      { label: "Motor IA", href: "/motor", icon: Cpu },
+      { label: "Agent", href: "/agente", icon: Bot },
+      { label: "AI Engine", href: "/motor", icon: Cpu },
     ],
   },
   {
     section: "System",
-    subtitle: "Sistema",
+    subtitle: "System",
     dividerAbove: true,
     items: [
-      { label: "Notificaciones", href: "/notificaciones", icon: Bell },
-      { label: "Historial", href: "/historial", icon: History },
-      { label: "Herramientas", href: "/biblioteca", icon: BookOpen },
-      { label: "Gestión", href: "/administracion", icon: Settings },
+      { label: "Notifications", href: "/notificaciones", icon: Bell },
+      { label: "History", href: "/historial", icon: History },
+      { label: "Tools", href: "/biblioteca", icon: BookOpen },
+      { label: "Management", href: "/administracion", icon: Settings },
     ],
   },
 ];
@@ -293,10 +293,10 @@ export function SidebarNav() {
             collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
             "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#1E293B]/60"
           )}
-          title="Buscar (Ctrl+K)"
+          title="Search (Ctrl+K)"
         >
           <Search size={15} strokeWidth={1.75} />
-          {!collapsed && <span>Buscar</span>}
+          {!collapsed && <span>Search</span>}
         </button>
       </div>
 
@@ -372,7 +372,7 @@ export function MobileSidebarNav() {
           <button
             onClick={openSearch}
             className="text-[#94A3B8] hover:text-white p-1"
-            aria-label="Buscar"
+            aria-label="Search"
           >
             <Search size={20} />
           </button>
