@@ -47,7 +47,7 @@ export function useSidebarCollapse() {
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type NavItem = { label: string; href: string; icon: React.ElementType };
+type NavItem = { label: string; href: string; icon: React.ElementType; helper?: string };
 type NavSection = {
   section: string;
   subtitle: string;
@@ -58,16 +58,16 @@ type NavSection = {
 // ── Navigation Structure ─────────────────────────────────────────────────────
 const NAV_SECTIONS: NavSection[] = [
   {
-    section: "Dashboard",
+    section: "Overview",
     subtitle: "",
-    items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
+    items: [{ label: "Overview", href: "/", icon: LayoutDashboard }],
   },
   {
-    section: "Flow",
+    section: "Workspace",
     subtitle: "Daily operations",
     items: [
-      { label: "Inbox", href: "/inbox", icon: Inbox },
-      { label: "Intake", href: "/entrada", icon: LogIn },
+      { label: "Smart Inbox", href: "/inbox", icon: Inbox, helper: "by Farah" },
+      { label: "Manual Intake", href: "/entrada", icon: LogIn },
       { label: "Clients", href: "/clientes", icon: Users },
       { label: "Requests", href: "/requests", icon: MessageSquarePlus },
       { label: "Projects", href: "/proyectos", icon: FolderKanban },
@@ -78,31 +78,31 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    section: "Forge",
-    subtitle: "Creation and content",
+    section: "Growth",
+    subtitle: "Campaigns and content",
     items: [
-      { label: "Content", href: "/contenido", icon: FileEdit },
+      { label: "Marketing", href: "/contenido", icon: FileEdit, helper: "by Fiona" },
     ],
   },
   {
-    section: "Funds",
-    subtitle: "Finance",
+    section: "Revenue",
+    subtitle: "Finance and collections",
     items: [
+      { label: "Billing", href: "/facturacion", icon: FileText, helper: "by Felix" },
       { label: "Finance", href: "/finanzas", icon: DollarSign },
-      { label: "Billing", href: "/facturacion", icon: FileText },
     ],
   },
   {
-    section: "Future",
-    subtitle: "Strategic planning",
+    section: "Recommendations",
+    subtitle: "Guidance and AI",
     items: [
-      { label: "Agent", href: "/agente", icon: Bot },
-      { label: "AI Engine", href: "/motor", icon: Cpu },
+      { label: "Recommendations", href: "/agente", icon: Bot, helper: "by Mr. Forte" },
+      { label: "AI workspace", href: "/motor", icon: Cpu },
     ],
   },
   {
     section: "System",
-    subtitle: "System",
+    subtitle: "Settings and support",
     dividerAbove: true,
     items: [
       { label: "Notifications", href: "/notificaciones", icon: Bell },
@@ -122,7 +122,7 @@ function getActiveSectionFor(pathname: string): string {
       }
     }
   }
-  return "Flow";
+  return "Workspace";
 }
 
 // ── NavLink ──────────────────────────────────────────────────────────────────
@@ -130,6 +130,7 @@ function NavLink({
   href,
   icon: Icon,
   label,
+  helper,
   collapsed,
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
@@ -158,7 +159,16 @@ function NavLink({
         strokeWidth={1.75}
         className={cn(isActive ? "text-[#60A5FA]" : "text-[#64748B] group-hover:text-[#94A3B8]")}
       />
-      {!collapsed && label}
+      {!collapsed && (
+        <span className="flex min-w-0 flex-col items-start">
+          <span className="truncate">{label}</span>
+          {helper ? (
+            <span className="text-[10px] font-normal text-[#64748B] group-hover:text-[#94A3B8]">
+              {helper}
+            </span>
+          ) : null}
+        </span>
+      )}
     </Link>
   );
 }
@@ -179,7 +189,7 @@ function AccordionSection({
   onToggle: () => void;
   onNavClick?: () => void;
 }) {
-  const isDashboard = section === "Dashboard";
+  const isDashboard = section === "Overview";
 
   if (isDashboard) {
     return (
@@ -242,7 +252,7 @@ export function SidebarNav() {
   const { collapsed, setCollapsed } = useSidebarCollapse();
   const { openSearch } = useGlobalSearch();
   const [openSection, setOpenSection] = useState<string>(
-    pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
+    pathname === "/" ? "Workspace" : getActiveSectionFor(pathname)
   );
 
   const toggleSection = (section: string) => {
@@ -263,7 +273,7 @@ export function SidebarNav() {
             <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold tracking-tight">7F</span>
             </div>
-            <span className="text-white font-semibold text-sm tracking-wide">Copilot</span>
+            <span className="text-white font-semibold text-sm tracking-wide">7F</span>
           </div>
         )}
         {collapsed && (
@@ -356,7 +366,7 @@ export function MobileSidebarNav() {
   const { openSearch } = useGlobalSearch();
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
-    pathname === "/" ? "Flow" : getActiveSectionFor(pathname)
+    pathname === "/" ? "Workspace" : getActiveSectionFor(pathname)
   );
 
   return (
@@ -366,7 +376,7 @@ export function MobileSidebarNav() {
           <div className="w-6 h-6 rounded bg-[#3B82F6] flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">7F</span>
           </div>
-          <span className="text-white font-semibold text-sm">Copilot</span>
+          <span className="text-white font-semibold text-sm">7F</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -391,13 +401,13 @@ export function MobileSidebarNav() {
           side="left"
           className="w-64 p-0 bg-[#0F172A] border-r-0 [&>button]:hidden"
         >
-          <SheetTitle className="sr-only">Navegacion</SheetTitle>
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
           <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
                 <span className="text-white text-xs font-bold">7F</span>
               </div>
-              <span className="text-white font-semibold text-sm">Copilot</span>
+              <span className="text-white font-semibold text-sm">7F</span>
             </div>
             <button
               onClick={() => setOpen(false)}

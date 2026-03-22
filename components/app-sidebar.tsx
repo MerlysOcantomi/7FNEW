@@ -43,6 +43,7 @@ type Role = "admin" | "editor" | "viewer"
 interface SidebarItem {
   id: string
   label: string
+  helper?: string
   icon: typeof House
   href: string
   roles: Role[]
@@ -56,7 +57,7 @@ interface SidebarGroupConfig {
 }
 
 const flowSections: SidebarItem[] = [
-  { id: "inbox", label: "Smart Inbox", icon: Inbox, href: "/inbox", roles: ["admin", "editor", "viewer"] },
+  { id: "inbox", label: "Smart Inbox", helper: "by Farah", icon: Inbox, href: "/inbox", roles: ["admin", "editor", "viewer"] },
   { id: "entrada", label: "Manual Intake", icon: PenLine, href: "/entrada", roles: ["admin", "editor"] },
   { id: "clientes", label: "Clients", icon: Users, href: "/clientes", roles: ["admin", "editor", "viewer"] },
   { id: "proyectos", label: "Projects", icon: FolderKanban, href: "/proyectos", roles: ["admin", "editor", "viewer"] },
@@ -67,17 +68,17 @@ const flowSections: SidebarItem[] = [
 ]
 
 const forgeSections: SidebarItem[] = [
-  { id: "contenido", label: "Campaigns & Content", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
+  { id: "contenido", label: "Marketing", helper: "by Fiona", icon: FileText, href: "/contenido", roles: ["admin", "editor"] },
 ]
 
 const fundsSections: SidebarItem[] = [
   { id: "finanzas", label: "Finance", icon: DollarSign, href: "/finanzas", roles: ["admin", "editor"] },
-  { id: "facturacion", label: "Billing", icon: Receipt, href: "/facturacion", roles: ["admin", "editor"] },
+  { id: "facturacion", label: "Billing", helper: "by Felix", icon: Receipt, href: "/facturacion", roles: ["admin", "editor"] },
 ]
 
 const futureSections: SidebarItem[] = [
-  { id: "agente", label: "Executive Agent", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
-  { id: "motor", label: "AI Engine", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
+  { id: "agente", label: "Recommendations", helper: "by Mr. Forte", icon: Bot, href: "/agente", roles: ["admin", "editor"] },
+  { id: "motor", label: "AI workspace", icon: Workflow, href: "/motor", roles: ["admin", "editor"] },
 ]
 
 const frameworkSections: SidebarItem[] = [
@@ -88,11 +89,11 @@ const frameworkSections: SidebarItem[] = [
 ]
 
 const groups: SidebarGroupConfig[] = [
-  { id: "flow", title: "Flow", icon: Workflow, items: flowSections },
-  { id: "forge", title: "Forge", icon: Sparkles, items: forgeSections },
-  { id: "funds", title: "Funds", icon: Banknote, items: fundsSections },
-  { id: "future", title: "Future", icon: Cpu, items: futureSections },
-  { id: "framework", title: "Framework", icon: Wrench, items: frameworkSections },
+  { id: "workspace", title: "Workspace", icon: Workflow, items: flowSections },
+  { id: "growth", title: "Growth", icon: Sparkles, items: forgeSections },
+  { id: "revenue", title: "Revenue", icon: Banknote, items: fundsSections },
+  { id: "recommendations", title: "Recommendations", icon: Cpu, items: futureSections },
+  { id: "system", title: "System", icon: Wrench, items: frameworkSections },
 ]
 
 function SidebarGroup({
@@ -148,7 +149,12 @@ function SidebarGroup({
               )}
             >
               <Icon className="h-4 w-4 flex-shrink-0" />
-              <span>{item.label}</span>
+              <span className="flex min-w-0 flex-col">
+                <span>{item.label}</span>
+                {item.helper ? (
+                  <span className="text-[10px] font-normal text-muted-foreground/80">{item.helper}</span>
+                ) : null}
+              </span>
             </Link>
           )
         })}
@@ -161,11 +167,11 @@ function SidebarGroup({
 export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
   const { role } = useUser()
   const [collapsedByGroup, setCollapsedByGroup] = useState<Record<string, boolean>>({
-    flow: false,
-    forge: false,
-    funds: false,
-    future: false,
-    framework: false,
+    workspace: false,
+    growth: false,
+    revenue: false,
+    recommendations: false,
+    system: false,
   })
 
   const toggleGroup = (groupId: string) =>
@@ -208,7 +214,7 @@ export function AppSidebar({ currentSection, onClose }: AppSidebarProps) {
           )}
         >
           <House className="h-4 w-4 flex-shrink-0" />
-          <span>Dashboard</span>
+          <span>Overview</span>
         </Link>
 
         {groups.map((group) => (
