@@ -63,53 +63,44 @@ const NAV_SECTIONS: NavSection[] = [
     items: [{ label: "Overview", href: "/", icon: LayoutDashboard }],
   },
   {
-    section: "Workspace",
-    subtitle: "Daily operations",
+    section: "Main",
+    subtitle: "",
     items: [
       { label: "Smart Inbox", href: "/inbox", icon: Inbox, helper: "by Farah" },
-      { label: "Manual Intake", href: "/entrada", icon: LogIn },
       { label: "Clients", href: "/clientes", icon: Users },
-      { label: "Requests", href: "/requests", icon: MessageSquarePlus },
       { label: "Projects", href: "/proyectos", icon: FolderKanban },
       { label: "Tasks", href: "/tareas", icon: CheckSquare },
-      { label: "Calendar", href: "/calendario", icon: CalendarDays },
-      { label: "Files", href: "/archivos", icon: Files },
-      { label: "Departments", href: "/departamentos", icon: Building2 },
-    ],
-  },
-  {
-    section: "Growth",
-    subtitle: "Campaigns and content",
-    items: [
+      { label: "Billing", href: "/facturacion", icon: FileText, helper: "by Felix" },
+      { label: "Finance", href: "/finanzas", icon: DollarSign },
       { label: "Marketing", href: "/contenido", icon: FileEdit, helper: "by Fiona" },
     ],
   },
   {
-    section: "Revenue",
-    subtitle: "Finance and collections",
+    section: "More",
+    subtitle: "",
     items: [
-      { label: "Billing", href: "/facturacion", icon: FileText, helper: "by Felix" },
-      { label: "Finance", href: "/finanzas", icon: DollarSign },
-    ],
-  },
-  {
-    section: "Recommendations",
-    subtitle: "Guidance and AI",
-    items: [
-      { label: "Recommendations", href: "/agente", icon: Bot, helper: "by Mr. Forte" },
-      { label: "AI workspace", href: "/motor", icon: Cpu },
-    ],
-  },
-  {
-    section: "System",
-    subtitle: "Settings and support",
-    dividerAbove: true,
-    items: [
+      { label: "Manual Intake", href: "/entrada", icon: LogIn },
+      { label: "Requests", href: "/requests", icon: MessageSquarePlus },
+      { label: "Calendar", href: "/calendario", icon: CalendarDays },
+      { label: "Files", href: "/archivos", icon: Files },
       { label: "Notifications", href: "/notificaciones", icon: Bell },
       { label: "History", href: "/historial", icon: History },
       { label: "Tools", href: "/biblioteca", icon: BookOpen },
-      { label: "Management", href: "/administracion", icon: Settings },
     ],
+    dividerAbove: true,
+  },
+  {
+    section: "Workspace",
+    subtitle: "",
+    items: [
+      { label: "Improvements", href: "/administracion", icon: Bot, helper: "by Mr. Forte" },
+      { label: "AI workspace", href: "/motor", icon: Cpu },
+      { label: "Departments", href: "/departamentos", icon: Building2 },
+      { label: "Users", href: "/usuarios", icon: Users },
+      { label: "Identity", href: "/identidad", icon: Settings },
+      { label: "Communication", href: "/comunicacion", icon: MessageSquarePlus },
+    ],
+    dividerAbove: true,
   },
 ];
 
@@ -122,7 +113,7 @@ function getActiveSectionFor(pathname: string): string {
       }
     }
   }
-  return "Workspace";
+  return "Main";
 }
 
 // ── NavLink ──────────────────────────────────────────────────────────────────
@@ -190,8 +181,9 @@ function AccordionSection({
   onNavClick?: () => void;
 }) {
   const isDashboard = section === "Overview";
+  const isDirectGroup = section === "Main";
 
-  if (isDashboard) {
+  if (isDashboard || isDirectGroup) {
     return (
       <div className={cn(dividerAbove && "pt-3 border-t border-[#1E293B]")}>
         {items.map((item) => (
@@ -252,7 +244,7 @@ export function SidebarNav() {
   const { collapsed, setCollapsed } = useSidebarCollapse();
   const { openSearch } = useGlobalSearch();
   const [openSection, setOpenSection] = useState<string>(
-    pathname === "/" ? "Workspace" : getActiveSectionFor(pathname)
+    pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
 
   const toggleSection = (section: string) => {
@@ -366,7 +358,7 @@ export function MobileSidebarNav() {
   const { openSearch } = useGlobalSearch();
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
-    pathname === "/" ? "Workspace" : getActiveSectionFor(pathname)
+    pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
 
   return (
