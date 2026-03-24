@@ -189,7 +189,7 @@ export default function Dashboard() {
                   className="flex items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-4 py-2.5 text-sm font-medium text-[#0F172A] transition-colors hover:border-[#93C5FD] hover:bg-[#EFF6FF]"
                 >
                   <Lightbulb size={14} strokeWidth={1.75} />
-                  {hero?.quickActions[1]?.label ?? "View recommendations"}
+                  {hero?.quickActions[1]?.label ?? "View insights"}
                 </Link>
               </div>
             </div>
@@ -470,17 +470,17 @@ export default function Dashboard() {
                     </section>
                   </div>
 
-                  {/* Recommendations */}
+                  {/* Improvements */}
                   <section>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
-                        Recommendations
+                        Improvements
                       </h2>
                       <Link
-                        href="/agente"
+                        href="/administracion"
                         className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                       >
-                        Open recommendations <ArrowUpRight size={11} />
+                        Open improvements <ArrowUpRight size={11} />
                       </Link>
                     </div>
                     <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">

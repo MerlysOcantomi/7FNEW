@@ -87,21 +87,21 @@ const INDICADORES: IndicadorClave[] = [
 
 const PRIORIDADES: Prioridad[] = [
   {
-    titulo: "Sync Forge milestones with disbursement dates",
+    titulo: "Sync project milestones with billing dates",
     nivel: "alto",
-    modulo: "Flow",
-    accion: "Review the Forge calendar before March 6 to avoid cash flow impact.",
+    modulo: "Projects",
+    accion: "Review the project timeline before March 6 to avoid cash flow impact.",
   },
   {
     titulo: "Start executive outreach with Nexus Holdings",
     nivel: "alto",
-    modulo: "Funds",
+    modulo: "Finance",
     accion: "$640K ARR renewal window is active. Action needed this week.",
   },
   {
     titulo: "Review project scope in Phase 3",
     nivel: "medio",
-    modulo: "Flow",
+    modulo: "Projects",
     accion: "75% of detected delays come from late scope changes in Phase 3.",
   },
 ];
@@ -111,7 +111,7 @@ const RIESGOS: Riesgo[] = [
     titulo: "Supply chain delay",
     nivel: "alto",
     proyecto: "Alpha Expansion",
-    accion: "Escalate to Forge before March 6 to avoid a Phase 3 delay.",
+    accion: "Escalate to the project lead before March 6 to avoid a Phase 3 delay.",
   },
   {
     titulo: "Delivery rate below target",
@@ -142,7 +142,7 @@ const OPORTUNIDADES: Oportunidad[] = [
     icon: Target,
   },
   {
-    titulo: "Strategic fund reallocation",
+    titulo: "Strategic budget reallocation",
     entidad: "Growth Fund III",
     impacto: "15% recovery in Q2",
     accion: "Generate reallocation analysis",
@@ -159,19 +159,19 @@ const OPORTUNIDADES: Oportunidad[] = [
 
 const RELACIONES_CRUZADAS: RelacionCruzada[] = [
   {
-    areas: ["Flow", "Funds"],
+    areas: ["Projects", "Finance"],
     tendencia: "Project delays are creating cash flow pressure",
     insight:
-      "Two Phase 3 projects with delays overlap with the weeks of highest variance in Growth Fund III. Syncing Forge milestones with disbursement dates in Funds is recommended.",
+      "Two Phase 3 projects with delays overlap with the weeks of highest variance in Growth Fund III. Syncing project milestones with billing dates is recommended.",
   },
   {
-    areas: ["Flow", "Future"],
+    areas: ["Projects", "Insights"],
     tendencia: "Systemic late scope-change pattern",
     insight:
       "75% of delayed projects share the same pattern: scope changes in Phase 3 or later. AI recommends introducing a scope-freeze process as a standard operating practice.",
   },
   {
-    areas: ["Funds", "Future"],
+    areas: ["Finance", "Insights"],
     tendencia: "Renewal window overlaps with financial pressure",
     insight:
       "All 4 enterprise renewals fall within the same period of highest fund variance. Losing $640K ARR would significantly worsen the detected variance.",
@@ -408,7 +408,7 @@ function AnalisisCruzado() {
           <BarChart3 size={13} className="text-[#3B82F6]" strokeWidth={1.75} />
           <p className="text-sm font-semibold text-[#0F172A]">Relationships between system modules</p>
           <span className="text-[10px] font-semibold text-[#94A3B8] ml-auto hidden sm:block">
-            Flow · Forge · Funds · Future
+            Projects · Finance · Insights
           </span>
         </div>
 
@@ -533,17 +533,17 @@ export default function AgentePage() {
             <div className="px-4 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <div className="flex items-end justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">Future</p>
+                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">Overview insights</p>
                   <div className="flex items-center gap-2.5 mb-1">
                     <div className="w-2 h-2 rounded-full bg-[#3B82F6]" />
-                    <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Foresight</h1>
+                    <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">See what&apos;s coming</h1>
                     <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]">
                       <Sparkles size={9} className="text-[#3B82F6]" />
-                      <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">AI active</span>
+                      <span className="text-[9px] font-bold text-[#2563EB] uppercase tracking-wider">Francis active</span>
                     </span>
                   </div>
                   <p className="text-xs text-[#64748B]">
-                    Cross-system analysis to detect risks, opportunities, and priority decisions.
+                    Francis explains what is changing, what needs attention, and what is likely to happen next.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -554,7 +554,7 @@ export default function AgentePage() {
                   </button>
                   <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-semibold hover:bg-[#1E293B] transition-colors shadow-sm">
                     <FileBarChart size={13} strokeWidth={1.75} />
-                    <span className="hidden sm:inline">Generate strategic analysis</span>
+                    <span className="hidden sm:inline">Generate business insight</span>
                     <span className="sm:hidden">Analyze</span>
                   </button>
                 </div>
@@ -587,7 +587,7 @@ export default function AgentePage() {
           </main>
 
           {/* Copilot Panel */}
-          <CopilotPanel defaultContext="Foresight" />
+          <CopilotPanel defaultContext="Overview" />
         </div>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>

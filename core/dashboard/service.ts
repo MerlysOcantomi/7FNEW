@@ -55,7 +55,7 @@ export async function buildDashboardData(auth: WorkspaceAuth): Promise<Dashboard
         },
         {
           id: "view-recommendations",
-          label: "View recommendations",
+          label: "View insights",
           href: "/agente",
         },
       ],

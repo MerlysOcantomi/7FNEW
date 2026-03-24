@@ -19,36 +19,36 @@ interface CapabilityGroup {
 // ── Core Capabilities ─────────────────────────────────────────────────────────
 const CORE_CAPABILITIES: CapabilityGroup[] = [
   {
-    section: "Flow",
+    section: "Core",
     items: [
-      { id: "inbox", label: "Inbox Inteligente", locked: true },
-      { id: "entrada", label: "Entrada Manual", locked: true },
-      { id: "clientes", label: "Clientes", locked: true },
-      { id: "proyectos", label: "Proyectos", locked: true },
-      { id: "tareas", label: "Tareas", locked: true },
-      { id: "calendario", label: "Calendario", locked: true },
-      { id: "archivos", label: "Archivos", locked: true },
-      { id: "departamentos", label: "Departamentos", locked: true },
+      { id: "inbox", label: "Smart Inbox", locked: true },
+      { id: "entrada", label: "Manual Intake", locked: true },
+      { id: "clientes", label: "Clients", locked: true },
+      { id: "proyectos", label: "Projects", locked: true },
+      { id: "tareas", label: "Tasks", locked: true },
+      { id: "calendario", label: "Calendar", locked: true },
+      { id: "archivos", label: "Files", locked: true },
     ],
   },
   {
-    section: "Forge",
+    section: "Growth",
     items: [
-      { id: "campanas", label: "Campañas & Contenido", locked: true },
+      { id: "campanas", label: "Marketing", locked: true },
     ],
   },
   {
-    section: "Funds",
+    section: "Revenue",
     items: [
-      { id: "finanzas", label: "Finanzas", locked: true },
-      { id: "facturacion", label: "Facturación", locked: true },
+      { id: "finanzas", label: "Finance", locked: true },
+      { id: "facturacion", label: "Billing", locked: true },
     ],
   },
   {
-    section: "Future",
+    section: "Advanced",
     items: [
-      { id: "agente", label: "Agente Ejecutivo", locked: true },
-      { id: "motor", label: "Motor IA", locked: true },
+      { id: "agente", label: "Overview insights", locked: true },
+      { id: "motor", label: "AI workspace", locked: true },
+      { id: "departamentos", label: "Departments", locked: true },
     ],
   },
 ];
@@ -58,46 +58,46 @@ type PackKey = "standard" | "construction" | "ecommerce";
 
 const EXTENSION_PACKS: Record<PackKey, { label: string; groups: CapabilityGroup[] }> = {
   standard: {
-    label: "Core estándar",
+    label: "Standard workspace",
     groups: [],
   },
   construction: {
-    label: "Pack Construction",
+    label: "Construction pack",
     groups: [
       {
-        section: "Flow",
+        section: "Core",
         items: [
-          { id: "subcontratistas", label: "Subcontratistas" },
-          { id: "control_obra", label: "Control de obra" },
-          { id: "certificaciones", label: "Certificaciones" },
-          { id: "avance_fisico", label: "Avance físico" },
+          { id: "subcontratistas", label: "Subcontractors" },
+          { id: "control_obra", label: "Site control" },
+          { id: "certificaciones", label: "Certifications" },
+          { id: "avance_fisico", label: "Physical progress" },
         ],
       },
       {
-        section: "Funds",
+        section: "Revenue",
         items: [
-          { id: "pagos_avance", label: "Pagos por avance" },
-          { id: "retenciones", label: "Retenciones" },
+          { id: "pagos_avance", label: "Progress payments" },
+          { id: "retenciones", label: "Retentions" },
         ],
       },
     ],
   },
   ecommerce: {
-    label: "Pack Ecommerce",
+    label: "Ecommerce pack",
     groups: [
       {
-        section: "Flow",
+        section: "Core",
         items: [
-          { id: "pedidos", label: "Pedidos" },
-          { id: "inventario", label: "Inventario" },
-          { id: "productos", label: "Productos" },
+          { id: "pedidos", label: "Orders" },
+          { id: "inventario", label: "Inventory" },
+          { id: "productos", label: "Products" },
         ],
       },
       {
-        section: "Funds",
+        section: "Revenue",
         items: [
-          { id: "pagos_online", label: "Pagos online" },
-          { id: "reembolsos", label: "Reembolsos" },
+          { id: "pagos_online", label: "Online payments" },
+          { id: "reembolsos", label: "Refunds" },
         ],
       },
     ],
@@ -106,17 +106,17 @@ const EXTENSION_PACKS: Record<PackKey, { label: string; groups: CapabilityGroup[
 
 // ── Advanced customization items ──────────────────────────────────────────────
 const ADVANCED_ITEMS = [
-  { id: "custom_fields", label: "Campos personalizados" },
-  { id: "etiquetas", label: "Etiquetas internas" },
-  { id: "automatizaciones", label: "Automatizaciones específicas" },
+  { id: "custom_fields", label: "Custom fields" },
+  { id: "etiquetas", label: "Internal labels" },
+  { id: "automatizaciones", label: "Specific automations" },
 ];
 
 // ── Section label color map ────────────────────────────────────────────────────
 const SECTION_COLOR: Record<string, string> = {
-  Flow: "text-[#2563EB]",
-  Forge: "text-[#0F172A]",
-  Funds: "text-[#1D4ED8]",
-  Future: "text-[#64748B]",
+  Core: "text-[#2563EB]",
+  Growth: "text-[#0F172A]",
+  Revenue: "text-[#1D4ED8]",
+  Advanced: "text-[#64748B]",
 };
 
 // ── Toggle component ──────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function Toggle({
       <div className="flex items-center gap-1.5">
         <ToggleRight size={22} className="text-[#3B82F6]" strokeWidth={1.5} />
         <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide whitespace-nowrap">
-          Base del sistema
+          Always on
         </span>
       </div>
     );
@@ -143,7 +143,7 @@ function Toggle({
     <button
       onClick={onToggle}
       className="flex items-center gap-1.5 group"
-      aria-label={enabled ? "Desactivar" : "Activar"}
+      aria-label={enabled ? "Disable" : "Enable"}
     >
       {enabled ? (
         <ToggleRight size={22} className="text-[#3B82F6]" strokeWidth={1.5} />
@@ -256,43 +256,43 @@ export default function Administracion() {
             {/* Header */}
             <div className="px-4 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
-                  Sistema
+                  <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
+                  Improvements
                 </p>
                 <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
-                  Gestión del sistema
+                  Workspace improvements
                 </h1>
                 <p className="text-sm text-[#64748B] mt-1">
-                  Configuración de módulos y capacidades del workspace activo
+                  Review core capabilities, optional packs, and advanced upgrades for this workspace.
                 </p>
                 <p className="text-xs text-[#94A3B8] mt-1.5">
-                  Activa o desactiva capacidades según el tipo de empresa o vertical.
+                  Mr. Forte uses this surface to suggest safe system upgrades and optional capabilities.
                 </p>
               </div>
               <button className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm shrink-0 self-start sm:self-auto">
                 <Save size={14} strokeWidth={1.75} />
-                Guardar configuración
+                Save changes
               </button>
             </div>
 
             {/* Body */}
             <div className="px-4 md:px-8 py-8 space-y-10">
 
-              {/* ── SECCIÓN 1: Core del sistema ── */}
+              {/* ── Section 1: Core capabilities ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
-                    Core del sistema
+                    Core capabilities
                   </h2>
                   <span className="text-[10px] text-[#94A3B8] font-medium">
-                    Siempre activo
+                    Always on
                   </span>
                 </div>
 
                 <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="px-5 py-3.5 bg-[#EFF6FF] border-b border-[#DBEAFE]">
                     <p className="text-xs text-[#1D4ED8] font-medium">
-                      Estas capacidades son la base del sistema y no pueden desactivarse.
+                      These capabilities are the base of the workspace and remain enabled.
                     </p>
                   </div>
 
@@ -323,11 +323,11 @@ export default function Administracion() {
                 </div>
               </section>
 
-              {/* ── SECCIÓN 2: Extensiones por vertical ── */}
+              {/* ── Section 2: Optional packs ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
-                    Extensiones por vertical
+                    Optional packs
                   </h2>
                 </div>
 
@@ -335,9 +335,9 @@ export default function Administracion() {
                   {/* Pack selector */}
                   <div className="px-5 py-4 border-b border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-[#0F172A]">Vertical activa</p>
+                      <p className="text-sm font-semibold text-[#0F172A]">Selected pack</p>
                       <p className="text-xs text-[#64748B] mt-0.5">
-                        Selecciona el pack de capacidades para tu tipo de empresa
+                        Choose the optional capability pack that best matches this workspace.
                       </p>
                     </div>
 
@@ -387,10 +387,10 @@ export default function Administracion() {
                   {currentPack.groups.length === 0 ? (
                     <div className="px-5 py-10 text-center">
                       <p className="text-sm text-[#94A3B8]">
-                        El pack estándar no incluye extensiones adicionales.
+                        The standard workspace does not include additional optional packs.
                       </p>
                       <p className="text-xs text-[#CBD5E1] mt-1">
-                        Selecciona un pack vertical para ver sus capacidades.
+                        Select a pack to review extra capabilities.
                       </p>
                     </div>
                   ) : (
@@ -409,11 +409,11 @@ export default function Administracion() {
                 </div>
               </section>
 
-              {/* ── SECCIÓN 3: Personalización avanzada ── */}
+              {/* ── Section 3: Advanced options ── */}
               <section>
                 <div className="mb-4">
                   <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
-                    Personalización avanzada
+                    Advanced options
                   </h2>
                 </div>
 
@@ -441,7 +441,7 @@ export default function Administracion() {
               <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 bg-white border-t border-[#E2E8F0] shadow-lg">
                 <button className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors">
                   <Save size={14} strokeWidth={1.75} />
-                  Guardar configuración
+                  Save changes
                 </button>
               </div>
 
@@ -449,7 +449,7 @@ export default function Administracion() {
           </main>
 
           {/* Copilot Panel */}
-          <CopilotPanel defaultContext="Foresight" />
+          <CopilotPanel defaultContext="Overview" />
         </div>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>

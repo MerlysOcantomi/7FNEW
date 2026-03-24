@@ -31,11 +31,11 @@ export function getDashboardRecommendationsPreview(input: {
 
   recommendations.push({
     id: "forte-recommendations",
-    title: "Recommendations",
+    title: "Workspace improvements",
     helper: "by Mr. Forte",
-    description: "Review structured guidance on what to improve, activate, or follow up next.",
-    href: "/agente",
-    cta: "View recommendations",
+    description: "Review suggested upgrades, optional capabilities, and next improvements for this workspace.",
+    href: "/administracion",
+    cta: "Open improvements",
     source: "forte",
     freshness: "cached",
   })
