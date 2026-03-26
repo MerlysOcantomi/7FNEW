@@ -10,6 +10,14 @@ import type { ForteCatalogEntry, ForteCatalogSnapshot } from "./types"
 
 type Phase1Profile = Omit<ForteCatalogEntry, "source">
 
+function mergeProvides(profileProvides: string[], manifestProvides?: string[]) {
+  if (!manifestProvides || manifestProvides.length === 0) {
+    return profileProvides
+  }
+
+  return Array.from(new Set([...manifestProvides, ...profileProvides]))
+}
+
 const MODULE_PROFILES: Phase1Profile[] = [
   {
     id: "usuarios",
@@ -181,7 +189,7 @@ function mergeModuleProfile(profile: Phase1Profile, manifest?: ModuleManifest): 
     name: manifest?.name ?? profile.name,
     description: manifest?.description ?? profile.description,
     namespace: manifest?.namespace ?? profile.namespace,
-    provides: manifest?.provides ?? profile.provides,
+    provides: mergeProvides(profile.provides, manifest?.provides),
     dependencies: manifest?.dependencies ?? profile.dependencies,
     optional: manifest?.optional ?? profile.optional,
     source: manifest ? "manifest" : "phase1-profile",
@@ -195,7 +203,7 @@ function mergeEngineProfile(profile: Phase1Profile, manifest?: EngineManifest): 
     name: manifest?.name ?? profile.name,
     description: manifest?.description ?? profile.description,
     namespace: manifest?.namespace ?? profile.namespace,
-    provides: manifest?.provides ?? profile.provides,
+    provides: mergeProvides(profile.provides, manifest?.provides),
     dependencies: manifest?.dependencies ?? profile.dependencies,
     optional: manifest?.optional ?? profile.optional,
     source: manifest ? "manifest" : "phase1-profile",
@@ -208,7 +216,7 @@ function mergeToolProfile(profile: Phase1Profile, manifest?: ToolManifest): Fort
     name: manifest?.name ?? profile.name,
     description: manifest?.description ?? profile.description,
     namespace: manifest?.namespace ?? profile.namespace,
-    provides: manifest?.provides ?? profile.provides,
+    provides: mergeProvides(profile.provides, manifest?.provides),
     dependencies: manifest?.dependencies ?? profile.dependencies,
     optional: manifest?.optional ?? profile.optional,
     source: manifest ? "manifest" : "phase1-profile",
