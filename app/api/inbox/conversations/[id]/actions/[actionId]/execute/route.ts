@@ -2,13 +2,13 @@ import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { logActivity } from "@/lib/activity"
-import { executeConversationAction, parseConversationJsonFields } from "@/lib/modules/inbox/service"
+import { executeConversationAction, parseConversationJsonFields } from "@modules/inbox/service"
 
 type Params = { params: Promise<{ id: string; actionId: string }> }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const { id, actionId } = await params
     const body = await request.json().catch(() => ({}))
 

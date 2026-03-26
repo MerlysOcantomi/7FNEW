@@ -2,12 +2,12 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError, getPaginationParams } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { createConversationFromInboxEntry } from "@/lib/modules/inbox/service"
-import { runConversationIntelligence } from "@/lib/modules/inbox/intelligence"
+import { createConversationFromInboxEntry } from "@modules/inbox/service"
+import { runConversationIntelligence } from "@modules/inbox/intelligence"
 
 export async function GET(request: NextRequest) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(request)
     const { searchParams } = request.nextUrl
     const { page, pageSize, skip } = getPaginationParams(searchParams)
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(request)
     const body = await request.json()
     const { nombre, email, telefono, mensaje, fuente = "manual" } = body
 

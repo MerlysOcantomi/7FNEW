@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { parseConversationJsonFields, updateConversationHandoff } from "@/lib/modules/inbox/service"
+import { parseConversationJsonFields, updateConversationHandoff } from "@modules/inbox/service"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
 

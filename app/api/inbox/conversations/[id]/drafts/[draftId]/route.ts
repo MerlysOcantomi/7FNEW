@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { parseConversationJsonFields, updateConversationDraft } from "@/lib/modules/inbox/service"
+import { parseConversationJsonFields, updateConversationDraft } from "@modules/inbox/service"
 
 type Params = { params: Promise<{ id: string; draftId: string }> }
 
@@ -9,7 +9,7 @@ const EDITABLE_DRAFT_STATUSES = new Set(["draft", "edited", "approved", "discard
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const { id, draftId } = await params
     const body = await request.json()
 

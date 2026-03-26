@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { addMessage } from "@/lib/modules/inbox/service"
-import { runConversationIntelligence } from "@/lib/modules/inbox/intelligence"
+import { addMessage } from "@modules/inbox/service"
+import { runConversationIntelligence } from "@modules/inbox/intelligence"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
     const {

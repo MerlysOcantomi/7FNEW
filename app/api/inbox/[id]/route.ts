@@ -2,14 +2,14 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess, requireAdminAccess } from "@/lib/auth/workspace-auth"
-import { parseConversationJsonFields, transitionConversation } from "@/lib/modules/inbox/service"
-import { normalizeLegacyInboxStatus } from "@/lib/modules/inbox/state"
+import { parseConversationJsonFields, transitionConversation } from "@modules/inbox/service"
+import { normalizeLegacyInboxStatus } from "@modules/inbox/state"
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(_request)
     const { id } = await params
     const entry = await db.inboxEntry.findFirst({
       where: { id, workspaceId },
@@ -48,7 +48,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(request)
     const { id } = await params
     const existing = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
     if (!existing) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)
@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireAdminAccess()
+    const { workspaceId } = await requireAdminAccess(_request)
     const { id } = await params
     const existing = await db.inboxEntry.findFirst({ where: { id, workspaceId } })
     if (!existing) return errorResponse("NOT_FOUND", "Entrada no encontrada", 404)

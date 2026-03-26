@@ -432,6 +432,14 @@ export default function InboxPage() {
   } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey })
 
   const conversations = Array.isArray(conversationsData) ? conversationsData : []
+  const isWorkspaceUnavailable = error === "No tienes workspace asignado"
+  const isGenericListFailure = error === "Error interno del servidor"
+  const listErrorMessage =
+    isWorkspaceUnavailable
+      ? "Inbox is not available yet for this workspace."
+      : isGenericListFailure
+        ? "Inbox could not load conversations right now."
+      : error
 
   useEffect(() => {
     if (!selectedId && conversations.length > 0) {
@@ -452,6 +460,14 @@ export default function InboxPage() {
     { refreshKey },
   )
 
+  const isDetailWorkspaceUnavailable = detailError === "No tienes workspace asignado"
+  const isGenericDetailFailure = detailError === "Error interno del servidor"
+  const detailErrorMessage =
+    isDetailWorkspaceUnavailable
+      ? "This conversation is not available until a workspace is active."
+      : isGenericDetailFailure
+        ? "This conversation could not be loaded right now."
+        : detailError
   const selected = detailData ?? null
 
   const stats = useMemo(() => {
@@ -650,10 +666,15 @@ export default function InboxPage() {
               <div className="flex items-center justify-center rounded-xl border border-border bg-card py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : error ? (
-              <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-6 text-center">
-                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#EF4444]" />
-                <p className="text-sm font-medium text-[#991B1B]">{error}</p>
+            ) : listErrorMessage ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+                <History className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-foreground">Inbox is currently unavailable</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isWorkspaceUnavailable
+                    ? "Activate or select a workspace to load conversations."
+                    : listErrorMessage}
+                </p>
               </div>
             ) : conversations.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
@@ -685,10 +706,13 @@ export default function InboxPage() {
               <div className="flex items-center justify-center rounded-xl border border-border bg-card py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : detailError ? (
-              <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-6 text-center">
-                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#EF4444]" />
-                <p className="text-sm font-medium text-[#991B1B]">{detailError}</p>
+            ) : detailErrorMessage ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm font-medium text-foreground">Could not load this conversation</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {detailErrorMessage}
+                </p>
               </div>
             ) : selected ? (
               <>
