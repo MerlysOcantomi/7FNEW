@@ -26,13 +26,13 @@ export default function ClienteLoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || "Error al iniciar sesion")
+        setError(data.error || "Could not sign in")
         return
       }
 
       router.push("/cliente/dashboard")
     } catch {
-      setError("Error de conexion. Intenta de nuevo.")
+      setError("Connection error. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -45,9 +45,9 @@ export default function ClienteLoginPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1a3a5c] text-xl font-bold text-white">
             7F
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">Portal de Clientes</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Client portal</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Accede a tus proyectos, facturas y documentos
+            Access your projects, invoices, and documents
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export default function ClienteLoginPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Contraseña
+              Password
             </label>
             <input
               id="password"
@@ -100,12 +100,12 @@ export default function ClienteLoginPage() {
             ) : (
               <Lock className="h-4 w-4" />
             )}
-            {loading ? "Entrando..." : "Iniciar sesion"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          Si no tienes acceso, contacta a tu administrador de cuenta.
+          If you do not have access, contact your account administrator.
         </p>
       </div>
     </div>

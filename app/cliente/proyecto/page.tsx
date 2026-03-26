@@ -29,8 +29,8 @@ export default function ClienteProyectosPage() {
     <ClientPortalShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Mis Proyectos</h1>
-          <p className="text-sm text-gray-500">Todos los proyectos asociados a tu cuenta</p>
+          <h1 className="text-lg font-semibold text-gray-900">My projects</h1>
+          <p className="text-sm text-gray-500">All projects linked to your account</p>
         </div>
 
         {loading ? (
@@ -40,8 +40,8 @@ export default function ClienteProyectosPage() {
         ) : proyectos.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
             <FolderKanban className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-900">No hay proyectos</p>
-            <p className="mt-1 text-xs text-gray-500">Aun no tienes proyectos asignados</p>
+            <p className="text-sm font-medium text-gray-900">No projects yet</p>
+            <p className="mt-1 text-xs text-gray-500">You do not have any assigned projects yet</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -58,7 +58,7 @@ export default function ClienteProyectosPage() {
                   <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-[#1a3a5c]" />
                 </div>
                 <p className="mt-2 text-xs text-gray-500 line-clamp-2">
-                  {p.descripcion || "Sin descripcion"}
+                  {p.descripcion || "No description"}
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[p.estado] || "bg-gray-100 text-gray-600"}`}>
@@ -77,7 +77,7 @@ export default function ClienteProyectosPage() {
                   )}
                 </div>
                 <div className="mt-3 text-xs text-gray-400">
-                  {p.tareas?.length || 0} tareas
+                  {p.tareas?.length || 0} tasks
                 </div>
               </Link>
             ))}

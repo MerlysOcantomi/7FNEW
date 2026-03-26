@@ -42,24 +42,24 @@ export default function ClienteFacturasPage() {
     <ClientPortalShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Mis Facturas</h1>
-          <p className="text-sm text-gray-500">Historial completo de facturacion</p>
+          <h1 className="text-lg font-semibold text-gray-900">My invoices</h1>
+          <p className="text-sm text-gray-500">Complete billing history</p>
         </div>
 
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-xs text-gray-500">Total facturas</p>
+            <p className="text-xs text-gray-500">Total invoices</p>
             <p className="mt-1 text-2xl font-semibold text-gray-900">{facturas.length}</p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-xs text-gray-500">Pendiente de pago</p>
+            <p className="text-xs text-gray-500">Awaiting payment</p>
             <p className="mt-1 text-2xl font-semibold text-amber-600">
               CHF {totalPendiente.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-xs text-gray-500">Total pagado</p>
+            <p className="text-xs text-gray-500">Total paid</p>
             <p className="mt-1 text-2xl font-semibold text-green-600">
               CHF {totalPagado.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
             </p>
@@ -78,7 +78,7 @@ export default function ClienteFacturasPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {estado || "Todas"}
+              {estado || "All"}
             </button>
           ))}
         </div>
@@ -91,7 +91,7 @@ export default function ClienteFacturasPage() {
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
             <FileText className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-900">No hay facturas</p>
+            <p className="text-sm font-medium text-gray-900">No invoices yet</p>
           </div>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -99,22 +99,22 @@ export default function ClienteFacturasPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Numero</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fecha</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Proyecto</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Vencimiento</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Number</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Date</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Project</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Due date</th>
                     <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Estado</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((f: any) => (
                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-4 text-sm font-medium text-gray-900">#{f.numero}</td>
-                      <td className="px-5 py-4 text-sm text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("es")}</td>
+                      <td className="px-5 py-4 text-sm text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("en-US")}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">{f.proyecto?.nombre || "—"}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">
-                        {f.fechaVencimiento ? new Date(f.fechaVencimiento).toLocaleDateString("es") : "—"}
+                        {f.fechaVencimiento ? new Date(f.fechaVencimiento).toLocaleDateString("en-US") : "—"}
                       </td>
                       <td className="px-5 py-4 text-right text-sm font-semibold text-gray-900">
                         CHF {f.total?.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
@@ -140,7 +140,7 @@ export default function ClienteFacturasPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("es")}</span>
+                    <span className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("en-US")}</span>
                     <span className="text-sm font-semibold text-gray-900">
                       CHF {f.total?.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                     </span>

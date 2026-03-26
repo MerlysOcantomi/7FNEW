@@ -46,21 +46,21 @@ export default function ClienteProyectoDetailPage() {
         </div>
       ) : !proyecto || proyecto.error ? (
         <div className="py-20 text-center">
-          <p className="text-sm text-gray-500">Proyecto no encontrado</p>
+          <p className="text-sm text-gray-500">Project not found</p>
           <Link href="/cliente/proyecto" className="mt-2 text-sm text-[#1a3a5c] hover:underline">
-            Volver a proyectos
+            Back to projects
           </Link>
         </div>
       ) : (
         <div className="space-y-6">
           <div>
             <Link href="/cliente/proyecto" className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
-              <ArrowLeft className="h-4 w-4" /> Proyectos
+              <ArrowLeft className="h-4 w-4" /> Projects
             </Link>
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-lg font-semibold text-gray-900">{proyecto.nombre}</h1>
-                <p className="mt-1 text-sm text-gray-500">{proyecto.descripcion || "Sin descripcion"}</p>
+                <p className="mt-1 text-sm text-gray-500">{proyecto.descripcion || "No description"}</p>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-medium ${estadoColors[proyecto.estado] || "bg-gray-100 text-gray-600"}`}>
                 {proyecto.estado}
@@ -72,7 +72,7 @@ export default function ClienteProyectoDetailPage() {
           {proyecto.progreso != null && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Progreso</span>
+                <span className="text-sm font-medium text-gray-700">Progress</span>
                 <span className="text-sm font-semibold text-[#1a3a5c]">{proyecto.progreso}%</span>
               </div>
               <div className="h-2.5 rounded-full bg-gray-100">
@@ -86,13 +86,13 @@ export default function ClienteProyectoDetailPage() {
 
           {/* Info */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <InfoCard label="Fecha inicio" value={proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString("es") : "—"} />
-            <InfoCard label="Fecha fin" value={proyecto.fechaFin ? new Date(proyecto.fechaFin).toLocaleDateString("es") : "—"} />
-            <InfoCard label="Presupuesto" value={proyecto.presupuesto ? `CHF ${proyecto.presupuesto.toLocaleString("de-CH")}` : "—"} />
+            <InfoCard label="Start date" value={proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString("en-US") : "—"} />
+            <InfoCard label="End date" value={proyecto.fechaFin ? new Date(proyecto.fechaFin).toLocaleDateString("en-US") : "—"} />
+            <InfoCard label="Budget" value={proyecto.presupuesto ? `CHF ${proyecto.presupuesto.toLocaleString("de-CH")}` : "—"} />
           </div>
 
-          {/* Tareas */}
-          <Section title="Tareas" icon={CheckSquare} count={proyecto.tareas?.length || 0}>
+          {/* Tasks */}
+          <Section title="Tasks" icon={CheckSquare} count={proyecto.tareas?.length || 0}>
             {proyecto.tareas?.length > 0 ? (
               <div className="divide-y divide-gray-100">
                 {proyecto.tareas.map((t: any) => (
@@ -108,19 +108,19 @@ export default function ClienteProyectoDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="px-5 py-8 text-center text-sm text-gray-400">No hay tareas</p>
+              <p className="px-5 py-8 text-center text-sm text-gray-400">No tasks yet</p>
             )}
           </Section>
 
-          {/* Facturas */}
-          <Section title="Facturas" icon={FileText} count={proyecto.facturas?.length || 0}>
+          {/* Invoices */}
+          <Section title="Invoices" icon={FileText} count={proyecto.facturas?.length || 0}>
             {proyecto.facturas?.length > 0 ? (
               <div className="divide-y divide-gray-100">
                 {proyecto.facturas.map((f: any) => (
                   <div key={f.id} className="flex items-center justify-between px-5 py-3.5">
                     <div>
                       <p className="text-sm font-medium text-gray-900">#{f.numero}</p>
-                      <p className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("es")}</p>
+                      <p className="text-xs text-gray-500">{new Date(f.fechaEmision).toLocaleDateString("en-US")}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold">CHF {f.total?.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</span>
@@ -132,12 +132,12 @@ export default function ClienteProyectoDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="px-5 py-8 text-center text-sm text-gray-400">No hay facturas</p>
+              <p className="px-5 py-8 text-center text-sm text-gray-400">No invoices yet</p>
             )}
           </Section>
 
-          {/* Documentos */}
-          <Section title="Documentos" icon={Files} count={proyecto.documentos?.length || 0}>
+          {/* Documents */}
+          <Section title="Documents" icon={Files} count={proyecto.documentos?.length || 0}>
             {proyecto.documentos?.length > 0 ? (
               <div className="divide-y divide-gray-100">
                 {proyecto.documentos.map((d: any) => (
@@ -152,12 +152,12 @@ export default function ClienteProyectoDetailPage() {
                       <p className="text-sm font-medium text-gray-900">{d.nombre}</p>
                       <p className="text-xs text-gray-500">{d.tipo}</p>
                     </div>
-                    <span className="text-xs text-[#1a3a5c]">Descargar</span>
+                    <span className="text-xs text-[#1a3a5c]">Download</span>
                   </a>
                 ))}
               </div>
             ) : (
-              <p className="px-5 py-8 text-center text-sm text-gray-400">No hay documentos</p>
+              <p className="px-5 py-8 text-center text-sm text-gray-400">No documents yet</p>
             )}
           </Section>
         </div>

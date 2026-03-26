@@ -37,11 +37,11 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
 
   async function handleCreate() {
     if (!email || !password) {
-      toast.error("Email y contraseña son requeridos")
+      toast.error("Email and password are required")
       return
     }
     if (password.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres")
+      toast.error("Password must be at least 6 characters")
       return
     }
     setCreating(true)
@@ -53,14 +53,14 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error || "Error al crear acceso")
+        toast.error(data.error || "Could not create portal access")
         return
       }
-      toast.success("Acceso al portal creado correctamente")
+      toast.success("Portal access created successfully")
       setHasAccess(true)
       setShowForm(false)
     } catch {
-      toast.error("Error de conexion")
+      toast.error("Connection error")
     } finally {
       setCreating(false)
     }
@@ -71,7 +71,7 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Verificando acceso al portal...</span>
+          <span className="text-sm text-muted-foreground">Checking portal access...</span>
         </div>
       </div>
     )
@@ -81,18 +81,18 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-3">
         <KeyRound className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold text-foreground">Portal de Clientes</h3>
+        <h3 className="text-sm font-semibold text-foreground">Client portal</h3>
       </div>
 
       {hasAccess ? (
         <div className="flex items-center gap-2">
           <Check className="h-4 w-4 text-green-500" />
-          <span className="text-sm text-green-600">Este cliente tiene acceso al portal</span>
+          <span className="text-sm text-green-600">This client has portal access</span>
         </div>
       ) : showForm ? (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Email de acceso</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Portal email</label>
             <input
               type="email"
               value={email}
@@ -102,14 +102,14 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Contraseña</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
-                placeholder="Minimo 6 caracteres"
+                placeholder="Minimum 6 characters"
               />
               <button
                 type="button"
@@ -127,13 +127,13 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
               className="flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
             >
               {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-              {creating ? "Creando..." : "Crear acceso"}
+              {creating ? "Creating..." : "Create access"}
             </button>
             <button
               onClick={() => setShowForm(false)}
               className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
             >
-              Cancelar
+              Cancel
             </button>
           </div>
         </div>
@@ -141,14 +141,14 @@ export function ClientPortalAccess({ clienteId, clienteEmail }: Props) {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="h-4 w-4 text-amber-500" />
-            <span className="text-sm text-muted-foreground">Este cliente no tiene acceso al portal</span>
+            <span className="text-sm text-muted-foreground">This client does not have portal access</span>
           </div>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80"
           >
             <KeyRound className="h-3.5 w-3.5" />
-            Dar acceso al portal
+            Grant portal access
           </button>
         </div>
       )}

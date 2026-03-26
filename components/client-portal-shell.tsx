@@ -23,11 +23,11 @@ import {
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/cliente/dashboard", icon: LayoutDashboard },
-  { label: "Proyectos", href: "/cliente/proyecto", icon: FolderKanban },
-  { label: "Facturas", href: "/cliente/facturas", icon: FileText },
-  { label: "Solicitudes", href: "/cliente/solicitudes", icon: MessageSquarePlus },
-  { label: "Archivos", href: "/cliente/archivos", icon: Files },
-  { label: "Mi Perfil", href: "/cliente/perfil", icon: UserCircle },
+  { label: "Projects", href: "/cliente/proyecto", icon: FolderKanban },
+  { label: "Invoices", href: "/cliente/facturas", icon: FileText },
+  { label: "Requests", href: "/cliente/solicitudes", icon: MessageSquarePlus },
+  { label: "Files", href: "/cliente/archivos", icon: Files },
+  { label: "My profile", href: "/cliente/perfil", icon: UserCircle },
 ]
 
 function SidebarContent({
@@ -50,8 +50,8 @@ function SidebarContent({
           7F
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">Portal de Clientes</p>
-          <p className="text-xs text-white/60">Area privada</p>
+          <p className="text-sm font-semibold text-white">Client portal</p>
+          <p className="text-xs text-white/60">Private workspace</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ function SidebarContent({
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
-          Cerrar sesion
+          Sign out
         </button>
       </div>
     </>
@@ -136,7 +136,7 @@ export function ClientPortalShell({
           side="left"
           className="w-64 p-0 bg-[#1a3a5c] border-r-0 [&>button]:hidden"
         >
-          <SheetTitle className="sr-only">Navegacion del portal</SheetTitle>
+          <SheetTitle className="sr-only">Portal navigation</SheetTitle>
           <SidebarContent
             pathname={pathname}
             userName={user.nombre}
@@ -154,13 +154,13 @@ export function ClientPortalShell({
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-            aria-label="Abrir menu"
+            aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-gray-900 truncate">
-              Bienvenido, {user.nombre}
+              Welcome, {user.nombre}
             </h1>
           </div>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a3a5c] text-xs font-bold text-white shrink-0">
@@ -172,7 +172,7 @@ export function ClientPortalShell({
         <header className="hidden md:flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-gray-900 truncate">
-              Bienvenido, {user.nombre}
+              Welcome, {user.nombre}
             </h1>
           </div>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a3a5c] text-xs font-bold text-white shrink-0">

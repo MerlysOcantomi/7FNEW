@@ -52,8 +52,8 @@ export default function ClientePerfilPage() {
     <ClientPortalShell>
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Mi Perfil</h1>
-          <p className="text-sm text-gray-500">Informacion de tu cuenta</p>
+          <h1 className="text-lg font-semibold text-gray-900">My profile</h1>
+          <p className="text-sm text-gray-500">Your account information</p>
         </div>
 
         {loading ? (
@@ -61,7 +61,7 @@ export default function ClientePerfilPage() {
             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
           </div>
         ) : !perfil ? (
-          <p className="text-sm text-gray-500">Error al cargar perfil</p>
+          <p className="text-sm text-gray-500">Could not load profile</p>
         ) : (
           <>
             {/* Profile header */}
@@ -82,29 +82,29 @@ export default function ClientePerfilPage() {
 
             {/* Stats */}
             <div className="grid gap-4 sm:grid-cols-4">
-              <StatMini label="Proyectos" value={perfil._count?.proyectos ?? 0} />
-              <StatMini label="Facturas" value={perfil._count?.facturas ?? 0} />
-              <StatMini label="Tareas" value={perfil._count?.tareas ?? 0} />
-              <StatMini label="Documentos" value={perfil._count?.documentos ?? 0} />
+              <StatMini label="Projects" value={perfil._count?.proyectos ?? 0} />
+              <StatMini label="Invoices" value={perfil._count?.facturas ?? 0} />
+              <StatMini label="Tasks" value={perfil._count?.tareas ?? 0} />
+              <StatMini label="Documents" value={perfil._count?.documentos ?? 0} />
             </div>
 
             {/* Editable fields */}
             <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Informacion de contacto</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Contact information</h3>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Nombre</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
                 <input
                   type="text"
                   value={perfil.nombre}
                   disabled
                   className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500"
                 />
-                <p className="mt-1 text-xs text-gray-400">Contacta al administrador para cambiar tu nombre</p>
+                <p className="mt-1 text-xs text-gray-400">Contact your administrator to update your name</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Telefono</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
                 <input
                   type="text"
                   value={form.telefono}
@@ -115,24 +115,24 @@ export default function ClientePerfilPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Empresa</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Company</label>
                 <input
                   type="text"
                   value={form.empresa}
                   onChange={(e) => setForm({ ...form, empresa: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20"
-                  placeholder="Nombre de empresa"
+                  placeholder="Company name"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Notas</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
                 <textarea
                   value={form.notas}
                   onChange={(e) => setForm({ ...form, notas: e.target.value })}
                   rows={3}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20 resize-none"
-                  placeholder="Notas adicionales..."
+                  placeholder="Additional notes..."
                 />
               </div>
 
@@ -143,11 +143,11 @@ export default function ClientePerfilPage() {
                   className="flex items-center gap-2 rounded-lg bg-[#1a3a5c] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {saving ? "Guardando..." : "Guardar cambios"}
+                  {saving ? "Saving..." : "Save changes"}
                 </button>
                 {saved && (
                   <span className="flex items-center gap-1 text-sm text-green-600">
-                    <Check className="h-4 w-4" /> Guardado
+                    <Check className="h-4 w-4" /> Saved
                   </span>
                 )}
               </div>
@@ -155,15 +155,15 @@ export default function ClientePerfilPage() {
 
             {/* Account info */}
             <div className="rounded-xl border border-gray-200 bg-white p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Informacion de cuenta</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Account information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Tipo</span>
+                  <span className="text-gray-500">Type</span>
                   <span className="text-gray-900">{perfil.tipo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Miembro desde</span>
-                  <span className="text-gray-900">{new Date(perfil.createdAt).toLocaleDateString("es")}</span>
+                  <span className="text-gray-500">Member since</span>
+                  <span className="text-gray-900">{new Date(perfil.createdAt).toLocaleDateString("en-US")}</span>
                 </div>
               </div>
             </div>

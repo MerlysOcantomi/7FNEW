@@ -28,9 +28,9 @@ interface AssetItem {
 }
 
 const TYPE_FILTERS = [
-  { key: "", label: "Todos" },
-  { key: "DOCUMENT", label: "Documentos" },
-  { key: "IMAGE", label: "Imagenes" },
+  { key: "", label: "All" },
+  { key: "DOCUMENT", label: "Documents" },
+  { key: "IMAGE", label: "Images" },
   { key: "LOGO", label: "Logos" },
   { key: "VIDEO", label: "Videos" },
 ]
@@ -160,10 +160,10 @@ export default function ClienteArchivosPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
-              Mis Archivos
+              My files
             </h1>
             <p className="text-sm text-gray-500">
-              Documentos, imagenes y archivos de tu cuenta
+              Documents, images, and files from your account
             </p>
           </div>
           <div>
@@ -184,7 +184,7 @@ export default function ClienteArchivosPage() {
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {uploading ? "Subiendo..." : "Subir archivo"}
+              {uploading ? "Uploading..." : "Upload file"}
             </button>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function ClienteArchivosPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar archivos..."
+              placeholder="Search files..."
               className="w-full rounded-lg border border-gray-300 pl-9 pr-9 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
             />
             {search && (
@@ -234,12 +234,12 @@ export default function ClienteArchivosPage() {
             icon={Files}
           />
           <MiniStat
-            label="Documentos"
+            label="Documents"
             value={assets.filter((a) => a.type === "DOCUMENT").length}
             icon={FileText}
           />
           <MiniStat
-            label="Imagenes"
+            label="Images"
             value={
               assets.filter((a) => a.type === "IMAGE" || a.type === "LOGO")
                 .length
@@ -263,13 +263,13 @@ export default function ClienteArchivosPage() {
             <Files className="mx-auto mb-3 h-10 w-10 text-gray-300" />
             <p className="text-sm font-medium text-gray-900">
               {search || typeFilter
-                ? "No se encontraron archivos"
-                : "No tienes archivos"}
+                ? "No files found"
+                : "You do not have any files yet"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
               {search || typeFilter
-                ? "Intenta con otro filtro o busqueda"
-                : "Sube tu primer archivo usando el boton de arriba"}
+                ? "Try a different filter or search"
+                : "Upload your first file using the button above"}
             </p>
           </div>
         ) : (
@@ -316,7 +316,7 @@ export default function ClienteArchivosPage() {
                           </span>
                         )}
                         <span className="ml-2">
-                          {new Date(file.createdAt).toLocaleDateString("es")}
+                          {new Date(file.createdAt).toLocaleDateString("en-US")}
                         </span>
                       </p>
                     </div>
@@ -325,7 +325,7 @@ export default function ClienteArchivosPage() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => copyLink(file.url, file.id)}
-                        title="Copiar enlace"
+                        title="Copy link"
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#1a3a5c] transition-colors"
                       >
                         <Link2
@@ -340,7 +340,7 @@ export default function ClienteArchivosPage() {
                         href={file.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Descargar"
+                        title="Download"
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#1a3a5c] transition-colors"
                       >
                         <Download className="h-4 w-4" />

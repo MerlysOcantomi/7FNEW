@@ -70,14 +70,14 @@ export default function ClienteDashboardPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-[#111827] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1f2937] transition-colors justify-center"
             >
               <MessageSquarePlus className="h-4 w-4" />
-              Nueva solicitud
+              New request
             </Link>
             <Link
               href="/cliente/archivos"
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors justify-center"
             >
               <Upload className="h-4 w-4" />
-              Subir archivo
+              Upload file
             </Link>
           </div>
 
@@ -85,44 +85,44 @@ export default function ClienteDashboardPage() {
           <div className="grid gap-4 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4">
             <StatCard
               icon={FolderKanban}
-              label="Proyectos activos"
+              label="Active projects"
               value={data.stats.proyectosActivos}
               total={data.stats.totalProyectos}
             />
             <StatCard
               icon={FileText}
-              label="Facturas pendientes"
+              label="Outstanding invoices"
               value={data.stats.facturasPendientes}
               total={data.stats.totalFacturas}
             />
             <StatCard
               icon={MessageSquarePlus}
-              label="Solicitudes abiertas"
+              label="Open requests"
               value={data.stats.solicitudesAbiertas}
             />
             <StatCard
               icon={Files}
-              label="Archivos"
+              label="Files"
               value={data.stats.totalAssets + data.stats.totalDocumentos}
             />
           </div>
 
-          {/* Proyectos recientes */}
+          {/* Recent projects */}
           <div className="rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <h2 className="text-sm font-semibold text-gray-900">
-                Tus proyectos recientes
+                Your recent projects
               </h2>
               <Link
                 href="/cliente/proyecto"
                 className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline"
               >
-                Ver todos <ArrowRight className="h-3 w-3" />
+                View all <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
             {data.proyectosRecientes.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-gray-400">
-                No hay proyectos
+                No projects yet
               </p>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -137,7 +137,7 @@ export default function ClienteDashboardPage() {
                         {p.nombre}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {p.descripcion?.slice(0, 60) || "Sin descripcion"}
+                        {p.descripcion?.slice(0, 60) || "No description"}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -161,24 +161,24 @@ export default function ClienteDashboardPage() {
             )}
           </div>
 
-          {/* Facturas + Tareas */}
+          {/* Invoices + tasks */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Facturas */}
+            {/* Invoices */}
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                 <h2 className="text-sm font-semibold text-gray-900">
-                  Tus facturas recientes
+                  Your recent invoices
                 </h2>
                 <Link
                   href="/cliente/facturas"
                   className="flex items-center gap-1 text-xs font-medium text-[#1a3a5c] hover:underline"
                 >
-                  Ver todas <ArrowRight className="h-3 w-3" />
+                  View all <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
               {data.facturasRecientes.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-gray-400">
-                  No hay facturas
+                  No invoices yet
                 </p>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -193,7 +193,7 @@ export default function ClienteDashboardPage() {
                         </p>
                         <p className="text-xs text-gray-500">
                           {new Date(f.fechaEmision).toLocaleDateString(
-                            "es"
+                            "en-US"
                           )}
                         </p>
                       </div>
@@ -219,16 +219,16 @@ export default function ClienteDashboardPage() {
               )}
             </div>
 
-            {/* Tareas */}
+            {/* Tasks */}
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="border-b border-gray-100 px-5 py-4">
                 <h2 className="text-sm font-semibold text-gray-900">
-                  Tus tareas abiertas
+                  Your open tasks
                 </h2>
               </div>
               {data.tareasAbiertas.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-gray-400">
-                  No hay tareas pendientes
+                  No open tasks
                 </p>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -243,10 +243,10 @@ export default function ClienteDashboardPage() {
                         </p>
                         <p className="text-xs text-gray-500">
                           {t.fechaLimite
-                            ? `Fecha limite: ${new Date(
+                            ? `Due date: ${new Date(
                                 t.fechaLimite
-                              ).toLocaleDateString("es")}`
-                            : "Sin fecha limite"}
+                              ).toLocaleDateString("en-US")}`
+                            : "No due date"}
                         </p>
                       </div>
                       <span

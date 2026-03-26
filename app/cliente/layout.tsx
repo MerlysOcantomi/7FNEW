@@ -1,8 +1,8 @@
 import { ClientUserProvider } from "@/hooks/use-client-user"
 
 export const metadata = {
-  title: "Portal de Clientes — 7F",
-  description: "Accede a tus proyectos, facturas y documentos",
+  title: "Client Portal — 7F",
+  description: "Access your projects, invoices, and documents",
 }
 
 export default function ClienteLayout({
