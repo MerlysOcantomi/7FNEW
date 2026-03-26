@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: '7F Copilot',
+  title: '7F Workspace',
   description: 'Enterprise intelligence platform for executive decision-making.',
   generator: 'v0.app',
   icons: {

@@ -52,6 +52,7 @@ type NavSection = {
   section: string;
   subtitle: string;
   items: NavItem[];
+  icon?: React.ElementType;
   dividerAbove?: boolean;
 };
 
@@ -78,6 +79,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: "More",
     subtitle: "",
+    icon: BookOpen,
     items: [
       { label: "Manual Intake", href: "/entrada", icon: LogIn },
       { label: "Requests", href: "/requests", icon: MessageSquarePlus },
@@ -92,6 +94,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: "Workspace",
     subtitle: "",
+    icon: Settings,
     items: [
       { label: "Improvements", href: "/administracion", icon: Bot, helper: "by Mr. Forte" },
       { label: "AI workspace", href: "/motor", icon: Cpu },
@@ -169,6 +172,7 @@ function AccordionSection({
   section,
   subtitle,
   items,
+  icon: SectionIcon,
   dividerAbove,
   collapsed,
   isOpen,
@@ -208,21 +212,28 @@ function AccordionSection({
     <div className={cn(dividerAbove && "pt-3 border-t border-[#1E293B]")}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-1.5 mb-0.5 group"
+        className="w-full flex items-center justify-between rounded-[8px] px-3 py-2 mb-1 border border-[#1E293B] bg-[#111827]/70 hover:bg-[#1E293B] transition-colors group"
       >
-        <div className="flex flex-col items-start">
-          <span className="text-[11px] font-semibold text-[#475569] group-hover:text-[#94A3B8] transition-colors tracking-wide">
-            {section}
-          </span>
-          {subtitle && (
-            <span className="text-[9px] text-[#334155] mt-0.5 tracking-wide">{subtitle}</span>
-          )}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {SectionIcon ? (
+            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-[#334155] bg-[#1E293B] text-[#94A3B8] shrink-0">
+              <SectionIcon size={13} strokeWidth={1.9} />
+            </span>
+          ) : null}
+          <div className="flex flex-col items-start min-w-0">
+            <span className="text-[11px] font-semibold text-[#CBD5E1] group-hover:text-white transition-colors tracking-wide">
+              {section}
+            </span>
+            {subtitle && (
+              <span className="text-[9px] text-[#64748B] mt-0.5 tracking-wide">{subtitle}</span>
+            )}
+          </div>
         </div>
         <ChevronDown
           size={12}
           strokeWidth={2}
           className={cn(
-            "text-[#334155] group-hover:text-[#475569] transition-all duration-200",
+            "text-[#64748B] group-hover:text-[#CBD5E1] transition-all duration-200 shrink-0",
             isOpen ? "rotate-0" : "-rotate-90"
           )}
         />
