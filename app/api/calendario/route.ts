@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createEventoSchema, queryEventoSchema } from "@/lib/modules/calendario/validation"
-import * as service from "@/lib/modules/calendario/service"
+import { createEventoSchema, queryEventoSchema } from "@modules/calendario/validation"
+import * as service from "@modules/calendario/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createCampaignSchema, queryCampaignSchema } from "@/lib/modules/campanas/validation"
-import * as service from "@/lib/modules/campanas/service"
+import { createCampaignSchema, queryCampaignSchema } from "@modules/campanas/validation"
+import * as service from "@modules/campanas/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {

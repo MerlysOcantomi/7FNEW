@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { updateCampaignSchema } from "@/lib/modules/campanas/validation"
-import * as service from "@/lib/modules/campanas/service"
+import { updateCampaignSchema } from "@modules/campanas/validation"
+import * as service from "@modules/campanas/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }

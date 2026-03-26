@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createUsuarioSchema, queryUsuarioSchema } from "@/lib/modules/usuarios/validation"
-import * as service from "@/lib/modules/usuarios/service"
+import { createUsuarioSchema, queryUsuarioSchema } from "@modules/usuarios/validation"
+import * as service from "@modules/usuarios/service"
 
 export async function GET(request: NextRequest) {
   try {

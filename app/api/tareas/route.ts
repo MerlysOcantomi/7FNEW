@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createTareaSchema, queryTareaSchema } from "@/lib/modules/tareas/validation"
-import * as service from "@/lib/modules/tareas/service"
+import { createTareaSchema, queryTareaSchema } from "@modules/tareas/validation"
+import * as service from "@modules/tareas/service"
 import { logActivity } from "@/lib/activity"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 

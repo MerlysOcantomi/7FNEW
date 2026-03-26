@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createAutomatizacionSchema, queryAutomatizacionSchema } from "@/lib/modules/automatizaciones/validation"
-import * as service from "@/lib/modules/automatizaciones/service"
+import { createAutomatizacionSchema, queryAutomatizacionSchema } from "@modules/automatizaciones/validation"
+import * as service from "@modules/automatizaciones/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createProyectoSchema, queryProyectoSchema } from "@/lib/modules/proyectos/validation"
-import * as service from "@/lib/modules/proyectos/service"
+import { createProyectoSchema, queryProyectoSchema } from "@modules/proyectos/validation"
+import * as service from "@modules/proyectos/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { updateUsuarioSchema } from "@/lib/modules/usuarios/validation"
-import * as service from "@/lib/modules/usuarios/service"
+import { updateUsuarioSchema } from "@modules/usuarios/validation"
+import * as service from "@modules/usuarios/service"
 
 type Params = { params: Promise<{ id: string }> }
 

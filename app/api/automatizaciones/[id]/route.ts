@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { updateAutomatizacionSchema } from "@/lib/modules/automatizaciones/validation"
-import * as service from "@/lib/modules/automatizaciones/service"
+import { updateAutomatizacionSchema } from "@modules/automatizaciones/validation"
+import * as service from "@modules/automatizaciones/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }

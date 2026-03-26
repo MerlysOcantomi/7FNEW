@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
-import { createContentIdeaSchema } from "@/lib/modules/contenido/validation"
-import * as service from "@/lib/modules/contenido/service"
+import { createContentIdeaSchema } from "@modules/contenido/validation"
+import * as service from "@modules/contenido/service"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { z } from "zod"
 
