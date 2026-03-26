@@ -1,9 +1,17 @@
 import { manifest as usuariosManifest } from "@modules/usuarios/manifest"
+import { manifest as inboxManifest } from "@modules/inbox/manifest"
+import { manifest as clientesManifest } from "@modules/clientes/manifest"
+import { manifest as proyectosManifest } from "@modules/proyectos/manifest"
 import { manifest as aiEngineManifest } from "@engines/ai/manifest"
 import { manifest as scanToolManifest } from "@tools/scan.manifest"
 import { registry } from "./module-registry"
 
-export const pilotModuleManifests = [usuariosManifest]
+export const pilotModuleManifests = [
+  usuariosManifest,
+  inboxManifest,
+  clientesManifest,
+  proyectosManifest,
+]
 export const pilotEngineManifests = [aiEngineManifest]
 export const pilotToolManifests = [scanToolManifest]
 
