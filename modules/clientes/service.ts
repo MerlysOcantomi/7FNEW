@@ -1,6 +1,12 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
 
+const CLIENT_ID_CONFIG = {
+  prefix: "CLIENT",
+  separator: "-",
+  padding: 4,
+} as const
+
 interface ListParams {
   skip?: number
   take?: number
@@ -51,8 +57,50 @@ export async function getById(id: string, workspaceId: string) {
   })
 }
 
+function buildClientCustomId(sequence: number) {
+  return `${CLIENT_ID_CONFIG.prefix}${CLIENT_ID_CONFIG.separator}${String(sequence).padStart(CLIENT_ID_CONFIG.padding, "0")}`
+}
+
+async function generateNextClienteCustomId(workspaceId: string) {
+  const expectedPrefix = `${CLIENT_ID_CONFIG.prefix}${CLIENT_ID_CONFIG.separator}`
+  const existingIds = await db.cliente.findMany({
+    where: {
+      workspaceId,
+      customId: {
+        startsWith: expectedPrefix,
+      },
+    },
+    select: { customId: true },
+  })
+
+  let maxSequence = 0
+  for (const record of existingIds) {
+    const value = record.customId?.trim()
+    if (!value) continue
+    const match = value.match(new RegExp(`^${expectedPrefix}(\\d+)$`))
+    if (!match) continue
+    const sequence = Number.parseInt(match[1], 10)
+    if (Number.isFinite(sequence) && sequence > maxSequence) {
+      maxSequence = sequence
+    }
+  }
+
+  return buildClientCustomId(maxSequence + 1)
+}
+
 export async function create(data: Prisma.ClienteUncheckedCreateInput, workspaceId: string) {
-  return db.cliente.create({ data: { ...data, workspaceId } })
+  const customId =
+    typeof data.customId === "string" && data.customId.trim().length > 0
+      ? data.customId.trim()
+      : await generateNextClienteCustomId(workspaceId)
+
+  return db.cliente.create({
+    data: {
+      ...data,
+      customId,
+      workspaceId,
+    },
+  })
 }
 
 export async function update(id: string, data: Prisma.ClienteUncheckedUpdateInput, workspaceId: string) {

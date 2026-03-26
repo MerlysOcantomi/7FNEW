@@ -536,6 +536,8 @@ async function main() {
 
   const alterColumns = [
     `ALTER TABLE "Cliente" ADD COLUMN "customId" TEXT`,
+    `ALTER TABLE "Cliente" ADD COLUMN "preferredPaymentMethod" TEXT`,
+    `ALTER TABLE "Cliente" ADD COLUMN "currency" TEXT`,
     `ALTER TABLE "Proyecto" ADD COLUMN "customId" TEXT`,
     `ALTER TABLE "Proyecto" ADD COLUMN "estimatedDelivery" DATETIME`,
     `ALTER TABLE "Proyecto" ADD COLUMN "actualDelivery" DATETIME`,

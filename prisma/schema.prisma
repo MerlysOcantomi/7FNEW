@@ -67,6 +67,8 @@ model Cliente {
   email       String?
   telefono    String?
   empresa     String?
+  preferredPaymentMethod String?
+  currency    String?
   tipo        String   @default("empresa")
   estado      String   @default("activo")
   notas       String?

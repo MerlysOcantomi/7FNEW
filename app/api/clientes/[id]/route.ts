@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { updateClienteSchema } from "@/lib/modules/clientes/validation"
-import * as service from "@/lib/modules/clientes/service"
+import { updateClienteSchema } from "@modules/clientes/validation"
+import * as service from "@modules/clientes/service"
 import { logChanges, logActivity } from "@/lib/activity"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }
 
-const TRACKED_FIELDS = ["nombre", "email", "telefono", "empresa", "tipo", "estado", "notas"]
+const TRACKED_FIELDS = [
+  "customId",
+  "nombre",
+  "email",
+  "telefono",
+  "empresa",
+  "preferredPaymentMethod",
+  "currency",
+  "tipo",
+  "estado",
+  "notas",
+]
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return errorResponse("NOT_FOUND", "Cliente no encontrado", 404)
@@ -23,7 +34,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
     const data = updateClienteSchema.parse(body)
@@ -45,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })
