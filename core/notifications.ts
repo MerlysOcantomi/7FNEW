@@ -1,4 +1,4 @@
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 
 export type NotificationType =
   | "tarea_asignada"

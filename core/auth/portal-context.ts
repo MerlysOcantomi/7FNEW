@@ -1,5 +1,5 @@
-import { db } from "@/lib/db"
-import { getClientSessionFromCookies } from "@/lib/auth/client-session"
+import { db } from "@core/db"
+import { getClientSessionFromCookies } from "@core/auth/client-session"
 
 export interface PortalContext {
   clienteId: string

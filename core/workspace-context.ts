@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
-import { getSessionFromCookies } from "@/lib/auth/session"
-import { db } from "@/lib/db"
+import { getSessionFromCookies } from "@core/auth/session"
+import { db } from "@core/db"
 
 export const WORKSPACE_COOKIE = "wf_workspace"
 

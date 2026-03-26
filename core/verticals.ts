@@ -1,4 +1,4 @@
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 
 export interface VerticalConfig {
   modules: Record<string, boolean>

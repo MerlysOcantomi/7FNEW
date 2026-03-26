@@ -1,5 +1,5 @@
-import { db } from "@/lib/db"
-import { getSessionFromCookies } from "@/lib/auth/session"
+import { db } from "@core/db"
+import { getSessionFromCookies } from "@core/auth/session"
 
 export type ActivityType =
   | "created"

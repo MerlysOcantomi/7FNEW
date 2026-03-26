@@ -1,4 +1,4 @@
-import { getSessionFromCookies, type SessionUser } from "@/lib/auth/session"
+import { getSessionFromCookies, type SessionUser } from "@core/auth/session"
 import { getRequiredWorkspaceId } from "@core/workspace-context"
 import { checkMembership } from "@core/workspace"
 

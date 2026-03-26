@@ -1,10 +1,10 @@
-import { db } from "@/lib/db"
+import { db } from "@core/db"
 import {
   parseJsonConfig,
   mergeConfigs,
   getVerticalByKey,
   type VerticalConfig,
-} from "@/lib/verticals"
+} from "@core/verticals"
 
 export const DEFAULT_WORKSPACE_ID = "ws_default"
 export const DEFAULT_WORKSPACE_SLUG = "default"
