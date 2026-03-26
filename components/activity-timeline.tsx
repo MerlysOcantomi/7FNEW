@@ -38,53 +38,53 @@ interface ActivityTimelineProps {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  titulo: "Titulo",
-  nombre: "Nombre",
-  descripcion: "Descripcion",
-  estado: "Estado",
-  prioridad: "Prioridad",
-  progreso: "Progreso",
-  presupuesto: "Presupuesto",
-  fechaInicio: "Fecha inicio",
-  fechaFin: "Fecha fin",
-  fechaLimite: "Fecha limite",
-  fechaEmision: "Fecha emision",
-  fechaVencimiento: "Fecha vencimiento",
-  clienteId: "Cliente",
-  proyectoId: "Proyecto",
-  usuarioId: "Responsable",
-  numero: "Numero",
+  titulo: "Title",
+  nombre: "Name",
+  descripcion: "Description",
+  estado: "Status",
+  prioridad: "Priority",
+  progreso: "Progress",
+  presupuesto: "Budget",
+  fechaInicio: "Start date",
+  fechaFin: "End date",
+  fechaLimite: "Due date",
+  fechaEmision: "Issue date",
+  fechaVencimiento: "Due date",
+  clienteId: "Client",
+  proyectoId: "Project",
+  usuarioId: "Owner",
+  numero: "Number",
   email: "Email",
-  telefono: "Telefono",
-  empresa: "Empresa",
-  tipo: "Tipo",
+  telefono: "Phone",
+  empresa: "Company",
+  tipo: "Type",
 }
 
 const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: string }> = {
-  created: { icon: Plus, color: "text-emerald-500 bg-emerald-500/10", label: "Creado" },
-  updated: { icon: Pencil, color: "text-blue-500 bg-blue-500/10", label: "Editado" },
-  deleted: { icon: Trash2, color: "text-red-500 bg-red-500/10", label: "Eliminado" },
-  status_change: { icon: RefreshCw, color: "text-amber-500 bg-amber-500/10", label: "Estado" },
-  assigned: { icon: UserPlus, color: "text-purple-500 bg-purple-500/10", label: "Asignado" },
-  unassigned: { icon: UserMinus, color: "text-orange-500 bg-orange-500/10", label: "Desasignado" },
-  relation_added: { icon: Link2, color: "text-cyan-500 bg-cyan-500/10", label: "Vinculado" },
-  relation_removed: { icon: Unlink, color: "text-rose-500 bg-rose-500/10", label: "Desvinculado" },
-  comment: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comentario" },
-  mention: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mencion" },
+  created: { icon: Plus, color: "text-emerald-500 bg-emerald-500/10", label: "Created" },
+  updated: { icon: Pencil, color: "text-blue-500 bg-blue-500/10", label: "Updated" },
+  deleted: { icon: Trash2, color: "text-red-500 bg-red-500/10", label: "Deleted" },
+  status_change: { icon: RefreshCw, color: "text-amber-500 bg-amber-500/10", label: "Status" },
+  assigned: { icon: UserPlus, color: "text-purple-500 bg-purple-500/10", label: "Assigned" },
+  unassigned: { icon: UserMinus, color: "text-orange-500 bg-orange-500/10", label: "Unassigned" },
+  relation_added: { icon: Link2, color: "text-cyan-500 bg-cyan-500/10", label: "Linked" },
+  relation_removed: { icon: Unlink, color: "text-rose-500 bg-rose-500/10", label: "Unlinked" },
+  comment: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comment" },
+  mention: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mention" },
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
 }
 
 function formatValue(val: unknown): string {
   if (val === null || val === undefined || val === "") return "—"
-  if (typeof val === "boolean") return val ? "Si" : "No"
+  if (typeof val === "boolean") return val ? "Yes" : "No"
   return String(val)
 }
 
@@ -112,7 +112,7 @@ function renderDescription(entry: ActivityEntry): React.ReactNode {
     const label = FIELD_LABELS[String(data.field ?? "")] ?? data.field
     return (
       <span className="text-xs text-muted-foreground">
-        {label}: {entry.type === "assigned" ? formatValue(data.newValue) : "eliminado"}
+        {label}: {entry.type === "assigned" ? formatValue(data.newValue) : "removed"}
       </span>
     )
   }
@@ -133,7 +133,7 @@ function renderDescription(entry: ActivityEntry): React.ReactNode {
   if (entry.type === "relation_added" || entry.type === "relation_removed") {
     return (
       <span className="text-xs text-muted-foreground">
-        {String(data.label ?? data.field ?? "Relacion")}
+        {String(data.label ?? data.field ?? "Relation")}
       </span>
     )
   }
@@ -158,7 +158,7 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <History className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">Actividad</h2>
+          <h2 className="text-sm font-semibold text-foreground">Activity</h2>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -171,14 +171,14 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <History className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Actividad</h2>
+        <h2 className="text-sm font-semibold text-foreground">Activity</h2>
         {entries.length > 0 && (
           <span className="text-xs text-muted-foreground">({entries.length})</span>
         )}
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-3">Sin actividad registrada.</p>
+        <p className="text-sm text-muted-foreground py-3">No activity recorded.</p>
       ) : (
         <div className="relative">
           <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
@@ -196,7 +196,7 @@ export function ActivityTimeline({ module, recordId, refreshKey }: ActivityTimel
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-foreground">
-                        {entry.userName ?? entry.userEmail ?? "Sistema"}
+                        {entry.userName ?? entry.userEmail ?? "System"}
                       </span>
                       <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", iconBg, iconColor)}>
                         {config.label}

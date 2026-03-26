@@ -137,7 +137,7 @@ export default function ClientesPage() {
 
       <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
+          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Core</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Clients</h1>
             <button

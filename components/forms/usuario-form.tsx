@@ -14,13 +14,13 @@ interface Props {
 
 const rolOptions = [
   { value: "admin", label: "Admin" },
-  { value: "gerente", label: "Gerente" },
-  { value: "miembro", label: "Miembro" },
+  { value: "gerente", label: "Manager" },
+  { value: "miembro", label: "Member" },
 ]
 
 const estadoOptions = [
-  { value: "activo", label: "Activo" },
-  { value: "inactivo", label: "Inactivo" },
+  { value: "activo", label: "Active" },
+  { value: "inactivo", label: "Inactive" },
 ]
 
 export function UsuarioForm({ open, onClose, onSuccess, data }: Props) {
@@ -44,8 +44,8 @@ export function UsuarioForm({ open, onClose, onSuccess, data }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!nombre.trim()) return toast.error("El nombre es requerido")
-    if (!email.trim()) return toast.error("El email es requerido")
+    if (!nombre.trim()) return toast.error("Name is required")
+    if (!email.trim()) return toast.error("Email is required")
     setSaving(true)
     try {
       const body = {
@@ -57,15 +57,15 @@ export function UsuarioForm({ open, onClose, onSuccess, data }: Props) {
       }
       if (isEditing) {
         await apiPatch(`/api/usuarios/${data.id}`, body)
-        toast.success("Usuario actualizado")
+        toast.success("User updated")
       } else {
         await apiPost("/api/usuarios", body)
-        toast.success("Usuario creado")
+        toast.success("User created")
       }
       onSuccess()
       onClose()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar")
+      toast.error(err instanceof Error ? err.message : "Could not save user")
     } finally {
       setSaving(false)
     }
@@ -77,43 +77,43 @@ export function UsuarioForm({ open, onClose, onSuccess, data }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
+        <button onClick={onClose} className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
           <X className="h-3.5 w-3.5" />
         </button>
 
         <h2 className="text-lg font-semibold text-foreground mb-6">
-          {isEditing ? "Editar usuario" : "Nuevo usuario"}
+          {isEditing ? "Edit user" : "New user"}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nombre *" className="sm:col-span-2">
-              <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre completo" className="input-field" autoFocus />
+            <Field label="Name *" className="sm:col-span-2">
+              <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Full name" className="input-field" autoFocus />
             </Field>
             <Field label="Email *" className="sm:col-span-2">
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" className="input-field" />
             </Field>
-            <Field label="Rol">
+            <Field label="Role">
               <select value={rol} onChange={(e) => setRol(e.target.value)} className="input-field">
                 {rolOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <Field label="Estado">
+            <Field label="Status">
               <select value={estado} onChange={(e) => setEstado(e.target.value)} className="input-field">
                 {estadoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <Field label="Departamento" className="sm:col-span-2">
-              <input type="text" value={departamento} onChange={(e) => setDepartamento(e.target.value)} placeholder="ej: Diseño, Desarrollo, Estrategia" className="input-field" />
+            <Field label="Department" className="sm:col-span-2">
+              <input type="text" value={departamento} onChange={(e) => setDepartamento(e.target.value)} placeholder="e.g. Design, Development, Strategy" className="input-field" />
             </Field>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
-              Cancelar
+              Cancel
             </button>
             <button type="submit" disabled={saving} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50">
-              {saving ? "Guardando..." : isEditing ? "Actualizar" : "Crear usuario"}
+              {saving ? "Saving..." : isEditing ? "Update user" : "Create user"}
             </button>
           </div>
         </form>

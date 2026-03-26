@@ -48,7 +48,7 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: stri
 const TYPE_FILTERS = [
   { value: "all", label: "Todas" },
   { value: "tarea", label: "Tareas" },
-  { value: "proyecto", label: "Proyectos" },
+  { value: "proyecto", label: "Projects" },
   { value: "factura", label: "Facturas" },
   { value: "documento", label: "Documentos" },
 ]
@@ -120,8 +120,8 @@ export default function NotificacionesPage() {
   }).length
 
   return (
-    <AppShell currentSection="notificaciones" breadcrumbs={[{ label: "7F" }, { label: "Notificaciones" }]}>
-      <SectionPage title="Notificaciones" description="Alertas y actualizaciones de la plataforma.">
+    <AppShell currentSection="notificaciones" breadcrumbs={[{ label: "7F" }, { label: "Notifications" }]}>
+      <SectionPage title="Notifications" description="Platform alerts and updates.">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border bg-card p-4">
@@ -229,7 +229,7 @@ export default function NotificacionesPage() {
               <div className="rounded-xl border border-border bg-card/50 p-12 text-center">
                 <BellRing className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm font-medium text-muted-foreground">
-                  {showUnreadOnly ? "Sin notificaciones no leidas" : "Sin notificaciones"}
+                  {showUnreadOnly ? "No unread notifications" : "No notifications"}
                 </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
                   Las notificaciones apareceran aqui cuando haya actividad en la plataforma.

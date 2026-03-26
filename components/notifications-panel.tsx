@@ -55,11 +55,11 @@ function timeAgo(dateStr: string): string {
   const date = new Date(dateStr).getTime()
   const diff = Math.floor((now - date) / 1000)
 
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 export function NotificationsPanel({
@@ -87,10 +87,10 @@ export function NotificationsPanel({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Notificaciones</h3>
+          <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
           {unreadCount > 0 && (
             <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
-              {unreadCount} nueva{unreadCount !== 1 ? "s" : ""}
+              {unreadCount} new
             </span>
           )}
         </div>
@@ -99,7 +99,7 @@ export function NotificationsPanel({
             <button
               onClick={onMarkAllRead}
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Marcar todas como leidas"
+              title="Mark all as read"
             >
               <CheckCheck className="h-3.5 w-3.5" />
             </button>
@@ -118,7 +118,7 @@ export function NotificationsPanel({
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 px-4">
             <Bell className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Sin notificaciones</p>
+            <p className="text-sm text-muted-foreground">No notifications</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -171,7 +171,7 @@ export function NotificationsPanel({
             }}
             className="w-full rounded-md py-1.5 text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Ver todas las notificaciones
+            View all notifications
           </button>
         </div>
       )}

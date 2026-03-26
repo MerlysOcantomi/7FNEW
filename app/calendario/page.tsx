@@ -380,7 +380,7 @@ export default function CalendarioPage() {
                           )
                         })}
                         {dayItems.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground/40 text-center mt-4">Sin items</p>
+                          <p className="text-[10px] text-muted-foreground/40 text-center mt-4">No items</p>
                         )}
                       </div>
                     )
@@ -399,7 +399,7 @@ export default function CalendarioPage() {
                     return (
                       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                         <CalendarIcon className="h-8 w-8 mb-3 opacity-40" />
-                        <p className="text-sm">No hay elementos para este dia</p>
+                        <p className="text-sm">No items for this day</p>
                       </div>
                     )
                   }
@@ -419,7 +419,7 @@ export default function CalendarioPage() {
                             <div className="flex items-center gap-2 mb-2">
                               <Icon className="h-4 w-4" style={{ color: typeColors[type] }} />
                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                {type === "tarea" ? "Tareas" : type === "proyecto" ? "Proyectos" : type === "factura" ? "Facturas" : "Eventos"}
+                                {type === "tarea" ? "Tasks" : type === "proyecto" ? "Projects" : type === "factura" ? "Invoices" : "Events"}
                               </p>
                               <span className="text-[10px] text-muted-foreground">({typeItems.length})</span>
                             </div>
@@ -469,7 +469,7 @@ export default function CalendarioPage() {
               {(() => {
                 const todayItems = getItemsForDate(today)
                 if (todayItems.length === 0) {
-                  return <p className="text-xs text-muted-foreground">Sin elementos para hoy</p>
+                  return <p className="text-xs text-muted-foreground">No items for today</p>
                 }
                 return (
                   <div className="flex flex-col gap-1.5">
@@ -529,7 +529,7 @@ export default function CalendarioPage() {
 
                 {aiSuggestion && (
                   <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Motor IA</p>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-1">AI workspace</p>
                     <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
                   </div>
                 )}
@@ -545,7 +545,7 @@ export default function CalendarioPage() {
                 const overdueFacturas = items.filter((i) => i.type === "factura" && new Date(i.date) < now && i.status !== "pagada" && i.status !== "cancelada")
 
                 if (overdueTareas.length === 0 && overdueFacturas.length === 0) {
-                  return <p className="text-xs text-muted-foreground">Sin alertas activas</p>
+                  return <p className="text-xs text-muted-foreground">No active alerts</p>
                 }
 
                 return (
@@ -615,7 +615,7 @@ export default function CalendarioPage() {
             </button>
             {aiSuggestion && (
               <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Motor IA</p>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">AI workspace</p>
                 <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
               </div>
             )}

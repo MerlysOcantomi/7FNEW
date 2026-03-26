@@ -130,7 +130,7 @@ export default function ProyectosPage() {
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Flow</p>
+              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Core</p>
               <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Projects</h1>
             </div>
             <button

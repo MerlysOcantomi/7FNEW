@@ -61,11 +61,11 @@ interface ActivityData {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ElementType; label: string }> = {
-  pagada:    { bg: "bg-[#DCFCE7]", text: "text-[#166534]", icon: CheckCircle2, label: "Pagada" },
-  enviada:   { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]",  icon: Clock,        label: "Pendiente" },
-  vencida:   { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]",  icon: AlertTriangle, label: "Vencida" },
-  borrador:  { bg: "bg-[#F1F5F9]", text: "text-[#64748B]",  icon: FileText,     label: "Borrador" },
-  cancelada: { bg: "bg-[#F1F5F9]", text: "text-[#94A3B8]",  icon: FileText,     label: "Cancelada" },
+  pagada:    { bg: "bg-[#DCFCE7]", text: "text-[#166534]", icon: CheckCircle2, label: "Paid" },
+  enviada:   { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]",  icon: Clock,        label: "Pending" },
+  vencida:   { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]",  icon: AlertTriangle, label: "Overdue" },
+  borrador:  { bg: "bg-[#F1F5F9]", text: "text-[#64748B]",  icon: FileText,     label: "Draft" },
+  cancelada: { bg: "bg-[#F1F5F9]", text: "text-[#94A3B8]",  icon: FileText,     label: "Canceled" },
 };
 
 const ACTIVITY_TYPE_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
@@ -118,7 +118,7 @@ function TabResumen({ factura }: { factura: FacturaData }) {
         <div className="flex items-start gap-3 bg-[#FEE2E2] border border-[#FECACA] rounded-xl p-4">
           <AlertTriangle size={15} className="text-[#DC2626] mt-0.5 shrink-0" strokeWidth={1.75} />
           <div>
-            <p className="text-sm font-semibold text-[#991B1B]">Pago vencido — Acción inmediata requerida</p>
+            <p className="text-sm font-semibold text-[#991B1B]">Overdue payment — immediate action required</p>
             <p className="text-xs text-[#991B1B] mt-0.5">
               Esta factura venció el {formatDate(factura.fechaVencimiento)}. Contacta al equipo de cuentas a pagar de{" "}
               {factura.cliente?.nombre ?? "el cliente"}.
@@ -161,8 +161,8 @@ function TabResumen({ factura }: { factura: FacturaData }) {
               />
             </div>
             <div className="flex items-center justify-between text-[10px] text-[#94A3B8]">
-              <span>Pendiente: {paidRaw > 0 ? formatCurrency(factura.total - paidRaw) : formatCurrency(factura.total)}</span>
-              {paidRaw > 0 && <span className="text-[#22C55E] font-medium">Pagado: {formatCurrency(paidRaw)}</span>}
+              <span>Outstanding: {paidRaw > 0 ? formatCurrency(factura.total - paidRaw) : formatCurrency(factura.total)}</span>
+              {paidRaw > 0 && <span className="text-[#22C55E] font-medium">Paid: {formatCurrency(paidRaw)}</span>}
             </div>
           </div>
 
@@ -213,9 +213,9 @@ function TabResumen({ factura }: { factura: FacturaData }) {
 
           <div className="space-y-2 pt-1 border-t border-[#F1F5F9]">
             {[
-              { label: "Fecha de emisión", value: formatDate(factura.fechaEmision), icon: Calendar },
-              { label: "Fecha de vencimiento", value: formatDate(factura.fechaVencimiento), icon: Calendar },
-              ...(factura.paidAt ? [{ label: "Fecha de pago", value: formatDate(factura.paidAt), icon: CreditCard }] : []),
+              { label: "Issue date", value: formatDate(factura.fechaEmision), icon: Calendar },
+              { label: "Due date", value: formatDate(factura.fechaVencimiento), icon: Calendar },
+              ...(factura.paidAt ? [{ label: "Payment date", value: formatDate(factura.paidAt), icon: CreditCard }] : []),
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="flex items-start justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-xs text-[#94A3B8] shrink-0">
@@ -241,7 +241,7 @@ function TabLineas({ factura }: { factura: FacturaData }) {
     return (
       <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
         <FileText size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-[#334155]">Sin líneas de factura</p>
+        <p className="text-sm font-medium text-[#334155]">No invoice lines</p>
         <p className="text-xs text-[#94A3B8] mt-1">Esta factura no tiene conceptos registrados.</p>
       </div>
     );
@@ -249,7 +249,7 @@ function TabLineas({ factura }: { factura: FacturaData }) {
 
   return (
     <div className="space-y-4">
-      <SectionLabel>Líneas de factura</SectionLabel>
+      <SectionLabel>Invoice lines</SectionLabel>
 
       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
         <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-[#F1F5F9] bg-[#F8FAFC]">
@@ -314,12 +314,12 @@ function TabPagos({ factura }: { factura: FacturaData }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
-        <SectionLabel>Pagos registrados</SectionLabel>
+        <SectionLabel>Recorded payments</SectionLabel>
 
         {payments.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-10 text-center">
             <CreditCard size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-[#334155]">Sin pagos registrados</p>
+            <p className="text-sm font-medium text-[#334155]">No payments recorded</p>
             <p className="text-xs text-[#94A3B8] mt-1">
               {factura.estado === "vencida"
                 ? "Esta factura está vencida. Marca como pagada cuando se reciba el pago."
@@ -345,7 +345,7 @@ function TabPagos({ factura }: { factura: FacturaData }) {
       </div>
 
       <div className="space-y-4">
-        <SectionLabel>Resumen de cobro</SectionLabel>
+        <SectionLabel>Collection summary</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#EFF6FF] rounded-xl p-3.5">
@@ -437,10 +437,10 @@ function TabArchivos({
   if (attachments.length === 0) {
     return (
       <div className="max-w-2xl space-y-4">
-        <SectionLabel>Archivos adjuntos</SectionLabel>
+        <SectionLabel>Attached files</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <Paperclip size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-          <p className="text-sm font-medium text-[#334155]">Sin archivos adjuntos</p>
+          <p className="text-sm font-medium text-[#334155]">No attached files</p>
           <p className="text-xs text-[#94A3B8] mt-1">Sube documentos relacionados con esta factura.</p>
         </div>
         <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-[#E2E8F0] text-sm text-[#94A3B8] hover:border-[#BFDBFE] hover:text-[#3B82F6] hover:bg-[#F8FAFC] transition-colors justify-center cursor-pointer">
@@ -454,7 +454,7 @@ function TabArchivos({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <SectionLabel>Archivos adjuntos</SectionLabel>
+      <SectionLabel>Attached files</SectionLabel>
 
       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
         {attachments.map((file, i) => (
@@ -548,7 +548,7 @@ function TabNotas({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <SectionLabel>Notas internas</SectionLabel>
+      <SectionLabel>Internal notes</SectionLabel>
       <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-4">
         <div className="flex items-start gap-3">
           <StickyNote size={14} className="text-[#94A3B8] mt-0.5 shrink-0" strokeWidth={1.75} />
@@ -571,14 +571,14 @@ function TabNotas({
               disabled={saving || !comment.trim()}
               className="px-4 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors disabled:opacity-50"
             >
-              {saving ? "Guardando…" : "Guardar nota"}
+              {saving ? "Saving..." : "Save note"}
             </button>
           </div>
         </form>
 
         {comments.length > 0 && (
           <div className="pt-4 border-t border-[#F1F5F9] space-y-3">
-            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Notas anteriores</p>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Previous notes</p>
             <div className="space-y-2">
               {comments.map((a) => (
                 <div key={a.id} className="flex items-start gap-3 py-2">
@@ -630,8 +630,8 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
     return (
       <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
         <Clock size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-[#334155]">Sin historial de cambios</p>
-        <p className="text-xs text-[#94A3B8] mt-1">Solo hay comentarios en la pestaña Notas.</p>
+        <p className="text-sm font-medium text-[#334155]">No change history</p>
+        <p className="text-xs text-[#94A3B8] mt-1">Only comments are available in the Notes tab.</p>
       </div>
     );
   }
@@ -676,12 +676,12 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: "resumen",  label: "Resumen" },
-  { key: "lineas",   label: "Líneas" },
-  { key: "pagos",    label: "Pagos" },
-  { key: "archivos", label: "Archivos" },
-  { key: "notas",    label: "Notas" },
-  { key: "historial", label: "Actividad" },
+  { key: "resumen",  label: "Summary" },
+  { key: "lineas",   label: "Lines" },
+  { key: "pagos",    label: "Payments" },
+  { key: "archivos", label: "Files" },
+  { key: "notas",    label: "Notes" },
+  { key: "historial", label: "Activity" },
 ];
 
 export default function InvoiceDetailPage() {
@@ -745,7 +745,7 @@ export default function InvoiceDetailPage() {
               href="/facturacion"
               className="mt-4 inline-block text-sm font-medium text-[#3B82F6] hover:text-[#2563EB]"
             >
-              Volver a Facturación
+              Back to billing
             </Link>
           </div>
         </div>
@@ -757,8 +757,8 @@ export default function InvoiceDetailPage() {
     <>
     <ContextShell
       breadcrumbs={[
-        { label: "Funds", href: "/" },
-        { label: "Facturación", href: "/facturacion" },
+        { label: "Revenue", href: "/" },
+        { label: "Billing", href: "/facturacion" },
         { label: factura.numero },
       ]}
       heading={
@@ -813,7 +813,7 @@ export default function InvoiceDetailPage() {
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors"
           >
             <Pencil size={13} strokeWidth={1.75} />
-            Editar
+            Edit
           </button>
           <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors">
             <Download size={13} strokeWidth={1.75} />
@@ -821,7 +821,7 @@ export default function InvoiceDetailPage() {
           </button>
           <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors">
             <Send size={13} strokeWidth={1.75} />
-            Enviar por correo
+            Send by email
           </button>
           {(factura.estado === "enviada" || factura.estado === "vencida") && (
             <button
@@ -836,7 +836,7 @@ export default function InvoiceDetailPage() {
       }
       tabs={TABS}
       defaultTab="resumen"
-      copilotContext="Funds"
+      copilotContext="Billing"
     >
       {(activeTab) => {
         if (activeTab === "resumen")  return <TabResumen factura={factura} />;

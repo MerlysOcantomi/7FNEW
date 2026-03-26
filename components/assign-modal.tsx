@@ -67,11 +67,11 @@ export function AssignModal({
       setAssigning(recordId)
       try {
         await apiPatch(`/api/${module}/${recordId}`, { [parentField]: parentId })
-        toast.success("Asignado correctamente")
+        toast.success("Assigned successfully")
         onSuccess()
         onClose()
       } catch (err: any) {
-        toast.error(err.message ?? "Error al asignar")
+        toast.error(err.message ?? "Could not assign record")
       } finally {
         setAssigning(null)
       }
@@ -104,7 +104,7 @@ export function AssignModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar..."
+              placeholder="Search..."
               autoFocus
               className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
@@ -119,7 +119,7 @@ export function AssignModal({
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-8">
-              {search ? "Sin resultados" : "No hay registros disponibles"}
+              {search ? "No results" : "No records available"}
             </p>
           ) : (
             <div className="space-y-1">
@@ -158,7 +158,7 @@ export function AssignModal({
         {/* Footer */}
         <div className="border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
-            {filtered.length} disponible{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} available
           </p>
         </div>
       </div>

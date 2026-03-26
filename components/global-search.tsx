@@ -34,21 +34,21 @@ import {
 
 // ── Static quick-links (shown when query is empty) ──────────────────
 const quickLinks = [
-  { label: "Executive Dashboard", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
+  { label: "Overview", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
   { label: "Smart Inbox", href: "/inbox", icon: Inbox, keywords: "inbox messages conversations" },
   { label: "Manual Intake", href: "/entrada", icon: PenLine, keywords: "manual intake capture" },
   { label: "Clients", href: "/clientes", icon: Users, keywords: "clients companies contacts" },
   { label: "Projects", href: "/proyectos", icon: FolderKanban, keywords: "projects work" },
-  { label: "Content", href: "/contenido", icon: FileText, keywords: "content editorial calendar" },
+  { label: "Marketing", href: "/contenido", icon: FileText, keywords: "marketing content editorial calendar" },
   { label: "Tasks", href: "/tareas", icon: CheckSquare, keywords: "tasks pending assignments" },
   { label: "Files", href: "/archivos", icon: FolderOpen, keywords: "files documents assets" },
   { label: "Departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
-  { label: "Management", href: "/administracion", icon: Settings, keywords: "configuration admin" },
+  { label: "Improvements", href: "/administracion", icon: Settings, keywords: "improvements optimize workspace modules" },
   { label: "Finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
   { label: "Billing", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments" },
   { label: "Communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },
   { label: "Notifications", href: "/notificaciones", icon: BellRing, keywords: "alerts notices" },
-  { label: "AI Engine", href: "/motor", icon: Workflow, keywords: "ai engine classification rules automations" },
+  { label: "AI workspace", href: "/motor", icon: Workflow, keywords: "ai workspace classification rules automations" },
   { label: "Identity Resolution", href: "/identidad", icon: Fingerprint, keywords: "identity duplicates" },
   { label: "History", href: "/historial", icon: History, keywords: "history activity log" },
   { label: "Library", href: "/biblioteca", icon: BookOpen, keywords: "resources templates guides" },
@@ -459,12 +459,12 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <kbd className="px-1 py-0.5 rounded border border-border bg-background text-[10px] font-mono">esc</kbd>
-            <span>cerrar</span>
+            <span>close</span>
           </div>
           <span className="ml-auto text-[10px] text-muted-foreground">
             {displayMode === "results"
-              ? `${results.length} resultado${results.length !== 1 ? "s" : ""}`
-              : `${filteredLinks.length} enlace${filteredLinks.length !== 1 ? "s" : ""}`
+              ? `${results.length} result${results.length !== 1 ? "s" : ""}`
+              : `${filteredLinks.length} link${filteredLinks.length !== 1 ? "s" : ""}`
             }
           </span>
         </div>
@@ -478,7 +478,7 @@ function EmptyState({ query }: { query: string }) {
     <div className="py-10 text-center">
       <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
       <p className="text-sm text-muted-foreground">
-        Sin resultados para <span className="font-medium text-foreground">&quot;{query}&quot;</span>
+        No results for <span className="font-medium text-foreground">&quot;{query}&quot;</span>
       </p>
       <p className="text-xs text-muted-foreground/60 mt-1">
         Try another search term

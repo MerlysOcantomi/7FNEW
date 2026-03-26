@@ -75,11 +75,11 @@ function formatSize(bytes: number): string {
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 function getFileIcon(tipo: string) {
@@ -107,14 +107,14 @@ function parseScanResult(raw: string | ScanResultData | null): ScanResultData | 
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  factura: "Factura",
-  contrato: "Contrato",
-  recibo: "Recibo",
+  factura: "Invoice",
+  contrato: "Contract",
+  recibo: "Receipt",
   nota: "Nota",
-  carta: "Carta",
-  reporte: "Reporte",
-  otro: "Otro",
-  desconocido: "Desconocido",
+  carta: "Letter",
+  reporte: "Report",
+  otro: "Other",
+  desconocido: "Unknown",
 }
 
 function ScanStatusBadge({ status }: { status: string }) {
@@ -123,14 +123,14 @@ function ScanStatusBadge({ status }: { status: string }) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
           <CheckCircle2 className="h-2.5 w-2.5" />
-          Escaneado
+          Scanned
         </span>
       )
     case "processing":
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600">
           <Loader2 className="h-2.5 w-2.5 animate-spin" />
-          Escaneando
+          Scanning
         </span>
       )
     case "error":
@@ -144,7 +144,7 @@ function ScanStatusBadge({ status }: { status: string }) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600">
           <Clock className="h-2.5 w-2.5" />
-          Pendiente
+          Pending
         </span>
       )
     default:
@@ -170,7 +170,7 @@ function ScanResultPanel({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <ScanLine className="h-4 w-4 text-blue-500" />
-            Escaneando...
+            Scanning...
           </h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -179,7 +179,7 @@ function ScanResultPanel({
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           <p className="text-sm text-muted-foreground text-center">
-            Extrayendo texto y analizando con IA...
+            Extracting text and analyzing with AI...
           </p>
         </div>
       </div>
@@ -192,21 +192,21 @@ function ScanResultPanel({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-red-500" />
-            Error de escaneo
+            Scan error
           </h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          {result?.error ?? "No se pudo escanear el archivo."}
+          {result?.error ?? "The file could not be scanned."}
         </p>
         <button
           onClick={() => onRescan(attachment.id)}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <RefreshCw className="h-3 w-3" />
-          Reintentar
+          Retry
         </button>
       </div>
     )
@@ -218,19 +218,19 @@ function ScanResultPanel({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <ScanLine className="h-4 w-4" />
-            Escaneo inteligente
+            Smart scan
           </h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">Este archivo aun no ha sido escaneado.</p>
+        <p className="text-sm text-muted-foreground mb-4">This file has not been scanned yet.</p>
         <button
           onClick={() => onRescan(attachment.id)}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <ScanLine className="h-3 w-3" />
-          Escanear ahora
+          Scan now
         </button>
       </div>
     )
@@ -241,13 +241,13 @@ function ScanResultPanel({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <ScanLine className="h-4 w-4 text-emerald-500" />
-          Escaneo inteligente
+          Smart scan
         </h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onRescan(attachment.id)}
             className="text-muted-foreground hover:text-foreground"
-            title="Re-escanear"
+            title="Scan again"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
@@ -258,30 +258,30 @@ function ScanResultPanel({
       </div>
 
       <div className="space-y-3">
-        {/* Tipo de documento */}
+        {/* Document type */}
         <div className="flex items-start gap-2.5">
           <FileText className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-[11px] text-muted-foreground mb-0.5">Tipo de documento</p>
+            <p className="text-[11px] text-muted-foreground mb-0.5">Document type</p>
             <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
               {DOC_TYPE_LABELS[result.tipoDocumento] ?? result.tipoDocumento}
             </span>
           </div>
         </div>
 
-        {/* Resumen */}
+        {/* Summary */}
         <div className="rounded-lg bg-muted/50 p-3">
-          <p className="text-xs text-muted-foreground mb-1 font-medium">Resumen</p>
+          <p className="text-xs text-muted-foreground mb-1 font-medium">Summary</p>
           <p className="text-sm text-foreground leading-relaxed">{result.resumen}</p>
         </div>
 
-        {/* Campos detectados */}
+        {/* Detected fields */}
         <div className="grid grid-cols-1 gap-2">
           {result.fecha && (
             <div className="flex items-center gap-2.5 rounded-lg bg-background border border-border px-3 py-2">
               <Calendar className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Fecha</p>
+                <p className="text-[10px] text-muted-foreground">Date</p>
                 <p className="text-sm text-foreground font-medium">{result.fecha}</p>
               </div>
             </div>
@@ -301,7 +301,7 @@ function ScanResultPanel({
             <div className="flex items-center gap-2.5 rounded-lg bg-background border border-border px-3 py-2">
               <Building2 className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Entidad</p>
+                <p className="text-[10px] text-muted-foreground">Entity</p>
                 <p className="text-sm text-foreground font-medium truncate">{result.entidad}</p>
               </div>
             </div>
@@ -311,19 +311,19 @@ function ScanResultPanel({
             <div className="flex items-center gap-2.5 rounded-lg bg-background border border-border px-3 py-2">
               <MapPin className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Direccion</p>
+                <p className="text-[10px] text-muted-foreground">Address</p>
                 <p className="text-sm text-foreground">{result.direccion}</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Numeros relevantes */}
+        {/* Relevant numbers */}
         {result.numerosRelevantes && result.numerosRelevantes.length > 0 && (
           <div>
             <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <Hash className="h-3 w-3" />
-              Numeros relevantes
+              Relevant numbers
             </p>
             <div className="flex flex-wrap gap-1.5">
               {result.numerosRelevantes.map((num, i) => (
@@ -340,7 +340,7 @@ function ScanResultPanel({
           <div>
             <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <Tag className="h-3 w-3" />
-              Etiquetas
+              Tags
             </p>
             <div className="flex flex-wrap gap-1.5">
               {result.tags.map((tag, i) => (
@@ -352,7 +352,7 @@ function ScanResultPanel({
           </div>
         )}
 
-        {/* OCR Text toggle */}
+        {/* OCR text toggle */}
         {attachment.ocrText && (
           <div>
             <button
@@ -360,7 +360,7 @@ function ScanResultPanel({
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronRight className={cn("h-3 w-3 transition-transform", showOcr && "rotate-90")} />
-              {showOcr ? "Ocultar texto extraido" : "Ver texto extraido"}
+              {showOcr ? "Hide extracted text" : "View extracted text"}
             </button>
             {showOcr && (
               <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-muted/50 p-3 text-xs text-foreground font-mono whitespace-pre-wrap border border-border">
@@ -407,7 +407,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
   const uploadFile = useCallback(
     async (file: File) => {
       if (file.size > MAX_SIZE) {
-        toast.error(`Archivo demasiado grande: ${formatSize(file.size)}. Max: 10MB`)
+        toast.error(`File is too large: ${formatSize(file.size)}. Max: 10MB`)
         return
       }
 
@@ -421,13 +421,13 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
         const res = await fetch("/api/attachments", { method: "POST", body: formData })
         const json = await res.json()
 
-        if (!json.success) throw new Error(json.error?.message ?? "Error al subir")
+        if (!json.success) throw new Error(json.error?.message ?? "Could not upload file")
 
-        toast.success(`Archivo subido: ${file.name}`)
+        toast.success(`File uploaded: ${file.name}`)
         refetch()
         onUploaded?.()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al subir archivo")
+        toast.error(err instanceof Error ? err.message : "Could not upload file")
       } finally {
         setUploading(false)
       }
@@ -461,11 +461,11 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
         const res = await fetch(`/api/attachments/${id}`, { method: "DELETE" })
         const json = await res.json()
         if (!json.success) throw new Error(json.error?.message ?? "Error")
-        toast.success("Archivo eliminado")
+        toast.success("File deleted")
         if (scanPanelId === id) setScanPanelId(null)
         refetch()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar")
+        toast.error(err instanceof Error ? err.message : "Could not delete file")
       } finally {
         setDeletingId(null)
       }
@@ -480,11 +480,11 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
       try {
         const res = await fetch(`/api/attachments/${id}/scan`, { method: "POST" })
         const json = await res.json()
-        if (!json.success) throw new Error(json.error?.message ?? "Error al escanear")
-        toast.success("Escaneo completado")
+        if (!json.success) throw new Error(json.error?.message ?? "Could not scan file")
+        toast.success("Scan completed")
         refetch()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al escanear")
+        toast.error(err instanceof Error ? err.message : "Could not scan file")
         refetch()
       } finally {
         setScanningId(null)
@@ -506,7 +506,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <Paperclip className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Archivos</h2>
+        <h2 className="text-sm font-semibold text-foreground">Files</h2>
         {attachments.length > 0 && (
           <span className="text-xs text-muted-foreground">({attachments.length})</span>
         )}
@@ -536,9 +536,9 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                 <Upload className="h-6 w-6 text-muted-foreground" />
               )}
               <p className="text-sm text-muted-foreground text-center">
-                {uploading ? "Subiendo..." : dragActive ? "Suelta aqui" : "Arrastra archivos o haz clic para subir"}
+                {uploading ? "Uploading..." : dragActive ? "Drop files here" : "Drag files here or click to upload"}
               </p>
-              <p className="text-[11px] text-muted-foreground/60">Max 10MB · OCR automatico en imagenes y PDFs</p>
+              <p className="text-[11px] text-muted-foreground/60">Max 10MB · Automatic OCR for images and PDFs</p>
               <input
                 ref={inputRef}
                 type="file"
@@ -551,7 +551,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
 
           {/* File list */}
           {attachments.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">Sin archivos adjuntos.</p>
+            <p className="text-sm text-muted-foreground py-2">No attachments yet.</p>
           ) : (
             <div className="space-y-1.5">
               {attachments.map((att) => {
@@ -588,7 +588,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                         {isScannable && <ScanStatusBadge status={att.scanStatus} />}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatSize(att.tamano)} · {att.userName ?? "Sistema"} · {timeAgo(att.createdAt)}
+                        {formatSize(att.tamano)} · {att.userName ?? "System"} · {timeAgo(att.createdAt)}
                       </p>
                     </div>
 
@@ -610,7 +610,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                               ? "text-emerald-500 hover:bg-emerald-500/10"
                               : "text-muted-foreground hover:bg-accent hover:text-foreground",
                           )}
-                          title={att.scanStatus === "completed" ? "Ver escaneo" : "Escanear"}
+                          title={att.scanStatus === "completed" ? "View scan" : "Scan"}
                         >
                           {scanningId === att.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -623,7 +623,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                         <button
                           onClick={() => openPreview(att.url, att.tipo)}
                           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                          title="Vista previa"
+                          title="Preview"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -632,7 +632,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                         href={att.url}
                         download={att.nombre}
                         className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                        title="Descargar"
+                        title="Download"
                       >
                         <Download className="h-3.5 w-3.5" />
                       </a>
@@ -641,7 +641,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
                           onClick={() => handleDelete(att.id)}
                           disabled={deletingId === att.id}
                           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          title="Eliminar"
+                          title="Delete"
                         >
                           {deletingId === att.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -677,7 +677,7 @@ export function UploadArea({ module, recordId, onUploaded }: UploadAreaProps) {
           />
           <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 flex-shrink-0">
-              <p className="text-sm font-medium text-foreground truncate">Vista previa</p>
+              <p className="text-sm font-medium text-foreground truncate">Preview</p>
               <div className="flex items-center gap-2">
                 <a
                   href={previewUrl}

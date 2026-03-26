@@ -16,7 +16,7 @@ interface InlineTextProps {
 }
 
 export function InlineText({
-  value, onSave, placeholder = "Escribe aquí...", className, inputClassName, as: Tag = "span",
+  value, onSave, placeholder = "Type here...", className, inputClassName, as: Tag = "span",
 }: InlineTextProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -171,7 +171,7 @@ interface InlineTextareaProps {
   rows?: number
 }
 
-export function InlineTextarea({ value, onSave, placeholder = "Agregar notas...", className, rows = 3 }: InlineTextareaProps) {
+export function InlineTextarea({ value, onSave, placeholder = "Add notes...", className, rows = 3 }: InlineTextareaProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [saving, setSaving] = useState(false)
@@ -215,13 +215,13 @@ export function InlineTextarea({ value, onSave, placeholder = "Agregar notas..."
             onClick={save}
             className="flex items-center gap-1 rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background hover:opacity-80 transition-opacity"
           >
-            <Check className="h-3 w-3" /> Guardar
+            <Check className="h-3 w-3" /> Save
           </button>
           <button
             onClick={() => { setDraft(value); setEditing(false) }}
             className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="h-3 w-3" /> Cancelar
+            <X className="h-3 w-3" /> Cancel
           </button>
         </div>
       </div>
@@ -254,13 +254,13 @@ interface InlineDateProps {
   className?: string
 }
 
-export function InlineDate({ value, onSave, placeholder = "Sin fecha", className }: InlineDateProps) {
+export function InlineDate({ value, onSave, placeholder = "No date", className }: InlineDateProps) {
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const dateStr = value ? value.slice(0, 10) : ""
   const display = value
-    ? new Date(value).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+    ? new Date(value).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
     : placeholder
 
   const handleChange = useCallback(async (newVal: string) => {

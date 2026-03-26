@@ -83,7 +83,7 @@ export function NotificationsBell() {
             ? "bg-accent text-foreground"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         )}
-        aria-label="Notificaciones"
+        aria-label="Notifications"
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (

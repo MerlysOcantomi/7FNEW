@@ -17,8 +17,8 @@ export function ConfirmModal({
   open,
   title,
   description,
-  confirmLabel = "Confirmar",
-  cancelLabel = "Cancelar",
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   variant = "default",
   onConfirm,
   onCancel,
@@ -35,7 +35,7 @@ export function ConfirmModal({
         <button
           onClick={onCancel}
           className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Cerrar"
+          aria-label="Close"
         >
           <X className="h-3.5 w-3.5" />
         </button>

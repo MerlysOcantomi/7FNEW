@@ -73,28 +73,28 @@ export default function InternalRequestsPage() {
   return (
     <AppShell
       currentSection="requests"
-      breadcrumbs={[{ label: "7F" }, { label: "Solicitudes de Clientes" }]}
+      breadcrumbs={[{ label: "7F" }, { label: "Client Requests" }]}
     >
       <SectionPage
-        title="Solicitudes de Clientes"
-        description="Solicitudes enviadas por clientes del portal. Gestiona el estado de cada una."
+        title="Client requests"
+        description="Requests submitted through the client portal. Manage the status of each one."
       >
         {/* Stats */}
         <div className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-3">
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">Abiertas</p>
+            <p className="text-xs text-gray-500">Open</p>
             <p className="mt-1 text-2xl font-semibold text-blue-600">
               {requests.filter((r) => r.status === "OPEN").length}
             </p>
           </div>
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">En progreso</p>
+            <p className="text-xs text-gray-500">In progress</p>
             <p className="mt-1 text-2xl font-semibold text-amber-600">
               {requests.filter((r) => r.status === "IN_PROGRESS").length}
             </p>
           </div>
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">Completadas</p>
+            <p className="text-xs text-gray-500">Completed</p>
             <p className="mt-1 text-2xl font-semibold text-green-600">
               {requests.filter((r) => r.status === "DONE").length}
             </p>
@@ -104,10 +104,10 @@ export default function InternalRequestsPage() {
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
           {[
-            { key: "", label: "Todas" },
-            { key: "OPEN", label: "Abiertas" },
-            { key: "IN_PROGRESS", label: "En progreso" },
-            { key: "DONE", label: "Completadas" },
+            { key: "", label: "All" },
+            { key: "OPEN", label: "Open" },
+            { key: "IN_PROGRESS", label: "In progress" },
+            { key: "DONE", label: "Completed" },
           ].map((s) => (
             <button
               key={s.key || "all"}
@@ -131,7 +131,7 @@ export default function InternalRequestsPage() {
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-[#E2E8F0] bg-white px-6 py-16 text-center">
             <MessageSquarePlus className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-900">No hay solicitudes</p>
+            <p className="text-sm font-medium text-gray-900">No requests yet</p>
           </div>
         ) : (
           <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden divide-y divide-gray-100">
@@ -168,7 +168,7 @@ export default function InternalRequestsPage() {
                       )}
                       <div className="mt-2 flex items-center gap-3 text-xs text-gray-400 flex-wrap">
                         <span>
-                          {new Date(req.createdAt).toLocaleDateString("es", {
+                          {new Date(req.createdAt).toLocaleDateString("en-US", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
@@ -204,7 +204,7 @@ export default function InternalRequestsPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors"
                         >
                           <AlertCircle className="h-3.5 w-3.5" />
-                          En progreso
+                          Move to in progress
                         </button>
                       )}
                       {req.status !== "DONE" && (
@@ -213,7 +213,7 @@ export default function InternalRequestsPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
-                          Completar
+                          Mark completed
                         </button>
                       )}
                     </div>

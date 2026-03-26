@@ -5,45 +5,49 @@ import Link from "next/link";
 import { ChevronDown, ArrowUpRight, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── 5F Context Chips ─────────────────────────────────────────────────────────
-const CONTEXT_CHIPS = ["Flow", "Forge", "Funds", "Future", "Foresight"] as const;
+// ── Workspace context chips ──────────────────────────────────────────────────
+const CONTEXT_CHIPS = ["Overview", "Clients", "Projects", "Finance", "Billing", "Improvements"] as const;
 type ContextChip = (typeof CONTEXT_CHIPS)[number];
 
 const CHIP_SUBTITLES: Record<ContextChip, string> = {
-  Flow: "Operación",
-  Forge: "Creación",
-  Funds: "Finanzas",
-  Future: "Estrategia",
-  Foresight: "Inteligencia",
+  Overview: "Business signals",
+  Clients: "Relationships",
+  Projects: "Execution",
+  Finance: "Financial health",
+  Billing: "Collections",
+  Improvements: "System upgrades",
 };
 
 const ENTITY_OPTIONS: Record<ContextChip, { label: string; href: string }[]> = {
-  Flow: [
+  Overview: [
+    { label: "Workspace overview", href: "/" },
+    { label: "See what's coming", href: "/agente" },
+    { label: "Recent activity", href: "/" },
+  ],
+  Clients: [
     { label: "Alpha Expansion", href: "/proyectos/alpha-expansion" },
-    { label: "Beta Relaunch", href: "/proyectos/beta-relaunch" },
     { label: "Acme Corp", href: "/clientes/acme-corp" },
     { label: "Nexus Holdings", href: "/clientes/nexus-holdings" },
   ],
-  Forge: [
-    { label: "Q1 Launch Campaign", href: "/contenido" },
-    { label: "Enterprise Outreach", href: "/contenido" },
-    { label: "Partner Summit", href: "/contenido" },
+  Projects: [
+    { label: "Alpha Expansion", href: "/proyectos/alpha-expansion" },
+    { label: "Beta Relaunch", href: "/proyectos/beta-relaunch" },
+    { label: "Omega Platform", href: "/proyectos/omega-platform" },
   ],
-  Funds: [
+  Finance: [
     { label: "Growth Fund III", href: "/finanzas" },
     { label: "Innovation Pool", href: "/finanzas" },
     { label: "Seed Reserve", href: "/finanzas" },
+  ],
+  Billing: [
     { label: "INV-2024-089", href: "/facturacion" },
+    { label: "Pending invoices", href: "/facturacion" },
+    { label: "Collections review", href: "/facturacion" },
   ],
-  Future: [
-    { label: "Strategic Overview", href: "/agente" },
-    { label: "Q2 Planning", href: "/agente" },
-    { label: "AI Model Config", href: "/motor" },
-  ],
-  Foresight: [
-    { label: "Market Intelligence", href: "/agente" },
-    { label: "Risk Radar", href: "/agente" },
-    { label: "Opportunity Map", href: "/agente" },
+  Improvements: [
+    { label: "Workspace improvements", href: "/administracion" },
+    { label: "AI workspace", href: "/motor" },
+    { label: "Optional packs", href: "/administracion" },
   ],
 };
 
@@ -52,10 +56,10 @@ interface ContextBarProps {
   defaultChip?: ContextChip | string;
 }
 
-export function ContextBar({ className, defaultChip = "Flow" }: ContextBarProps) {
+export function ContextBar({ className, defaultChip = "Overview" }: ContextBarProps) {
   const safeDefault: ContextChip = CONTEXT_CHIPS.includes(defaultChip as ContextChip)
     ? (defaultChip as ContextChip)
-    : "Flow";
+    : "Overview";
 
   const [activeChip, setActiveChip] = useState<ContextChip>(safeDefault);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -75,7 +79,7 @@ export function ContextBar({ className, defaultChip = "Flow" }: ContextBarProps)
       {/* Section label */}
       <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Context</p>
 
-      {/* 5F Chips */}
+      {/* Context chips */}
       <div className="flex items-center gap-1 flex-wrap">
         {CONTEXT_CHIPS.map((chip) => (
           <button

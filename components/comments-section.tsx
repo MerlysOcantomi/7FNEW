@@ -24,11 +24,11 @@ interface CommentsSectionProps {
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 function getInitials(name: string | null | undefined, email: string | null | undefined): string {
@@ -64,13 +64,13 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ module, recordId, comment: trimmed }),
       })
-      if (!res.ok) throw new Error("Error al enviar")
+      if (!res.ok) throw new Error("Could not send comment")
       setText("")
       refetch()
       onCommentAdded?.()
-      toast.success("Comentario agregado")
+      toast.success("Comment added")
     } catch {
-      toast.error("Error al enviar comentario")
+      toast.error("Could not send comment")
     } finally {
       setSending(false)
     }
@@ -97,7 +97,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Comentarios</h2>
+        <h2 className="text-sm font-semibold text-foreground">Comments</h2>
         {comments.length > 0 && (
           <span className="text-xs text-muted-foreground">({comments.length})</span>
         )}
@@ -115,13 +115,13 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Escribe un comentario... (Ctrl+Enter para enviar)"
+              placeholder="Write a comment... (Ctrl+Enter to send)"
               rows={1}
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-colors"
             />
             <div className="flex items-center justify-between mt-1.5">
               <p className="text-[11px] text-muted-foreground">
-                Usa @nombre para mencionar
+                Use @name to mention someone
               </p>
               <button
                 onClick={handleSubmit}
@@ -138,7 +138,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
                 ) : (
                   <Send className="h-3 w-3" />
                 )}
-                Enviar
+                Send
               </button>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
 
       {/* Comments list */}
       {comments.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-3">Sin comentarios aun.</p>
+        <p className="text-sm text-muted-foreground py-3">No comments yet.</p>
       ) : (
         <div className="space-y-4">
           {comments.map((c) => (
@@ -158,7 +158,7 @@ export function CommentsSection({ module, recordId, onCommentAdded }: CommentsSe
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-foreground">
-                    {c.userName ?? c.userEmail ?? "Sistema"}
+                    {c.userName ?? c.userEmail ?? "System"}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {timeAgo(c.createdAt)}

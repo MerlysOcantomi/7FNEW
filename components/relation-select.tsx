@@ -86,10 +86,10 @@ export function RelationSelect({
       setSaving(true)
       try {
         await apiPatch(`/api/${sourceModule}/${sourceId}`, { [field]: recordId })
-        toast.success("Guardado")
+        toast.success("Saved")
         onSaved?.()
       } catch (err: any) {
-        toast.error(err.message ?? "Error al guardar")
+        toast.error(err.message ?? "Could not save")
       } finally {
         setSaving(false)
         setOpen(false)
@@ -127,7 +127,7 @@ export function RelationSelect({
             </Link>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground">Sin {label.toLowerCase()}</span>
+          <span className="text-sm text-muted-foreground">No {label.toLowerCase()}</span>
         )}
 
         <CanEdit>
@@ -153,7 +153,7 @@ export function RelationSelect({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={`Buscar ${label.toLowerCase()}...`}
+                placeholder={`Search ${label.toLowerCase()}...`}
                 className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
@@ -170,7 +170,7 @@ export function RelationSelect({
               )}
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground">Ninguno</span>
+              <span className="text-muted-foreground">None</span>
               {!value && <Check className="h-3.5 w-3.5 ml-auto text-foreground" />}
             </button>
 
@@ -179,7 +179,7 @@ export function RelationSelect({
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             ) : filtered.length === 0 ? (
-              <p className="text-center text-xs text-muted-foreground py-3">Sin resultados</p>
+              <p className="text-center text-xs text-muted-foreground py-3">No results</p>
             ) : (
               filtered.map((record) => {
                 const name = record[displayField] ?? record.titulo ?? record.numero ?? record.id

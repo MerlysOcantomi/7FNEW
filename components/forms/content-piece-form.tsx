@@ -23,37 +23,37 @@ const PLATAFORMAS = [
   { value: "blog", label: "Blog" },
   { value: "newsletter", label: "Newsletter" },
   { value: "web", label: "Web" },
-  { value: "otro", label: "Otro" },
+  { value: "otro", label: "Other" },
 ]
 
 const TIPOS = [
   { value: "post", label: "Post" },
   { value: "reel", label: "Reel" },
-  { value: "carrusel", label: "Carrusel" },
+  { value: "carrusel", label: "Carousel" },
   { value: "story", label: "Story" },
   { value: "video", label: "Video" },
   { value: "blog", label: "Blog" },
   { value: "newsletter", label: "Newsletter" },
-  { value: "guion", label: "Guion" },
-  { value: "pieza-creativa", label: "Pieza creativa" },
-  { value: "otro", label: "Otro" },
+  { value: "guion", label: "Script" },
+  { value: "pieza-creativa", label: "Creative asset" },
+  { value: "otro", label: "Other" },
 ]
 
 const ESTADOS = [
   { value: "idea", label: "Idea" },
-  { value: "borrador", label: "Borrador" },
-  { value: "en-progreso", label: "En progreso" },
-  { value: "revision", label: "Revision" },
-  { value: "programado", label: "Programado" },
-  { value: "publicado", label: "Publicado" },
-  { value: "cancelado", label: "Cancelado" },
+  { value: "borrador", label: "Draft" },
+  { value: "en-progreso", label: "In progress" },
+  { value: "revision", label: "Review" },
+  { value: "programado", label: "Scheduled" },
+  { value: "publicado", label: "Published" },
+  { value: "cancelado", label: "Canceled" },
 ]
 
 const PRIORIDADES = [
-  { value: "baja", label: "Baja" },
-  { value: "media", label: "Media" },
-  { value: "alta", label: "Alta" },
-  { value: "urgente", label: "Urgente" },
+  { value: "baja", label: "Low" },
+  { value: "media", label: "Medium" },
+  { value: "alta", label: "High" },
+  { value: "urgente", label: "Urgent" },
 ]
 
 export function ContentPieceForm({ open, onClose, onSuccess, data, defaultValues }: ContentPieceFormProps) {
@@ -80,7 +80,7 @@ export function ContentPieceForm({ open, onClose, onSuccess, data, defaultValues
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.titulo.trim()) return toast.error("El titulo es requerido")
+    if (!form.titulo.trim()) return toast.error("Title is required")
     setSaving(true)
     try {
       const body: any = {
@@ -94,12 +94,12 @@ export function ContentPieceForm({ open, onClose, onSuccess, data, defaultValues
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error("Error al guardar")
-      toast.success(isEdit ? "Pieza actualizada" : "Pieza creada")
+      if (!res.ok) throw new Error("Could not save content")
+      toast.success(isEdit ? "Content updated" : "Content created")
       onSuccess()
       onClose()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error")
+      toast.error(err instanceof Error ? err.message : "Unexpected error")
     } finally {
       setSaving(false)
     }
@@ -111,12 +111,12 @@ export function ContentPieceForm({ open, onClose, onSuccess, data, defaultValues
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold">{isEdit ? "Editar pieza" : "Nueva pieza de contenido"}</h2>
+          <h2 className="text-base font-semibold">{isEdit ? "Edit content piece" : "New content piece"}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input value={form.titulo} onChange={(e) => update("titulo", e.target.value)} placeholder="Titulo *" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
-          <textarea value={form.copy} onChange={(e) => update("copy", e.target.value)} placeholder="Copy / Texto" rows={3} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring resize-none" />
+          <input value={form.titulo} onChange={(e) => update("titulo", e.target.value)} placeholder="Title *" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
+          <textarea value={form.copy} onChange={(e) => update("copy", e.target.value)} placeholder="Copy / text" rows={3} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring resize-none" />
           <div className="grid grid-cols-2 gap-3">
             <select value={form.plataforma} onChange={(e) => update("plataforma", e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none">
               {PLATAFORMAS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -134,13 +134,13 @@ export function ContentPieceForm({ open, onClose, onSuccess, data, defaultValues
             </select>
           </div>
           <input type="datetime-local" value={form.fechaProgramada} onChange={(e) => update("fechaProgramada", e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none" />
-          <input value={form.hashtags} onChange={(e) => update("hashtags", e.target.value)} placeholder="Hashtags (separados por espacio)" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none" />
-          <input value={form.responsable} onChange={(e) => update("responsable", e.target.value)} placeholder="Responsable" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none" />
-          <textarea value={form.notas} onChange={(e) => update("notas", e.target.value)} placeholder="Notas" rows={2} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none resize-none" />
+          <input value={form.hashtags} onChange={(e) => update("hashtags", e.target.value)} placeholder="Hashtags (space separated)" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none" />
+          <input value={form.responsable} onChange={(e) => update("responsable", e.target.value)} placeholder="Owner" className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none" />
+          <textarea value={form.notas} onChange={(e) => update("notas", e.target.value)} placeholder="Notes" rows={2} className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none resize-none" />
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-opacity", saving ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")}>
-              {saving ? "Guardando..." : isEdit ? "Guardar" : "Crear"}
+              {saving ? "Saving..." : isEdit ? "Save changes" : "Create content"}
             </button>
           </div>
         </form>

@@ -82,7 +82,7 @@ export default function FinanzasPage() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         {/* Header */}
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Funds</p>
+          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Revenue</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Finance Overview</h1>
             <Link
@@ -103,7 +103,7 @@ export default function FinanzasPage() {
             {[
               { label: "Total Revenue YTD", value: "$2.48M", delta: "+12% vs last year", trend: "up" as const, icon: DollarSign },
               { label: "AR Outstanding", value: `$${(totalAR / 1000).toFixed(0)}K`, delta: `${overdueCount} overdue invoice${overdueCount !== 1 ? "s" : ""}`, trend: "down" as const, icon: FileText },
-              { label: "Funds Under Mgmt", value: "$1.23M", delta: "4 active pools", trend: "up" as const, icon: BarChart3 },
+              { label: "Capital Under Management", value: "$1.23M", delta: "4 active pools", trend: "up" as const, icon: BarChart3 },
               { label: "Burn vs Budget", value: "94%", delta: "On track for Q1", trend: "up" as const, icon: TrendingUp },
             ].map(({ label, value, delta, trend, icon: Icon }) => (
               <div key={label} className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm">
@@ -220,7 +220,7 @@ export default function FinanzasPage() {
         </div>
       </main>
 
-      <CopilotPanel defaultContext="Funds" />
+      <CopilotPanel defaultContext="Finance" />
     </div>
   );
 }

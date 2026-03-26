@@ -127,7 +127,7 @@ export function RelationList({
                   onClick={() => setAssignOpen(true)}
                   className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
                 >
-                  <Link2 className="h-3.5 w-3.5" /> Asignar
+                  <Link2 className="h-3.5 w-3.5" /> Assign
                 </button>
               )}
               {canCreate && FormComponent && (
@@ -135,7 +135,7 @@ export function RelationList({
                   onClick={() => setFormOpen(true)}
                   className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Crear
+                  <Plus className="h-3.5 w-3.5" /> Create
                 </button>
               )}
             </div>
@@ -143,7 +143,7 @@ export function RelationList({
         </div>
 
         {items.length === 0 ? (
-          <DetailEmpty message={emptyMessage ?? `No hay ${title.toLowerCase()} vinculados.`} />
+          <DetailEmpty message={emptyMessage ?? `No linked ${title.toLowerCase()} yet.`} />
         ) : (
           <div className="space-y-1.5">
             {items.map((item: any) => {

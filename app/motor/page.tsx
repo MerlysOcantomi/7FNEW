@@ -41,7 +41,7 @@ const TOOLS = [
   { id: "calendar_sync", label: "Calendar Sync", description: "Read upcoming milestones and deadlines.", enabled: false },
   { id: "email_draft", label: "Email Draft Generator", description: "Generate reply drafts from inbox entries.", enabled: false },
   { id: "report_export", label: "Report Export", description: "Compile and export executive briefs as PDF.", enabled: true },
-  { id: "forge_content", label: "Forge Content Engine", description: "Generate campaign drafts via Forge module.", enabled: false },
+  { id: "forge_content", label: "Marketing Content Engine", description: "Generate campaign drafts for the marketing workspace.", enabled: false },
 ];
 
 const SYSTEM_STATUS = [
@@ -60,6 +60,25 @@ function SectionHeader({ title, description }: { title: string; description?: st
     <div className="mb-4">
       <h2 className="text-base font-semibold text-[#0F172A] tracking-tight">{title}</h2>
       {description && <p className="text-xs text-[#64748B] mt-0.5">{description}</p>}
+    </div>
+  );
+}
+
+function HelperText({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">{children}</p>;
+}
+
+function OnboardingHint({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+      <p className="text-sm font-medium text-[#0F172A]">{title}</p>
+      <p className="text-xs text-[#64748B] mt-1 leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -85,6 +104,9 @@ function ToolToggle({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[#0F172A]">{tool.label}</p>
         <p className="text-xs text-[#64748B] mt-0.5">{tool.description}</p>
+        <p className="text-[11px] text-[#94A3B8] mt-1">
+          {tool.enabled ? "Available to the assistant when needed." : "Hidden from the assistant for now."}
+        </p>
       </div>
       <button
         onClick={() => onToggle(tool.id)}
@@ -133,11 +155,11 @@ export default function MotorPage() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         {/* Header */}
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Future · Advanced</p>
+          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Advanced · Internal</p>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Motor</h1>
-              <p className="text-sm text-[#64748B] mt-0.5">AI engine configuration — model, routing, tools, and system health.</p>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">AI workspace</h1>
+              <p className="text-sm text-[#64748B] mt-0.5">Choose how the assistant responds, when it switches behavior, and which helpers it can use.</p>
             </div>
             <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors text-xs font-medium">
               <RefreshCw size={13} strokeWidth={1.75} />
@@ -171,11 +193,15 @@ export default function MotorPage() {
           {/* ── Model Config ── */}
           {activeTab === "model" && (
             <div className="space-y-7">
-              <SectionHeader title="Primary Model" description="The model used by default for all Copilot interactions." />
+              <SectionHeader title="Primary model" description="This is the default style of assistant you want the workspace to use." />
+              <OnboardingHint
+                title="Start simple"
+                description="If you are unsure, keep the current production model. Most teams only need to adjust this when they want faster replies, more detailed answers, or a different writing style."
+              />
 
               {/* Model selector */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
-                <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">Active Model</label>
+                <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">Active model</label>
                 <div className="relative">
                   <button
                     onClick={() => setModelDropOpen(!modelDropOpen)}
@@ -221,11 +247,17 @@ export default function MotorPage() {
                     </div>
                   )}
                 </div>
+                <HelperText>
+                  Pick the model that should handle most requests by default. You can change this later without affecting your data.
+                </HelperText>
               </div>
 
               {/* Parameters */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5 space-y-5">
                 <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider">Parameters</label>
+                <HelperText>
+                  These controls change how the assistant answers. Lower values feel more controlled. Higher values feel more open and exploratory.
+                </HelperText>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -240,6 +272,9 @@ export default function MotorPage() {
                   <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1">
                     <span>Precise (0.0)</span><span>Creative (1.0)</span>
                   </div>
+                  <HelperText>
+                    Use lower temperature for stable, consistent answers. Raise it only if you want more variation in wording or ideas.
+                  </HelperText>
                 </div>
 
                 <div>
@@ -255,6 +290,9 @@ export default function MotorPage() {
                   <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1">
                     <span>512</span><span>8,192</span>
                   </div>
+                  <HelperText>
+                    Higher output limits allow longer answers, summaries, or drafts. Lower limits keep responses shorter and faster.
+                  </HelperText>
                 </div>
               </div>
 
@@ -262,10 +300,13 @@ export default function MotorPage() {
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
                 <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">System Prompt</label>
                 <textarea
-                  defaultValue="You are 7F Copilot, an executive intelligence assistant for a professional services firm. You have access to project portfolio data, fund performance metrics, client CRM records, and operational risk feeds. Always respond with precision, brevity, and strategic framing. Do not speculate beyond available data."
+                  defaultValue="You are 7F workspace intelligence, an executive assistant for a professional services firm. You have access to project portfolio data, fund performance metrics, client CRM records, and operational risk feeds. Always respond with precision, brevity, and strategic framing. Do not speculate beyond available data."
                   rows={5}
                   className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-4 py-3 text-xs sm:text-sm text-[#334155] font-mono leading-relaxed resize-none focus:outline-none focus:border-[#3B82F6] transition-colors"
                 />
+                <HelperText>
+                  This is the internal instruction that sets the assistant's role and tone. Change it carefully, and only if you want to redefine how the workspace behaves overall.
+                </HelperText>
               </div>
             </div>
           )}
@@ -273,7 +314,11 @@ export default function MotorPage() {
           {/* ── Router Rules ── */}
           {activeTab === "router" && (
             <div className="space-y-5">
-              <SectionHeader title="Intent Router" description="Rules that determine which model handles specific query types." />
+              <SectionHeader title="Request routing" description="These rules decide when the workspace should switch models for different kinds of work." />
+              <OnboardingHint
+                title="Think of this like traffic direction"
+                description="You do not need to configure every case. The router simply helps send each request to the model that fits best."
+              />
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                 {/* Desktop table */}
                 <div className="hidden sm:block">
@@ -303,7 +348,7 @@ export default function MotorPage() {
               </div>
               <div className="bg-[#EFF6FF] rounded-xl p-4 border border-[#BFDBFE]">
                 <p className="text-xs text-[#334155] leading-relaxed">
-                  <span className="font-semibold text-[#1D4ED8]">Note:</span> Router rules are evaluated in order. The first matching rule determines the model. Edit rules from the administration panel or contact your system architect.
+                  <span className="font-semibold text-[#1D4ED8]">Helpful tip:</span> The first matching rule wins. Put your most important or most specific rules at the top.
                 </p>
               </div>
             </div>
@@ -312,14 +357,18 @@ export default function MotorPage() {
           {/* ── Tool Registry ── */}
           {activeTab === "tools" && (
             <div className="space-y-5">
-              <SectionHeader title="Tool Registry" description="Enable or disable tools available to the AI engine during inference." />
+              <SectionHeader title="Available tools" description="These are the business helpers the assistant can use while answering." />
+              <OnboardingHint
+                title="Tools do not answer on their own"
+                description="A tool gives the assistant access to useful actions or data, like looking up projects or drafting a reply. Turn on only what you want available."
+              />
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm px-5">
                 {tools.map((tool) => (
                   <ToolToggle key={tool.id} tool={tool} onToggle={toggleTool} />
                 ))}
               </div>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Changes take effect on the next session initialization. Disabling tools removes them from the engine's callable scope — existing conversation context is not affected.
+                Tool changes apply to future sessions. Existing conversations keep their current context.
               </p>
             </div>
           )}

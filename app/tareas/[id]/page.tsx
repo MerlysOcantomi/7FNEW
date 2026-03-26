@@ -138,7 +138,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           <AlertCircle className="h-10 w-10 text-destructive" />
           <p className="text-sm text-muted-foreground">{error ?? "Tarea no encontrada"}</p>
           <Link href="/tareas" className="text-sm font-medium text-foreground underline hover:no-underline">
-            ← Volver a Tareas
+            ← Back to tasks
           </Link>
         </div>
       </AppShell>
@@ -172,7 +172,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               <InlineText
                 value={task.titulo ?? ""}
                 onSave={(v) => saveField("titulo", v)}
-                placeholder="Sin título"
+                placeholder="Untitled task"
                 as="h1"
                 className="text-2xl font-semibold text-foreground"
               />
@@ -206,11 +206,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         <div className="grid gap-6 xl:grid-cols-5">
           <div className="flex flex-col gap-6 xl:col-span-3">
             <section className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">Descripción</h2>
+              <h2 className="text-sm font-medium text-muted-foreground mb-3">Description</h2>
               <InlineTextarea
                 value={task.descripcion ?? ""}
                 onSave={(v) => saveField("descripcion", v)}
-                placeholder="Agregar descripción..."
+                placeholder="Add description..."
                 rows={6}
                 className="min-h-[8rem]"
               />
@@ -219,9 +219,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             {task.proyectoId && (
               <section className="rounded-xl border border-border bg-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-medium text-muted-foreground">Documentos del proyecto</h2>
+                  <h2 className="text-sm font-medium text-muted-foreground">Project documents</h2>
                   <SmartAction
-                    label="Nuevo documento"
+                    label="New document"
                     icon={Plus}
                     size="sm"
                     variant="ghost"
@@ -231,7 +231,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                   />
                 </div>
                 {documentos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hay documentos en este proyecto.</p>
+                  <p className="text-sm text-muted-foreground">No documents in this project.</p>
                 ) : (
                   <ul className="space-y-2">
                     {documentos.map((doc: any) => (
@@ -288,11 +288,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                     onSaved={refetch}
                   />
                 </MetaRow>
-                <MetaRow label="Fecha límite">
+                <MetaRow label="Due date">
                   <InlineDate
                     value={task.fechaLimite ?? null}
                     onSave={(v) => saveField("fechaLimite", v)}
-                    placeholder="Sin fecha"
+                    placeholder="No date"
                   />
                 </MetaRow>
                 <MetaRow label="Proyecto">
@@ -330,7 +330,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">Acciones rápidas</h2>
+              <h2 className="text-sm font-medium text-muted-foreground mb-3">Quick actions</h2>
               <div className="flex flex-col gap-2">
                 {estado === "pendiente" && (
                   <button
@@ -346,7 +346,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                       onClick={() => quickAction("revision")}
                       className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-left hover:bg-muted/60 transition-colors"
                     >
-                      Enviar a revisión
+                      Send to review
                     </button>
                     <button
                       onClick={() => quickAction("completada")}
@@ -388,8 +388,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
       <ConfirmModal
         open={deleteOpen}
-        title="Eliminar tarea"
-        description="¿Estás seguro de que quieres eliminar esta tarea? Esta acción no se puede deshacer."
+        title="Delete task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
         confirmLabel="Eliminar"
         variant="danger"
         onConfirm={handleDelete}

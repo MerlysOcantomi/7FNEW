@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils"
 import { LogOut, User, ChevronDown, Shield, Edit3, Eye } from "lucide-react"
 
 const ROLE_LABELS: Record<string, { label: string; icon: typeof Shield }> = {
-  admin: { label: "Administrador", icon: Shield },
+  admin: { label: "Administrator", icon: Shield },
   editor: { label: "Editor", icon: Edit3 },
-  viewer: { label: "Solo lectura", icon: Eye },
+  viewer: { label: "Read only", icon: Eye },
 }
 
 export function UserMenu() {
@@ -71,7 +71,7 @@ export function UserMenu() {
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{user.nombre ?? "Usuario"}</p>
+                <p className="text-sm font-medium text-foreground truncate">{user.nombre ?? "User"}</p>
                 <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
@@ -87,14 +87,14 @@ export function UserMenu() {
               className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             >
               <User className="h-3.5 w-3.5" />
-              Ver perfil
+              View profile
             </button>
             <button
               onClick={() => { setOpen(false); logout() }}
               className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Cerrar sesion
+              Sign out
             </button>
           </div>
         </div>

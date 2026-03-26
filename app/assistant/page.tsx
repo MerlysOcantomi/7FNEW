@@ -48,7 +48,7 @@ const INITIAL_MESSAGES: Message[] = [
     id: 5,
     role: "assistant",
     content:
-      "To prioritize the fund reallocation: Growth Fund III currently holds $640K in underperforming instruments. Moving 15% ($96K) to Innovation Pool aligns with the Q2 strategy approved in February. I can prepare a reallocation proposal for your review — would you like me to route it through the Funds module or generate a standalone executive brief?",
+      "To prioritize the fund reallocation: Growth Fund III currently holds $640K in underperforming instruments. Moving 15% ($96K) to Innovation Pool aligns with the Q2 strategy approved in February. I can prepare a reallocation proposal for your review — would you like me to route it through the finance workspace or generate a standalone executive brief?",
     timestamp: "09:18",
     highlight: true,
   },
@@ -95,7 +95,7 @@ export default function AssistantPage() {
       <SidebarNav />
       <MobileSidebarNav />
 
-      {/* Full Screen Copilot */}
+      {/* Full Screen Assistant */}
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
         {/* Top Bar */}
         <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-[#E2E8F0] bg-white shrink-0">
@@ -105,12 +105,12 @@ export default function AssistantPage() {
               className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#0F172A] transition-colors font-medium shrink-0"
             >
               <ArrowLeft size={13} />
-              Dashboard
+              Overview
             </Link>
             <span className="text-[#E2E8F0] shrink-0">/</span>
             <div className="flex items-center gap-1.5 min-w-0">
               <div className="w-2 h-2 rounded-full bg-[#3B82F6] shrink-0" />
-              <span className="text-sm font-semibold text-[#0F172A] truncate">Copilot — Full Screen</span>
+              <span className="text-sm font-semibold text-[#0F172A] truncate">Assistant — Full Screen</span>
             </div>
           </div>
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFF6FF]">
@@ -131,7 +131,7 @@ export default function AssistantPage() {
                 <div key={msg.id} className={cn("max-w-[90%] sm:max-w-2xl", msg.role === "user" && "ml-auto")}>
                   <div className="flex items-center justify-between mb-1.5 gap-3">
                     <span className={cn("text-[10px] font-semibold uppercase tracking-wider", msg.role === "assistant" ? "text-[#3B82F6]" : "text-[#94A3B8]")}>
-                      {msg.role === "assistant" ? "Copilot" : "You"}
+                      {msg.role === "assistant" ? "Assistant" : "You"}
                     </span>
                     <span className="text-[10px] text-[#94A3B8]">{msg.timestamp}</span>
                   </div>
@@ -164,7 +164,7 @@ export default function AssistantPage() {
                       handleSend();
                     }
                   }}
-                  placeholder="Ask the Copilot anything about your operations..."
+                  placeholder="Ask the assistant anything about your operations..."
                   rows={2}
                   className="flex-1 resize-none bg-transparent text-sm text-[#0F172A] placeholder:text-[#94A3B8] outline-none leading-relaxed"
                 />

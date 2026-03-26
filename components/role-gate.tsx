@@ -38,10 +38,10 @@ export function RoleGate({ requiredRole, children, fallback }: RoleGateProps) {
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-4">
           <ShieldAlert className="h-6 w-6 text-muted-foreground" />
         </div>
-        <h2 className="text-lg font-semibold text-foreground">Acceso restringido</h2>
+        <h2 className="text-lg font-semibold text-foreground">Access restricted</h2>
         <p className="mt-1.5 text-sm text-muted-foreground text-center max-w-sm">
-          No tienes permisos para acceder a esta seccion.
-          Contacta a la administradora para solicitar acceso.
+          You do not have permission to access this section.
+          Contact your administrator if you need access.
         </p>
       </div>
     )

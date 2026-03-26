@@ -97,10 +97,10 @@ function TabResumen({ project }: { project: any }) {
     : null;
 
   const keyMetrics = [
-    { label: "Tareas completadas", value: `${completadas} / ${totalTareas}` },
+    { label: "Completed tasks", value: `${completadas} / ${totalTareas}` },
     { label: "Progreso", value: `${project.progreso ?? 0}%` },
     { label: "Presupuesto", value: project.presupuesto != null ? formatCurrency(project.presupuesto) : "—" },
-    { label: "Días restantes", value: diasRestantes != null ? (diasRestantes > 0 ? String(diasRestantes) : "Vencido") : "—" },
+    { label: "Days remaining", value: diasRestantes != null ? (diasRestantes > 0 ? String(diasRestantes) : "Overdue") : "—" },
   ];
 
   return (
@@ -116,8 +116,8 @@ function TabResumen({ project }: { project: any }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white rounded-xl border border-[#E2E8F0] p-5">
-          <SectionLabel>Descripción del proyecto</SectionLabel>
-          <p className="text-sm text-[#334155] leading-relaxed">{project.descripcion || "Sin descripción."}</p>
+          <SectionLabel>Project description</SectionLabel>
+          <p className="text-sm text-[#334155] leading-relaxed">{project.descripcion || "No description."}</p>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
               { label: "Responsable", value: project.assignedTo || "—" },
@@ -158,13 +158,13 @@ function TabTareas({ project }: { project: any }) {
   if (tareas.length === 0) {
     return (
       <div className="space-y-5">
-        <SectionLabel>Tareas del proyecto</SectionLabel>
+        <SectionLabel>Project tasks</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <CheckCircle2 className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay tareas en este proyecto</p>
+          <p className="text-sm font-medium text-[#64748B]">No tasks in this project</p>
           <p className="text-xs text-[#94A3B8] mt-1">Las tareas vinculadas a este proyecto aparecerán aquí</p>
           <Link href="/tareas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
-            Ir a Tareas <ArrowUpRight size={12} />
+            Go to tasks <ArrowUpRight size={12} />
           </Link>
         </div>
       </div>
@@ -174,7 +174,7 @@ function TabTareas({ project }: { project: any }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <SectionLabel>Tareas del proyecto</SectionLabel>
+        <SectionLabel>Project tasks</SectionLabel>
         <Link href="/tareas" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
           <Plus size={12} strokeWidth={2.5} />
           Nueva tarea
@@ -255,13 +255,13 @@ function TabArchivos({ project }: { project: any }) {
   if (documentos.length === 0) {
     return (
       <div className="space-y-3">
-        <SectionLabel>Archivos del proyecto</SectionLabel>
+        <SectionLabel>Project files</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <Paperclip className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay archivos en este proyecto</p>
+          <p className="text-sm font-medium text-[#64748B]">No files in this project</p>
           <p className="text-xs text-[#94A3B8] mt-1">Los documentos vinculados al proyecto aparecerán aquí</p>
           <Link href="/archivos" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
-            Ir a Archivos <ArrowUpRight size={12} />
+            Go to files <ArrowUpRight size={12} />
           </Link>
         </div>
       </div>
@@ -270,7 +270,7 @@ function TabArchivos({ project }: { project: any }) {
 
   return (
     <div className="space-y-3">
-      <SectionLabel>Archivos del proyecto</SectionLabel>
+      <SectionLabel>Project files</SectionLabel>
       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
         {documentos.map((d: any, i: number) => (
           <div
@@ -313,13 +313,13 @@ function TabFinanzas({ project }: { project: any }) {
   if (!hasData) {
     return (
       <div className="space-y-6">
-        <SectionLabel>Finanzas del proyecto</SectionLabel>
+        <SectionLabel>Project finance</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <DollarSign className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay datos financieros</p>
+          <p className="text-sm font-medium text-[#64748B]">No financial data yet</p>
           <p className="text-xs text-[#94A3B8] mt-1">Las facturas y transacciones vinculadas aparecerán aquí</p>
           <Link href="/finanzas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
-            Ver en Funds <ArrowUpRight size={12} />
+            Open finance <ArrowUpRight size={12} />
           </Link>
         </div>
       </div>
@@ -328,7 +328,7 @@ function TabFinanzas({ project }: { project: any }) {
 
   const financialItems = [
     presupuesto != null && { label: "Presupuesto", value: formatCurrency(presupuesto), variant: "neutral" as const },
-    facturas.length > 0 && { label: "Total facturado", value: formatCurrency(totalFacturado), variant: "neutral" as const },
+    facturas.length > 0 && { label: "Total billed", value: formatCurrency(totalFacturado), variant: "neutral" as const },
     transacciones.length > 0 && { label: "Transacciones", value: formatCurrency(totalTransacciones), variant: totalTransacciones >= 0 ? "positive" as const : "warning" as const },
   ].filter(Boolean) as { label: string; value: string; variant: "neutral" | "positive" | "warning" }[];
 
@@ -371,7 +371,7 @@ function TabFinanzas({ project }: { project: any }) {
 
       <div className="flex items-center justify-end">
         <Link href="/finanzas" className="flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
-          Ver en Funds <ArrowUpRight size={12} />
+          Open finance <ArrowUpRight size={12} />
         </Link>
       </div>
     </div>
@@ -384,10 +384,10 @@ function TabNotas({ project }: { project: any }) {
   if (notas.length === 0) {
     return (
       <div className="space-y-3">
-        <SectionLabel>Notas del proyecto</SectionLabel>
+        <SectionLabel>Project notes</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <StickyNote className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay notas</p>
+          <p className="text-sm font-medium text-[#64748B]">No notes yet</p>
           <p className="text-xs text-[#94A3B8] mt-1">Las notas vinculadas al proyecto aparecerán aquí</p>
         </div>
       </div>
@@ -396,7 +396,7 @@ function TabNotas({ project }: { project: any }) {
 
   return (
     <div className="space-y-3">
-      <SectionLabel>Notas del proyecto</SectionLabel>
+      <SectionLabel>Project notes</SectionLabel>
       <div className="space-y-3">
         {notas.map((n: any) => (
           <div key={n.id} className="bg-white rounded-xl border border-[#E2E8F0] p-5">
@@ -413,13 +413,13 @@ function TabNotas({ project }: { project: any }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: "resumen", label: "Resumen" },
-  { key: "tareas", label: "Tareas" },
-  { key: "hitos", label: "Hitos" },
-  { key: "archivos", label: "Archivos" },
-  { key: "finanzas", label: "Finanzas" },
-  { key: "notas", label: "Notas" },
-  { key: "actividad", label: "Actividad" },
+  { key: "resumen", label: "Summary" },
+  { key: "tareas", label: "Tasks" },
+  { key: "hitos", label: "Milestones" },
+  { key: "archivos", label: "Files" },
+  { key: "finanzas", label: "Finance" },
+  { key: "notas", label: "Notes" },
+  { key: "actividad", label: "Activity" },
 ];
 
 export default function ProjectDetailPage() {
@@ -437,7 +437,7 @@ export default function ProjectDetailPage() {
   if (!id) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-[#64748B]">ID de proyecto no válido</p>
+        <p className="text-sm text-[#64748B]">Invalid project ID</p>
       </div>
     );
   }
@@ -457,9 +457,9 @@ export default function ProjectDetailPage() {
       <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
           <AlertTriangle className="h-12 w-12 text-[#EF4444] mb-4" />
-          <p className="text-sm font-medium text-[#991B1B]">{error || "Proyecto no encontrado"}</p>
+          <p className="text-sm font-medium text-[#991B1B]">{error || "Project not found"}</p>
           <Link href="/proyectos" className="mt-4 text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium">
-            Volver a proyectos
+            Back to projects
           </Link>
         </div>
       </div>
@@ -472,7 +472,7 @@ export default function ProjectDetailPage() {
     <>
       <ContextShell
         breadcrumbs={[
-          { label: "Flow", href: "/" },
+          { label: "Core", href: "/" },
           { label: "Proyectos", href: "/proyectos" },
           { label: project.nombre },
         ]}
@@ -491,7 +491,7 @@ export default function ProjectDetailPage() {
               <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
                 <Building2 size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
                 <Link href={`/clientes/${project.clienteId}`} className="hover:text-[#3B82F6] transition-colors">
-                  {project.cliente?.nombre ?? "Cliente"}
+                  {project.cliente?.nombre ?? "Client"}
                 </Link>
               </span>
             )}
@@ -527,7 +527,7 @@ export default function ProjectDetailPage() {
         }
         tabs={TABS}
         defaultTab="resumen"
-        copilotContext="Flow"
+        copilotContext="Projects"
       >
         {(activeTab) => {
           if (activeTab === "resumen") return <TabResumen project={project} />;

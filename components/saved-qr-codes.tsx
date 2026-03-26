@@ -31,11 +31,11 @@ interface SavedQRCodesProps {
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps) {
@@ -55,10 +55,10 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
         const res = await fetch(`/api/qr/delete/${id}`, { method: "DELETE" })
         const json = await res.json()
         if (!json.success) throw new Error(json.error?.message)
-        toast.success("QR eliminado")
+        toast.success("QR code deleted")
         refetch()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar")
+        toast.error(err instanceof Error ? err.message : "Could not delete QR code")
       } finally {
         setDeletingId(null)
       }
@@ -77,7 +77,7 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
 
   const copyUrl = useCallback((url: string) => {
     navigator.clipboard.writeText(url)
-    toast.success("URL copiada")
+    toast.success("URL copied")
   }, [])
 
   if (qrCodes.length === 0) return null
@@ -88,7 +88,7 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <QrCode className="h-4 w-4 text-[#1a3a5c]" />
-        <h2 className="text-sm font-semibold text-foreground">Codigos QR</h2>
+        <h2 className="text-sm font-semibold text-foreground">QR codes</h2>
         <span className="text-xs text-muted-foreground">({qrCodes.length})</span>
       </div>
 
@@ -126,14 +126,14 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
               <button
                 onClick={() => downloadQR(qr.imageData, qr.label)}
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                title="Descargar"
+                title="Download"
               >
                 <Download className="h-3 w-3" />
               </button>
               <button
                 onClick={() => copyUrl(qr.url)}
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                title="Copiar URL"
+                title="Copy URL"
               >
                 <Copy className="h-3 w-3" />
               </button>
@@ -142,7 +142,7 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
                   onClick={() => handleDelete(qr.id)}
                   disabled={deletingId === qr.id}
                   className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  title="Eliminar"
+                  title="Delete"
                 >
                   {deletingId === qr.id ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -187,7 +187,7 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
                 className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#1a3a5c] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1a3a5c]/90 transition-colors"
               >
                 <Download className="h-4 w-4" />
-                Descargar
+                Download
               </button>
               <button
                 onClick={() => copyUrl(previewQR.url)}
@@ -201,7 +201,7 @@ export function SavedQRCodes({ module, recordId, refreshKey }: SavedQRCodesProps
               onClick={() => setPreviewId(null)}
               className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors mt-3"
             >
-              Cerrar
+              Close
             </button>
           </div>
         </div>

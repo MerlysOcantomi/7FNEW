@@ -21,11 +21,11 @@ interface LineItem {
 }
 
 const estadoOptions = [
-  { value: "borrador", label: "Borrador" },
-  { value: "enviada", label: "Enviada" },
-  { value: "pagada", label: "Pagada" },
-  { value: "vencida", label: "Vencida" },
-  { value: "cancelada", label: "Cancelada" },
+  { value: "borrador", label: "Draft" },
+  { value: "enviada", label: "Sent" },
+  { value: "pagada", label: "Paid" },
+  { value: "vencida", label: "Overdue" },
+  { value: "cancelada", label: "Canceled" },
 ]
 
 const emptyItem = (): LineItem => ({ descripcion: "", cantidad: 1, precioUnitario: 0, total: 0 })
@@ -94,8 +94,8 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!numero.trim()) return toast.error("El número de factura es requerido")
-    if (items.every((i) => !i.descripcion.trim())) return toast.error("Agrega al menos un concepto")
+    if (!numero.trim()) return toast.error("Invoice number is required")
+    if (items.every((i) => !i.descripcion.trim())) return toast.error("Add at least one line item")
     setSaving(true)
     try {
       const validItems = items.filter((i) => i.descripcion.trim())
@@ -113,15 +113,15 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
       }
       if (isEditing) {
         await apiPatch(`/api/facturacion/${data.id}`, body)
-        toast.success("Factura actualizada")
+        toast.success("Invoice updated")
       } else {
         await apiPost("/api/facturacion", body)
-        toast.success("Factura creada")
+        toast.success("Invoice created")
       }
       onSuccess()
       onClose()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar")
+      toast.error(err instanceof Error ? err.message : "Could not save invoice")
     } finally {
       setSaving(false)
     }
@@ -133,46 +133,46 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
+        <button onClick={onClose} className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
           <X className="h-3.5 w-3.5" />
         </button>
 
         <h2 className="text-lg font-semibold text-foreground mb-6">
-          {isEditing ? "Editar factura" : "Nueva factura"}
+          {isEditing ? "Edit invoice" : "New invoice"}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Número *">
+            <Field label="Invoice number *">
               <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="FAC-001" className="input-field" autoFocus />
             </Field>
-            <Field label="Estado">
+            <Field label="Status">
               <select value={estado} onChange={(e) => setEstado(e.target.value)} className="input-field">
                 {estadoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <Field label="IVA (%)">
+            <Field label="Tax (%)">
               <input type="number" value={impuestoPct} onChange={(e) => setImpuestoPct(Number(e.target.value) || 0)} min="0" max="100" className="input-field" />
             </Field>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Cliente">
+            <Field label="Client">
               <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="input-field">
-                <option value="">Sin cliente</option>
+                <option value="">No client</option>
                 {clientesList.map((c: any) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </Field>
-            <Field label="Proyecto">
+            <Field label="Project">
               <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} className="input-field">
-                <option value="">Sin proyecto</option>
+                <option value="">No project</option>
                 {proyectosList.map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </Field>
-            <Field label="Fecha emisión">
+            <Field label="Issue date">
               <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} className="input-field" />
             </Field>
-            <Field label="Fecha vencimiento">
+            <Field label="Due date">
               <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} className="input-field" />
             </Field>
           </div>
@@ -180,9 +180,9 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
           {/* Line items */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-xs font-medium text-muted-foreground">Conceptos</label>
+              <label className="block text-xs font-medium text-muted-foreground">Line items</label>
               <button type="button" onClick={addItem} className="flex items-center gap-1 text-xs font-medium text-foreground hover:opacity-70 transition-opacity">
-                <Plus className="h-3 w-3" /> Agregar
+                <Plus className="h-3 w-3" /> Add item
               </button>
             </div>
             <div className="flex flex-col gap-2">
@@ -192,14 +192,14 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     type="text"
                     value={item.descripcion}
                     onChange={(e) => updateItem(i, "descripcion", e.target.value)}
-                    placeholder="Descripción"
+                    placeholder="Description"
                     className="input-field"
                   />
                   <input
                     type="number"
                     value={item.cantidad || ""}
                     onChange={(e) => updateItem(i, "cantidad", e.target.value)}
-                    placeholder="Cant."
+                    placeholder="Qty."
                     min="0"
                     className="input-field text-center"
                   />
@@ -207,7 +207,7 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     type="number"
                     value={item.precioUnitario || ""}
                     onChange={(e) => updateItem(i, "precioUnitario", e.target.value)}
-                    placeholder="Precio"
+                    placeholder="Price"
                     min="0"
                     step="0.01"
                     className="input-field text-right"
@@ -219,7 +219,7 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     type="button"
                     onClick={() => removeItem(i)}
                     className="flex h-[38px] w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-                    aria-label="Eliminar concepto"
+                    aria-label="Remove line item"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -235,7 +235,7 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
               <span className="font-medium text-foreground w-28 text-right">${subtotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center gap-6">
-              <span className="text-muted-foreground">IVA ({impuestoPct}%)</span>
+              <span className="text-muted-foreground">Tax ({impuestoPct}%)</span>
               <span className="font-medium text-foreground w-28 text-right">${impuesto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center gap-6 text-base font-semibold mt-1">
@@ -246,10 +246,10 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
 
           <div className="flex items-center justify-end gap-3 mt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
-              Cancelar
+              Cancel
             </button>
             <button type="submit" disabled={saving} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50">
-              {saving ? "Guardando..." : isEditing ? "Actualizar" : "Crear factura"}
+              {saving ? "Saving..." : isEditing ? "Update invoice" : "Create invoice"}
             </button>
           </div>
         </form>

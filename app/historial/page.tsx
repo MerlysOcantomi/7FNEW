@@ -153,9 +153,9 @@ export default function HistorialPage() {
   }, [filtered])
 
   return (
-    <AppShell currentSection="historial" breadcrumbs={[{ label: "7F" }, { label: "Historial" }]}>
+    <AppShell currentSection="historial" breadcrumbs={[{ label: "7F" }, { label: "History" }]}>
       <SectionPage
-        title="Historial"
+        title="History"
         description="Log unificado de toda la actividad del workspace. Cada acción, cambio y evento registrado cronológicamente."
       >
         {/* Stats */}
@@ -165,7 +165,7 @@ export default function HistorialPage() {
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.todayCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Comentarios</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Comments</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.commentCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
@@ -241,7 +241,7 @@ export default function HistorialPage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-border bg-card/50">
             <History className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-medium text-foreground">Sin actividad registrada</p>
+            <p className="text-sm font-medium text-foreground">No activity recorded</p>
             <p className="text-xs text-muted-foreground mt-1 text-center max-w-sm">
               La actividad de clientes, proyectos, tareas, facturación y documentos aparecerá aquí.
             </p>

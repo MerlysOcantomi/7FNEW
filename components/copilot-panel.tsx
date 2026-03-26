@@ -46,7 +46,7 @@ const INITIAL_MESSAGES: Message[] = [
     id: 3,
     role: "assistant",
     content:
-      "Alpha Expansion carries a moderate risk profile. Primary exposure is in supply chain dependencies — two tier-2 vendors have not confirmed milestone deliveries. I recommend escalating to the Forge module for mitigation planning before the Q2 checkpoint.",
+      "Alpha Expansion carries a moderate risk profile. Primary exposure is in supply chain dependencies — two tier-2 vendors have not confirmed milestone deliveries. I recommend escalating with the project team before the Q2 checkpoint.",
     timestamp: "09:16",
     tag: "Risk Analysis",
   },
@@ -191,7 +191,7 @@ function PanelContent({
 }
 
 // ── Main Export ───────────────────────────────────────────────────────────────
-export function CopilotPanel({ defaultContext = "Flow" }: CopilotPanelProps) {
+export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps) {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [tabletOpen, setTabletOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

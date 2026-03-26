@@ -144,16 +144,16 @@ export default function AdminUsuariosPage() {
   }
 
   return (
-    <AppShell currentSection="admin" breadcrumbs={[{ label: "7F" }, { label: "Admin" }, { label: "Usuarios" }]}>
-      <SectionPage title="Administracion de Usuarios" description="Gestiona correos autorizados, roles y accesos. Solo la administradora puede modificar permisos.">
+    <AppShell currentSection="admin" breadcrumbs={[{ label: "7F" }, { label: "Admin" }, { label: "Users" }]}>
+      <SectionPage title="User administration" description="Manage allowed emails, roles, and access. Only administrators can change permissions.">
         <p className="text-sm text-muted-foreground -mt-2">
-          Acceso por Google: solo los correos en lista blanca pueden iniciar sesion y cada correo hereda su rol.
+          Google access: only allowlisted emails can sign in, and each email inherits its assigned role.
         </p>
         <RoleGate requiredRole="admin">
 
         {/* Tabs */}
         <div className="flex items-center gap-1.5">
-          {([["users", "Usuarios activos"], ["whitelist", "Lista blanca"]] as const).map(([id, label]) => (
+          {([["users", "Active users"], ["whitelist", "Allowlist"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -185,7 +185,7 @@ export default function AdminUsuariosPage() {
               <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-4">
                 <div>
                   <p className="text-2xl font-semibold text-foreground">{users.length}</p>
-                  <p className="text-xs text-muted-foreground">Usuarios registrados</p>
+                  <p className="text-xs text-muted-foreground">Registered users</p>
                 </div>
                 <div>
                   <p className="text-2xl font-semibold text-foreground">{users.filter((u: any) => u.role === "admin").length}</p>
@@ -204,7 +204,7 @@ export default function AdminUsuariosPage() {
               </div>
             ) : users.length === 0 ? (
               <div className="rounded-xl border border-border bg-card px-5 py-12 text-center">
-                <p className="text-sm text-muted-foreground">No hay usuarios registrados aun</p>
+                <p className="text-sm text-muted-foreground">No registered users yet</p>
               </div>
             ) : (
               users.map((user: any) => (
@@ -343,7 +343,7 @@ export default function AdminUsuariosPage() {
             ) : allowedEmails.length === 0 ? (
               <div className="rounded-xl border border-border bg-card px-5 py-12 text-center">
                 <Shield className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">No hay correos en la lista blanca</p>
+                <p className="text-sm text-muted-foreground">No emails in the allowlist</p>
                 <p className="text-xs text-muted-foreground mt-1">Agrega correos para permitir el acceso</p>
               </div>
             ) : (
@@ -390,7 +390,7 @@ export default function AdminUsuariosPage() {
                         <button
                           onClick={() => { setEditingId(entry.id); setEditRole(entry.role) }}
                           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                          title="Editar rol"
+                          title="Edit role"
                         >
                           <Edit3 className="h-3 w-3" />
                         </button>

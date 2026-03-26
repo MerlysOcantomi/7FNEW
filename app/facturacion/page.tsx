@@ -110,7 +110,7 @@ export default function FacturacionPage() {
 
       <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Funds</p>
+          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Revenue</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3 flex-wrap">
               <Link href="/finanzas" className="text-sm text-[#64748B] hover:text-[#0F172A] transition-colors font-medium">Finance</Link>
@@ -325,7 +325,7 @@ export default function FacturacionPage() {
         </div>
       </main>
 
-      <CopilotPanel defaultContext="Funds" />
+      <CopilotPanel defaultContext="Billing" />
 
       <FacturaForm open={formOpen} onClose={() => setFormOpen(false)} onSuccess={handleFormSuccess} />
     </div>

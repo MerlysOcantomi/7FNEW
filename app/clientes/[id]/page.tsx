@@ -97,10 +97,10 @@ function TabResumen({ client }: { client: any }) {
   const clienteDesde = client.createdAt ? new Date(client.createdAt).getFullYear() : null;
 
   const snapshot = [
-    { label: "Proyectos activos", value: String(proyectos.filter((p: any) => p.estado !== "completado" && p.estado !== "cancelado").length) },
-    { label: "Ingresos facturados", value: formatCurrency(totalFacturado) },
-    { label: "Facturas pendientes", value: `${facturasPendientes} (${formatCurrency(totalPendiente)})` },
-    { label: "Cliente desde", value: clienteDesde ? String(clienteDesde) : "—" },
+    { label: "Active projects", value: String(proyectos.filter((p: any) => p.estado !== "completado" && p.estado !== "cancelado").length) },
+    { label: "Billed revenue", value: formatCurrency(totalFacturado) },
+    { label: "Outstanding invoices", value: `${facturasPendientes} (${formatCurrency(totalPendiente)})` },
+    { label: "Client since", value: clienteDesde ? String(clienteDesde) : "—" },
   ];
 
   return (
@@ -116,9 +116,9 @@ function TabResumen({ client }: { client: any }) {
         </div>
         <div className="bg-[#DBEAFE] rounded-xl p-5 flex flex-col justify-between">
           <div className="mb-4">
-            <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mb-2">Perfil del cliente</p>
+            <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mb-2">Client profile</p>
             <p className="text-sm font-semibold text-[#0F172A] mb-1">{client.nombre}</p>
-            <p className="text-xs text-[#334155] leading-relaxed">{client.notas || "Sin notas."}</p>
+            <p className="text-xs text-[#334155] leading-relaxed">{client.notas || "No notes."}</p>
           </div>
           {client.empresa && (
             <div className="flex items-center gap-2">
@@ -141,11 +141,11 @@ function TabProyectos({ client }: { client: any }) {
         <SectionLabel>Proyectos del cliente</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <FolderKanban className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay proyectos para este cliente</p>
+          <p className="text-sm font-medium text-[#64748B]">No projects for this client</p>
           <p className="text-xs text-[#94A3B8] mt-1">Los proyectos vinculados al cliente aparecerán aquí</p>
           <Link href="/proyectos" className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
             <Plus size={12} strokeWidth={2.5} />
-            Nuevo proyecto
+            New project
           </Link>
         </div>
       </div>
@@ -158,7 +158,7 @@ function TabProyectos({ client }: { client: any }) {
         <SectionLabel>Proyectos del cliente</SectionLabel>
         <Link href="/proyectos" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
           <Plus size={12} strokeWidth={2.5} />
-          Nuevo proyecto
+          New project
         </Link>
       </div>
       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
@@ -181,7 +181,7 @@ function TabProyectos({ client }: { client: any }) {
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[10px] text-[#94A3B8]">Vence</p>
+                <p className="text-[10px] text-[#94A3B8]">Due</p>
                 <p className="text-xs text-[#334155] font-medium">{formatDate(p.fechaFin)}</p>
               </div>
               <Link href={`/proyectos/${p.id}`} className="shrink-0 flex items-center gap-0.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
@@ -201,13 +201,13 @@ function TabFacturacion({ client }: { client: any }) {
   if (facturas.length === 0) {
     return (
       <div className="space-y-3">
-        <SectionLabel>Facturación del cliente</SectionLabel>
+        <SectionLabel>Client billing</SectionLabel>
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
           <FileText className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No hay facturas para este cliente</p>
+          <p className="text-sm font-medium text-[#64748B]">No invoices for this client</p>
           <p className="text-xs text-[#94A3B8] mt-1">Las facturas vinculadas al cliente aparecerán aquí</p>
           <Link href="/facturacion" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
-            Ver en Funds <ArrowUpRight size={12} />
+            Open billing <ArrowUpRight size={12} />
           </Link>
         </div>
       </div>
@@ -217,17 +217,17 @@ function TabFacturacion({ client }: { client: any }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>Facturación del cliente</SectionLabel>
+        <SectionLabel>Client billing</SectionLabel>
         <Link href="/facturacion" className="text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors flex items-center gap-1">
-          Ver en Funds <ArrowUpRight size={11} />
+          Open billing <ArrowUpRight size={11} />
         </Link>
       </div>
 
       <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
         <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-          <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Factura</span>
-          <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Importe</span>
-          <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vencimiento</span>
+          <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Invoice</span>
+          <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Amount</span>
+          <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due date</span>
           <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
         </div>
         {facturas.map((f: any, i: number) => {
@@ -257,7 +257,7 @@ function TabFacturacion({ client }: { client: any }) {
                 <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s)}>{displayLabel(f.estado, estadoLabel)}</span>
               </div>
               <p className="text-sm font-medium text-[#0F172A]">{formatCurrency(f.total)}</p>
-              <p className="text-[10px] text-[#94A3B8] mt-0.5">Vence {formatDate(f.fechaVencimiento)}</p>
+              <p className="text-[10px] text-[#94A3B8] mt-0.5">Due {formatDate(f.fechaVencimiento)}</p>
             </Link>
           );
         })}
@@ -284,10 +284,10 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
           </div>
         </div>
         <div className="space-y-3">
-          <SectionLabel>Actividad reciente</SectionLabel>
+          <SectionLabel>Recent activity</SectionLabel>
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
             <Clock className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-            <p className="text-sm font-medium text-[#64748B]">No hay actividad registrada</p>
+            <p className="text-sm font-medium text-[#64748B]">No activity recorded</p>
             <p className="text-xs text-[#94A3B8] mt-1">Los cambios en el cliente se mostrarán aquí</p>
           </div>
         </div>
@@ -319,10 +319,10 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Actividad reciente</SectionLabel>
+        <SectionLabel>Recent activity</SectionLabel>
         {activities.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-8 text-center">
-            <p className="text-sm text-[#64748B]">No hay actividad registrada</p>
+            <p className="text-sm text-[#64748B]">No activity recorded</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-2 divide-y divide-[#F1F5F9]">
@@ -334,7 +334,7 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#334155] leading-snug">{label}</p>
                     <p className="text-[10px] text-[#94A3B8] mt-0.5">
-                      {a.userName || a.userEmail || "Sistema"} · {formatDate(a.createdAt)}
+                      {a.userName || a.userEmail || "System"} · {formatDate(a.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -350,10 +350,10 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: "resumen", label: "Resumen" },
-  { key: "proyectos", label: "Proyectos" },
-  { key: "facturacion", label: "Facturación" },
-  { key: "actividad", label: "Actividad" },
+  { key: "resumen", label: "Summary" },
+  { key: "proyectos", label: "Projects" },
+  { key: "facturacion", label: "Billing" },
+  { key: "actividad", label: "Activity" },
 ];
 
 export default function ClientDetailPage() {
@@ -376,7 +376,7 @@ export default function ClientDetailPage() {
   if (!id) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-[#64748B]">ID de cliente no válido</p>
+        <p className="text-sm text-[#64748B]">Invalid client ID</p>
       </div>
     );
   }
@@ -396,9 +396,9 @@ export default function ClientDetailPage() {
       <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
           <AlertTriangle className="h-12 w-12 text-[#EF4444] mb-4" />
-          <p className="text-sm font-medium text-[#991B1B]">{error || "Cliente no encontrado"}</p>
+          <p className="text-sm font-medium text-[#991B1B]">{error || "Client not found"}</p>
           <Link href="/clientes" className="mt-4 text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium">
-            Volver a clientes
+            Back to clients
           </Link>
         </div>
       </div>
@@ -411,8 +411,8 @@ export default function ClientDetailPage() {
     <>
       <ContextShell
         breadcrumbs={[
-          { label: "Flow", href: "/" },
-          { label: "Clientes", href: "/clientes" },
+          { label: "Core", href: "/" },
+          { label: "Clients", href: "/clientes" },
           { label: client.nombre },
         ]}
         heading={
@@ -459,20 +459,20 @@ export default function ClientDetailPage() {
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors"
             >
               <Pencil size={13} strokeWidth={1.75} />
-              Editar
+              Edit
             </button>
             <Link
               href="/facturacion"
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors"
             >
               <TrendingUp size={13} strokeWidth={1.75} />
-              Ver facturación
+              View billing
             </Link>
           </>
         }
         tabs={TABS}
         defaultTab="resumen"
-        copilotContext="Flow"
+        copilotContext="Clients"
       >
         {(activeTab) => {
           if (activeTab === "resumen") return <TabResumen client={client} />;
