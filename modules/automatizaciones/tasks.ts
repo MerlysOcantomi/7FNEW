@@ -1,8 +1,7 @@
 import { db } from "@core/db"
 import { askMotorIA } from "@engines/ai"
-import { DEFAULT_WORKSPACE_ID } from "@core/workspace"
 
-export async function detectarRetrasos(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function detectarRetrasos(workspaceId: string) {
   const hoy = new Date()
   const tareas = await db.tarea.findMany({
     where: {
@@ -27,7 +26,7 @@ export async function detectarRetrasos(workspaceId = DEFAULT_WORKSPACE_ID) {
   return { count: tareas.length, tareas: tareas.map((t) => t.id), result }
 }
 
-export async function sugerirReprogramacion(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function sugerirReprogramacion(workspaceId: string) {
   const hoy = new Date()
   const tareas = await db.tarea.findMany({
     where: {
@@ -52,7 +51,7 @@ export async function sugerirReprogramacion(workspaceId = DEFAULT_WORKSPACE_ID) 
   return { count: tareas.length, result }
 }
 
-export async function generarSubtareas(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function generarSubtareas(workspaceId: string) {
   const tareas = await db.tarea.findMany({
     where: {
       workspaceId,
@@ -77,7 +76,7 @@ export async function generarSubtareas(workspaceId = DEFAULT_WORKSPACE_ID) {
   return { count: tareas.length, result }
 }
 
-export async function resumenDiario(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function resumenDiario(workspaceId: string) {
   const hoy = new Date()
   const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
   const fin = new Date(inicio)

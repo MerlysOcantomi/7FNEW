@@ -5,9 +5,23 @@ import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ id: string }> }
 
+function ensurePlatformAdmin(role: string) {
+  if (role !== "admin") {
+    return errorResponse(
+      "FORBIDDEN",
+      "Se requiere rol global admin para operar sobre recursos globales",
+      403
+    )
+  }
+
+  return null
+}
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    await requireAdminAccess()
+    const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const { id } = await params
     const body = await request.json()
@@ -36,6 +50,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
     const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const { id } = await params
     const record = await db.allowedEmail.findUnique({ where: { id } })

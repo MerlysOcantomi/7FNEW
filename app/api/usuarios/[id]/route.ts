@@ -2,11 +2,13 @@ import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { updateUsuarioSchema } from "@modules/usuarios/validation"
 import * as service from "@modules/usuarios/service"
+import { requireAdminAccess, requireReadAccess } from "@/lib/auth/workspace-auth"
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
+    await requireReadAccess(request)
     const { id } = await params
     const record = await service.getById(id)
     if (!record) return errorResponse("NOT_FOUND", "Usuario no encontrado", 404)
@@ -18,6 +20,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    await requireAdminAccess(request)
     const { id } = await params
     const body = await request.json()
     const data = updateUsuarioSchema.parse(body)
@@ -28,8 +31,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
+    await requireAdminAccess(request)
     const { id } = await params
     await service.remove(id)
     return successResponse({ deleted: true })

@@ -14,6 +14,7 @@ import {
   detectarVencimientos,
   generarRecordatorios,
 } from "@modules/automatizaciones/invoices"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 
 const VALID_ACTIONS = [
   "detectar_retrasos",
@@ -32,6 +33,7 @@ type AutomationAction = (typeof VALID_ACTIONS)[number]
 
 export async function POST(request: NextRequest) {
   try {
+    const { workspaceId } = await requireReadAccess(request)
     const body = await request.json()
     const { action } = body as { action?: string }
 
@@ -49,42 +51,42 @@ export async function POST(request: NextRequest) {
 
     switch (action as AutomationAction) {
       case "detectar_retrasos":
-        result = await detectarRetrasos()
+        result = await detectarRetrasos(workspaceId)
         break
       case "sugerir_reprogramacion":
-        result = await sugerirReprogramacion()
+        result = await sugerirReprogramacion(workspaceId)
         break
       case "generar_subtareas":
-        result = await generarSubtareas()
+        result = await generarSubtareas(workspaceId)
         break
       case "resumen_diario":
-        result = await resumenDiario()
+        result = await resumenDiario(workspaceId)
         break
       case "detectar_bloqueos":
-        result = await detectarBloqueos()
+        result = await detectarBloqueos(workspaceId)
         break
       case "sugerir_siguientes_pasos":
-        result = await sugerirSiguientesPasos()
+        result = await sugerirSiguientesPasos(workspaceId)
         break
       case "detectar_vencimientos":
-        result = await detectarVencimientos()
+        result = await detectarVencimientos(workspaceId)
         break
       case "generar_recordatorios":
-        result = await generarRecordatorios()
+        result = await generarRecordatorios(workspaceId)
         break
       case "analisis_diario":
         result = {
-          tareas: await detectarRetrasos(),
-          resumen: await resumenDiario(),
-          facturas: await detectarVencimientos(),
+          tareas: await detectarRetrasos(workspaceId),
+          resumen: await resumenDiario(workspaceId),
+          facturas: await detectarVencimientos(workspaceId),
         }
         break
       case "analisis_semanal":
         result = {
-          tareas: await detectarRetrasos(),
-          proyectos: await detectarBloqueos(),
-          facturas: await detectarVencimientos(),
-          pasos: await sugerirSiguientesPasos(),
+          tareas: await detectarRetrasos(workspaceId),
+          proyectos: await detectarBloqueos(workspaceId),
+          facturas: await detectarVencimientos(workspaceId),
+          pasos: await sugerirSiguientesPasos(workspaceId),
         }
         break
     }

@@ -3,9 +3,23 @@ import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireAdminAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
+function ensurePlatformAdmin(role: string) {
+  if (role !== "admin") {
+    return errorResponse(
+      "FORBIDDEN",
+      "Se requiere rol global admin para operar sobre usuarios globales",
+      403
+    )
+  }
+
+  return null
+}
+
 export async function GET() {
   try {
-    await requireAdminAccess()
+    const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const users = await db.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -19,7 +33,9 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    await requireAdminAccess()
+    const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const body = await request.json()
     const { userId, role } = body as { userId?: string; role?: string }
@@ -56,6 +72,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const body = await request.json()
     const { userId } = body as { userId?: string }

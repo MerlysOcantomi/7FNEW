@@ -1,8 +1,7 @@
 import { db } from "@core/db"
 import { askMotorIA } from "@engines/ai"
-import { DEFAULT_WORKSPACE_ID } from "@core/workspace"
 
-export async function detectarVencimientos(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function detectarVencimientos(workspaceId: string) {
   const hoy = new Date()
   const facturas = await db.factura.findMany({
     where: {
@@ -30,7 +29,7 @@ export async function detectarVencimientos(workspaceId = DEFAULT_WORKSPACE_ID) {
   return { count: facturas.length, totalVencido, result }
 }
 
-export async function generarRecordatorios(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function generarRecordatorios(workspaceId: string) {
   const hoy = new Date()
   const en7dias = new Date(hoy)
   en7dias.setDate(en7dias.getDate() + 7)

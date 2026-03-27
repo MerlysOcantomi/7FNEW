@@ -26,7 +26,7 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId } = await requireWriteAccess(request)
+    const { workspaceId, session } = await requireWriteAccess(request)
     const body = await request.json()
     const { message, history = [] } = body
 
@@ -97,7 +97,10 @@ export async function POST(request: NextRequest) {
           }
 
           console.log(`[Agent] Tool call: ${fnName}`, fnArgs)
-          const result = await executeToolCall(fnName, fnArgs)
+          const result = await executeToolCall(fnName, fnArgs, {
+            workspaceId,
+            userId: session.userId,
+          })
 
           actions.push({ tool: fnName, args: fnArgs, result })
           if (result.imageUrl) images.push(result.imageUrl)

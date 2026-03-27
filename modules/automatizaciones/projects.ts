@@ -1,8 +1,7 @@
 import { db } from "@core/db"
 import { askMotorIA } from "@engines/ai"
-import { DEFAULT_WORKSPACE_ID } from "@core/workspace"
 
-export async function detectarBloqueos(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function detectarBloqueos(workspaceId: string) {
   const proyectos = await db.proyecto.findMany({
     where: {
       workspaceId,
@@ -41,7 +40,7 @@ export async function detectarBloqueos(workspaceId = DEFAULT_WORKSPACE_ID) {
   return { count: proyectos.length, result }
 }
 
-export async function sugerirSiguientesPasos(workspaceId = DEFAULT_WORKSPACE_ID) {
+export async function sugerirSiguientesPasos(workspaceId: string) {
   const proyectos = await db.proyecto.findMany({
     where: {
       workspaceId,

@@ -3,9 +3,23 @@ import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireAdminAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
+function ensurePlatformAdmin(role: string) {
+  if (role !== "admin") {
+    return errorResponse(
+      "FORBIDDEN",
+      "Se requiere rol global admin para operar sobre recursos globales",
+      403
+    )
+  }
+
+  return null
+}
+
 export async function GET() {
   try {
-    await requireAdminAccess()
+    const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const emails = await db.allowedEmail.findMany({
       orderBy: { createdAt: "desc" },
@@ -19,7 +33,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdminAccess()
+    const { session } = await requireAdminAccess()
+    const forbidden = ensurePlatformAdmin(session.role)
+    if (forbidden) return forbidden
 
     const body = await request.json()
     const { email, role } = body as { email?: string; role?: string }

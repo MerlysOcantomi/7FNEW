@@ -7,13 +7,15 @@ import { analyzeDocument } from "@tools/scan"
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function POST(_request: NextRequest, { params }: Params) {
+export async function POST(request: NextRequest, { params }: Params) {
   try {
-    await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(request)
 
     const { id } = await params
 
-    const attachment = await db.attachment.findUnique({ where: { id } })
+    const attachment = await db.attachment.findFirst({
+      where: { id, workspaceId },
+    })
     if (!attachment) return errorResponse("NOT_FOUND", "Archivo no encontrado", 404)
 
     if (!isScannable(attachment.tipo)) {
