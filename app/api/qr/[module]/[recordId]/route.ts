@@ -5,13 +5,13 @@ import { successResponse, handleError } from "@/lib/api"
 
 type Params = { params: Promise<{ module: string; recordId: string }> }
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
-    await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(request)
     const { module, recordId } = await params
 
     const qrCodes = await db.qRCode.findMany({
-      where: { module, recordId },
+      where: { module, recordId, workspaceId },
       orderBy: { createdAt: "desc" },
     })
 

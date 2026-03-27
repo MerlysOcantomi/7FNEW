@@ -6,7 +6,7 @@ import { generateQRDataURL, isValidUrl } from "@/lib/qr"
 
 export async function POST(request: NextRequest) {
   try {
-    const { session } = await requireWriteAccess()
+    const { session, workspaceId } = await requireWriteAccess(request)
     const body = await request.json()
     const { url, module, recordId, label } = body
 
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         imageData,
         label: label || null,
         createdBy: session.userId,
+        workspaceId,
       },
     })
 

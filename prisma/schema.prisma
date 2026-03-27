@@ -594,7 +594,10 @@ model QRCode {
   imageData String
   label     String?
   createdBy String?
+  workspaceId String?
   createdAt DateTime @default(now())
+
+  @@index([workspaceId, module, recordId])
 }
 
 model ClientAuth {
