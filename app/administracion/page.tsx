@@ -17,6 +17,7 @@ import { getRequiredWorkspaceId } from "@/core/workspace-context"
 import { checkMembership, getWorkspaceWithResolvedConfig } from "@/core/workspace"
 import { parseSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
 import { AdministracionContent } from "@/components/administracion-content"
+import { resolveWorkspaceVocabulary } from "@core/personalization/resolve-workspace"
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -32,6 +33,7 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
   let workspaceId = ""
   let wsRole = "VIEWER"
   let moduleConfig: Record<string, boolean> = {}
+  let vocabulary: import("@core/personalization").EntityVocabulary | undefined
 
   try {
     workspaceId = await getRequiredWorkspaceId()
@@ -42,8 +44,10 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
     if (ws) {
       moduleConfig = ws.resolvedConfig.modules
     }
+
+    vocabulary = await resolveWorkspaceVocabulary(workspaceId)
   } catch {
-    // If workspace resolution fails, render with empty config
+    // If workspace resolution fails, render with empty config + default vocabulary
   }
 
   return (
@@ -52,6 +56,7 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
       workspaceId={workspaceId}
       wsRole={wsRole}
       moduleConfig={moduleConfig}
+      vocabulary={vocabulary}
     />
   )
 }

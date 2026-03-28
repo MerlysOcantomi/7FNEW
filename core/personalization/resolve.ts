@@ -91,3 +91,15 @@ export function getLabel(
 ): string {
   return vocabulary[key]?.[form] ?? DEFAULT_VOCABULARY[key]?.[form] ?? key
 }
+
+const VERTICAL_KEY_TO_BUSINESS_TYPE: Record<string, BusinessType> = {
+  "creative-agency": "creator",
+  creator: "creator",
+  school: "school",
+  clinic: "clinic",
+  service: "service",
+}
+
+export function mapVerticalKeyToBusinessType(verticalKey: string): BusinessType {
+  return VERTICAL_KEY_TO_BUSINESS_TYPE[verticalKey] ?? "default"
+}

@@ -76,7 +76,7 @@ function buildCoreCapabilities(v: EntityVocabulary = DEFAULT_VOCABULARY): Capabi
   ]
 }
 
-const CORE_CAPABILITIES = buildCoreCapabilities()
+const CORE_CAPABILITIES_DEFAULT = buildCoreCapabilities()
 
 // ── Extension Packs ────────────────────────────────────────────────────────────
 type PackKey = "standard" | "construction" | "ecommerce"
@@ -326,6 +326,7 @@ interface AdministracionContentProps {
   workspaceId: string
   wsRole: string
   moduleConfig: Record<string, boolean>
+  vocabulary?: EntityVocabulary
 }
 
 export function AdministracionContent({
@@ -333,7 +334,11 @@ export function AdministracionContent({
   workspaceId,
   wsRole,
   moduleConfig,
+  vocabulary,
 }: AdministracionContentProps) {
+  const v = vocabulary ?? DEFAULT_VOCABULARY
+  const CORE_CAPABILITIES = vocabulary ? buildCoreCapabilities(v) : CORE_CAPABILITIES_DEFAULT
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [copilotCollapsed, setCopilotCollapsed] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)

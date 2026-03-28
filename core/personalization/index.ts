@@ -8,4 +8,5 @@ export type {
 
 export { DEFAULT_VOCABULARY } from "./vocabulary"
 export { BUSINESS_PRESETS } from "./presets"
-export { resolveVocabulary, getLabel } from "./resolve"
+export { resolveVocabulary, getLabel, mapVerticalKeyToBusinessType } from "./resolve"
+export { resolveWorkspaceVocabulary } from "./resolve-workspace"
