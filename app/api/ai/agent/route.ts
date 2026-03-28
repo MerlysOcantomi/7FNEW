@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from "@/lib/api"
 import { AGENT_SYSTEM_PROMPT } from "@/agents/forte/system-prompt"
 import { getAgentToolsForContext } from "@/agents/forte/tools"
 import { executeToolCall } from "@/agents/forte/executor"
-import { requireWriteAccess } from "@/lib/auth/workspace-auth"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { gatherBusinessContext } from "@tools/context/gather-business-context"
 import { buildAssistantForteContext } from "@/agents/forte/runtime/agent-adapter"
 
@@ -27,7 +27,7 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId, session, wsRole } = await requireWriteAccess(request)
+    const { workspaceId, session, wsRole } = await requireReadAccess(request)
     const body = await request.json()
     const { message, history = [] } = body
 

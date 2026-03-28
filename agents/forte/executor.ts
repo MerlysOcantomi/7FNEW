@@ -232,7 +232,7 @@ async function createTarea(args: any, context: ToolExecutionContext): Promise<To
       proyectoId,
       clienteId,
       workspaceId: context.workspaceId,
-      fechaLimite: args.fechaLimite ? new Date(args.fechaLimite) : null,
+      fechaLimite: (args.fechaVencimiento || args.fechaLimite) ? new Date(args.fechaVencimiento || args.fechaLimite) : null,
       updatedAt: new Date(),
     },
   })

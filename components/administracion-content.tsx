@@ -529,7 +529,7 @@ export function AdministracionContent({
                                   <div className="flex items-center gap-1.5">
                                     <ToggleRight size={20} className="text-[#3B82F6]" strokeWidth={1.5} />
                                     <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide hidden sm:block">
-                                      Base
+                                      Always on
                                     </span>
                                   </div>
                                 ) : (
@@ -612,21 +612,28 @@ export function AdministracionContent({
                         The standard workspace does not include additional optional packs.
                       </p>
                       <p className="text-xs text-[#CBD5E1] mt-1">
-                        Select a pack to review extra capabilities.
+                        Select a pack to preview extra capabilities.
                       </p>
                     </div>
                   ) : (
-                    <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {currentPack.groups.map((group) => (
-                        <CapabilityGroupBlock
-                          key={group.section}
-                          group={group}
-                          enabledMap={extensionEnabled}
-                          onToggle={toggleExtension}
-                          bgClass="bg-[#F8FAFC]"
-                          highlightId={highlightId}
-                        />
-                      ))}
+                    <div className="p-5 space-y-3">
+                      <div className="px-3 py-2 bg-[#FEF9C3] border border-[#FDE68A] rounded-lg">
+                        <p className="text-xs text-[#92400E] font-medium">
+                          Preview only — pack capabilities are not configurable yet.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {currentPack.groups.map((group) => (
+                          <CapabilityGroupBlock
+                            key={group.section}
+                            group={{ ...group, items: group.items.map((i) => ({ ...i, locked: true })) }}
+                            enabledMap={extensionEnabled}
+                            onToggle={() => {}}
+                            bgClass="bg-[#F8FAFC]"
+                            highlightId={highlightId}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -643,9 +650,8 @@ export function AdministracionContent({
                 <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden max-w-lg">
                   <div className="divide-y divide-[#F1F5F9]">
                     {ADVANCED_ITEMS.map((item) => {
-                      const configKey = getConfigKey(item.id)
-                      const hasRealConfig = !!configKey
-                      const isLocked = !hasRealConfig && !isAdmin
+                      const hasRealConfig = !!getConfigKey(item.id)
+                      const isLocked = !hasRealConfig
 
                       return (
                         <div
@@ -654,14 +660,20 @@ export function AdministracionContent({
                             item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
                           }`}
                         >
-                          <span className={`text-sm ${advancedEnabled[item.id] ? "text-[#334155] font-medium" : "text-[#94A3B8]"}`}>
+                          <span className={`text-sm ${isLocked ? "text-[#94A3B8]" : advancedEnabled[item.id] ? "text-[#334155] font-medium" : "text-[#94A3B8]"}`}>
                             {item.label}
                           </span>
-                          <Toggle
-                            enabled={advancedEnabled[item.id] ?? false}
-                            locked={isLocked}
-                            onToggle={() => toggleAdvanced(item.id)}
-                          />
+                          {isLocked ? (
+                            <span className="text-[10px] font-medium text-[#CBD5E1] uppercase tracking-wide">
+                              Coming soon
+                            </span>
+                          ) : (
+                            <Toggle
+                              enabled={advancedEnabled[item.id] ?? false}
+                              locked={!isAdmin}
+                              onToggle={() => toggleAdvanced(item.id)}
+                            />
+                          )}
                         </div>
                       )
                     })}
