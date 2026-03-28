@@ -22,3 +22,12 @@ export type {
   RecommendationTargetSource,
   GuidedRecommendationTarget,
 } from "./recommendation-routing"
+export {
+  loadForteImprovements,
+  buildImprovementsViewModel,
+  resolveMaturity,
+} from "./improvements-loader"
+export type {
+  WorkspaceMaturity,
+  ForteImprovementsViewModel,
+} from "./improvements-loader"
