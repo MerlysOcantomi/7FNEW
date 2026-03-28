@@ -4,10 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ArrowUpRight, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DEFAULT_VOCABULARY } from "@core/personalization";
+
+const v = DEFAULT_VOCABULARY;
 
 // ── Workspace context chips ──────────────────────────────────────────────────
 const CONTEXT_CHIPS = ["Overview", "Clients", "Projects", "Finance", "Billing", "Improvements"] as const;
 type ContextChip = (typeof CONTEXT_CHIPS)[number];
+
+const CHIP_LABELS: Record<ContextChip, string> = {
+  Overview: "Overview",
+  Clients: v.client.plural,
+  Projects: v.project.plural,
+  Finance: v.finance.singular,
+  Billing: v.billing.singular,
+  Improvements: "Improvements",
+};
 
 const CHIP_SUBTITLES: Record<ContextChip, string> = {
   Overview: "Business signals",
@@ -25,23 +37,23 @@ const ENTITY_OPTIONS: Record<ContextChip, { label: string; href: string }[]> = {
     { label: "Recent activity", href: "/" },
   ],
   Clients: [
-    { label: "Priority client", href: "/clientes" },
-    { label: "Active client", href: "/clientes" },
-    { label: "Client portfolio", href: "/clientes" },
+    { label: `Priority ${v.client.singular.toLowerCase()}`, href: "/clientes" },
+    { label: `Active ${v.client.singular.toLowerCase()}`, href: "/clientes" },
+    { label: `${v.client.singular} portfolio`, href: "/clientes" },
   ],
   Projects: [
-    { label: "Current project", href: "/proyectos" },
-    { label: "Priority project", href: "/proyectos" },
-    { label: "Project portfolio", href: "/proyectos" },
+    { label: `Current ${v.project.singular.toLowerCase()}`, href: "/proyectos" },
+    { label: `Priority ${v.project.singular.toLowerCase()}`, href: "/proyectos" },
+    { label: `${v.project.singular} portfolio`, href: "/proyectos" },
   ],
   Finance: [
-    { label: "Finance workspace", href: "/finanzas" },
+    { label: `${v.finance.singular} workspace`, href: "/finanzas" },
     { label: "Operating reserve", href: "/finanzas" },
     { label: "Liquidity buffer", href: "/finanzas" },
   ],
   Billing: [
     { label: "INV-2024-089", href: "/facturacion" },
-    { label: "Pending invoices", href: "/facturacion" },
+    { label: `Pending ${v.invoice.plural.toLowerCase()}`, href: "/facturacion" },
     { label: "Collections review", href: "/facturacion" },
   ],
   Improvements: [
@@ -93,7 +105,7 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
                 : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#3B82F6]"
             )}
           >
-            {chip}
+            {CHIP_LABELS[chip]}
           </button>
         ))}
       </div>

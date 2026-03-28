@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import type { DashboardData, DashboardPriorityKind, DashboardRecommendationPreview, ForteInsight } from "@core/dashboard";
+import { DEFAULT_VOCABULARY } from "@core/personalization";
+
+const v = DEFAULT_VOCABULARY;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -112,7 +115,7 @@ export default function Dashboard() {
   const moduleCards = modulesSummary
     ? [
         {
-          label: "Clients",
+          label: v.client.plural,
           value: String(modulesSummary.totalClients),
           detail: modulesSummary.totalClients > 0 ? "Active relationships in the workspace" : "No clients added yet",
           icon: Users,
@@ -121,7 +124,7 @@ export default function Dashboard() {
           surface: "bg-[#EFF6FF]",
         },
         {
-          label: "Projects",
+          label: v.project.plural,
           value: String(modulesSummary.activeProjects),
           detail: modulesSummary.activeProjects > 0 ? "Work currently in motion" : "No active delivery right now",
           icon: FolderKanban,
@@ -130,7 +133,7 @@ export default function Dashboard() {
           surface: "bg-white",
         },
         {
-          label: "Tasks",
+          label: v.task.plural,
           value: String(modulesSummary.overdueTasks),
           detail: modulesSummary.overdueTasks > 0 ? "Overdue tasks need follow-up" : "No overdue tasks right now",
           icon: CheckSquare,
@@ -139,12 +142,12 @@ export default function Dashboard() {
           surface: "bg-white",
         },
         {
-          label: "Billing",
+          label: v.billing.singular,
           value: fmt(modulesSummary.billedThisMonth),
           detail:
             modulesSummary.pendingInvoices > 0
-              ? `${modulesSummary.pendingInvoices} invoices still pending`
-              : "No pending invoices",
+              ? `${modulesSummary.pendingInvoices} ${v.invoice.plural.toLowerCase()} still pending`
+              : `No pending ${v.invoice.plural.toLowerCase()}`,
           icon: DollarSign,
           href: "/facturacion",
           accent: "text-[#2563EB]",
@@ -183,7 +186,7 @@ export default function Dashboard() {
                   className="flex items-center gap-2 rounded-lg bg-[#0F172A] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#1E293B]"
                 >
                   <Inbox size={14} strokeWidth={1.75} />
-                  {hero?.quickActions[0]?.label ?? "Open Smart Inbox"}
+                  {hero?.quickActions[0]?.label ?? `Open ${v.inbox.singular}`}
                 </Link>
                 <Link
                   href={hero?.quickActions[1]?.href ?? "/agente"}
@@ -377,7 +380,7 @@ export default function Dashboard() {
                           href="/finanzas"
                           className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                         >
-                          View finance <ChevronRight size={11} />
+                          View {v.finance.singular.toLowerCase()} <ChevronRight size={11} />
                         </Link>
                       </div>
                       <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
@@ -415,9 +418,9 @@ export default function Dashboard() {
                                   <FileText size={13} className="text-[#854D0E]" strokeWidth={1.75} />
                                 </div>
                                 <div>
-                                  <p className="text-xs font-medium text-[#0F172A]">Pending invoices</p>
+                                  <p className="text-xs font-medium text-[#0F172A]">Pending {v.invoice.plural.toLowerCase()}</p>
                                   <p className="text-[10px] text-[#64748B]">
-                                    {finance.pendingInvoicesCount} invoices · {fmt(finance.pendingInvoicesAmount)}
+                                    {finance.pendingInvoicesCount} {v.invoice.plural.toLowerCase()} · {fmt(finance.pendingInvoicesAmount)}
                                   </p>
                                 </div>
                               </div>
