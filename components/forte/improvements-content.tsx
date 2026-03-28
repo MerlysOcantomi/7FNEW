@@ -6,6 +6,7 @@ import { ForteHeader } from "@/components/forte/forte-header"
 import { DomainCard, DOMAIN_LABELS } from "@/components/forte/domain-card"
 import type { ForteImprovementsViewModel } from "@/agents/forte/runtime/business/improvements-loader"
 import { resolveRecommendationTarget } from "@/agents/forte/runtime/business/recommendation-routing"
+import { buildSettingsHandoffUrl } from "@/agents/forte/runtime/business/settings-handoff"
 import { AlertTriangle, ArrowRight, Lightbulb, TrendingUp, Inbox } from "lucide-react"
 
 function buildRoutesByCapability(
@@ -58,7 +59,7 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
                 and this page will reflect your real business structure.
               </p>
               <Link
-                href="/administracion"
+                href={buildSettingsHandoffUrl({ reason: "empty-workspace" })}
                 className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-[#3B82F6] hover:text-[#1D4ED8] hover:underline transition-colors"
               >
                 Open Workspace Settings

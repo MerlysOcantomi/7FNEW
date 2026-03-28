@@ -31,3 +31,9 @@ export type {
   WorkspaceMaturity,
   ForteImprovementsViewModel,
 } from "./improvements-loader"
+export {
+  buildSettingsHandoffUrl,
+  parseSettingsHandoff,
+  resolveSettingsItemId,
+} from "./settings-handoff"
+export type { ForteSettingsHandoff } from "./settings-handoff"
