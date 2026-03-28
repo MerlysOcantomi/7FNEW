@@ -58,6 +58,7 @@ model Workspace {
   aiClassifications AIClassification[]
   conversationHandoffs ConversationHandoff[]
   conversationDrafts ConversationDraft[]
+  forteSnapshot  ForteSnapshot?
 }
 
 model Cliente {
@@ -797,4 +798,21 @@ model Attachment {
   createdAt   DateTime @default(now())
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+// ── Forte Analysis Snapshot ──
+
+model ForteSnapshot {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  maturity    String
+  payload     String
+  version     Int      @default(1)
+  analyzedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }

@@ -37,3 +37,9 @@ export {
   resolveSettingsItemId,
 } from "./settings-handoff"
 export type { ForteSettingsHandoff } from "./settings-handoff"
+export {
+  upsertForteSnapshot,
+  getLatestForteSnapshot,
+  deleteForteSnapshot,
+} from "./snapshot-store"
+export type { ForteAnalysisSnapshot } from "./snapshot-store"

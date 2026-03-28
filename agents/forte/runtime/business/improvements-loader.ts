@@ -19,6 +19,7 @@ import {
   buildGuidedRecommendations,
   resolveNextMoveTarget,
 } from "./recommendation-routing"
+import { upsertForteSnapshot } from "./snapshot-store"
 
 // ── View model ───────────────────────────────────────────────────────────────
 
@@ -79,5 +80,18 @@ export async function loadForteImprovements(
   context: ForteContext,
 ): Promise<ForteImprovementsViewModel> {
   const capabilities = await resolveForteCapabilities({ context })
-  return buildImprovementsViewModel(capabilities)
+  const viewModel = buildImprovementsViewModel(capabilities)
+
+  // Persist latest analysis snapshot (non-blocking — page renders even if save fails)
+  upsertForteSnapshot({
+    workspaceId: context.workspaceId,
+    maturity: viewModel.maturity,
+    domains: viewModel.domains,
+    topPriorities: viewModel.recommendations,
+    recommendedNextMove: viewModel.nextMove,
+  }).catch((err) => {
+    console.error("[Forte] Failed to persist analysis snapshot:", err)
+  })
+
+  return viewModel
 }
