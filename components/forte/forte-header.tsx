@@ -32,8 +32,8 @@ function buildForteSummary(domains: DomainState[]): ForteSummary {
     }
   }
 
-  const titleParts = weakNames.slice(0, 3).join(", ")
-  const titleSuffix = weakNames.length > 3 ? ` and ${weakNames.length - 3} more` : ""
+  const shown = weakNames.slice(0, 3).join(", ")
+  const extra = weakNames.length - 3
 
   const subtitleParts: string[] = []
   if (strongNames.length > 0) {
@@ -53,7 +53,11 @@ function buildForteSummary(domains: DomainState[]): ForteSummary {
   }
 
   return {
-    title: `${titleParts}${titleSuffix} need${weakNames.length === 1 ? "s" : ""} attention`,
+    title: weakNames.length === 1
+      ? `${shown} needs attention`
+      : extra > 0
+        ? `${weakNames.length} areas need attention — ${shown} + ${extra} more`
+        : `${shown} need attention`,
     subtitle: subtitleParts.join(". ") + ".",
     forteQuote,
   }

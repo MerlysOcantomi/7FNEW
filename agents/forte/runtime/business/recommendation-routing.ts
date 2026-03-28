@@ -53,7 +53,7 @@ const CAPABILITY_ROUTE_MAP: Record<string, RouteEntry> = {
   financeControl:   { href: "/finanzas",          label: "Open Finance",             kind: "module" },
   contentMarketing: { href: "/contenido",         label: "Open Marketing",           kind: "module" },
   campaigns:        { href: "/contenido",         label: "Open Marketing",           kind: "module" },
-  documents:        { href: "/archivos",          label: "Go to Files",              kind: "module" },
+  documents:        { href: "/archivos",          label: "Open Documents",           kind: "module" },
   documentAnalysis: { href: "/motor",             label: "Open AI Workspace",        kind: "workspace" },
   aiAssistance:     { href: "/motor",             label: "Open AI Workspace",        kind: "workspace" },
 }

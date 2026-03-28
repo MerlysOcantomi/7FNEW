@@ -151,7 +151,9 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
             <p className="text-xs text-[#94A3B8] mt-0.5">
               {state.supportingModules.length > 0
                 ? `${state.supportingModules.length} module${state.supportingModules.length > 1 ? "s" : ""} active`
-                : "No modules active"}
+                : state.supportingSignals.length > 0
+                  ? "Signals detected, no dedicated modules"
+                  : "No modules active"}
             </p>
           </div>
         </div>
