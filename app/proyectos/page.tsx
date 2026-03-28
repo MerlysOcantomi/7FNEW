@@ -275,7 +275,7 @@ export default function ProyectosPage() {
                       <span className="col-span-1 text-xs text-[#64748B] whitespace-nowrap">{formatDate(p.fechaFin)}</span>
                       <div className="col-span-1 flex justify-end">
                         <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
-                          Ver <ArrowUpRight size={11} />
+                          View <ArrowUpRight size={11} />
                         </Link>
                       </div>
                     </div>
@@ -295,10 +295,10 @@ export default function ProyectosPage() {
                       </div>
                       <div className="mb-3">
                         <ProgressBar value={p.progreso ?? 0} />
-                        <p className="text-[10px] text-[#94A3B8] mt-1">{p.progreso ?? 0}% · Vence {formatDate(p.fechaFin)}</p>
+                        <p className="text-[10px] text-[#94A3B8] mt-1">{p.progreso ?? 0}% · Due {formatDate(p.fechaFin)}</p>
                       </div>
                       <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
-                        Ver proyecto <ArrowUpRight size={11} />
+                        View project <ArrowUpRight size={11} />
                       </Link>
                     </div>
                   ))}

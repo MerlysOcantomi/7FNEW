@@ -496,7 +496,7 @@ function HistorialAnalisis() {
                 </div>
               </div>
               <button className="flex items-center gap-1 text-xs font-semibold text-[#3B82F6] hover:text-[#1D4ED8] transition-colors shrink-0 sm:opacity-0 sm:group-hover:opacity-100">
-                Ver detalle
+                View details
                 <ChevronRight size={11} />
               </button>
             </div>

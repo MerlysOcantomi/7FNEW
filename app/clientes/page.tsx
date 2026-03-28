@@ -285,7 +285,7 @@ export default function ClientesPage() {
                         </div>
                         <div className="col-span-2 flex items-center gap-1.5">
                           <FolderKanban size={13} className="text-[#94A3B8]" strokeWidth={1.75} />
-                          <span className="text-sm text-[#334155]">{count.proyectos ?? 0} proyecto{(count.proyectos ?? 0) !== 1 ? "s" : ""}</span>
+                          <span className="text-sm text-[#334155]">{count.proyectos ?? 0} {(count.proyectos ?? 0) !== 1 ? "projects" : "project"}</span>
                         </div>
                         <span className="col-span-1 text-xs text-[#64748B]">{formatDate(c.updatedAt)}</span>
                         <div className="col-span-1 flex items-center justify-end gap-1">
@@ -293,7 +293,7 @@ export default function ClientesPage() {
                             href={`/clientes/${c.id}`}
                             className="flex items-center gap-0.5 text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors"
                           >
-                            Ver <ArrowUpRight size={11} />
+                            View <ArrowUpRight size={11} />
                           </Link>
                           <RowActions clientId={c.id} />
                         </div>
@@ -325,14 +325,14 @@ export default function ClientesPage() {
                         </div>
                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F1F5F9]">
                           <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-xs text-[#64748B]">{count.proyectos ?? 0} proyecto{(count.proyectos ?? 0) !== 1 ? "s" : ""}</span>
+                            <span className="text-xs text-[#64748B]">{count.proyectos ?? 0} {(count.proyectos ?? 0) !== 1 ? "projects" : "project"}</span>
                             <span className="text-[10px] text-[#94A3B8]">Updated {formatDate(c.updatedAt)}</span>
                           </div>
                           <Link
                             href={`/clientes/${c.id}`}
                             className="flex items-center gap-1 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors shrink-0"
                           >
-                            Ver <ArrowUpRight size={11} />
+                            View <ArrowUpRight size={11} />
                           </Link>
                         </div>
                       </div>

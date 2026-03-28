@@ -27,9 +27,9 @@ interface RequestItem {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  OPEN: { label: "Abierta", color: "bg-blue-100 text-blue-700", icon: Clock },
-  IN_PROGRESS: { label: "En progreso", color: "bg-amber-100 text-amber-700", icon: AlertCircle },
-  DONE: { label: "Completada", color: "bg-green-100 text-green-700", icon: CheckCircle },
+  OPEN: { label: "Open", color: "bg-blue-100 text-blue-700", icon: Clock },
+  IN_PROGRESS: { label: "In progress", color: "bg-amber-100 text-amber-700", icon: AlertCircle },
+  DONE: { label: "Completed", color: "bg-green-100 text-green-700", icon: CheckCircle },
 }
 
 const PRIORITY_COLORS: Record<string, string> = {

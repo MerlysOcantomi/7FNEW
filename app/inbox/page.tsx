@@ -778,7 +778,7 @@ export default function InboxPage() {
                           <div className="mt-1 text-[#1E3A8A]">
                             <InlineText
                               value={selected.handoff.headline || ""}
-                              placeholder="Agregar headline operativo..."
+                              placeholder="Add operational headline..."
                               className="text-sm font-semibold"
                               onSave={(value) => updateHandoff({ headline: value })}
                             />
@@ -789,7 +789,7 @@ export default function InboxPage() {
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Summary</p>
                           <InlineTextarea
                             value={selected.handoff.summary || ""}
-                            placeholder="Agregar resumen operativo..."
+                            placeholder="Add operational summary..."
                             className="mt-1 bg-white/70 text-[#1E3A8A]"
                             rows={4}
                             onSave={(value) => updateHandoff({ summary: value })}
@@ -808,7 +808,7 @@ export default function InboxPage() {
                             />
                           </div>
                           <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Decisiones</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Decisions</p>
                             <InlineTextarea
                               value={linesToText(selected.handoff.decisions)}
                               placeholder="One decision per line..."
@@ -843,7 +843,7 @@ export default function InboxPage() {
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Next recommended action</p>
                           <InlineTextarea
                             value={selected.handoff.nextRecommendedAction || ""}
-                            placeholder="Agregar siguiente paso recomendado..."
+                            placeholder="Add recommended next step..."
                             className="mt-1 bg-white/70 text-[#1E3A8A]"
                             rows={2}
                             onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
@@ -1139,20 +1139,20 @@ export default function InboxPage() {
                 <div className="rounded-xl border border-border bg-card p-5">
                   <div className="flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Contexto de negocio</p>
+                    <p className="text-sm font-semibold text-foreground">Business context</p>
                   </div>
                   <div className="mt-4 grid gap-3">
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
-                      <span>{selected.contact.email || "Sin email"}</span>
+                      <span>{selected.contact.email || "No email"}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <Building2 className="h-4 w-4" />
-                      <span>{selected.contact.empresa || "Sin empresa"}</span>
+                      <span>{selected.contact.empresa || "No company"}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <Clock3 className="h-4 w-4" />
-                      <span>{selected.messageCount} mensajes</span>
+                      <span>{selected.messageCount} messages</span>
                     </div>
                     {selected.cliente && (
                       <Link href={`/clientes/${selected.cliente.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline">

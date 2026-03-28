@@ -27,13 +27,13 @@ const identityGroups = [
     canonicalName: "Maria Lopez",
     client: "Active client",
     confidence: 98,
-    status: "confirmado",
+    status: "confirmed",
     variants: [
-      { alias: "Maria Lopez", source: "CRM", type: "nombre" },
+      { alias: "Maria Lopez", source: "CRM", type: "name" },
       { alias: "maria@clienteactivo.com", source: "Email", type: "email" },
       { alias: "Ma. Lopez", source: "WhatsApp", type: "alias" },
-      { alias: "+52 55 1234 5678", source: "Phone", type: "telefono" },
-      { alias: "Mrs. Lopez from the client", source: "Manual note", type: "referencia" },
+      { alias: "+52 55 1234 5678", source: "Phone", type: "phone" },
+      { alias: "Mrs. Lopez from the client", source: "Manual note", type: "reference" },
     ],
     lastActivity: "1h ago",
   },
@@ -42,12 +42,12 @@ const identityGroups = [
     canonicalName: "Roberto Diaz",
     client: "Active project",
     confidence: 95,
-    status: "confirmado",
+    status: "confirmed",
     variants: [
-      { alias: "Roberto Diaz", source: "CRM", type: "nombre" },
+      { alias: "Roberto Diaz", source: "CRM", type: "name" },
       { alias: "roberto@proyectoactivo.com", source: "Email", type: "email" },
       { alias: "Rob Diaz", source: "Slack", type: "alias" },
-      { alias: "+52 55 2345 6789", source: "Phone", type: "telefono" },
+      { alias: "+52 55 2345 6789", source: "Phone", type: "phone" },
     ],
     lastActivity: "3h ago",
   },
@@ -56,11 +56,11 @@ const identityGroups = [
     canonicalName: "Fernando Reyes",
     client: "New lead",
     confidence: 72,
-    status: "pendiente",
+    status: "pending",
     variants: [
-      { alias: "Fernando Reyes", source: "Web form", type: "nombre" },
+      { alias: "Fernando Reyes", source: "Web form", type: "name" },
       { alias: "fernando.r@leadnuevo.com", source: "Email", type: "email" },
-      { alias: "Fer from the lead", source: "Manual note", type: "referencia" },
+      { alias: "Fer from the lead", source: "Manual note", type: "reference" },
     ],
     lastActivity: "2h ago",
   },
@@ -69,13 +69,13 @@ const identityGroups = [
     canonicalName: "Laura Chen / L. Chen",
     client: "Account pending review",
     confidence: 65,
-    status: "conflicto",
+    status: "conflict",
     variants: [
-      { alias: "Laura Chen", source: "CRM", type: "nombre" },
+      { alias: "Laura Chen", source: "CRM", type: "name" },
       { alias: "L. Chen", source: "Email", type: "alias" },
       { alias: "laura@cuentaporvalidar.com", source: "Email", type: "email" },
       { alias: "Laura C.", source: "WhatsApp", type: "alias" },
-      { alias: "Lau Chen", source: "Internal note", type: "referencia" },
+      { alias: "Lau Chen", source: "Internal note", type: "reference" },
     ],
     lastActivity: "1d ago",
     conflictNote: "Possible duplicate: 'Laura Chen' appears in 2 different records (an account pending review and an unassigned older lead).",
@@ -85,9 +85,9 @@ const identityGroups = [
     canonicalName: "Carlos Mendez",
     client: "Internal",
     confidence: 100,
-    status: "confirmado",
+    status: "confirmed",
     variants: [
-      { alias: "Carlos Mendez", source: "Internal team", type: "nombre" },
+      { alias: "Carlos Mendez", source: "Internal team", type: "name" },
       { alias: "carlos@7f.com", source: "Email", type: "email" },
       { alias: "CMendez", source: "Slack", type: "alias" },
     ],
@@ -96,19 +96,19 @@ const identityGroups = [
 ]
 
 const typeIcons: Record<string, typeof User> = {
-  nombre: User,
+  name: User,
   email: Mail,
-  telefono: Phone,
+  phone: Phone,
   alias: User,
-  referencia: Building2,
+  reference: Building2,
 }
 
 const statusFilters = ["All", "Confirmed", "Pending", "Conflict"]
 
 const statusStyles: Record<string, string> = {
-  confirmado: "bg-[var(--tab-phases)] text-foreground/70",
-  pendiente: "bg-[var(--tab-tasks)] text-foreground/70",
-  conflicto: "bg-[var(--tab-review)] text-foreground/70",
+  confirmed: "bg-[var(--tab-phases)] text-foreground/70",
+  pending: "bg-[var(--tab-tasks)] text-foreground/70",
+  conflict: "bg-[var(--tab-review)] text-foreground/70",
 }
 
 export default function IdentidadPage() {
@@ -135,9 +135,9 @@ export default function IdentidadPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Identities", value: identityGroups.length, color: "var(--tab-info)" },
-            { label: "Confirmed", value: identityGroups.filter(g => g.status === "confirmado").length, color: "var(--tab-phases)" },
-            { label: "Pending", value: identityGroups.filter(g => g.status === "pendiente").length, color: "var(--tab-tasks)" },
-            { label: "Conflicts", value: identityGroups.filter(g => g.status === "conflicto").length, color: "var(--tab-review)" },
+            { label: "Confirmed", value: identityGroups.filter(g => g.status === "confirmed").length, color: "var(--tab-phases)" },
+            { label: "Pending", value: identityGroups.filter(g => g.status === "pending").length, color: "var(--tab-tasks)" },
+            { label: "Conflicts", value: identityGroups.filter(g => g.status === "conflict").length, color: "var(--tab-review)" },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
@@ -244,7 +244,7 @@ export default function IdentidadPage() {
                     <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", statusStyles[selected.status])}>
                       {selected.status}
                     </span>
-                    {selected.status !== "confirmado" && (
+                    {selected.status !== "confirmed" && (
                       <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity">
                         <CheckCircle2 className="h-3 w-3" /> Confirm
                       </button>
@@ -254,7 +254,7 @@ export default function IdentidadPage() {
               </div>
 
               {/* Conflict warning */}
-              {selected.status === "conflicto" && selected.conflictNote && (
+              {selected.status === "conflict" && selected.conflictNote && (
                 <div className="rounded-xl border border-[var(--tab-review)]/50 bg-[var(--tab-review)]/10 p-4 flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-foreground/60 flex-shrink-0 mt-0.5" />
                   <div>
