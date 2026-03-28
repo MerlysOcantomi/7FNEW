@@ -6,6 +6,8 @@ import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/componen
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel"
 import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X, Check, Loader2 } from "lucide-react"
 import type { ForteSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
+import type { EntityVocabulary } from "@core/personalization"
+import { DEFAULT_VOCABULARY } from "@core/personalization"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CapabilityItem {
@@ -35,41 +37,46 @@ function getConfigKey(itemId: string): string | undefined {
 
 // ── Core Capabilities ─────────────────────────────────────────────────────────
 // Items with a config key are configurable. Others are core/always-on.
-const CORE_CAPABILITIES: CapabilityGroup[] = [
-  {
-    section: "Core",
-    items: [
-      { id: "inbox", label: "Smart Inbox" },
-      { id: "entrada", label: "Manual Intake", locked: true },
-      { id: "clientes", label: "Clients" },
-      { id: "proyectos", label: "Projects", locked: true },
-      { id: "tareas", label: "Tasks", locked: true },
-      { id: "calendario", label: "Calendar", locked: true },
-      { id: "archivos", label: "Files", locked: true },
-    ],
-  },
-  {
-    section: "Growth",
-    items: [
-      { id: "campanas", label: "Marketing" },
-    ],
-  },
-  {
-    section: "Revenue",
-    items: [
-      { id: "finanzas", label: "Finance" },
-      { id: "facturacion", label: "Billing", locked: true },
-    ],
-  },
-  {
-    section: "Advanced",
-    items: [
-      { id: "agente", label: "Overview insights", locked: true },
-      { id: "motor", label: "AI workspace", locked: true },
-      { id: "departamentos", label: "Departments", locked: true },
-    ],
-  },
-]
+// Labels are derived from the personalization vocabulary.
+function buildCoreCapabilities(v: EntityVocabulary = DEFAULT_VOCABULARY): CapabilityGroup[] {
+  return [
+    {
+      section: "Core",
+      items: [
+        { id: "inbox", label: v.inbox.singular },
+        { id: "entrada", label: "Manual Intake", locked: true },
+        { id: "clientes", label: v.client.plural },
+        { id: "proyectos", label: v.project.plural, locked: true },
+        { id: "tareas", label: v.task.plural, locked: true },
+        { id: "calendario", label: v.calendar.singular, locked: true },
+        { id: "archivos", label: v.document.plural, locked: true },
+      ],
+    },
+    {
+      section: "Growth",
+      items: [
+        { id: "campanas", label: v.marketing.singular },
+      ],
+    },
+    {
+      section: "Revenue",
+      items: [
+        { id: "finanzas", label: v.finance.singular },
+        { id: "facturacion", label: v.billing.singular, locked: true },
+      ],
+    },
+    {
+      section: "Advanced",
+      items: [
+        { id: "agente", label: "Overview insights", locked: true },
+        { id: "motor", label: "AI workspace", locked: true },
+        { id: "departamentos", label: v.department.plural, locked: true },
+      ],
+    },
+  ]
+}
+
+const CORE_CAPABILITIES = buildCoreCapabilities()
 
 // ── Extension Packs ────────────────────────────────────────────────────────────
 type PackKey = "standard" | "construction" | "ecommerce"

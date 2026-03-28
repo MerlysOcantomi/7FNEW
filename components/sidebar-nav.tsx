@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { useState, createContext, useContext } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
+import type { EntityVocabulary } from "@core/personalization";
+import { DEFAULT_VOCABULARY } from "@core/personalization";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -57,55 +59,59 @@ type NavSection = {
 };
 
 // ── Navigation Structure ─────────────────────────────────────────────────────
-const NAV_SECTIONS: NavSection[] = [
-  {
-    section: "Overview",
-    subtitle: "",
-    items: [{ label: "Overview", href: "/", icon: LayoutDashboard }],
-  },
-  {
-    section: "Main",
-    subtitle: "",
-    items: [
-      { label: "Smart Inbox", href: "/inbox", icon: Inbox, helper: "by Farah" },
-      { label: "Clients", href: "/clientes", icon: Users },
-      { label: "Projects", href: "/proyectos", icon: FolderKanban },
-      { label: "Tasks", href: "/tareas", icon: CheckSquare },
-      { label: "Billing", href: "/facturacion", icon: FileText, helper: "by Felix" },
-      { label: "Finance", href: "/finanzas", icon: DollarSign },
-      { label: "Marketing", href: "/contenido", icon: FileEdit, helper: "by Fiona" },
-    ],
-  },
-  {
-    section: "More",
-    subtitle: "",
-    icon: BookOpen,
-    items: [
-      { label: "Manual Intake", href: "/entrada", icon: LogIn },
-      { label: "Requests", href: "/requests", icon: MessageSquarePlus },
-      { label: "Calendar", href: "/calendario", icon: CalendarDays },
-      { label: "Files", href: "/archivos", icon: Files },
-      { label: "Notifications", href: "/notificaciones", icon: Bell },
-      { label: "History", href: "/historial", icon: History },
-      { label: "Tools", href: "/biblioteca", icon: BookOpen },
-    ],
-    dividerAbove: true,
-  },
-  {
-    section: "Workspace",
-    subtitle: "",
-    icon: Settings,
-    items: [
-      { label: "Improvements", href: "/forte/improvements", icon: Bot, helper: "by Mr. Forte" },
-      { label: "AI workspace", href: "/motor", icon: Cpu },
-      { label: "Departments", href: "/departamentos", icon: Building2 },
-      { label: "Users", href: "/usuarios", icon: Users },
-      { label: "Identity", href: "/identidad", icon: Settings },
-      { label: "Communication", href: "/comunicacion", icon: MessageSquarePlus },
-    ],
-    dividerAbove: true,
-  },
-];
+function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[] {
+  return [
+    {
+      section: "Overview",
+      subtitle: "",
+      items: [{ label: "Overview", href: "/", icon: LayoutDashboard }],
+    },
+    {
+      section: "Main",
+      subtitle: "",
+      items: [
+        { label: v.inbox.singular, href: "/inbox", icon: Inbox, helper: "by Farah" },
+        { label: v.client.plural, href: "/clientes", icon: Users },
+        { label: v.project.plural, href: "/proyectos", icon: FolderKanban },
+        { label: v.task.plural, href: "/tareas", icon: CheckSquare },
+        { label: v.billing.singular, href: "/facturacion", icon: FileText, helper: "by Felix" },
+        { label: v.finance.singular, href: "/finanzas", icon: DollarSign },
+        { label: v.marketing.singular, href: "/contenido", icon: FileEdit, helper: "by Fiona" },
+      ],
+    },
+    {
+      section: "More",
+      subtitle: "",
+      icon: BookOpen,
+      items: [
+        { label: "Manual Intake", href: "/entrada", icon: LogIn },
+        { label: "Requests", href: "/requests", icon: MessageSquarePlus },
+        { label: v.calendar.singular, href: "/calendario", icon: CalendarDays },
+        { label: v.document.plural, href: "/archivos", icon: Files },
+        { label: "Notifications", href: "/notificaciones", icon: Bell },
+        { label: "History", href: "/historial", icon: History },
+        { label: "Tools", href: "/biblioteca", icon: BookOpen },
+      ],
+      dividerAbove: true,
+    },
+    {
+      section: "Workspace",
+      subtitle: "",
+      icon: Settings,
+      items: [
+        { label: "Improvements", href: "/forte/improvements", icon: Bot, helper: "by Mr. Forte" },
+        { label: "AI workspace", href: "/motor", icon: Cpu },
+        { label: v.department.plural, href: "/departamentos", icon: Building2 },
+        { label: v.member.plural, href: "/usuarios", icon: Users },
+        { label: "Identity", href: "/identidad", icon: Settings },
+        { label: "Communication", href: "/comunicacion", icon: MessageSquarePlus },
+      ],
+      dividerAbove: true,
+    },
+  ];
+}
+
+const NAV_SECTIONS = buildNavSections();
 
 // ── Helper: determine which section contains active route ────────────────────
 function getActiveSectionFor(pathname: string): string {
