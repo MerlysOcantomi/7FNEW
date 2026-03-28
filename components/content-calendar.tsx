@@ -49,19 +49,19 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   idea: "Idea",
-  "en-progreso": "En progreso",
-  revision: "Revision",
-  aprobado: "Aprobado",
-  entregado: "Entregado",
-  atrasado: "Atrasado",
+  "en-progreso": "In Progress",
+  revision: "Review",
+  aprobado: "Approved",
+  entregado: "Delivered",
+  atrasado: "Delayed",
 }
 
 const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ]
 
-const DAY_NAMES = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 /* ── Helpers ── */
 function getDaysInMonth(year: number, month: number) {
@@ -309,7 +309,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">Sin contenido para este dia</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No content for this day</p>
           )}
         </div>
       )}

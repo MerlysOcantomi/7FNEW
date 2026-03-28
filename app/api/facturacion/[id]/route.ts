@@ -12,7 +12,7 @@ const TRACKED_FIELDS = ["numero", "estado", "subtotal", "impuesto", "total", "fe
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return errorResponse("NOT_FOUND", "Factura no encontrada", 404)
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
     const data = updateFacturaSchema.parse(body)
@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     logActivity({ module: "facturacion", recordId: id, type: "deleted", data: { label: (record as any)?.numero }, workspaceId }).catch(() => {})

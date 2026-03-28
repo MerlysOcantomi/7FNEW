@@ -32,34 +32,34 @@ interface NotificationData {
 }
 
 const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: string }> = {
-  tarea_asignada: { icon: CheckSquare, color: "text-blue-500 bg-blue-500/10", label: "Tarea" },
-  tarea_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Tarea" },
-  tarea_estado: { icon: RefreshCw, color: "text-amber-500 bg-amber-500/10", label: "Tarea" },
-  proyecto_actualizado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Proyecto" },
-  proyecto_estado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Proyecto" },
-  factura_creada: { icon: Receipt, color: "text-emerald-500 bg-emerald-500/10", label: "Factura" },
-  factura_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Factura" },
-  documento_subido: { icon: FileText, color: "text-cyan-500 bg-cyan-500/10", label: "Documento" },
-  comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comentario" },
-  mencion: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mencion" },
-  sistema: { icon: Bell, color: "text-muted-foreground bg-muted", label: "Sistema" },
+  tarea_asignada: { icon: CheckSquare, color: "text-blue-500 bg-blue-500/10", label: "Task" },
+  tarea_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Task" },
+  tarea_estado: { icon: RefreshCw, color: "text-amber-500 bg-amber-500/10", label: "Task" },
+  proyecto_actualizado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Project" },
+  proyecto_estado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Project" },
+  factura_creada: { icon: Receipt, color: "text-emerald-500 bg-emerald-500/10", label: "Billing" },
+  factura_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Billing" },
+  documento_subido: { icon: FileText, color: "text-cyan-500 bg-cyan-500/10", label: "Files" },
+  comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comment" },
+  mencion: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mention" },
+  sistema: { icon: Bell, color: "text-muted-foreground bg-muted", label: "System" },
 }
 
 const TYPE_FILTERS = [
-  { value: "all", label: "Todas" },
-  { value: "tarea", label: "Tareas" },
+  { value: "all", label: "All" },
+  { value: "tarea", label: "Tasks" },
   { value: "proyecto", label: "Projects" },
-  { value: "factura", label: "Facturas" },
-  { value: "documento", label: "Documentos" },
+  { value: "factura", label: "Billing" },
+  { value: "documento", label: "Files" },
 ]
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return "ahora"
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
-  return new Date(dateStr).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+  if (diff < 60) return "now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
 
 export default function NotificacionesPage() {
@@ -125,11 +125,11 @@ export default function NotificacionesPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">No leidas</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unread</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{unreadCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Hoy</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{todayCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
@@ -137,7 +137,7 @@ export default function NotificacionesPage() {
             <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Leidas</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Read</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length - unreadCount}</p>
           </div>
         </div>
@@ -166,14 +166,14 @@ export default function NotificacionesPage() {
                 showUnreadOnly ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
-              <Bell className="h-3 w-3" /> Solo no leidas
+              <Bell className="h-3 w-3" /> Unread only
             </button>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
                 className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                <CheckCheck className="h-3 w-3" /> Marcar todas leidas
+                <CheckCheck className="h-3 w-3" /> Mark all as read
               </button>
             )}
           </div>
@@ -232,7 +232,7 @@ export default function NotificacionesPage() {
                   {showUnreadOnly ? "No unread notifications" : "No notifications"}
                 </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  Las notificaciones apareceran aqui cuando haya actividad en la plataforma.
+                  Notifications will appear here when there is activity in the platform.
                 </p>
               </div>
             )}

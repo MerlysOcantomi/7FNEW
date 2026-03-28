@@ -41,7 +41,7 @@ function formatBytes(bytes: number): string {
 function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr)
-    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
+    return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
   } catch {
     return dateStr
   }
@@ -58,9 +58,9 @@ function getFileIcon(tipo: string) {
 
 export default function ArchivosPage() {
   const [search, setSearch] = useState("")
-  const [filterType, setFilterType] = useState("Todos")
-  const [filterClient, setFilterClient] = useState("Todos")
-  const [filterProject, setFilterProject] = useState("Todos")
+  const [filterType, setFilterType] = useState("All")
+  const [filterClient, setFilterClient] = useState("All")
+  const [filterProject, setFilterProject] = useState("All")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -69,7 +69,7 @@ export default function ArchivosPage() {
 
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams()
-    if (filterType && filterType !== "Todos") params.set("tipo", filterType)
+    if (filterType && filterType !== "All") params.set("tipo", filterType)
     if (search.trim()) params.set("search", search.trim())
     const q = params.toString()
     return q ? `/api/documentos?${q}` : "/api/documentos"
@@ -81,16 +81,16 @@ export default function ArchivosPage() {
   }, [apiData])
 
   const fileTypes = useMemo(() => {
-    const types = new Set<string>(["Todos"])
+    const types = new Set<string>(["All"])
     allFiles.forEach((f: any) => {
-      const t = f.tipo ?? "Otro"
-      types.add(typeof t === "string" ? t : "Otro")
+      const t = f.tipo ?? "Other"
+      types.add(typeof t === "string" ? t : "Other")
     })
     return Array.from(types)
   }, [allFiles])
 
   const fileClients = useMemo(() => {
-    const clients = new Set<string>(["Todos"])
+    const clients = new Set<string>(["All"])
     allFiles.forEach((f: any) => {
       const name = f.cliente?.nombre ?? ""
       if (name) clients.add(name)
@@ -99,7 +99,7 @@ export default function ArchivosPage() {
   }, [allFiles])
 
   const fileProjects = useMemo(() => {
-    const projects = new Set<string>(["Todos"])
+    const projects = new Set<string>(["All"])
     allFiles.forEach((f: any) => {
       const name = f.proyecto?.nombre ?? ""
       if (name) projects.add(name)
@@ -113,9 +113,9 @@ export default function ArchivosPage() {
         search === "" ||
         (f.nombre ?? "").toLowerCase().includes(search.toLowerCase()) ||
         (f.proyecto?.nombre ?? "").toLowerCase().includes(search.toLowerCase())
-      const matchType = filterType === "Todos" || (f.tipo ?? "") === filterType
-      const matchClient = filterClient === "Todos" || (f.cliente?.nombre ?? "") === filterClient
-      const matchProject = filterProject === "Todos" || (f.proyecto?.nombre ?? "") === filterProject
+      const matchType = filterType === "All" || (f.tipo ?? "") === filterType
+      const matchClient = filterClient === "All" || (f.cliente?.nombre ?? "") === filterClient
+      const matchProject = filterProject === "All" || (f.proyecto?.nombre ?? "") === filterProject
       return matchSearch && matchType && matchClient && matchProject
     })
   }, [allFiles, search, filterType, filterClient, filterProject])
@@ -141,19 +141,19 @@ export default function ArchivosPage() {
     if (!deleteItem) return
     try {
       await apiDelete(`/api/documentos/${deleteItem.id}`)
-      toast.success("Documento eliminado")
+      toast.success("Document deleted")
       refetch()
       if (selectedFile === deleteItem.id) setSelectedFile(null)
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar")
+      toast.error(err instanceof Error ? err.message : "Error deleting document")
     } finally {
       setDeleteItem(null)
     }
   }
 
   return (
-    <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Archivos" }]}>
-      <SectionPage title="Archivos" description="Explorador centralizado de todos los documentos, imagenes y archivos del sistema.">
+    <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Files" }]}>
+      <SectionPage title="Files" description="Centralized explorer for all documents, images, and files in the system.">
 
         {error && (
           <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -164,19 +164,19 @@ export default function ArchivosPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total archivos</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Files</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : allFiles.length}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Almacenamiento</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Storage</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : totalSize}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Documentos PDF</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">PDF Documents</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : pdfCount}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Imagenes</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Images</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : imgCount}</p>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function ArchivosPage() {
               <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <input
                 type="text"
-                placeholder="Buscar archivo o proyecto..."
+                placeholder="Search files or projects..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -196,15 +196,15 @@ export default function ArchivosPage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
-                <button onClick={() => setViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista lista"><List className="h-4 w-4" /></button>
-                <button onClick={() => setViewMode("grid")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "grid" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Vista grid"><Grid3X3 className="h-4 w-4" /></button>
+                <button onClick={() => setViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="List view"><List className="h-4 w-4" /></button>
+                <button onClick={() => setViewMode("grid")} className={cn("rounded-md p-1.5 transition-colors", viewMode === "grid" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")} aria-label="Grid view"><Grid3X3 className="h-4 w-4" /></button>
               </div>
               <button
                 onClick={() => { setEditingItem(null); setFormOpen(true) }}
                 className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 whitespace-nowrap flex-shrink-0"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Nuevo</span>
+                <span className="hidden sm:inline">New</span>
               </button>
             </div>
           </div>
@@ -223,10 +223,10 @@ export default function ArchivosPage() {
             ))}
             <span className="mx-1 h-4 w-px bg-border" />
             <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none flex-shrink-0">
-              {fileClients.map(c => <option key={c} value={c}>{c === "Todos" ? "Cliente" : c}</option>)}
+              {fileClients.map(c => <option key={c} value={c}>{c === "All" ? "Client" : c}</option>)}
             </select>
             <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none flex-shrink-0">
-              {fileProjects.map(p => <option key={p} value={p}>{p === "Todos" ? "Proyecto" : p}</option>)}
+              {fileProjects.map(p => <option key={p} value={p}>{p === "All" ? "Project" : p}</option>)}
             </select>
           </div>
         </div>
@@ -235,7 +235,7 @@ export default function ArchivosPage() {
         <div className="grid gap-4 lg:grid-cols-5">
           {/* List/Grid */}
           <div className={cn(selected ? "lg:col-span-3" : "lg:col-span-5")}>
-            <p className="text-xs text-muted-foreground mb-2">{filtered.length} archivos</p>
+            <p className="text-xs text-muted-foreground mb-2">{filtered.length} files</p>
             {loading ? (
               <div className="flex flex-col gap-2">
                 {[1, 2, 3, 4].map((i) => (
@@ -317,8 +317,8 @@ export default function ArchivosPage() {
             {!loading && filtered.length === 0 && (
               <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">No se encontraron archivos</p>
-                <p className="text-xs text-muted-foreground mt-1">Ajusta los filtros o busca con otro termino.</p>
+                <p className="text-sm font-medium text-foreground">No files found</p>
+                <p className="text-xs text-muted-foreground mt-1">Adjust the filters or try a different search term.</p>
               </div>
             )}
           </div>
@@ -328,8 +328,8 @@ export default function ArchivosPage() {
             <div className="lg:col-span-2">
               <div className="rounded-xl border border-border bg-card lg:sticky lg:top-6">
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                  <h3 className="text-sm font-semibold text-foreground">Detalle del archivo</h3>
-                  <button onClick={() => setSelectedFile(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Cerrar">
+                  <h3 className="text-sm font-semibold text-foreground">File Details</h3>
+                  <button onClick={() => setSelectedFile(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -345,36 +345,36 @@ export default function ArchivosPage() {
                     <p className="text-xs text-muted-foreground mt-1">{selected.tipo ?? "—"} &middot; {formatBytes(Number(selected.tamano) || 0)}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <DetailField label="Proyecto" value={selected.proyecto?.nombre ?? "—"} />
-                    <DetailField label="Cliente" value={selected.cliente?.nombre ?? "—"} />
-                    <DetailField label="Subido por" value="—" />
-                    <DetailField label="Fecha" value={selected.createdAt ? formatDate(selected.createdAt) : "—"} />
+                    <DetailField label="Project" value={selected.proyecto?.nombre ?? "—"} />
+                    <DetailField label="Client" value={selected.cliente?.nombre ?? "—"} />
+                    <DetailField label="Uploaded By" value="—" />
+                    <DetailField label="Date" value={selected.createdAt ? formatDate(selected.createdAt) : "—"} />
                   </div>
                   <div className="flex items-center gap-2 pt-2 border-t border-border flex-wrap">
                     <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-                      <Eye className="h-3 w-3" /> Vista previa
+                      <Eye className="h-3 w-3" /> Preview
                     </button>
                     <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-                      <Download className="h-3 w-3" /> Descargar
+                      <Download className="h-3 w-3" /> Download
                     </button>
                     <button
                       onClick={() => { setEditingItem(selected); setFormOpen(true) }}
                       className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                     >
-                      <Pencil className="h-3 w-3" /> Editar
+                      <Pencil className="h-3 w-3" /> Edit
                     </button>
                     <button
                       onClick={() => setDeleteItem(selected)}
                       className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-destructive hover:bg-accent transition-colors"
                     >
-                      <Trash2 className="h-3 w-3" /> Eliminar
+                      <Trash2 className="h-3 w-3" /> Delete
                     </button>
                   </div>
                   <Link
                     href={`/archivos/${selected.id}`}
                     className="block w-full rounded-lg bg-foreground px-3 py-2 text-center text-xs font-medium text-background transition-opacity hover:opacity-80"
                   >
-                    Ver detalle completo
+                    View Full Details
                   </Link>
                 </div>
               </div>
@@ -389,9 +389,9 @@ export default function ArchivosPage() {
         />
         <ConfirmModal
           open={!!deleteItem}
-          title="Eliminar documento"
-          description={`¿Seguro que quieres eliminar "${deleteItem?.nombre}"? Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
+          title="Delete Document"
+          description={`Are you sure you want to delete "${deleteItem?.nombre}"? This action cannot be undone.`}
+          confirmLabel="Delete"
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteItem(null)}

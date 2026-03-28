@@ -8,7 +8,7 @@ import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth
 
 export async function GET(request: NextRequest) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(request)
     const { searchParams } = request.nextUrl
     const query = queryFacturaSchema.parse(Object.fromEntries(searchParams))
     const { page, pageSize, skip } = getPaginationParams(searchParams)
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const body = await request.json()
     const data = createFacturaSchema.parse(body)
     const record = await service.create(data, workspaceId)

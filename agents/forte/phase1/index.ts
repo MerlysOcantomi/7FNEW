@@ -1,4 +1,9 @@
-export { getAvailableForteCapabilities, getFortePhase1Catalog } from "./catalog"
+export {
+  getAvailableForteCapabilities,
+  getAvailableForteCapabilitiesForContext,
+  getFortePhase1Catalog,
+  getFortePhase1CatalogForContext,
+} from "./catalog"
 export { recommendForteArchitecture } from "./recommender"
 export type {
   ForteBusinessSize,

@@ -27,12 +27,12 @@ const typeIcons: Record<string, React.ReactNode> = {
 }
 
 const typeLabels: Record<string, string> = {
-  diseno: "Diseno",
+  diseno: "Design",
   copy: "Copy",
-  documento: "Documento",
-  "pieza-creativa": "Pieza creativa",
+  documento: "Document",
+  "pieza-creativa": "Creative Asset",
   video: "Video",
-  fotografia: "Fotografia",
+  fotografia: "Photography",
 }
 
 const statusColors: Record<string, string> = {
@@ -46,17 +46,17 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   idea: "Idea",
-  "en-progreso": "En progreso",
-  revision: "Revision",
-  aprobado: "Aprobado",
-  entregado: "Entregado",
-  atrasado: "Atrasado",
+  "en-progreso": "In Progress",
+  revision: "Review",
+  aprobado: "Approved",
+  entregado: "Delivered",
+  atrasado: "Delayed",
 }
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
-  alta: { color: "text-red-500", label: "Alta" },
-  media: { color: "text-amber-500", label: "Media" },
-  baja: { color: "text-muted-foreground", label: "Baja" },
+  alta: { color: "text-red-500", label: "High" },
+  media: { color: "text-amber-500", label: "Medium" },
+  baja: { color: "text-muted-foreground", label: "Low" },
 }
 
 const ALL_STATUSES = Object.keys(statusLabels)
@@ -121,7 +121,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar contenido, cliente, proyecto o responsable..."
+            placeholder="Search content, client, project, or owner..."
             className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -135,7 +135,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
               statusFilter === "todos" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:text-foreground"
             )}
           >
-            Todos ({items.length})
+            All ({items.length})
           </button>
           {ALL_STATUSES.map(s => {
             const count = items.filter(i => i.status === s).length
@@ -163,7 +163,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
               onChange={e => setClientFilter(e.target.value)}
               className="appearance-none rounded-lg border border-border bg-card pl-3 pr-8 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
             >
-              <option value="todos">Todos los clientes</option>
+              <option value="todos">All Clients</option>
               {clients.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
@@ -176,7 +176,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
               onChange={e => setProjectFilter(e.target.value)}
               className="appearance-none rounded-lg border border-border bg-card pl-3 pr-8 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
             >
-              <option value="todos">Todos los proyectos</option>
+              <option value="todos">All Projects</option>
               {projects.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
@@ -188,13 +188,13 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
           >
             <ArrowUpDown className="h-3 w-3" />
-            {sortBy === "date" ? "Fecha" : sortBy === "priority" ? "Prioridad" : sortBy === "title" ? "Titulo" : "Cliente"}
+            {sortBy === "date" ? "Date" : sortBy === "priority" ? "Priority" : sortBy === "title" ? "Title" : "Client"}
           </button>
         </div>
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-muted-foreground">{filtered.length} contenidos encontrados</p>
+      <p className="text-xs text-muted-foreground">{filtered.length} content items found</p>
 
       {/* Content cards */}
       {filtered.length > 0 ? (
@@ -239,7 +239,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
                 <p className="text-xs font-medium text-foreground">
                   {new Date(item.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Entrega</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Delivery</p>
               </div>
             </div>
           ))}
@@ -247,7 +247,7 @@ export function ContentList({ items, clients, projects }: ContentListProps) {
       ) : (
         <div className="rounded-xl border border-border bg-card p-10 text-center">
           <Search className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No se encontraron contenidos con esos filtros</p>
+          <p className="text-sm text-muted-foreground">No content found for those filters</p>
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ const initialMessages: Message[] = [
   {
     id: "1",
     role: "assistant",
-    content: "Hola, soy el asistente de 7F. Puedo ayudarte con tus proyectos, tareas y consultas. Pregunta lo que necesites.",
+    content: "Hi, I'm the 7F assistant. I can help with your projects, tasks, and questions. Ask me anything you need.",
   },
 ]
 
@@ -39,7 +39,7 @@ export function AppChat({ onClose }: AppChatProps) {
       {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Entendido. Estoy procesando tu solicitud. Esta es una respuesta de ejemplo del asistente contextual de 7F.",
+        content: "Understood. I'm processing your request. This is a sample response from the 7F contextual assistant.",
       },
     ])
     setInput("")
@@ -51,12 +51,12 @@ export function AppChat({ onClose }: AppChatProps) {
       <div className="flex h-14 items-center justify-between border-b border-border px-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">Asistente IA</span>
+          <span className="text-sm font-semibold text-foreground">AI Assistant</span>
         </div>
         <button
           onClick={onClose}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Cerrar chat"
+          aria-label="Close chat"
         >
           <X className="h-4 w-4" />
         </button>
@@ -96,14 +96,14 @@ export function AppChat({ onClose }: AppChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Escribe tu mensaje..."
+            placeholder="Write your message..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim()}
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-30 transition-opacity"
-            aria-label="Enviar mensaje"
+            aria-label="Send message"
           >
             <Send className="h-3.5 w-3.5" />
           </button>

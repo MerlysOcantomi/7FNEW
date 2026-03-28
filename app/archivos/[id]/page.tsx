@@ -49,7 +49,7 @@ function formatBytes(bytes: number): string {
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—"
-  return new Date(dateStr).toLocaleDateString("es-ES", {
+  return new Date(dateStr).toLocaleDateString("en-US", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -76,11 +76,11 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
   const handleDelete = useCallback(async () => {
     try {
       await apiDelete(`/api/documentos/${id}`)
-      toast.success("Archivo eliminado")
+      toast.success("File deleted")
       setDeleteOpen(false)
       router.push("/archivos")
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar")
+      toast.error(err instanceof Error ? err.message : "Error deleting file")
     }
   }, [id, router])
 
@@ -89,11 +89,11 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
     setSaving(true)
     try {
       await apiPatch(`/api/documentos/${id}`, { nombre: newName.trim() })
-      toast.success("Archivo renombrado")
+      toast.success("File renamed")
       setRenaming(false)
       refetch()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al renombrar")
+      toast.error(err instanceof Error ? err.message : "Error renaming file")
     } finally {
       setSaving(false)
     }
@@ -106,7 +106,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
 
   if (loading) {
     return (
-      <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Archivos", href: "/archivos" }, { label: "..." }]}>
+      <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Files", href: "/archivos" }, { label: "..." }]}>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -116,12 +116,12 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
 
   if (error || !doc) {
     return (
-      <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Archivos", href: "/archivos" }, { label: "Error" }]}>
+      <AppShell currentSection="archivos" breadcrumbs={[{ label: "7F" }, { label: "Files", href: "/archivos" }, { label: "Error" }]}>
         <div className="flex flex-col items-center justify-center py-20">
           <File className="h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium text-foreground">Archivo no encontrado</p>
+          <p className="text-sm font-medium text-foreground">File not found</p>
           <Link href="/archivos" className="mt-2 text-sm text-muted-foreground hover:text-foreground">
-            Volver a archivos
+            Back to files
           </Link>
         </div>
       </AppShell>
@@ -136,7 +136,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
       currentSection="archivos"
       breadcrumbs={[
         { label: "7F" },
-        { label: "Archivos", href: "/archivos" },
+        { label: "Files", href: "/archivos" },
         { label: doc.nombre },
       ]}
     >
@@ -145,7 +145,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
           {/* Header */}
           <div>
             <Link href="/archivos" className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-4 w-4" /> Archivos
+              <ArrowLeft className="h-4 w-4" /> Files
             </Link>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0">
@@ -192,13 +192,13 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                   className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 w-full sm:w-auto justify-center"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Descargar
+                  Download
                 </a>
                 <CanEdit>
                   <button
                     onClick={startRenaming}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                    title="Renombrar"
+                    title="Rename"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -207,7 +207,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                   <button
                     onClick={() => setDeleteOpen(true)}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
-                    title="Eliminar"
+                    title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -220,7 +220,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
           {canPreview && doc.url && (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="border-b border-border px-5 py-3">
-                <h2 className="text-sm font-semibold text-foreground">Vista previa</h2>
+                <h2 className="text-sm font-semibold text-foreground">Preview</h2>
               </div>
               <div className="flex items-center justify-center bg-muted/30 p-6">
                 <img
@@ -236,27 +236,27 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-xl border border-border bg-card">
               <div className="border-b border-border px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Informacion del archivo</h2>
+                <h2 className="text-sm font-semibold text-foreground">File Information</h2>
               </div>
               <div className="divide-y divide-border">
-                <InfoRow icon={File} label="Nombre" value={doc.nombre} />
-                <InfoRow icon={FileText} label="Tipo" value={doc.tipo} />
-                <InfoRow icon={HardDrive} label="Tamaño" value={formatBytes(doc.tamano)} />
-                <InfoRow icon={Calendar} label="Fecha de subida" value={formatDate(doc.createdAt)} />
-                <InfoRow icon={Calendar} label="Ultima modificacion" value={formatDate(doc.updatedAt)} />
+                <InfoRow icon={File} label="Name" value={doc.nombre} />
+                <InfoRow icon={FileText} label="Type" value={doc.tipo} />
+                <InfoRow icon={HardDrive} label="Size" value={formatBytes(doc.tamano)} />
+                <InfoRow icon={Calendar} label="Upload Date" value={formatDate(doc.createdAt)} />
+                <InfoRow icon={Calendar} label="Last Modified" value={formatDate(doc.updatedAt)} />
               </div>
             </div>
 
             <div className="rounded-xl border border-border bg-card">
               <div className="border-b border-border px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Asociaciones</h2>
+                <h2 className="text-sm font-semibold text-foreground">Associations</h2>
               </div>
               <div className="divide-y divide-border">
                 {doc.cliente ? (
                   <div className="flex items-center justify-between px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Cliente</span>
+                      <span className="text-sm text-muted-foreground">Client</span>
                     </div>
                     <Link
                       href={`/clientes/${doc.cliente.id}`}
@@ -266,13 +266,13 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                     </Link>
                   </div>
                 ) : (
-                  <InfoRow icon={Users} label="Cliente" value="Sin asignar" />
+                  <InfoRow icon={Users} label="Client" value="Unassigned" />
                 )}
                 {doc.proyecto ? (
                   <div className="flex items-center justify-between px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Proyecto</span>
+                      <span className="text-sm text-muted-foreground">Project</span>
                     </div>
                     <Link
                       href={`/proyectos/${doc.proyecto.id}`}
@@ -282,7 +282,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                     </Link>
                   </div>
                 ) : (
-                  <InfoRow icon={FolderKanban} label="Proyecto" value="Sin asignar" />
+                  <InfoRow icon={FolderKanban} label="Project" value="Unassigned" />
                 )}
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
           {/* URL */}
           <div className="rounded-xl border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
-              <h2 className="text-sm font-semibold text-foreground">Ubicacion del archivo</h2>
+              <h2 className="text-sm font-semibold text-foreground">File Location</h2>
             </div>
             <div className="px-5 py-4">
               <div className="flex flex-col sm:flex-row gap-2">
@@ -302,10 +302,10 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
                   className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground min-w-0"
                 />
                 <button
-                  onClick={() => { navigator.clipboard.writeText(doc.url); toast.success("URL copiada") }}
+                  onClick={() => { navigator.clipboard.writeText(doc.url); toast.success("URL copied") }}
                   className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors flex-shrink-0"
                 >
-                  Copiar
+                  Copy
                 </button>
               </div>
             </div>
@@ -314,9 +314,9 @@ export default function ArchivoDetailPage({ params }: { params: Promise<{ id: st
 
         <ConfirmModal
           open={deleteOpen}
-          title="Eliminar archivo"
-          description={`¿Seguro que quieres eliminar "${doc.nombre}"? Esta accion no se puede deshacer.`}
-          confirmLabel="Eliminar"
+          title="Delete File"
+          description={`Are you sure you want to delete "${doc.nombre}"? This action cannot be undone.`}
+          confirmLabel="Delete"
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteOpen(false)}

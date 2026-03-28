@@ -5,6 +5,10 @@ import {
   type ModuleManifest,
   type ToolManifest,
 } from "@core/registry"
+import {
+  resolveForteCapabilities,
+  type ForteContext,
+} from "@/agents/forte/runtime"
 import { getModuleProgression } from "./module-levels"
 import type { ForteCatalogEntry, ForteCatalogSnapshot } from "./types"
 
@@ -227,28 +231,118 @@ function toMap<T extends { id: string }>(entries: T[]) {
   return new Map(entries.map((entry) => [entry.id, entry]))
 }
 
-export function getFortePhase1Catalog(): ForteCatalogSnapshot {
-  ensurePilotManifestsRegistered()
+function buildCatalogSnapshot(
+  moduleManifests: ModuleManifest[],
+  engineManifests: EngineManifest[],
+  toolManifests: ToolManifest[],
+): ForteCatalogSnapshot {
+  const moduleMap = toMap(moduleManifests)
+  const engineMap = toMap(engineManifests)
+  const toolMap = toMap(toolManifests)
 
-  const moduleManifests = toMap(registry.getAllModules())
-  const engineManifests = toMap(registry.getAllEngines())
-  const toolManifests = toMap(registry.getAllTools())
+  const phase1Modules = MODULE_PROFILES
+    .filter((profile) => moduleMap.has(profile.id))
+    .map((profile) => mergeModuleProfile(profile, moduleMap.get(profile.id)))
+
+  const manifestOnlyModules = moduleManifests
+    .filter((manifest) => !MODULE_PROFILES.some((profile) => profile.id === manifest.id))
+    .map<ForteCatalogEntry>((manifest) => ({
+      id: manifest.id,
+      kind: "module",
+      namespace: manifest.namespace ?? `core.${manifest.id}`,
+      name: manifest.name,
+      description: manifest.description,
+      provides: manifest.provides ?? manifest.models,
+      dependencies: manifest.dependencies,
+      optional: manifest.optional ?? false,
+      source: "manifest",
+      businessValue: `Capacidad operativa expuesta por el modulo ${manifest.name}.`,
+      useCases: manifest.provides ?? manifest.models,
+      progression: manifest.progression ?? getModuleProgression(manifest.id),
+    }))
+
+  const phase1Engines = ENGINE_PROFILES
+    .filter((profile) => engineMap.has(profile.id))
+    .map((profile) => mergeEngineProfile(profile, engineMap.get(profile.id)))
+
+  const manifestOnlyEngines = engineManifests
+    .filter((manifest) => !ENGINE_PROFILES.some((profile) => profile.id === manifest.id))
+    .map<ForteCatalogEntry>((manifest) => ({
+      id: manifest.id,
+      kind: "engine",
+      namespace: manifest.namespace ?? `engine.${manifest.id}`,
+      name: manifest.name,
+      description: manifest.description,
+      provides: manifest.provides,
+      dependencies: manifest.dependencies,
+      optional: manifest.optional ?? false,
+      source: "manifest",
+      businessValue: `Capacidad transversal expuesta por el engine ${manifest.name}.`,
+      useCases: manifest.provides,
+    }))
+
+  const phase1Tools = TOOL_PROFILES
+    .filter((profile) => toolMap.has(profile.id))
+    .map((profile) => mergeToolProfile(profile, toolMap.get(profile.id)))
+
+  const manifestOnlyTools = toolManifests
+    .filter((manifest) => !TOOL_PROFILES.some((profile) => profile.id === manifest.id))
+    .map<ForteCatalogEntry>((manifest) => ({
+      id: manifest.id,
+      kind: "tool",
+      namespace: manifest.namespace ?? `tool.${manifest.id}`,
+      name: manifest.name,
+      description: manifest.description,
+      provides: manifest.provides ?? [manifest.id],
+      dependencies: manifest.dependencies,
+      optional: manifest.optional ?? false,
+      source: "manifest",
+      businessValue: `Utilidad registrada para ${manifest.name}.`,
+      useCases: manifest.provides ?? [manifest.id],
+    }))
 
   return {
-    modules: MODULE_PROFILES.map((profile) =>
-      mergeModuleProfile(profile, moduleManifests.get(profile.id)),
-    ),
-    engines: ENGINE_PROFILES.map((profile) =>
-      mergeEngineProfile(profile, engineManifests.get(profile.id)),
-    ),
-    tools: TOOL_PROFILES.map((profile) =>
-      mergeToolProfile(profile, toolManifests.get(profile.id)),
-    ),
+    modules: [...phase1Modules, ...manifestOnlyModules],
+    engines: [...phase1Engines, ...manifestOnlyEngines],
+    tools: [...phase1Tools, ...manifestOnlyTools],
   }
+}
+
+export function getFortePhase1Catalog(): ForteCatalogSnapshot {
+  ensurePilotManifestsRegistered()
+  return buildCatalogSnapshot(
+    registry.getAllModules(),
+    registry.getAllEngines(),
+    registry.getAllTools(),
+  )
+}
+
+export async function getFortePhase1CatalogForContext(
+  context: ForteContext,
+): Promise<ForteCatalogSnapshot> {
+  const effective = await resolveForteCapabilities({ context })
+  return buildCatalogSnapshot(
+    effective.modules,
+    effective.engines,
+    effective.registryTools,
+  )
 }
 
 export function getAvailableForteCapabilities(): string[] {
   const catalog = getFortePhase1Catalog()
+  const capabilities = [
+    ...catalog.modules.flatMap((entry) => entry.provides),
+    ...catalog.engines.flatMap((entry) => entry.provides),
+    ...catalog.tools.flatMap((entry) => entry.provides),
+  ]
+
+  return Array.from(new Set(capabilities)).sort()
+}
+
+export async function getAvailableForteCapabilitiesForContext(
+  context: ForteContext,
+): Promise<string[]> {
+  const catalog = await getFortePhase1CatalogForContext(context)
   const capabilities = [
     ...catalog.modules.flatMap((entry) => entry.provides),
     ...catalog.engines.flatMap((entry) => entry.provides),

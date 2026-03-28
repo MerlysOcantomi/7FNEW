@@ -26,11 +26,11 @@ interface Idea {
 
 const categoryLabels: Record<string, string> = {
   idea: "Idea",
-  concepto: "Concepto",
-  referencia: "Referencia",
+  concepto: "Concept",
+  referencia: "Reference",
   prompt: "Prompt",
-  inspiracion: "Inspiracion",
-  "nota-editorial": "Nota editorial",
+  inspiracion: "Inspiration",
+  "nota-editorial": "Editorial note",
 }
 
 const categoryColors: Record<string, string> = {
@@ -45,56 +45,56 @@ const categoryColors: Record<string, string> = {
 const mockIdeas: Idea[] = [
   {
     id: "idea-1",
-    title: "Campana visual estilo editorial minimalista",
-    description: "Explorar un enfoque fotografico en blanco y negro con tipografia serif para la campana de lanzamiento. Inspirado en editoriales de moda europeas. Puede funcionar como serie de 5 piezas para redes y landing.",
-    tags: ["branding", "fotografia", "editorial"],
-    client: "Alpha Corp",
-    project: "Rebranding Alpha",
+    title: "Minimal editorial visual campaign",
+    description: "Explore a black-and-white photography approach with serif typography for the launch campaign. Inspired by European fashion editorials. It can work as a series of 5 pieces for social channels and landing pages.",
+    tags: ["branding", "photography", "editorial"],
+    client: "Active client",
+    project: "Brand refresh",
     createdAt: "2026-02-18",
     category: "idea",
   },
   {
     id: "idea-2",
-    title: "Micro-animaciones para onboarding",
-    description: "Crear un set de micro-animaciones Lottie para el flujo de onboarding de la app. Deben ser suaves, sin colores saturados, con estilo line-art. Referencia: Stripe, Linear.",
+    title: "Micro-animations for onboarding",
+    description: "Create a set of Lottie micro-animations for the app onboarding flow. They should feel smooth, avoid saturated colors, and follow a line-art style. Reference: Stripe, Linear.",
     tags: ["motion", "UX", "app"],
-    client: "Beta Labs",
-    project: "App Beta v2",
+    client: "Active project",
+    project: "Onboarding app",
     createdAt: "2026-02-16",
     category: "concepto",
   },
   {
     id: "idea-3",
-    title: "Moodboard: texturas organicas + paleta neutra",
-    description: "Recopilar referencias de texturas organicas (papel, tela, madera) combinadas con paletas neutras y calidas. Para el rediseno del packaging.",
-    tags: ["moodboard", "packaging", "texturas"],
-    client: "Gamma Inc",
+    title: "Moodboard: organic textures + neutral palette",
+    description: "Collect references for organic textures such as paper, fabric, and wood combined with warm neutral palettes for the packaging redesign.",
+    tags: ["moodboard", "packaging", "textures"],
+    client: "Active client",
     createdAt: "2026-02-14",
     category: "referencia",
   },
   {
     id: "idea-4",
-    title: "Prompt: Generar variaciones de logo sobre fondo texturizado",
-    description: "Usa un estilo de renderizado realista con luz natural suave. Coloca el logo sobre superficies de concreto, madera clara y papel kraft. Fondo desenfocado, profundidad de campo.",
-    tags: ["IA", "logo", "mockup"],
+    title: "Prompt: Generate logo variations on textured backgrounds",
+    description: "Use a realistic rendering style with soft natural light. Place the logo on concrete, light wood, and kraft paper surfaces. Blurred background and shallow depth of field.",
+    tags: ["AI", "logo", "mockup"],
     createdAt: "2026-02-12",
     category: "prompt",
   },
   {
     id: "idea-5",
-    title: "Serie de contenido: Detras del proceso creativo",
-    description: "Documentar el proceso creativo de un proyecto real en 5 piezas. Desde el brief hasta la entrega. Formato: carrusel o video corto. Muestra bocetos, iteraciones, feedback y resultado final.",
-    tags: ["contenido", "storytelling", "proceso"],
-    client: "Alpha Corp",
-    project: "Rebranding Alpha",
+    title: "Content series: behind the creative process",
+    description: "Document the creative process of a real project in 5 pieces, from brief to final delivery. Format: carousel or short video. Show sketches, iterations, feedback, and final output.",
+    tags: ["content", "storytelling", "process"],
+    client: "Active client",
+    project: "Brand refresh",
     createdAt: "2026-02-10",
     category: "inspiracion",
   },
   {
     id: "idea-6",
-    title: "Guia interna: Tono de voz para clientes tech",
-    description: "Redactar una guia de tono de voz especifica para clientes del sector tecnologico. Debe cubrir: headlines, CTAs, descripciones de producto, mensajes de error, y comunicacion interna.",
-    tags: ["copy", "guia", "tono-de-voz"],
+    title: "Internal guide: tone of voice for tech clients",
+    description: "Write a tone-of-voice guide tailored to clients in the technology sector. It should cover headlines, CTAs, product descriptions, error messages, and internal communication.",
+    tags: ["copy", "guide", "tone-of-voice"],
     createdAt: "2026-02-08",
     category: "nota-editorial",
   },
@@ -102,7 +102,7 @@ const mockIdeas: Idea[] = [
 
 export function ContentIdeas() {
   const [search, setSearch] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("todos")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [showNewIdeaForm, setShowNewIdeaForm] = useState(false)
   const [newIdea, setNewIdea] = useState({ title: "", description: "", tags: "", category: "idea" })
 
@@ -111,7 +111,7 @@ export function ContentIdeas() {
       idea.title.toLowerCase().includes(search.toLowerCase()) ||
       idea.description.toLowerCase().includes(search.toLowerCase()) ||
       idea.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
-    const matchesCategory = categoryFilter === "todos" || idea.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || idea.category === categoryFilter
     return matchesSearch && matchesCategory
   })
 
@@ -120,15 +120,15 @@ export function ContentIdeas() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Banco Creativo</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Ideas, conceptos, referencias, prompts e inspiracion</p>
+          <h3 className="text-lg font-semibold text-foreground">Creative Bank</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Ideas, concepts, references, prompts, and inspiration</p>
         </div>
         <button
           onClick={() => setShowNewIdeaForm(true)}
           className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80"
         >
           <Plus className="h-3.5 w-3.5" />
-          Nueva idea
+          New idea
         </button>
       </div>
 
@@ -136,8 +136,8 @@ export function ContentIdeas() {
       {showNewIdeaForm && (
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-semibold text-foreground">Nueva idea</h4>
-            <button onClick={() => setShowNewIdeaForm(false)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Cerrar">
+            <h4 className="text-sm font-semibold text-foreground">New idea</h4>
+            <button onClick={() => setShowNewIdeaForm(false)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Close">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -146,13 +146,13 @@ export function ContentIdeas() {
               type="text"
               value={newIdea.title}
               onChange={e => setNewIdea({ ...newIdea, title: e.target.value })}
-              placeholder="Titulo de la idea..."
+              placeholder="Idea title..."
               className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <textarea
               value={newIdea.description}
               onChange={e => setNewIdea({ ...newIdea, description: e.target.value })}
-              placeholder="Describe la idea, concepto o referencia..."
+              placeholder="Describe the idea, concept, or reference..."
               rows={3}
               className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
@@ -161,7 +161,7 @@ export function ContentIdeas() {
                 type="text"
                 value={newIdea.tags}
                 onChange={e => setNewIdea({ ...newIdea, tags: e.target.value })}
-                placeholder="Etiquetas separadas por coma..."
+                placeholder="Tags separated by commas..."
                 className="flex-1 min-w-[200px] rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <div className="relative">
@@ -176,7 +176,7 @@ export function ContentIdeas() {
                 </select>
               </div>
               <button className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
-                Guardar
+                Save
               </button>
             </div>
           </div>
@@ -191,24 +191,24 @@ export function ContentIdeas() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar ideas, etiquetas..."
+            placeholder="Search ideas, tags..."
             className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <button
-            onClick={() => setCategoryFilter("todos")}
+            onClick={() => setCategoryFilter("all")}
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-medium border transition-colors flex-shrink-0",
-              categoryFilter === "todos" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:text-foreground"
+              categoryFilter === "all" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:text-foreground"
             )}
           >
-            Todos
+            All
           </button>
           {Object.entries(categoryLabels).map(([k, v]) => (
             <button
               key={k}
-              onClick={() => setCategoryFilter(categoryFilter === k ? "todos" : k)}
+              onClick={() => setCategoryFilter(categoryFilter === k ? "all" : k)}
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-medium border transition-colors flex-shrink-0",
                 categoryFilter === k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:text-foreground"
@@ -231,7 +231,7 @@ export function ContentIdeas() {
                   {categoryLabels[idea.category]}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {new Date(idea.createdAt + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                  {new Date(idea.createdAt + "T12:00:00").toLocaleDateString("en", { day: "numeric", month: "short" })}
                 </span>
               </div>
 
@@ -264,11 +264,11 @@ export function ContentIdeas() {
               <div className="flex items-center gap-2 mt-auto pt-1">
                 <button className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                   <ArrowRight className="h-3 w-3" />
-                  Convertir en contenido
+                  Convert to content
                 </button>
                 <button className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                   <CheckSquare className="h-3 w-3" />
-                  Convertir en tarea
+                  Convert to task
                 </button>
               </div>
             </div>
@@ -277,7 +277,7 @@ export function ContentIdeas() {
       ) : (
         <div className="rounded-xl border border-border bg-card p-10 text-center">
           <Lightbulb className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No se encontraron ideas con esos filtros</p>
+          <p className="text-sm text-muted-foreground">No ideas found for these filters</p>
         </div>
       )}
     </div>

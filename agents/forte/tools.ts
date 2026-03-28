@@ -2,6 +2,8 @@
  * Tool definitions for OpenAI function calling.
  * The agent decides when to use each tool based on user intent.
  */
+import type { ForteContext } from "./runtime"
+import { getAgentToolsForForteContext } from "./runtime/agent-adapter"
 
 export interface ToolDefinition {
   type: "function"
@@ -187,3 +189,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
 ]
 
 export const TOOL_NAMES = AGENT_TOOLS.map((t) => t.function.name)
+
+export async function getAgentToolsForContext(context: ForteContext) {
+  return getAgentToolsForForteContext(context, AGENT_TOOLS)
+}

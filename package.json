@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:forte-runtime": "tsx --test agents/forte/runtime/runtime.test.ts",
+    "test:forte-execution": "tsx --test agents/forte/runtime/approved-execution.test.ts",
+    "test:forte": "tsx --test agents/forte/runtime/runtime.test.ts agents/forte/runtime/approved-execution.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -79,6 +82,7 @@
     "postcss": "^8.5",
     "prisma": "^7.4.1",
     "tailwindcss": "^4.1.13",
+    "tsx": "^4.21.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"
   }

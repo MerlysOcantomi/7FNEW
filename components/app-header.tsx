@@ -52,7 +52,7 @@ export function AppHeader({
           className={cn(
             "hidden md:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           )}
-          aria-label={sidebarOpen ? "Ocultar sidebar" : "Mostrar sidebar"}
+          aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
         >
           <PanelLeft className="h-4 w-4" />
         </button>
@@ -96,7 +96,7 @@ export function AppHeader({
           className="hidden sm:flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 cursor-pointer hover:border-foreground/20 transition-colors"
         >
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="w-32 lg:w-48 text-left text-sm text-muted-foreground">Buscar...</span>
+          <span className="w-32 lg:w-48 text-left text-sm text-muted-foreground">Search...</span>
           <kbd className="ml-auto text-[10px] font-mono text-muted-foreground/60 border border-border rounded px-1 py-0.5">
             ⌘K
           </kbd>
@@ -105,7 +105,7 @@ export function AppHeader({
         <button
           onClick={openSearch}
           className="flex sm:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Buscar"
+          aria-label="Search"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -122,7 +122,7 @@ export function AppHeader({
               ? "bg-accent text-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-foreground"
           )}
-          aria-label={chatOpen ? "Ocultar asistente" : "Mostrar asistente"}
+          aria-label={chatOpen ? "Hide assistant" : "Show assistant"}
         >
           <MessageCircle className="h-4 w-4" />
         </button>
@@ -131,7 +131,7 @@ export function AppHeader({
         <button
           onClick={onToggleMobileChat}
           className="flex md:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Asistente"
+          aria-label="Assistant"
         >
           <MessageCircle className="h-4 w-4" />
         </button>

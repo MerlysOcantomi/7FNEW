@@ -4,6 +4,10 @@
 
 import { db } from "@/lib/db"
 import { generateImage } from "@tools/image-generator"
+import {
+  buildAssistantForteContext,
+  executeBridgedLegacyTool,
+} from "./runtime/agent-adapter"
 
 export interface ToolResult {
   success: boolean
@@ -15,6 +19,9 @@ export interface ToolResult {
 export interface ToolExecutionContext {
   workspaceId: string
   userId: string
+  wsRole?: string
+  tenantId?: string
+  requestId?: string
 }
 
 export async function executeToolCall(
@@ -23,6 +30,20 @@ export async function executeToolCall(
   context: ToolExecutionContext
 ): Promise<ToolResult> {
   try {
+    if (context.wsRole) {
+      const forteContext = buildAssistantForteContext({
+        tenantId: context.tenantId,
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        wsRole: context.wsRole,
+        requestId: context.requestId,
+      })
+      const bridged = await executeBridgedLegacyTool(name, args, forteContext)
+      if (bridged) {
+        return bridged
+      }
+    }
+
     switch (name) {
       case "buscar_clientes":
         return await searchClientes(args as { search: string }, context)

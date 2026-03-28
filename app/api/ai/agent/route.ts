@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
 import { AGENT_SYSTEM_PROMPT } from "@/agents/forte/system-prompt"
-import { AGENT_TOOLS } from "@/agents/forte/tools"
+import { getAgentToolsForContext } from "@/agents/forte/tools"
 import { executeToolCall } from "@/agents/forte/executor"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { gatherBusinessContext } from "@tools/context/gather-business-context"
+import { buildAssistantForteContext } from "@/agents/forte/runtime/agent-adapter"
 
 const MAX_HISTORY = 20
 const MAX_INPUT = 12000
@@ -26,7 +27,7 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId, session } = await requireWriteAccess(request)
+    const { workspaceId, session, wsRole } = await requireWriteAccess(request)
     const body = await request.json()
     const { message, history = [] } = body
 
@@ -37,6 +38,14 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION", `Mensaje excede ${MAX_INPUT} caracteres`, 400)
     }
 
+    const forteContext = buildAssistantForteContext({
+      tenantId: request.headers.get("x-tenant-id") ?? workspaceId,
+      workspaceId,
+      userId: session.userId,
+      wsRole,
+      requestId: request.headers.get("x-request-id") ?? undefined,
+    })
+    const agentTools = await getAgentToolsForContext(forteContext)
     const context = await gatherBusinessContext(workspaceId)
     const systemContent = `${AGENT_SYSTEM_PROMPT}\n\n═══════════════════════════════════════\nCONTEXTO ACTUAL DEL NEGOCIO\n═══════════════════════════════════════\n\n${context}`
 
@@ -65,7 +74,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: "gpt-4.1",
           messages,
-          tools: AGENT_TOOLS,
+          tools: agentTools,
           tool_choice: "auto",
           temperature: 0.6,
           max_tokens: 8192,
@@ -100,6 +109,9 @@ export async function POST(request: NextRequest) {
           const result = await executeToolCall(fnName, fnArgs, {
             workspaceId,
             userId: session.userId,
+            wsRole,
+            tenantId: forteContext.tenantId,
+            requestId: forteContext.requestId,
           })
 
           actions.push({ tool: fnName, args: fnArgs, result })

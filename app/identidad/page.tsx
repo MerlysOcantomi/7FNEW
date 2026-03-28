@@ -25,73 +25,73 @@ const identityGroups = [
   {
     id: "ig-1",
     canonicalName: "Maria Lopez",
-    client: "Alpha Corp",
+    client: "Active client",
     confidence: 98,
     status: "confirmado",
     variants: [
       { alias: "Maria Lopez", source: "CRM", type: "nombre" },
-      { alias: "maria@alphacorp.com", source: "Email", type: "email" },
+      { alias: "maria@clienteactivo.com", source: "Email", type: "email" },
       { alias: "Ma. Lopez", source: "WhatsApp", type: "alias" },
-      { alias: "+52 55 1234 5678", source: "Telefono", type: "telefono" },
-      { alias: "Sra. Lopez de Alpha", source: "Nota manual", type: "referencia" },
+      { alias: "+52 55 1234 5678", source: "Phone", type: "telefono" },
+      { alias: "Mrs. Lopez from the client", source: "Manual note", type: "referencia" },
     ],
-    lastActivity: "Hace 1h",
+    lastActivity: "1h ago",
   },
   {
     id: "ig-2",
     canonicalName: "Roberto Diaz",
-    client: "Beta Labs",
+    client: "Active project",
     confidence: 95,
     status: "confirmado",
     variants: [
       { alias: "Roberto Diaz", source: "CRM", type: "nombre" },
-      { alias: "roberto@betalabs.com", source: "Email", type: "email" },
+      { alias: "roberto@proyectoactivo.com", source: "Email", type: "email" },
       { alias: "Rob Diaz", source: "Slack", type: "alias" },
-      { alias: "+52 55 2345 6789", source: "Telefono", type: "telefono" },
+      { alias: "+52 55 2345 6789", source: "Phone", type: "telefono" },
     ],
-    lastActivity: "Hace 3h",
+    lastActivity: "3h ago",
   },
   {
     id: "ig-3",
     canonicalName: "Fernando Reyes",
-    client: "Nexus Solutions",
+    client: "New lead",
     confidence: 72,
     status: "pendiente",
     variants: [
-      { alias: "Fernando Reyes", source: "Formulario web", type: "nombre" },
-      { alias: "fernando.r@nexus.com", source: "Email", type: "email" },
-      { alias: "Fer de Nexus", source: "Nota manual", type: "referencia" },
+      { alias: "Fernando Reyes", source: "Web form", type: "nombre" },
+      { alias: "fernando.r@leadnuevo.com", source: "Email", type: "email" },
+      { alias: "Fer from the lead", source: "Manual note", type: "referencia" },
     ],
-    lastActivity: "Hace 2h",
+    lastActivity: "2h ago",
   },
   {
     id: "ig-4",
     canonicalName: "Laura Chen / L. Chen",
-    client: "Epsilon Group",
+    client: "Account pending review",
     confidence: 65,
     status: "conflicto",
     variants: [
       { alias: "Laura Chen", source: "CRM", type: "nombre" },
       { alias: "L. Chen", source: "Email", type: "alias" },
-      { alias: "laura@epsilongroup.com", source: "Email", type: "email" },
+      { alias: "laura@cuentaporvalidar.com", source: "Email", type: "email" },
       { alias: "Laura C.", source: "WhatsApp", type: "alias" },
-      { alias: "Lau Chen", source: "Nota interna", type: "referencia" },
+      { alias: "Lau Chen", source: "Internal note", type: "referencia" },
     ],
-    lastActivity: "Hace 1d",
-    conflictNote: "Posible duplicado: 'Laura Chen' aparece en 2 registros de cliente distintos (Epsilon Group y un lead antiguo sin asignar).",
+    lastActivity: "1d ago",
+    conflictNote: "Possible duplicate: 'Laura Chen' appears in 2 different records (an account pending review and an unassigned older lead).",
   },
   {
     id: "ig-5",
     canonicalName: "Carlos Mendez",
-    client: "Interno",
+    client: "Internal",
     confidence: 100,
     status: "confirmado",
     variants: [
-      { alias: "Carlos Mendez", source: "Equipo interno", type: "nombre" },
+      { alias: "Carlos Mendez", source: "Internal team", type: "nombre" },
       { alias: "carlos@7f.com", source: "Email", type: "email" },
       { alias: "CMendez", source: "Slack", type: "alias" },
     ],
-    lastActivity: "Hace 6h",
+    lastActivity: "6h ago",
   },
 ]
 
@@ -103,7 +103,7 @@ const typeIcons: Record<string, typeof User> = {
   referencia: Building2,
 }
 
-const statusFilters = ["Todos", "Confirmado", "Pendiente", "Conflicto"]
+const statusFilters = ["All", "Confirmed", "Pending", "Conflict"]
 
 const statusStyles: Record<string, string> = {
   confirmado: "bg-[var(--tab-phases)] text-foreground/70",
@@ -113,11 +113,11 @@ const statusStyles: Record<string, string> = {
 
 export default function IdentidadPage() {
   const [selectedId, setSelectedId] = useState("ig-1")
-  const [activeFilter, setActiveFilter] = useState("Todos")
+  const [activeFilter, setActiveFilter] = useState("All")
   const [search, setSearch] = useState("")
 
   const filtered = identityGroups.filter((g) => {
-    if (activeFilter !== "Todos" && g.status !== activeFilter.toLowerCase()) return false
+    if (activeFilter !== "All" && g.status !== activeFilter.toLowerCase()) return false
     if (search) {
       const q = search.toLowerCase()
       if (!g.canonicalName.toLowerCase().includes(q) && !g.client.toLowerCase().includes(q) && !g.variants.some(v => v.alias.toLowerCase().includes(q))) return false
@@ -128,16 +128,16 @@ export default function IdentidadPage() {
   const selected = identityGroups.find((g) => g.id === selectedId)
 
   return (
-    <AppShell currentSection="identidad" breadcrumbs={[{ label: "7F" }, { label: "Resolucion de Identidad" }]}>
-      <SectionPage title="Resolucion de Identidad" description="Motor de fuzzy matching que unifica nombres, apodos, correos y telefonos bajo una identidad canonica por contacto.">
+    <AppShell currentSection="identidad" breadcrumbs={[{ label: "7F" }, { label: "Identity Resolution" }]}>
+      <SectionPage title="Identity Resolution" description="Fuzzy matching engine that unifies names, aliases, emails, and phone numbers under a canonical contact identity.">
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Identidades", value: identityGroups.length, color: "var(--tab-info)" },
-            { label: "Confirmadas", value: identityGroups.filter(g => g.status === "confirmado").length, color: "var(--tab-phases)" },
-            { label: "Pendientes", value: identityGroups.filter(g => g.status === "pendiente").length, color: "var(--tab-tasks)" },
-            { label: "Conflictos", value: identityGroups.filter(g => g.status === "conflicto").length, color: "var(--tab-review)" },
+            { label: "Identities", value: identityGroups.length, color: "var(--tab-info)" },
+            { label: "Confirmed", value: identityGroups.filter(g => g.status === "confirmado").length, color: "var(--tab-phases)" },
+            { label: "Pending", value: identityGroups.filter(g => g.status === "pendiente").length, color: "var(--tab-tasks)" },
+            { label: "Conflicts", value: identityGroups.filter(g => g.status === "conflicto").length, color: "var(--tab-review)" },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
@@ -157,7 +157,7 @@ export default function IdentidadPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar nombre, email, alias..."
+              placeholder="Search name, email, alias..."
               className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
@@ -199,7 +199,7 @@ export default function IdentidadPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{group.canonicalName}</p>
-                      <p className="text-xs text-muted-foreground">{group.client} &middot; {group.variants.length} variantes</p>
+                      <p className="text-xs text-muted-foreground">{group.client} &middot; {group.variants.length} variants</p>
                     </div>
                   </div>
                   <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium flex-shrink-0", statusStyles[group.status])}>
@@ -208,7 +208,7 @@ export default function IdentidadPage() {
                 </div>
                 <div className="flex items-center gap-2 mt-2 ml-[52px]">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span>Confianza:</span>
+                    <span>Confidence:</span>
                     <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
                       <div
                         className={cn("h-full rounded-full", group.confidence >= 90 ? "bg-[var(--tab-phases)]" : group.confidence >= 70 ? "bg-[var(--tab-tasks)]" : "bg-[var(--tab-review)]")}
@@ -246,7 +246,7 @@ export default function IdentidadPage() {
                     </span>
                     {selected.status !== "confirmado" && (
                       <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity">
-                        <CheckCircle2 className="h-3 w-3" /> Confirmar
+                        <CheckCircle2 className="h-3 w-3" /> Confirm
                       </button>
                     )}
                   </div>
@@ -258,17 +258,17 @@ export default function IdentidadPage() {
                 <div className="rounded-xl border border-[var(--tab-review)]/50 bg-[var(--tab-review)]/10 p-4 flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-foreground/60 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Conflicto detectado</p>
+                    <p className="text-sm font-medium text-foreground">Conflict detected</p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{selected.conflictNote}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                       <button className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity">
-                        <Link2 className="h-3 w-3" /> Fusionar registros
+                        <Link2 className="h-3 w-3" /> Merge records
                       </button>
                       <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-                        <Unlink className="h-3 w-3" /> Separar identidades
+                        <Unlink className="h-3 w-3" /> Separate identities
                       </button>
                       <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                        Ignorar
+                        Ignore
                       </button>
                     </div>
                   </div>
@@ -279,7 +279,7 @@ export default function IdentidadPage() {
               <div className="rounded-xl border border-border bg-card overflow-hidden">
                 <div className="flex items-center gap-2 border-b border-border px-5 py-4">
                   <Fingerprint className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="text-sm font-semibold text-foreground">Variantes de identidad ({selected.variants.length})</h4>
+                  <h4 className="text-sm font-semibold text-foreground">Identity variants ({selected.variants.length})</h4>
                 </div>
                 <div className="divide-y divide-border">
                   {selected.variants.map((v, i) => {
@@ -296,7 +296,7 @@ export default function IdentidadPage() {
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground flex-shrink-0">
                           {v.type}
                         </span>
-                        <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0" aria-label="Desvincular">
+                        <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0" aria-label="Unlink">
                           <XCircle className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -305,7 +305,7 @@ export default function IdentidadPage() {
                 </div>
                 <div className="border-t border-border px-5 py-3">
                   <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    <Link2 className="h-3.5 w-3.5" /> Agregar variante manualmente
+                    <Link2 className="h-3.5 w-3.5" /> Add variant manually
                   </button>
                 </div>
               </div>
@@ -314,13 +314,13 @@ export default function IdentidadPage() {
               <div className="rounded-xl border border-[var(--tab-ai)]/50 bg-[var(--tab-ai)]/10 p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sugerencias IA</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">AI suggestions</p>
                 </div>
                 <div className="flex flex-col gap-2">
                   {[
-                    "Buscar coincidencias en mensajes recientes",
-                    "Verificar duplicados en base de clientes",
-                    "Reconstruir historial de comunicacion",
+                    "Search matches in recent messages",
+                    "Check for duplicates in the client database",
+                    "Rebuild communication history",
                   ].map((s) => (
                     <button key={s} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent text-left">
                       <ArrowRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />

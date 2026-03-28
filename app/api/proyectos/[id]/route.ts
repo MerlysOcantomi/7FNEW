@@ -12,7 +12,7 @@ const TRACKED_FIELDS = ["nombre", "descripcion", "estado", "prioridad", "progres
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return errorResponse("NOT_FOUND", "Proyecto no encontrado", 404)
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId, session } = await requireWriteAccess()
+    const { workspaceId, session } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
     const data = updateProyectoSchema.parse(body)
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await requireWriteAccess()
+    const { workspaceId } = await requireWriteAccess(_request)
     const { id } = await params
     const record = await service.getById(id, workspaceId)
     if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 })

@@ -52,34 +52,34 @@ interface DocFile {
 const allDocuments: DocFile[] = [
   {
     id: "d1",
-    name: "Contrato de servicio 2026.pdf",
+    name: "Service agreement 2026.pdf",
     type: "pdf",
     mimeLabel: "PDF",
-    date: "10 ene 2026",
+    date: "Jan 10 2026",
     size: "1.8 MB",
     sizeBytes: 1800000,
     uploadedBy: "Carlos M.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#F87171",
   },
   {
     id: "d2",
-    name: "Brief creativo.pdf",
+    name: "Creative brief.pdf",
     type: "pdf",
     mimeLabel: "PDF",
-    date: "15 ene 2026",
+    date: "Jan 15 2026",
     size: "2.4 MB",
     sizeBytes: 2400000,
     uploadedBy: "Ana R.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#F87171",
   },
   {
     id: "d3",
-    name: "Propuesta comercial Q1.pdf",
+    name: "Commercial proposal Q1.pdf",
     type: "pdf",
     mimeLabel: "PDF",
-    date: "5 dic 2025",
+    date: "Dec 5 2025",
     size: "3.2 MB",
     sizeBytes: 3200000,
     uploadedBy: "Laura G.",
@@ -87,46 +87,46 @@ const allDocuments: DocFile[] = [
   },
   {
     id: "d4",
-    name: "Logo final v3.png",
+    name: "Final logo v3.png",
     type: "image",
     mimeLabel: "PNG",
-    date: "20 ene 2026",
+    date: "Jan 20 2026",
     size: "4.5 MB",
     sizeBytes: 4500000,
     uploadedBy: "Carlos M.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#60A5FA",
   },
   {
     id: "d5",
-    name: "Paleta de colores.jpg",
+    name: "Color palette.jpg",
     type: "image",
     mimeLabel: "JPG",
-    date: "18 ene 2026",
+    date: "Jan 18 2026",
     size: "1.2 MB",
     sizeBytes: 1200000,
     uploadedBy: "Ana R.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#60A5FA",
   },
   {
     id: "d6",
-    name: "Moodboard referencias.webp",
+    name: "Reference moodboard.webp",
     type: "image",
     mimeLabel: "WEBP",
-    date: "12 ene 2026",
+    date: "Jan 12 2026",
     size: "3.8 MB",
     sizeBytes: 3800000,
     uploadedBy: "Ana R.",
-    project: "Campana Digital Q1",
+    project: "Q1 Digital Campaign",
     thumbnailColor: "#60A5FA",
   },
   {
     id: "d7",
-    name: "Presupuesto desglosado.xlsx",
+    name: "Detailed budget.xlsx",
     type: "spreadsheet",
     mimeLabel: "XLSX",
-    date: "8 feb 2026",
+    date: "Feb 8 2026",
     size: "0.6 MB",
     sizeBytes: 600000,
     uploadedBy: "Laura G.",
@@ -134,10 +134,10 @@ const allDocuments: DocFile[] = [
   },
   {
     id: "d8",
-    name: "Acta de reunion 14-feb.docx",
+    name: "Meeting notes 14-feb.docx",
     type: "doc",
     mimeLabel: "DOCX",
-    date: "14 feb 2026",
+    date: "Feb 14 2026",
     size: "0.3 MB",
     sizeBytes: 300000,
     uploadedBy: "Carlos M.",
@@ -145,14 +145,14 @@ const allDocuments: DocFile[] = [
   },
   {
     id: "d9",
-    name: "Materiales fotograficos.zip",
+    name: "Photo materials.zip",
     type: "zip",
     mimeLabel: "ZIP",
-    date: "8 feb 2026",
+    date: "Feb 8 2026",
     size: "128 MB",
     sizeBytes: 128000000,
     uploadedBy: "Ana R.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#FBBF24",
   },
   {
@@ -160,46 +160,46 @@ const allDocuments: DocFile[] = [
     name: "Video testimonial v1.mp4",
     type: "video",
     mimeLabel: "MP4",
-    date: "1 feb 2026",
+    date: "Feb 1 2026",
     size: "45.6 MB",
     sizeBytes: 45600000,
     uploadedBy: "Carlos M.",
-    project: "Campana Digital Q1",
+    project: "Q1 Digital Campaign",
     thumbnailColor: "#F472B6",
   },
   {
     id: "d11",
-    name: "Guia de marca actual.ai",
+    name: "Current brand guide.ai",
     type: "other",
     mimeLabel: "AI",
-    date: "20 nov 2025",
+    date: "Nov 20 2025",
     size: "45.6 MB",
     sizeBytes: 45600000,
     uploadedBy: "Ana R.",
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     thumbnailColor: "#FB923C",
   },
   {
     id: "d12",
-    name: "Captura pantalla competencia.png",
+    name: "Competitor screenshot.png",
     type: "image",
     mimeLabel: "PNG",
-    date: "25 ene 2026",
+    date: "Jan 25 2026",
     size: "2.1 MB",
     sizeBytes: 2100000,
     uploadedBy: "Laura G.",
-    project: "Estrategia de Contenidos",
+    project: "Content Strategy",
     thumbnailColor: "#60A5FA",
   },
 ]
 
 const typeFilterOptions: { value: FileType | "all"; label: string }[] = [
-  { value: "all", label: "Todos" },
-  { value: "image", label: "Imagenes" },
+  { value: "all", label: "All" },
+  { value: "image", label: "Images" },
   { value: "pdf", label: "PDFs" },
-  { value: "doc", label: "Documentos" },
-  { value: "spreadsheet", label: "Hojas de calculo" },
-  { value: "zip", label: "Archivos ZIP" },
+  { value: "doc", label: "Documents" },
+  { value: "spreadsheet", label: "Spreadsheets" },
+  { value: "zip", label: "ZIP Files" },
   { value: "video", label: "Videos" },
 ]
 
@@ -232,7 +232,7 @@ function sortDocs(docs: DocFile[], key: SortKey, asc: boolean): DocFile[] {
         cmp = a.name.localeCompare(b.name)
         break
       case "date":
-        cmp = new Date(parseSpanishDate(a.date)).getTime() - new Date(parseSpanishDate(b.date)).getTime()
+        cmp = new Date(parseDisplayDate(a.date)).getTime() - new Date(parseDisplayDate(b.date)).getTime()
         break
       case "size":
         cmp = a.sizeBytes - b.sizeBytes
@@ -245,17 +245,7 @@ function sortDocs(docs: DocFile[], key: SortKey, asc: boolean): DocFile[] {
   })
 }
 
-function parseSpanishDate(d: string): string {
-  const months: Record<string, string> = {
-    ene: "01", feb: "02", mar: "03", abr: "04",
-    may: "05", jun: "06", jul: "07", ago: "08",
-    sep: "09", oct: "10", nov: "11", dic: "12",
-  }
-  const parts = d.split(" ")
-  if (parts.length === 3) {
-    const month = months[parts[1]] || "01"
-    return `${parts[2]}-${month}-${parts[0].padStart(2, "0")}`
-  }
+function parseDisplayDate(d: string): string {
   return d
 }
 
@@ -336,10 +326,10 @@ export function ClientDocumentsTab() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Documentos</h3>
+          <h3 className="text-lg font-semibold text-foreground">Files</h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length} archivo{filtered.length !== 1 ? "s" : ""}
-            {typeFilter !== "all" && " filtrados"}
+            {filtered.length} file{filtered.length !== 1 ? "s" : ""}
+            {typeFilter !== "all" && " filtered"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -353,7 +343,7 @@ export function ClientDocumentsTab() {
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">IA</span>
+            <span className="hidden sm:inline">AI Assistant</span>
           </button>
           <button
             onClick={() => {
@@ -362,7 +352,7 @@ export function ClientDocumentsTab() {
             className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80"
           >
             <Upload className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Subir archivo</span>
+            <span className="hidden sm:inline">Upload File</span>
           </button>
         </div>
       </div>
@@ -383,7 +373,7 @@ export function ClientDocumentsTab() {
           <button
             onClick={() => setShowUploadZone(false)}
             className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Cerrar"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
@@ -393,16 +383,16 @@ export function ClientDocumentsTab() {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                Arrastra archivos aqui o{" "}
+                Drag files here or{" "}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="text-foreground underline underline-offset-2 hover:opacity-70"
                 >
-                  selecciona del explorador
+                  choose from your device
                 </button>
               </p>
               <p className="text-xs text-muted-foreground mt-1.5">
-                JPG, PNG, WEBP, PDF, DOCX, XLSX, ZIP, MP4 &middot; Max 200 MB por archivo
+                JPG, PNG, WEBP, PDF, DOCX, XLSX, ZIP, MP4 &middot; Max 200 MB per file
               </p>
             </div>
           </div>
@@ -428,44 +418,44 @@ export function ClientDocumentsTab() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
                 <Sparkles className="h-4 w-4 text-foreground/70" />
               </div>
-              <p className="text-sm font-semibold text-foreground">IA Contextual de Documentos</p>
+              <p className="text-sm font-semibold text-foreground">Files AI Assistant</p>
             </div>
             <button
               onClick={() => setShowAIPanel(false)}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Cerrar"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Selecciona uno o mas documentos para que la IA los analice, o usa las acciones rapidas.
+            Select one or more files for the AI Assistant to analyze, or use the quick actions.
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <AIDocAction
-              title="Resumir documento"
-              description="Extrae los puntos clave de un PDF o documento."
+              title="Summarize File"
+              description="Extract the key points from a PDF or document."
               disabled={selectedFiles.size === 0}
             />
             <AIDocAction
-              title="Extraer informacion"
-              description="Obtiene datos, cifras y fechas relevantes."
+              title="Extract Information"
+              description="Pull out relevant data, figures, and dates."
               disabled={selectedFiles.size === 0}
             />
             <AIDocAction
-              title="Comparar versiones"
-              description="Compara dos archivos y muestra diferencias."
+              title="Compare Versions"
+              description="Compare two files and show the differences."
               disabled={selectedFiles.size < 2}
             />
             <AIDocAction
-              title="Generar descripcion"
-              description="Crea una descripcion automatica del archivo."
+              title="Generate Description"
+              description="Create an automatic description of the file."
               disabled={selectedFiles.size === 0}
             />
           </div>
           {selectedFiles.size > 0 && (
             <p className="text-xs text-muted-foreground">
-              {selectedFiles.size} archivo{selectedFiles.size > 1 ? "s" : ""} seleccionado
+              {selectedFiles.size} file{selectedFiles.size > 1 ? "s" : ""} selected
               {selectedFiles.size > 1 ? "s" : ""}
             </p>
           )}
@@ -481,14 +471,14 @@ export function ClientDocumentsTab() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre, autor o proyecto..."
+              placeholder="Search by name, author, or project..."
               className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Limpiar busqueda"
+                aria-label="Clear Search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -504,7 +494,7 @@ export function ClientDocumentsTab() {
             )}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Filtros</span>
+            <span className="hidden sm:inline">Filters</span>
           </button>
           <div className="flex items-center rounded-lg border border-border bg-card">
             <button
@@ -513,7 +503,7 @@ export function ClientDocumentsTab() {
                 "flex h-9 w-9 items-center justify-center rounded-l-lg transition-colors",
                 viewMode === "grid" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
-              aria-label="Vista en cuadricula"
+              aria-label="Grid View"
             >
               <Grid3X3 className="h-4 w-4" />
             </button>
@@ -523,7 +513,7 @@ export function ClientDocumentsTab() {
                 "flex h-9 w-9 items-center justify-center rounded-r-lg transition-colors",
                 viewMode === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
-              aria-label="Vista en lista"
+              aria-label="List View"
             >
               <List className="h-4 w-4" />
             </button>
@@ -533,7 +523,7 @@ export function ClientDocumentsTab() {
         {/* Expanded filters */}
         {showFilters && (
           <div className="flex items-center gap-3 flex-wrap rounded-lg border border-border bg-card px-4 py-3">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Tipo:</span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Type:</span>
             <div className="flex items-center gap-1.5 flex-wrap">
               {typeFilterOptions.map((opt) => (
                 <button
@@ -551,10 +541,10 @@ export function ClientDocumentsTab() {
               ))}
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden sm:inline">Ordenar:</span>
-              <SortButton label="Nombre" sortKey="name" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
-              <SortButton label="Fecha" sortKey="date" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
-              <SortButton label="Tamano" sortKey="size" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden sm:inline">Sort:</span>
+              <SortButton label="Name" sortKey="name" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <SortButton label="Date" sortKey="date" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <SortButton label="Size" sortKey="size" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
             </div>
           </div>
         )}
@@ -569,16 +559,16 @@ export function ClientDocumentsTab() {
               {selectedFiles.size === filtered.length && <Check className="h-3 w-3" />}
             </button>
             <span className="text-sm text-foreground">
-              {selectedFiles.size} seleccionado{selectedFiles.size > 1 ? "s" : ""}
+              {selectedFiles.size} selected
             </span>
             <div className="ml-auto flex items-center gap-2">
               <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
                 <Download className="h-3 w-3" />
-                Descargar
+                Download
               </button>
               <button className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-card px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                 <Trash2 className="h-3 w-3" />
-                Eliminar
+                Delete
               </button>
             </div>
           </div>
@@ -591,8 +581,8 @@ export function ClientDocumentsTab() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-4">
             <FileText className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-foreground">No se encontraron documentos</p>
-          <p className="text-xs text-muted-foreground mt-1">Intenta ajustar los filtros o la busqueda</p>
+          <p className="text-sm font-medium text-foreground">No files found</p>
+          <p className="text-xs text-muted-foreground mt-1">Try adjusting the filters or search</p>
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -618,10 +608,10 @@ export function ClientDocumentsTab() {
                 <Check className="h-3 w-3 text-foreground" />
               )}
             </button>
-            <span>Nombre</span>
-            <span>Tipo</span>
-            <span>Fecha</span>
-            <span>Tamano</span>
+            <span>Name</span>
+            <span>Type</span>
+            <span>Date</span>
+            <span>Size</span>
             <span></span>
           </div>
           <div className="flex flex-col divide-y divide-border">
@@ -784,7 +774,7 @@ function DocumentCard({
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Opciones"
+              aria-label="Options"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
@@ -873,7 +863,7 @@ function DocumentRow({
         <button
           onClick={() => setShowMenu(!showMenu)}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          aria-label="Opciones"
+          aria-label="Options"
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
@@ -900,14 +890,14 @@ function ContextMenu({ onClose, onPreview }: { onClose: () => void; onPreview: (
           className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
         >
           <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-          Vista previa
+          Preview
         </button>
         <button
           onClick={onClose}
           className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
         >
           <Download className="h-3.5 w-3.5 text-muted-foreground" />
-          Descargar
+          Download
         </button>
         <div className="my-1 border-t border-border" />
         <button
@@ -915,7 +905,7 @@ function ContextMenu({ onClose, onPreview }: { onClose: () => void; onPreview: (
           className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Eliminar
+          Delete
         </button>
       </div>
     </>
@@ -959,7 +949,7 @@ function PreviewModal({ file, onClose }: { file: DocFile; onClose: () => void })
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex-shrink-0"
-            aria-label="Cerrar vista previa"
+            aria-label="Close Preview"
           >
             <X className="h-4 w-4" />
           </button>
@@ -982,7 +972,7 @@ function PreviewModal({ file, onClose }: { file: DocFile; onClose: () => void })
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">{file.name}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Vista previa no disponible para este tipo de archivo
+                Preview not available for this file type
               </p>
             </div>
           </div>
@@ -1009,7 +999,7 @@ function PreviewModal({ file, onClose }: { file: DocFile; onClose: () => void })
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
               <Download className="h-3 w-3" />
-              Descargar
+              Download
             </button>
           </div>
         </div>

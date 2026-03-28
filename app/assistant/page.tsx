@@ -20,7 +20,7 @@ const INITIAL_MESSAGES: Message[] = [
     id: 1,
     role: "assistant",
     content:
-      "Good morning. I have a comprehensive view of your current portfolio. All systems are operational. Alpha Expansion and Delta Infrastructure are on track. Beta Relaunch requires your attention due to a vendor risk flagged earlier today.",
+      "Good morning. I have a comprehensive view of your current workspace. Core operations are stable, but one active project needs attention because a delivery dependency was flagged earlier today.",
     timestamp: "09:14",
     highlight: false,
   },
@@ -34,7 +34,7 @@ const INITIAL_MESSAGES: Message[] = [
     id: 3,
     role: "assistant",
     content:
-      "This week's risk assessment across your portfolio identifies three priority areas:\n\n1. Supply chain dependency in Alpha Expansion — two vendors have delayed milestone confirmations. Recommend executive escalation by Thursday.\n\n2. Growth Fund III allocation — a 3.2% deviation from target has accumulated over 6 weeks. Reallocation to Innovation Pool is the recommended action before month close.\n\n3. Client renewal cycle — four enterprise accounts enter renewal within 30 days. Proactive outreach should begin this week to protect ARR.",
+      "This week's risk assessment across your workspace identifies three priority areas:\n\n1. Delivery dependency in one active project — two external confirmations are still pending. Recommend escalation before the end of the week.\n\n2. Finance allocation variance — a 3.2% deviation from target has accumulated over the last 6 weeks. Review allocation before month close.\n\n3. Client renewal cycle — several active accounts enter renewal within the next 30 days. Proactive outreach should begin this week to protect recurring revenue.",
     timestamp: "09:15",
     highlight: true,
   },
@@ -48,7 +48,7 @@ const INITIAL_MESSAGES: Message[] = [
     id: 5,
     role: "assistant",
     content:
-      "To prioritize the fund reallocation: Growth Fund III currently holds $640K in underperforming instruments. Moving 15% ($96K) to Innovation Pool aligns with the Q2 strategy approved in February. I can prepare a reallocation proposal for your review — would you like me to route it through the finance workspace or generate a standalone executive brief?",
+      "To prioritize the reallocation: one finance pool currently holds $640K in underperforming instruments. Moving 15% ($96K) to a stronger allocation aligns with the current quarter strategy. I can prepare a proposal for your review — would you like me to route it through the finance workspace or generate a standalone executive brief?",
     timestamp: "09:18",
     highlight: true,
   },
@@ -206,7 +206,7 @@ export default function AssistantPage() {
 
               <div className="bg-[#EFF6FF] rounded-lg p-3.5">
                 <p className="text-[10px] font-semibold text-[#3B82F6] uppercase tracking-wider mb-1.5">Selected Project</p>
-                <p className="text-sm font-semibold text-[#0F172A]">Alpha Expansion</p>
+                <p className="text-sm font-semibold text-[#0F172A]">Current project</p>
                 <p className="text-xs text-[#64748B] mt-0.5">Phase 3 of 5 — 60% complete</p>
               </div>
 
@@ -218,7 +218,7 @@ export default function AssistantPage() {
 
               <div className="bg-[#DBEAFE] rounded-lg p-3.5">
                 <p className="text-[10px] font-semibold text-[#2563EB] uppercase tracking-wider mb-1.5">Fund Alert</p>
-                <p className="text-sm font-semibold text-[#0F172A]">Growth Fund III — Deviation</p>
+                <p className="text-sm font-semibold text-[#0F172A]">Finance workspace — Deviation</p>
                 <p className="text-xs text-[#334155] mt-0.5">3.2% below target over 6 weeks</p>
               </div>
 

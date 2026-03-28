@@ -62,99 +62,99 @@ interface Invoice {
 const invoices: Invoice[] = [
   {
     id: "inv-1",
-    number: "FAC-2026-001",
-    issueDate: "5 ene 2026",
-    dueDate: "5 feb 2026",
+    number: "INV-2026-001",
+    issueDate: "Jan 5 2026",
+    dueDate: "Feb 5 2026",
     status: "pagada",
     subtotal: 24000,
     tax: 3840,
     taxRate: 16,
     total: 27840,
-    project: "Rediseno Identidad Visual",
+    project: "Visual Identity Redesign",
     lineItems: [
-      { description: "Diseno de logotipo e identidad visual", quantity: 1, unitPrice: 12000, total: 12000 },
-      { description: "Manual de marca (50 paginas)", quantity: 1, unitPrice: 8000, total: 8000 },
-      { description: "Papeleria corporativa (5 piezas)", quantity: 5, unitPrice: 800, total: 4000 },
+      { description: "Logo design and visual identity", quantity: 1, unitPrice: 12000, total: 12000 },
+      { description: "Brand manual (50 pages)", quantity: 1, unitPrice: 8000, total: 8000 },
+      { description: "Corporate stationery (5 items)", quantity: 5, unitPrice: 800, total: 4000 },
     ],
     payments: [
-      { date: "10 ene 2026", method: "Transferencia bancaria", amount: 13920, reference: "REF-88421" },
-      { date: "2 feb 2026", method: "Transferencia bancaria", amount: 13920, reference: "REF-91205" },
+      { date: "Jan 10 2026", method: "Bank transfer", amount: 13920, reference: "REF-88421" },
+      { date: "Feb 2 2026", method: "Bank transfer", amount: 13920, reference: "REF-91205" },
     ],
-    notes: "Pago dividido en dos parcialidades segun acuerdo comercial.",
+    notes: "Payment split into two installments based on the commercial agreement.",
   },
   {
     id: "inv-2",
-    number: "FAC-2026-002",
-    issueDate: "1 feb 2026",
-    dueDate: "3 mar 2026",
+    number: "INV-2026-002",
+    issueDate: "Feb 1 2026",
+    dueDate: "Mar 3 2026",
     status: "pendiente",
     subtotal: 18500,
     tax: 2960,
     taxRate: 16,
     total: 21460,
-    project: "Campana Digital Q1",
+    project: "Q1 Digital Campaign",
     lineItems: [
-      { description: "Estrategia de campana digital", quantity: 1, unitPrice: 6500, total: 6500 },
-      { description: "Diseno de piezas graficas (12 piezas)", quantity: 12, unitPrice: 500, total: 6000 },
-      { description: "Gestion de pauta publicitaria (1 mes)", quantity: 1, unitPrice: 6000, total: 6000 },
+      { description: "Digital campaign strategy", quantity: 1, unitPrice: 6500, total: 6500 },
+      { description: "Graphic asset design (12 items)", quantity: 12, unitPrice: 500, total: 6000 },
+      { description: "Paid media management (1 month)", quantity: 1, unitPrice: 6000, total: 6000 },
     ],
     payments: [],
-    notes: "Factura emitida al inicio del proyecto. Vencimiento a 30 dias.",
+    notes: "Invoice issued at the start of the project. Due in 30 days.",
   },
   {
     id: "inv-3",
-    number: "FAC-2026-003",
-    issueDate: "15 feb 2026",
-    dueDate: "15 mar 2026",
+    number: "INV-2026-003",
+    issueDate: "Feb 15 2026",
+    dueDate: "Mar 15 2026",
     status: "pendiente",
     subtotal: 35000,
     tax: 5600,
     taxRate: 16,
     total: 40600,
-    project: "Estrategia de Contenidos",
+    project: "Content Strategy",
     lineItems: [
-      { description: "Auditoria de contenido y competencia", quantity: 1, unitPrice: 8000, total: 8000 },
-      { description: "Estrategia editorial (6 meses)", quantity: 1, unitPrice: 15000, total: 15000 },
-      { description: "Calendario de contenidos mensual", quantity: 6, unitPrice: 2000, total: 12000 },
+      { description: "Content and competitor audit", quantity: 1, unitPrice: 8000, total: 8000 },
+      { description: "Editorial strategy (6 months)", quantity: 1, unitPrice: 15000, total: 15000 },
+      { description: "Monthly content calendar", quantity: 6, unitPrice: 2000, total: 12000 },
     ],
     payments: [],
-    notes: "Proyecto a largo plazo. Se facturara mensualmente a partir de la segunda entrega.",
+    notes: "Long-term project. Billing will be monthly starting from the second delivery.",
   },
   {
     id: "inv-4",
-    number: "FAC-2025-018",
-    issueDate: "15 nov 2025",
-    dueDate: "15 dic 2025",
+    number: "INV-2025-018",
+    issueDate: "Nov 15 2025",
+    dueDate: "Dec 15 2025",
     status: "pagada",
     subtotal: 9800,
     tax: 1568,
     taxRate: 16,
     total: 11368,
-    project: "Campana Digital Q1",
+    project: "Q1 Digital Campaign",
     lineItems: [
-      { description: "Fotografia de producto (sesion completa)", quantity: 1, unitPrice: 5800, total: 5800 },
-      { description: "Edicion y retoque fotografico", quantity: 1, unitPrice: 4000, total: 4000 },
+      { description: "Product photography (full session)", quantity: 1, unitPrice: 5800, total: 5800 },
+      { description: "Photo editing and retouching", quantity: 1, unitPrice: 4000, total: 4000 },
     ],
     payments: [
-      { date: "20 nov 2025", method: "Tarjeta de credito", amount: 11368, reference: "REF-76390" },
+      { date: "Nov 20 2025", method: "Credit card", amount: 11368, reference: "REF-76390" },
     ],
     notes: "",
   },
   {
     id: "inv-5",
-    number: "FAC-2025-012",
-    issueDate: "1 oct 2025",
-    dueDate: "31 oct 2025",
+    number: "INV-2025-012",
+    issueDate: "Oct 1 2025",
+    dueDate: "Oct 31 2025",
     status: "vencida",
     subtotal: 5200,
     tax: 832,
     taxRate: 16,
     total: 6032,
     lineItems: [
-      { description: "Consultoria de branding (8 horas)", quantity: 8, unitPrice: 650, total: 5200 },
+      { description: "Branding consulting (8 hours)", quantity: 8, unitPrice: 650, total: 5200 },
     ],
     payments: [],
-    notes: "Servicio puntual de consultoria. Vencida sin pago registrado.",
+    notes: "One-time consulting service. Overdue with no recorded payment.",
   },
 ]
 
@@ -170,22 +170,12 @@ function formatCurrency(amount: number): string {
 }
 
 const statusConfig: Record<InvoiceStatus, { label: string; bg: string; text: string; icon: typeof CheckCircle2 }> = {
-  pagada: { label: "Pagada", bg: "bg-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
-  pendiente: { label: "Pendiente", bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
-  vencida: { label: "Vencida", bg: "bg-red-100", text: "text-red-700", icon: AlertCircle },
+  pagada: { label: "Paid", bg: "bg-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
+  pendiente: { label: "Pending", bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
+  vencida: { label: "Overdue", bg: "bg-red-100", text: "text-red-700", icon: AlertCircle },
 }
 
-function parseSpanishDate(d: string): string {
-  const months: Record<string, string> = {
-    ene: "01", feb: "02", mar: "03", abr: "04",
-    may: "05", jun: "06", jul: "07", ago: "08",
-    sep: "09", oct: "10", nov: "11", dic: "12",
-  }
-  const parts = d.split(" ")
-  if (parts.length === 3) {
-    const month = months[parts[1]] || "01"
-    return `${parts[2]}-${month}-${parts[0].padStart(2, "0")}`
-  }
+function parseDisplayDate(d: string): string {
   return d
 }
 
@@ -196,7 +186,7 @@ function sortInvoices(list: Invoice[], key: SortKey, asc: boolean): Invoice[] {
     let cmp = 0
     switch (key) {
       case "date":
-        cmp = new Date(parseSpanishDate(a.issueDate)).getTime() - new Date(parseSpanishDate(b.issueDate)).getTime()
+        cmp = new Date(parseDisplayDate(a.issueDate)).getTime() - new Date(parseDisplayDate(b.issueDate)).getTime()
         break
       case "total":
         cmp = a.total - b.total
@@ -257,19 +247,19 @@ export function ClientBillingTab() {
       {/* ── Summary cards ── */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
         <SummaryCard
-          label="Total facturado pagado"
+          label="Paid Billing"
           amount={totalPagado}
           icon={CheckCircle2}
           accentClass="bg-emerald-100 text-emerald-700"
         />
         <SummaryCard
-          label="Pendiente de cobro"
+          label="Pending Billing"
           amount={totalPendiente}
           icon={Clock}
           accentClass="bg-amber-100 text-amber-700"
         />
         <SummaryCard
-          label="Facturas vencidas"
+          label="Overdue Billing"
           amount={totalVencido}
           icon={AlertCircle}
           accentClass="bg-red-100 text-red-700"
@@ -279,10 +269,10 @@ export function ClientBillingTab() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Facturas</h3>
+          <h3 className="text-lg font-semibold text-foreground">Billing</h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length} factura{filtered.length !== 1 ? "s" : ""}
-            {statusFilter !== "all" && " filtradas"}
+            {filtered.length} invoice{filtered.length !== 1 ? "s" : ""}
+            {statusFilter !== "all" && " filtered"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -296,7 +286,7 @@ export function ClientBillingTab() {
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">IA</span>
+            <span className="hidden sm:inline">AI Assistant</span>
           </button>
         </div>
       </div>
@@ -309,35 +299,35 @@ export function ClientBillingTab() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--tab-ai)] flex-shrink-0">
                 <Sparkles className="h-4 w-4 text-foreground/70" />
               </div>
-              <p className="text-sm font-semibold text-foreground">IA Contextual de Facturacion</p>
+              <p className="text-sm font-semibold text-foreground">Billing AI Assistant</p>
             </div>
             <button
               onClick={() => setShowAIPanel(false)}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Cerrar"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            El asistente analiza el historial de facturacion del cliente para ofrecerte insights y acciones rapidas.
+            The AI Assistant analyzes the client's billing history to provide insights and quick actions.
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <AIBillingAction
-              title="Explicar factura"
-              description="Desglosa una factura en lenguaje simple para el cliente."
+              title="Explain Invoice"
+              description="Break down an invoice in simple language for the client."
             />
             <AIBillingAction
-              title="Resumir cargos"
-              description="Genera un resumen ejecutivo de todos los cargos activos."
+              title="Summarize Charges"
+              description="Generate an executive summary of all active charges."
             />
             <AIBillingAction
-              title="Detectar inconsistencias"
-              description="Revisa montos, fechas y estados en busca de errores."
+              title="Detect Inconsistencies"
+              description="Review amounts, dates, and statuses for possible errors."
             />
             <AIBillingAction
-              title="Generar recordatorio"
-              description="Prepara un mensaje de seguimiento para facturas pendientes."
+              title="Generate Reminder"
+              description="Prepare a follow-up message for pending invoices."
             />
           </div>
 
@@ -347,11 +337,11 @@ export function ClientBillingTab() {
               <Sparkles className="h-3.5 w-3.5 text-foreground/70" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground">Resumen automatico</p>
+              <p className="text-xs font-medium text-foreground">Automatic Summary</p>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                El cliente tiene {invoices.length} facturas registradas. {formatCurrency(totalPagado)} cobrados,{" "}
-                {formatCurrency(totalPendiente)} pendientes y {formatCurrency(totalVencido)} vencidos.
-                {totalVencido > 0 && " Se recomienda enviar un recordatorio de cobro para la factura vencida FAC-2025-012."}
+                The client has {invoices.length} recorded invoices. {formatCurrency(totalPagado)} collected,
+                {` ${formatCurrency(totalPendiente)} pending, and ${formatCurrency(totalVencido)} overdue.`}
+                {totalVencido > 0 && " It is recommended to send a payment reminder for overdue invoice INV-2025-012."}
               </p>
             </div>
           </div>
@@ -367,14 +357,14 @@ export function ClientBillingTab() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por numero o proyecto..."
+              placeholder="Search by number or project..."
               className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Limpiar busqueda"
+                aria-label="Clear Search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -390,13 +380,13 @@ export function ClientBillingTab() {
             )}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Filtros</span>
+            <span className="hidden sm:inline">Filters</span>
           </button>
         </div>
 
         {showFilters && (
           <div className="flex items-center gap-3 flex-wrap rounded-lg border border-border bg-card px-4 py-3">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Estado:</span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
             <div className="flex items-center gap-1.5 flex-wrap">
               {(["all", "pagada", "pendiente", "vencida"] as const).map((s) => (
                 <button
@@ -409,17 +399,17 @@ export function ClientBillingTab() {
                       : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                 >
-                  {s === "all" ? "Todas" : statusConfig[s].label}
+                  {s === "all" ? "All" : statusConfig[s].label}
                 </button>
               ))}
             </div>
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden sm:inline">
-                Ordenar:
+                Sort:
               </span>
-              <SortButton label="Fecha" sortKey="date" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
-              <SortButton label="Monto" sortKey="total" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
-              <SortButton label="Estado" sortKey="status" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <SortButton label="Date" sortKey="date" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <SortButton label="Amount" sortKey="total" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
+              <SortButton label="Status" sortKey="status" currentKey={sortKey} asc={sortAsc} onToggle={toggleSort} />
             </div>
           </div>
         )}
@@ -431,8 +421,8 @@ export function ClientBillingTab() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-4">
             <Receipt className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-foreground">No se encontraron facturas</p>
-          <p className="text-xs text-muted-foreground mt-1">Intenta ajustar los filtros o la busqueda.</p>
+          <p className="text-sm font-medium text-foreground">No invoices found</p>
+          <p className="text-xs text-muted-foreground mt-1">Try adjusting the filters or search.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -510,7 +500,7 @@ function InvoiceCard({ invoice, onView }: { invoice: Invoice; onView: () => void
         )}
         <span className="flex items-center gap-1.5">
           <Calendar className="h-3 w-3" />
-          Vence: {invoice.dueDate}
+          Due: {invoice.dueDate}
         </span>
       </div>
 
@@ -523,7 +513,7 @@ function InvoiceCard({ invoice, onView }: { invoice: Invoice; onView: () => void
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
           >
             <Eye className="h-3 w-3" />
-            Ver
+            View
           </button>
           <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
             <Download className="h-3 w-3" />
@@ -549,7 +539,7 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
         className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors self-start"
       >
         <ChevronRight className="h-3.5 w-3.5 rotate-180" />
-        Volver a facturas
+        Back to billing
       </button>
 
       {/* Header */}
@@ -577,12 +567,12 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
             <Download className="h-4 w-4" />
-            Descargar PDF
+            Download PDF
           </button>
           {invoice.status !== "pagada" && (
             <button className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
               <CreditCard className="h-4 w-4" />
-              Pagar ahora
+              Pay Now
             </button>
           )}
         </div>
@@ -590,8 +580,8 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
 
       {/* Dates & amounts summary */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-        <DetailField label="Fecha de emision" value={invoice.issueDate} />
-        <DetailField label="Fecha de vencimiento" value={invoice.dueDate} />
+        <DetailField label="Issue Date" value={invoice.issueDate} />
+        <DetailField label="Due Date" value={invoice.dueDate} />
         <DetailField label="Subtotal" value={formatCurrency(invoice.subtotal)} />
         <DetailField label="Total" value={formatCurrency(invoice.total)} highlight />
       </div>
@@ -599,7 +589,7 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
       {/* Line items */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">Desglose de cargos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Charge Breakdown</h3>
         </div>
 
         {/* Desktop table */}
@@ -607,9 +597,9 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Concepto</th>
-                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground text-right">Cant.</th>
-                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground text-right">P. Unitario</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Item</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground text-right">Qty.</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground text-right">Unit Price</th>
                 <th className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground text-right">Total</th>
               </tr>
             </thead>
@@ -630,7 +620,7 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
               </tr>
               <tr>
                 <td colSpan={3} className="px-5 py-3 text-sm text-muted-foreground text-right">
-                  IVA ({invoice.taxRate}%)
+                  Tax ({invoice.taxRate}%)
                 </td>
                 <td className="px-5 py-3 text-sm font-medium text-foreground text-right">{formatCurrency(invoice.tax)}</td>
               </tr>
@@ -673,11 +663,11 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
       {/* Payment history */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">Historial de pagos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Payment History</h3>
         </div>
         {invoice.payments.length === 0 ? (
           <div className="px-5 py-8 text-center">
-            <p className="text-sm text-muted-foreground">No hay pagos registrados para esta factura.</p>
+            <p className="text-sm text-muted-foreground">No payments recorded for this invoice.</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -704,7 +694,7 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
       {/* Notes */}
       {invoice.notes && (
         <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-2">Notas</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Notes</h3>
           <p className="text-sm leading-relaxed text-muted-foreground">{invoice.notes}</p>
         </div>
       )}
@@ -716,9 +706,9 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
             <CreditCard className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Pago en linea</p>
+            <p className="text-sm font-semibold text-foreground">Online Payment</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Proximamente podras pagar tus facturas directamente desde este espacio con tarjeta de credito, transferencia o SPEI.
+              Soon you will be able to pay your invoices directly from this space using credit card, bank transfer, or SPEI.
             </p>
           </div>
           <button
@@ -726,7 +716,7 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
             className="flex items-center gap-2 rounded-lg bg-foreground/50 px-4 py-2.5 text-sm font-medium text-background cursor-not-allowed"
           >
             <CreditCard className="h-4 w-4" />
-            Pagar {formatCurrency(invoice.total)}
+            Pay {formatCurrency(invoice.total)}
           </button>
         </div>
       )}

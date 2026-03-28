@@ -1,8 +1,11 @@
 import {
   getAvailableForteCapabilities,
+  getAvailableForteCapabilitiesForContext,
   getFortePhase1Catalog,
+  getFortePhase1CatalogForContext,
   recommendForteArchitecture,
 } from "../phase1"
+import type { ForteContext } from "../runtime"
 import {
   forteRecommendationExampleRequest,
   type ForteRecommendationApiResponse,
@@ -12,6 +15,14 @@ import {
 
 function getCatalogSummary() {
   const catalog = getFortePhase1Catalog()
+  return {
+    modules: catalog.modules.length,
+    engines: catalog.engines.length,
+    tools: catalog.tools.length,
+  }
+}
+
+function getCatalogSummaryFromCatalog(catalog: ReturnType<typeof getFortePhase1Catalog>) {
   return {
     modules: catalog.modules.length,
     engines: catalog.engines.length,
@@ -31,26 +42,43 @@ function getProvisionalNotes() {
   }
 }
 
-export function buildForteRecommendationResponse(
+export async function buildForteRecommendationResponse(
   request: ForteRecommendationRequest,
-): ForteRecommendationApiResponse {
+  context?: ForteContext,
+): Promise<ForteRecommendationApiResponse> {
+  const catalog = context
+    ? await getFortePhase1CatalogForContext(context)
+    : getFortePhase1Catalog()
+  const availableCapabilities = context
+    ? await getAvailableForteCapabilitiesForContext(context)
+    : getAvailableForteCapabilities()
+
   return {
-    recommendation: recommendForteArchitecture(request.business),
-    availableCapabilities: getAvailableForteCapabilities(),
-    catalogSummary: getCatalogSummary(),
+    recommendation: recommendForteArchitecture(request.business, catalog),
+    availableCapabilities,
+    catalogSummary: getCatalogSummaryFromCatalog(catalog),
     provisional: getProvisionalNotes(),
   }
 }
 
-export function getForteRecommendationSurfaceInfo(): ForteRecommendationSurfaceInfo {
+export async function getForteRecommendationSurfaceInfo(
+  context?: ForteContext,
+): Promise<ForteRecommendationSurfaceInfo> {
+  const catalog = context
+    ? await getFortePhase1CatalogForContext(context)
+    : getFortePhase1Catalog()
+  const availableCapabilities = context
+    ? await getAvailableForteCapabilitiesForContext(context)
+    : getAvailableForteCapabilities()
+
   return {
     endpoint: "/api/forte/recommend",
     method: "POST",
     requestSchema: "ForteRecommendationRequest",
     responseSchema: "ForteRecommendationApiResponse",
     exampleRequest: forteRecommendationExampleRequest,
-    availableCapabilities: getAvailableForteCapabilities(),
-    catalogSummary: getCatalogSummary(),
+    availableCapabilities,
+    catalogSummary: getCatalogSummaryFromCatalog(catalog),
     provisional: getProvisionalNotes(),
   }
 }

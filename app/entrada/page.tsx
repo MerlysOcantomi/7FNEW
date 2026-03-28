@@ -23,11 +23,11 @@ import {
 const recentEntries = [
   {
     id: "ent-1",
-    text: "Maria de Alpha Corp llamo para decir que le gusto la version 3 del logotipo pero quiere el icono mas oscuro",
+    text: "A client called to say she liked logo version 3, but wants the icon to be darker.",
     time: "20 min ago",
     aiResult: {
-      client: "Alpha Corp",
-      project: "Rebranding Alpha Corp",
+      client: "Active client",
+      project: "Visual identity update",
       actions: ["Create task: Adjust icon color in logo v3", "Notify Ana Rodriguez (designer)"],
       type: "Change request",
       confidence: 94,
@@ -36,12 +36,12 @@ const recentEntries = [
   },
   {
     id: "ent-2",
-    text: "Nuevo lead: Fernando Reyes de Nexus Solutions necesita sitio web corporativo con blog. Tel 55 9876 5432",
+    text: "New lead: Fernando Reyes needs a corporate website with a blog. Phone 55 9876 5432.",
     time: "1h ago",
     aiResult: {
-      client: "Nexus Solutions (new)",
+      client: "New lead",
       project: null,
-      actions: ["Create client: Nexus Solutions", "Create contact: Fernando Reyes", "Create prospect project"],
+      actions: ["Create client record", "Create contact: Fernando Reyes", "Create prospect project"],
       type: "New prospect",
       confidence: 87,
     },
@@ -49,12 +49,12 @@ const recentEntries = [
   },
   {
     id: "ent-3",
-    text: "Roberto confirmo la fase 2 de Beta Labs, dice que manda la OC manana",
+    text: "Roberto confirmed phase 2 of an active project and said the PO will arrive tomorrow.",
     time: "3h ago",
     aiResult: {
-      client: "Beta Labs",
-      project: "Portal Beta Labs",
-      actions: ["Move project to Phase 2", "Schedule reminder: Beta Labs PO tomorrow"],
+      client: "Active client",
+      project: "Client portal",
+      actions: ["Move project to Phase 2", "Schedule reminder: client PO tomorrow"],
       type: "Phase approval",
       confidence: 91,
     },
@@ -62,11 +62,11 @@ const recentEntries = [
   },
   {
     id: "ent-4",
-    text: "Sofia envio las fotos finales de Gamma. 45 imagenes en alta",
+    text: "Sofia sent the final catalog photos. 45 high-resolution images.",
     time: "5h ago",
     aiResult: {
-      client: "Gamma Inc",
-      project: "Gamma Inc Catalog",
+      client: "Active client",
+      project: "Client catalog",
       actions: ["Register delivery of photo assets", "Notify the design team"],
       type: "Asset delivery",
       confidence: 85,
@@ -110,7 +110,7 @@ export default function EntradaPage() {
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Ex: 'Maria from Alpha Corp called to say she liked version 3 but wants color changes...'"
+            placeholder="Ex: 'The client called to say she liked version 3 but wants color changes...'"
             rows={4}
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
           />

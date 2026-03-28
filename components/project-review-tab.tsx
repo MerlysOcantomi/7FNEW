@@ -89,126 +89,126 @@ interface Deliverable {
 const deliverables: Deliverable[] = [
   {
     id: "del1",
-    name: "Logotipo - Opciones iniciales",
-    phase: "Diseno",
+    name: "Logo - Initial Options",
+    phase: "Design",
     thumbnail: "logo",
     currentVersion: 3,
     versions: [
-      { number: 1, date: "10 feb 2026", note: "Tres propuestas iniciales de logotipo" },
-      { number: 2, date: "15 feb 2026", note: "Ajustes en opcion B segun feedback" },
-      { number: 3, date: "19 feb 2026", note: "Icono mas oscuro, version fondo oscuro" },
+      { number: 1, date: "10 Feb 2026", note: "Three initial logo proposals" },
+      { number: 2, date: "15 Feb 2026", note: "Adjustments to option B based on feedback" },
+      { number: 3, date: "19 Feb 2026", note: "Darker icon, dark background version" },
     ],
     status: "en revision",
     comments: [
-      { id: "c1", author: "Maria Lopez", initials: "ML", isClient: true, text: "Me gusta la opcion B pero el color del icono podria ser mas oscuro. La tipografia es perfecta.", date: "18 feb 2026", attachments: ["referencia-color.png"] },
-      { id: "c2", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "Entendido Maria, preparo la version con el ajuste para manana. Coincido en que la tipografia funciona bien.", date: "18 feb 2026" },
-      { id: "c3", author: "Maria Lopez", initials: "ML", isClient: true, text: "Perfecto. Tambien me gustaria ver como queda en fondo oscuro para la app movil.", date: "19 feb 2026" },
-      { id: "c4", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "Ya subi la v3 con ambos ajustes. Revisa cuando puedas.", date: "19 feb 2026" },
+      { id: "c1", author: "Maria Lopez", initials: "ML", isClient: true, text: "I like option B, but the icon color could be darker. The typography is perfect.", date: "18 Feb 2026", attachments: ["color-reference.png"] },
+      { id: "c2", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "Understood, Maria. I will prepare the updated version for tomorrow. I agree that the typography works well.", date: "18 Feb 2026" },
+      { id: "c3", author: "Maria Lopez", initials: "ML", isClient: true, text: "Perfect. I would also like to see how it looks on a dark background for the mobile app.", date: "19 Feb 2026" },
+      { id: "c4", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "I uploaded v3 with both adjustments. Review it when you can.", date: "19 Feb 2026" },
     ],
     changeRequests: [
-      { id: "cr1", description: "Oscurecer el color del icono en opcion B", status: "resuelto", date: "18 feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "19 feb" },
-      { id: "cr2", description: "Generar version sobre fondo oscuro para app", status: "resuelto", date: "19 feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "19 feb" },
-      { id: "cr3", description: "Probar variante con icono mas geometrico", status: "pendiente", date: "19 feb", requestedBy: "Carlos M.", assignedTo: "Ana R." },
+      { id: "cr1", description: "Darken the icon color in option B", status: "resuelto", date: "18 Feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "19 Feb" },
+      { id: "cr2", description: "Create a dark background version for the app", status: "resuelto", date: "19 Feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "19 Feb" },
+      { id: "cr3", description: "Test a more geometric icon variant", status: "pendiente", date: "19 Feb", requestedBy: "Carlos M.", assignedTo: "Ana R." },
     ],
     approvals: [],
     timeline: [
-      { id: "t1", type: "version", title: "Version 1 subida", description: "Tres propuestas iniciales de logotipo", date: "10 feb 2026", author: "Ana Rodriguez" },
-      { id: "t2", type: "comment", title: "Comentario del cliente", description: "Feedback sobre opcion B y color del icono", date: "18 feb 2026", author: "Maria Lopez" },
-      { id: "t3", type: "change_request", title: "Solicitud de cambio", description: "Oscurecer color del icono en opcion B", date: "18 feb 2026", author: "Maria Lopez" },
-      { id: "t4", type: "version", title: "Version 2 subida", description: "Ajustes segun feedback del cliente", date: "15 feb 2026", author: "Ana Rodriguez" },
-      { id: "t5", type: "change_request", title: "Solicitud de cambio", description: "Version sobre fondo oscuro", date: "19 feb 2026", author: "Maria Lopez" },
-      { id: "t6", type: "version", title: "Version 3 subida", description: "Icono oscuro + version fondo oscuro", date: "19 feb 2026", author: "Ana Rodriguez" },
-      { id: "t7", type: "upload", title: "Referencia subida", description: "referencia-color.png", date: "18 feb 2026", author: "Maria Lopez" },
+      { id: "t1", type: "version", title: "Version 1 Uploaded", description: "Three initial logo proposals", date: "10 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t2", type: "comment", title: "Client Comment", description: "Feedback on option B and icon color", date: "18 Feb 2026", author: "Maria Lopez" },
+      { id: "t3", type: "change_request", title: "Change Request", description: "Darken the icon color in option B", date: "18 Feb 2026", author: "Maria Lopez" },
+      { id: "t4", type: "version", title: "Version 2 Uploaded", description: "Adjustments based on client feedback", date: "15 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t5", type: "change_request", title: "Change Request", description: "Dark background version", date: "19 Feb 2026", author: "Maria Lopez" },
+      { id: "t6", type: "version", title: "Version 3 Uploaded", description: "Darker icon and dark background version", date: "19 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t7", type: "upload", title: "Reference Uploaded", description: "color-reference.png", date: "18 Feb 2026", author: "Maria Lopez" },
     ],
   },
   {
     id: "del2",
-    name: "Paleta de colores corporativa",
-    phase: "Diseno",
+    name: "Corporate Color Palette",
+    phase: "Design",
     thumbnail: "palette",
     currentVersion: 2,
     versions: [
-      { number: 1, date: "12 feb 2026", note: "Propuesta inicial con colores principales" },
-      { number: 2, date: "16 feb 2026", note: "Paleta secundaria de tonos calidos agregada" },
+      { number: 1, date: "12 Feb 2026", note: "Initial proposal with primary colors" },
+      { number: 2, date: "16 Feb 2026", note: "Secondary warm-tone palette added" },
     ],
     status: "aprobado",
     comments: [
-      { id: "c5", author: "Maria Lopez", initials: "ML", isClient: true, text: "Los colores principales estan bien pero necesitamos tonos calidos complementarios para campanas de temporada.", date: "14 feb 2026" },
-      { id: "c6", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "Perfecto, agrego una paleta secundaria de tonos calidos para complementar.", date: "14 feb 2026" },
-      { id: "c7", author: "Maria Lopez", initials: "ML", isClient: true, text: "La paleta secundaria es exactamente lo que buscabamos. Aprobado.", date: "16 feb 2026" },
+      { id: "c5", author: "Maria Lopez", initials: "ML", isClient: true, text: "The primary colors work, but we need complementary warm tones for seasonal campaigns.", date: "14 Feb 2026" },
+      { id: "c6", author: "Ana Rodriguez", initials: "AR", isClient: false, text: "Perfect, I will add a secondary palette of warm tones to complement it.", date: "14 Feb 2026" },
+      { id: "c7", author: "Maria Lopez", initials: "ML", isClient: true, text: "The secondary palette is exactly what we were looking for. Approved.", date: "16 Feb 2026" },
     ],
     changeRequests: [
-      { id: "cr4", description: "Agregar paleta secundaria de tonos calidos", status: "resuelto", date: "14 feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "16 feb" },
+      { id: "cr4", description: "Add a secondary warm-tone palette", status: "resuelto", date: "14 Feb", requestedBy: "Maria Lopez", assignedTo: "Ana R.", resolvedDate: "16 Feb" },
     ],
     approvals: [
-      { id: "a1", version: 2, approvedBy: "Maria Lopez", date: "16 feb 2026" },
+      { id: "a1", version: 2, approvedBy: "Maria Lopez", date: "16 Feb 2026" },
     ],
     timeline: [
-      { id: "t8", type: "version", title: "Version 1 subida", description: "Propuesta inicial", date: "12 feb 2026", author: "Ana Rodriguez" },
-      { id: "t9", type: "change_request", title: "Solicitud de cambio", description: "Agregar tonos calidos", date: "14 feb 2026", author: "Maria Lopez" },
-      { id: "t10", type: "version", title: "Version 2 subida", description: "Paleta con tonos calidos", date: "16 feb 2026", author: "Ana Rodriguez" },
-      { id: "t11", type: "approval", title: "Aprobado por cliente", description: "Version 2 aprobada", date: "16 feb 2026", author: "Maria Lopez" },
+      { id: "t8", type: "version", title: "Version 1 Uploaded", description: "Initial proposal", date: "12 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t9", type: "change_request", title: "Change Request", description: "Add warm tones", date: "14 Feb 2026", author: "Maria Lopez" },
+      { id: "t10", type: "version", title: "Version 2 Uploaded", description: "Palette with warm tones", date: "16 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t11", type: "approval", title: "Approved by Client", description: "Version 2 approved", date: "16 Feb 2026", author: "Maria Lopez" },
     ],
   },
   {
     id: "del3",
-    name: "Moodboard creativo",
-    phase: "Estrategia",
+    name: "Creative Moodboard",
+    phase: "Strategy",
     thumbnail: "moodboard",
     currentVersion: 1,
     versions: [
-      { number: 1, date: "8 feb 2026", note: "Moodboard con direccion minimalista" },
+      { number: 1, date: "8 Feb 2026", note: "Moodboard with a minimalist direction" },
     ],
     status: "aprobado",
     comments: [
-      { id: "c8", author: "Maria Lopez", initials: "ML", isClient: true, text: "Gran direccion creativa. Nos encanta el enfoque minimalista. Aprobado sin cambios.", date: "10 feb 2026" },
+      { id: "c8", author: "Maria Lopez", initials: "ML", isClient: true, text: "Great creative direction. We love the minimalist approach. Approved with no changes.", date: "10 Feb 2026" },
     ],
     changeRequests: [],
     approvals: [
-      { id: "a2", version: 1, approvedBy: "Maria Lopez", date: "10 feb 2026" },
+      { id: "a2", version: 1, approvedBy: "Maria Lopez", date: "10 Feb 2026" },
     ],
     timeline: [
-      { id: "t12", type: "version", title: "Version 1 subida", description: "Moodboard minimalista", date: "8 feb 2026", author: "Ana Rodriguez" },
-      { id: "t13", type: "approval", title: "Aprobado por cliente", description: "Sin cambios solicitados", date: "10 feb 2026", author: "Maria Lopez" },
+      { id: "t12", type: "version", title: "Version 1 Uploaded", description: "Minimalist moodboard", date: "8 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t13", type: "approval", title: "Approved by Client", description: "No changes requested", date: "10 Feb 2026", author: "Maria Lopez" },
     ],
   },
   {
     id: "del4",
-    name: "Mockups pagina principal",
-    phase: "Diseno",
+    name: "Homepage Mockups",
+    phase: "Design",
     thumbnail: "mockup",
     currentVersion: 1,
     versions: [
-      { number: 1, date: "20 feb 2026", note: "Primera propuesta de homepage" },
+      { number: 1, date: "20 Feb 2026", note: "First homepage proposal" },
     ],
     status: "pendiente",
     comments: [],
     changeRequests: [],
     approvals: [],
     timeline: [
-      { id: "t14", type: "version", title: "Version 1 subida", description: "Primera propuesta", date: "20 feb 2026", author: "Luis Garcia" },
+      { id: "t14", type: "version", title: "Version 1 Uploaded", description: "First proposal", date: "20 Feb 2026", author: "Luis Garcia" },
     ],
   },
   {
     id: "del5",
-    name: "Guia de estilo (draft)",
-    phase: "Diseno",
+    name: "Style Guide (Draft)",
+    phase: "Design",
     thumbnail: "guide",
     currentVersion: 1,
     versions: [
-      { number: 1, date: "19 feb 2026", note: "Borrador inicial de la guia de estilo" },
+      { number: 1, date: "19 Feb 2026", note: "Initial draft of the style guide" },
     ],
     status: "con cambios",
     comments: [
-      { id: "c9", author: "Carlos Mendez", initials: "CM", isClient: false, text: "La seccion de tipografia necesita mas detalle. Agregar ejemplos de uso en diferentes medios.", date: "19 feb 2026" },
+      { id: "c9", author: "Carlos Mendez", initials: "CM", isClient: false, text: "The typography section needs more detail. Add usage examples across different media.", date: "19 Feb 2026" },
     ],
     changeRequests: [
-      { id: "cr5", description: "Expandir seccion de tipografia con ejemplos de uso", status: "en progreso", date: "19 feb", requestedBy: "Carlos M.", assignedTo: "Ana R." },
+      { id: "cr5", description: "Expand the typography section with usage examples", status: "en progreso", date: "19 Feb", requestedBy: "Carlos M.", assignedTo: "Ana R." },
     ],
     approvals: [],
     timeline: [
-      { id: "t15", type: "version", title: "Version 1 subida", description: "Borrador inicial", date: "19 feb 2026", author: "Ana Rodriguez" },
-      { id: "t16", type: "change_request", title: "Cambio interno solicitado", description: "Expandir tipografia", date: "19 feb 2026", author: "Carlos Mendez" },
+      { id: "t15", type: "version", title: "Version 1 Uploaded", description: "Initial draft", date: "19 Feb 2026", author: "Ana Rodriguez" },
+      { id: "t16", type: "change_request", title: "Internal Change Requested", description: "Expand typography section", date: "19 Feb 2026", author: "Carlos Mendez" },
     ],
   },
 ]
@@ -218,7 +218,7 @@ const thumbnailIcons: Record<string, { bg: string; label: string }> = {
   palette: { bg: "bg-emerald-100", label: "COLOR" },
   moodboard: { bg: "bg-amber-100", label: "MOOD" },
   mockup: { bg: "bg-sky-100", label: "WEB" },
-  guide: { bg: "bg-rose-100", label: "GUIA" },
+  guide: { bg: "bg-rose-100", label: "GUIDE" },
 }
 
 /* ═══════════════ MAIN EXPORT ═══════════════ */
@@ -251,15 +251,15 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h3 className="text-lg font-semibold text-foreground">Revision y Feedback</h3>
+        <h3 className="text-lg font-semibold text-foreground">Review and Feedback</h3>
       </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCard label="Aprobados" value={totalApproved} total={deliverables.length} color="var(--tab-phases)" />
-        <SummaryCard label="En revision" value={totalInReview} total={deliverables.length} color="var(--tab-review)" />
-        <SummaryCard label="Pendientes" value={totalPending} total={deliverables.length} color="var(--tab-tasks)" />
-        <SummaryCard label="Cambios activos" value={totalChanges} total={deliverables.reduce((a, d) => a + d.changeRequests.length, 0)} color="var(--tab-info)" />
+        <SummaryCard label="Approved" value={totalApproved} total={deliverables.length} color="var(--tab-phases)" />
+        <SummaryCard label="In Review" value={totalInReview} total={deliverables.length} color="var(--tab-review)" />
+        <SummaryCard label="Pending" value={totalPending} total={deliverables.length} color="var(--tab-tasks)" />
+        <SummaryCard label="Active Changes" value={totalChanges} total={deliverables.reduce((a, d) => a + d.changeRequests.length, 0)} color="var(--tab-info)" />
       </div>
 
       {/* Main layout */}
@@ -267,17 +267,17 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
         {/* Left: Entregables panel */}
         <div className="lg:w-80 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Entregables</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Deliverables</p>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none"
             >
-              <option value="todos">Todos</option>
-              <option value="aprobado">Aprobados</option>
-              <option value="en revision">En revision</option>
-              <option value="con cambios">Con cambios</option>
-              <option value="pendiente">Pendientes</option>
+              <option value="todos">All</option>
+              <option value="aprobado">Approved</option>
+              <option value="en revision">In Review</option>
+              <option value="con cambios">Needs Changes</option>
+              <option value="pendiente">Pending</option>
             </select>
           </div>
 
@@ -323,7 +323,7 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
               )
             })}
             {filteredDeliverables.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">No hay entregables con este filtro.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">No deliverables match this filter.</p>
             )}
           </div>
         </div>
@@ -341,28 +341,28 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
                   <div>
                     <h4 className="text-base font-semibold text-foreground">{current.name}</h4>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                      <span>Fase: {current.phase}</span>
+                      <span>Phase: {current.phase}</span>
                       <span className="text-muted-foreground/40">|</span>
-                      <span>Version actual: v{current.currentVersion}</span>
+                      <span>Current Version: v{current.currentVersion}</span>
                       <span className="text-muted-foreground/40">|</span>
-                      <span>{current.comments.length} comentarios</span>
+                      <span>{current.comments.length} comments</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {(current.status === "en revision" || current.status === "con cambios") && (
                     <>
-                      <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-phases)] px-3.5 py-2 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
-                        <ThumbsUp className="h-3.5 w-3.5" /> Aprobar
+                  <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-phases)] px-3.5 py-2 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
+                    <ThumbsUp className="h-3.5 w-3.5" /> Approve
                       </button>
                       <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-review)] px-3.5 py-2 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
-                        <ThumbsDown className="h-3.5 w-3.5" /> Solicitar cambio
+                        <ThumbsDown className="h-3.5 w-3.5" /> Request Change
                       </button>
                     </>
                   )}
                   {current.status === "pendiente" && (
                     <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-info)] px-3.5 py-2 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
-                      <Eye className="h-3.5 w-3.5" /> Iniciar revision
+                      <Eye className="h-3.5 w-3.5" /> Start Review
                     </button>
                   )}
                   <DeliverableStatusBadge status={current.status} />
@@ -371,7 +371,7 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
 
               {/* Version selector */}
               <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Versiones</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Versions</p>
                 <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                   {current.versions.map((v) => (
                     <button
@@ -401,7 +401,7 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
               <div className={cn("absolute inset-0 opacity-10", thumbnailIcons[current.thumbnail]?.bg || "bg-muted")} />
               <div className="text-center relative z-10">
                 <Eye className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">Vista previa del entregable</p>
+                <p className="text-sm font-medium text-muted-foreground">Deliverable Preview</p>
                 <p className="text-xs text-muted-foreground/60 mt-0.5">
                   {current.name} &middot; v{current.currentVersion}
                 </p>
@@ -411,10 +411,10 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
             {/* Section switcher */}
             <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               {([
-                { id: "comentarios" as const, label: "Comentarios", count: current.comments.length },
+                { id: "comentarios" as const, label: "Comments", count: current.comments.length },
                 { id: "cambios" as const, label: "Solicitudes de cambio", count: current.changeRequests.length },
                 { id: "aprobaciones" as const, label: "Aprobaciones", count: current.approvals.length },
-                { id: "historial" as const, label: "Historial", count: current.timeline.length },
+                { id: "historial" as const, label: "History", count: current.timeline.length },
               ]).map((s) => (
                 <button
                   key={s.id}
@@ -455,7 +455,7 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
 
             {/* Reference upload */}
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Subir referencias</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Upload References</p>
               <div
                 className={cn(
                   "rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer",
@@ -467,15 +467,15 @@ export function ProjectReviewTab({ project, tareas, cliente }: ProjectReviewTabP
               >
                 <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  Arrastra imagenes, PDFs, capturas o moodboards aqui
+                  Drag images, PDFs, screenshots, or moodboards here
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-1">PNG, JPG, PDF, AI, PSD hasta 50MB</p>
                 <div className="flex items-center justify-center gap-4 mt-4">
                   <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted">
-                    <Image className="h-3.5 w-3.5" /> Imagenes
+                    <Image className="h-3.5 w-3.5" /> Images
                   </button>
                   <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted">
-                    <FileText className="h-3.5 w-3.5" /> Documentos
+                    <FileText className="h-3.5 w-3.5" /> Documents
                   </button>
                 </div>
               </div>
@@ -518,7 +518,7 @@ function CommentsSection({ comments, newComment, setNewComment }: {
                 <span className="text-xs font-semibold text-foreground">{c.author}</span>
                 {c.isClient && (
                   <span className="rounded-full bg-[var(--tab-review)] px-2 py-0.5 text-[9px] font-semibold text-foreground/70">
-                    Cliente
+                    Client
                   </span>
                 )}
                 <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">{c.date}</span>
@@ -539,8 +539,8 @@ function CommentsSection({ comments, newComment, setNewComment }: {
       ) : (
         <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
           <MessageSquareText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Sin comentarios aun</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Se el primero en dejar feedback sobre este entregable.</p>
+          <p className="text-sm text-muted-foreground">No comments yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Be the first to leave feedback on this deliverable.</p>
         </div>
       )}
 
@@ -549,16 +549,16 @@ function CommentsSection({ comments, newComment, setNewComment }: {
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Escribe un comentario sobre este entregable..."
+          placeholder="Write a comment about this deliverable..."
           rows={3}
           className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
         />
         <div className="flex items-center justify-between mt-3">
           <button className="flex items-center gap-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5">
-            <Paperclip className="h-3.5 w-3.5" /> Adjuntar archivo
+            <Paperclip className="h-3.5 w-3.5" /> Attach File
           </button>
           <button className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-xs font-medium text-background transition-opacity hover:opacity-80">
-            <Send className="h-3.5 w-3.5" /> Enviar comentario
+            <Send className="h-3.5 w-3.5" /> Send Comment
           </button>
         </div>
       </div>
@@ -573,8 +573,8 @@ function ChangeRequestsSection({ requests }: { requests: ChangeRequest[] }) {
     return (
       <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
         <Check className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">Sin solicitudes de cambio</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">No se han solicitado modificaciones para este entregable.</p>
+        <p className="text-sm text-muted-foreground">No change requests</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">No modifications have been requested for this deliverable.</p>
       </div>
     )
   }
@@ -604,7 +604,7 @@ function ChangeRequestsSection({ requests }: { requests: ChangeRequest[] }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{cr.description}</p>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                <span>Solicitado por {cr.requestedBy}</span>
+                <span>Requested by {cr.requestedBy}</span>
                 <span className="text-muted-foreground/40">|</span>
                 <span>{cr.date}</span>
               </div>
@@ -616,32 +616,32 @@ function ChangeRequestsSection({ requests }: { requests: ChangeRequest[] }) {
             <div className="border-t border-border px-4 py-3 bg-muted/10">
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <p className="text-muted-foreground">Asignado a</p>
-                  <p className="font-medium text-foreground mt-0.5">{cr.assignedTo || "Sin asignar"}</p>
+                  <p className="text-muted-foreground">Assigned To</p>
+                  <p className="font-medium text-foreground mt-0.5">{cr.assignedTo || "Unassigned"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Fecha solicitud</p>
+                  <p className="text-muted-foreground">Request Date</p>
                   <p className="font-medium text-foreground mt-0.5">{cr.date}</p>
                 </div>
                 {cr.resolvedDate && (
                   <div>
-                    <p className="text-muted-foreground">Fecha resolucion</p>
+                    <p className="text-muted-foreground">Resolved Date</p>
                     <p className="font-medium text-foreground mt-0.5">{cr.resolvedDate}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-muted-foreground">Estado</p>
+                  <p className="text-muted-foreground">Status</p>
                   <p className="font-medium text-foreground mt-0.5 capitalize">{cr.status}</p>
                 </div>
               </div>
               {cr.status !== "resuelto" && (
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
                   <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-phases)] px-3 py-1.5 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
-                    <Check className="h-3 w-3" /> Marcar resuelto
+                    <Check className="h-3 w-3" /> Mark Resolved
                   </button>
                   {cr.status === "pendiente" && (
                     <button className="flex items-center gap-1.5 rounded-lg bg-[var(--tab-info)] px-3 py-1.5 text-xs font-medium text-foreground/80 transition-opacity hover:opacity-80">
-                      <ArrowRight className="h-3 w-3" /> Iniciar
+                      <ArrowRight className="h-3 w-3" /> Start
                     </button>
                   )}
                 </div>
@@ -659,8 +659,8 @@ function ApprovalsSection({ approvals, deliverableName }: { approvals: Approval[
     return (
       <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
         <Clock className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">Sin aprobaciones aun</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Este entregable aun no ha sido aprobado.</p>
+        <p className="text-sm text-muted-foreground">No approvals yet</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">This deliverable has not been approved yet.</p>
       </div>
     )
   }
@@ -675,7 +675,7 @@ function ApprovalsSection({ approvals, deliverableName }: { approvals: Approval[
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">{deliverableName}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Version {a.version} aprobada por <span className="font-medium text-foreground">{a.approvedBy}</span>
+              Version {a.version} approved by <span className="font-medium text-foreground">{a.approvedBy}</span>
             </p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -750,10 +750,10 @@ function SummaryCard({ label, value, total, color }: { label: string; value: num
 
 function DeliverableStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; text: string; label: string }> = {
-    aprobado: { bg: "bg-[var(--tab-phases)]", text: "text-foreground/70", label: "Aprobado" },
-    "en revision": { bg: "bg-[var(--tab-review)]", text: "text-foreground/70", label: "En revision" },
-    "con cambios": { bg: "bg-[var(--tab-tasks)]", text: "text-foreground/70", label: "Con cambios" },
-    pendiente: { bg: "bg-muted", text: "text-muted-foreground", label: "Pendiente" },
+    aprobado: { bg: "bg-[var(--tab-phases)]", text: "text-foreground/70", label: "Approved" },
+    "en revision": { bg: "bg-[var(--tab-review)]", text: "text-foreground/70", label: "In Review" },
+    "con cambios": { bg: "bg-[var(--tab-tasks)]", text: "text-foreground/70", label: "Needs Changes" },
+    pendiente: { bg: "bg-muted", text: "text-muted-foreground", label: "Pending" },
   }
   const s = map[status] || map.pendiente
   return (

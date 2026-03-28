@@ -26,17 +26,17 @@ const CASHFLOW = [
 ];
 
 const FUNDS = [
-  { name: "Growth Fund III", balance: "$640K", target: "$661K", deviation: "-3.2%", status: "warning" as const },
-  { name: "Innovation Pool", balance: "$312K", target: "$300K", deviation: "+4.0%", status: "ok" as const },
-  { name: "Seed Reserve", balance: "$180K", target: "$180K", deviation: "0%", status: "ok" as const },
+  { name: "Operating reserve", balance: "$640K", target: "$661K", deviation: "-3.2%", status: "warning" as const },
+  { name: "Strategic allocation", balance: "$312K", target: "$300K", deviation: "+4.0%", status: "ok" as const },
+  { name: "Project reserve", balance: "$180K", target: "$180K", deviation: "0%", status: "ok" as const },
   { name: "Liquidity Buffer", balance: "$95K", target: "$100K", deviation: "-5.0%", status: "warning" as const },
 ];
 
 const RECENT_INVOICES = [
-  { id: "INV-0042", client: "Acme Corp", amount: "$48,000", status: "Paid", due: "Feb 15, 2025" },
-  { id: "INV-0043", client: "Nexus Holdings", amount: "$32,500", status: "Pending", due: "Mar 10, 2025" },
-  { id: "INV-0044", client: "Vertex Capital", amount: "$75,000", status: "Overdue", due: "Feb 28, 2025" },
-  { id: "INV-0045", client: "Blue Arc Group", amount: "$21,000", status: "Paid", due: "Mar 1, 2025" },
+  { id: "INV-0042", client: "Client account", amount: "$48,000", status: "Paid", due: "Feb 15, 2025" },
+  { id: "INV-0043", client: "Priority client", amount: "$32,500", status: "Pending", due: "Mar 10, 2025" },
+  { id: "INV-0044", client: "Key account", amount: "$75,000", status: "Overdue", due: "Feb 28, 2025" },
+  { id: "INV-0045", client: "Active client", amount: "$21,000", status: "Paid", due: "Mar 1, 2025" },
 ];
 
 const INV_STATUS: Record<string, { bg: string; text: string }> = {

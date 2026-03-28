@@ -78,7 +78,7 @@ interface AnalisisHistorial {
 
 const INDICADORES: IndicadorClave[] = [
   { label: "Projects at risk",             value: "2 / 4",  trend: "up",     delta: "+1 this week" },
-  { label: "Financial variances",          value: "3.2%",   trend: "up",     delta: "Growth Fund III" },
+  { label: "Financial variances",          value: "3.2%",   trend: "up",     delta: "Finance workspace" },
   { label: "Detected opportunities",       value: "3",      trend: "up",     delta: "New this week" },
   { label: "Pending actions",              value: "5",      trend: "stable", delta: "No change" },
   { label: "ARR at renewal risk",          value: "$640K",  trend: "up",     delta: "Due in 30 days" },
@@ -93,7 +93,7 @@ const PRIORIDADES: Prioridad[] = [
     accion: "Review the project timeline before March 6 to avoid cash flow impact.",
   },
   {
-    titulo: "Start executive outreach with Nexus Holdings",
+    titulo: "Start executive outreach with a priority client",
     nivel: "alto",
     modulo: "Finance",
     accion: "$640K ARR renewal window is active. Action needed this week.",
@@ -110,25 +110,25 @@ const RIESGOS: Riesgo[] = [
   {
     titulo: "Supply chain delay",
     nivel: "alto",
-    proyecto: "Alpha Expansion",
+    proyecto: "Current project",
     accion: "Escalate to the project lead before March 6 to avoid a Phase 3 delay.",
   },
   {
     titulo: "Delivery rate below target",
     nivel: "medio",
-    proyecto: "Omega Platform",
+    proyecto: "Project portfolio",
     accion: "Review late scope changes in 3 projects with a detected delay pattern.",
   },
   {
     titulo: "Client renewal without executive outreach",
     nivel: "medio",
-    proyecto: "Nexus Holdings",
+    proyecto: "Priority client",
     accion: "Start executive outreach this week. 30-day window is active.",
   },
   {
     titulo: "Persistent fund variance",
     nivel: "bajo",
-    proyecto: "Growth Fund III",
+    proyecto: "Finance workspace",
     accion: "Reallocation recommended before month-end.",
   },
 ];
@@ -136,21 +136,21 @@ const RIESGOS: Riesgo[] = [
 const OPORTUNIDADES: Oportunidad[] = [
   {
     titulo: "Renewal of 4 enterprise accounts",
-    entidad: "Nexus Holdings + 3 more",
+    entidad: "Priority clients + 3 more",
     impacto: "$640K ARR protected",
     accion: "Draft executive communication",
     icon: Target,
   },
   {
     titulo: "Strategic budget reallocation",
-    entidad: "Growth Fund III",
+    entidad: "Finance workspace",
     impacto: "15% recovery in Q2",
     accion: "Generate reallocation analysis",
     icon: TrendingUp,
   },
   {
     titulo: "Service expansion — active client",
-    entidad: "Blue Arc Group",
+    entidad: "Active client account",
     impacto: "Estimated $120K upsell",
     accion: "Prepare expansion proposal",
     icon: Zap,
@@ -162,7 +162,7 @@ const RELACIONES_CRUZADAS: RelacionCruzada[] = [
     areas: ["Projects", "Finance"],
     tendencia: "Project delays are creating cash flow pressure",
     insight:
-      "Two Phase 3 projects with delays overlap with the weeks of highest variance in Growth Fund III. Syncing project milestones with billing dates is recommended.",
+      "Two Phase 3 projects with delays overlap with the weeks of highest finance variance. Syncing project milestones with billing dates is recommended.",
   },
   {
     areas: ["Projects", "Insights"],
@@ -184,13 +184,13 @@ const HISTORIAL: AnalisisHistorial[] = [
     fecha: "Feb 24, 2026",
     tipo: "Strategic",
     titulo: "Weekly analysis — week 8",
-    resumen: "Convergence of operational and financial risk in Alpha Expansion and Nexus Holdings.",
+    resumen: "Convergence of operational and financial risk across a current project and a priority client account.",
   },
   {
     id: 2,
     fecha: "Feb 17, 2026",
     tipo: "Financial",
-    titulo: "Variance review — Growth Fund III",
+    titulo: "Variance review — finance workspace",
     resumen: "3.2% accumulated variance over the last 6 weeks. Three reallocation scenarios generated.",
   },
   {
@@ -212,7 +212,7 @@ const HISTORIAL: AnalisisHistorial[] = [
     fecha: "Jan 27, 2026",
     tipo: "Risk",
     titulo: "Risk map — January close",
-    resumen: "5 active risks, 2 escalated to the executive team. Omega Platform under watch.",
+    resumen: "5 active risks, 2 escalated to the executive team. One priority project remains under watch.",
   },
 ];
 
@@ -290,7 +290,7 @@ function ResumenEjecutivo() {
           <p className="text-[13px] text-[#334155] leading-relaxed">
             The portfolio remains operationally stable with{" "}
             <strong className="text-[#0F172A] font-semibold">two projects at active risk</strong>{" "}
-            and a persistent financial variance in Growth Fund III.{" "}
+            and a persistent financial variance in the finance workspace.{" "}
             <strong className="text-[#0F172A] font-semibold">Three high-impact opportunities</strong>{" "}
             were detected this week, including a $640K ARR enterprise renewal window. Delivery rate is down
             by 2 points, so a process review is recommended before quarter close.
@@ -445,7 +445,7 @@ function AnalisisCruzado() {
             <p className="text-[13px] text-[#CBD5E1] leading-relaxed">
               The dominant pattern this week is the{" "}
               <span className="text-white font-semibold">convergence of financial and operational risk</span>{" "}
-              within the same period. The Growth Fund III variance, the Alpha Expansion delay, and the
+              within the same period. The finance variance, the current project delay, and the
               enterprise renewal window all converge over the next three weeks. AI recommends prioritizing
               these three decisions before March 14 to avoid compounded impact.
             </p>

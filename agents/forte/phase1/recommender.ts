@@ -9,6 +9,7 @@ import type {
   ForteRecommendationOutput,
   ForteRelationshipModel,
   ForteVerticalSuggestion,
+  ForteCatalogSnapshot,
 } from "./types"
 
 interface NormalizedSignals {
@@ -204,7 +205,7 @@ function normalizeInput(input: ForteRecommendationInput): NormalizedInput {
   }
 }
 
-function getCatalogEntry(kind: ForteCatalogKind, id: string, catalog: ReturnType<typeof getFortePhase1Catalog>) {
+function getCatalogEntry(kind: ForteCatalogKind, id: string, catalog: ForteCatalogSnapshot) {
   if (kind === "module") return catalog.modules.find((entry) => entry.id === id)
   if (kind === "engine") return catalog.engines.find((entry) => entry.id === id)
   return catalog.tools.find((entry) => entry.id === id)
@@ -392,8 +393,8 @@ function getBaseProfile(normalized: NormalizedInput) {
 
 export function recommendForteArchitecture(
   input: ForteRecommendationInput,
+  catalog: ForteCatalogSnapshot = getFortePhase1Catalog(),
 ): ForteRecommendationOutput {
-  const catalog = getFortePhase1Catalog()
   const normalized = normalizeInput(input)
 
   const modules: ForteRecommendationItem[] = []

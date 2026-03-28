@@ -35,13 +35,13 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: "informacion", label: "Informacion", icon: Info, color: "var(--tab-info)" },
-  { id: "proyectos", label: "Proyectos", icon: FolderKanban, color: "var(--tab-phases)" },
-  { id: "documentos", label: "Documentos", icon: FileText, color: "var(--tab-docs)" },
-  { id: "facturacion", label: "Facturacion", icon: Receipt, color: "var(--tab-billing)" },
-  { id: "notas", label: "Notas", icon: StickyNote, color: "var(--tab-tasks)" },
-  { id: "historial", label: "Historial", icon: History, color: "var(--tab-review)" },
-  { id: "ia", label: "IA", icon: Sparkles, color: "var(--tab-ai)" },
+  { id: "informacion", label: "Information", icon: Info, color: "var(--tab-info)" },
+  { id: "proyectos", label: "Projects", icon: FolderKanban, color: "var(--tab-phases)" },
+  { id: "documentos", label: "Files", icon: FileText, color: "var(--tab-docs)" },
+  { id: "facturacion", label: "Billing", icon: Receipt, color: "var(--tab-billing)" },
+  { id: "notas", label: "Notes", icon: StickyNote, color: "var(--tab-tasks)" },
+  { id: "historial", label: "History", icon: History, color: "var(--tab-review)" },
+  { id: "ia", label: "AI Assistant", icon: Sparkles, color: "var(--tab-ai)" },
 ]
 
 /* API shape: Cliente & { proyectos?: Proyecto[], tareas?: Tarea[] } */
@@ -142,35 +142,35 @@ function InformacionTab({ client }: { client: ClientData }) {
   const estadoDisplay = displayLabel(client.estado ?? "", estadoLabel)
   return (
     <div className="flex flex-col gap-6">
-      <h3 className="text-lg font-semibold text-foreground">Datos Generales</h3>
+      <h3 className="text-lg font-semibold text-foreground">General Information</h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <InfoField label="Nombre" value={client.nombre ?? "—"} />
-        <InfoField label="Estado" value={estadoDisplay} />
-        <InfoField label="Tipo" value={client.tipo ?? "—"} />
-        <InfoField label="Empresa" value={client.empresa ?? "—"} />
+        <InfoField label="Name" value={client.nombre ?? "—"} />
+        <InfoField label="Status" value={estadoDisplay} />
+        <InfoField label="Type" value={client.tipo ?? "—"} />
+        <InfoField label="Company" value={client.empresa ?? "—"} />
         <InfoField label="Email" value={client.email ?? "—"} />
-        <InfoField label="Telefono" value={client.telefono ?? "—"} />
-        <InfoField label="Fecha de inicio" value={client.createdAt ? new Date(client.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "—"} />
+        <InfoField label="Phone" value={client.telefono ?? "—"} />
+        <InfoField label="Client Since" value={client.createdAt ? new Date(client.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }) : "—"} />
       </div>
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-          Descripcion
+          Description
         </p>
         <p className="text-sm leading-relaxed text-foreground/80 max-w-2xl">{client.notas ?? "—"}</p>
       </div>
       {/* Quick notes */}
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-          Notas rapidas
+          Quick Notes
         </p>
         <div className="flex flex-col gap-2">
           <QuickNote
-            text="Prefieren comunicacion por email. Responden rapido entre 10-14h."
-            date="12 feb 2026"
+            text="They prefer email communication. They respond quickly between 10 AM and 2 PM."
+            date="Feb 12, 2026"
           />
           <QuickNote
-            text="Interesados en ampliar servicios de branding el proximo trimestre."
-            date="5 feb 2026"
+            text="Interested in expanding branding services next quarter."
+            date="Feb 5, 2026"
           />
         </div>
       </div>
@@ -198,17 +198,17 @@ function ProyectosTab({ proyectos }: { proyectos: ProyectoItem[] }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Proyectos Asociados</h3>
+        <h3 className="text-lg font-semibold text-foreground">Projects</h3>
         <button className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
           <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Anadir proyecto</span>
+          <span className="hidden sm:inline">Add Project</span>
         </button>
       </div>
       {proyectos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <FolderKanban className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">Sin proyectos</p>
-          <p className="text-xs text-muted-foreground mt-1">Este cliente aun no tiene proyectos asociados.</p>
+          <p className="text-sm font-medium text-foreground">No projects</p>
+          <p className="text-xs text-muted-foreground mt-1">This client does not have any associated projects yet.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -250,7 +250,7 @@ function ProjectCard({ project }: { project: ProyectoItem }) {
       </div>
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-muted-foreground">Progreso</span>
+          <span className="text-xs text-muted-foreground">Progress</span>
           <span className="text-xs font-medium text-muted-foreground">{project.progreso ?? 0}%</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -285,26 +285,26 @@ function FacturacionTab() {
 const clientNotes = [
   {
     id: "n1",
-    title: "Reunion de kickoff",
+    title: "Kickoff Meeting",
     content:
-      "Se definio el alcance del proyecto de rediseno. El cliente quiere mantener los colores corporativos pero modernizar la tipografia y el isotipo. Prioridad alta en el sitio web.",
-    date: "15 ene 2026",
+      "The redesign scope was defined. The client wants to keep the corporate colors while modernizing the typography and symbol. High priority on the website.",
+    date: "Jan 15, 2026",
     author: "Carlos M.",
   },
   {
     id: "n2",
-    title: "Feedback sobre propuesta creativa",
+    title: "Creative Proposal Feedback",
     content:
-      "Les gusto la direccion general. Piden ajustar la paleta secundaria hacia tonos mas calidos. Quieren ver opciones de tipografia serif para los titulos.",
-    date: "25 ene 2026",
+      "They liked the overall direction. They asked to shift the secondary palette toward warmer tones and want serif typography options for headings.",
+    date: "Jan 25, 2026",
     author: "Ana R.",
   },
   {
     id: "n3",
-    title: "Seguimiento comercial",
+    title: "Commercial Follow-up",
     content:
-      "Interesados en anadir servicio de gestion de redes sociales a partir de Q2. Agendar reunion para presentar propuesta.",
-    date: "10 feb 2026",
+      "Interested in adding social media management services starting in Q2. Schedule a meeting to present a proposal.",
+    date: "Feb 10, 2026",
     author: "Laura G.",
   },
 ]
@@ -313,10 +313,10 @@ function NotasTab() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Notas</h3>
+        <h3 className="text-lg font-semibold text-foreground">Notes</h3>
         <button className="flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
           <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Nueva nota</span>
+          <span className="hidden sm:inline">New Note</span>
         </button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -335,7 +335,7 @@ function NoteCard({ note }: { note: (typeof clientNotes)[number] }) {
         <h4 className="text-sm font-semibold text-foreground leading-tight">{note.title}</h4>
         <button
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground flex-shrink-0"
-          aria-label="Opciones"
+          aria-label="Options"
         >
           <MoreHorizontal className="h-3.5 w-3.5" />
         </button>
@@ -352,16 +352,16 @@ function NoteCard({ note }: { note: (typeof clientNotes)[number] }) {
 /* ─────────── Historial ─────────── */
 
 const clientHistory = [
-  { id: "h1", type: "proyecto", text: "Proyecto 'Rediseno Identidad Visual' creado", date: "15 ene 2026", time: "10:30", icon: FolderKanban },
-  { id: "h2", type: "documento", text: "Propuesta creativa.pdf subida al proyecto", date: "18 ene 2026", time: "14:15", icon: FileTextIcon },
-  { id: "h3", type: "tarea", text: "Tarea 'Disenar logotipo' completada por Ana R.", date: "22 ene 2026", time: "16:45", icon: CheckCircle2 },
-  { id: "h4", type: "comunicacion", text: "Email enviado: Seguimiento de propuesta", date: "25 ene 2026", time: "09:00", icon: MessageSquare },
-  { id: "h5", type: "facturacion", text: "Factura #1024 emitida por $3,500 USD", date: "28 ene 2026", time: "11:20", icon: DollarSign },
-  { id: "h6", type: "nota", text: "Nota agregada: Interesados en ampliar servicios de branding", date: "5 feb 2026", time: "15:30", icon: StickyNote },
-  { id: "h7", type: "proyecto", text: "Proyecto 'Estrategia de Contenidos' creado", date: "1 mar 2026", time: "09:00", icon: FolderKanban },
-  { id: "h8", type: "facturacion", text: "Pago recibido: Factura #1024 - $3,500 USD", date: "10 feb 2026", time: "08:45", icon: DollarSign },
-  { id: "h9", type: "documento", text: "Brand guidelines v2 subida", date: "12 feb 2026", time: "17:00", icon: FileTextIcon },
-  { id: "h10", type: "comunicacion", text: "Reunion virtual: Revision de avances Q1", date: "14 feb 2026", time: "10:00", icon: MessageSquare },
+  { id: "h1", type: "proyecto", text: "Project 'Visual Identity Redesign' created", date: "Jan 15, 2026", time: "10:30", icon: FolderKanban },
+  { id: "h2", type: "documento", text: "creative-proposal.pdf uploaded to the project", date: "Jan 18, 2026", time: "14:15", icon: FileTextIcon },
+  { id: "h3", type: "tarea", text: "Task 'Design Logo' completed by Ana R.", date: "Jan 22, 2026", time: "16:45", icon: CheckCircle2 },
+  { id: "h4", type: "comunicacion", text: "Email sent: Proposal follow-up", date: "Jan 25, 2026", time: "09:00", icon: MessageSquare },
+  { id: "h5", type: "facturacion", text: "Invoice #1024 issued for $3,500 USD", date: "Jan 28, 2026", time: "11:20", icon: DollarSign },
+  { id: "h6", type: "nota", text: "Note added: Interested in expanding branding services", date: "Feb 5, 2026", time: "15:30", icon: StickyNote },
+  { id: "h7", type: "proyecto", text: "Project 'Content Strategy' created", date: "Mar 1, 2026", time: "09:00", icon: FolderKanban },
+  { id: "h8", type: "facturacion", text: "Payment received: Invoice #1024 - $3,500 USD", date: "Feb 10, 2026", time: "08:45", icon: DollarSign },
+  { id: "h9", type: "documento", text: "Brand guidelines v2 uploaded", date: "Feb 12, 2026", time: "17:00", icon: FileTextIcon },
+  { id: "h10", type: "comunicacion", text: "Virtual meeting: Q1 progress review", date: "Feb 14, 2026", time: "10:00", icon: MessageSquare },
 ]
 
 const historyTypeColors: Record<string, string> = {
@@ -375,13 +375,13 @@ const historyTypeColors: Record<string, string> = {
 
 const historyFilters = ["Todos", "proyecto", "documento", "tarea", "comunicacion", "facturacion", "nota"]
 const historyFilterLabels: Record<string, string> = {
-  Todos: "Todos",
-  proyecto: "Proyectos",
-  documento: "Documentos",
-  tarea: "Tareas",
-  comunicacion: "Comunicacion",
-  facturacion: "Facturacion",
-  nota: "Notas",
+  Todos: "All",
+  proyecto: "Projects",
+  documento: "Files",
+  tarea: "Tasks",
+  comunicacion: "Conversations",
+  facturacion: "Billing",
+  nota: "Notes",
 }
 
 function HistorialTab({ clientName }: { clientName: string }) {
@@ -399,8 +399,8 @@ function HistorialTab({ clientName }: { clientName: string }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Historial de Actividad</h3>
-        <span className="text-xs text-muted-foreground">{clientHistory.length} eventos</span>
+        <h3 className="text-lg font-semibold text-foreground">History</h3>
+        <span className="text-xs text-muted-foreground">{clientHistory.length} events</span>
       </div>
 
       {/* Filters */}
@@ -448,8 +448,8 @@ function HistorialTab({ clientName }: { clientName: string }) {
       {filtered.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <History className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">Sin eventos de este tipo</p>
-          <p className="text-xs text-muted-foreground mt-1">Selecciona otro filtro para ver actividad.</p>
+          <p className="text-sm font-medium text-foreground">No events of this type</p>
+          <p className="text-xs text-muted-foreground mt-1">Select another filter to view activity.</p>
         </div>
       )}
     </div>
@@ -461,29 +461,29 @@ function HistorialTab({ clientName }: { clientName: string }) {
 function IATab({ clientName }: { clientName: string }) {
   return (
     <div className="flex flex-col gap-5">
-      <h3 className="text-lg font-semibold text-foreground">Asistente IA del Cliente</h3>
+      <h3 className="text-lg font-semibold text-foreground">AI Assistant</h3>
       <p className="text-sm leading-relaxed text-muted-foreground max-w-xl">
-        El asistente IA contextual analiza toda la informacion de {clientName} para ofrecerte
-        resumenes, sugerencias y respuestas rapidas.
+        The AI Assistant analyzes all information related to {clientName} to provide
+        summaries, suggestions, and quick answers.
       </p>
 
       {/* Suggested actions */}
       <div className="grid gap-3 sm:grid-cols-2">
         <AIActionCard
-          title="Resumen del cliente"
-          description="Genera un resumen ejecutivo con el estado actual de todos los proyectos y relacion comercial."
+          title="Client Summary"
+          description="Generate an executive summary with the current status of all projects and the commercial relationship."
         />
         <AIActionCard
-          title="Proximos pasos"
-          description="Sugiere las acciones prioritarias basadas en proyectos activos y notas recientes."
+          title="Next Steps"
+          description="Suggest the highest-priority actions based on active projects and recent notes."
         />
         <AIActionCard
-          title="Preparar reunion"
-          description="Genera un briefing con los puntos clave para la proxima reunion con el cliente."
+          title="Prepare Meeting"
+          description="Generate a briefing with the key points for the next client meeting."
         />
         <AIActionCard
-          title="Analisis de relacion"
-          description="Evalua la salud de la relacion comercial y sugiere oportunidades de mejora."
+          title="Relationship Analysis"
+          description="Evaluate the health of the commercial relationship and suggest improvement opportunities."
         />
       </div>
 
@@ -494,12 +494,12 @@ function IATab({ clientName }: { clientName: string }) {
             <Sparkles className="h-4 w-4 text-foreground/70" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">Resumen automatico</p>
+            <p className="text-sm font-medium text-foreground">Automatic Summary</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {clientName} tiene 3 proyectos asociados: 1 en progreso (Rediseno Identidad Visual, 65%),
-              1 completado y 1 en planificacion. La relacion comercial esta activa desde enero 2025. El
-              cliente ha mostrado interes en ampliar servicios hacia gestion de redes sociales en Q2 2026.
-              Se recomienda preparar una propuesta comercial para la proxima reunion.
+              {clientName} has 3 associated projects: 1 in progress (Visual Identity Redesign, 65%),
+              1 completed, and 1 in planning. The commercial relationship has been active since January 2025.
+              The client has shown interest in expanding services into social media management in Q2 2026.
+              Preparing a commercial proposal for the next meeting is recommended.
             </p>
           </div>
         </div>
@@ -508,12 +508,12 @@ function IATab({ clientName }: { clientName: string }) {
       {/* Query history */}
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-          Consultas recientes
+          Recent Queries
         </p>
         <div className="flex flex-col gap-2">
-          <QueryRow query="Resume el estado de los proyectos activos" date="14 feb 2026" />
-          <QueryRow query="Que documentos faltan por entregar?" date="10 feb 2026" />
-          <QueryRow query="Genera un correo de seguimiento" date="5 feb 2026" />
+          <QueryRow query="Summarize the status of active projects" date="Feb 14, 2026" />
+          <QueryRow query="Which files are still pending delivery?" date="Feb 10, 2026" />
+          <QueryRow query="Generate a follow-up email" date="Feb 5, 2026" />
         </div>
       </div>
     </div>

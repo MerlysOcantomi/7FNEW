@@ -32,21 +32,21 @@ const INITIAL_MESSAGES: Message[] = [
     id: 1,
     role: "assistant",
     content:
-      "Good morning. I've reviewed the latest updates across your active portfolio. Alpha Expansion is on track for Q2 delivery. Growth Fund III shows a 3.2% deviation from target — recommend reviewing allocation before end of week.",
+      "Good morning. I've reviewed the latest updates across your active workspace. One priority project is on track for delivery, while the finance workspace shows a 3.2% deviation from target that should be reviewed before the end of the week.",
     timestamp: "09:14",
     tag: "Briefing",
   },
   {
     id: 2,
     role: "user",
-    content: "What is the risk exposure on Alpha Expansion?",
+    content: "What is the risk exposure on the current project?",
     timestamp: "09:16",
   },
   {
     id: 3,
     role: "assistant",
     content:
-      "Alpha Expansion carries a moderate risk profile. Primary exposure is in supply chain dependencies — two tier-2 vendors have not confirmed milestone deliveries. I recommend escalating with the project team before the Q2 checkpoint.",
+      "The current project carries a moderate risk profile. Primary exposure is in delivery dependencies — two external vendors have not confirmed milestone commitments. I recommend escalating with the project team before the next checkpoint.",
     timestamp: "09:16",
     tag: "Risk Analysis",
   },

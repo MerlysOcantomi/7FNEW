@@ -18,12 +18,12 @@ import {
 } from "lucide-react"
 
 const aiActions = [
-  { id: "ideas", label: "Generar ideas", description: "Propone ideas creativas basadas en el contexto del proyecto", icon: Lightbulb, prompt: "Genera 5 ideas creativas de contenido editorial para redes sociales. " },
-  { id: "mejorar", label: "Mejorar texto", description: "Refina y mejora la calidad de un copy o texto editorial", icon: Type, prompt: "Mejora y refina el siguiente texto editorial, haciendolo mas claro y atractivo: " },
-  { id: "resumir", label: "Resumir contenido", description: "Genera un resumen conciso de documentos o piezas extensas", icon: FileText, prompt: "Resume el siguiente contenido de forma concisa y profesional: " },
-  { id: "calendario", label: "Proponer calendario", description: "Sugiere una planificacion editorial basada en los proyectos activos", icon: Calendar, prompt: "Propone un calendario editorial semanal con contenido para Instagram, TikTok y LinkedIn. " },
-  { id: "analizar", label: "Analizar pieza", description: "Evalua una pieza creativa y sugiere mejoras", icon: Search, prompt: "Analiza la siguiente pieza de contenido y sugiere mejoras editoriales: " },
-  { id: "sugerir", label: "Sugerir mejoras", description: "Propone optimizaciones para contenido existente", icon: Wand2, prompt: "Sugiere optimizaciones y mejoras para el siguiente contenido: " },
+  { id: "ideas", label: "Generate Ideas", description: "Suggest creative ideas based on the project context", icon: Lightbulb, prompt: "Generate 5 creative editorial content ideas for social media. " },
+  { id: "mejorar", label: "Improve Copy", description: "Refine and improve the quality of a copy or editorial text", icon: Type, prompt: "Improve and refine the following editorial text, making it clearer and more engaging: " },
+  { id: "resumir", label: "Summarize Content", description: "Generate a concise summary of documents or long-form pieces", icon: FileText, prompt: "Summarize the following content in a concise and professional way: " },
+  { id: "calendario", label: "Suggest Calendar", description: "Suggest an editorial schedule based on active projects", icon: Calendar, prompt: "Suggest a weekly editorial calendar with content for Instagram, TikTok, and LinkedIn. " },
+  { id: "analizar", label: "Analyze Asset", description: "Evaluate a creative asset and suggest improvements", icon: Search, prompt: "Analyze the following content asset and suggest editorial improvements: " },
+  { id: "sugerir", label: "Suggest Improvements", description: "Suggest optimizations for existing content", icon: Wand2, prompt: "Suggest optimizations and improvements for the following content: " },
 ]
 
 interface Message {
@@ -50,7 +50,7 @@ export function ContentAI() {
 
     const action = aiActions.find((a) => a.id === activeAction)
     const finalPrompt = action ? action.prompt + text : text
-    const now = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+    const now = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
 
     const userMsg: Message = { id: `u-${Date.now()}`, role: "user", content: text, timestamp: now }
     setMessages((prev) => [...prev, userMsg])
@@ -65,11 +65,11 @@ export function ContentAI() {
         body: JSON.stringify({ mode: "skina", message: finalPrompt, history }),
       })
       const json = await res.json()
-      const aiContent = json.data?.respuesta ?? json.data ?? json.error?.message ?? "Sin respuesta"
-      const aiMsg: Message = { id: `a-${Date.now()}`, role: "assistant", content: typeof aiContent === "string" ? aiContent : JSON.stringify(aiContent), timestamp: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) }
+      const aiContent = json.data?.respuesta ?? json.data ?? json.error?.message ?? "No response"
+      const aiMsg: Message = { id: `a-${Date.now()}`, role: "assistant", content: typeof aiContent === "string" ? aiContent : JSON.stringify(aiContent), timestamp: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) }
       setMessages((prev) => [...prev, aiMsg])
     } catch {
-      toast.error("Error al conectar con IA")
+      toast.error("Error connecting to AI Assistant")
     } finally {
       setLoading(false)
       setActiveAction(null)
@@ -79,8 +79,8 @@ export function ContentAI() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h3 className="text-lg font-semibold text-foreground">IA Editorial</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Co-creadora editorial con GPT-4.1. Genera ideas, mejora textos y planifica contenido.</p>
+        <h3 className="text-lg font-semibold text-foreground">AI Assistant</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">Editorial co-creator powered by GPT-4.1. Generate ideas, improve copy, and plan content.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -106,15 +106,15 @@ export function ContentAI() {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-semibold text-foreground">Conversacion editorial</span>
-          <span className="text-[10px] text-muted-foreground ml-auto">{messages.length} mensajes</span>
+          <span className="text-xs font-semibold text-foreground">Editorial Conversation</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">{messages.length} messages</span>
         </div>
 
         <div ref={scrollRef} className="max-h-[400px] overflow-y-auto p-5 flex flex-col gap-4">
           {messages.length === 0 && (
             <div className="text-center py-8">
               <Bot className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">Escribe una consulta o selecciona una accion para empezar.</p>
+              <p className="text-sm text-muted-foreground">Write a prompt or select an action to get started.</p>
             </div>
           )}
           {messages.map((msg) => (
@@ -150,17 +150,17 @@ export function ContentAI() {
         <div className="border-t border-border p-4">
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() } }} placeholder={activeAction ? `Escribe instrucciones para: ${aiActions.find((a) => a.id === activeAction)?.label}...` : "Escribe una consulta editorial..."} rows={2} className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
+              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() } }} placeholder={activeAction ? `Write instructions for: ${aiActions.find((a) => a.id === activeAction)?.label}...` : "Write an editorial prompt..."} rows={2} className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
             </div>
-            <button onClick={handleSend} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Enviar">
+            <button onClick={handleSend} disabled={loading || !input.trim()} className={cn("flex h-10 w-10 items-center justify-center rounded-lg transition-opacity flex-shrink-0", !input.trim() || loading ? "bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-80")} aria-label="Send">
               <Send className="h-4 w-4" />
             </button>
           </div>
           {activeAction && (
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Accion activa:</span>
+              <span className="text-[11px] text-muted-foreground">Active Action:</span>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium">{aiActions.find((a) => a.id === activeAction)?.label}</span>
-              <button onClick={() => setActiveAction(null)} className="text-[11px] text-muted-foreground hover:text-foreground ml-1">Cancelar</button>
+              <button onClick={() => setActiveAction(null)} className="text-[11px] text-muted-foreground hover:text-foreground ml-1">Cancel</button>
             </div>
           )}
         </div>

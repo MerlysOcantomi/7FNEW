@@ -25,19 +25,19 @@ const ENTITY_OPTIONS: Record<ContextChip, { label: string; href: string }[]> = {
     { label: "Recent activity", href: "/" },
   ],
   Clients: [
-    { label: "Alpha Expansion", href: "/proyectos/alpha-expansion" },
-    { label: "Acme Corp", href: "/clientes/acme-corp" },
-    { label: "Nexus Holdings", href: "/clientes/nexus-holdings" },
+    { label: "Priority client", href: "/clientes" },
+    { label: "Active client", href: "/clientes" },
+    { label: "Client portfolio", href: "/clientes" },
   ],
   Projects: [
-    { label: "Alpha Expansion", href: "/proyectos/alpha-expansion" },
-    { label: "Beta Relaunch", href: "/proyectos/beta-relaunch" },
-    { label: "Omega Platform", href: "/proyectos/omega-platform" },
+    { label: "Current project", href: "/proyectos" },
+    { label: "Priority project", href: "/proyectos" },
+    { label: "Project portfolio", href: "/proyectos" },
   ],
   Finance: [
-    { label: "Growth Fund III", href: "/finanzas" },
-    { label: "Innovation Pool", href: "/finanzas" },
-    { label: "Seed Reserve", href: "/finanzas" },
+    { label: "Finance workspace", href: "/finanzas" },
+    { label: "Operating reserve", href: "/finanzas" },
+    { label: "Liquidity buffer", href: "/finanzas" },
   ],
   Billing: [
     { label: "INV-2024-089", href: "/facturacion" },
