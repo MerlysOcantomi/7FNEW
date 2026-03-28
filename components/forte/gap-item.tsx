@@ -1,12 +1,14 @@
+import Link from "next/link"
 import { CircleDot, ArrowRight } from "lucide-react"
 import { getCapabilityMeta } from "./capability-meta"
 
 interface GapItemProps {
   capabilityId: string
+  href?: string
   showAction?: boolean
 }
 
-export function GapItem({ capabilityId, showAction = true }: GapItemProps) {
+export function GapItem({ capabilityId, href, showAction = true }: GapItemProps) {
   const meta = getCapabilityMeta(capabilityId)
   if (!meta) return null
 
@@ -20,7 +22,16 @@ export function GapItem({ capabilityId, showAction = true }: GapItemProps) {
         {showAction && (
           <div className="flex items-center gap-1.5 mt-1">
             <ArrowRight size={11} className="text-[#3B82F6]" strokeWidth={2.5} />
-            <span className="text-xs font-medium text-[#3B82F6]">{meta.action}</span>
+            {href ? (
+              <Link
+                href={href}
+                className="text-xs font-medium text-[#3B82F6] hover:text-[#1D4ED8] hover:underline transition-colors"
+              >
+                {meta.action}
+              </Link>
+            ) : (
+              <span className="text-xs font-medium text-[#3B82F6]">{meta.action}</span>
+            )}
           </div>
         )}
       </div>

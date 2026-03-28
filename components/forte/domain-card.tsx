@@ -127,9 +127,10 @@ function getInsight(state: DomainState): string {
 
 interface DomainCardProps {
   state: DomainState
+  routesByCapability?: Record<string, string>
 }
 
-export function DomainCard({ state }: DomainCardProps) {
+export function DomainCard({ state, routesByCapability }: DomainCardProps) {
   const Icon = DOMAIN_ICONS[state.domain] ?? Brain
   const label = DOMAIN_LABELS[state.domain] ?? state.domain
   const colors = LEVEL_COLORS[state.level]
@@ -202,7 +203,7 @@ export function DomainCard({ state }: DomainCardProps) {
           </p>
           <div className="divide-y divide-[#F1F5F9]">
             {state.missingCapabilities.map((cap) => (
-              <GapItem key={cap} capabilityId={cap} />
+              <GapItem key={cap} capabilityId={cap} href={routesByCapability?.[cap]} />
             ))}
           </div>
         </div>

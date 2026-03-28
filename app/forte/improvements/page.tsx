@@ -1,10 +1,16 @@
 "use client"
 
+import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { ForteHeader } from "@/components/forte/forte-header"
 import { DomainCard, DOMAIN_LABELS } from "@/components/forte/domain-card"
-import { getCapabilityLabel, getCapabilityAction } from "@/components/forte/capability-meta"
 import type { DomainState } from "@/agents/forte/runtime/business/domain-types"
+import {
+  buildGuidedRecommendations,
+  resolveNextMoveTarget,
+  resolveRecommendationTarget,
+} from "@/agents/forte/runtime/business/recommendation-routing"
+import type { GuidedRecommendationTarget } from "@/agents/forte/runtime/business/recommendation-routing"
 import { AlertTriangle, ArrowRight, Lightbulb, TrendingUp } from "lucide-react"
 
 // ── View model contract ─────────────────────────────────────────────────────
@@ -15,12 +21,8 @@ import { AlertTriangle, ArrowRight, Lightbulb, TrendingUp } from "lucide-react"
 export interface ForteImprovementsViewModel {
   domains: DomainState[]
   workspaceSummary?: string
-  topPriorities?: PriorityGap[]
-  recommendedNextMove?: {
-    domain: string
-    capabilityId: string
-    reason: string
-  }
+  recommendations?: GuidedRecommendationTarget[]
+  nextMove?: GuidedRecommendationTarget | null
 }
 
 // ── Mock data — replace with real API call when endpoint exists ──────────────
@@ -86,71 +88,23 @@ const MOCK_DOMAINS: DomainState[] = [
   },
 ]
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface PriorityGap {
-  domain: string
-  domainLabel: string
-  capabilityId: string
-  capabilityLabel: string
-  description: string
-  action: string
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractPriorities(domains: DomainState[], max = 3): PriorityGap[] {
-  const gaps: PriorityGap[] = []
-  const sorted = [...domains].sort((a, b) => a.strength - b.strength)
-
-  for (const d of sorted) {
-    if (gaps.length >= max) break
-    if (d.level !== "none" && d.level !== "basic") continue
+function buildRoutesByCapability(domains: DomainState[]): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {}
+  for (const d of domains) {
+    const map: Record<string, string> = {}
     for (const cap of d.missingCapabilities) {
-      if (gaps.length >= max) break
-      if (gaps.some((g) => g.capabilityId === cap)) continue
-      gaps.push({
-        domain: d.domain,
-        domainLabel: DOMAIN_LABELS[d.domain] ?? d.domain,
-        capabilityId: cap,
-        capabilityLabel: getCapabilityLabel(cap),
-        description: getCapabilityAction(cap),
-        action: getCapabilityAction(cap),
-      })
+      const target = resolveRecommendationTarget(d, cap)
+      if (target.availability === "available") {
+        map[cap] = target.href
+      }
+    }
+    if (Object.keys(map).length > 0) {
+      result[d.domain] = map
     }
   }
-
-  return gaps
-}
-
-interface NextMove {
-  domainLabel: string
-  capabilityLabel: string
-  reason: string
-  action: string
-}
-
-function resolveNextMove(domains: DomainState[]): NextMove | null {
-  const weakest = [...domains]
-    .filter((d) => d.missingCapabilities.length > 0)
-    .sort((a, b) => a.strength - b.strength)[0]
-
-  if (!weakest) return null
-
-  const topGap = weakest.missingCapabilities[0]
-  const domainLabel = DOMAIN_LABELS[weakest.domain] ?? weakest.domain
-
-  const reasons: Record<string, string> = {
-    none: `${domainLabel} has no infrastructure yet. This is the biggest structural gap.`,
-    basic: `${domainLabel} has a foundation but critical capabilities are missing.`,
-  }
-
-  return {
-    domainLabel,
-    capabilityLabel: getCapabilityLabel(topGap),
-    reason: reasons[weakest.level] ?? `${domainLabel} would benefit most from this improvement.`,
-    action: getCapabilityAction(topGap),
-  }
+  return result
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -158,9 +112,10 @@ function resolveNextMove(domains: DomainState[]): NextMove | null {
 export default function ForteImprovements() {
   const domains = MOCK_DOMAINS
   const sorted = [...domains].sort((a, b) => a.strength - b.strength)
-  const priorities = extractPriorities(domains)
-  const nextMove = resolveNextMove(domains)
-  const allGood = priorities.length === 0
+  const recommendations = buildGuidedRecommendations(domains, 3)
+  const nextMove = resolveNextMoveTarget(domains)
+  const routesByDomain = buildRoutesByCapability(domains)
+  const allGood = recommendations.length === 0
 
   return (
     <AppShell currentSection="improvements">
@@ -175,16 +130,25 @@ export default function ForteImprovements() {
               <div className="w-8 h-8 rounded-lg bg-white border border-[#BFDBFE] flex items-center justify-center shrink-0 mt-0.5">
                 <Lightbulb size={16} className="text-[#2563EB]" strokeWidth={2} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-[#2563EB] uppercase tracking-widest mb-1">
                   Recommended next move
                 </p>
                 <p className="text-sm font-semibold text-[#0F172A]">
-                  {nextMove.action}
+                  {nextMove.label}
                 </p>
                 <p className="text-sm text-[#475569] mt-1 leading-relaxed">
-                  {nextMove.reason}
+                  {nextMove.rationale}
                 </p>
+                {nextMove.availability === "available" && (
+                  <Link
+                    href={nextMove.href}
+                    className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors"
+                  >
+                    {nextMove.label}
+                    <ArrowRight size={12} strokeWidth={2.5} />
+                  </Link>
+                )}
               </div>
             </div>
           </section>
@@ -201,23 +165,30 @@ export default function ForteImprovements() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {priorities.map((p, i) => (
+              {recommendations.map((r, i) => (
                 <div
-                  key={p.capabilityId}
+                  key={`${r.domain}-${r.capabilityId}`}
                   className="bg-white rounded-xl border border-[#E2E8F0] border-l-[3px] border-l-[#FCD34D] shadow-sm px-4 py-4 flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-[#FEF3C7] border border-[#FDE68A] flex items-center justify-center text-[10px] font-bold text-[#D97706]">
                       {i + 1}
                     </span>
-                    <span className="text-xs font-medium text-[#94A3B8]">{p.domainLabel}</span>
+                    <span className="text-xs font-medium text-[#94A3B8]">
+                      {DOMAIN_LABELS[r.domain] ?? r.domain}
+                    </span>
                   </div>
-                  <p className="text-sm font-semibold text-[#0F172A]">{p.capabilityLabel}</p>
-                  <p className="text-xs text-[#64748B] leading-relaxed">{p.description}</p>
-                  <div className="flex items-center gap-1.5 mt-auto pt-1">
-                    <ArrowRight size={11} className="text-[#3B82F6]" strokeWidth={2.5} />
-                    <span className="text-xs font-medium text-[#3B82F6]">{p.action}</span>
-                  </div>
+                  <p className="text-sm font-semibold text-[#0F172A]">{r.label}</p>
+                  <p className="text-xs text-[#64748B] leading-relaxed">{r.rationale}</p>
+                  {r.availability === "available" && (
+                    <Link
+                      href={r.href}
+                      className="flex items-center gap-1.5 mt-auto pt-1 text-xs font-medium text-[#3B82F6] hover:text-[#1D4ED8] hover:underline transition-colors"
+                    >
+                      {r.label}
+                      <ArrowRight size={11} strokeWidth={2.5} />
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
@@ -249,7 +220,11 @@ export default function ForteImprovements() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {sorted.map((d) => (
-              <DomainCard key={d.domain} state={d} />
+              <DomainCard
+                key={d.domain}
+                state={d}
+                routesByCapability={routesByDomain[d.domain]}
+              />
             ))}
           </div>
         </section>

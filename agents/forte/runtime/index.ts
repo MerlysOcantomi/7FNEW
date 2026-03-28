@@ -96,6 +96,9 @@ export {
   getActiveDomains,
   getDomainGaps,
   mapIntentToDomains,
+  resolveRecommendationTarget,
+  buildGuidedRecommendations,
+  resolveNextMoveTarget,
 } from "./business"
 export type {
   NormalizedSignals,
@@ -105,4 +108,7 @@ export type {
   DomainLevel,
   DomainState,
   ResolveDomainStatesInput,
+  RecommendationDestinationKind,
+  RecommendationTargetSource,
+  GuidedRecommendationTarget,
 } from "./business"

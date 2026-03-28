@@ -12,3 +12,13 @@ export type {
 } from "./signals"
 export type { BusinessDomain, DomainLevel, DomainState } from "./domain-types"
 export type { ResolveDomainStatesInput } from "./domain-resolver"
+export {
+  resolveRecommendationTarget,
+  buildGuidedRecommendations,
+  resolveNextMoveTarget,
+} from "./recommendation-routing"
+export type {
+  RecommendationDestinationKind,
+  RecommendationTargetSource,
+  GuidedRecommendationTarget,
+} from "./recommendation-routing"
