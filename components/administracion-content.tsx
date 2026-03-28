@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Link from "next/link"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel"
-import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X } from "lucide-react"
+import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X, Check, Loader2 } from "lucide-react"
 import type { ForteSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -18,14 +18,30 @@ interface CapabilityGroup {
   items: CapabilityItem[]
 }
 
+// ── Settings item → workspace config module key ──────────────────────────────
+// Maps UI item IDs to the real keys stored in Workspace.config.modules.
+// Items NOT in this map have no config backing and remain locked/always-on.
+const ITEM_TO_CONFIG_KEY: Record<string, string> = {
+  inbox:            "inbox",
+  clientes:         "crm",
+  campanas:         "campaigns",
+  finanzas:         "finance",
+  automatizaciones: "automation",
+}
+
+function getConfigKey(itemId: string): string | undefined {
+  return ITEM_TO_CONFIG_KEY[itemId]
+}
+
 // ── Core Capabilities ─────────────────────────────────────────────────────────
+// Items with a config key are configurable. Others are core/always-on.
 const CORE_CAPABILITIES: CapabilityGroup[] = [
   {
     section: "Core",
     items: [
-      { id: "inbox", label: "Smart Inbox", locked: true },
+      { id: "inbox", label: "Smart Inbox" },
       { id: "entrada", label: "Manual Intake", locked: true },
-      { id: "clientes", label: "Clients", locked: true },
+      { id: "clientes", label: "Clients" },
       { id: "proyectos", label: "Projects", locked: true },
       { id: "tareas", label: "Tasks", locked: true },
       { id: "calendario", label: "Calendar", locked: true },
@@ -35,13 +51,13 @@ const CORE_CAPABILITIES: CapabilityGroup[] = [
   {
     section: "Growth",
     items: [
-      { id: "campanas", label: "Marketing", locked: true },
+      { id: "campanas", label: "Marketing" },
     ],
   },
   {
     section: "Revenue",
     items: [
-      { id: "finanzas", label: "Finance", locked: true },
+      { id: "finanzas", label: "Finance" },
       { id: "facturacion", label: "Billing", locked: true },
     ],
   },
@@ -107,7 +123,7 @@ const EXTENSION_PACKS: Record<PackKey, { label: string; groups: CapabilityGroup[
 }
 
 // ── Advanced customization items ──────────────────────────────────────────────
-const ADVANCED_ITEMS = [
+const ADVANCED_ITEMS: CapabilityItem[] = [
   { id: "custom_fields", label: "Custom fields" },
   { id: "etiquetas", label: "Internal labels" },
   { id: "automatizaciones", label: "Specific automations" },
@@ -273,16 +289,52 @@ function ForteBanner({
   )
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function buildInitialModuleState(moduleConfig: Record<string, boolean>): Record<string, boolean> {
+  const state: Record<string, boolean> = {}
+  for (const [itemId, configKey] of Object.entries(ITEM_TO_CONFIG_KEY)) {
+    state[itemId] = moduleConfig[configKey] ?? true
+  }
+  return state
+}
+
+function getChangedModules(
+  current: Record<string, boolean>,
+  original: Record<string, boolean>,
+): Array<{ moduleKey: string; enabled: boolean }> {
+  const changes: Array<{ moduleKey: string; enabled: boolean }> = []
+  for (const [itemId, configKey] of Object.entries(ITEM_TO_CONFIG_KEY)) {
+    if (current[itemId] !== original[itemId]) {
+      changes.push({ moduleKey: configKey, enabled: current[itemId] })
+    }
+  }
+  return changes
+}
+
 // ── Content ───────────────────────────────────────────────────────────────────
 
 interface AdministracionContentProps {
   handoff: ForteSettingsHandoff | null
+  workspaceId: string
+  wsRole: string
+  moduleConfig: Record<string, boolean>
 }
 
-export function AdministracionContent({ handoff }: AdministracionContentProps) {
+export function AdministracionContent({
+  handoff,
+  workspaceId,
+  wsRole,
+  moduleConfig,
+}: AdministracionContentProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [copilotCollapsed, setCopilotCollapsed] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
+
+  const isAdmin = wsRole === "ADMIN" || wsRole === "OWNER"
+
+  const [originalModuleState] = useState(() => buildInitialModuleState(moduleConfig))
+  const [moduleState, setModuleState] = useState(() => buildInitialModuleState(moduleConfig))
 
   const [selectedPack, setSelectedPack] = useState<PackKey>("construction")
   const [packDropdownOpen, setPackDropdownOpen] = useState(false)
@@ -297,22 +349,84 @@ export function AdministracionContent({ handoff }: AdministracionContentProps) {
     return initial
   })
 
-  const [advancedEnabled, setAdvancedEnabled] = useState<Record<string, boolean>>({
-    custom_fields: true,
-    etiquetas: false,
-    automatizaciones: false,
+  const [advancedEnabled, setAdvancedEnabled] = useState<Record<string, boolean>>(() => {
+    const state: Record<string, boolean> = {
+      custom_fields: true,
+      etiquetas: false,
+    }
+    const autoKey = getConfigKey("automatizaciones")
+    state.automatizaciones = autoKey ? (moduleConfig[autoKey] ?? false) : false
+    return state
   })
+
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+
+  const toggleModule = useCallback((itemId: string) => {
+    if (!isAdmin) return
+    setModuleState((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
+    setSaveStatus("idle")
+  }, [isAdmin])
 
   const toggleExtension = (id: string) => {
     setExtensionEnabled((prev) => ({ ...prev, [id]: !prev[id] }))
   }
   const toggleAdvanced = (id: string) => {
+    if (id === "automatizaciones" && !isAdmin) return
     setAdvancedEnabled((prev) => ({ ...prev, [id]: !prev[id] }))
+    setSaveStatus("idle")
+  }
+
+  const allModuleEnabled: Record<string, boolean> = {
+    ...moduleState,
+    ...advancedEnabled,
+  }
+
+  const handleCoreCoreToggle = (itemId: string) => {
+    if (getConfigKey(itemId)) {
+      toggleModule(itemId)
+    }
+  }
+
+  const changedModules = getChangedModules(moduleState, originalModuleState)
+  const autoChanged = advancedEnabled.automatizaciones !== (moduleConfig["automation"] ?? false)
+  const hasChanges = changedModules.length > 0 || autoChanged
+
+  const handleSave = async () => {
+    if (!workspaceId || !hasChanges) return
+    setSaveStatus("saving")
+
+    try {
+      const allChanges = [...changedModules]
+      if (autoChanged) {
+        allChanges.push({ moduleKey: "automation", enabled: advancedEnabled.automatizaciones })
+      }
+
+      for (const change of allChanges) {
+        const res = await fetch(`/api/workspaces/${workspaceId}/modules`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(change),
+        })
+        if (!res.ok) throw new Error("Failed to save")
+      }
+
+      setSaveStatus("saved")
+      setTimeout(() => setSaveStatus("idle"), 2000)
+    } catch {
+      setSaveStatus("error")
+      setTimeout(() => setSaveStatus("idle"), 3000)
+    }
   }
 
   const currentPack = EXTENSION_PACKS[selectedPack]
   const showBanner = handoff !== null && !bannerDismissed
   const highlightId = handoff?.settingsItemId ?? undefined
+
+  const saveLabel =
+    saveStatus === "saving" ? "Saving..." :
+    saveStatus === "saved" ? "Saved" :
+    saveStatus === "error" ? "Error — try again" :
+    hasChanges ? "Save changes" : "No changes"
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
@@ -335,13 +449,29 @@ export function AdministracionContent({ handoff }: AdministracionContentProps) {
                 <p className="text-sm text-[#64748B] mt-1">
                   Review core capabilities, optional packs, and advanced upgrades for this workspace.
                 </p>
-                <p className="text-xs text-[#94A3B8] mt-1.5">
-                  Mr. Forte uses this surface to suggest safe system upgrades and optional capabilities.
-                </p>
+                {!isAdmin && (
+                  <p className="text-xs text-[#D97706] mt-1.5">
+                    You need admin or owner access to change settings.
+                  </p>
+                )}
               </div>
-              <button className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm shrink-0 self-start sm:self-auto">
-                <Save size={14} strokeWidth={1.75} />
-                Save changes
+              <button
+                onClick={handleSave}
+                disabled={!hasChanges || saveStatus === "saving" || !isAdmin}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shrink-0 self-start sm:self-auto ${
+                  hasChanges && isAdmin
+                    ? "bg-[#0F172A] text-white hover:bg-[#1E293B]"
+                    : "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
+                }`}
+              >
+                {saveStatus === "saving" ? (
+                  <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+                ) : saveStatus === "saved" ? (
+                  <Check size={14} strokeWidth={1.75} />
+                ) : (
+                  <Save size={14} strokeWidth={1.75} />
+                )}
+                {saveLabel}
               </button>
             </div>
 
@@ -362,15 +492,12 @@ export function AdministracionContent({ handoff }: AdministracionContentProps) {
                   <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
                     Core capabilities
                   </h2>
-                  <span className="text-[10px] text-[#94A3B8] font-medium">
-                    Always on
-                  </span>
                 </div>
 
                 <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="px-5 py-3.5 bg-[#EFF6FF] border-b border-[#DBEAFE]">
                     <p className="text-xs text-[#1D4ED8] font-medium">
-                      These capabilities are the base of the workspace and remain enabled.
+                      Locked items are always enabled. Configurable items reflect your workspace setup.
                     </p>
                   </div>
 
@@ -383,22 +510,37 @@ export function AdministracionContent({ handoff }: AdministracionContentProps) {
                           </span>
                         </div>
                         <div className="divide-y divide-[#F1F5F9]">
-                          {group.items.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`flex items-center justify-between py-3 px-5 hover:bg-[#F8FAFC] transition-colors ${
-                                item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
-                              }`}
-                            >
-                              <span className="text-sm font-medium text-[#334155]">{item.label}</span>
-                              <div className="flex items-center gap-1.5">
-                                <ToggleRight size={20} className="text-[#3B82F6]" strokeWidth={1.5} />
-                                <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide hidden sm:block">
-                                  Base
+                          {group.items.map((item) => {
+                            const configurable = !!getConfigKey(item.id)
+                            const isLocked = item.locked || !configurable || !isAdmin
+                            const isEnabled = isLocked ? true : (allModuleEnabled[item.id] ?? true)
+
+                            return (
+                              <div
+                                key={item.id}
+                                className={`flex items-center justify-between py-3 px-5 hover:bg-[#F8FAFC] transition-colors ${
+                                  item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
+                                }`}
+                              >
+                                <span className={`text-sm ${isLocked ? "text-[#334155] font-medium" : isEnabled ? "text-[#334155]" : "text-[#94A3B8]"}`}>
+                                  {item.label}
                                 </span>
+                                {isLocked ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <ToggleRight size={20} className="text-[#3B82F6]" strokeWidth={1.5} />
+                                    <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide hidden sm:block">
+                                      Base
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <Toggle
+                                    enabled={isEnabled}
+                                    onToggle={() => handleCoreCoreToggle(item.id)}
+                                  />
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
@@ -500,33 +642,50 @@ export function AdministracionContent({ handoff }: AdministracionContentProps) {
 
                 <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden max-w-lg">
                   <div className="divide-y divide-[#F1F5F9]">
-                    {ADVANCED_ITEMS.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center justify-between py-3.5 px-5 hover:bg-[#F8FAFC] transition-colors ${
-                          item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
-                        }`}
-                      >
-                        <span className={`text-sm ${advancedEnabled[item.id] ? "text-[#334155] font-medium" : "text-[#94A3B8]"}`}>
-                          {item.label}
-                        </span>
-                        <Toggle
-                          enabled={advancedEnabled[item.id] ?? false}
-                          onToggle={() => toggleAdvanced(item.id)}
-                        />
-                      </div>
-                    ))}
+                    {ADVANCED_ITEMS.map((item) => {
+                      const configKey = getConfigKey(item.id)
+                      const hasRealConfig = !!configKey
+                      const isLocked = !hasRealConfig && !isAdmin
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between py-3.5 px-5 hover:bg-[#F8FAFC] transition-colors ${
+                            item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
+                          }`}
+                        >
+                          <span className={`text-sm ${advancedEnabled[item.id] ? "text-[#334155] font-medium" : "text-[#94A3B8]"}`}>
+                            {item.label}
+                          </span>
+                          <Toggle
+                            enabled={advancedEnabled[item.id] ?? false}
+                            locked={isLocked}
+                            onToggle={() => toggleAdvanced(item.id)}
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </section>
 
               {/* ── Bottom save bar (mobile sticky) ── */}
-              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 bg-white border-t border-[#E2E8F0] shadow-lg">
-                <button className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors">
-                  <Save size={14} strokeWidth={1.75} />
-                  Save changes
-                </button>
-              </div>
+              {hasChanges && isAdmin && (
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 bg-white border-t border-[#E2E8F0] shadow-lg">
+                  <button
+                    onClick={handleSave}
+                    disabled={saveStatus === "saving"}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
+                  >
+                    {saveStatus === "saving" ? (
+                      <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+                    ) : (
+                      <Save size={14} strokeWidth={1.75} />
+                    )}
+                    {saveStatus === "saving" ? "Saving..." : "Save changes"}
+                  </button>
+                </div>
+              )}
 
             </div>
           </main>
