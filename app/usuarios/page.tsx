@@ -13,8 +13,8 @@ import { toast } from "sonner"
 
 const rolLabel: Record<string, string> = {
   admin: "Admin",
-  gerente: "Gerente",
-  miembro: "Miembro",
+  gerente: "Manager",
+  miembro: "Member",
 }
 
 export default function UsuariosPage() {
@@ -36,10 +36,10 @@ export default function UsuariosPage() {
     if (!deleteItem) return
     try {
       await apiDelete(`/api/usuarios/${deleteItem.id}`)
-      toast.success("Usuario eliminado")
+      toast.success("User deleted")
       refetch()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al eliminar")
+      toast.error(err instanceof Error ? err.message : "Failed to delete")
     } finally {
       setDeleteItem(null)
     }
@@ -48,11 +48,11 @@ export default function UsuariosPage() {
   return (
     <AppShell
       currentSection="usuarios"
-      breadcrumbs={[{ label: "7F" }, { label: "Usuarios" }]}
+      breadcrumbs={[{ label: "7F" }, { label: "Users" }]}
     >
       <SectionPage
-        title="Usuarios"
-        description="Gestiona los miembros del equipo, roles, permisos y accesos al sistema."
+        title="Users"
+        description="Manage team members, roles, permissions, and system access."
       >
         <div className="flex items-center justify-end">
           <button
@@ -60,7 +60,7 @@ export default function UsuariosPage() {
             className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
           >
             <Plus className="h-3.5 w-3.5" />
-            Nuevo usuario
+            New user
           </button>
         </div>
 
@@ -72,15 +72,15 @@ export default function UsuariosPage() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total usuarios</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total users</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : totalUsuarios}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activos</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Roles unicos</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unique roles</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : rolesUnicos}</p>
           </div>
         </div>
@@ -103,8 +103,8 @@ export default function UsuariosPage() {
         ) : !users?.length ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
             <UserCircle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">No hay usuarios</p>
-            <p className="text-xs text-muted-foreground mt-1">No se encontraron usuarios en el sistema.</p>
+            <p className="text-sm font-medium text-foreground">No users</p>
+            <p className="text-xs text-muted-foreground mt-1">No users found in the system.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,7 +135,7 @@ export default function UsuariosPage() {
                       </span>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <FolderKanban className="h-3 w-3" />
-                        — proyectos
+                        — projects
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
@@ -143,13 +143,13 @@ export default function UsuariosPage() {
                         onClick={() => { setEditingItem(user); setFormOpen(true) }}
                         className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                       >
-                        <Pencil className="h-3 w-3" /> Editar
+                        <Pencil className="h-3 w-3" /> Edit
                       </button>
                       <button
                         onClick={() => setDeleteItem(user)}
                         className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-accent transition-colors"
                       >
-                        <Trash2 className="h-3 w-3" /> Eliminar
+                        <Trash2 className="h-3 w-3" /> Delete
                       </button>
                     </div>
                   </div>
@@ -166,9 +166,9 @@ export default function UsuariosPage() {
         />
         <ConfirmModal
           open={!!deleteItem}
-          title="Eliminar usuario"
-          description={`¿Seguro que quieres eliminar a "${deleteItem?.nombre}"? Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
+          title="Delete user"
+          description={`Are you sure you want to delete "${deleteItem?.nombre}"? This action cannot be undone.`}
+          confirmLabel="Delete"
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteItem(null)}

@@ -27,14 +27,14 @@ import {
 const departments = [
   {
     id: "dep-diseno",
-    name: "Diseno",
+    name: "Design",
     icon: Palette,
     color: "var(--tab-info)",
     lead: "Ana Rodriguez",
     members: [
-      { name: "Ana Rodriguez", role: "Directora Creativa", avatar: "AR", projects: 4, tasks: 12, load: 85 },
-      { name: "Diego Navarro", role: "Disenador UI/UX", avatar: "DN", projects: 3, tasks: 8, load: 70 },
-      { name: "Camila Rios", role: "Disenadora Grafica", avatar: "CR", projects: 2, tasks: 6, load: 55 },
+      { name: "Ana Rodriguez", role: "Creative Director", avatar: "AR", projects: 4, tasks: 12, load: 85 },
+      { name: "Diego Navarro", role: "UI/UX Designer", avatar: "DN", projects: 3, tasks: 8, load: 70 },
+      { name: "Camila Rios", role: "Graphic Designer", avatar: "CR", projects: 2, tasks: 6, load: 55 },
     ],
     activeProjects: 5,
     pendingTasks: 18,
@@ -43,7 +43,7 @@ const departments = [
   },
   {
     id: "dep-desarrollo",
-    name: "Desarrollo",
+    name: "Development",
     icon: Code2,
     color: "var(--tab-phases)",
     lead: "Miguel Torres",
@@ -59,13 +59,13 @@ const departments = [
   },
   {
     id: "dep-estrategia",
-    name: "Estrategia",
+    name: "Strategy",
     icon: Briefcase,
     color: "var(--tab-tasks)",
     lead: "Valentina Mora",
     members: [
-      { name: "Valentina Mora", role: "Directora de Estrategia", avatar: "VM", projects: 5, tasks: 10, load: 80 },
-      { name: "Tomas Gutierrez", role: "Estratega Digital", avatar: "TG", projects: 3, tasks: 6, load: 50 },
+      { name: "Valentina Mora", role: "Strategy Director", avatar: "VM", projects: 5, tasks: 10, load: 80 },
+      { name: "Tomas Gutierrez", role: "Digital Strategist", avatar: "TG", projects: 3, tasks: 6, load: 50 },
     ],
     activeProjects: 6,
     pendingTasks: 12,
@@ -74,12 +74,12 @@ const departments = [
   },
   {
     id: "dep-marketing",
-    name: "Marketing y Contenido",
+    name: "Marketing & Content",
     icon: Megaphone,
     color: "var(--tab-docs)",
     lead: "Isabela Cruz",
     members: [
-      { name: "Isabela Cruz", role: "Directora de Marketing", avatar: "IC", projects: 4, tasks: 14, load: 88 },
+      { name: "Isabela Cruz", role: "Marketing Director", avatar: "IC", projects: 4, tasks: 14, load: 88 },
       { name: "Daniel Vargas", role: "Content Manager", avatar: "DV", projects: 3, tasks: 9, load: 60 },
       { name: "Sofia Perez", role: "Community Manager", avatar: "SP", projects: 2, tasks: 7, load: 45 },
     ],
@@ -90,13 +90,13 @@ const departments = [
   },
   {
     id: "dep-produccion",
-    name: "Produccion",
+    name: "Production",
     icon: PenTool,
     color: "var(--tab-ai)",
     lead: "Jorge Vega",
     members: [
-      { name: "Jorge Vega", role: "Director de Produccion", avatar: "JV", projects: 3, tasks: 11, load: 75 },
-      { name: "Andrea Luna", role: "Productora Audiovisual", avatar: "AL", projects: 2, tasks: 6, load: 50 },
+      { name: "Jorge Vega", role: "Production Director", avatar: "JV", projects: 3, tasks: 11, load: 75 },
+      { name: "Andrea Luna", role: "Audiovisual Producer", avatar: "AL", projects: 2, tasks: 6, load: 50 },
     ],
     activeProjects: 3,
     pendingTasks: 14,
@@ -128,32 +128,32 @@ export default function DepartamentosPage() {
   const avgLoad = Math.round(departments.reduce((a, d) => a + d.avgLoad, 0) / departments.length)
 
   return (
-    <AppShell currentSection="departamentos" breadcrumbs={[{ label: "7F" }, { label: "Departamentos" }]}>
-      <SectionPage title="Departamentos" description="Gestion de equipos, carga de trabajo por persona y distribucion de proyectos por area.">
+    <AppShell currentSection="departamentos" breadcrumbs={[{ label: "7F" }, { label: "Departments" }]}>
+      <SectionPage title="Departments" description="Team management, individual workload, and project distribution by department.">
 
         {/* Cross-link */}
         <div className="flex justify-end">
           <Link href="/usuarios" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Ver todos los usuarios →
+            View all users →
           </Link>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Departamentos</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Departments</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{departments.length}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Miembros</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Members</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{totalMembers}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Proyectos activos</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active projects</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{totalProjects}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Carga promedio</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Average load</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{avgLoad}%</p>
             <LoadBar load={avgLoad} />
           </div>
@@ -177,21 +177,21 @@ export default function DepartamentosPage() {
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-foreground">{dept.name}</h3>
-                      <span className="text-xs text-muted-foreground">&middot; {dept.members.length} miembros</span>
+                      <span className="text-xs text-muted-foreground">&middot; {dept.members.length} members</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Lider: {dept.lead}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Lead: {dept.lead}</p>
                   </div>
                   <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Proyectos</p>
+                      <p className="text-xs text-muted-foreground">Projects</p>
                       <p className="text-sm font-semibold text-foreground">{dept.activeProjects}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Pendientes</p>
+                      <p className="text-xs text-muted-foreground">Pending</p>
                       <p className="text-sm font-semibold text-foreground">{dept.pendingTasks}</p>
                     </div>
                     <div className="w-24">
-                      <p className="text-xs text-muted-foreground mb-0.5">Carga</p>
+                      <p className="text-xs text-muted-foreground mb-0.5">Load</p>
                       <LoadBar load={dept.avgLoad} />
                     </div>
                   </div>
@@ -203,9 +203,9 @@ export default function DepartamentosPage() {
                   <div className="border-t border-border">
                     {/* Mobile stats */}
                     <div className="grid grid-cols-3 gap-3 px-5 py-3 border-b border-border sm:hidden">
-                      <div><p className="text-[10px] text-muted-foreground">Proyectos</p><p className="text-sm font-semibold text-foreground">{dept.activeProjects}</p></div>
-                      <div><p className="text-[10px] text-muted-foreground">Pendientes</p><p className="text-sm font-semibold text-foreground">{dept.pendingTasks}</p></div>
-                      <div><p className="text-[10px] text-muted-foreground">Completados/sem</p><p className="text-sm font-semibold text-foreground">{dept.completedThisWeek}</p></div>
+                      <div><p className="text-[10px] text-muted-foreground">Projects</p><p className="text-sm font-semibold text-foreground">{dept.activeProjects}</p></div>
+                      <div><p className="text-[10px] text-muted-foreground">Pending</p><p className="text-sm font-semibold text-foreground">{dept.pendingTasks}</p></div>
+                      <div><p className="text-[10px] text-muted-foreground">Completed/wk</p><p className="text-sm font-semibold text-foreground">{dept.completedThisWeek}</p></div>
                     </div>
 
                     {/* Members */}

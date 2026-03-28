@@ -5,14 +5,14 @@ import { SectionPage } from "@/components/section-page"
 import { BookOpen, FileText, Image, Video, File, Download } from "lucide-react"
 
 const resources = [
-  { name: "Guia de Marca 7F", type: "PDF", size: "4.2 MB", category: "Branding", date: "10 ene 2026" },
-  { name: "Plantilla Propuesta Comercial", type: "DOCX", size: "1.8 MB", category: "Templates", date: "15 ene 2026" },
-  { name: "Kit de Redes Sociales", type: "ZIP", size: "28.4 MB", category: "Social", date: "20 ene 2026" },
-  { name: "Manual de Procesos", type: "PDF", size: "6.1 MB", category: "Operaciones", date: "1 feb 2026" },
-  { name: "Banco de Imagenes Q1", type: "ZIP", size: "156 MB", category: "Media", date: "5 feb 2026" },
-  { name: "Contrato Tipo A", type: "PDF", size: "890 KB", category: "Legal", date: "8 feb 2026" },
-  { name: "Video Onboarding", type: "MP4", size: "245 MB", category: "Capacitacion", date: "12 feb 2026" },
-  { name: "Checklist de Proyecto", type: "PDF", size: "520 KB", category: "Templates", date: "14 feb 2026" },
+  { name: "7F Brand Guide", type: "PDF", size: "4.2 MB", category: "Branding", date: "Jan 10, 2026" },
+  { name: "Business Proposal Template", type: "DOCX", size: "1.8 MB", category: "Templates", date: "Jan 15, 2026" },
+  { name: "Social Media Kit", type: "ZIP", size: "28.4 MB", category: "Social", date: "Jan 20, 2026" },
+  { name: "Operations Manual", type: "PDF", size: "6.1 MB", category: "Operations", date: "Feb 1, 2026" },
+  { name: "Q1 Image Bank", type: "ZIP", size: "156 MB", category: "Media", date: "Feb 5, 2026" },
+  { name: "Standard Contract A", type: "PDF", size: "890 KB", category: "Legal", date: "Feb 8, 2026" },
+  { name: "Onboarding Video", type: "MP4", size: "245 MB", category: "Training", date: "Feb 12, 2026" },
+  { name: "Project Checklist", type: "PDF", size: "520 KB", category: "Templates", date: "Feb 14, 2026" },
 ]
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -26,11 +26,11 @@ export default function BibliotecaPage() {
   return (
     <AppShell
       currentSection="biblioteca"
-      breadcrumbs={[{ label: "7F" }, { label: "Biblioteca" }]}
+      breadcrumbs={[{ label: "7F" }, { label: "Library" }]}
     >
       <SectionPage
-        title="Biblioteca"
-        description="Recursos, plantillas, documentos y archivos compartidos del equipo."
+        title="Library"
+        description="Resources, templates, documents, and shared team files."
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {["Branding", "Templates", "Media", "Legal"].map((cat) => (
@@ -40,7 +40,7 @@ export default function BibliotecaPage() {
               </div>
               <h3 className="text-sm font-semibold text-foreground">{cat}</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {resources.filter((r) => r.category === cat).length} archivos
+                {resources.filter((r) => r.category === cat).length} files
               </p>
             </div>
           ))}
@@ -49,7 +49,7 @@ export default function BibliotecaPage() {
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Todos los Recursos</h2>
+            <h2 className="text-sm font-semibold text-foreground">All Resources</h2>
           </div>
           <div className="divide-y divide-border">
             {resources.map((res, i) => (
@@ -62,7 +62,7 @@ export default function BibliotecaPage() {
                   <p className="text-xs text-muted-foreground">{res.type} &middot; {res.size} &middot; {res.category}</p>
                 </div>
                 <span className="hidden sm:block text-xs text-muted-foreground flex-shrink-0">{res.date}</span>
-                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0" aria-label={`Descargar ${res.name}`}>
+                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0" aria-label={`Download ${res.name}`}>
                   <Download className="h-4 w-4" />
                 </button>
               </div>
