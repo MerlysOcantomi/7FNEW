@@ -477,7 +477,7 @@ export default function Dashboard() {
                         Improvements
                       </h2>
                       <Link
-                        href="/administracion"
+                        href="/forte/improvements"
                         className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                       >
                         Open improvements <ArrowUpRight size={11} />

@@ -89,3 +89,20 @@ export type {
 } from "./approval"
 export type { ForteApprovalStore } from "./approval-store"
 export type { RunStepResult } from "./run-step"
+export {
+  resolveSignals,
+  getActiveSignalNames,
+  resolveDomainStates,
+  getActiveDomains,
+  getDomainGaps,
+  mapIntentToDomains,
+} from "./business"
+export type {
+  NormalizedSignals,
+  SignalName,
+  ResolveSignalsInput,
+  BusinessDomain,
+  DomainLevel,
+  DomainState,
+  ResolveDomainStatesInput,
+} from "./business"

@@ -73,6 +73,7 @@ export interface FortePlan {
   intent: ForteIntent
   summary: string
   steps: FortePlanStep[]
+  domainContext?: import("./business/domain-types").DomainState[]
 }
 
 export interface ForteDecision {

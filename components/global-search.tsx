@@ -43,7 +43,7 @@ const quickLinks = [
   { label: "Tasks", href: "/tareas", icon: CheckSquare, keywords: "tasks pending assignments" },
   { label: "Files", href: "/archivos", icon: FolderOpen, keywords: "files documents assets" },
   { label: "Departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
-  { label: "Improvements", href: "/administracion", icon: Settings, keywords: "improvements optimize workspace modules" },
+  { label: "Improvements", href: "/forte/improvements", icon: Settings, keywords: "improvements optimize workspace modules forte" },
   { label: "Finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
   { label: "Billing", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments" },
   { label: "Communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },

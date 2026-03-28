@@ -96,7 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
     subtitle: "",
     icon: Settings,
     items: [
-      { label: "Improvements", href: "/administracion", icon: Bot, helper: "by Mr. Forte" },
+      { label: "Improvements", href: "/forte/improvements", icon: Bot, helper: "by Mr. Forte" },
       { label: "AI workspace", href: "/motor", icon: Cpu },
       { label: "Departments", href: "/departamentos", icon: Building2 },
       { label: "Users", href: "/usuarios", icon: Users },

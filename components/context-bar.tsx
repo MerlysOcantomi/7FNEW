@@ -45,9 +45,9 @@ const ENTITY_OPTIONS: Record<ContextChip, { label: string; href: string }[]> = {
     { label: "Collections review", href: "/facturacion" },
   ],
   Improvements: [
-    { label: "Workspace improvements", href: "/administracion" },
+    { label: "Workspace improvements", href: "/forte/improvements" },
     { label: "AI workspace", href: "/motor" },
-    { label: "Optional packs", href: "/administracion" },
+    { label: "Workspace settings", href: "/administracion" },
   ],
 };
 

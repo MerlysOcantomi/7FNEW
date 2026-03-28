@@ -1,3 +1,16 @@
+/**
+ * Workspace Settings page.
+ *
+ * This page handles workspace configuration: enabling/disabling capabilities,
+ * selecting extension packs, and toggling advanced options.
+ *
+ * It is NOT the Forte Improvements surface. That lives at /forte/improvements
+ * and shows domain analysis, gaps, and recommendations powered by DomainState[].
+ *
+ * Navigation:
+ *   - "Improvements" in sidebar/search → /forte/improvements
+ *   - "Workspace settings" in context bar → /administracion (this page)
+ */
 "use client";
 
 import { useState } from "react";

@@ -1,4 +1,8 @@
 import { assertForteContext } from "./forte-context"
+import { resolveDomainStates } from "./business/domain-resolver"
+import { mapIntentToDomains } from "./business/domain-mapper"
+import { resolveSignals } from "./business/signals"
+import type { DomainState } from "./business/domain-types"
 import type {
   BuildFortePlanInput,
   ForteActionKind,
@@ -85,14 +89,49 @@ function buildStep(input: BuildFortePlanInput, capability?: ForteCapability): Fo
   }
 }
 
+const DOMAIN_AWARE_INTENTS: Set<ForteIntent> = new Set([
+  "recommendation",
+  "analysis",
+])
+
+function resolveDomainContext(input: BuildFortePlanInput): DomainState[] | undefined {
+  if (!DOMAIN_AWARE_INTENTS.has(input.intent)) return undefined
+  if (!input.capabilities) return undefined
+
+  const activeModuleIds = input.capabilities.modules.map((m) => ({
+    id: m.id,
+    provides: m.provides ?? m.models ?? [],
+  }))
+
+  const signals = resolveSignals(
+    Object.fromEntries(
+      input.capabilities.capabilities.map((cap) => [cap, true]),
+    ),
+  )
+
+  const states = resolveDomainStates({ signals, activeModules: activeModuleIds })
+
+  const intentDomains = mapIntentToDomains(input.summary)
+  if (intentDomains.length > 0) {
+    return states.filter(
+      (s) => s.level !== "none" || intentDomains.includes(s.domain),
+    )
+  }
+
+  return states.filter((s) => s.level !== "none")
+}
+
 export function buildFortePlan(input: BuildFortePlanInput): FortePlan {
   assertForteContext(input.context)
+
+  const domainContext = resolveDomainContext(input)
 
   if (input.intent === "recommendation" && !input.actionId) {
     return {
       intent: input.intent,
       summary: input.summary,
       steps: [],
+      domainContext,
     }
   }
 
@@ -107,6 +146,7 @@ export function buildFortePlan(input: BuildFortePlanInput): FortePlan {
       intent: input.intent,
       summary: input.summary,
       steps: [],
+      domainContext,
     }
   }
 
@@ -114,5 +154,6 @@ export function buildFortePlan(input: BuildFortePlanInput): FortePlan {
     intent: input.intent,
     summary: input.summary,
     steps: [buildStep(input, capability)],
+    domainContext,
   }
 }
