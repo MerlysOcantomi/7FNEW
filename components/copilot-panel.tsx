@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
-import { Send, Bot, X, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Send, Bot, X, PanelRightClose, PanelRightOpen, Loader2 } from "lucide-react";
 import { ContextBar } from "./context-bar";
 
 // ── Collapse Context (shared with layout) ────────────────────────────────────
@@ -32,23 +32,8 @@ const INITIAL_MESSAGES: Message[] = [
     id: 1,
     role: "assistant",
     content:
-      "Good morning. I've reviewed the latest updates across your active workspace. One priority project is on track for delivery, while the finance workspace shows a 3.2% deviation from target that should be reviewed before the end of the week.",
-    timestamp: "09:14",
-    tag: "Briefing",
-  },
-  {
-    id: 2,
-    role: "user",
-    content: "What is the risk exposure on the current project?",
-    timestamp: "09:16",
-  },
-  {
-    id: 3,
-    role: "assistant",
-    content:
-      "The current project carries a moderate risk profile. Primary exposure is in delivery dependencies — two external vendors have not confirmed milestone commitments. I recommend escalating with the project team before the next checkpoint.",
-    timestamp: "09:16",
-    tag: "Risk Analysis",
+      "Hello. I'm your workspace assistant powered by Mr. Forte. Ask me anything about your projects, clients, tasks, or business — I can look up real data and help you take action.",
+    timestamp: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
   },
 ];
 
@@ -95,12 +80,12 @@ function MessageBlock({ msg }: { msg: Message }) {
 }
 
 // ── Input Area ────────────────────────────────────────────────────────────────
-function InputArea({ onSend }: { onSend: (text: string) => void }) {
+function InputArea({ onSend, disabled }: { onSend: (text: string) => void; disabled?: boolean }) {
   const [input, setInput] = useState("");
 
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || disabled) return;
     onSend(trimmed);
     setInput("");
   };
@@ -117,17 +102,18 @@ function InputArea({ onSend }: { onSend: (text: string) => void }) {
               handleSend();
             }
           }}
-          placeholder="Direct the Copilot..."
+          placeholder={disabled ? "Thinking..." : "Ask the assistant..."}
           rows={1}
-          className="flex-1 resize-none bg-transparent text-sm text-[#0F172A] placeholder:text-[#94A3B8] outline-none leading-relaxed"
+          disabled={disabled}
+          className="flex-1 resize-none bg-transparent text-sm text-[#0F172A] placeholder:text-[#94A3B8] outline-none leading-relaxed disabled:opacity-50"
         />
         <button
           onClick={handleSend}
-          disabled={!input.trim()}
+          disabled={!input.trim() || disabled}
           className="p-1.5 rounded-md bg-[#0F172A] text-white hover:bg-[#1E293B] disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
           aria-label="Send"
         >
-          <Send size={12} />
+          {disabled ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
         </button>
       </div>
     </div>
@@ -142,6 +128,7 @@ function PanelContent({
   onSend,
   onClose,
   showCloseButton,
+  isLoading,
 }: {
   messages: Message[];
   defaultContext: string;
@@ -149,13 +136,14 @@ function PanelContent({
   onSend: (text: string) => void;
   onClose?: () => void;
   showCloseButton?: boolean;
+  isLoading?: boolean;
 }) {
   return (
     <>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E2E8F0] bg-white shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
+          <div className={cn("w-1.5 h-1.5 rounded-full", isLoading ? "bg-[#F59E0B] animate-pulse" : "bg-[#3B82F6]")} />
           <span className="text-xs font-bold text-[#0F172A] tracking-wide uppercase">
             Intelligence
           </span>
@@ -181,11 +169,17 @@ function PanelContent({
         {messages.map((msg) => (
           <MessageBlock key={msg.id} msg={msg} />
         ))}
+        {isLoading && (
+          <div className="flex items-center gap-2 px-1">
+            <Loader2 size={12} className="text-[#3B82F6] animate-spin" />
+            <span className="text-[11px] text-[#94A3B8]">Thinking...</span>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <InputArea onSend={onSend} />
+      <InputArea onSend={onSend} disabled={isLoading} />
     </>
   );
 }
@@ -202,31 +196,54 @@ export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps)
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = (text: string) => {
-    const now = new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-    setMessages((prev) => [...prev, { id: Date.now(), role: "user", content: text, timestamp: now }]);
-    setTimeout(() => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSend = useCallback(async (text: string) => {
+    const now = () =>
+      new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+    const userMsg: Message = { id: Date.now(), role: "user", content: text, timestamp: now() };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+
+    try {
+      const history = messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const res = await fetch("/api/ai/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message ?? `Error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const respuesta = data.data?.respuesta ?? data.respuesta ?? "No response received.";
+
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: "assistant", content: respuesta, timestamp: now() },
+      ]);
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           role: "assistant",
-          content:
-            "I am analyzing that request against your current operational context. Key signals are being surfaced — I will present a structured response shortly.",
-          timestamp: new Date().toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }),
-          tag: "Analysis",
+          content: `I couldn't process that request. ${err instanceof Error ? err.message : "Please try again."}`,
+          timestamp: now(),
         },
       ]);
-    }, 900);
-  };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages]);
 
   return (
     <>
@@ -256,6 +273,7 @@ export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps)
               defaultContext={defaultContext}
               bottomRef={bottomRef}
               onSend={handleSend}
+              isLoading={isLoading}
             />
           </aside>
         )}
@@ -289,6 +307,7 @@ export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps)
             defaultContext={defaultContext}
             bottomRef={bottomRef}
             onSend={handleSend}
+            isLoading={isLoading}
             showCloseButton
             onClose={() => setTabletOpen(false)}
           />
@@ -321,6 +340,7 @@ export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps)
                 defaultContext={defaultContext}
                 bottomRef={bottomRef}
                 onSend={handleSend}
+                isLoading={isLoading}
                 showCloseButton
                 onClose={() => setMobileOpen(false)}
               />
