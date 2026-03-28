@@ -34,7 +34,7 @@ export function getDashboardRecommendationsPreview(input: {
     title: "Workspace improvements",
     helper: "by Mr. Forte",
     description: "Review suggested upgrades, optional capabilities, and next improvements for this workspace.",
-    href: "/administracion",
+    href: "/forte/improvements",
     cta: "Open improvements",
     source: "forte",
     freshness: "cached",

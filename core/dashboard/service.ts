@@ -1,11 +1,12 @@
 import type { WorkspaceAuth } from "@core/auth/workspace-auth"
-import type { DashboardData } from "./types"
+import type { DashboardData, ForteInsight } from "./types"
 import { getDashboardContext } from "./context"
 import { getDashboardModulesSummary } from "./modules-summary"
 import { getDashboardPriorityActions } from "./priority-actions"
 import { getDashboardRecentActivity } from "./recent-activity"
 import { getDashboardFinanceSummary } from "./finance-summary"
 import { getDashboardRecommendationsPreview } from "./recommendations-preview"
+import { getLatestForteSnapshot } from "@/agents/forte/runtime/business/snapshot-store"
 
 function buildHeroSummary(input: {
   workspaceName: string
@@ -39,6 +40,26 @@ export async function buildDashboardData(auth: WorkspaceAuth): Promise<Dashboard
     priorityActions,
   })
 
+  let forteInsight: ForteInsight | undefined
+  try {
+    const snapshot = await getLatestForteSnapshot(context.workspaceId)
+    if (snapshot) {
+      forteInsight = {
+        maturity: snapshot.maturity,
+        analyzedAt: snapshot.analyzedAt,
+        topPriorities: snapshot.topPriorities.slice(0, 2).map((p) => ({
+          label: p.label,
+          href: p.href,
+        })),
+        nextMove: snapshot.recommendedNextMove
+          ? { label: snapshot.recommendedNextMove.label, href: snapshot.recommendedNextMove.href }
+          : null,
+      }
+    }
+  } catch {
+    // Snapshot read failure should not break the dashboard
+  }
+
   return {
     context,
     hero: {
@@ -56,7 +77,7 @@ export async function buildDashboardData(auth: WorkspaceAuth): Promise<Dashboard
         {
           id: "view-recommendations",
           label: "View insights",
-          href: "/agente",
+          href: "/forte/improvements",
         },
       ],
     },
@@ -65,6 +86,7 @@ export async function buildDashboardData(auth: WorkspaceAuth): Promise<Dashboard
     recentActivity,
     financeSummary,
     recommendations,
+    forteInsight,
     meta: {
       generatedAt: new Date().toISOString(),
       source: "dashboard-service",

@@ -9,6 +9,7 @@ export type {
   DashboardPriorityKind,
   DashboardPrioritySeverity,
   DashboardRecommendationPreview,
+  ForteInsight,
 } from "./types"
 
 export { buildDashboardData } from "./service"

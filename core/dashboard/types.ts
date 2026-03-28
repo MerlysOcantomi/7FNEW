@@ -87,6 +87,13 @@ export interface DashboardRecommendationPreview {
   freshness: "live" | "cached" | "static"
 }
 
+export interface ForteInsight {
+  maturity: string
+  analyzedAt: string
+  topPriorities: Array<{ label: string; href: string }>
+  nextMove: { label: string; href: string } | null
+}
+
 export interface DashboardData {
   context: DashboardContext
   hero: DashboardHeroData
@@ -95,6 +102,7 @@ export interface DashboardData {
   recentActivity: DashboardActivityItem[]
   financeSummary: DashboardFinanceSummary
   recommendations: DashboardRecommendationPreview[]
+  forteInsight?: ForteInsight
   meta: {
     generatedAt: string
     source: "dashboard-service"

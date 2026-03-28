@@ -22,7 +22,7 @@ import {
   Inbox,
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
-import type { DashboardData, DashboardPriorityKind, DashboardRecommendationPreview } from "@core/dashboard";
+import type { DashboardData, DashboardPriorityKind, DashboardRecommendationPreview, ForteInsight } from "@core/dashboard";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,7 @@ export default function Dashboard() {
   const finance = summary?.financeSummary;
   const priorityActions = summary?.priorityActions ?? [];
   const recommendations = summary?.recommendations ?? [];
+  const forteInsight = summary?.forteInsight;
   const hero = summary?.hero;
   const actionablePriorities = priorityActions.filter((item) => item.kind !== "workspace-stable");
 
@@ -470,45 +471,111 @@ export default function Dashboard() {
                     </section>
                   </div>
 
-                  {/* Improvements */}
+                  {/* Forte Intelligence */}
                   <section>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">
-                        Improvements
+                        {forteInsight ? "Forte Intelligence" : "Improvements"}
                       </h2>
                       <Link
                         href="/forte/improvements"
                         className="text-[10px] text-[#3B82F6] font-medium hover:underline flex items-center gap-0.5"
                       >
-                        Open improvements <ArrowUpRight size={11} />
+                        {forteInsight ? "Full analysis" : "Open improvements"} <ArrowUpRight size={11} />
                       </Link>
                     </div>
-                    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-                      {recommendations.map(({ id, title, helper, description, href, cta }) => {
-                        const Icon = getRecommendationIcon(id)
-                        return (
+
+                    {forteInsight ? (
+                      <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 flex items-center justify-between border-b border-[#F1F5F9]">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF]">
+                              <Lightbulb size={15} className="text-[#2563EB]" strokeWidth={1.75} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-[#0F172A]">
+                                Workspace maturity: <span className="capitalize">{forteInsight.maturity}</span>
+                              </p>
+                              <p className="text-[10px] text-[#94A3B8]">
+                                Last analyzed {formatRelativeTime(forteInsight.analyzedAt)}
+                              </p>
+                            </div>
+                          </div>
                           <Link
-                            key={id}
-                            href={href}
-                            className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition-all hover:border-[#BFDBFE] hover:shadow-md"
+                            href="/forte/improvements"
+                            className="text-xs font-medium text-[#3B82F6] hover:underline flex items-center gap-1 shrink-0"
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF]">
-                                <Icon size={15} className="text-[#2563EB]" strokeWidth={1.75} />
-                              </div>
-                              <span className="rounded-full bg-[#F8FAFC] px-2 py-1 text-[10px] font-medium text-[#64748B]">
-                                {helper}
+                            View details <ArrowUpRight size={11} />
+                          </Link>
+                        </div>
+
+                        {forteInsight.topPriorities.length > 0 && (
+                          <div className="px-5 py-3 border-b border-[#F1F5F9]">
+                            <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest mb-2">
+                              Top priorities
+                            </p>
+                            <div className="space-y-2">
+                              {forteInsight.topPriorities.map((p) => (
+                                <Link
+                                  key={p.label}
+                                  href={p.href}
+                                  className="flex items-center justify-between group"
+                                >
+                                  <span className="text-sm text-[#334155] group-hover:text-[#2563EB] transition-colors">
+                                    {p.label}
+                                  </span>
+                                  <ChevronRight size={12} className="text-[#CBD5E1] group-hover:text-[#3B82F6] transition-colors" />
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {forteInsight.nextMove && (
+                          <Link
+                            href={forteInsight.nextMove.href}
+                            className="flex items-center justify-between px-5 py-3 hover:bg-[#F8FAFC] transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
+                              <span className="text-xs font-medium text-[#0F172A]">
+                                Recommended next move
                               </span>
                             </div>
-                            <p className="mt-4 text-sm font-semibold text-[#0F172A]">{title}</p>
-                            <p className="mt-1 text-[11px] leading-relaxed text-[#64748B]">{description}</p>
-                            <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[#2563EB]">
-                              {cta}
-                              <ArrowUpRight size={11} />
-                            </div>
+                            <span className="text-xs text-[#3B82F6] font-medium flex items-center gap-1">
+                              {forteInsight.nextMove.label} <ArrowUpRight size={11} />
+                            </span>
                           </Link>
-                        )})}
-                    </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                        {recommendations.map(({ id, title, helper, description, href, cta }) => {
+                          const Icon = getRecommendationIcon(id)
+                          return (
+                            <Link
+                              key={id}
+                              href={href}
+                              className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm transition-all hover:border-[#BFDBFE] hover:shadow-md"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF]">
+                                  <Icon size={15} className="text-[#2563EB]" strokeWidth={1.75} />
+                                </div>
+                                <span className="rounded-full bg-[#F8FAFC] px-2 py-1 text-[10px] font-medium text-[#64748B]">
+                                  {helper}
+                                </span>
+                              </div>
+                              <p className="mt-4 text-sm font-semibold text-[#0F172A]">{title}</p>
+                              <p className="mt-1 text-[11px] leading-relaxed text-[#64748B]">{description}</p>
+                              <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[#2563EB]">
+                                {cta}
+                                <ArrowUpRight size={11} />
+                              </div>
+                            </Link>
+                          )})}
+                      </div>
+                    )}
                   </section>
                 </>
               )}
