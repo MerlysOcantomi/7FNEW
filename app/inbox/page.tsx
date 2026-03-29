@@ -14,6 +14,8 @@ import {
   Building2,
   Check,
   CheckSquare,
+  ChevronDown,
+  ChevronRight,
   Clock3,
   FileText,
   Play,
@@ -423,6 +425,9 @@ export default function InboxPage() {
   const [replyIsInternal, setReplyIsInternal] = useState(false)
   const [replySending, setReplySending] = useState(false)
   const [replyStatus, setReplyStatus] = useState<string | null>(null)
+  const [handoffExpanded, setHandoffExpanded] = useState(false)
+  const [draftsExpanded, setDraftsExpanded] = useState(false)
+  const [actionsExpanded, setActionsExpanded] = useState(false)
 
   const params = new URLSearchParams()
   params.set("pageSize", "100")
@@ -460,6 +465,9 @@ export default function InboxPage() {
     setReplyContent("")
     setReplyIsInternal(false)
     setReplyStatus(null)
+    setHandoffExpanded(false)
+    setDraftsExpanded(false)
+    setActionsExpanded(false)
   }, [selectedId])
 
   const {
@@ -817,166 +825,166 @@ export default function InboxPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#DBEAFE] bg-[#EFF6FF] p-5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-[#2563EB]" />
-                    <p className="text-sm font-semibold text-[#1D4ED8]">Smart Handoff</p>
-                  </div>
+                <div className="rounded-xl border border-[#DBEAFE] bg-[#EFF6FF] p-4">
                   {selected.handoff ? (
                     <>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className={cn("rounded-full px-2 py-1 text-[10px] font-semibold", handoffStatusBadge(selected.handoff.status))}>
-                          {handoffStatusLabel(selected.handoff.status)}
-                        </span>
-                        {confidenceLabel(selected.handoff.confidence) && (
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
-                            Confidence {confidenceLabel(selected.handoff.confidence)}
-                          </span>
-                        )}
-                        {selected.handoff.reviewedAt && (
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
-                            Reviewed {formatDateTime(selected.handoff.reviewedAt)}
-                          </span>
-                        )}
-                        {selected.handoff.status === "stale" && (
-                          <span className="rounded-full bg-[#FEF3C7] px-2 py-1 text-[10px] font-medium text-[#92400E]">
-                            Needs review
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-4 space-y-4">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Headline</p>
-                          <div className="mt-1 text-[#1E3A8A]">
-                            <InlineText
-                              value={selected.handoff.headline || ""}
-                              placeholder="Add operational headline..."
-                              className="text-sm font-semibold"
-                              onSave={(value) => updateHandoff({ headline: value })}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Summary</p>
-                          <InlineTextarea
-                            value={selected.handoff.summary || ""}
-                            placeholder="Add operational summary..."
-                            className="mt-1 bg-white/70 text-[#1E3A8A]"
-                            rows={4}
-                            onSave={(value) => updateHandoff({ summary: value })}
-                          />
-                        </div>
-
-                        <div className="grid gap-3">
-                          <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Facts</p>
-                            <InlineTextarea
-                              value={linesToText(selected.handoff.facts)}
-                              placeholder="One fact per line..."
-                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
-                              rows={3}
-                              onSave={(value) => updateHandoff({ facts: textToLines(value) })}
-                            />
-                          </div>
-                          <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Decisions</p>
-                            <InlineTextarea
-                              value={linesToText(selected.handoff.decisions)}
-                              placeholder="One decision per line..."
-                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
-                              rows={3}
-                              onSave={(value) => updateHandoff({ decisions: textToLines(value) })}
-                            />
-                          </div>
-                          <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Pending items</p>
-                            <InlineTextarea
-                              value={linesToText(selected.handoff.pendingItems)}
-                              placeholder="One pending item per line..."
-                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
-                              rows={3}
-                              onSave={(value) => updateHandoff({ pendingItems: textToLines(value) })}
-                            />
-                          </div>
-                          <div className="rounded-lg bg-white/80 p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Risks</p>
-                            <InlineTextarea
-                              value={linesToText(selected.handoff.risks)}
-                              placeholder="One risk per line..."
-                              className="mt-1 bg-transparent px-0 py-1 text-sm text-[#1E3A8A]"
-                              rows={3}
-                              onSave={(value) => updateHandoff({ risks: textToLines(value) })}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Next recommended action</p>
-                          <InlineTextarea
-                            value={selected.handoff.nextRecommendedAction || ""}
-                            placeholder="Add recommended next step..."
-                            className="mt-1 bg-white/70 text-[#1E3A8A]"
-                            rows={2}
-                            onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-                          />
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed")}
-                            className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#1D4ED8] hover:bg-[#DBEAFE]"
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Mark as reviewed
-                          </button>
-                          {selected.handoff.reviewedBy && (
-                            <span className="text-xs text-[#475569]">
-                              Reviewed by {selected.handoff.reviewedBy}
-                            </span>
+                      <div className="flex items-start gap-3">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-[#1E3A8A]">
+                            {selected.handoff.headline || "Smart Handoff"}
+                          </p>
+                          {selected.handoff.summary && (
+                            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#1D4ED8]/80">
+                              {selected.handoff.summary}
+                            </p>
                           )}
                         </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", handoffStatusBadge(selected.handoff.status))}>
+                            {handoffStatusLabel(selected.handoff.status)}
+                          </span>
+                          {selected.handoff.status !== "reviewed" && (
+                            <button
+                              onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed")}
+                              className="rounded-md p-1 text-[#1D4ED8] hover:bg-[#DBEAFE]"
+                              title="Mark as reviewed"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setHandoffExpanded(!handoffExpanded)}
+                            className="rounded-md p-1 text-[#1D4ED8] hover:bg-[#DBEAFE]"
+                          >
+                            {handoffExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
+
+                      {!handoffExpanded && selected.handoff.nextRecommendedAction && (
+                        <div className="mt-2 flex items-center gap-2 rounded-md bg-white/60 px-2.5 py-1.5">
+                          <Play className="h-3 w-3 shrink-0 text-[#2563EB]" />
+                          <p className="text-[11px] font-medium text-[#1E3A8A]">{selected.handoff.nextRecommendedAction}</p>
+                        </div>
+                      )}
+
+                      {handoffExpanded && (
+                        <div className="mt-4 space-y-4 border-t border-[#BFDBFE]/50 pt-4">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Headline</p>
+                            <div className="mt-1 text-[#1E3A8A]">
+                              <InlineText
+                                value={selected.handoff.headline || ""}
+                                placeholder="Add operational headline..."
+                                className="text-sm font-semibold"
+                                onSave={(value) => updateHandoff({ headline: value })}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Summary</p>
+                            <InlineTextarea
+                              value={selected.handoff.summary || ""}
+                              placeholder="Add operational summary..."
+                              className="mt-1 bg-white/70 text-[#1E3A8A]"
+                              rows={3}
+                              onSave={(value) => updateHandoff({ summary: value })}
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            {[
+                              { label: "Facts", key: "facts" as const },
+                              { label: "Decisions", key: "decisions" as const },
+                              { label: "Pending items", key: "pendingItems" as const },
+                              { label: "Risks", key: "risks" as const },
+                            ].map(({ label, key }) => (
+                              <div key={key} className="rounded-lg bg-white/80 p-2.5">
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">{label}</p>
+                                <InlineTextarea
+                                  value={linesToText(selected.handoff![key])}
+                                  placeholder={`One ${label.toLowerCase().replace(/s$/, "")} per line...`}
+                                  className="mt-1 bg-transparent px-0 py-0 text-sm text-[#1E3A8A]"
+                                  rows={2}
+                                  onSave={(value) => updateHandoff({ [key]: textToLines(value) })}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Next recommended action</p>
+                            <InlineTextarea
+                              value={selected.handoff.nextRecommendedAction || ""}
+                              placeholder="Add recommended next step..."
+                              className="mt-1 bg-white/70 text-[#1E3A8A]"
+                              rows={2}
+                              onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+                            />
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#475569]">
+                            {confidenceLabel(selected.handoff.confidence) && (
+                              <span>Confidence {confidenceLabel(selected.handoff.confidence)}</span>
+                            )}
+                            {selected.handoff.reviewedBy && <span>· Reviewed by {selected.handoff.reviewedBy}</span>}
+                            {selected.handoff.reviewedAt && <span>· {formatDateTime(selected.handoff.reviewedAt)}</span>}
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
-                    <>
-                      <p className="mt-3 text-sm leading-relaxed text-[#1E3A8A]">
-                        {selected.classification?.summary || selected.summary || "AI has not generated a summary for this conversation yet."}
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {selected.classification?.intent && (
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#1D4ED8]">
-                            Intent: {selected.classification.intent}
-                          </span>
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#1D4ED8]">Smart Handoff</p>
+                        <p className="mt-1 text-xs leading-relaxed text-[#1E3A8A]">
+                          {selected.classification?.summary || selected.summary || "AI has not generated a summary for this conversation yet."}
+                        </p>
+                        {(selected.classification?.intent || selected.classification?.suggestedTags?.length) && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {selected.classification?.intent && (
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-[#1D4ED8]">
+                                {selected.classification.intent}
+                              </span>
+                            )}
+                            {selected.classification?.suggestedTags?.map((tag) => (
+                              <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-[#475569]">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         )}
-                        {selected.classification?.suggestedTags?.map((tag) => (
-                          <span key={tag} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#475569]">
-                            {tag}
-                          </span>
-                        ))}
                       </div>
-                    </>
+                    </div>
                   )}
-                  {handoffState && <p className="mt-3 text-xs text-[#475569]">{handoffState}</p>}
+                  {handoffState && <p className="mt-2 text-xs text-[#475569]">{handoffState}</p>}
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Ghost Drafts</p>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {!selected.drafts || selected.drafts.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                        No saved drafts for this conversation yet.
+                {selected.drafts && selected.drafts.length > 0 && (
+                  <div className="rounded-xl border border-border bg-card">
+                    <button
+                      onClick={() => setDraftsExpanded(!draftsExpanded)}
+                      className="flex w-full items-center justify-between gap-2 p-4"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-semibold text-foreground">Drafts</p>
+                        <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
+                          {selected.drafts.length}
+                        </span>
                       </div>
-                    ) : (
-                      selected.drafts.map((draft) => (
-                        <div key={draft.id} className="rounded-lg border border-border bg-background p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
+                      {draftsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+
+                    {draftsExpanded && (
+                      <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
+                        {selected.drafts.map((draft) => (
+                          <div key={draft.id} className="rounded-lg border border-border bg-background p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
                                 <InlineText
                                   value={draft.title || ""}
                                   placeholder="Draft title..."
@@ -987,20 +995,7 @@ export default function InboxPage() {
                                   {draftStatusLabel(draft.status)}
                                 </span>
                               </div>
-                              <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-                                {draft.type}
-                                {draft.targetChannel ? ` · ${channelLabel(draft.targetChannel)}` : ""}
-                              </p>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">
-                              {formatRelativeDate(draft.createdAt)}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</p>
-                              <div className="mt-1">
+                              <div className="flex items-center gap-2">
                                 <InlineSelect
                                   value={draft.status}
                                   options={editableDraftStatusOptions(draft.status)}
@@ -1009,193 +1004,158 @@ export default function InboxPage() {
                                 />
                               </div>
                             </div>
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tone</p>
-                              <div className="mt-1">
-                                <InlineText
-                                  value={draft.tone || ""}
-                                  placeholder="Define tone..."
-                                  className="text-sm text-foreground"
-                                  onSave={(value) => updateDraft(draft.id, { tone: value })}
-                                />
+
+                            <div className="mt-2">
+                              <InlineTextarea
+                                value={draft.content || ""}
+                                placeholder="Draft content..."
+                                className="mt-0"
+                                rows={4}
+                                onSave={(value) => updateDraft(draft.id, { content: value })}
+                              />
+                            </div>
+
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                                {draft.tone && <span>Tone: {draft.tone}</span>}
+                                <span>{formatRelativeDate(draft.createdAt)}</span>
                               </div>
+                              {["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim() && (
+                                <button
+                                  onClick={() => {
+                                    setReplyContent(draft.content)
+                                    setReplyIsInternal(false)
+                                    setReplyStatus(null)
+                                  }}
+                                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#2563EB] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]"
+                                >
+                                  <Send className="h-3 w-3" />
+                                  Use as reply
+                                </button>
+                              )}
                             </div>
                           </div>
-
-                          <div className="mt-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Content</p>
-                            <InlineTextarea
-                              value={draft.content || ""}
-                              placeholder="Draft content..."
-                              className="mt-1"
-                              rows={6}
-                              onSave={(value) => updateDraft(draft.id, { content: value })}
-                            />
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                              {draft.sourceMessageId && <span>Source message: {draft.sourceMessageId}</span>}
-                              {draft.reviewedBy && <span>Reviewed by: {draft.reviewedBy}</span>}
-                              {draft.reviewedAt && <span>Reviewed: {formatDateTime(draft.reviewedAt)}</span>}
-                            </div>
-                            {["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim() && (
-                              <button
-                                onClick={() => {
-                                  setReplyContent(draft.content)
-                                  setReplyIsInternal(false)
-                                  setReplyStatus(null)
-                                }}
-                                className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8]"
-                              >
-                                <Send className="h-3 w-3" />
-                                Use as reply
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  {draftState && <p className="mt-3 text-xs text-muted-foreground">{draftState}</p>}
-                </div>
-
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <div className="flex items-center gap-2">
-                    <WandSparkles className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Suggested actions</p>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {!selected.actions || selected.actions.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                        AI has not suggested actions for this conversation yet.
+                        ))}
+                        {draftState && <p className="text-xs text-muted-foreground">{draftState}</p>}
                       </div>
-                    ) : (
-                      selected.actions.map((action) => {
-                        const title =
-                          typeof action.data?.title === "string" && action.data.title.trim()
-                            ? action.data.title
-                            : actionTypeLabel(action.type)
-                        const description =
-                          typeof action.data?.description === "string" ? action.data.description : null
-                        const isPending = pendingActionId === action.id
-
-                        return (
-                          <div key={action.id} className="rounded-lg border border-border bg-background p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="text-sm font-semibold text-foreground">{title}</p>
-                                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
-                                    {actionStatusLabel(action.status)}
-                                  </span>
-                                  {confidenceLabel(action.confidence) && (
-                                    <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
-                                      Confidence {confidenceLabel(action.confidence)}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-                                  {actionTypeLabel(action.type)}
-                                </p>
-                              </div>
-                              <span className="text-[10px] text-muted-foreground">
-                                {formatRelativeDate(action.createdAt)}
-                              </span>
-                            </div>
-
-                            {description && (
-                              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
-                            )}
-
-                            {action.executionNotes && (
-                              <div className="mt-3 rounded-md bg-[#F8FAFC] p-3 text-xs text-[#475569]">
-                                <span className="font-semibold text-[#0F172A]">Notes:</span> {action.executionNotes}
-                              </div>
-                            )}
-
-                            {action.errorMessage && (
-                              <div className="mt-3 rounded-md bg-[#FEF2F2] p-3 text-xs text-[#991B1B]">
-                                <span className="font-semibold">Error:</span> {action.errorMessage}
-                              </div>
-                            )}
-
-                            {action.resultModule && action.resultId && (
-                              <p className="mt-3 text-xs text-muted-foreground">
-                                Result: {action.resultModule} · {action.resultId}
-                              </p>
-                            )}
-
-                            {action.status === "suggested" && (
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <button
-                                  onClick={() => handleSuggestedAction(action, "approve")}
-                                  disabled={isPending}
-                                  className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B] disabled:opacity-50"
-                                >
-                                  {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleSuggestedAction(action, "dismiss")}
-                                  disabled={isPending}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                  Dismiss
-                                </button>
-                              </div>
-                            )}
-
-                            {action.status === "approved" && (
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <button
-                                  onClick={() => handleSuggestedAction(action, "execute")}
-                                  disabled={isPending}
-                                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50"
-                                >
-                                  {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                                  Execute
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })
                     )}
                   </div>
-                  {actionState && <p className="mt-3 text-xs text-muted-foreground">{actionState}</p>}
-                </div>
+                )}
 
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold text-foreground">Manual actions</p>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleConvert("cliente")}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-3 py-2 text-xs font-medium text-white hover:bg-[#1E293B]"
-                    >
-                      <User className="h-3.5 w-3.5" />
-                      Create client
-                    </button>
-                    <button
-                      onClick={() => handleConvert("proyecto")}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
-                    >
-                      <FolderKanban className="h-3.5 w-3.5" />
-                      Create project
-                    </button>
-                    <button
-                      onClick={() => handleConvert("tarea")}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
-                    >
-                      <CheckSquare className="h-3.5 w-3.5" />
-                      Create task
-                    </button>
-                  </div>
-                  {actionState && <p className="mt-3 text-xs text-muted-foreground">{actionState}</p>}
+                <div className="rounded-xl border border-border bg-card">
+                  <button
+                    onClick={() => setActionsExpanded(!actionsExpanded)}
+                    className="flex w-full items-center justify-between gap-2 p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <WandSparkles className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-semibold text-foreground">Actions</p>
+                      {selected.actions && selected.actions.filter((a) => a.status === "suggested").length > 0 && (
+                        <span className="rounded-full bg-[#DBEAFE] px-2 py-0.5 text-[10px] font-semibold text-[#1D4ED8]">
+                          {selected.actions.filter((a) => a.status === "suggested").length} suggested
+                        </span>
+                      )}
+                    </div>
+                    {actionsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </button>
+
+                  {actionsExpanded && (
+                    <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
+                      {selected.actions && selected.actions.length > 0 && (
+                        <div className="space-y-2">
+                          {selected.actions.map((action) => {
+                            const title =
+                              typeof action.data?.title === "string" && action.data.title.trim()
+                                ? action.data.title
+                                : actionTypeLabel(action.type)
+                            const description =
+                              typeof action.data?.description === "string" ? action.data.description : null
+                            const isPending = pendingActionId === action.id
+
+                            return (
+                              <div key={action.id} className="rounded-lg border border-border bg-background p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{title}</p>
+                                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
+                                      {actionStatusLabel(action.status)}
+                                    </span>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1.5">
+                                    {action.status === "suggested" && (
+                                      <>
+                                        <button
+                                          onClick={() => handleSuggestedAction(action, "approve")}
+                                          disabled={isPending}
+                                          className="rounded-md bg-[#0F172A] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#1E293B] disabled:opacity-50"
+                                        >
+                                          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Approve"}
+                                        </button>
+                                        <button
+                                          onClick={() => handleSuggestedAction(action, "dismiss")}
+                                          disabled={isPending}
+                                          className="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                                        >
+                                          Dismiss
+                                        </button>
+                                      </>
+                                    )}
+                                    {action.status === "approved" && (
+                                      <button
+                                        onClick={() => handleSuggestedAction(action, "execute")}
+                                        disabled={isPending}
+                                        className="rounded-md bg-[#2563EB] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+                                      >
+                                        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                {description && (
+                                  <p className="mt-1.5 text-xs text-muted-foreground">{description}</p>
+                                )}
+                                {action.executionNotes && (
+                                  <p className="mt-1.5 text-xs text-[#475569]"><span className="font-semibold">Notes:</span> {action.executionNotes}</p>
+                                )}
+                                {action.errorMessage && (
+                                  <p className="mt-1.5 text-xs text-[#991B1B]"><span className="font-semibold">Error:</span> {action.errorMessage}</p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      <div className="border-t border-border pt-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Convert</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            onClick={() => handleConvert("cliente")}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-[#0F172A] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#1E293B]"
+                          >
+                            <User className="h-3 w-3" />
+                            Client
+                          </button>
+                          <button
+                            onClick={() => handleConvert("proyecto")}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted"
+                          >
+                            <FolderKanban className="h-3 w-3" />
+                            Project
+                          </button>
+                          <button
+                            onClick={() => handleConvert("tarea")}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted"
+                          >
+                            <CheckSquare className="h-3 w-3" />
+                            Task
+                          </button>
+                        </div>
+                      </div>
+
+                      {actionState && <p className="mt-2 text-xs text-muted-foreground">{actionState}</p>}
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-xl border border-border bg-card p-5">
@@ -1250,6 +1210,37 @@ export default function InboxPage() {
                   </div>
 
                   <div className="mt-4 space-y-3 border-t border-border pt-4">
+                    {(() => {
+                      const suggestedDraft = selected.drafts?.find(
+                        (d) => ["draft", "edited", "approved"].includes(d.status) && d.content?.trim()
+                      )
+                      if (!suggestedDraft || replyContent.trim()) return null
+                      return (
+                        <div className="flex items-start gap-3 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] p-3">
+                          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold text-[#1D4ED8]">
+                              Farah suggests a reply
+                              {suggestedDraft.title ? `: ${suggestedDraft.title}` : ""}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#1E3A8A]/80">
+                              {suggestedDraft.content}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setReplyContent(suggestedDraft.content)
+                              setReplyIsInternal(false)
+                              setReplyStatus(null)
+                            }}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]"
+                          >
+                            <Send className="h-3 w-3" />
+                            Use
+                          </button>
+                        </div>
+                      )
+                    })()}
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setReplyIsInternal(false)}

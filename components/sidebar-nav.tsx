@@ -30,8 +30,9 @@ import {
   ChevronDown,
   Search,
 } from "lucide-react";
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useMemo } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
+import { useInboxBadge } from "@/hooks/use-inbox-badge";
 import type { EntityVocabulary } from "@core/personalization";
 import { DEFAULT_VOCABULARY } from "@core/personalization";
 
@@ -49,7 +50,7 @@ export function useSidebarCollapse() {
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type NavItem = { label: string; href: string; icon: React.ElementType; helper?: string };
+type NavItem = { label: string; href: string; icon: React.ElementType; helper?: string; badge?: number };
 type NavSection = {
   section: string;
   subtitle: string;
@@ -131,6 +132,7 @@ function NavLink({
   icon: Icon,
   label,
   helper,
+  badge,
   collapsed,
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
@@ -154,20 +156,34 @@ function NavLink({
       {isActive && !collapsed && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[#3B82F6] rounded-r-full" />
       )}
-      <Icon
-        size={15}
-        strokeWidth={1.75}
-        className={cn(isActive ? "text-[#60A5FA]" : "text-[#64748B] group-hover:text-[#94A3B8]")}
-      />
+      <span className="relative shrink-0">
+        <Icon
+          size={15}
+          strokeWidth={1.75}
+          className={cn(isActive ? "text-[#60A5FA]" : "text-[#64748B] group-hover:text-[#94A3B8]")}
+        />
+        {collapsed && typeof badge === "number" && badge > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#3B82F6] text-[8px] font-bold text-white ring-2 ring-[#0F172A]">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
       {!collapsed && (
-        <span className="flex min-w-0 flex-col items-start">
-          <span className="truncate">{label}</span>
-          {helper ? (
-            <span className="text-[10px] font-normal text-[#64748B] group-hover:text-[#94A3B8]">
-              {helper}
+        <>
+          <span className="flex min-w-0 flex-1 flex-col items-start">
+            <span className="truncate">{label}</span>
+            {helper ? (
+              <span className="text-[10px] font-normal text-[#64748B] group-hover:text-[#94A3B8]">
+                {helper}
+              </span>
+            ) : null}
+          </span>
+          {typeof badge === "number" && badge > 0 && (
+            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-[#3B82F6] px-1 text-[10px] font-bold text-white">
+              {badge > 99 ? "99+" : badge}
             </span>
-          ) : null}
-        </span>
+          )}
+        </>
       )}
     </Link>
   );
@@ -255,11 +271,25 @@ function AccordionSection({
   );
 }
 
+function useSectionsWithBadges(): NavSection[] {
+  const inboxBadge = useInboxBadge();
+  return useMemo(() => {
+    if (inboxBadge === 0) return NAV_SECTIONS;
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.map((item) =>
+        item.href === "/inbox" ? { ...item, badge: inboxBadge } : item
+      ),
+    }));
+  }, [inboxBadge]);
+}
+
 // ── Desktop Sidebar ──────────────────────────────────────────────────────────
 export function SidebarNav() {
   const pathname = usePathname();
   const { collapsed, setCollapsed } = useSidebarCollapse();
   const { openSearch } = useGlobalSearch();
+  const sections = useSectionsWithBadges();
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
@@ -321,7 +351,7 @@ export function SidebarNav() {
 
       {/* Navigation */}
       <nav className={cn("flex-1 pb-4 space-y-1", collapsed ? "px-1.5" : "px-3")}>
-        {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
+        {sections.map(({ section, subtitle, items, dividerAbove }) => (
           <AccordionSection
             key={section}
             section={section}
@@ -373,6 +403,7 @@ import {
 export function MobileSidebarNav() {
   const pathname = usePathname();
   const { openSearch } = useGlobalSearch();
+  const sections = useSectionsWithBadges();
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
@@ -428,7 +459,7 @@ export function MobileSidebarNav() {
           </div>
 
           <nav className="px-3 pb-6 flex-1 space-y-1 overflow-y-auto">
-            {NAV_SECTIONS.map(({ section, subtitle, items, dividerAbove }) => (
+            {sections.map(({ section, subtitle, items, dividerAbove }) => (
               <AccordionSection
                 key={section}
                 section={section}
