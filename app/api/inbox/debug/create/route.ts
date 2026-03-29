@@ -5,7 +5,7 @@
 
 import { NextRequest } from "next/server"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { successResponse, errorResponse } from "@/lib/api/responses"
+import { successResponse, errorResponse } from "@/lib/api"
 import { db } from "@core/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
