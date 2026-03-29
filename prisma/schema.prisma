@@ -383,6 +383,7 @@ model Conversation {
   leadScore     Int?
   urgency       String   @default("media")
   sentiment     String?
+  detectedLanguage String?
   assignedTo    String?
   clienteId     String?
   proyectoId    String?

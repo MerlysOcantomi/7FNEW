@@ -1,0 +1,144 @@
+import { NextRequest, NextResponse } from "next/server"
+import { db } from "@core/db"
+import { addMessage } from "@modules/inbox/service"
+import { runConversationIntelligence } from "@modules/inbox/intelligence"
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
+
+function corsJson(body: unknown, init?: { status?: number }) {
+  return NextResponse.json(body, { status: init?.status ?? 200, headers: CORS_HEADERS })
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { siteKey, visitorId, conversationId, content, visitorName, visitorEmail } = body
+
+    if (!siteKey || typeof siteKey !== "string") {
+      return corsJson({ success: false, error: { code: "VALIDATION_ERROR", message: "siteKey is required" } }, { status: 400 })
+    }
+    if (!visitorId || typeof visitorId !== "string") {
+      return corsJson({ success: false, error: { code: "VALIDATION_ERROR", message: "visitorId is required" } }, { status: 400 })
+    }
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return corsJson({ success: false, error: { code: "VALIDATION_ERROR", message: "content is required" } }, { status: 400 })
+    }
+
+    const workspace = await db.workspace.findUnique({ where: { slug: siteKey } })
+    if (!workspace) {
+      return corsJson({ success: false, error: { code: "NOT_FOUND", message: "Invalid site key" } }, { status: 404 })
+    }
+
+    let targetConversationId = typeof conversationId === "string" ? conversationId : null
+
+    if (targetConversationId) {
+      const existing = await db.conversation.findFirst({
+        where: {
+          id: targetConversationId,
+          workspaceId: workspace.id,
+          channel: "web_chat",
+          contact: { source: visitorId },
+        },
+      })
+      if (!existing) {
+        targetConversationId = null
+      }
+    }
+
+    if (!targetConversationId) {
+      let contact = await db.contact.findFirst({
+        where: { workspaceId: workspace.id, source: visitorId, canal: "web_chat" },
+      })
+
+      if (!contact) {
+        contact = await db.contact.create({
+          data: {
+            workspaceId: workspace.id,
+            source: visitorId,
+            canal: "web_chat",
+            tipo: "visitante",
+            nombre: typeof visitorName === "string" && visitorName.trim() ? visitorName.trim() : null,
+            email: typeof visitorEmail === "string" && visitorEmail.trim() ? visitorEmail.trim().toLowerCase() : null,
+          },
+        })
+      } else {
+        const updates: Record<string, unknown> = { lastSeenAt: new Date() }
+        if (typeof visitorName === "string" && visitorName.trim() && !contact.nombre) {
+          updates.nombre = visitorName.trim()
+        }
+        if (typeof visitorEmail === "string" && visitorEmail.trim() && !contact.email) {
+          updates.email = visitorEmail.trim().toLowerCase()
+        }
+        contact = await db.contact.update({ where: { id: contact.id }, data: updates })
+      }
+
+      const activeConversation = await db.conversation.findFirst({
+        where: {
+          workspaceId: workspace.id,
+          contactId: contact.id,
+          channel: "web_chat",
+          status: { notIn: ["archived"] },
+        },
+        orderBy: { lastMessageAt: "desc" },
+      })
+
+      if (activeConversation) {
+        targetConversationId = activeConversation.id
+      } else {
+        const trimmed = content.trim()
+        const subject = trimmed.length <= 72 ? trimmed : `${trimmed.slice(0, 69)}...`
+
+        const conversation = await db.conversation.create({
+          data: {
+            workspaceId: workspace.id,
+            contactId: contact.id,
+            channel: "web_chat",
+            source: "web",
+            status: "new",
+            subject,
+            isPublic: true,
+            lastMessageAt: new Date(),
+            messageCount: 0,
+          },
+        })
+        targetConversationId = conversation.id
+      }
+    }
+
+    const message = await addMessage({
+      workspaceId: workspace.id,
+      conversationId: targetConversationId,
+      role: "visitor",
+      content: content.trim(),
+      direction: "inbound",
+      contentType: "text",
+      isInternal: false,
+    })
+
+    if (!message) {
+      return corsJson({ success: false, error: { code: "INTERNAL_ERROR", message: "Could not create message" } }, { status: 500 })
+    }
+
+    runConversationIntelligence({
+      workspaceId: workspace.id,
+      conversationId: targetConversationId,
+      trigger: "message_post",
+    }).catch(() => null)
+
+    return corsJson({
+      success: true,
+      data: { conversationId: targetConversationId, messageId: message.id },
+    })
+  } catch (error) {
+    console.error("[7F] Public chat send error:", error)
+    return corsJson({ success: false, error: { code: "INTERNAL_ERROR", message: "Internal error" } }, { status: 500 })
+  }
+}

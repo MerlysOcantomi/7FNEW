@@ -24,6 +24,7 @@ import {
   MessageSquare,
   ShieldCheck,
   Search,
+  Send,
   Sparkles,
   User,
   WandSparkles,
@@ -57,6 +58,7 @@ interface ConversationListItem {
 interface ConversationDetail extends ConversationListItem {
   sector: string | null
   sentiment: string | null
+  detectedLanguage: string | null
   clienteId: string | null
   proyectoId: string | null
   cliente?: { id: string; nombre: string; email: string | null; empresa: string | null } | null
@@ -417,6 +419,10 @@ export default function InboxPage() {
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
   const [handoffState, setHandoffState] = useState<string | null>(null)
   const [draftState, setDraftState] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState("")
+  const [replyIsInternal, setReplyIsInternal] = useState(false)
+  const [replySending, setReplySending] = useState(false)
+  const [replyStatus, setReplyStatus] = useState<string | null>(null)
 
   const params = new URLSearchParams()
   params.set("pageSize", "100")
@@ -449,6 +455,12 @@ export default function InboxPage() {
       setSelectedId(conversations[0]?.id ?? null)
     }
   }, [conversations, selectedId])
+
+  useEffect(() => {
+    setReplyContent("")
+    setReplyIsInternal(false)
+    setReplyStatus(null)
+  }, [selectedId])
 
   const {
     data: detailData,
@@ -599,6 +611,60 @@ export default function InboxPage() {
     }
   }
 
+  async function sendReply() {
+    if (!selectedId || !replyContent.trim() || replySending) return
+
+    setReplySending(true)
+    setReplyStatus(null)
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: replyContent.trim(),
+          direction: "outbound",
+          isInternal: replyIsInternal,
+          role: "operator",
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "Could not send message")
+
+      setReplyContent("")
+      setReplyIsInternal(false)
+      setReplyStatus(replyIsInternal ? "Note saved" : "Reply sent")
+      setRefreshKey((value) => value + 1)
+      refetch()
+      refetchDetail()
+    } catch (err) {
+      setReplyStatus(err instanceof Error ? err.message : "Unknown error")
+    } finally {
+      setReplySending(false)
+    }
+  }
+
+  const statusSelectOptions = STATUS_OPTIONS
+    .filter((s) => s !== "all")
+    .map((s) => ({ value: s, label: statusLabel(s) }))
+
+  async function handleStatusChange(newStatus: string) {
+    if (!selectedId) return
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "Could not update status")
+      setRefreshKey((value) => value + 1)
+      refetch()
+      refetchDetail()
+    } catch (err) {
+      throw err
+    }
+  }
+
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <SectionPage
@@ -727,12 +793,15 @@ export default function InboxPage() {
                         {selected.contact.empresa ? ` · ${selected.contact.empresa}` : ""}
                       </p>
                     </div>
-                    <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold", statusBadge(selected.status))}>
-                      {statusLabel(selected.status)}
-                    </span>
+                    <InlineSelect
+                      value={selected.status}
+                      options={statusSelectOptions}
+                      onSave={handleStatusChange}
+                      badgeClassName={(value) => statusBadge(value)}
+                    />
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-lg bg-[#F8FAFC] p-3">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Channel</p>
                       <p className="mt-1 text-sm font-medium text-[#0F172A]">{channelLabel(selected.channel)}</p>
@@ -740,6 +809,10 @@ export default function InboxPage() {
                     <div className="rounded-lg bg-[#F8FAFC] p-3">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Lead score</p>
                       <p className="mt-1 text-sm font-medium text-[#0F172A]">{selected.leadScore ?? "No score"}</p>
+                    </div>
+                    <div className="rounded-lg bg-[#F8FAFC] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Language</p>
+                      <p className="mt-1 text-sm font-medium text-[#0F172A]">{selected.detectedLanguage?.toUpperCase() || "—"}</p>
                     </div>
                   </div>
                 </div>
@@ -960,10 +1033,25 @@ export default function InboxPage() {
                             />
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {draft.sourceMessageId && <span>Source message: {draft.sourceMessageId}</span>}
-                            {draft.reviewedBy && <span>Reviewed by: {draft.reviewedBy}</span>}
-                            {draft.reviewedAt && <span>Reviewed: {formatDateTime(draft.reviewedAt)}</span>}
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                              {draft.sourceMessageId && <span>Source message: {draft.sourceMessageId}</span>}
+                              {draft.reviewedBy && <span>Reviewed by: {draft.reviewedBy}</span>}
+                              {draft.reviewedAt && <span>Reviewed: {formatDateTime(draft.reviewedAt)}</span>}
+                            </div>
+                            {["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim() && (
+                              <button
+                                onClick={() => {
+                                  setReplyContent(draft.content)
+                                  setReplyIsInternal(false)
+                                  setReplyStatus(null)
+                                }}
+                                className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8]"
+                              >
+                                <Send className="h-3 w-3" />
+                                Use as reply
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
@@ -1119,20 +1207,106 @@ export default function InboxPage() {
                     {selected.messages.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No messages.</p>
                     ) : (
-                      selected.messages.map((message) => (
-                        <div key={message.id} className="rounded-lg border border-border bg-background p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                              {message.role}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {formatRelativeDate(message.createdAt)}
-                            </span>
+                      selected.messages.map((message) => {
+                        const isOutbound = message.direction === "outbound" && !message.isInternal
+                        const isInternal = message.isInternal
+                        return (
+                          <div
+                            key={message.id}
+                            className={cn(
+                              "rounded-lg border p-3",
+                              isInternal
+                                ? "border-[#FDE68A] bg-[#FFFBEB]"
+                                : isOutbound
+                                  ? "border-[#BFDBFE] bg-[#EFF6FF]"
+                                  : "border-border bg-background",
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                  {message.role}
+                                </span>
+                                <span className={cn(
+                                  "rounded-full px-1.5 py-0.5 text-[9px] font-medium",
+                                  isInternal
+                                    ? "bg-[#FEF3C7] text-[#92400E]"
+                                    : isOutbound
+                                      ? "bg-[#DBEAFE] text-[#1D4ED8]"
+                                      : "bg-[#F1F5F9] text-[#475569]",
+                                )}>
+                                  {isInternal ? "Internal note" : message.direction}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatRelativeDate(message.createdAt)}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm leading-relaxed text-foreground">{message.content}</p>
                           </div>
-                          <p className="mt-2 text-sm leading-relaxed text-foreground">{message.content}</p>
-                        </div>
-                      ))
+                        )
+                      })
                     )}
+                  </div>
+
+                  <div className="mt-4 space-y-3 border-t border-border pt-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setReplyIsInternal(false)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                          !replyIsInternal ? "bg-[#0F172A] text-white" : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]",
+                        )}
+                      >
+                        Reply
+                      </button>
+                      <button
+                        onClick={() => setReplyIsInternal(true)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                          replyIsInternal ? "bg-[#92400E] text-white" : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]",
+                        )}
+                      >
+                        Internal note
+                      </button>
+                    </div>
+                    <textarea
+                      value={replyContent}
+                      onChange={(event) => setReplyContent(event.target.value)}
+                      placeholder={replyIsInternal ? "Write an internal note..." : "Write a reply..."}
+                      rows={3}
+                      className={cn(
+                        "w-full resize-none rounded-lg border px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-[#3B82F6]",
+                        replyIsInternal ? "border-[#FDE68A] bg-[#FFFBEB]" : "border-border bg-background",
+                      )}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                          sendReply()
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] text-muted-foreground">
+                        {replyIsInternal
+                          ? "This note will not be delivered externally"
+                          : "This message will be recorded as an outbound reply"}
+                        {" \u00B7 Ctrl+Enter to send"}
+                      </p>
+                      <button
+                        onClick={sendReply}
+                        disabled={replySending || !replyContent.trim()}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium text-white disabled:opacity-50",
+                          replyIsInternal
+                            ? "bg-[#92400E] hover:bg-[#78350F]"
+                            : "bg-[#0F172A] hover:bg-[#1E293B]",
+                        )}
+                      >
+                        {replySending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                        {replyIsInternal ? "Save note" : "Send reply"}
+                      </button>
+                    </div>
+                    {replyStatus && <p className="text-xs text-muted-foreground">{replyStatus}</p>}
                   </div>
                 </div>
 

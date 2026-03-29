@@ -30,6 +30,7 @@ export interface ConversationIntelligenceOutput {
   sentiment: string
   sector: string
   confidence: number
+  detectedLanguage: string
   datosCliente: InboxClassification["datosCliente"]
   datosProyecto: InboxClassification["datosProyecto"]
   notas: string
