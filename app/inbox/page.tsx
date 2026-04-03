@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { InlineSelect, InlineText, InlineTextarea } from "@/components/inline-edit"
@@ -444,6 +444,8 @@ export default function InboxPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
+  const [autoPopulated, setAutoPopulated] = useState(false)
+  const lastAutoPopulatedDraftRef = useRef<string | null>(null)
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -504,6 +506,8 @@ export default function InboxPage() {
     setHandoffExpanded(false)
     setDraftsExpanded(false)
     setActionsExpanded(false)
+    setAutoPopulated(false)
+    lastAutoPopulatedDraftRef.current = null
     if (selectedId) {
       fetch(`/api/inbox/conversations/${selectedId}/read`, { method: "POST" }).catch(() => null)
     }
@@ -528,6 +532,32 @@ export default function InboxPage() {
         ? "This conversation could not be loaded right now."
         : detailError
   const selected = detailData ?? null
+
+  useEffect(() => {
+    if (!selected?.drafts?.length || !selected?.messages?.length) return
+    if (replyContent.trim()) return
+
+    const lastMsg = selected.messages[selected.messages.length - 1]
+    if (lastMsg.direction !== "inbound") return
+
+    const draft = selected.drafts.find(
+      (d) =>
+        d.type === "ghost_reply" &&
+        ["draft", "edited"].includes(d.status) &&
+        d.sourceMessageId === lastMsg.id &&
+        d.content?.trim(),
+    )
+    if (!draft) return
+    if (lastAutoPopulatedDraftRef.current === draft.id) return
+
+    const confidence = selected.handoff?.confidence ?? 0
+    if (confidence < 0.75) return
+
+    lastAutoPopulatedDraftRef.current = draft.id
+    setReplyContent(draft.content)
+    setAutoPopulated(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
 
   const stats = useMemo(() => {
     return {
@@ -679,6 +709,7 @@ export default function InboxPage() {
 
       setReplyContent("")
       setReplyIsInternal(false)
+      setAutoPopulated(false)
       setReplyStatus(replyIsInternal ? "Note saved" : "Reply sent")
       setRefreshKey((value) => value + 1)
       refetch()
@@ -1362,9 +1393,25 @@ export default function InboxPage() {
                         Internal note
                       </button>
                     </div>
+                    {autoPopulated && (
+                      <div className="flex items-center gap-1.5 rounded-md bg-[#EDE9FE] px-2.5 py-1.5">
+                        <Sparkles className="h-3 w-3 text-[#7C3AED]" />
+                        <span className="text-[11px] font-medium text-[#6D28D9]">Suggested by Farah</span>
+                        <button
+                          onClick={() => { setReplyContent(""); setAutoPopulated(false) }}
+                          className="ml-auto rounded p-0.5 text-[#7C3AED] hover:bg-[#DDD6FE]"
+                          title="Clear suggestion"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
                     <textarea
                       value={replyContent}
-                      onChange={(event) => setReplyContent(event.target.value)}
+                      onChange={(event) => {
+                        setReplyContent(event.target.value)
+                        if (autoPopulated) setAutoPopulated(false)
+                      }}
                       placeholder={replyIsInternal ? "Write an internal note..." : "Write a reply..."}
                       rows={3}
                       className={cn(
