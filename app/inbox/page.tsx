@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { InlineSelect, InlineText, InlineTextarea } from "@/components/inline-edit"
@@ -29,9 +29,20 @@ import {
   Send,
   Sparkles,
   User,
+  Users,
   WandSparkles,
   X,
 } from "lucide-react"
+
+interface WorkspaceMemberOption {
+  userId: string
+  nombre: string | null
+  email: string
+  avatar: string | null
+  role: string
+}
+
+type AssignmentFilter = "all" | "mine" | "unassigned"
 
 interface ConversationListItem {
   id: string
@@ -42,6 +53,7 @@ interface ConversationListItem {
   intent: string | null
   urgency: string
   leadScore: number | null
+  assignedTo: string | null
   lastMessageAt: string
   messageCount: number
   contact: {
@@ -428,12 +440,36 @@ export default function InboxPage() {
   const [handoffExpanded, setHandoffExpanded] = useState(false)
   const [draftsExpanded, setDraftsExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
+  const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
+  const [assignSaving, setAssignSaving] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.authenticated && json.user?.userId) setCurrentUserId(json.user.userId)
+      })
+      .catch(() => null)
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/inbox/workspace-members")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) setMembers(json.data)
+      })
+      .catch(() => null)
+  }, [])
 
   const params = new URLSearchParams()
   params.set("pageSize", "100")
   if (search.trim()) params.set("q", search.trim())
   if (status !== "all") params.set("status", status)
   if (channel !== "all") params.set("channel", channel)
+  if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
+  if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
 
   const {
     data: conversationsData,
@@ -658,6 +694,28 @@ export default function InboxPage() {
     .filter((s) => s !== "all")
     .map((s) => ({ value: s, label: statusLabel(s) }))
 
+  const handleAssign = useCallback(async (newAssignedTo: string) => {
+    if (!selectedId) return
+    const value = newAssignedTo === "" ? null : newAssignedTo
+    setAssignSaving(true)
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selectedId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedTo: value }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || "Could not assign")
+      setRefreshKey((v) => v + 1)
+      refetch()
+      refetchDetail()
+    } catch {
+      // revert handled by refetch
+    } finally {
+      setAssignSaving(false)
+    }
+  }, [selectedId, refetch, refetchDetail])
+
   async function handleStatusChange(newStatus: string) {
     if (!selectedId) return
     try {
@@ -737,6 +795,22 @@ export default function InboxPage() {
                   ))}
                 </select>
               </div>
+              <div className="flex items-center gap-1">
+                {(["all", "mine", "unassigned"] as const).map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setAssignmentFilter(value)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                      assignmentFilter === value
+                        ? "bg-[#0F172A] text-white"
+                        : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]",
+                    )}
+                  >
+                    {value === "all" ? "All" : value === "mine" ? "Mine" : "Unassigned"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {loading ? (
@@ -804,12 +878,36 @@ export default function InboxPage() {
                         {selected.contact.empresa ? ` · ${selected.contact.empresa}` : ""}
                       </p>
                     </div>
-                    <InlineSelect
-                      value={selected.status}
-                      options={statusSelectOptions}
-                      onSave={handleStatusChange}
-                      badgeClassName={(value) => statusBadge(value)}
-                    />
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <InlineSelect
+                        value={selected.status}
+                        options={statusSelectOptions}
+                        onSave={handleStatusChange}
+                        badgeClassName={(value) => statusBadge(value)}
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                        <select
+                          value={selected.assignedTo ?? ""}
+                          onChange={(e) => handleAssign(e.target.value)}
+                          disabled={assignSaving}
+                          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none disabled:opacity-50"
+                        >
+                          <option value="">Unassigned</option>
+                          {members.map((m) => (
+                            <option key={m.userId} value={m.userId}>
+                              {m.nombre || m.email}
+                            </option>
+                          ))}
+                          {selected.assignedTo && !members.some((m) => m.userId === selected.assignedTo) && (
+                            <option value={selected.assignedTo} disabled>
+                              {selected.assignedTo} (unknown)
+                            </option>
+                          )}
+                        </select>
+                        {assignSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

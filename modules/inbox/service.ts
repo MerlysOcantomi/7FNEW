@@ -16,6 +16,7 @@ interface ListConversationsParams {
   channel?: string
   urgency?: string
   q?: string
+  assignedTo?: string
 }
 
 interface CreateConversationFromInboxEntryInput {
@@ -524,10 +525,18 @@ function parseConversationClassification(classification?: {
 }
 
 export async function listConversations(params: ListConversationsParams) {
-  const { workspaceId, skip = 0, take = 20, status, channel, urgency, q } = params
+  const { workspaceId, skip = 0, take = 20, status, channel, urgency, q, assignedTo } = params
+
+  const assignedToFilter: Prisma.ConversationWhereInput =
+    assignedTo === "unassigned"
+      ? { assignedTo: null }
+      : assignedTo
+        ? { assignedTo }
+        : {}
 
   const where: Prisma.ConversationWhereInput = {
     workspaceId,
+    ...assignedToFilter,
     ...(status && status !== "todos" ? { status } : {}),
     ...(channel && channel !== "todos" ? { channel } : {}),
     ...(urgency && urgency !== "todos" ? { urgency } : {}),

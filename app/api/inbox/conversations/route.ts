@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const channel = searchParams.get("channel") ?? undefined
     const urgency = searchParams.get("urgency") ?? undefined
     const q = searchParams.get("q")?.trim() || undefined
+    const assignedTo = searchParams.get("assignedTo") ?? undefined
 
     const { data, total } = await listConversations({
       workspaceId,
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
       channel,
       urgency,
       q,
+      assignedTo,
     })
 
     return successResponse(
