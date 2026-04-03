@@ -468,6 +468,9 @@ export default function InboxPage() {
     setHandoffExpanded(false)
     setDraftsExpanded(false)
     setActionsExpanded(false)
+    if (selectedId) {
+      fetch(`/api/inbox/conversations/${selectedId}/read`, { method: "POST" }).catch(() => null)
+    }
   }, [selectedId])
 
   const {

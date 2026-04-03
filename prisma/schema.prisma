@@ -58,6 +58,7 @@ model Workspace {
   aiClassifications AIClassification[]
   conversationHandoffs ConversationHandoff[]
   conversationDrafts ConversationDraft[]
+  conversationReads ConversationRead[]
   forteSnapshot  ForteSnapshot?
 }
 
@@ -406,11 +407,28 @@ model Conversation {
   drafts         ConversationDraft[]
   inboxEntries   InboxEntry[]
 
+  reads          ConversationRead[]
+
   @@index([workspaceId, status])
   @@index([workspaceId, lastMessageAt])
   @@index([contactId])
   @@index([clienteId])
   @@index([proyectoId])
+}
+
+model ConversationRead {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  lastSeenAt     DateTime @default(now())
+  workspaceId    String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, workspaceId])
 }
 
 model Message {

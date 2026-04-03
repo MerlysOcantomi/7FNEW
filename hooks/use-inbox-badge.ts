@@ -5,9 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 const POLL_INTERVAL_MS = 30_000
 
 /**
- * Lightweight hook that returns the count of conversations needing attention.
- * Rule: status = "new" (arrived but not yet triaged/assigned/responded).
- * Polls every 30 seconds. Returns 0 while loading or on error.
+ * Returns the count of conversations needing operator attention.
+ * Uses the per-operator attention model: new + assigned-unseen + lead-unseen.
  */
 export function useInboxBadge(): number {
   const [count, setCount] = useState(0)
@@ -15,10 +14,10 @@ export function useInboxBadge(): number {
 
   const fetchCount = useCallback(async () => {
     try {
-      const res = await fetch("/api/inbox/conversations?status=new&pageSize=1")
+      const res = await fetch("/api/inbox/attention-count")
       const json = await res.json()
-      if (json.success && typeof json.meta?.total === "number") {
-        setCount(json.meta.total)
+      if (json.success && typeof json.data?.total === "number") {
+        setCount(json.data.total)
       }
     } catch {}
   }, [])
