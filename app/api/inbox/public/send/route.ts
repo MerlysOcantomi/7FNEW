@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@core/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
+import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +39,10 @@ export async function POST(request: NextRequest) {
     }
 
     let targetConversationId = typeof conversationId === "string" ? conversationId : null
+    let isNewConversation = false
+    let ackEmail: string | null = null
+    let ackName: string | null = null
+    let ackSubject: string | null = null
 
     if (targetConversationId) {
       const existing = await db.conversation.findFirst({
@@ -110,6 +115,10 @@ export async function POST(request: NextRequest) {
           },
         })
         targetConversationId = conversation.id
+        isNewConversation = true
+        ackEmail = contact.email ?? null
+        ackName = contact.nombre ?? null
+        ackSubject = subject
       }
     }
 
@@ -125,6 +134,15 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return corsJson({ success: false, error: { code: "INTERNAL_ERROR", message: "Could not create message" } }, { status: 500 })
+    }
+
+    if (isNewConversation && ackEmail) {
+      void sendAcknowledgmentEmail({
+        workspaceName: workspace.nombre,
+        contactEmail: ackEmail,
+        contactName: ackName,
+        conversationSubject: ackSubject ?? "",
+      }).catch(() => null)
     }
 
     runConversationIntelligence({
