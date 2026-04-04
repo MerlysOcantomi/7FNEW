@@ -133,6 +133,8 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "status", label: "System Status", icon: Activity },
 ];
 
+const integerFormatter = new Intl.NumberFormat("en-US");
+
 export default function MotorPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("model");
   const [selectedModel, setSelectedModel] = useState("claude-3-5");
@@ -280,7 +282,7 @@ export default function MotorPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-[#0F172A]">Max Output Tokens</span>
-                    <span className="text-sm font-mono font-semibold text-[#3B82F6]">{maxTokens.toLocaleString()}</span>
+                    <span className="text-sm font-mono font-semibold text-[#3B82F6]">{integerFormatter.format(maxTokens)}</span>
                   </div>
                   <input
                     type="range" min={512} max={8192} step={512} value={maxTokens}
