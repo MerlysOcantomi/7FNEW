@@ -4,6 +4,7 @@ import { successResponse, errorResponse, handleError, getPaginationParams } from
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { createConversationFromInboxEntry } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
+import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,6 +94,20 @@ export async function POST(request: NextRequest) {
       fuente,
     })
     const { conversation, contact } = conversationResult
+
+    if (!conversationResult.reused && !conversationResult.reopened && contact.email) {
+      void db.workspace
+        .findUnique({ where: { id: workspaceId }, select: { nombre: true } })
+        .then((ws) =>
+          sendAcknowledgmentEmail({
+            workspaceName: ws?.nombre ?? "7F",
+            contactName: contact.nombre,
+            contactEmail: contact.email!,
+            conversationSubject: conversation.subject ?? "",
+          }),
+        )
+        .catch(() => null)
+    }
 
     try {
       await runConversationIntelligence({
