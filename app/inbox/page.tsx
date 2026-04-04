@@ -1,36 +1,21 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
-import { InlineSelect, InlineText, InlineTextarea } from "@/components/inline-edit"
+import { ConversationList } from "@/components/inbox/conversation-list"
+import { ContextPanel } from "@/components/inbox/context-panel"
+import { ReplyComposer } from "@/components/inbox/reply-composer"
+import { ConversationThread } from "@/components/inbox/conversation-thread"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { useFetch } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
-import {
-  AlertTriangle,
-  Briefcase,
-  Building2,
-  Check,
-  CheckSquare,
-  ChevronDown,
-  ChevronRight,
-  Clock3,
-  FileText,
-  Play,
-  FolderKanban,
-  History,
-  Loader2,
-  Mail,
-  MessageSquare,
-  ShieldCheck,
-  Search,
-  Send,
-  Sparkles,
-  User,
-  Users,
-  WandSparkles,
-  X,
-} from "lucide-react"
+import { Sparkles } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
@@ -363,62 +348,10 @@ function editableDraftStatusOptions(currentStatus: string) {
   return options
 }
 
-function ConversationCard({
-  item,
-  selected,
-  onClick,
-}: {
-  item: ConversationListItem
-  selected: boolean
-  onClick: () => void
-}) {
-  const preview = item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "No summary"
-
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-xl border p-4 text-left transition-colors",
-        selected ? "border-[#BFDBFE] bg-[#EFF6FF]" : "border-[#E2E8F0] bg-white hover:border-[#BFDBFE]"
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-[#0F172A] truncate">
-              {item.subject || item.contact.nombre || "New conversation"}
-            </p>
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusBadge(item.status))}>
-              {statusLabel(item.status)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-[#64748B] truncate">
-            {item.contact.nombre || item.contact.email || "Unidentified contact"}
-            {item.contact.empresa ? ` · ${item.contact.empresa}` : ""}
-          </p>
-        </div>
-        <span className="text-[10px] text-[#94A3B8]">{formatRelativeDate(item.lastMessageAt)}</span>
-      </div>
-
-      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[#64748B]">
-        {preview}
-      </p>
-
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
-        <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
-          {channelLabel(item.channel)}
-        </span>
-        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", urgencyBadge(item.urgency))}>
-          {urgencyLabel(item.urgency)}
-        </span>
-        {typeof item.leadScore === "number" && (
-          <span className="rounded-full bg-[#0F172A] px-2 py-0.5 text-[10px] font-medium text-white">
-            Lead {item.leadScore}
-          </span>
-        )}
-      </div>
-    </button>
-  )
+function formatRoleLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 export default function InboxPage() {
@@ -443,6 +376,8 @@ export default function InboxPage() {
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
   const [autoPopulated, setAutoPopulated] = useState(false)
+  const [mobileView, setMobileView] = useState<"list" | "thread">("list")
+  const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -505,7 +440,11 @@ export default function InboxPage() {
     setDraftsExpanded(false)
     setActionsExpanded(false)
     setAutoPopulated(false)
+    setContextSheetOpen(false)
     lastAutoPopulatedDraftRef.current = null
+    if (!selectedId) {
+      setMobileView("list")
+    }
     if (selectedId) {
       fetch(`/api/inbox/conversations/${selectedId}/read`, { method: "POST" }).catch(() => null)
     }
@@ -723,6 +662,11 @@ export default function InboxPage() {
     .filter((s) => s !== "all")
     .map((s) => ({ value: s, label: statusLabel(s) }))
 
+  const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
+    value: option,
+    label: option === "all" ? "All channels" : channelLabel(option),
+  }))
+
   const handleAssign = useCallback(async (newAssignedTo: string) => {
     if (!selectedId) return
     const value = newAssignedTo === "" ? null : newAssignedTo
@@ -763,505 +707,194 @@ export default function InboxPage() {
     }
   }
 
+  const displayedMembers =
+    selected?.assignedTo && !members.some((member) => member.userId === selected.assignedTo)
+      ? [
+          ...members,
+          {
+            userId: selected.assignedTo,
+            nombre: `${selected.assignedTo} (unknown)`,
+            email: selected.assignedTo,
+            avatar: null,
+            role: "unknown",
+          },
+        ]
+      : members
+
+  const conversationItems = conversations.map((item) => ({
+    id: item.id,
+    title: item.subject || item.contact.nombre || "New conversation",
+    subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
+    preview: item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "No summary",
+    timeLabel: formatRelativeDate(item.lastMessageAt),
+    isUnread: item.status === "new",
+    statusLabel: statusLabel(item.status),
+    statusClassName: statusBadge(item.status),
+    channelLabel: channelLabel(item.channel),
+    urgencyLabel: urgencyLabel(item.urgency),
+    urgencyClassName: urgencyBadge(item.urgency),
+    leadScore: item.leadScore,
+  }))
+
+  const threadMessages =
+    selected?.messages.map((message) => {
+      const isOutbound = message.direction === "outbound" && !message.isInternal
+      const isInbound = message.direction === "inbound" && !message.isInternal
+      const isInternal = message.isInternal
+      const tone: "internal" | "outbound" | "inbound" | "system" = isInternal
+        ? "internal"
+        : isOutbound
+          ? "outbound"
+          : isInbound
+            ? "inbound"
+            : "system"
+
+      return {
+        id: message.id,
+        authorLabel: isInternal
+          ? "Internal note"
+          : isOutbound
+            ? "Team"
+            : selected.contact.nombre || selected.contact.email || "Contact",
+        roleLabel: formatRoleLabel(message.role),
+        metaLabel: isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System",
+        timestampLabel: formatRelativeDate(message.createdAt),
+        content: message.content,
+        tone,
+      }
+    }) ?? []
+
+  const suggestedDraft =
+    selected?.drafts?.find(
+      (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
+    ) ?? null
+
+  function handleSelectConversation(id: string) {
+    setSelectedId(id)
+    setMobileView("thread")
+  }
+
+  function handleBackToList() {
+    setMobileView("list")
+    setContextSheetOpen(false)
+  }
+
   const contextPanel = selected ? (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[#DBEAFE] bg-[#EFF6FF] p-4">
-        {selected.handoff ? (
-          <>
-            <div className="flex items-start gap-3">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[#1E3A8A]">
-                  {selected.handoff.headline || "Smart Handoff"}
-                </p>
-                {selected.handoff.summary && (
-                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#1D4ED8]/80">
-                    {selected.handoff.summary}
-                  </p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", handoffStatusBadge(selected.handoff.status))}>
-                  {handoffStatusLabel(selected.handoff.status)}
-                </span>
-                {selected.handoff.status !== "reviewed" && (
-                  <button
-                    onClick={() => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed")}
-                    className="rounded-md p-1 text-[#1D4ED8] hover:bg-[#DBEAFE]"
-                    title="Mark as reviewed"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => setHandoffExpanded(!handoffExpanded)}
-                  className="rounded-md p-1 text-[#1D4ED8] hover:bg-[#DBEAFE]"
-                >
-                  {handoffExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {!handoffExpanded && selected.handoff.nextRecommendedAction && (
-              <div className="mt-2 flex items-center gap-2 rounded-md bg-white/60 px-2.5 py-1.5">
-                <Play className="h-3 w-3 shrink-0 text-[#2563EB]" />
-                <p className="text-[11px] font-medium text-[#1E3A8A]">{selected.handoff.nextRecommendedAction}</p>
-              </div>
-            )}
-
-            {handoffExpanded && (
-              <div className="mt-4 space-y-4 border-t border-[#BFDBFE]/50 pt-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Headline</p>
-                  <div className="mt-1 text-[#1E3A8A]">
-                    <InlineText value={selected.handoff.headline || ""} placeholder="Add operational headline..." className="text-sm font-semibold" onSave={(value) => updateHandoff({ headline: value })} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Summary</p>
-                  <InlineTextarea value={selected.handoff.summary || ""} placeholder="Add operational summary..." className="mt-1 bg-white/70 text-[#1E3A8A]" rows={3} onSave={(value) => updateHandoff({ summary: value })} />
-                </div>
-                <div className="grid gap-2">
-                  {([
-                    { label: "Facts", key: "facts" as const },
-                    { label: "Decisions", key: "decisions" as const },
-                    { label: "Pending items", key: "pendingItems" as const },
-                    { label: "Risks", key: "risks" as const },
-                  ]).map(({ label, key }) => (
-                    <div key={key} className="rounded-lg bg-white/80 p-2.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">{label}</p>
-                      <InlineTextarea value={linesToText(selected.handoff![key])} placeholder={`One ${label.toLowerCase().replace(/s$/, "")} per line...`} className="mt-1 bg-transparent px-0 py-0 text-sm text-[#1E3A8A]" rows={2} onSave={(value) => updateHandoff({ [key]: textToLines(value) })} />
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#64748B]">Next recommended action</p>
-                  <InlineTextarea value={selected.handoff.nextRecommendedAction || ""} placeholder="Add recommended next step..." className="mt-1 bg-white/70 text-[#1E3A8A]" rows={2} onSave={(value) => updateHandoff({ nextRecommendedAction: value })} />
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-[#475569]">
-                  {confidenceLabel(selected.handoff.confidence) && <span>Confidence {confidenceLabel(selected.handoff.confidence)}</span>}
-                  {selected.handoff.reviewedBy && <span>· Reviewed by {selected.handoff.reviewedBy}</span>}
-                  {selected.handoff.reviewedAt && <span>· {formatDateTime(selected.handoff.reviewedAt)}</span>}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex items-start gap-3">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-[#1D4ED8]">Smart Handoff</p>
-              <p className="mt-1 text-xs leading-relaxed text-[#1E3A8A]">
-                {selected.classification?.summary || selected.summary || "AI has not generated a summary for this conversation yet."}
-              </p>
-              {(selected.classification?.intent || selected.classification?.suggestedTags?.length) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {selected.classification?.intent && (
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-[#1D4ED8]">{selected.classification.intent}</span>
-                  )}
-                  {selected.classification?.suggestedTags?.map((tag) => (
-                    <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-[#475569]">{tag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {handoffState && <p className="mt-2 text-xs text-[#475569]">{handoffState}</p>}
-      </div>
-
-      {selected.drafts && selected.drafts.length > 0 && (
-        <div className="rounded-xl border border-border bg-card">
-          <button onClick={() => setDraftsExpanded(!draftsExpanded)} className="flex w-full items-center justify-between gap-2 p-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-semibold text-foreground">Drafts</p>
-              <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-medium text-[#475569]">{selected.drafts.length}</span>
-            </div>
-            {draftsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-          </button>
-          {draftsExpanded && (
-            <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
-              {selected.drafts.map((draft) => (
-                <div key={draft.id} className="rounded-lg border border-border bg-background p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <InlineText value={draft.title || ""} placeholder="Draft title..." className="text-sm font-semibold text-foreground" onSave={(value) => updateDraft(draft.id, { title: value })} />
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", draftStatusBadge(draft.status))}>{draftStatusLabel(draft.status)}</span>
-                    </div>
-                    <InlineSelect value={draft.status} options={editableDraftStatusOptions(draft.status)} onSave={(value) => updateDraft(draft.id, { status: value }, "Draft status updated")} badgeClassName={(value) => draftStatusBadge(value)} />
-                  </div>
-                  <div className="mt-2">
-                    <InlineTextarea value={draft.content || ""} placeholder="Draft content..." className="mt-0" rows={4} onSave={(value) => updateDraft(draft.id, { content: value })} />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                      {draft.tone && <span>Tone: {draft.tone}</span>}
-                      <span>{formatRelativeDate(draft.createdAt)}</span>
-                    </div>
-                    {["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim() && (
-                      <button onClick={() => { setReplyContent(draft.content); setReplyIsInternal(false); setReplyStatus(null) }} className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#2563EB] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]">
-                        <Send className="h-3 w-3" /> Use as reply
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {draftState && <p className="text-xs text-muted-foreground">{draftState}</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-xl border border-border bg-card">
-        <button onClick={() => setActionsExpanded(!actionsExpanded)} className="flex w-full items-center justify-between gap-2 p-4">
-          <div className="flex items-center gap-2">
-            <WandSparkles className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-semibold text-foreground">Actions</p>
-            {selected.actions && selected.actions.filter((a) => a.status === "suggested").length > 0 && (
-              <span className="rounded-full bg-[#DBEAFE] px-2 py-0.5 text-[10px] font-semibold text-[#1D4ED8]">
-                {selected.actions.filter((a) => a.status === "suggested").length} suggested
-              </span>
-            )}
-          </div>
-          {actionsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-        </button>
-        {actionsExpanded && (
-          <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
-            {selected.actions && selected.actions.length > 0 && (
-              <div className="space-y-2">
-                {selected.actions.map((action) => {
-                  const title = typeof action.data?.title === "string" && action.data.title.trim() ? action.data.title : actionTypeLabel(action.type)
-                  const description = typeof action.data?.description === "string" ? action.data.description : null
-                  const isPending = pendingActionId === action.id
-                  return (
-                    <div key={action.id} className="rounded-lg border border-border bg-background p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{title}</p>
-                          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>{actionStatusLabel(action.status)}</span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          {action.status === "suggested" && (
-                            <>
-                              <button onClick={() => handleSuggestedAction(action, "approve")} disabled={isPending} className="rounded-md bg-[#0F172A] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#1E293B] disabled:opacity-50">
-                                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Approve"}
-                              </button>
-                              <button onClick={() => handleSuggestedAction(action, "dismiss")} disabled={isPending} className="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50">Dismiss</button>
-                            </>
-                          )}
-                          {action.status === "approved" && (
-                            <button onClick={() => handleSuggestedAction(action, "execute")} disabled={isPending} className="rounded-md bg-[#2563EB] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50">
-                              {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {description && <p className="mt-1.5 text-xs text-muted-foreground">{description}</p>}
-                      {action.executionNotes && <p className="mt-1.5 text-xs text-[#475569]"><span className="font-semibold">Notes:</span> {action.executionNotes}</p>}
-                      {action.errorMessage && <p className="mt-1.5 text-xs text-[#991B1B]"><span className="font-semibold">Error:</span> {action.errorMessage}</p>}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <div className="border-t border-border pt-3">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Convert</p>
-              <div className="flex flex-wrap gap-1.5">
-                <button onClick={() => handleConvert("cliente")} className="inline-flex items-center gap-1.5 rounded-md bg-[#0F172A] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#1E293B]"><User className="h-3 w-3" /> Client</button>
-                <button onClick={() => handleConvert("proyecto")} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted"><FolderKanban className="h-3 w-3" /> Project</button>
-                <button onClick={() => handleConvert("tarea")} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted"><CheckSquare className="h-3 w-3" /> Task</button>
-              </div>
-            </div>
-            {actionState && <p className="mt-2 text-xs text-muted-foreground">{actionState}</p>}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Business context</p>
-        </div>
-        <div className="grid gap-2">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground"><Mail className="h-4 w-4" /><span>{selected.contact.email || "No email"}</span></div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground"><Building2 className="h-4 w-4" /><span>{selected.contact.empresa || "No company"}</span></div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground"><Clock3 className="h-4 w-4" /><span>{selected.messageCount} messages</span></div>
-          {selected.cliente && (
-            <Link href={`/clientes/${selected.cliente.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline"><User className="h-4 w-4" />Linked client: {selected.cliente.nombre}</Link>
-          )}
-          {selected.proyecto && (
-            <Link href={`/proyectos/${selected.proyecto.id}`} className="flex items-center gap-3 text-sm text-[#2563EB] hover:underline"><FolderKanban className="h-4 w-4" />Linked project: {selected.proyecto.nombre}</Link>
-          )}
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-[#F8FAFC] p-2 text-center">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-[#64748B]">Channel</p>
-            <p className="mt-0.5 text-xs font-medium text-[#0F172A]">{channelLabel(selected.channel)}</p>
-          </div>
-          <div className="rounded-lg bg-[#F8FAFC] p-2 text-center">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-[#64748B]">Lead</p>
-            <p className="mt-0.5 text-xs font-medium text-[#0F172A]">{selected.leadScore ?? "—"}</p>
-          </div>
-          <div className="rounded-lg bg-[#F8FAFC] p-2 text-center">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-[#64748B]">Lang</p>
-            <p className="mt-0.5 text-xs font-medium text-[#0F172A]">{selected.detectedLanguage?.toUpperCase() || "—"}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ContextPanel
+      selected={selected}
+      handoffExpanded={handoffExpanded}
+      setHandoffExpanded={setHandoffExpanded}
+      draftsExpanded={draftsExpanded}
+      setDraftsExpanded={setDraftsExpanded}
+      actionsExpanded={actionsExpanded}
+      setActionsExpanded={setActionsExpanded}
+      updateHandoff={updateHandoff}
+      handoffStatusBadge={handoffStatusBadge}
+      handoffStatusLabel={handoffStatusLabel}
+      handoffState={handoffState}
+      linesToText={linesToText}
+      textToLines={textToLines}
+      confidenceLabel={confidenceLabel}
+      formatDateTime={formatDateTime}
+      editableDraftStatusOptions={editableDraftStatusOptions}
+      updateDraft={updateDraft}
+      draftStatusBadge={draftStatusBadge}
+      draftStatusLabel={draftStatusLabel}
+      formatRelativeDate={formatRelativeDate}
+      setReplyContent={setReplyContent}
+      setReplyIsInternal={setReplyIsInternal}
+      setReplyStatus={setReplyStatus}
+      pendingActionId={pendingActionId}
+      handleSuggestedAction={handleSuggestedAction}
+      actionTypeLabel={actionTypeLabel}
+      actionStatusBadge={actionStatusBadge}
+      actionStatusLabel={actionStatusLabel}
+      handleConvert={handleConvert}
+      actionState={actionState}
+      channelLabel={channelLabel}
+    />
   ) : null
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
-      <div className="-mx-4 -mt-2 md:-mx-8 lg:h-[calc(100dvh-4.5rem)] lg:overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:h-full">
-
-          {/* ── Col 1: Inbox List ── */}
-          <div className="shrink-0 border-b border-border bg-card lg:w-[340px] lg:border-b-0 lg:border-r lg:flex lg:flex-col lg:h-full">
-            <div className="p-4 space-y-3 shrink-0">
-              <div className="flex items-center justify-between">
-                <h1 className="text-base font-semibold text-foreground">Inbox</h1>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{loading ? "—" : stats.total} conv</span>
-                  {stats.leads > 0 && <span className="rounded-full bg-[#DCFCE7] px-1.5 py-0.5 text-[10px] font-semibold text-[#166534]">{stats.leads} leads</span>}
-                  {stats.urgent > 0 && <span className="rounded-full bg-[#FEE2E2] px-1.5 py-0.5 text-[10px] font-semibold text-[#991B1B]">{stats.urgent} urgent</span>}
-                </div>
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search..."
-                  className="w-full rounded-lg border border-border bg-background py-2 pl-10 pr-3 text-sm text-foreground outline-none transition-colors focus:border-[#3B82F6]"
-                />
-              </div>
-              <div className="flex gap-2">
-                <select value={status} onChange={(event) => setStatus(event.target.value)} className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none">
-                  {STATUS_OPTIONS.map((option) => (<option key={option} value={option}>{option === "all" ? "All statuses" : option}</option>))}
-                </select>
-                <select value={channel} onChange={(event) => setChannel(event.target.value)} className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none">
-                  {CHANNEL_OPTIONS.map((option) => (<option key={option} value={option}>{option === "all" ? "All channels" : channelLabel(option)}</option>))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1">
-                {(["all", "mine", "unassigned"] as const).map((value) => (
-                  <button
-                    key={value}
-                    onClick={() => setAssignmentFilter(value)}
-                    className={cn(
-                      "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
-                      assignmentFilter === value ? "bg-[#0F172A] text-white" : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]",
-                    )}
-                  >
-                    {value === "all" ? "All" : value === "mine" ? "Mine" : "Unassigned"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
-              {loading ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : listErrorMessage ? (
-                <div className="p-6 text-center">
-                  <History className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-xs text-muted-foreground">{isWorkspaceUnavailable ? "Activate a workspace." : listErrorMessage}</p>
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="p-6 text-center">
-                  <History className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-xs font-medium text-foreground">No conversations</p>
-                </div>
-              ) : (
-                conversations.map((item) => (
-                  <ConversationCard key={item.id} item={item} selected={selectedId === item.id} onClick={() => setSelectedId(item.id)} />
-                ))
-              )}
-            </div>
+      <div className="-mx-4 -mt-2 md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col bg-background xl:flex-row">
+          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block")}>
+            <ConversationList
+              loading={loading}
+              errorMessage={listErrorMessage}
+              conversations={conversationItems}
+              selectedId={selectedId}
+              search={search}
+              onSearchChange={setSearch}
+              status={status}
+              statusOptions={STATUS_OPTIONS}
+              onStatusChange={setStatus}
+              channel={channel}
+              channelOptions={channelSelectOptions}
+              onChannelChange={setChannel}
+              assignmentFilter={assignmentFilter}
+              onAssignmentFilterChange={setAssignmentFilter}
+              stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
+              onSelect={handleSelectConversation}
+            />
           </div>
 
-          {/* ── Col 2: Conversation ── */}
-          <div className="flex-1 min-w-0 flex flex-col lg:h-full">
-            {!selectedId ? (
-              <div className="flex flex-1 items-center justify-center">
-                <div className="text-center">
-                  <MessageSquare className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">Select a conversation</p>
-                </div>
-              </div>
-            ) : detailLoading && !selected ? (
-              <div className="flex flex-1 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : detailErrorMessage ? (
-              <div className="flex flex-1 items-center justify-center">
-                <div className="text-center">
-                  <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-                  <p className="text-sm font-medium text-foreground">Could not load conversation</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{detailErrorMessage}</p>
-                </div>
-              </div>
-            ) : selected ? (
-              <>
-                {/* Header */}
-                <div className="shrink-0 border-b border-border bg-card px-5 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-base font-semibold text-foreground truncate">
-                        {selected.subject || selected.contact.nombre || "Conversation"}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {selected.contact.nombre || selected.contact.email || "Unidentified contact"}
-                        {selected.contact.empresa ? ` · ${selected.contact.empresa}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        <select
-                          value={selected.assignedTo ?? ""}
-                          onChange={(e) => handleAssign(e.target.value)}
-                          disabled={assignSaving}
-                          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none disabled:opacity-50"
-                        >
-                          <option value="">Unassigned</option>
-                          {members.map((m) => (<option key={m.userId} value={m.userId}>{m.nombre || m.email}</option>))}
-                          {selected.assignedTo && !members.some((m) => m.userId === selected.assignedTo) && (
-                            <option value={selected.assignedTo} disabled>{selected.assignedTo} (unknown)</option>
-                          )}
-                        </select>
-                        {assignSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                      </div>
-                      <InlineSelect
-                        value={selected.status}
-                        options={statusSelectOptions}
-                        onSave={handleStatusChange}
-                        badgeClassName={(value) => statusBadge(value)}
-                      />
-                    </div>
-                  </div>
-                </div>
+          <div
+            className={cn(
+              selectedId && mobileView === "thread" ? "flex" : "hidden",
+              "min-w-0 flex-1 flex-col xl:flex xl:h-full xl:min-h-0",
+            )}
+          >
+            <ConversationThread
+              hasSelectedId={Boolean(selectedId)}
+              detailLoading={detailLoading && !selected}
+              detailErrorMessage={detailErrorMessage}
+              headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
+              headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+              assignedTo={selected?.assignedTo ?? ""}
+              members={displayedMembers}
+              assignSaving={assignSaving}
+              onAssign={handleAssign}
+              statusValue={selected?.status || "new"}
+              statusOptions={statusSelectOptions}
+              onStatusChange={handleStatusChange}
+              statusBadgeClassName={statusBadge}
+              messages={threadMessages}
+              onBack={handleBackToList}
+              onOpenContext={() => setContextSheetOpen(true)}
+            />
 
-                {/* Messages thread */}
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-                  <div className="space-y-3">
-                    {selected.messages.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No messages.</p>
-                    ) : (
-                      selected.messages.map((message) => {
-                        const isOutbound = message.direction === "outbound" && !message.isInternal
-                        const isInternal = message.isInternal
-                        return (
-                          <div
-                            key={message.id}
-                            className={cn(
-                              "rounded-lg border p-3",
-                              isInternal
-                                ? "border-[#FDE68A] bg-[#FFFBEB]"
-                                : isOutbound
-                                  ? "border-[#BFDBFE] bg-[#EFF6FF]"
-                                  : "border-border bg-background",
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{message.role}</span>
-                                <span className={cn(
-                                  "rounded-full px-1.5 py-0.5 text-[9px] font-medium",
-                                  isInternal ? "bg-[#FEF3C7] text-[#92400E]" : isOutbound ? "bg-[#DBEAFE] text-[#1D4ED8]" : "bg-[#F1F5F9] text-[#475569]",
-                                )}>
-                                  {isInternal ? "Internal note" : message.direction}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeDate(message.createdAt)}</span>
-                            </div>
-                            <p className="mt-2 text-sm leading-relaxed text-foreground">{message.content}</p>
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
-
-                  {/* Context panel inline for < 1440px */}
-                  <div className="mt-6 min-[1440px]:hidden">
-                    {contextPanel}
-                  </div>
-                </div>
-
-                {/* Composer — sticky bottom */}
-                <div className="shrink-0 border-t border-border bg-card px-5 py-4 space-y-3">
-                  {(() => {
-                    const suggestedDraft = selected.drafts?.find(
-                      (d) => ["draft", "edited", "approved"].includes(d.status) && d.content?.trim()
-                    )
-                    if (!suggestedDraft || replyContent.trim()) return null
-                    return (
-                      <div className="flex items-start gap-3 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] p-3">
-                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563EB]" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-semibold text-[#1D4ED8]">Farah suggests a reply{suggestedDraft.title ? `: ${suggestedDraft.title}` : ""}</p>
-                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#1E3A8A]/80">{suggestedDraft.content}</p>
-                        </div>
-                        <button onClick={() => { setReplyContent(suggestedDraft.content); setReplyIsInternal(false); setReplyStatus(null) }} className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]">
-                          <Send className="h-3 w-3" /> Use
-                        </button>
-                      </div>
-                    )
-                  })()}
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setReplyIsInternal(false)} className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition-colors", !replyIsInternal ? "bg-[#0F172A] text-white" : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]")}>Reply</button>
-                    <button onClick={() => setReplyIsInternal(true)} className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition-colors", replyIsInternal ? "bg-[#92400E] text-white" : "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]")}>Internal note</button>
-                  </div>
-                  {autoPopulated && (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#EDE9FE] px-2.5 py-1.5">
-                      <Sparkles className="h-3 w-3 text-[#7C3AED]" />
-                      <span className="text-[11px] font-medium text-[#6D28D9]">Suggested by Farah</span>
-                      <button onClick={() => { setReplyContent(""); setAutoPopulated(false) }} className="ml-auto rounded p-0.5 text-[#7C3AED] hover:bg-[#DDD6FE]" title="Clear suggestion"><X className="h-3 w-3" /></button>
-                    </div>
-                  )}
-                  <textarea
-                    value={replyContent}
-                    onChange={(event) => { setReplyContent(event.target.value); if (autoPopulated) setAutoPopulated(false) }}
-                    placeholder={replyIsInternal ? "Write an internal note..." : "Write a reply..."}
-                    rows={3}
-                    className={cn(
-                      "w-full resize-none rounded-lg border px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-[#3B82F6]",
-                      replyIsInternal ? "border-[#FDE68A] bg-[#FFFBEB]" : "border-border bg-background",
-                    )}
-                    onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) sendReply() }}
-                  />
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[10px] text-muted-foreground">
-                      {replyIsInternal ? "This note will not be delivered externally" : "Outbound reply"}{" \u00B7 Ctrl+Enter"}
-                    </p>
-                    <button
-                      onClick={sendReply}
-                      disabled={replySending || !replyContent.trim()}
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium text-white disabled:opacity-50",
-                        replyIsInternal ? "bg-[#92400E] hover:bg-[#78350F]" : "bg-[#0F172A] hover:bg-[#1E293B]",
-                      )}
-                    >
-                      {replySending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                      {replyIsInternal ? "Save note" : "Send reply"}
-                    </button>
-                  </div>
-                  {replyStatus && <p className="text-xs text-muted-foreground">{replyStatus}</p>}
-                </div>
-              </>
-            ) : null}
+            {selected && (
+              <ReplyComposer
+                replyContent={replyContent}
+                replyIsInternal={replyIsInternal}
+                replySending={replySending}
+                replyStatus={replyStatus}
+                autoPopulated={autoPopulated}
+                suggestedDraft={suggestedDraft}
+                onReplyModeChange={setReplyIsInternal}
+                onReplyContentChange={(value) => {
+                  setReplyContent(value)
+                  if (autoPopulated) setAutoPopulated(false)
+                }}
+                onSend={sendReply}
+                onUseSuggestion={(content) => {
+                  setReplyContent(content)
+                  setReplyIsInternal(false)
+                  setReplyStatus(null)
+                }}
+                onClearSuggestion={() => {
+                  setReplyContent("")
+                  setAutoPopulated(false)
+                }}
+              />
+            )}
           </div>
 
-          {/* ── Col 3: Farah Context Panel (>= 1440px) ── */}
-          <div className="hidden min-[1440px]:flex w-[360px] shrink-0 flex-col border-l border-border bg-card lg:h-full">
+          <div className="hidden w-[360px] shrink-0 border-l border-border bg-card min-[1440px]:flex xl:h-full xl:min-h-0">
             {selected ? (
-              <div className="flex-1 overflow-y-auto p-4">
-                {contextPanel}
-              </div>
+              <div className="flex-1 overflow-y-auto p-4">{contextPanel}</div>
             ) : (
               <div className="flex flex-1 items-center justify-center">
                 <div className="text-center">
@@ -1271,8 +904,21 @@ export default function InboxPage() {
               </div>
             )}
           </div>
-
         </div>
+
+        <Sheet open={contextSheetOpen} onOpenChange={setContextSheetOpen}>
+          <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t p-0 min-[1440px]:hidden">
+            <SheetHeader className="border-b border-border px-4 py-4 text-left">
+              <SheetTitle>{selected?.subject || selected?.contact.nombre || "Conversation context"}</SheetTitle>
+              <SheetDescription>
+                Smart Handoff, drafts, actions, and business context for the current conversation.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
+              {contextPanel}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </AppShell>
   )
