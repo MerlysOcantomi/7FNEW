@@ -1,5 +1,3 @@
-"use client"
-
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { ComponentType } from "react"
@@ -41,12 +39,13 @@ const secciones: Record<string, SeccionConfig> = {
   },
 }
 
-export default function AdministracionSeccionPage({
+export default async function AdministracionSeccionPage({
   params,
 }: {
-  params: { seccion: string }
+  params: Promise<{ seccion: string }>
 }) {
-  const config = secciones[params.seccion]
+  const { seccion } = await params
+  const config = secciones[seccion]
   if (!config) {
     notFound()
   }
