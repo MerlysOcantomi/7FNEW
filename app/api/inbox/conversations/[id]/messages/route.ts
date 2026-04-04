@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
+import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
+import { sendOutboundEmail } from "@modules/inbox/email-outbound"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -39,6 +41,31 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     if (!message) {
       return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+    }
+
+    if (direction === "outbound" && !isInternal) {
+      void db.conversation
+        .findFirst({
+          where: { id, workspaceId },
+          select: {
+            channel: true,
+            subject: true,
+            contact: { select: { email: true } },
+            workspace: { select: { nombre: true } },
+          },
+        })
+        .then((conv) => {
+          if (!conv || conv.channel !== "email") return
+          const contactEmail = conv.contact?.email?.trim()
+          if (!contactEmail) return
+          return sendOutboundEmail({
+            workspaceName: conv.workspace.nombre,
+            contactEmail,
+            subject: conv.subject ?? "",
+            messageContent: message.content,
+          })
+        })
+        .catch(() => null)
     }
 
     await runConversationIntelligence({
