@@ -677,6 +677,9 @@ function InboxPageContent() {
     }
   }
 
+  const sendReplyRef = useRef(sendReply)
+  sendReplyRef.current = sendReply
+
   const statusSelectOptions = STATUS_OPTIONS
     .filter((s) => s !== "all")
     .map((s) => ({ value: s, label: statusLabel(s) }))
@@ -926,6 +929,13 @@ function InboxPageContent() {
         preventDefault: true,
         handler: handleInboxEscape,
       },
+      {
+        id: "inbox-send-reply",
+        combo: "Mod+Enter",
+        enabled: Boolean(selectedId) && !cannedOpen,
+        preventDefault: true,
+        handler: () => sendReplyRef.current(),
+      },
     ],
     [cannedOpen, contextSheetOpen, handleInboxEscape, navigateConversation, requestComposerFocus, selectedId],
   )
@@ -972,7 +982,7 @@ function InboxPageContent() {
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <div className="-mx-4 -mt-2 md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:overflow-hidden">
         <div className="flex h-full min-h-0 flex-col bg-background xl:flex-row">
-          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block")}>
+          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block xl:shrink-0")}>
             <ConversationList
               loading={loading}
               errorMessage={listErrorMessage}

@@ -250,7 +250,7 @@ export function ReplyComposer({
             placeholder={replyIsInternal ? "Write an internal note..." : "Write a reply..."}
             rows={4}
             className={cn(
-              "min-h-[128px] resize-none rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
+              "min-h-[128px] max-h-[256px] resize-none overflow-y-auto rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
               replyIsInternal && "border-amber-200 bg-amber-50/60",
               speech.listening && "ring-2 ring-red-300",
             )}
