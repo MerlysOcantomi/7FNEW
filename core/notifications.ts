@@ -12,6 +12,9 @@ export type NotificationType =
   | "comentario_nuevo"
   | "mencion"
   | "sistema"
+  | "inbox_nueva_conversacion"
+  | "inbox_nuevo_mensaje"
+  | "inbox_asignacion"
 
 interface CreateNotificationInput {
   userId: string

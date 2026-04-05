@@ -3,6 +3,7 @@ import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { logActivity } from "@/lib/activity"
 import { executeConversationAction, parseConversationJsonFields } from "@modules/inbox/service"
+import { notifyConversationAssigned } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string; actionId: string }> }
 
@@ -74,6 +75,17 @@ export async function POST(request: NextRequest, { params }: Params) {
         userName: session.nombre ?? session.email,
         userEmail: session.email,
       }).catch(() => {})
+    }
+
+    if (action.type === "assign_operator") {
+      const assigned = (result.results as { assignedTo?: string })?.assignedTo
+      if (assigned) {
+        void notifyConversationAssigned({
+          workspaceId,
+          conversationId: id,
+          assignedTo: assigned,
+        }).catch(() => null)
+      }
     }
 
     return successResponse({

@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendOutboundEmail } from "@modules/inbox/email-outbound"
+import { notifyInboundMessage } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -41,6 +42,26 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     if (!message) {
       return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+    }
+
+    if (direction === "inbound" && !isInternal) {
+      void db.conversation
+        .findFirst({
+          where: { id, workspaceId },
+          select: { assignedTo: true, subject: true, channel: true, contact: { select: { nombre: true } } },
+        })
+        .then((conv) => {
+          if (!conv) return
+          return notifyInboundMessage({
+            workspaceId,
+            conversationId: id,
+            subject: conv.subject,
+            contactName: conv.contact?.nombre,
+            channel: conv.channel,
+            assignedTo: conv.assignedTo,
+          })
+        })
+        .catch(() => null)
     }
 
     if (direction === "outbound" && !isInternal) {

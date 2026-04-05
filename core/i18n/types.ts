@@ -37,6 +37,20 @@ export interface TranslationSet {
     email_skipped: string
   }
 
+  notifications: {
+    inbox: {
+      newConversation: (who: string) => string
+      newConversationFallback: string
+      newMessage: (who: string) => string
+      newMessageFallback: string
+      assigned: string
+      assignedFallback: string
+      contactWebChat: string
+      contactEmail: string
+      contactDefault: string
+    }
+  }
+
   common: {
     subject: string
     message: string

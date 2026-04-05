@@ -5,6 +5,7 @@ import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth
 import { createConversationFromInboxEntry } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
+import { notifyNewConversation, notifyInboundMessage } from "@core/notifications/inbox"
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,6 +95,25 @@ export async function POST(request: NextRequest) {
       fuente,
     })
     const { conversation, contact } = conversationResult
+
+    if (!conversationResult.reused && !conversationResult.reopened) {
+      void notifyNewConversation({
+        workspaceId,
+        conversationId: conversation.id,
+        subject: conversation.subject,
+        contactName: contact.nombre,
+        channel: conversation.channel,
+      }).catch(() => null)
+    } else {
+      void notifyInboundMessage({
+        workspaceId,
+        conversationId: conversation.id,
+        subject: conversation.subject,
+        contactName: contact.nombre,
+        channel: conversation.channel,
+        assignedTo: conversation.assignedTo,
+      }).catch(() => null)
+    }
 
     if (!conversationResult.reused && !conversationResult.reopened && contact.email) {
       void db.workspace

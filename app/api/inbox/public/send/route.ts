@@ -3,6 +3,7 @@ import { db } from "@core/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
+import { notifyNewConversation, notifyInboundMessage } from "@core/notifications/inbox"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -136,16 +137,44 @@ export async function POST(request: NextRequest) {
       return corsJson({ success: false, error: { code: "INTERNAL_ERROR", message: "Could not create message" } }, { status: 500 })
     }
 
-    if (isNewConversation && ackEmail) {
-      void sendAcknowledgmentEmail({
-        workspaceName: workspace.nombre,
-        contactEmail: ackEmail,
-        contactName: ackName,
-        conversationSubject: ackSubject ?? "",
-        workspaceConfig: workspace.config,
+    if (isNewConversation) {
+      void notifyNewConversation({
         workspaceId: workspace.id,
         conversationId: targetConversationId,
+        subject: ackSubject,
+        contactName: ackName,
+        channel: "web_chat",
       }).catch(() => null)
+
+      if (ackEmail) {
+        void sendAcknowledgmentEmail({
+          workspaceName: workspace.nombre,
+          contactEmail: ackEmail,
+          contactName: ackName,
+          conversationSubject: ackSubject ?? "",
+          workspaceConfig: workspace.config,
+          workspaceId: workspace.id,
+          conversationId: targetConversationId,
+        }).catch(() => null)
+      }
+    } else {
+      void db.conversation
+        .findFirst({
+          where: { id: targetConversationId, workspaceId: workspace.id },
+          select: { assignedTo: true, subject: true, contact: { select: { nombre: true } } },
+        })
+        .then((conv) => {
+          if (!conv) return
+          return notifyInboundMessage({
+            workspaceId: workspace.id,
+            conversationId: targetConversationId,
+            subject: conv.subject,
+            contactName: conv.contact?.nombre,
+            channel: "web_chat",
+            assignedTo: conv.assignedTo,
+          })
+        })
+        .catch(() => null)
     }
 
     runConversationIntelligence({

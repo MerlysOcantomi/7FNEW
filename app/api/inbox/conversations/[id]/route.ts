@@ -7,6 +7,7 @@ import {
   parseConversationJsonFields,
   transitionConversation,
 } from "@modules/inbox/service"
+import { notifyConversationAssigned } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -69,6 +70,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     if (!updated) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+
+    const newAssignedTo = typeof body.assignedTo === "string" ? body.assignedTo.trim() : null
+    if (newAssignedTo && newAssignedTo !== existing.assignedTo) {
+      void notifyConversationAssigned({
+        workspaceId,
+        conversationId: id,
+        subject: updated.subject,
+        assignedTo: newAssignedTo,
+      }).catch(() => null)
+    }
 
     return successResponse(parseConversationJsonFields(updated))
   } catch (error) {

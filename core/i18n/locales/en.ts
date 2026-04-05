@@ -33,6 +33,20 @@ export const en: TranslationSet = {
     email_skipped: "Email skipped",
   },
 
+  notifications: {
+    inbox: {
+      newConversation: (who) => `New conversation from ${who}`,
+      newConversationFallback: "New conversation",
+      newMessage: (who) => `New message from ${who}`,
+      newMessageFallback: "New message",
+      assigned: "You have been assigned a conversation",
+      assignedFallback: "Conversation assigned",
+      contactWebChat: "Web visitor",
+      contactEmail: "Email contact",
+      contactDefault: "Contact",
+    },
+  },
+
   common: {
     subject: "Subject",
     message: "Message",
