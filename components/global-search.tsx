@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import {
   Search,
   X,
@@ -277,39 +278,62 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     active?.scrollIntoView({ block: "nearest" })
   }, [activeIndex])
 
-  // Keyboard handler
-  useEffect(() => {
-    if (!open) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault()
-        onClose()
-        return
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault()
-        setActiveIndex(i => (i + 1) % Math.max(navigableCount, 1))
-        return
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault()
-        setActiveIndex(i => (i - 1 + Math.max(navigableCount, 1)) % Math.max(navigableCount, 1))
-        return
-      }
-      if (e.key === "Enter") {
-        e.preventDefault()
-        if (displayMode === "results" && results[activeIndex]) {
-          router.push(results[activeIndex].href)
-          onClose()
-        } else if (displayMode === "links" && filteredLinks[activeIndex]) {
-          router.push(filteredLinks[activeIndex].href)
-          onClose()
-        }
-      }
+  const handleSubmitSelection = useCallback(() => {
+    if (displayMode === "results" && results[activeIndex]) {
+      router.push(results[activeIndex].href)
+      onClose()
+      return
     }
-    window.addEventListener("keydown", handleKey)
-    return () => window.removeEventListener("keydown", handleKey)
-  }, [open, onClose, displayMode, results, filteredLinks, activeIndex, navigableCount, router])
+
+    if (displayMode === "links" && filteredLinks[activeIndex]) {
+      router.push(filteredLinks[activeIndex].href)
+      onClose()
+    }
+  }, [activeIndex, displayMode, filteredLinks, onClose, results, router])
+
+  const overlayShortcuts = useMemo(
+    () => [
+      {
+        id: "global-search-close",
+        combo: "Escape",
+        enabled: open,
+        allowInEditable: true,
+        preventDefault: true,
+        handler: onClose,
+      },
+      {
+        id: "global-search-next",
+        combo: "ArrowDown",
+        enabled: open,
+        allowInEditable: true,
+        preventDefault: true,
+        handler: () => {
+          setActiveIndex((index) => (index + 1) % Math.max(navigableCount, 1))
+        },
+      },
+      {
+        id: "global-search-previous",
+        combo: "ArrowUp",
+        enabled: open,
+        allowInEditable: true,
+        preventDefault: true,
+        handler: () => {
+          setActiveIndex((index) => (index - 1 + Math.max(navigableCount, 1)) % Math.max(navigableCount, 1))
+        },
+      },
+      {
+        id: "global-search-submit",
+        combo: "Enter",
+        enabled: open,
+        allowInEditable: true,
+        preventDefault: true,
+        handler: handleSubmitSelection,
+      },
+    ],
+    [handleSubmitSelection, navigableCount, onClose, open],
+  )
+
+  useKeyboardShortcuts(overlayShortcuts, { scope: "overlay" })
 
   if (!open) return null
 

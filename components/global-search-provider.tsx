@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, createContext, useContext } from "react"
+import { useMemo, useState, createContext, useContext } from "react"
 import { GlobalSearch } from "@/components/global-search"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 
 const GlobalSearchContext = createContext<{ openSearch: () => void }>({ openSearch: () => {} })
 
@@ -15,16 +16,20 @@ export function GlobalSearchProvider({ children }: { children: React.ReactNode }
   const openSearch = () => setSearchOpen(true)
   const closeSearch = () => setSearchOpen(false)
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  const shortcuts = useMemo(
+    () => [
+      {
+        id: "open-global-search",
+        combo: "Mod+K",
+        allowInEditable: true,
+        preventDefault: true,
+        handler: openSearch,
+      },
+    ],
+    [],
+  )
+
+  useKeyboardShortcuts(shortcuts, { scope: "global" })
 
   return (
     <GlobalSearchContext.Provider value={{ openSearch }}>

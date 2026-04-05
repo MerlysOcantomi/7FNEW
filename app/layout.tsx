@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ToastProvider } from '@/components/toast-provider'
+import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider'
 import { UserProvider } from '@/hooks/use-user'
 import { GlobalSearchProvider } from '@/components/global-search-provider'
 import './globals.css'
@@ -42,9 +43,11 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <UserProvider>
           <ToastProvider>
-            <GlobalSearchProvider>
-              {children}
-            </GlobalSearchProvider>
+            <KeyboardShortcutsProvider>
+              <GlobalSearchProvider>
+                {children}
+              </GlobalSearchProvider>
+            </KeyboardShortcutsProvider>
           </ToastProvider>
         </UserProvider>
         <Analytics />
