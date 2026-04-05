@@ -982,7 +982,7 @@ function InboxPageContent() {
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <div className="-mx-4 -mt-2 md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:overflow-hidden">
         <div className="flex h-full min-h-0 flex-col bg-background xl:flex-row">
-          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block xl:shrink-0")}>
+          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block xl:h-full xl:shrink-0 xl:overflow-hidden")}>
             <ConversationList
               loading={loading}
               errorMessage={listErrorMessage}
