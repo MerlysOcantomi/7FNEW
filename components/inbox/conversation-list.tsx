@@ -67,7 +67,7 @@ export function ConversationList({
   onSelect,
 }: ConversationListProps) {
   return (
-    <div className="shrink-0 border-b border-border bg-card/95 xl:flex xl:h-full xl:w-[368px] xl:flex-col xl:overflow-hidden xl:border-b-0 xl:border-r">
+    <div className="h-full w-full shrink-0 border-b border-border bg-card/95 xl:flex xl:flex-col xl:overflow-hidden xl:border-b-0 xl:border-r">
       <div className="space-y-4 border-b border-border/80 bg-gradient-to-b from-background to-background/80 px-4 py-4 md:px-5">
         <div className="flex items-start justify-between gap-3">
           <div>
