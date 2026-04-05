@@ -1,9 +1,11 @@
 "use client"
 
-import { Sparkles, Send, Loader2, X } from "lucide-react"
+import { useEffect, useRef } from "react"
+import { Sparkles, Send, Loader2, X, Mic, MicOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 
 interface SuggestedDraft {
   title?: string | null
@@ -37,6 +39,55 @@ export function ReplyComposer({
   onUseSuggestion,
   onClearSuggestion,
 }: ReplyComposerProps) {
+  const speech = useSpeechRecognition()
+  const baseTextRef = useRef("")
+  const userInterruptedRef = useRef(false)
+
+  function handleMicToggle() {
+    if (speech.listening) {
+      speech.stop()
+      return
+    }
+    userInterruptedRef.current = false
+    baseTextRef.current = replyContent
+    speech.start()
+  }
+
+  function handleTextareaChange(value: string) {
+    if (speech.listening) {
+      userInterruptedRef.current = true
+      speech.stop()
+    }
+    onReplyContentChange(value)
+  }
+
+  function handleSend() {
+    if (speech.listening) {
+      userInterruptedRef.current = true
+      speech.stop()
+    }
+    baseTextRef.current = ""
+    onSend()
+  }
+
+  useEffect(() => {
+    if (!speech.listening || !speech.transcript) return
+    const separator = baseTextRef.current && !baseTextRef.current.endsWith(" ") ? " " : ""
+    onReplyContentChange(baseTextRef.current + separator + speech.transcript)
+  }, [speech.transcript, speech.listening, onReplyContentChange])
+
+  useEffect(() => {
+    if (speech.listening || !speech.transcript) return
+    const separator = baseTextRef.current && !baseTextRef.current.endsWith(" ") ? " " : ""
+    const finalText = baseTextRef.current + separator + speech.transcript
+    baseTextRef.current = finalText
+    if (!userInterruptedRef.current) {
+      onReplyContentChange(finalText)
+    }
+    userInterruptedRef.current = false
+    speech.reset()
+  }, [speech.listening, speech.transcript, speech.reset, onReplyContentChange])
+
   return (
     <div className="shrink-0 border-t border-border bg-card/95 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur supports-[backdrop-filter]:bg-card/85 md:px-5">
       <div className="space-y-3 rounded-[24px] border border-border/80 bg-background/90 p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] md:p-4">
@@ -83,8 +134,29 @@ export function ReplyComposer({
           >
             Internal note
           </Button>
+
+          {speech.supported && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleMicToggle}
+              className={cn(
+                "ml-1 rounded-xl px-2",
+                speech.listening && "bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800",
+              )}
+              title={speech.listening ? "Stop dictation" : "Start dictation"}
+            >
+              {speech.listening ? (
+                <MicOff className="h-3.5 w-3.5" />
+              ) : (
+                <Mic className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
+
           <span className="ml-auto text-[11px] text-muted-foreground max-sm:w-full">
-            Ctrl+Enter to send
+            {speech.listening ? "Listening..." : "Ctrl+Enter to send"}
           </span>
         </div>
 
@@ -106,15 +178,16 @@ export function ReplyComposer({
         <div className="space-y-2">
           <Textarea
             value={replyContent}
-            onChange={(event) => onReplyContentChange(event.target.value)}
+            onChange={(event) => handleTextareaChange(event.target.value)}
             placeholder={replyIsInternal ? "Write an internal note..." : "Write a reply..."}
             rows={4}
             className={cn(
               "min-h-[128px] resize-none rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
               replyIsInternal && "border-amber-200 bg-amber-50/60",
+              speech.listening && "ring-2 ring-red-300",
             )}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) onSend()
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
             }}
           />
 
@@ -126,7 +199,7 @@ export function ReplyComposer({
             </p>
             <Button
               type="button"
-              onClick={onSend}
+              onClick={handleSend}
               disabled={replySending || !replyContent.trim()}
               className={cn(
                 "min-w-[148px] self-end rounded-2xl px-4 sm:self-auto",
