@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
             contactEmail: contact.email!,
             conversationSubject: conversation.subject ?? "",
             workspaceConfig: ws?.config,
+            workspaceId,
+            conversationId: conversation.id,
           }),
         )
         .catch(() => null)

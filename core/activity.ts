@@ -12,6 +12,8 @@ export type ActivityType =
   | "relation_removed"
   | "comment"
   | "mention"
+  | "email_sent"
+  | "email_failed"
 
 export interface ActivityData {
   field?: string

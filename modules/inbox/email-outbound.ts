@@ -1,5 +1,6 @@
 import { sendEmail, type SendEmailResult } from "@core/email"
 import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
+import { logActivity } from "@core/activity"
 
 export interface SendOutboundEmailInput {
   workspaceName: string
@@ -25,12 +26,22 @@ export interface SendAcknowledgmentInput {
   conversationSubject: string
   /** Raw workspace.config JSON — used to resolve per-workspace overrides. */
   workspaceConfig?: string | null
+  /** Required for activity logging. */
+  workspaceId: string
+  conversationId: string
 }
 
 export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): Promise<SendEmailResult> {
   const cfg = resolveAckEmailConfig(input.workspaceConfig)
 
   if (!cfg.enabled) {
+    logActivity({
+      module: "email",
+      recordId: input.conversationId,
+      type: "email_sent",
+      data: { kind: "acknowledgment", to: input.contactEmail, skipped: true, reason: "disabled_by_config" },
+      workspaceId: input.workspaceId,
+    }).catch(() => null)
     return { ok: true, id: undefined }
   }
 
@@ -54,12 +65,27 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
     footer,
   })
 
-  return sendEmail({
+  const result = await sendEmail({
     to: input.contactEmail,
     subject,
     text: `${greeting}\n\n${heading}\n\nSubject: ${convSubject}\n\n${body}\n\n— ${displayName}`,
     html,
   })
+
+  logActivity({
+    module: "email",
+    recordId: input.conversationId,
+    type: result.ok ? "email_sent" : "email_failed",
+    data: {
+      kind: "acknowledgment",
+      to: input.contactEmail,
+      resendId: result.id ?? null,
+      error: result.error ?? null,
+    },
+    workspaceId: input.workspaceId,
+  }).catch(() => null)
+
+  return result
 }
 
 export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<SendEmailResult> {
