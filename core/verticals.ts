@@ -2,6 +2,7 @@ import { db } from "@core/db"
 
 export interface VerticalConfig {
   modules: Record<string, boolean>
+  locale?: string
   ui: {
     labels: Record<string, string>
   }

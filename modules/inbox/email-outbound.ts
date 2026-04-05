@@ -1,12 +1,15 @@
 import { sendEmail, type SendEmailResult } from "@core/email"
 import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
 import { logActivity } from "@core/activity"
+import { getTranslations, resolveLocaleFromConfig } from "@core/i18n"
 
 export interface SendOutboundEmailInput {
   workspaceName: string
   contactEmail: string
   subject: string
   messageContent: string
+  /** Raw workspace.config JSON for locale resolution. */
+  workspaceConfig?: string | null
 }
 
 function ensureRePrefix(subject: string): string {
@@ -45,30 +48,33 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
     return { ok: true, id: undefined }
   }
 
+  const t = getTranslations(cfg.locale)
   const displayName = cfg.senderName || sanitizeDisplayName(input.workspaceName)
-  const greeting = input.contactName ? `Hi ${escapeHtml(input.contactName)},` : "Hi,"
-  const convSubject = input.conversationSubject || "Your message"
+  const greeting = escapeHtml(t.email.ack.greeting(input.contactName))
+  const convSubject = input.conversationSubject || t.common.message
   const subject = cfg.subject || `Re: ${convSubject}`
   const heading = cfg.heading
   const body = cfg.body
-  const footer = cfg.footer || `${displayName} — Powered by 7F`
+  const footer = cfg.footer || `${displayName} — ${t.email.poweredBy}`
+  const subjectLabel = t.email.ack.subjectLabel
 
   const html = wrapEmailHtml({
     body: `
       <p style="margin:0 0 16px"><strong>${greeting}</strong></p>
       <p style="margin:0 0 16px">${escapeHtml(heading)}</p>
       <div style="padding:12px 16px;background:#f3f4f6;border-radius:6px;margin:0 0 16px">
-        <p style="margin:0;font-size:13px;color:#6b7280">Subject</p>
+        <p style="margin:0;font-size:13px;color:#6b7280">${escapeHtml(subjectLabel)}</p>
         <p style="margin:4px 0 0;font-weight:600">${escapeHtml(convSubject)}</p>
       </div>
       <p style="margin:0;font-size:14px;color:#6b7280">${escapeHtml(body)}</p>`,
     footer,
+    locale: cfg.locale,
   })
 
   const result = await sendEmail({
     to: input.contactEmail,
     subject,
-    text: `${greeting}\n\n${heading}\n\nSubject: ${convSubject}\n\n${body}\n\n— ${displayName}`,
+    text: `${t.email.ack.greeting(input.contactName)}\n\n${heading}\n\n${subjectLabel}: ${convSubject}\n\n${body}\n\n— ${displayName}`,
     html,
   })
 
@@ -89,14 +95,15 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
 }
 
 export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<SendEmailResult> {
+  const t = getTranslations(resolveLocaleFromConfig(input.workspaceConfig))
   const displayName = sanitizeDisplayName(input.workspaceName)
   const from = `${displayName} <inbox@7f.app>`
-  const subjectBase = input.subject?.trim() || "New message"
+  const subjectBase = input.subject?.trim() || t.email.outbound.defaultSubject
   const subject = ensureRePrefix(subjectBase)
 
-  const footerText = `Sent via Smart Inbox — ${displayName}`
+  const footerText = t.email.outbound.footer(displayName)
   const bodyText = `${input.messageContent}\n\n---\n${footerText}`
-  const footerEscaped = escapeHtml(`Sent via Smart Inbox — ${displayName}`)
+  const footerEscaped = escapeHtml(footerText)
   const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>`
 
   return sendEmail({

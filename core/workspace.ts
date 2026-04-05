@@ -5,6 +5,7 @@ import {
   getVerticalByKey,
   type VerticalConfig,
 } from "@core/verticals"
+import { resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
 
 export const DEFAULT_WORKSPACE_ID = "ws_default"
 export const DEFAULT_WORKSPACE_SLUG = "default"
@@ -117,7 +118,9 @@ export async function getWorkspaceWithResolvedConfig(workspaceId: string) {
   const overrides = parseJsonConfig(ws.config)
   const resolvedConfig = mergeConfigs(defaults, overrides)
 
-  return { ...ws, resolvedConfig }
+  const locale: SupportedLocale = resolveLocaleFromConfig(ws.config)
+
+  return { ...ws, resolvedConfig, locale }
 }
 
 export async function updateWorkspaceConfig(

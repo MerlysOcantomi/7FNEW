@@ -24,6 +24,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       slug: ws.slug,
       verticalKey: ws.verticalKey,
       plan: ws.plan,
+      locale: ws.locale,
       config: parseJsonConfig(ws.config),
       resolvedConfig: ws.resolvedConfig,
       role: member.role,
@@ -87,6 +88,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       slug: ws.slug,
       verticalKey: ws.verticalKey,
       plan: ws.plan,
+      locale: ws.locale,
       config: parseJsonConfig(ws.config),
       resolvedConfig: ws.resolvedConfig,
     })

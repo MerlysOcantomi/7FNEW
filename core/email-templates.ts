@@ -3,6 +3,8 @@
  * All styles are inlined for maximum email-client compatibility.
  */
 
+import { getTranslations, resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
+
 const FONT_STACK = "system-ui, -apple-system, sans-serif"
 
 export interface BaseEmailOptions {
@@ -10,15 +12,17 @@ export interface BaseEmailOptions {
   body: string
   /** Optional footer line. Defaults to "Sent via 7F". */
   footer?: string
+  /** HTML lang attribute. Defaults to "en". */
+  locale?: string
 }
 
 /**
  * Wraps arbitrary body HTML in a consistent 7F-branded email shell.
  * Keeps things dead-simple: single column, readable, mobile-friendly.
  */
-export function wrapEmailHtml({ body, footer = "Sent via 7F" }: BaseEmailOptions): string {
+export function wrapEmailHtml({ body, footer = "Sent via 7F", locale = "en" }: BaseEmailOptions): string {
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:${FONT_STACK}">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f9fafb">
@@ -49,37 +53,45 @@ export interface AckEmailConfig {
   footer?: string
 }
 
-const ACK_DEFAULTS: Required<AckEmailConfig> = {
-  enabled: true,
-  senderName: "",
-  subject: "",
-  heading: "We received your message and our team will get back to you shortly.",
-  body: "No need to reply to this email. We'll follow up directly.",
-  footer: "",
+function getAckDefaults(locale: SupportedLocale): Required<AckEmailConfig> {
+  const t = getTranslations(locale)
+  return {
+    enabled: true,
+    senderName: "",
+    subject: "",
+    heading: t.email.ack.heading,
+    body: t.email.ack.body,
+    footer: "",
+  }
 }
 
 /**
  * Extracts and merges ack email config from the raw workspace config JSON.
  * Returns full config with safe defaults for every field.
+ * Locale is resolved from the same config JSON (root-level `locale` key).
  */
 export function resolveAckEmailConfig(
   workspaceConfigJson: string | null | undefined,
-): Required<AckEmailConfig> {
-  if (!workspaceConfigJson) return { ...ACK_DEFAULTS }
+): Required<AckEmailConfig> & { locale: SupportedLocale } {
+  const locale = resolveLocaleFromConfig(workspaceConfigJson)
+  const defaults = getAckDefaults(locale)
+
+  if (!workspaceConfigJson) return { ...defaults, locale }
   try {
     const parsed = JSON.parse(workspaceConfigJson)
     const ack = parsed?.email?.ack
-    if (!ack || typeof ack !== "object") return { ...ACK_DEFAULTS }
+    if (!ack || typeof ack !== "object") return { ...defaults, locale }
     return {
-      enabled: typeof ack.enabled === "boolean" ? ack.enabled : ACK_DEFAULTS.enabled,
-      senderName: typeof ack.senderName === "string" ? ack.senderName : ACK_DEFAULTS.senderName,
-      subject: typeof ack.subject === "string" ? ack.subject : ACK_DEFAULTS.subject,
-      heading: typeof ack.heading === "string" ? ack.heading : ACK_DEFAULTS.heading,
-      body: typeof ack.body === "string" ? ack.body : ACK_DEFAULTS.body,
-      footer: typeof ack.footer === "string" ? ack.footer : ACK_DEFAULTS.footer,
+      enabled: typeof ack.enabled === "boolean" ? ack.enabled : defaults.enabled,
+      senderName: typeof ack.senderName === "string" ? ack.senderName : defaults.senderName,
+      subject: typeof ack.subject === "string" ? ack.subject : defaults.subject,
+      heading: typeof ack.heading === "string" ? ack.heading : defaults.heading,
+      body: typeof ack.body === "string" ? ack.body : defaults.body,
+      footer: typeof ack.footer === "string" ? ack.footer : defaults.footer,
+      locale,
     }
   } catch {
-    return { ...ACK_DEFAULTS }
+    return { ...defaults, locale }
   }
 }
 

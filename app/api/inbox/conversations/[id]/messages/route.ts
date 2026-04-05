@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             channel: true,
             subject: true,
             contact: { select: { email: true } },
-            workspace: { select: { nombre: true } },
+            workspace: { select: { nombre: true, config: true } },
           },
         })
         .then((conv) => {
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             contactEmail,
             subject: conv.subject ?? "",
             messageContent: message.content,
+            workspaceConfig: conv.workspace.config,
           })
         })
         .catch(() => null)
