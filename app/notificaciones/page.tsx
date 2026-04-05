@@ -18,6 +18,9 @@ import {
   Receipt,
   CheckCheck,
   Loader2,
+  Inbox,
+  Mail,
+  UserCheck,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -43,10 +46,14 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: stri
   comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comment" },
   mencion: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mention" },
   sistema: { icon: Bell, color: "text-muted-foreground bg-muted", label: "System" },
+  inbox_nueva_conversacion: { icon: Inbox, color: "text-teal-500 bg-teal-500/10", label: "Inbox" },
+  inbox_nuevo_mensaje: { icon: Mail, color: "text-teal-600 bg-teal-600/10", label: "Inbox" },
+  inbox_asignacion: { icon: UserCheck, color: "text-violet-500 bg-violet-500/10", label: "Inbox" },
 }
 
 const TYPE_FILTERS = [
   { value: "all", label: "All" },
+  { value: "inbox", label: "Inbox" },
   { value: "tarea", label: "Tasks" },
   { value: "proyecto", label: "Projects" },
   { value: "factura", label: "Billing" },

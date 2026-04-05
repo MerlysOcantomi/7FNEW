@@ -14,6 +14,9 @@ import {
   RefreshCw,
   CheckCheck,
   X,
+  Inbox,
+  Mail,
+  UserCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
@@ -48,6 +51,9 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string }> = {
   comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500" },
   mencion: { icon: AtSign, color: "text-pink-500" },
   sistema: { icon: Bell, color: "text-muted-foreground" },
+  inbox_nueva_conversacion: { icon: Inbox, color: "text-teal-500" },
+  inbox_nuevo_mensaje: { icon: Mail, color: "text-teal-600" },
+  inbox_asignacion: { icon: UserCheck, color: "text-violet-500" },
 }
 
 function timeAgo(dateStr: string): string {
