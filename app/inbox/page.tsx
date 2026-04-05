@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
@@ -356,7 +356,7 @@ function formatRoleLabel(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-export default function InboxPage() {
+function InboxPageContent() {
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [channel, setChannel] = useState("all")
@@ -1077,5 +1077,25 @@ export default function InboxPage() {
         </Sheet>
       </div>
     </AppShell>
+  )
+}
+
+function InboxPageFallback() {
+  return (
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
+      <div className="-mx-4 -mt-2 md:-mx-8">
+        <div className="flex min-h-[50vh] items-center justify-center bg-background">
+          <p className="text-sm text-muted-foreground">Loading inbox...</p>
+        </div>
+      </div>
+    </AppShell>
+  )
+}
+
+export default function InboxPage() {
+  return (
+    <Suspense fallback={<InboxPageFallback />}>
+      <InboxPageContent />
+    </Suspense>
   )
 }
