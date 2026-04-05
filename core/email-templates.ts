@@ -36,6 +36,53 @@ export function wrapEmailHtml({ body, footer = "Sent via 7F" }: BaseEmailOptions
 </html>`
 }
 
+// ---------------------------------------------------------------------------
+// Per-workspace acknowledgment config (lives in workspace.config.email.ack)
+// ---------------------------------------------------------------------------
+
+export interface AckEmailConfig {
+  enabled?: boolean
+  senderName?: string
+  subject?: string
+  heading?: string
+  body?: string
+  footer?: string
+}
+
+const ACK_DEFAULTS: Required<AckEmailConfig> = {
+  enabled: true,
+  senderName: "",
+  subject: "",
+  heading: "We received your message and our team will get back to you shortly.",
+  body: "No need to reply to this email. We'll follow up directly.",
+  footer: "",
+}
+
+/**
+ * Extracts and merges ack email config from the raw workspace config JSON.
+ * Returns full config with safe defaults for every field.
+ */
+export function resolveAckEmailConfig(
+  workspaceConfigJson: string | null | undefined,
+): Required<AckEmailConfig> {
+  if (!workspaceConfigJson) return { ...ACK_DEFAULTS }
+  try {
+    const parsed = JSON.parse(workspaceConfigJson)
+    const ack = parsed?.email?.ack
+    if (!ack || typeof ack !== "object") return { ...ACK_DEFAULTS }
+    return {
+      enabled: typeof ack.enabled === "boolean" ? ack.enabled : ACK_DEFAULTS.enabled,
+      senderName: typeof ack.senderName === "string" ? ack.senderName : ACK_DEFAULTS.senderName,
+      subject: typeof ack.subject === "string" ? ack.subject : ACK_DEFAULTS.subject,
+      heading: typeof ack.heading === "string" ? ack.heading : ACK_DEFAULTS.heading,
+      body: typeof ack.body === "string" ? ack.body : ACK_DEFAULTS.body,
+      footer: typeof ack.footer === "string" ? ack.footer : ACK_DEFAULTS.footer,
+    }
+  } catch {
+    return { ...ACK_DEFAULTS }
+  }
+}
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")

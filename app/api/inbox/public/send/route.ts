@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
         contactEmail: ackEmail,
         contactName: ackName,
         conversationSubject: ackSubject ?? "",
+        workspaceConfig: workspace.config,
       }).catch(() => null)
     }
 

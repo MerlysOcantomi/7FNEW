@@ -1,5 +1,5 @@
 import { sendEmail, type SendEmailResult } from "@core/email"
-import { escapeHtml, wrapEmailHtml } from "@core/email-templates"
+import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
 
 export interface SendOutboundEmailInput {
   workspaceName: string
@@ -23,29 +23,41 @@ export interface SendAcknowledgmentInput {
   contactName: string | null
   contactEmail: string
   conversationSubject: string
+  /** Raw workspace.config JSON — used to resolve per-workspace overrides. */
+  workspaceConfig?: string | null
 }
 
 export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): Promise<SendEmailResult> {
-  const displayName = sanitizeDisplayName(input.workspaceName)
+  const cfg = resolveAckEmailConfig(input.workspaceConfig)
+
+  if (!cfg.enabled) {
+    return { ok: true, id: undefined }
+  }
+
+  const displayName = cfg.senderName || sanitizeDisplayName(input.workspaceName)
   const greeting = input.contactName ? `Hi ${escapeHtml(input.contactName)},` : "Hi,"
-  const subject = input.conversationSubject || "We received your message"
+  const convSubject = input.conversationSubject || "Your message"
+  const subject = cfg.subject || `Re: ${convSubject}`
+  const heading = cfg.heading
+  const body = cfg.body
+  const footer = cfg.footer || `${displayName} — Powered by 7F`
 
   const html = wrapEmailHtml({
     body: `
       <p style="margin:0 0 16px"><strong>${greeting}</strong></p>
-      <p style="margin:0 0 16px">We received your message and our team will get back to you shortly.</p>
+      <p style="margin:0 0 16px">${escapeHtml(heading)}</p>
       <div style="padding:12px 16px;background:#f3f4f6;border-radius:6px;margin:0 0 16px">
         <p style="margin:0;font-size:13px;color:#6b7280">Subject</p>
-        <p style="margin:4px 0 0;font-weight:600">${escapeHtml(subject)}</p>
+        <p style="margin:4px 0 0;font-weight:600">${escapeHtml(convSubject)}</p>
       </div>
-      <p style="margin:0;font-size:14px;color:#6b7280">No need to reply to this email. We'll follow up directly.</p>`,
-    footer: `${displayName} — Powered by 7F`,
+      <p style="margin:0;font-size:14px;color:#6b7280">${escapeHtml(body)}</p>`,
+    footer,
   })
 
   return sendEmail({
     to: input.contactEmail,
-    subject: `Re: ${subject}`,
-    text: `${greeting}\n\nWe received your message and our team will get back to you shortly.\n\nSubject: ${subject}\n\nNo need to reply to this email.\n\n— ${displayName}`,
+    subject,
+    text: `${greeting}\n\n${heading}\n\nSubject: ${convSubject}\n\n${body}\n\n— ${displayName}`,
     html,
   })
 }

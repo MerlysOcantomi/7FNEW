@@ -97,13 +97,14 @@ export async function POST(request: NextRequest) {
 
     if (!conversationResult.reused && !conversationResult.reopened && contact.email) {
       void db.workspace
-        .findUnique({ where: { id: workspaceId }, select: { nombre: true } })
+        .findUnique({ where: { id: workspaceId }, select: { nombre: true, config: true } })
         .then((ws) =>
           sendAcknowledgmentEmail({
             workspaceName: ws?.nombre ?? "7F",
             contactName: contact.nombre,
             contactEmail: contact.email!,
             conversationSubject: conversation.subject ?? "",
+            workspaceConfig: ws?.config,
           }),
         )
         .catch(() => null)
