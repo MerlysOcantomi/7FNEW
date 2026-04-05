@@ -1006,7 +1006,7 @@ function InboxPageContent() {
           <div
             className={cn(
               selectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col xl:flex xl:h-full xl:min-h-0",
+              "min-w-0 flex-1 flex-col xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden",
             )}
           >
             <ConversationThread

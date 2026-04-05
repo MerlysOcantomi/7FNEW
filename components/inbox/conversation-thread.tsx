@@ -158,7 +158,7 @@ export function ConversationThread({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.04),_transparent_28%)] px-4 py-4 md:px-5 md:py-5">
           {messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6">
