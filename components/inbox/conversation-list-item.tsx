@@ -49,8 +49,8 @@ export function ConversationListItem({
       className={cn(
         "group relative w-full rounded-[22px] border px-4 py-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
         selected
-          ? "border-primary/30 bg-primary/[0.06] shadow-[0_8px_30px_rgba(15,23,42,0.08)]"
-          : "border-border/80 bg-card hover:-translate-y-0.5 hover:border-border hover:bg-accent/15 hover:shadow-[0_10px_24px_rgba(15,23,42,0.06)]",
+          ? "border-primary/30 bg-primary/[0.06] shadow-[0_6px_16px_rgba(15,23,42,0.06)]"
+          : "border-border/80 bg-card hover:border-border hover:bg-accent/15 hover:shadow-[0_6px_14px_rgba(15,23,42,0.05)]",
       )}
     >
       <span
