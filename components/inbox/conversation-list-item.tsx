@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
@@ -33,8 +34,16 @@ export function ConversationListItem({
   urgencyClassName,
   leadScore,
 }: ConversationListItemProps) {
+  const itemRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!selected) return
+    itemRef.current?.scrollIntoView({ block: "nearest" })
+  }, [selected])
+
   return (
     <button
+      ref={itemRef}
       onClick={onClick}
       aria-pressed={selected}
       className={cn(

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
@@ -14,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useFetch } from "@/hooks/use-fetch"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
 import { Sparkles } from "lucide-react"
 
@@ -378,7 +380,14 @@ export default function InboxPage() {
   const [autoPopulated, setAutoPopulated] = useState(false)
   const [mobileView, setMobileView] = useState<"list" | "thread">("list")
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
+  const [cannedOpen, setCannedOpen] = useState(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const pendingComposerFocusRef = useRef(false)
+
+  const searchParams = useSearchParams()
+  const deepLinkId = searchParams.get("id")
+  const lastDeepLinkRef = useRef<string | null>(null)
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -424,13 +433,22 @@ export default function InboxPage() {
       : error
 
   useEffect(() => {
+    if (deepLinkId && deepLinkId !== lastDeepLinkRef.current) {
+      lastDeepLinkRef.current = deepLinkId
+      if (conversations.some((c) => c.id === deepLinkId)) {
+        setSelectedId(deepLinkId)
+        setMobileView("thread")
+        return
+      }
+    }
+
     if (!selectedId && conversations.length > 0) {
       setSelectedId(conversations[0].id)
     }
     if (selectedId && !conversations.some((item) => item.id === selectedId)) {
       setSelectedId(conversations[0]?.id ?? null)
     }
-  }, [conversations, selectedId])
+  }, [conversations, selectedId, deepLinkId])
 
   useEffect(() => {
     setReplyContent("")
@@ -441,6 +459,7 @@ export default function InboxPage() {
     setActionsExpanded(false)
     setAutoPopulated(false)
     setContextSheetOpen(false)
+    setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
     if (!selectedId) {
       setMobileView("list")
@@ -769,6 +788,59 @@ export default function InboxPage() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
+  const selectedIndex = useMemo(
+    () => conversations.findIndex((item) => item.id === selectedId),
+    [conversations, selectedId],
+  )
+
+  const isMobileInboxViewport = useCallback(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(max-width: 1279px)").matches
+  }, [])
+
+  const focusComposerTextarea = useCallback(() => {
+    const textarea = composerTextareaRef.current
+    if (!textarea) return false
+
+    textarea.focus()
+    const cursorPosition = textarea.value.length
+    textarea.setSelectionRange(cursorPosition, cursorPosition)
+
+    return true
+  }, [])
+
+  const requestComposerFocus = useCallback((nextMode?: boolean) => {
+    if (!selectedId) return
+
+    if (typeof nextMode === "boolean") {
+      setReplyIsInternal(nextMode)
+    }
+
+    pendingComposerFocusRef.current = true
+
+    if (isMobileInboxViewport() && mobileView !== "thread") {
+      setMobileView("thread")
+    }
+
+    requestAnimationFrame(() => {
+      if (focusComposerTextarea()) {
+        pendingComposerFocusRef.current = false
+      }
+    })
+  }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selectedId])
+
+  useEffect(() => {
+    if (!pendingComposerFocusRef.current) return
+    if (!selected) return
+    if (isMobileInboxViewport() && mobileView !== "thread") return
+
+    requestAnimationFrame(() => {
+      if (focusComposerTextarea()) {
+        pendingComposerFocusRef.current = false
+      }
+    })
+  }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selected])
+
   function handleSelectConversation(id: string) {
     setSelectedId(id)
     setMobileView("thread")
@@ -776,8 +848,89 @@ export default function InboxPage() {
 
   function handleBackToList() {
     setMobileView("list")
+    setCannedOpen(false)
     setContextSheetOpen(false)
   }
+
+  const navigateConversation = useCallback((offset: 1 | -1) => {
+    if (!selectedId || conversations.length === 0 || selectedIndex < 0) return
+
+    const nextIndex = selectedIndex + offset
+    if (nextIndex < 0 || nextIndex >= conversations.length) return
+
+    setSelectedId(conversations[nextIndex].id)
+  }, [conversations, selectedId, selectedIndex])
+
+  const handleInboxEscape = useCallback(() => {
+    if (contextSheetOpen) {
+      setContextSheetOpen(false)
+      return
+    }
+
+    if (selectedId && mobileView === "thread" && isMobileInboxViewport()) {
+      handleBackToList()
+    }
+  }, [contextSheetOpen, isMobileInboxViewport, mobileView, selectedId])
+
+  const inboxShortcuts = useMemo(
+    () => [
+      {
+        id: "inbox-next-conversation",
+        combo: "j",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => navigateConversation(1),
+      },
+      {
+        id: "inbox-previous-conversation",
+        combo: "k",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => navigateConversation(-1),
+      },
+      {
+        id: "inbox-open-conversation",
+        combo: "Enter",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => {
+          if (!selectedId) return
+          handleSelectConversation(selectedId)
+        },
+      },
+      {
+        id: "inbox-focus-composer",
+        combo: "e",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => requestComposerFocus(),
+      },
+      {
+        id: "inbox-reply-mode",
+        combo: "r",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => requestComposerFocus(false),
+      },
+      {
+        id: "inbox-internal-mode",
+        combo: "i",
+        enabled: !cannedOpen && !contextSheetOpen,
+        preventDefault: true,
+        handler: () => requestComposerFocus(true),
+      },
+      {
+        id: "inbox-escape",
+        combo: "Escape",
+        enabled: !cannedOpen,
+        preventDefault: true,
+        handler: handleInboxEscape,
+      },
+    ],
+    [cannedOpen, contextSheetOpen, handleInboxEscape, navigateConversation, requestComposerFocus, selectedId],
+  )
+
+  useKeyboardShortcuts(inboxShortcuts, { scope: "page" })
 
   const contextPanel = selected ? (
     <ContextPanel
@@ -873,11 +1026,14 @@ export default function InboxPage() {
                 replyStatus={replyStatus}
                 autoPopulated={autoPopulated}
                 suggestedDraft={suggestedDraft}
+                cannedOpen={cannedOpen}
+                composerTextareaRef={composerTextareaRef}
                 onReplyModeChange={setReplyIsInternal}
                 onReplyContentChange={(value) => {
                   setReplyContent(value)
                   if (autoPopulated) setAutoPopulated(false)
                 }}
+                onCannedOpenChange={setCannedOpen}
                 onSend={sendReply}
                 onUseSuggestion={(content) => {
                   setReplyContent(content)
