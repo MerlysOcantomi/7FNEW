@@ -38,8 +38,8 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
     logActivity({
       module: "email",
       recordId: input.conversationId,
-      type: "email_sent",
-      data: { kind: "acknowledgment", to: input.contactEmail, skipped: true, reason: "disabled_by_config" },
+      type: "email_skipped",
+      data: { kind: "acknowledgment", to: input.contactEmail, reason: "disabled_by_config" },
       workspaceId: input.workspaceId,
     }).catch(() => null)
     return { ok: true, id: undefined }

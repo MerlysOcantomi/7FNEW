@@ -14,6 +14,7 @@ export type ActivityType =
   | "mention"
   | "email_sent"
   | "email_failed"
+  | "email_skipped"
 
 export interface ActivityData {
   field?: string
