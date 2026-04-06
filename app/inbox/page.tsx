@@ -765,7 +765,10 @@ function InboxPageContent() {
   const conversationItems = conversations.map((item) => ({
     id: item.id,
     channel: item.channel,
-    title: item.subject || item.contact.nombre || "New conversation",
+    title:
+      item.channel === "email"
+        ? item.subject || item.contact.nombre || "New conversation"
+        : item.contact.nombre || item.contact.email || item.subject || "New conversation",
     subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
     preview: item.summary ?? item.classification?.summary ?? null,
     timeLabel: formatRelativeDate(item.lastMessageAt),
