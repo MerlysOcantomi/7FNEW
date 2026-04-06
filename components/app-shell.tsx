@@ -40,11 +40,11 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
-        <main className="flex-1 min-w-0 flex flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Toolbar */}
           <div className="hidden md:flex items-center justify-end gap-2 px-6 py-3 shrink-0">
             <button
@@ -60,8 +60,8 @@ export function AppShell({ children }: AppShellProps) {
             <NotificationsBell />
           </div>
 
-          <div className="flex-1 px-4 pb-6 md:px-8 md:pb-8">
-            <div className="mx-auto max-w-6xl">
+          <div className="flex-1 min-h-0 overflow-hidden px-4 pb-6 md:px-8 md:pb-8">
+            <div className="mx-auto h-full min-h-0 max-w-6xl">
               {children}
             </div>
           </div>

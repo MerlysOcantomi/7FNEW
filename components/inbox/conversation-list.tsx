@@ -68,7 +68,7 @@ export function ConversationList({
   onSelect,
 }: ConversationListProps) {
   return (
-    <div className="h-full w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
+    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
       <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -150,7 +150,7 @@ export function ConversationList({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-1 px-3 py-3 md:px-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (

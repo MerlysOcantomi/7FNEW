@@ -1022,12 +1022,12 @@ function InboxPageContent() {
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
-      <div className="-mx-4 -mt-2 bg-[var(--inbox-background)] md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:overflow-hidden">
-        <div className={cn("flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
-              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:block xl:h-full",
+              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:h-full xl:flex-col",
             )}
           >
             {showInitialListSkeleton ? (
@@ -1153,7 +1153,7 @@ function InboxPageContent() {
             {showInitialListSkeleton || showDetailSkeleton ? (
               <InboxContextSkeleton />
             ) : selected ? (
-              <div className="flex-1 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">{contextPanel}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">{contextPanel}</div>
             ) : (
               <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
                 <div className="text-center">
@@ -1186,8 +1186,8 @@ function InboxPageContent() {
 function InboxPageFallback() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
-      <div className="-mx-4 -mt-2 bg-[var(--inbox-background)] md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:overflow-hidden">
-        <div className={cn("flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
           <div className="min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:h-full">
             <InboxListSkeleton />
           </div>
