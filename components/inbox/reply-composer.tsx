@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { Sparkles, Send, Loader2, X, Mic, MicOff, Zap } from "lucide-react"
+import { Send, Loader2, Mic, MicOff, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -17,26 +17,17 @@ import { cn } from "@/lib/utils"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
 
-interface SuggestedDraft {
-  title?: string | null
-  content: string
-}
-
 interface ReplyComposerProps {
   replyContent: string
   replyIsInternal: boolean
   replySending: boolean
   replyStatus: string | null
-  autoPopulated: boolean
-  suggestedDraft: SuggestedDraft | null
   cannedOpen: boolean
   composerTextareaRef: React.RefObject<HTMLTextAreaElement | null>
   onReplyModeChange: (isInternal: boolean) => void
   onReplyContentChange: (value: string) => void
   onCannedOpenChange: (open: boolean) => void
   onSend: () => void
-  onUseSuggestion: (content: string) => void
-  onClearSuggestion: () => void
 }
 
 export function ReplyComposer({
@@ -44,16 +35,12 @@ export function ReplyComposer({
   replyIsInternal,
   replySending,
   replyStatus,
-  autoPopulated,
-  suggestedDraft,
   cannedOpen,
   composerTextareaRef,
   onReplyModeChange,
   onReplyContentChange,
   onCannedOpenChange,
   onSend,
-  onUseSuggestion,
-  onClearSuggestion,
 }: ReplyComposerProps) {
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
@@ -120,30 +107,6 @@ export function ReplyComposer({
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
       <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow-sm)] md:p-4">
-        {suggestedDraft && !replyContent.trim() && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 to-background p-3 sm:flex-row sm:items-start">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold tracking-tight text-foreground">
-                Farah suggests a reply
-                {suggestedDraft.title ? `: ${suggestedDraft.title}` : ""}
-              </p>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {suggestedDraft.content}
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              className="shrink-0 self-start"
-              onClick={() => onUseSuggestion(suggestedDraft.content)}
-            >
-              <Send className="h-3 w-3" />
-              Use
-            </Button>
-          </div>
-        )}
-
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -226,21 +189,6 @@ export function ReplyComposer({
             {speech.listening ? "Listening..." : "Ctrl+Enter to send"}
           </span>
         </div>
-
-        {autoPopulated && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2">
-            <Sparkles className="h-3.5 w-3.5 text-violet-600" />
-            <span className="text-[11px] font-medium text-violet-700">Suggested by Farah</span>
-            <button
-              onClick={onClearSuggestion}
-              className="ml-auto rounded-md p-1 text-violet-600 transition-colors hover:bg-violet-100"
-              title="Clear suggestion"
-              type="button"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
 
         <div className="space-y-2">
           <Textarea

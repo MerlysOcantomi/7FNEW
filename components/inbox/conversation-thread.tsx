@@ -99,7 +99,7 @@ export function ConversationThread({
 
   return (
     <>
-      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94 md:px-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center justify-between gap-2 xl:hidden">
@@ -159,7 +159,7 @@ export function ConversationThread({
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-4 bg-[linear-gradient(180deg,rgba(246,247,249,0.88)_0%,rgba(246,247,249,0.42)_100%)] px-4 py-4 md:px-5 md:py-5">
+        <div className="space-y-4 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-4 py-4 md:px-5 md:py-5">
           {messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6">
               <p className="text-sm text-muted-foreground">No messages yet.</p>

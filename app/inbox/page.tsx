@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
+import { FarahAssistCard, type FarahAssistState } from "@/components/inbox/farah-assist-card"
 import { ReplyComposer } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import {
@@ -378,6 +379,8 @@ function InboxPageContent() {
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
   const [autoPopulated, setAutoPopulated] = useState(false)
+  const [farahDismissed, setFarahDismissed] = useState(false)
+  const [farahExpanded, setFarahExpanded] = useState(false)
   const [mobileView, setMobileView] = useState<"list" | "thread">("list")
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const [cannedOpen, setCannedOpen] = useState(false)
@@ -458,6 +461,8 @@ function InboxPageContent() {
     setActionsExpanded(false)
     setBusinessContextExpanded(false)
     setAutoPopulated(false)
+    setFarahDismissed(false)
+    setFarahExpanded(false)
     setContextSheetOpen(false)
     setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
@@ -791,6 +796,28 @@ function InboxPageContent() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
+  const farahSummary =
+    selected?.handoff?.summary ||
+    selected?.classification?.summary ||
+    selected?.summary ||
+    null
+  const farahNextAction =
+    selected?.handoff?.nextRecommendedAction ||
+    (selected?.classification?.nextBestAction &&
+    typeof selected.classification.nextBestAction === "object"
+      ? (
+          ["label", "title", "action"]
+            .map((key) => selected.classification?.nextBestAction?.[key])
+            .find((value): value is string => typeof value === "string" && value.trim().length > 0) ?? null
+        )
+      : null)
+  const farahHasContent = Boolean(suggestedDraft?.content?.trim() || farahSummary || farahNextAction)
+  const farahState: FarahAssistState = !selected || farahDismissed || !farahHasContent
+    ? "hidden"
+    : autoPopulated || farahExpanded
+      ? "expanded"
+      : "compact"
+
   const selectedIndex = useMemo(
     () => conversations.findIndex((item) => item.id === selectedId),
     [conversations, selectedId],
@@ -1030,14 +1057,48 @@ function InboxPageContent() {
 
               {selected && (
                 <>
-                  <div data-slot="farah-assist" aria-hidden="true" className="hidden" />
+                  {farahState !== "hidden" && (
+                    <FarahAssistCard
+                      state={farahState}
+                      summary={farahSummary}
+                      suggestionTitle={suggestedDraft?.title || null}
+                      suggestionContent={suggestedDraft?.content || null}
+                      nextRecommendedAction={farahNextAction}
+                      confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
+                      autoPopulated={autoPopulated}
+                      onToggleExpanded={() => setFarahExpanded((value) => !value)}
+                      onInsertSuggestion={suggestedDraft?.content
+                        ? () => {
+                            setReplyContent(suggestedDraft.content)
+                            setReplyIsInternal(false)
+                            setReplyStatus(null)
+                            setAutoPopulated(true)
+                            setFarahExpanded(true)
+                            requestComposerFocus(false)
+                          }
+                        : undefined}
+                      onEditSuggestion={suggestedDraft?.content
+                        ? () => {
+                            setReplyContent(suggestedDraft.content)
+                            setReplyIsInternal(false)
+                            setReplyStatus(null)
+                            setFarahExpanded(true)
+                            requestComposerFocus(false)
+                          }
+                        : undefined}
+                      onDismiss={() => {
+                        setFarahDismissed(true)
+                        if (autoPopulated) {
+                          setAutoPopulated(false)
+                        }
+                      }}
+                    />
+                  )}
                   <ReplyComposer
                     replyContent={replyContent}
                     replyIsInternal={replyIsInternal}
                     replySending={replySending}
                     replyStatus={replyStatus}
-                    autoPopulated={autoPopulated}
-                    suggestedDraft={suggestedDraft}
                     cannedOpen={cannedOpen}
                     composerTextareaRef={composerTextareaRef}
                     onReplyModeChange={setReplyIsInternal}
@@ -1047,15 +1108,6 @@ function InboxPageContent() {
                     }}
                     onCannedOpenChange={setCannedOpen}
                     onSend={sendReply}
-                    onUseSuggestion={(content) => {
-                      setReplyContent(content)
-                      setReplyIsInternal(false)
-                      setReplyStatus(null)
-                    }}
-                    onClearSuggestion={() => {
-                      setReplyContent("")
-                      setAutoPopulated(false)
-                    }}
                   />
                 </>
               )}
