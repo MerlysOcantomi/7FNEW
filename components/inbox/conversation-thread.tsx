@@ -127,7 +127,7 @@ export function ConversationThread({
               type="button"
               variant="outline"
               size="sm"
-              className="hidden rounded-[var(--inbox-radius-control)] xl:inline-flex min-[1440px]:hidden"
+              className="hidden rounded-[var(--inbox-radius-control)]"
               onClick={onOpenContext}
             >
               <Sparkles className="h-3.5 w-3.5" />

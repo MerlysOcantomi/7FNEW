@@ -8,6 +8,7 @@ import { ContextPanel } from "@/components/inbox/context-panel"
 import { FarahAssistCard, type FarahAssistState } from "@/components/inbox/farah-assist-card"
 import { ReplyComposer } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Sheet,
   SheetContent,
@@ -144,6 +145,7 @@ const STATUS_OPTIONS = [
   "archived",
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
+const DESKTOP_INBOX_GRID = "xl:grid xl:grid-cols-[minmax(300px,336px)_minmax(0,1fr)_312px] xl:grid-rows-[minmax(0,1fr)] min-[1536px]:grid-cols-[minmax(320px,368px)_minmax(0,1fr)_360px]"
 
 function formatRelativeDate(value: string) {
   const date = new Date(value)
@@ -435,6 +437,18 @@ function InboxPageContent() {
         ? "Inbox could not load conversations right now."
       : error
 
+  const activeSelectedId = useMemo(() => {
+    if (selectedId && conversations.some((item) => item.id === selectedId)) {
+      return selectedId
+    }
+
+    if (deepLinkId && conversations.some((item) => item.id === deepLinkId)) {
+      return deepLinkId
+    }
+
+    return conversations[0]?.id ?? null
+  }, [conversations, deepLinkId, selectedId])
+
   useEffect(() => {
     if (deepLinkId && deepLinkId !== lastDeepLinkRef.current) {
       lastDeepLinkRef.current = deepLinkId
@@ -466,13 +480,13 @@ function InboxPageContent() {
     setContextSheetOpen(false)
     setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
-    if (!selectedId) {
+    if (!activeSelectedId) {
       setMobileView("list")
     }
-    if (selectedId) {
-      fetch(`/api/inbox/conversations/${selectedId}/read`, { method: "POST" }).catch(() => null)
+    if (activeSelectedId) {
+      fetch(`/api/inbox/conversations/${activeSelectedId}/read`, { method: "POST" }).catch(() => null)
     }
-  }, [selectedId])
+  }, [activeSelectedId])
 
   const {
     data: detailData,
@@ -480,7 +494,7 @@ function InboxPageContent() {
     error: detailError,
     refetch: refetchDetail,
   } = useFetch<ConversationDetail>(
-    selectedId ? `/api/inbox/conversations/${selectedId}` : null,
+    activeSelectedId ? `/api/inbox/conversations/${activeSelectedId}` : null,
     { refreshKey },
   )
 
@@ -650,12 +664,12 @@ function InboxPageContent() {
   }
 
   async function sendReply() {
-    if (!selectedId || !replyContent.trim() || replySending) return
+    if (!activeSelectedId || !replyContent.trim() || replySending) return
 
     setReplySending(true)
     setReplyStatus(null)
     try {
-      const res = await fetch(`/api/inbox/conversations/${selectedId}/messages`, {
+      const res = await fetch(`/api/inbox/conversations/${activeSelectedId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -695,11 +709,11 @@ function InboxPageContent() {
   }))
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
-    if (!selectedId) return
+    if (!activeSelectedId) return
     const value = newAssignedTo === "" ? null : newAssignedTo
     setAssignSaving(true)
     try {
-      const res = await fetch(`/api/inbox/conversations/${selectedId}`, {
+      const res = await fetch(`/api/inbox/conversations/${activeSelectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignedTo: value }),
@@ -714,12 +728,12 @@ function InboxPageContent() {
     } finally {
       setAssignSaving(false)
     }
-  }, [selectedId, refetch, refetchDetail])
+  }, [activeSelectedId, refetch, refetchDetail])
 
   async function handleStatusChange(newStatus: string) {
-    if (!selectedId) return
+    if (!activeSelectedId) return
     try {
-      const res = await fetch(`/api/inbox/conversations/${selectedId}`, {
+      const res = await fetch(`/api/inbox/conversations/${activeSelectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -820,8 +834,8 @@ function InboxPageContent() {
       : "compact"
 
   const selectedIndex = useMemo(
-    () => conversations.findIndex((item) => item.id === selectedId),
-    [conversations, selectedId],
+    () => conversations.findIndex((item) => item.id === activeSelectedId),
+    [activeSelectedId, conversations],
   )
 
   const isMobileInboxViewport = useCallback(() => {
@@ -841,7 +855,7 @@ function InboxPageContent() {
   }, [])
 
   const requestComposerFocus = useCallback((nextMode?: boolean) => {
-    if (!selectedId) return
+    if (!activeSelectedId) return
 
     if (typeof nextMode === "boolean") {
       setReplyIsInternal(nextMode)
@@ -858,7 +872,7 @@ function InboxPageContent() {
         pendingComposerFocusRef.current = false
       }
     })
-  }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selectedId])
+  }, [activeSelectedId, focusComposerTextarea, isMobileInboxViewport, mobileView])
 
   useEffect(() => {
     if (!pendingComposerFocusRef.current) return
@@ -884,13 +898,13 @@ function InboxPageContent() {
   }
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
-    if (!selectedId || conversations.length === 0 || selectedIndex < 0) return
+    if (!activeSelectedId || conversations.length === 0 || selectedIndex < 0) return
 
     const nextIndex = selectedIndex + offset
     if (nextIndex < 0 || nextIndex >= conversations.length) return
 
     setSelectedId(conversations[nextIndex].id)
-  }, [conversations, selectedId, selectedIndex])
+  }, [activeSelectedId, conversations, selectedIndex])
 
   const handleInboxEscape = useCallback(() => {
     if (contextSheetOpen) {
@@ -898,10 +912,10 @@ function InboxPageContent() {
       return
     }
 
-    if (selectedId && mobileView === "thread" && isMobileInboxViewport()) {
+    if (activeSelectedId && mobileView === "thread" && isMobileInboxViewport()) {
       handleBackToList()
     }
-  }, [contextSheetOpen, isMobileInboxViewport, mobileView, selectedId])
+  }, [activeSelectedId, contextSheetOpen, isMobileInboxViewport, mobileView])
 
   const inboxShortcuts = useMemo(
     () => [
@@ -925,8 +939,8 @@ function InboxPageContent() {
         enabled: !cannedOpen && !contextSheetOpen,
         preventDefault: true,
         handler: () => {
-          if (!selectedId) return
-          handleSelectConversation(selectedId)
+          if (!activeSelectedId) return
+          handleSelectConversation(activeSelectedId)
         },
       },
       {
@@ -960,15 +974,18 @@ function InboxPageContent() {
       {
         id: "inbox-send-reply",
         combo: "Mod+Enter",
-        enabled: Boolean(selectedId) && !cannedOpen,
+        enabled: Boolean(activeSelectedId) && !cannedOpen,
         preventDefault: true,
         handler: () => sendReplyRef.current(),
       },
     ],
-    [cannedOpen, contextSheetOpen, handleInboxEscape, navigateConversation, requestComposerFocus, selectedId],
+    [activeSelectedId, cannedOpen, contextSheetOpen, handleInboxEscape, navigateConversation, requestComposerFocus],
   )
 
   useKeyboardShortcuts(inboxShortcuts, { scope: "page" })
+
+  const showInitialListSkeleton = loading && conversations.length === 0
+  const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
 
   const contextPanel = selected ? (
     <ContextPanel
@@ -1003,124 +1020,136 @@ function InboxPageContent() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <div className="-mx-4 -mt-2 bg-[var(--inbox-background)] md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:overflow-hidden">
-        <div className="flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3 xl:grid xl:grid-cols-[minmax(320px,368px)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] min-[1440px]:grid-cols-[minmax(320px,368px)_minmax(0,1fr)_360px]">
+        <div className={cn("flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
-              mobileView === "thread" && selectedId ? "hidden" : "block",
+              mobileView === "thread" && activeSelectedId ? "hidden" : "block",
               "min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:block xl:h-full",
             )}
           >
-            <ConversationList
-              loading={loading}
-              errorMessage={listErrorMessage}
-              conversations={conversationItems}
-              selectedId={selectedId}
-              search={search}
-              onSearchChange={setSearch}
-              status={status}
-              statusOptions={STATUS_OPTIONS}
-              onStatusChange={setStatus}
-              channel={channel}
-              channelOptions={channelSelectOptions}
-              onChannelChange={setChannel}
-              assignmentFilter={assignmentFilter}
-              onAssignmentFilterChange={setAssignmentFilter}
-              stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
-              onSelect={handleSelectConversation}
-            />
+            {showInitialListSkeleton ? (
+              <InboxListSkeleton />
+            ) : (
+              <ConversationList
+                loading={loading}
+                errorMessage={listErrorMessage}
+                conversations={conversationItems}
+                selectedId={activeSelectedId}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                statusOptions={STATUS_OPTIONS}
+                onStatusChange={setStatus}
+                channel={channel}
+                channelOptions={channelSelectOptions}
+                onChannelChange={setChannel}
+                assignmentFilter={assignmentFilter}
+                onAssignmentFilterChange={setAssignmentFilter}
+                stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
+                onSelect={handleSelectConversation}
+              />
+            )}
           </div>
 
           <div
             className={cn(
-              selectedId && mobileView === "thread" ? "flex" : "hidden",
+              activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
               "min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow)] xl:flex xl:h-full xl:min-h-0",
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)]/72">
-              <ConversationThread
-                hasSelectedId={Boolean(selectedId)}
-                detailLoading={detailLoading && !selected}
-                detailErrorMessage={detailErrorMessage}
-                headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
-                headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
-                assignedTo={selected?.assignedTo ?? ""}
-                members={displayedMembers}
-                assignSaving={assignSaving}
-                onAssign={handleAssign}
-                statusValue={selected?.status || "new"}
-                statusOptions={statusSelectOptions}
-                onStatusChange={handleStatusChange}
-                statusBadgeClassName={statusBadge}
-                messages={threadMessages}
-                onBack={handleBackToList}
-                onOpenContext={() => setContextSheetOpen(true)}
-              />
-
-              {selected && (
+              {showInitialListSkeleton || showDetailSkeleton ? (
+                <InboxCenterSkeleton />
+              ) : (
                 <>
-                  {farahState !== "hidden" && (
-                    <FarahAssistCard
-                      state={farahState}
-                      summary={farahSummary}
-                      suggestionTitle={suggestedDraft?.title || null}
-                      suggestionContent={suggestedDraft?.content || null}
-                      nextRecommendedAction={farahNextAction}
-                      confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
-                      autoPopulated={autoPopulated}
-                      onToggleExpanded={() => setFarahExpanded((value) => !value)}
-                      onInsertSuggestion={suggestedDraft?.content
-                        ? () => {
-                            setReplyContent(suggestedDraft.content)
-                            setReplyIsInternal(false)
-                            setReplyStatus(null)
-                            setAutoPopulated(true)
-                            setFarahExpanded(true)
-                            requestComposerFocus(false)
-                          }
-                        : undefined}
-                      onEditSuggestion={suggestedDraft?.content
-                        ? () => {
-                            setReplyContent(suggestedDraft.content)
-                            setReplyIsInternal(false)
-                            setReplyStatus(null)
-                            setFarahExpanded(true)
-                            requestComposerFocus(false)
-                          }
-                        : undefined}
-                      onDismiss={() => {
-                        setFarahDismissed(true)
-                        if (autoPopulated) {
-                          setAutoPopulated(false)
-                        }
-                      }}
-                    />
-                  )}
-                  <ReplyComposer
-                    channel={selected.channel}
-                    channelLabel={channelLabel(selected.channel)}
-                    subject={selected.subject}
-                    detectedLanguage={selected.detectedLanguage}
-                    replyContent={replyContent}
-                    replyIsInternal={replyIsInternal}
-                    replySending={replySending}
-                    replyStatus={replyStatus}
-                    cannedOpen={cannedOpen}
-                    composerTextareaRef={composerTextareaRef}
-                    onReplyModeChange={setReplyIsInternal}
-                    onReplyContentChange={(value) => {
-                      setReplyContent(value)
-                      if (autoPopulated) setAutoPopulated(false)
-                    }}
-                    onCannedOpenChange={setCannedOpen}
-                    onSend={sendReply}
+                  <ConversationThread
+                    hasSelectedId={Boolean(activeSelectedId)}
+                    detailLoading={detailLoading && !selected}
+                    detailErrorMessage={detailErrorMessage}
+                    headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
+                    headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+                    assignedTo={selected?.assignedTo ?? ""}
+                    members={displayedMembers}
+                    assignSaving={assignSaving}
+                    onAssign={handleAssign}
+                    statusValue={selected?.status || "new"}
+                    statusOptions={statusSelectOptions}
+                    onStatusChange={handleStatusChange}
+                    statusBadgeClassName={statusBadge}
+                    messages={threadMessages}
+                    onBack={handleBackToList}
+                    onOpenContext={() => setContextSheetOpen(true)}
                   />
+
+                  {selected && (
+                    <>
+                      {farahState !== "hidden" && (
+                        <FarahAssistCard
+                          state={farahState}
+                          summary={farahSummary}
+                          suggestionTitle={suggestedDraft?.title || null}
+                          suggestionContent={suggestedDraft?.content || null}
+                          nextRecommendedAction={farahNextAction}
+                          confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
+                          autoPopulated={autoPopulated}
+                          onToggleExpanded={() => setFarahExpanded((value) => !value)}
+                          onInsertSuggestion={suggestedDraft?.content
+                            ? () => {
+                                setReplyContent(suggestedDraft.content)
+                                setReplyIsInternal(false)
+                                setReplyStatus(null)
+                                setAutoPopulated(true)
+                                setFarahExpanded(true)
+                                requestComposerFocus(false)
+                              }
+                            : undefined}
+                          onEditSuggestion={suggestedDraft?.content
+                            ? () => {
+                                setReplyContent(suggestedDraft.content)
+                                setReplyIsInternal(false)
+                                setReplyStatus(null)
+                                setFarahExpanded(true)
+                                requestComposerFocus(false)
+                              }
+                            : undefined}
+                          onDismiss={() => {
+                            setFarahDismissed(true)
+                            if (autoPopulated) {
+                              setAutoPopulated(false)
+                            }
+                          }}
+                        />
+                      )}
+                      <ReplyComposer
+                        channel={selected.channel}
+                        channelLabel={channelLabel(selected.channel)}
+                        subject={selected.subject}
+                        detectedLanguage={selected.detectedLanguage}
+                        replyContent={replyContent}
+                        replyIsInternal={replyIsInternal}
+                        replySending={replySending}
+                        replyStatus={replyStatus}
+                        cannedOpen={cannedOpen}
+                        composerTextareaRef={composerTextareaRef}
+                        onReplyModeChange={setReplyIsInternal}
+                        onReplyContentChange={(value) => {
+                          setReplyContent(value)
+                          if (autoPopulated) setAutoPopulated(false)
+                        }}
+                        onCannedOpenChange={setCannedOpen}
+                        onSend={sendReply}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] min-[1440px]:flex min-[1440px]:flex-col xl:h-full xl:min-h-0">
-            {selected ? (
+          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+            {showInitialListSkeleton || showDetailSkeleton ? (
+              <InboxContextSkeleton />
+            ) : selected ? (
               <div className="flex-1 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">{contextPanel}</div>
             ) : (
               <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
@@ -1134,7 +1163,7 @@ function InboxPageContent() {
         </div>
 
         <Sheet open={contextSheetOpen} onOpenChange={setContextSheetOpen}>
-          <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-0 min-[1440px]:hidden">
+          <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-0 xl:hidden">
             <SheetHeader className="border-b border-[var(--inbox-divider)] px-4 py-4 text-left">
               <SheetTitle>{selected?.subject || selected?.contact.nombre || "Conversation context"}</SheetTitle>
               <SheetDescription>
@@ -1154,9 +1183,17 @@ function InboxPageContent() {
 function InboxPageFallback() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
-      <div className="-mx-4 -mt-2 md:-mx-8">
-        <div className="flex min-h-[50vh] items-center justify-center bg-[var(--inbox-background)]">
-          <p className="text-sm text-muted-foreground">Loading inbox...</p>
+      <div className="-mx-4 -mt-2 bg-[var(--inbox-background)] md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:overflow-hidden">
+        <div className={cn("flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
+          <div className="min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:h-full">
+            <InboxListSkeleton />
+          </div>
+          <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow)] xl:flex xl:h-full xl:min-h-0">
+            <InboxCenterSkeleton />
+          </div>
+          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+            <InboxContextSkeleton />
+          </div>
         </div>
       </div>
     </AppShell>
@@ -1168,5 +1205,131 @@ export default function InboxPage() {
     <Suspense fallback={<InboxPageFallback />}>
       <InboxPageContent />
     </Suspense>
+  )
+}
+
+function InboxListSkeleton() {
+  return (
+    <div className="h-full w-full bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
+      <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-20 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-3 w-40 bg-[var(--inbox-divider)]" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-16 rounded-full bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-6 w-14 rounded-full bg-[var(--inbox-divider)]" />
+          </div>
+        </div>
+        <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+        <div className="grid grid-cols-2 gap-2">
+          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+        </div>
+      </div>
+      <div className="space-y-2 px-3 py-3 md:px-4">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className="rounded-[var(--inbox-radius-control)] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-4/5 bg-[var(--inbox-divider)]" />
+                <Skeleton className="h-3 w-1/2 bg-[var(--inbox-divider)]" />
+              </div>
+              <Skeleton className="h-3 w-12 bg-[var(--inbox-divider)]" />
+            </div>
+            <Skeleton className="mt-3 h-3 w-full bg-[var(--inbox-divider)]" />
+            <div className="mt-3 flex gap-2">
+              <Skeleton className="h-5 w-16 rounded-full bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-5 w-14 rounded-full bg-[var(--inbox-divider)]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function InboxCenterSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)]/72">
+      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-4 md:px-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-20 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-5 w-2/3 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-4 w-1/2 bg-[var(--inbox-divider)]" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-44 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-9 w-28 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 space-y-4 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-4 py-4 md:px-5 md:py-5">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "max-w-[78%] rounded-[18px] border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] p-4 shadow-sm",
+              index % 2 === 1 && "ml-auto",
+            )}
+          >
+            <Skeleton className="h-3 w-24 bg-[var(--inbox-divider)]" />
+            <Skeleton className="mt-3 h-3 w-full bg-[var(--inbox-divider)]" />
+            <Skeleton className="mt-2 h-3 w-4/5 bg-[var(--inbox-divider)]" />
+          </div>
+        ))}
+      </div>
+      <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 md:px-5">
+        <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-16 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          </div>
+          <Skeleton className="mt-4 h-32 w-full rounded-2xl bg-[var(--inbox-divider)]" />
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-8 w-20 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            </div>
+            <Skeleton className="h-9 w-32 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InboxContextSkeleton() {
+  return (
+    <div className="flex-1 space-y-4 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-8 rounded-[10px] bg-[var(--inbox-divider)]" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32 bg-[var(--inbox-divider)]" />
+                <Skeleton className="h-3 w-40 bg-[var(--inbox-divider)]" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-4 rounded-full bg-[var(--inbox-divider)]" />
+          </div>
+          <div className="mt-4 grid gap-2">
+            <Skeleton className="h-16 w-full rounded-[10px] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-12 w-full rounded-[10px] bg-[var(--inbox-divider)]" />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
