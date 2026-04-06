@@ -227,6 +227,8 @@ export function ContextPanel({
 
       <ActionsCard
         actions={selected.actions ?? []}
+        channel={selected.channel}
+        channelLabel={channelLabel(selected.channel)}
         expanded={actionsExpanded}
         onExpandedChange={setActionsExpanded}
         pendingActionId={pendingActionId}
