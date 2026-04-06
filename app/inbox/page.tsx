@@ -371,8 +371,8 @@ function InboxPageContent() {
   const [replySending, setReplySending] = useState(false)
   const [replyStatus, setReplyStatus] = useState<string | null>(null)
   const [handoffExpanded, setHandoffExpanded] = useState(false)
-  const [draftsExpanded, setDraftsExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
+  const [businessContextExpanded, setBusinessContextExpanded] = useState(false)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
@@ -455,8 +455,8 @@ function InboxPageContent() {
     setReplyIsInternal(false)
     setReplyStatus(null)
     setHandoffExpanded(false)
-    setDraftsExpanded(false)
     setActionsExpanded(false)
+    setBusinessContextExpanded(false)
     setAutoPopulated(false)
     setContextSheetOpen(false)
     setCannedOpen(false)
@@ -947,10 +947,12 @@ function InboxPageContent() {
       selected={selected}
       handoffExpanded={handoffExpanded}
       setHandoffExpanded={setHandoffExpanded}
-      draftsExpanded={draftsExpanded}
-      setDraftsExpanded={setDraftsExpanded}
       actionsExpanded={actionsExpanded}
       setActionsExpanded={setActionsExpanded}
+      businessContextExpanded={businessContextExpanded}
+      setBusinessContextExpanded={setBusinessContextExpanded}
+      conversationStatusLabel={statusLabel(selected.status)}
+      conversationStatusClassName={statusBadge(selected.status)}
       updateHandoff={updateHandoff}
       handoffStatusBadge={handoffStatusBadge}
       handoffStatusLabel={handoffStatusLabel}
@@ -959,14 +961,6 @@ function InboxPageContent() {
       textToLines={textToLines}
       confidenceLabel={confidenceLabel}
       formatDateTime={formatDateTime}
-      editableDraftStatusOptions={editableDraftStatusOptions}
-      updateDraft={updateDraft}
-      draftStatusBadge={draftStatusBadge}
-      draftStatusLabel={draftStatusLabel}
-      formatRelativeDate={formatRelativeDate}
-      setReplyContent={setReplyContent}
-      setReplyIsInternal={setReplyIsInternal}
-      setReplyStatus={setReplyStatus}
       pendingActionId={pendingActionId}
       handleSuggestedAction={handleSuggestedAction}
       actionTypeLabel={actionTypeLabel}
