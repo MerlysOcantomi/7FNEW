@@ -44,15 +44,17 @@ export function FarahAssistCard({
     <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
       <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[linear-gradient(180deg,rgba(230,241,242,0.6)_0%,rgba(255,255,255,1)_42%)] shadow-[var(--inbox-panel-shadow-sm)]">
         <div className="flex items-start gap-3 px-4 py-4">
-          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
-            <Sparkles className="h-4 w-4" />
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--inbox-divider)] bg-[linear-gradient(180deg,#F7FBFB_0%,#E6F1F2_100%)]">
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.9),transparent_42%)] text-[var(--inbox-accent)]">
+              <Sparkles className="h-4 w-4" />
+            </div>
           </div>
 
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-accent)]">
-                  Farah suggests
+                  Farah
                 </p>
                 <p className="mt-1 text-sm font-semibold text-[var(--inbox-text)]">
                   {suggestionTitle || leadingText}

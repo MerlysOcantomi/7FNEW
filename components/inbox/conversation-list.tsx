@@ -12,6 +12,7 @@ type AssignmentFilter = "all" | "mine" | "unassigned"
 
 interface ConversationItem {
   id: string
+  channel: string
   title: string
   subtitle: string
   preview: string
@@ -67,26 +68,26 @@ export function ConversationList({
   onSelect,
 }: ConversationListProps) {
   return (
-    <div className="h-full w-full shrink-0 border-b border-border bg-card/95 xl:flex xl:flex-col xl:overflow-hidden xl:border-b-0 xl:border-r">
-      <div className="space-y-4 border-b border-border/80 bg-gradient-to-b from-background to-background/80 px-4 py-4 md:px-5">
+    <div className="h-full w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
+      <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-foreground">Inbox</h1>
-            <p className="mt-1 max-w-[18rem] text-xs leading-relaxed text-muted-foreground">
-              Triage conversations quickly and reply with confidence.
+            <h1 className="text-base font-semibold tracking-tight text-[var(--inbox-text)]">Inbox</h1>
+            <p className="mt-1 max-w-[18rem] text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+              Unified multichannel conversations.
             </p>
           </div>
           <div className="flex max-w-[10rem] flex-wrap justify-end gap-1.5 text-[11px]">
-            <span className="rounded-full border border-border bg-background px-2 py-1 text-muted-foreground">
+            <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-1 text-[var(--inbox-text-secondary)]">
               {loading ? "..." : `${stats.total} conv`}
             </span>
             {stats.leads > 0 && (
-              <span className="rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-700">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">
                 {stats.leads} leads
               </span>
             )}
             {stats.urgent > 0 && (
-              <span className="rounded-full bg-rose-100 px-2 py-1 font-semibold text-rose-700">
+              <span className="rounded-full bg-rose-50 px-2 py-1 font-semibold text-rose-700">
                 {stats.urgent} urgent
               </span>
             )}
@@ -94,12 +95,12 @@ export function ConversationList({
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--inbox-muted)]" />
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search conversations..."
-            className="h-10 rounded-xl border-border/80 bg-background/90 pl-10 shadow-none"
+            className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] pl-10 shadow-none"
           />
         </div>
 
@@ -107,7 +108,7 @@ export function ConversationList({
           <select
             value={status}
             onChange={(event) => onStatusChange(event.target.value)}
-            className="h-10 rounded-xl border border-input bg-background/90 px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-10 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-background)] px-3 text-sm text-[var(--inbox-text)] outline-none transition-[color,box-shadow] focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20"
           >
             {statusOptions.map((option) => (
               <option key={option} value={option}>
@@ -119,7 +120,7 @@ export function ConversationList({
           <select
             value={channel}
             onChange={(event) => onChannelChange(event.target.value)}
-            className="h-10 rounded-xl border border-input bg-background/90 px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-10 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-background)] px-3 text-sm text-[var(--inbox-text)] outline-none transition-[color,box-shadow] focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20"
           >
             {channelOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -139,8 +140,8 @@ export function ConversationList({
               key={option.value}
               type="button"
               size="sm"
-              variant={assignmentFilter === option.value ? "default" : "outline"}
-              className="rounded-xl px-2 text-[11px] sm:text-xs"
+              variant={assignmentFilter === option.value ? "accent" : "outline"}
+              className="rounded-[var(--inbox-radius-control)] px-2 text-[11px] sm:text-xs"
               onClick={() => onAssignmentFilterChange(option.value)}
             >
               {option.label}
@@ -150,10 +151,10 @@ export function ConversationList({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-2.5 px-4 py-4 md:px-5">
+        <div className="space-y-1 px-3 py-3 md:px-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-border bg-card p-4">
+              <div key={index} className="rounded-[var(--inbox-radius-control)] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/70 p-3">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="mt-2 h-3 w-1/2" />
                 <Skeleton className="mt-3 h-3 w-full" />
@@ -180,6 +181,7 @@ export function ConversationList({
             conversations.map((item) => (
               <ConversationListItem
                 key={item.id}
+                channel={item.channel}
                 title={item.title}
                 subtitle={item.subtitle}
                 preview={item.preview}

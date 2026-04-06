@@ -2,7 +2,7 @@
 
 import { ActionsCard } from "@/components/inbox/actions-card"
 import { BusinessContextCard } from "@/components/inbox/business-context-card"
-import { CaseCard } from "@/components/inbox/case-card"
+import { MessageIntelligenceCard } from "@/components/inbox/message-intelligence-card"
 
 interface HandoffData {
   status: string
@@ -117,12 +117,12 @@ export function ContextPanel({
   channelLabel,
 }: ContextPanelProps) {
   const urgencyConfig = getUrgencyPresentation(selected.urgency)
-  const caseTitle = selected.handoff?.headline || "Case overview"
-  const caseSummary =
+  const intelligenceTitle = "Message intelligence"
+  const intelligenceSummary =
     selected.handoff?.summary ||
     selected.classification?.summary ||
     selected.summary ||
-    "This conversation does not have an operational summary yet."
+    "This conversation does not have message intelligence yet."
   const nextRecommendedAction =
     selected.handoff?.nextRecommendedAction ||
     getStringValue(selected.classification?.nextBestAction, ["label", "title", "action"]) ||
@@ -196,33 +196,31 @@ export function ContextPanel({
 
   return (
     <div className="space-y-4">
-      <CaseCard
-        title={caseTitle}
-        summary={caseSummary}
-        statusLabel={conversationStatusLabel}
-        statusClassName={conversationStatusClassName}
+      <MessageIntelligenceCard
+        title={intelligenceTitle}
+        summary={intelligenceSummary}
+        conversationStatusLabel={conversationStatusLabel}
+        conversationStatusClassName={conversationStatusClassName}
         urgencyLabel={urgencyConfig?.label}
         urgencyClassName={urgencyConfig?.className}
         intent={selected.classification?.intent || null}
-        assignedLabel={assignedLabel}
+        sentiment={selected.sentiment || null}
+        confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
         nextRecommendedAction={nextRecommendedAction}
+        pendingItemsCount={pendingItems.length}
+        risksCount={risks.length}
         expanded={handoffExpanded}
         onExpandedChange={setHandoffExpanded}
         onMarkReviewed={selected.handoff ? () => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed") : undefined}
         canMarkReviewed={Boolean(selected.handoff && selected.handoff.status !== "reviewed")}
-        detailHeadline={selected.handoff?.headline || caseTitle}
-        detailSummary={selected.handoff?.summary || caseSummary}
-        factsText={linesToText(selected.handoff?.facts)}
-        pendingItemsText={linesToText(selected.handoff?.pendingItems)}
-        risksText={linesToText(selected.handoff?.risks)}
-        confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
-        reviewedBy={selected.handoff?.reviewedBy}
-        reviewedAt={formatDateTime(selected.handoff?.reviewedAt)}
-        onSaveHeadline={(value) => updateHandoff({ headline: value })}
+        translationHint={
+          selected.detectedLanguage && selected.detectedLanguage.toLowerCase() !== "en"
+            ? `Detected language: ${selected.detectedLanguage.toUpperCase()}. Translation tools can plug into this section later.`
+            : "Detected language is already aligned with the current workspace language."
+        }
+        detailSummary={selected.handoff?.summary || intelligenceSummary}
         onSaveSummary={(value) => updateHandoff({ summary: value })}
-        onSaveFacts={(value) => updateHandoff({ facts: textToLines(value) })}
-        onSavePendingItems={(value) => updateHandoff({ pendingItems: textToLines(value) })}
-        onSaveRisks={(value) => updateHandoff({ risks: textToLines(value) })}
+        detailNextRecommendedAction={nextRecommendedAction}
         onSaveNextRecommendedAction={(value) => updateHandoff({ nextRecommendedAction: value })}
         stateMessage={handoffState}
       />

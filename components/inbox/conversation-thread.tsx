@@ -113,6 +113,9 @@ export function ConversationThread({
               </Button>
             </div>
 
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
+              Case thread
+            </p>
             <p className="truncate text-base font-semibold text-foreground md:text-lg">{headerTitle}</p>
             <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
               {headerSubtitle}

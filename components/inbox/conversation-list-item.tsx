@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
+import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
@@ -11,6 +13,7 @@ interface ConversationListItemProps {
   selected: boolean
   isUnread: boolean
   onClick: () => void
+  channel: string
   statusLabel: string
   statusClassName: string
   channelLabel: string
@@ -27,6 +30,7 @@ export function ConversationListItem({
   selected,
   isUnread,
   onClick,
+  channel,
   statusLabel,
   statusClassName,
   channelLabel,
@@ -47,41 +51,42 @@ export function ConversationListItem({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "group relative w-full rounded-[22px] border px-4 py-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        "group relative w-full rounded-[var(--inbox-radius-control)] border px-3.5 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/30",
         selected
-          ? "border-primary/30 bg-primary/[0.06] shadow-[0_6px_16px_rgba(15,23,42,0.06)]"
-          : "border-border/80 bg-card hover:border-border hover:bg-accent/15 hover:shadow-[0_6px_14px_rgba(15,23,42,0.05)]",
+          ? "border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent-soft)]/78 shadow-[0_8px_18px_rgba(17,24,39,0.04)]"
+          : "border-transparent bg-transparent hover:border-[var(--inbox-divider)] hover:bg-[var(--inbox-background)]/92",
       )}
     >
       <span
         className={cn(
-          "absolute inset-y-3 left-0 w-1 rounded-r-full transition-colors",
-          selected ? "bg-primary/80" : "bg-transparent group-hover:bg-border",
+          "absolute inset-y-2 left-0 w-1 rounded-r-full transition-colors",
+          selected ? "bg-[var(--inbox-accent)]" : "bg-transparent group-hover:bg-[var(--inbox-divider)]",
         )}
       />
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex items-center gap-2">
                 {isUnread && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--inbox-accent)]" aria-hidden="true" />
                 )}
                 <p
                   className={cn(
-                    "truncate pr-1 text-sm text-foreground",
+                    "truncate pr-1 text-sm text-[var(--inbox-text)]",
                     isUnread ? "font-semibold" : "font-medium",
                   )}
                 >
                   {title}
                 </p>
+                <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
               </div>
-              <p className="mt-1 truncate text-[11px] text-muted-foreground">{subtitle}</p>
+              <p className="truncate text-[11px] text-[var(--inbox-text-secondary)]">{subtitle}</p>
             </div>
             <span
               className={cn(
                 "shrink-0 whitespace-nowrap pt-0.5 text-[10px] font-medium",
-                isUnread ? "text-foreground" : "text-muted-foreground",
+                isUnread ? "text-[var(--inbox-text)]" : "text-[var(--inbox-muted)]",
               )}
             >
               {timeLabel}
@@ -90,29 +95,20 @@ export function ConversationListItem({
 
           <p
             className={cn(
-              "mt-2.5 line-clamp-2 text-[13px] leading-5",
-              isUnread ? "text-foreground/80" : "text-muted-foreground",
+              "mt-2 line-clamp-1 text-[13px] leading-5",
+              isUnread ? "text-[var(--inbox-text-secondary)]" : "text-[var(--inbox-muted)]",
             )}
           >
             {preview}
           </p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusClassName)}>
-              {statusLabel}
-            </span>
-            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {channelLabel}
-            </span>
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", urgencyClassName)}>
-              {urgencyLabel}
-            </span>
-            {typeof leadScore === "number" && (
-              <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
-                Lead {leadScore}
-              </span>
-            )}
-          </div>
+          <ConversationMetaLine
+            statusLabel={statusLabel}
+            statusClassName={statusClassName}
+            urgencyLabel={urgencyLabel}
+            urgencyClassName={urgencyClassName}
+            leadScore={leadScore}
+          />
         </div>
       </div>
     </button>

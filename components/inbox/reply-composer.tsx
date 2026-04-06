@@ -190,6 +190,20 @@ export function ReplyComposer({
           </span>
         </div>
 
+        <div className="flex items-center justify-between rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/42 px-3 py-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
+              Rich composer
+            </p>
+            <p className="mt-1 text-xs text-[var(--inbox-text-secondary)]">
+              Microphone ready. Attachments and channel-specific actions can plug in here next.
+            </p>
+          </div>
+          <span className="rounded-full bg-[var(--inbox-surface)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+            Future attachments
+          </span>
+        </div>
+
         <div className="space-y-2">
           <Textarea
             ref={composerTextareaRef}
