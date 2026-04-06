@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 interface ConversationListItemProps {
   title: string
   subtitle: string
-  preview: string
+  preview?: string | null
   timeLabel: string
   selected: boolean
   isUnread: boolean
@@ -93,14 +93,16 @@ export function ConversationListItem({
             </span>
           </div>
 
-          <p
-            className={cn(
-              "mt-2 line-clamp-1 text-[13px] leading-5",
-              isUnread ? "text-[var(--inbox-text-secondary)]" : "text-[var(--inbox-muted)]",
-            )}
-          >
-            {preview}
-          </p>
+          {preview?.trim() ? (
+            <p
+              className={cn(
+                "mt-2 line-clamp-1 text-[13px] leading-5",
+                isUnread ? "text-[var(--inbox-text-secondary)]" : "text-[var(--inbox-muted)]",
+              )}
+            >
+              {preview}
+            </p>
+          ) : null}
 
           <ConversationMetaLine
             statusLabel={statusLabel}

@@ -767,7 +767,7 @@ function InboxPageContent() {
     channel: item.channel,
     title: item.subject || item.contact.nombre || "New conversation",
     subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
-    preview: item.summary ?? item.classification?.summary ?? item.messages?.[0]?.content ?? "No summary",
+    preview: item.summary ?? item.classification?.summary ?? null,
     timeLabel: formatRelativeDate(item.lastMessageAt),
     isUnread: item.status === "new",
     statusLabel: statusLabel(item.status),
