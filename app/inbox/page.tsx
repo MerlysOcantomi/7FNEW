@@ -980,9 +980,14 @@ function InboxPageContent() {
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
-      <div className="-mx-4 -mt-2 md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:overflow-hidden">
-        <div className="flex h-full min-h-0 flex-col bg-background xl:flex-row">
-          <div className={cn(mobileView === "thread" && selectedId ? "hidden" : "block", "min-h-0 xl:block xl:h-full xl:w-[368px] xl:shrink-0 xl:overflow-hidden")}>
+      <div className="-mx-4 -mt-2 bg-[var(--inbox-background)] md:-mx-8 xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col gap-3 bg-[var(--inbox-background)] p-3 xl:grid xl:grid-cols-[minmax(320px,368px)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] min-[1440px]:grid-cols-[minmax(320px,368px)_minmax(0,1fr)_360px]">
+          <div
+            className={cn(
+              mobileView === "thread" && selectedId ? "hidden" : "block",
+              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:block xl:h-full",
+            )}
+          >
             <ConversationList
               loading={loading}
               errorMessage={listErrorMessage}
@@ -1006,63 +1011,68 @@ function InboxPageContent() {
           <div
             className={cn(
               selectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden",
+              "min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow)] xl:flex xl:h-full xl:min-h-0",
             )}
           >
-            <ConversationThread
-              hasSelectedId={Boolean(selectedId)}
-              detailLoading={detailLoading && !selected}
-              detailErrorMessage={detailErrorMessage}
-              headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
-              headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
-              assignedTo={selected?.assignedTo ?? ""}
-              members={displayedMembers}
-              assignSaving={assignSaving}
-              onAssign={handleAssign}
-              statusValue={selected?.status || "new"}
-              statusOptions={statusSelectOptions}
-              onStatusChange={handleStatusChange}
-              statusBadgeClassName={statusBadge}
-              messages={threadMessages}
-              onBack={handleBackToList}
-              onOpenContext={() => setContextSheetOpen(true)}
-            />
-
-            {selected && (
-              <ReplyComposer
-                replyContent={replyContent}
-                replyIsInternal={replyIsInternal}
-                replySending={replySending}
-                replyStatus={replyStatus}
-                autoPopulated={autoPopulated}
-                suggestedDraft={suggestedDraft}
-                cannedOpen={cannedOpen}
-                composerTextareaRef={composerTextareaRef}
-                onReplyModeChange={setReplyIsInternal}
-                onReplyContentChange={(value) => {
-                  setReplyContent(value)
-                  if (autoPopulated) setAutoPopulated(false)
-                }}
-                onCannedOpenChange={setCannedOpen}
-                onSend={sendReply}
-                onUseSuggestion={(content) => {
-                  setReplyContent(content)
-                  setReplyIsInternal(false)
-                  setReplyStatus(null)
-                }}
-                onClearSuggestion={() => {
-                  setReplyContent("")
-                  setAutoPopulated(false)
-                }}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)]/72">
+              <ConversationThread
+                hasSelectedId={Boolean(selectedId)}
+                detailLoading={detailLoading && !selected}
+                detailErrorMessage={detailErrorMessage}
+                headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
+                headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+                assignedTo={selected?.assignedTo ?? ""}
+                members={displayedMembers}
+                assignSaving={assignSaving}
+                onAssign={handleAssign}
+                statusValue={selected?.status || "new"}
+                statusOptions={statusSelectOptions}
+                onStatusChange={handleStatusChange}
+                statusBadgeClassName={statusBadge}
+                messages={threadMessages}
+                onBack={handleBackToList}
+                onOpenContext={() => setContextSheetOpen(true)}
               />
-            )}
+
+              {selected && (
+                <>
+                  <div data-slot="farah-assist" aria-hidden="true" className="hidden" />
+                  <ReplyComposer
+                    replyContent={replyContent}
+                    replyIsInternal={replyIsInternal}
+                    replySending={replySending}
+                    replyStatus={replyStatus}
+                    autoPopulated={autoPopulated}
+                    suggestedDraft={suggestedDraft}
+                    cannedOpen={cannedOpen}
+                    composerTextareaRef={composerTextareaRef}
+                    onReplyModeChange={setReplyIsInternal}
+                    onReplyContentChange={(value) => {
+                      setReplyContent(value)
+                      if (autoPopulated) setAutoPopulated(false)
+                    }}
+                    onCannedOpenChange={setCannedOpen}
+                    onSend={sendReply}
+                    onUseSuggestion={(content) => {
+                      setReplyContent(content)
+                      setReplyIsInternal(false)
+                      setReplyStatus(null)
+                    }}
+                    onClearSuggestion={() => {
+                      setReplyContent("")
+                      setAutoPopulated(false)
+                    }}
+                  />
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="hidden w-[360px] shrink-0 border-l border-border bg-card min-[1440px]:flex xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] min-[1440px]:flex min-[1440px]:flex-col xl:h-full xl:min-h-0">
             {selected ? (
-              <div className="flex-1 overflow-y-auto p-4">{contextPanel}</div>
+              <div className="flex-1 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">{contextPanel}</div>
             ) : (
-              <div className="flex flex-1 items-center justify-center">
+              <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
                 <div className="text-center">
                   <Sparkles className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
                   <p className="text-xs text-muted-foreground">Context will appear here</p>
@@ -1073,14 +1083,14 @@ function InboxPageContent() {
         </div>
 
         <Sheet open={contextSheetOpen} onOpenChange={setContextSheetOpen}>
-          <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t p-0 min-[1440px]:hidden">
-            <SheetHeader className="border-b border-border px-4 py-4 text-left">
+          <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-0 min-[1440px]:hidden">
+            <SheetHeader className="border-b border-[var(--inbox-divider)] px-4 py-4 text-left">
               <SheetTitle>{selected?.subject || selected?.contact.nombre || "Conversation context"}</SheetTitle>
               <SheetDescription>
                 Smart Handoff, drafts, actions, and business context for the current conversation.
               </SheetDescription>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
+            <div className="flex-1 overflow-y-auto bg-[var(--inbox-background)]/10 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
               {contextPanel}
             </div>
           </SheetContent>
@@ -1094,7 +1104,7 @@ function InboxPageFallback() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]}>
       <div className="-mx-4 -mt-2 md:-mx-8">
-        <div className="flex min-h-[50vh] items-center justify-center bg-background">
+        <div className="flex min-h-[50vh] items-center justify-center bg-[var(--inbox-background)]">
           <p className="text-sm text-muted-foreground">Loading inbox...</p>
         </div>
       </div>

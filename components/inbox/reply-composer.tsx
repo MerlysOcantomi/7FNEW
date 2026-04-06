@@ -118,8 +118,8 @@ export function ReplyComposer({
   }, [speech.listening, speech.transcript, speech.reset, onReplyContentChange])
 
   return (
-    <div className="shrink-0 border-t border-border bg-card/95 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur supports-[backdrop-filter]:bg-card/85 md:px-5">
-      <div className="space-y-3 rounded-[24px] border border-border/80 bg-background/90 p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] md:p-4">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+      <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow-sm)] md:p-4">
         {suggestedDraft && !replyContent.trim() && (
           <div className="flex flex-col gap-3 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 to-background p-3 sm:flex-row sm:items-start">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -148,9 +148,9 @@ export function ReplyComposer({
           <Button
             type="button"
             size="sm"
-            variant={replyIsInternal ? "outline" : "default"}
+            variant={replyIsInternal ? "outline" : "accent"}
             onClick={() => onReplyModeChange(false)}
-            className="rounded-xl"
+            className="rounded-[var(--inbox-radius-control)]"
           >
             Reply
           </Button>
@@ -270,9 +270,10 @@ export function ReplyComposer({
               onClick={handleSend}
               disabled={replySending || !replyContent.trim()}
               className={cn(
-                "min-w-[148px] self-end rounded-2xl px-4 sm:self-auto",
+                "min-w-[148px] self-end rounded-[var(--inbox-radius-control)] px-4 sm:self-auto",
                 replyIsInternal && "bg-amber-900 text-white hover:bg-amber-950",
               )}
+              variant={replyIsInternal ? undefined : "accent"}
             >
               {replySending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
