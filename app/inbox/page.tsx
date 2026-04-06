@@ -1096,6 +1096,10 @@ function InboxPageContent() {
                     />
                   )}
                   <ReplyComposer
+                    channel={selected.channel}
+                    channelLabel={channelLabel(selected.channel)}
+                    subject={selected.subject}
+                    detectedLanguage={selected.detectedLanguage}
                     replyContent={replyContent}
                     replyIsInternal={replyIsInternal}
                     replySending={replySending}
