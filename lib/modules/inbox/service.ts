@@ -1,7 +1,6 @@
 // Re-export from new location — will be removed after full migration
 export {
   createConversationFromInboxEntry,
-  applyClassificationToConversation,
   listConversations,
   listConversationActions,
   getConversationById,
@@ -15,6 +14,5 @@ export {
   getConversationAction,
   executeConversationAction,
   convertConversationToRecords,
-  applyLegacyClassificationSnapshot,
   parseConversationJsonFields,
 } from "@modules/inbox/service"

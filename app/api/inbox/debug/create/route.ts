@@ -1,6 +1,6 @@
 /**
  * DEBUG / TEST ONLY — temporary endpoint to seed a test conversation.
- * Remove before production deployment.
+ * Disabled in production via NODE_ENV check.
  */
 
 import { NextRequest } from "next/server"
@@ -11,6 +11,10 @@ import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return errorResponse("NOT_FOUND", "Not available", 404)
+  }
+
   try {
     const { workspaceId } = await requireWriteAccess(request)
 

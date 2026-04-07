@@ -1,6 +1,6 @@
 "use client"
 
-import { Search } from "lucide-react"
+import { Loader2, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,7 +15,7 @@ interface ConversationItem {
   channel: string
   title: string
   subtitle: string
-  preview: string
+  preview: string | null
   timeLabel: string
   isUnread: boolean
   statusLabel: string
@@ -47,6 +47,9 @@ interface ConversationListProps {
     urgent: number
   }
   onSelect: (id: string) => void
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 export function ConversationList({
@@ -66,6 +69,9 @@ export function ConversationList({
   onAssignmentFilterChange,
   stats,
   onSelect,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: ConversationListProps) {
   return (
     <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
@@ -178,25 +184,48 @@ export function ConversationList({
               description="Try broadening your filters or search terms."
             />
           ) : (
-            conversations.map((item) => (
-              <ConversationListItem
-                key={item.id}
-                channel={item.channel}
-                title={item.title}
-                subtitle={item.subtitle}
-                preview={item.preview}
-                timeLabel={item.timeLabel}
-                selected={selectedId === item.id}
-                isUnread={item.isUnread}
-                onClick={() => onSelect(item.id)}
-                statusLabel={item.statusLabel}
-                statusClassName={item.statusClassName}
-                channelLabel={item.channelLabel}
-                urgencyLabel={item.urgencyLabel}
-                urgencyClassName={item.urgencyClassName}
-                leadScore={item.leadScore}
-              />
-            ))
+            <>
+              {conversations.map((item) => (
+                <ConversationListItem
+                  key={item.id}
+                  channel={item.channel}
+                  title={item.title}
+                  subtitle={item.subtitle}
+                  preview={item.preview}
+                  timeLabel={item.timeLabel}
+                  selected={selectedId === item.id}
+                  isUnread={item.isUnread}
+                  onClick={() => onSelect(item.id)}
+                  statusLabel={item.statusLabel}
+                  statusClassName={item.statusClassName}
+                  channelLabel={item.channelLabel}
+                  urgencyLabel={item.urgencyLabel}
+                  urgencyClassName={item.urgencyClassName}
+                  leadScore={item.leadScore}
+                />
+              ))}
+              {hasMore && onLoadMore && (
+                <div className="flex justify-center py-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onLoadMore}
+                    disabled={loadingMore}
+                    className="w-full rounded-[var(--inbox-radius-control)]"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load more conversations"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </ScrollArea>

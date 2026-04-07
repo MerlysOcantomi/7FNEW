@@ -496,6 +496,16 @@ const tables = [
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "ClientAuth_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS "ConversationRead" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "conversationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "workspaceId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ConversationRead_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ConversationRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
 ]
 
 const uniqueIndexes = [
@@ -508,6 +518,7 @@ const uniqueIndexes = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "AllowedEmail_email_key" ON "AllowedEmail"("email")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "AIClassification_conversationId_key" ON "AIClassification"("conversationId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationHandoff_conversationId_key" ON "ConversationHandoff"("conversationId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationRead_conversationId_userId_key" ON "ConversationRead"("conversationId", "userId")`,
 ]
 
 async function main() {
@@ -567,6 +578,9 @@ async function main() {
     `ALTER TABLE "ConversationAction" ADD COLUMN "dismissedAt" DATETIME`,
     `ALTER TABLE "ConversationAction" ADD COLUMN "executionNotes" TEXT`,
     `ALTER TABLE "ConversationAction" ADD COLUMN "errorMessage" TEXT`,
+    `ALTER TABLE "Conversation" ADD COLUMN "detectedLanguage" TEXT`,
+    `ALTER TABLE "InboxEntry" ADD COLUMN "workspaceId" TEXT`,
+    `ALTER TABLE "Notification" ADD COLUMN "workspaceId" TEXT`,
   ]
 
   console.log("\nAgregando columnas nuevas (si no existen)...")

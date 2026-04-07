@@ -15,6 +15,8 @@ interface ActionItem {
   errorMessage?: string | null
 }
 
+const STUB_ACTION_TYPES = new Set(["schedule_followup", "generate_proposal"])
+
 interface ActionsCardProps {
   actions: ActionItem[]
   channel: string
@@ -25,7 +27,7 @@ interface ActionsCardProps {
   actionTypeLabel: (type: string) => string
   actionStatusLabel: (status: string) => string
   actionStatusBadge: (status: string) => string
-  onAction: (action: ActionItem, operation: "approve" | "dismiss" | "execute") => Promise<void>
+  onAction: (action: ActionItem, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
   onConvert: (action: "cliente" | "proyecto" | "tarea") => Promise<void>
   actionState?: string | null
 }
@@ -117,46 +119,65 @@ export function ActionsCard({
                       </p>
                     )}
                   </div>
-                  <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(primaryAction.status))}>
-                    {actionStatusLabel(primaryAction.status)}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {STUB_ACTION_TYPES.has(primaryAction.type) && (
+                      <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                        Coming soon
+                      </span>
+                    )}
+                    <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(primaryAction.status))}>
+                      {actionStatusLabel(primaryAction.status)}
+                    </span>
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {primaryAction.status === "suggested" && (
-                    <>
+                {!STUB_ACTION_TYPES.has(primaryAction.type) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {primaryAction.status === "suggested" && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="accent"
+                          onClick={() => onAction(primaryAction, "approve_and_execute")}
+                          disabled={pendingActionId === primaryAction.id}
+                        >
+                          {pendingActionId === primaryAction.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Approve & run"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onAction(primaryAction, "approve")}
+                          disabled={pendingActionId === primaryAction.id}
+                          className="rounded-[var(--inbox-radius-control)]"
+                        >
+                          Approve only
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onAction(primaryAction, "dismiss")}
+                          disabled={pendingActionId === primaryAction.id}
+                          className="rounded-[var(--inbox-radius-control)]"
+                        >
+                          Dismiss
+                        </Button>
+                      </>
+                    )}
+                    {primaryAction.status === "approved" && (
                       <Button
                         type="button"
                         size="sm"
                         variant="accent"
-                        onClick={() => onAction(primaryAction, "approve")}
+                        onClick={() => onAction(primaryAction, "execute")}
                         disabled={pendingActionId === primaryAction.id}
                       >
-                        {pendingActionId === primaryAction.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Approve"}
+                        {pendingActionId === primaryAction.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Execute"}
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onAction(primaryAction, "dismiss")}
-                        disabled={pendingActionId === primaryAction.id}
-                        className="rounded-[var(--inbox-radius-control)]"
-                      >
-                        Dismiss
-                      </Button>
-                    </>
-                  )}
-                  {primaryAction.status === "approved" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="accent"
-                      onClick={() => onAction(primaryAction, "execute")}
-                      disabled={pendingActionId === primaryAction.id}
-                    >
-                      {pendingActionId === primaryAction.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Execute"}
-                    </Button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
@@ -204,10 +225,15 @@ export function ActionsCard({
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
+                              {STUB_ACTION_TYPES.has(action.type) && (
+                                <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                                  Soon
+                                </span>
+                              )}
                               <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
                                 {actionStatusLabel(action.status)}
                               </span>
-                              {action.status === "suggested" && (
+                              {!STUB_ACTION_TYPES.has(action.type) && action.status === "suggested" && (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -219,7 +245,7 @@ export function ActionsCard({
                                   {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Use"}
                                 </Button>
                               )}
-                              {action.status === "approved" && (
+                              {!STUB_ACTION_TYPES.has(action.type) && action.status === "approved" && (
                                 <Button
                                   type="button"
                                   size="sm"

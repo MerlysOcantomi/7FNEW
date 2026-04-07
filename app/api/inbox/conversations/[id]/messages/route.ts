@@ -64,30 +64,38 @@ export async function POST(request: NextRequest, { params }: Params) {
         .catch(() => null)
     }
 
+    let emailMeta: { emailSent?: boolean; emailError?: string } | undefined
+
     if (direction === "outbound" && !isInternal) {
-      void db.conversation
-        .findFirst({
-          where: { id, workspaceId },
-          select: {
-            channel: true,
-            subject: true,
-            contact: { select: { email: true } },
-            workspace: { select: { nombre: true, config: true } },
-          },
-        })
-        .then((conv) => {
-          if (!conv || conv.channel !== "email") return
-          const contactEmail = conv.contact?.email?.trim()
-          if (!contactEmail) return
-          return sendOutboundEmail({
-            workspaceName: conv.workspace.nombre,
-            contactEmail,
-            subject: conv.subject ?? "",
-            messageContent: message.content,
-            workspaceConfig: conv.workspace.config,
-          })
-        })
-        .catch(() => null)
+      const conv = await db.conversation.findFirst({
+        where: { id, workspaceId },
+        select: {
+          channel: true,
+          subject: true,
+          contact: { select: { email: true } },
+          workspace: { select: { nombre: true, config: true } },
+        },
+      })
+
+      if (conv?.channel === "email") {
+        const contactEmail = conv.contact?.email?.trim()
+        if (contactEmail) {
+          try {
+            const result = await sendOutboundEmail({
+              workspaceName: conv.workspace.nombre,
+              contactEmail,
+              subject: conv.subject ?? "",
+              messageContent: message.content,
+              workspaceConfig: conv.workspace.config,
+            })
+            emailMeta = result.ok
+              ? { emailSent: true }
+              : { emailSent: false, emailError: result.error || "Email delivery failed" }
+          } catch {
+            emailMeta = { emailSent: false, emailError: "Email service unavailable" }
+          }
+        }
+      }
     }
 
     await runConversationIntelligence({
@@ -96,7 +104,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       trigger: "message_post",
     }).catch(() => null)
 
-    return successResponse(message)
+    return successResponse(message, emailMeta)
   } catch (error) {
     return handleError(error, "ConversationMessage")
   }

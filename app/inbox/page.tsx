@@ -387,7 +387,11 @@ function InboxPageContent() {
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const [cannedOpen, setCannedOpen] = useState(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
+  const activeDraftIdRef = useRef<string | null>(null)
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [extraConversations, setExtraConversations] = useState<ConversationListItem[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
   const pendingComposerFocusRef = useRef(false)
 
   const searchParams = useSearchParams()
@@ -412,8 +416,10 @@ function InboxPageContent() {
       .catch(() => null)
   }, [])
 
+  const PAGE_SIZE = 50
+
   const params = new URLSearchParams()
-  params.set("pageSize", "100")
+  params.set("pageSize", String(PAGE_SIZE))
   if (search.trim()) params.set("q", search.trim())
   if (status !== "all") params.set("status", status)
   if (channel !== "all") params.set("channel", channel)
@@ -422,12 +428,34 @@ function InboxPageContent() {
 
   const {
     data: conversationsData,
+    meta: conversationsMeta,
     loading,
     error,
     refetch,
   } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey })
 
-  const conversations = Array.isArray(conversationsData) ? conversationsData : []
+  const baseConversations = useMemo(
+    () => (Array.isArray(conversationsData) ? conversationsData : []),
+    [conversationsData],
+  )
+  const conversations = useMemo(
+    () => [...baseConversations, ...extraConversations],
+    [baseConversations, extraConversations],
+  )
+
+  const filterKey = `${search}|${status}|${channel}|${assignmentFilter}|${currentUserId}`
+  const filterKeyRef = useRef(filterKey)
+  useEffect(() => {
+    if (filterKeyRef.current !== filterKey) {
+      filterKeyRef.current = filterKey
+      setExtraConversations([])
+      setCurrentPage(1)
+    }
+  }, [filterKey])
+
+  const serverTotal = typeof conversationsMeta?.total === "number" ? conversationsMeta.total : null
+  const hasMore = serverTotal !== null && conversations.length < serverTotal
+
   const isWorkspaceUnavailable = error === "No tienes workspace asignado"
   const isGenericListFailure = error === "Error interno del servidor"
   const listErrorMessage =
@@ -529,19 +557,18 @@ function InboxPageContent() {
     if (confidence < 0.75) return
 
     lastAutoPopulatedDraftRef.current = draft.id
+    activeDraftIdRef.current = draft.id
     setReplyContent(draft.content)
     setAutoPopulated(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
 
-  const stats = useMemo(() => {
-    return {
-      total: conversations.length,
-      leads: conversations.filter((item) => item.status === "lead_detected").length,
-      converted: conversations.filter((item) => item.status === "converted").length,
-      urgent: conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
-    }
-  }, [conversations])
+  const stats = useMemo(() => ({
+    total: serverTotal ?? conversations.length,
+    leads: conversations.filter((item) => item.status === "lead_detected").length,
+    converted: conversations.filter((item) => item.status === "converted").length,
+    urgent: conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
+  }), [conversations, serverTotal])
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
@@ -565,8 +592,36 @@ function InboxPageContent() {
     }
   }
 
-  async function handleSuggestedAction(action: NonNullable<ConversationDetail["actions"]>[number], operation: "approve" | "dismiss" | "execute") {
+  async function handleSuggestedAction(action: NonNullable<ConversationDetail["actions"]>[number], operation: "approve" | "dismiss" | "execute" | "approve_and_execute") {
     if (!selectedId) return
+
+    if (operation === "approve_and_execute") {
+      setPendingActionId(action.id)
+      setActionState("Approving...")
+      try {
+        const approveRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/approve`, { method: "POST" })
+        const approveJson = await approveRes.json()
+        if (!approveJson.success) throw new Error(approveJson.error?.message || "Could not approve action")
+
+        setActionState("Executing...")
+        const execRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/execute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+        const execJson = await execRes.json()
+        if (!execJson.success) throw new Error(execJson.error?.message || "Could not execute action")
+
+        setActionState("Action approved and executed")
+        setRefreshKey((v) => v + 1)
+        refetch()
+        refetchDetail()
+      } catch (err) {
+        setActionState(err instanceof Error ? err.message : "Unknown error")
+      } finally {
+        setPendingActionId(null)
+      }
+      return
+    }
 
     let payload: Record<string, unknown> = {}
 
@@ -666,6 +721,8 @@ function InboxPageContent() {
   async function sendReply() {
     if (!activeSelectedId || !replyContent.trim() || replySending) return
 
+    const draftIdToMark = activeDraftIdRef.current
+
     setReplySending(true)
     setReplyStatus(null)
     try {
@@ -682,13 +739,27 @@ function InboxPageContent() {
       const json = await res.json()
       if (!json.success) throw new Error(json.error?.message || "Could not send message")
 
+      if (draftIdToMark) {
+        updateDraft(draftIdToMark, { status: "sent" }).catch(() => null)
+        activeDraftIdRef.current = null
+      }
+
       setReplyContent("")
       setReplyIsInternal(false)
       setAutoPopulated(false)
-      setReplyStatus(replyIsInternal ? "Note saved" : "Reply sent")
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
+
+      if (replyIsInternal) {
+        setReplyStatus("Note saved")
+      } else if (json.meta?.emailSent === false) {
+        setReplyStatus(`Reply saved — email failed: ${json.meta.emailError || "unknown error"}`)
+      } else if (json.meta?.emailSent === true) {
+        setReplyStatus("Reply sent — email delivered")
+      } else {
+        setReplyStatus("Reply sent")
+      }
     } catch (err) {
       setReplyStatus(err instanceof Error ? err.message : "Unknown error")
     } finally {
@@ -698,6 +769,26 @@ function InboxPageContent() {
 
   const sendReplyRef = useRef(sendReply)
   sendReplyRef.current = sendReply
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return
+    const nextPage = currentPage + 1
+    const loadParams = new URLSearchParams(params.toString())
+    loadParams.set("page", String(nextPage))
+    setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/inbox/conversations?${loadParams.toString()}`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data) && filterKeyRef.current === filterKey) {
+        setExtraConversations((prev) => [...prev, ...json.data])
+        setCurrentPage(nextPage)
+      }
+    } catch {
+      // silent — user can retry via button
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const statusSelectOptions = STATUS_OPTIONS
     .filter((s) => s !== "all")
@@ -1050,6 +1141,9 @@ function InboxPageContent() {
                 onAssignmentFilterChange={setAssignmentFilter}
                 stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
                 onSelect={handleSelectConversation}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={loadMore}
               />
             )}
           </div>
@@ -1105,6 +1199,7 @@ function InboxPageContent() {
                                 setReplyStatus(null)
                                 setAutoPopulated(true)
                                 setFarahExpanded(true)
+                                activeDraftIdRef.current = suggestedDraft.id
                                 requestComposerFocus(false)
                               }
                             : undefined}
@@ -1114,6 +1209,8 @@ function InboxPageContent() {
                                 setReplyIsInternal(false)
                                 setReplyStatus(null)
                                 setFarahExpanded(true)
+                                activeDraftIdRef.current = suggestedDraft.id
+                                updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
                                 requestComposerFocus(false)
                               }
                             : undefined}

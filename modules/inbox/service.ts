@@ -1,6 +1,5 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
-import type { InboxClassification } from "./types"
 import {
   canTransitionConversationStatus,
   CONVERSATION_ACTIVE_STATUSES,
@@ -147,25 +146,6 @@ function buildSubject(message: string, fallback?: string | null) {
   return `${normalized.slice(0, 69)}...`
 }
 
-function computeLeadScore(classification: InboxClassification) {
-  let score = 0
-  if (classification.tipo === "lead" || classification.tipo === "proyecto") score += 35
-  if (classification.urgencia === "critica") score += 20
-  else if (classification.urgencia === "alta") score += 15
-  else if (classification.urgencia === "media") score += 8
-  if (classification.datosCliente?.nombre) score += 10
-  if (classification.datosCliente?.email) score += 15
-  if (classification.datosCliente?.empresa) score += 10
-  if (classification.datosProyecto?.presupuesto) score += 10
-  if ((classification.tags ?? []).length > 0) score += 5
-  return Math.min(100, score)
-}
-
-function deriveConversationStatus(classification: InboxClassification, leadScore: number) {
-  if (leadScore >= 60) return "lead_detected"
-  if (classification.tipo === "ticket") return "triaged"
-  return "triaged"
-}
 
 function getInboundConversationStatus(currentStatus?: string | null) {
   if (currentStatus === "awaiting_response") {
@@ -274,29 +254,6 @@ async function findReusableConversation(input: {
   return { conversation: null, mode: "new" as const }
 }
 
-async function syncInboxEntryLegacySnapshot(
-  inboxEntryId: string,
-  classification: InboxClassification,
-  status: string,
-) {
-  return db.inboxEntry.update({
-    where: { id: inboxEntryId },
-    data: {
-      tipo: classification.tipo,
-      categoria: classification.categoria,
-      urgencia: classification.urgencia,
-      intencion: classification.intencion,
-      resumen: classification.resumen,
-      datosCliente: JSON.stringify(classification.datosCliente),
-      datosProyecto: JSON.stringify(classification.datosProyecto),
-      notas: classification.notas,
-      tags: JSON.stringify(classification.tags),
-      aiRaw: JSON.stringify(classification),
-      estado: status,
-    },
-  })
-}
-
 export async function createConversationFromInboxEntry(input: CreateConversationFromInboxEntryInput) {
   const channel = mapSourceToChannel(input.fuente)
   const contact = await resolveContact({
@@ -389,119 +346,6 @@ export async function createConversationFromInboxEntry(input: CreateConversation
     reused: reusable.mode === "reuse",
     reopened: reusable.mode === "reopen",
   }
-}
-
-export async function applyClassificationToConversation(
-  inboxEntryId: string,
-  workspaceId: string,
-  classification: InboxClassification,
-) {
-  const entry = await db.inboxEntry.findFirst({
-    where: { id: inboxEntryId, workspaceId },
-    select: {
-      id: true,
-      contactId: true,
-      conversationId: true,
-      clienteId: true,
-      nombre: true,
-      email: true,
-      telefono: true,
-      mensaje: true,
-      fuente: true,
-    },
-  })
-
-  if (!entry) return null
-
-  let conversationId = entry.conversationId
-  let contactId = entry.contactId
-
-  if (!conversationId || !contactId) {
-    const created = await createConversationFromInboxEntry({
-      inboxEntryId,
-      workspaceId,
-      nombre: entry.nombre,
-      email: entry.email,
-      telefono: entry.telefono,
-      mensaje: entry.mensaje,
-      fuente: entry.fuente,
-    })
-    conversationId = created.conversation.id
-    contactId = created.contact.id
-  }
-
-  const leadScore = computeLeadScore(classification)
-  const nextStatus = deriveConversationStatus(classification, leadScore)
-
-  const currentConversation = await db.conversation.findFirst({
-    where: { id: conversationId!, workspaceId },
-    select: {
-      id: true,
-      status: true,
-      clienteId: true,
-    },
-  })
-
-  if (!currentConversation) return null
-
-  const status = transitionConversationStatus(currentConversation.status, nextStatus)
-
-  const [contact, conversation] = await db.$transaction([
-    db.contact.update({
-      where: { id: contactId! },
-      data: {
-        nombre: classification.datosCliente?.nombre ?? undefined,
-        email: classification.datosCliente?.email?.trim().toLowerCase() ?? undefined,
-        telefono: classification.datosCliente?.telefono ?? undefined,
-        empresa: classification.datosCliente?.empresa ?? undefined,
-        tipo: leadScore >= 60 ? "lead" : undefined,
-        leadScore,
-        lastSeenAt: new Date(),
-      },
-    }),
-    db.conversation.update({
-      where: { id: conversationId! },
-      data: {
-        status,
-        summary: classification.resumen,
-        intent: classification.intencion,
-        leadScore,
-        urgency: classification.urgencia,
-        clienteId: entry.clienteId ?? undefined,
-        classification: {
-          upsert: {
-            create: {
-              workspaceId,
-              intent: classification.intencion,
-              urgency: classification.urgencia,
-              leadScore,
-              summary: classification.resumen,
-              suggestedTags: JSON.stringify(classification.tags ?? []),
-              briefData: JSON.stringify(classification.datosProyecto ?? {}),
-              model: "operativo",
-              promptVersion: "v1",
-            },
-            update: {
-              intent: classification.intencion,
-              urgency: classification.urgencia,
-              leadScore,
-              summary: classification.resumen,
-              suggestedTags: JSON.stringify(classification.tags ?? []),
-              briefData: JSON.stringify(classification.datosProyecto ?? {}),
-              model: "operativo",
-              promptVersion: "v1",
-            },
-          },
-        },
-      },
-      include: {
-        contact: true,
-        classification: true,
-      },
-    }),
-  ])
-
-  return { contact, conversation }
 }
 
 function parseConversationClassification(classification?: {
@@ -1307,13 +1151,6 @@ export async function convertConversationToRecords(
     ...results,
     conversationId: input.conversationId,
   }
-}
-
-export async function applyLegacyClassificationSnapshot(
-  inboxEntryId: string,
-  classification: InboxClassification,
-) {
-  return syncInboxEntryLegacySnapshot(inboxEntryId, classification, "clasificado")
 }
 
 export function parseConversationJsonFields<T extends Record<string, unknown>>(record: T) {

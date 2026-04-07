@@ -5,7 +5,7 @@ import { parseConversationJsonFields, updateConversationDraft } from "@modules/i
 
 type Params = { params: Promise<{ id: string; draftId: string }> }
 
-const EDITABLE_DRAFT_STATUSES = new Set(["draft", "edited", "approved", "discarded"])
+const EDITABLE_DRAFT_STATUSES = new Set(["draft", "edited", "approved", "discarded", "sent"])
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {

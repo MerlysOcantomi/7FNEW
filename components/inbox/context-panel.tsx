@@ -82,7 +82,7 @@ interface ContextPanelProps {
   confidenceLabel: (value?: number | null) => string | null
   formatDateTime: (value?: string | null) => string | null
   pendingActionId: string | null
-  handleSuggestedAction: (action: ActionData, operation: "approve" | "dismiss" | "execute") => Promise<void>
+  handleSuggestedAction: (action: ActionData, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
   actionTypeLabel: (type: string) => string
   actionStatusBadge: (status: string) => string
   actionStatusLabel: (status: string) => string
