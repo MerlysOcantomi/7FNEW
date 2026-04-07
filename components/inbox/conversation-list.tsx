@@ -34,7 +34,7 @@ interface ConversationListProps {
   search: string
   onSearchChange: (value: string) => void
   status: string
-  statusOptions: string[]
+  statusOptions: Array<{ value: string; label: string }>
   onStatusChange: (value: string) => void
   channel: string
   channelOptions: Array<{ value: string; label: string }>
@@ -50,6 +50,7 @@ interface ConversationListProps {
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  activeSearchTerm?: string
 }
 
 export function ConversationList({
@@ -72,7 +73,14 @@ export function ConversationList({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  activeSearchTerm,
 }: ConversationListProps) {
+  const viewLabel =
+    assignmentFilter === "mine"
+      ? "My conversations"
+      : assignmentFilter === "unassigned"
+        ? "Unassigned conversations"
+        : "All conversations"
   return (
     <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
       <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
@@ -80,7 +88,9 @@ export function ConversationList({
           <div>
             <h1 className="text-base font-semibold tracking-tight text-[var(--inbox-text)]">Inbox</h1>
             <p className="mt-1 max-w-[18rem] text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
-              Unified multichannel conversations.
+              {activeSearchTerm
+                ? `Searching: "${activeSearchTerm}"`
+                : viewLabel}
             </p>
           </div>
           <div className="flex max-w-[10rem] flex-wrap justify-end gap-1.5 text-[11px]">
@@ -105,7 +115,7 @@ export function ConversationList({
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search conversations..."
+            placeholder="Search by name, email, subject, messages..."
             className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] pl-10 shadow-none"
           />
         </div>
@@ -117,8 +127,8 @@ export function ConversationList({
             className="h-10 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-background)] px-3 text-sm text-[var(--inbox-text)] outline-none transition-[color,box-shadow] focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20"
           >
             {statusOptions.map((option) => (
-              <option key={option} value={option}>
-                {option === "all" ? "All statuses" : option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -180,8 +190,24 @@ export function ConversationList({
           ) : conversations.length === 0 ? (
             <EmptyState
               icon={Search}
-              title="No conversations"
-              description="Try broadening your filters or search terms."
+              title={
+                activeSearchTerm
+                  ? "No results"
+                  : assignmentFilter === "mine"
+                    ? "Nothing assigned to you"
+                    : assignmentFilter === "unassigned"
+                      ? "All conversations are assigned"
+                      : "No conversations"
+              }
+              description={
+                activeSearchTerm
+                  ? `No conversations match "${activeSearchTerm}". Try different keywords or broaden your filters.`
+                  : assignmentFilter === "mine"
+                    ? "You have no conversations assigned right now."
+                    : assignmentFilter === "unassigned"
+                      ? "Every conversation has an owner."
+                      : "Try broadening your filters or check back later."
+              }
             />
           ) : (
             <>

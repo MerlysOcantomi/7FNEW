@@ -356,9 +356,15 @@ function InboxPageContent() {
 
   const PAGE_SIZE = 50
 
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
-  if (search.trim()) params.set("q", search.trim())
+  if (debouncedSearch) params.set("q", debouncedSearch)
   if (status !== "all") params.set("status", status)
   if (channel !== "all") params.set("channel", channel)
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
@@ -381,7 +387,7 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
-  const filterKey = `${search}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${refreshKey}`
+  const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
@@ -737,7 +743,10 @@ function InboxPageContent() {
     }
   }
 
-  const statusSelectOptions = STATUS_OPTIONS
+  const statusFilterOptions = STATUS_OPTIONS
+    .map((s) => ({ value: s, label: s === "all" ? "All statuses" : statusLabel(s) }))
+
+  const statusEditOptions = STATUS_OPTIONS
     .filter((s) => s !== "all")
     .map((s) => ({ value: s, label: statusLabel(s) }))
 
@@ -1077,7 +1086,7 @@ function InboxPageContent() {
                 search={search}
                 onSearchChange={setSearch}
                 status={status}
-                statusOptions={STATUS_OPTIONS}
+                statusOptions={statusFilterOptions}
                 onStatusChange={setStatus}
                 channel={channel}
                 channelOptions={channelSelectOptions}
@@ -1088,6 +1097,7 @@ function InboxPageContent() {
                 onSelect={handleSelectConversation}
                 hasMore={hasMore}
                 loadingMore={loadingMore}
+                activeSearchTerm={debouncedSearch || undefined}
                 onLoadMore={loadMore}
               />
             )}
@@ -1116,7 +1126,7 @@ function InboxPageContent() {
                       assignSaving={assignSaving}
                       onAssign={handleAssign}
                       statusValue={selected?.status || "new"}
-                      statusOptions={statusSelectOptions}
+                      statusOptions={statusEditOptions}
                       onStatusChange={handleStatusChange}
                       statusBadgeClassName={statusBadge}
                       messages={threadMessages}

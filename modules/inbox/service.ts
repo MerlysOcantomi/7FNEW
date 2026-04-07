@@ -393,6 +393,8 @@ export async function listConversations(params: ListConversationsParams) {
             { contact: { nombre: { contains: q } } },
             { contact: { email: { contains: q } } },
             { contact: { empresa: { contains: q } } },
+            { contact: { telefono: { contains: q } } },
+            { messages: { some: { content: { contains: q } } } },
           ],
         }
       : {}),
