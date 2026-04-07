@@ -107,16 +107,6 @@ export function MessageIntelligenceCard({
                   {urgencyLabel}
                 </span>
               )}
-              {intent && (
-                <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
-                  {intent}
-                </span>
-              )}
-              {sentiment && (
-                <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
-                  {sentiment}
-                </span>
-              )}
               {confidenceLabel && (
                 <span className="rounded-full bg-[var(--inbox-accent-soft)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-accent)]">
                   {confidenceLabel}
@@ -124,18 +114,23 @@ export function MessageIntelligenceCard({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="space-y-2">
               <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">Intent</p>
-                <p className="mt-1 text-xs font-medium text-[var(--inbox-text)]">{intent || "Unclassified"}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text)]">
+                  {intent || "Unclassified"}
+                </p>
               </div>
-              <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">Sentiment</p>
-                <p className="mt-1 text-xs font-medium text-[var(--inbox-text)]">{sentiment || "Unknown"}</p>
-              </div>
-              <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">Urgency</p>
-                <p className="mt-1 text-xs font-medium text-[var(--inbox-text)]">{urgencyLabel || "Normal"}</p>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">Sentiment</p>
+                  <p className="mt-1 text-xs font-medium text-[var(--inbox-text)]">{sentiment || "Unknown"}</p>
+                </div>
+                <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">Urgency</p>
+                  <p className="mt-1 text-xs font-medium text-[var(--inbox-text)]">{urgencyLabel || "Normal"}</p>
+                </div>
               </div>
             </div>
 
