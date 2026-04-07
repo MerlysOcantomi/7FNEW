@@ -63,8 +63,8 @@ export function ActionsCard({
       <Collapsible open={expanded} onOpenChange={onExpandedChange}>
         <CardHeader className="px-4 py-0">
           <CollapsibleTrigger asChild>
-            <button className="flex w-full items-center justify-between gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-text)]">
-              <div className="flex min-w-0 items-center gap-3">
+            <button className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-text)]">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]">
                   <WandSparkles className="h-4 w-4" />
                 </div>
@@ -83,7 +83,7 @@ export function ActionsCard({
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="ml-2 flex shrink-0 items-center gap-2 self-start">
                 {suggestedCount > 0 && (
                   <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--inbox-accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--inbox-accent)]">
                     {suggestedCount} suggested
