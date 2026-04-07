@@ -264,7 +264,7 @@ export function ActionsCard({
 
             <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
-                Business operations
+                Quick conversions
               </p>
               <div className="flex flex-wrap gap-2">
                 {businessActions.map((item) => (

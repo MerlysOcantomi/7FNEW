@@ -128,10 +128,10 @@ export function ReplyComposer({
   }, [speech.listening, speech.transcript, speech.reset, onReplyContentChange])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
-      <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow-sm)] md:p-4">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+      <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow-sm)] md:p-3.5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -157,7 +157,7 @@ export function ReplyComposer({
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
                 {composerConfig.headerLabel}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+              <p className="mt-1 line-clamp-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
                 {composerConfig.headerDescription}
               </p>
             </div>
@@ -321,22 +321,22 @@ export function ReplyComposer({
             </div>
           )}
 
-          <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/42 px-3 py-2.5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
-                  Channel-aware composer
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
-                  {composerConfig.quickHint}
-                </p>
+          {advancedOpen && (
+            <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/42 px-3 py-2.5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
+                    More options
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                    {composerConfig.quickHint}
+                  </p>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {speech.listening ? "Listening..." : "Ctrl+Enter to send"}
+                </span>
               </div>
-              <span className="text-[11px] text-muted-foreground">
-                {speech.listening ? "Listening..." : "Ctrl+Enter to send"}
-              </span>
-            </div>
 
-            {advancedOpen && (
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 {composerConfig.advancedItems.map((item) => (
                   <div
@@ -367,8 +367,8 @@ export function ReplyComposer({
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-xl space-y-1">

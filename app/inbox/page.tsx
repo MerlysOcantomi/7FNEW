@@ -1065,24 +1065,26 @@ function InboxPageContent() {
                 <InboxCenterSkeleton />
               ) : (
                 <>
-                  <ConversationThread
-                    hasSelectedId={Boolean(activeSelectedId)}
-                    detailLoading={detailLoading && !selected}
-                    detailErrorMessage={detailErrorMessage}
-                    headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
-                    headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
-                    assignedTo={selected?.assignedTo ?? ""}
-                    members={displayedMembers}
-                    assignSaving={assignSaving}
-                    onAssign={handleAssign}
-                    statusValue={selected?.status || "new"}
-                    statusOptions={statusSelectOptions}
-                    onStatusChange={handleStatusChange}
-                    statusBadgeClassName={statusBadge}
-                    messages={threadMessages}
-                    onBack={handleBackToList}
-                    onOpenContext={() => setContextSheetOpen(true)}
-                  />
+                  <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
+                    <ConversationThread
+                      hasSelectedId={Boolean(activeSelectedId)}
+                      detailLoading={detailLoading && !selected}
+                      detailErrorMessage={detailErrorMessage}
+                      headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
+                      headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+                      assignedTo={selected?.assignedTo ?? ""}
+                      members={displayedMembers}
+                      assignSaving={assignSaving}
+                      onAssign={handleAssign}
+                      statusValue={selected?.status || "new"}
+                      statusOptions={statusSelectOptions}
+                      onStatusChange={handleStatusChange}
+                      statusBadgeClassName={statusBadge}
+                      messages={threadMessages}
+                      onBack={handleBackToList}
+                      onOpenContext={() => setContextSheetOpen(true)}
+                    />
+                  </div>
 
                   {selected && (
                     <>

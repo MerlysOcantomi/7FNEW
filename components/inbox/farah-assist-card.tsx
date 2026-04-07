@@ -41,9 +41,9 @@ export function FarahAssistCard({
     : "Farah has context for this conversation."
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
       <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[linear-gradient(180deg,rgba(230,241,242,0.6)_0%,rgba(255,255,255,1)_42%)] shadow-[var(--inbox-panel-shadow-sm)]">
-        <div className="flex items-start gap-3 px-4 py-4">
+        <div className="flex items-start gap-3 px-4 py-3.5">
           <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--inbox-divider)] bg-[linear-gradient(180deg,#F7FBFB_0%,#E6F1F2_100%)]">
             <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.9),transparent_42%)] text-[var(--inbox-accent)]">
               <Sparkles className="h-4 w-4" />
@@ -59,7 +59,7 @@ export function FarahAssistCard({
                 <p className="mt-1 text-sm font-semibold text-[var(--inbox-text)]">
                   {suggestionTitle || leadingText}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
                   {summary || leadingText}
                 </p>
               </div>
@@ -113,7 +113,7 @@ export function FarahAssistCard({
                   size="sm"
                   variant="accent"
                   onClick={hasSuggestion && onInsertSuggestion ? onInsertSuggestion : onToggleExpanded}
-                  className="min-w-[104px]"
+                  className="min-w-[96px]"
                 >
                   {hasSuggestion ? "Insertar" : "Ver ayuda"}
                 </Button>
