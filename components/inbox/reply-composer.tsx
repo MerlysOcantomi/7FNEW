@@ -128,8 +128,8 @@ export function ReplyComposer({
   }, [speech.listening, speech.transcript, speech.reset, onReplyContentChange])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
-      <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow-sm)] md:p-3.5">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+      <div className="space-y-2.5 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-2.5 shadow-[var(--inbox-panel-shadow-sm)] md:p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -182,9 +182,6 @@ export function ReplyComposer({
                   Subject
                 </p>
                 <p className="mt-1 truncate text-sm font-medium text-[var(--inbox-text)]">{composerConfig.subjectPreview}</p>
-                <p className="mt-1 text-xs text-[var(--inbox-text-secondary)]">
-                  Subject editing can plug into advanced email actions later without changing the composer layout.
-                </p>
               </div>
             </div>
           </div>
@@ -196,9 +193,9 @@ export function ReplyComposer({
             value={replyContent}
             onChange={(event) => handleTextareaChange(event.target.value)}
             placeholder={composerConfig.placeholder}
-            rows={4}
+            rows={3}
             className={cn(
-              "min-h-[128px] max-h-[256px] resize-none overflow-y-auto rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
+              "min-h-[104px] max-h-[220px] resize-none overflow-y-auto rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
               replyIsInternal && "border-amber-200 bg-amber-50/60",
               speech.listening && "ring-2 ring-red-300",
             )}
@@ -370,17 +367,10 @@ export function ReplyComposer({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="max-w-xl space-y-1">
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {composerConfig.footerHint}
-              </p>
-              {!replyIsInternal && (
-                <p className="text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
-                  Advanced send behaviors like reply all, forward, save draft or schedule send can expand from this layout later.
-                </p>
-              )}
-            </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-[11px] leading-relaxed text-muted-foreground">
+              {speech.listening ? "Listening..." : composerConfig.footerHint}
+            </p>
             <Button
               type="button"
               onClick={handleSend}

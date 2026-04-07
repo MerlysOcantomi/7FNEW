@@ -12,9 +12,10 @@ interface AppShellProps {
   children: React.ReactNode
   currentSection?: string
   breadcrumbs?: { label: string; href?: string }[]
+  contentClassName?: string
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, contentClassName }: AppShellProps) {
   const router = useRouter()
   const { user, loading } = useUser()
   const { openSearch } = useGlobalSearch()
@@ -61,7 +62,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
 
           <div className="flex-1 min-h-0 overflow-hidden px-4 pb-6 md:px-8 md:pb-8">
-            <div className="mx-auto h-full min-h-0 max-w-6xl">
+            <div className={`mx-auto h-full min-h-0 max-w-6xl ${contentClassName ?? ""}`}>
               {children}
             </div>
           </div>
