@@ -1,6 +1,6 @@
 "use client"
 
-import { ActionsCard } from "@/components/inbox/actions-card"
+import { ActionsCard, type ActionItem } from "@/components/inbox/actions-card"
 import { BusinessContextCard } from "@/components/inbox/business-context-card"
 import { MessageIntelligenceCard } from "@/components/inbox/message-intelligence-card"
 
@@ -16,23 +16,6 @@ interface HandoffData {
   confidence?: number | null
   reviewedBy?: string | null
   reviewedAt?: string | null
-}
-
-interface ActionData {
-  id: string
-  type: string
-  status: string
-  source?: string | null
-  confidence?: number | null
-  sourceMessageId?: string | null
-  data?: Record<string, unknown> | null
-  resultModule?: string | null
-  resultId?: string | null
-  executionNotes?: string | null
-  errorMessage?: string | null
-  approvedAt?: string | null
-  dismissedAt?: string | null
-  createdAt: string
 }
 
 interface ContextPanelProps {
@@ -52,7 +35,7 @@ interface ContextPanelProps {
       suggestedTags?: string[] | null
     } | null
     handoff?: HandoffData | null
-    actions?: ActionData[]
+    actions?: ActionItem[]
     contact: {
       nombre?: string | null
       email: string | null
@@ -82,7 +65,7 @@ interface ContextPanelProps {
   confidenceLabel: (value?: number | null) => string | null
   formatDateTime: (value?: string | null) => string | null
   pendingActionId: string | null
-  handleSuggestedAction: (action: ActionData, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
+  handleSuggestedAction: (action: ActionItem, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
   actionTypeLabel: (type: string) => string
   actionStatusBadge: (status: string) => string
   actionStatusLabel: (status: string) => string
@@ -177,7 +160,7 @@ export function ContextPanel({
         { label: "Language", value: selected.detectedLanguage?.toUpperCase() || null },
         { label: "Lead score", value: selected.leadScore ?? null },
         { label: "Sentiment", value: selected.sentiment || null },
-        { label: "Urgency", value: selected.urgency || null, tone: selected.urgency === "critica" || selected.urgency === "alta" ? "warning" : "default" },
+        { label: "Urgency", value: selected.urgency || null, tone: (selected.urgency === "critica" || selected.urgency === "alta" ? "warning" : "default") as "warning" | "default" },
         { label: "Messages", value: selected.messageCount },
       ],
     },
@@ -186,9 +169,9 @@ export function ContextPanel({
       summary: nextRecommendedAction ? "Signals currently available from classification and handoff." : undefined,
       items: [
         { label: "Intent", value: selected.classification?.intent || null },
-        { label: "Risks", value: risks.length > 0 ? `${risks.length} signal${risks.length === 1 ? "" : "s"}` : null, tone: risks.length > 0 ? "warning" : "default" },
+        { label: "Risks", value: risks.length > 0 ? `${risks.length} signal${risks.length === 1 ? "" : "s"}` : null, tone: (risks.length > 0 ? "warning" : "default") as "warning" | "default" },
         { label: "Pending items", value: pendingItems.length > 0 ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"}` : null },
-        { label: "Next best action", value: nextRecommendedAction || null, tone: nextRecommendedAction ? "accent" : "default" },
+        { label: "Next best action", value: nextRecommendedAction || null, tone: (nextRecommendedAction ? "accent" : "default") as "accent" | "default" },
       ],
       emptyLabel: "No operational signals available yet.",
     },

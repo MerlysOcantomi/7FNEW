@@ -71,6 +71,7 @@ interface ConversationDetail extends ConversationListItem {
     summary?: string | null
     suggestedTags?: string[] | null
     briefData?: Record<string, unknown> | null
+    nextBestAction?: Record<string, unknown> | null
   } | null
   handoff?: {
     id: string
@@ -269,54 +270,6 @@ function confidenceLabel(value?: number | null) {
   return `${Math.round(value * 100)}%`
 }
 
-function handoffStatusBadge(status: string) {
-  switch (status) {
-    case "reviewed":
-      return "bg-[#DCFCE7] text-[#166534]"
-    case "stale":
-      return "bg-[#FEF3C7] text-[#92400E]"
-    case "generated":
-    default:
-      return "bg-[#DBEAFE] text-[#1D4ED8]"
-  }
-}
-
-function handoffStatusLabel(status: string) {
-  return {
-    generated: "Generated",
-    reviewed: "Reviewed",
-    stale: "Stale",
-  }[status] ?? status
-}
-
-function draftStatusBadge(status: string) {
-  switch (status) {
-    case "approved":
-      return "bg-[#EDE9FE] text-[#6D28D9]"
-    case "sent":
-      return "bg-[#DCFCE7] text-[#166534]"
-    case "discarded":
-    case "superseded":
-      return "bg-[#F1F5F9] text-[#64748B]"
-    case "edited":
-      return "bg-[#FEF3C7] text-[#92400E]"
-    case "draft":
-    default:
-      return "bg-[#DBEAFE] text-[#1D4ED8]"
-  }
-}
-
-function draftStatusLabel(status: string) {
-  return {
-    draft: "Draft",
-    edited: "Edited",
-    approved: "Approved",
-    sent: "Sent",
-    discarded: "Discarded",
-    superseded: "Superseded",
-  }[status] ?? status
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return null
   return new Date(value).toLocaleString("en-US", {
@@ -336,21 +289,6 @@ function textToLines(value: string) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-}
-
-function editableDraftStatusOptions(currentStatus: string) {
-  const options = [
-    { value: "draft", label: "draft" },
-    { value: "edited", label: "edited" },
-    { value: "approved", label: "approved" },
-    { value: "discarded", label: "discarded" },
-  ]
-
-  if (currentStatus === "sent") {
-    return [{ value: "sent", label: "sent" }, ...options]
-  }
-
-  return options
 }
 
 function formatRoleLabel(value: string) {
@@ -443,7 +381,7 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
-  const filterKey = `${search}|${status}|${channel}|${assignmentFilter}|${currentUserId}`
+  const filterKey = `${search}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
@@ -592,10 +530,18 @@ function InboxPageContent() {
     }
   }
 
-  async function handleSuggestedAction(action: NonNullable<ConversationDetail["actions"]>[number], operation: "approve" | "dismiss" | "execute" | "approve_and_execute") {
+  async function handleSuggestedAction(action: { id: string; type: string; status: string }, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") {
     if (!selectedId) return
 
     if (operation === "approve_and_execute") {
+      let execPayload: Record<string, unknown> = {}
+
+      if (action.type === "assign_operator") {
+        const assignedTo = window.prompt("Enter the owner for this conversation:", "") ?? ""
+        if (!assignedTo.trim()) return
+        execPayload = { assignedTo: assignedTo.trim() }
+      }
+
       setPendingActionId(action.id)
       setActionState("Approving...")
       try {
@@ -607,6 +553,7 @@ function InboxPageContent() {
         const execRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: Object.keys(execPayload).length > 0 ? JSON.stringify(execPayload) : undefined,
         })
         const execJson = await execRes.json()
         if (!execJson.success) throw new Error(execJson.error?.message || "Could not execute action")
@@ -1093,8 +1040,6 @@ function InboxPageContent() {
       conversationStatusLabel={statusLabel(selected.status)}
       conversationStatusClassName={statusBadge(selected.status)}
       updateHandoff={updateHandoff}
-      handoffStatusBadge={handoffStatusBadge}
-      handoffStatusLabel={handoffStatusLabel}
       handoffState={handoffState}
       linesToText={linesToText}
       textToLines={textToLines}

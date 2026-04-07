@@ -6,13 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 
-interface ActionItem {
+export interface ActionItem {
   id: string
   type: string
   status: string
+  source?: string | null
+  confidence?: number | null
+  sourceMessageId?: string | null
   data?: Record<string, unknown> | null
+  resultModule?: string | null
+  resultId?: string | null
   executionNotes?: string | null
   errorMessage?: string | null
+  approvedAt?: string | null
+  dismissedAt?: string | null
+  createdAt?: string
 }
 
 const STUB_ACTION_TYPES = new Set(["schedule_followup", "generate_proposal"])
@@ -271,21 +279,11 @@ export function ActionsCard({
 
             <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
-                Channel readiness
+                Channel context
               </p>
               <p className="mt-2 text-xs text-[var(--inbox-text-secondary)]">
-                {channelLabel} can evolve into channel-specific execution without overloading the card today.
+                {channelReadiness.primaryHint}
               </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {channelReadiness.capabilities.map((capability) => (
-                  <span
-                    key={capability}
-                    className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
-                  >
-                    {capability}
-                  </span>
-                ))}
-              </div>
             </div>
 
             <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
@@ -382,30 +380,15 @@ function groupActionsByIntent(actions: ActionItem[]) {
 function getChannelReadiness(channel: string) {
   switch (channel) {
     case "email":
-      return {
-        primaryHint: "Email can evolve into reply all, forward, CC, BCC and subject actions here.",
-        capabilities: ["Reply all", "Forward", "CC", "BCC", "Edit subject", "Schedule send"],
-      }
+      return { primaryHint: "Email conversations support outbound replies and internal notes." }
     case "whatsapp":
     case "web_chat":
-      return {
-        primaryHint: "Chat channels prioritize follow-up, notes, attachments and quick execution.",
-        capabilities: ["Follow-up", "Internal note", "Attachment", "Assign", "Change priority"],
-      }
+      return { primaryHint: "Chat conversations support replies, internal notes and operator assignment." }
     case "portal":
-      return {
-        primaryHint: "Portal conversations can lean on task creation, routing and structured follow-up.",
-        capabilities: ["Create task", "Route case", "Reminder", "Link project", "Assign"],
-      }
+      return { primaryHint: "Portal conversations support task creation, assignment and follow-up." }
     case "manual":
-      return {
-        primaryHint: "Manual conversations stay flexible and can expose the broadest execution set.",
-        capabilities: ["Create lead", "Link client", "Follow-up", "Assign", "Summarize"],
-      }
+      return { primaryHint: "Manual conversations support the broadest set of actions and conversions." }
     default:
-      return {
-        primaryHint: "Channel-specific execution can expand here as more channel actions become available.",
-        capabilities: ["Assign", "Follow-up", "Create task", "Summarize", "Suggest next step"],
-      }
+      return { primaryHint: "Actions available depend on the conversation channel and current state." }
   }
 }

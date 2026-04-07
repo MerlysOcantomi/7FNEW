@@ -249,8 +249,9 @@ export function ReplyComposer({
               size="sm"
               variant="outline"
               onClick={() => setAttachmentsOpen((value) => !value)}
-              className="rounded-[var(--inbox-radius-control)]"
-              title="Prepare attachments area"
+              className="rounded-[var(--inbox-radius-control)] opacity-50"
+              title="Attachments — coming soon"
+              disabled
             >
               <Paperclip className="h-3.5 w-3.5" />
               Attach
@@ -338,14 +339,14 @@ export function ReplyComposer({
                 {composerConfig.advancedItems.map((item) => (
                   <div
                     key={item.label}
-                    className={cn(
-                      "rounded-[8px] border px-3 py-2",
-                      item.tone === "accent"
-                        ? "border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent-soft)]/55"
-                        : "border-[var(--inbox-divider)] bg-[var(--inbox-surface)]",
-                    )}
+                    className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-3 py-2 opacity-60"
                   >
-                    <p className="text-xs font-semibold text-[var(--inbox-text)]">{item.label}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-[var(--inbox-text)]">{item.label}</p>
+                      <span className="shrink-0 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--inbox-muted)]">
+                        Planned
+                      </span>
+                    </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">{item.hint}</p>
                   </div>
                 ))}
