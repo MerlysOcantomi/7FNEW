@@ -83,9 +83,9 @@ export function ActionsCard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {suggestedCount > 0 && (
-                  <span className="rounded-full bg-[var(--inbox-accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--inbox-accent)]">
+                  <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--inbox-accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--inbox-accent)]">
                     {suggestedCount} suggested
                   </span>
                 )}
@@ -117,7 +117,7 @@ export function ActionsCard({
                       </p>
                     )}
                   </div>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(primaryAction.status))}>
+                  <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(primaryAction.status))}>
                     {actionStatusLabel(primaryAction.status)}
                   </span>
                 </div>
@@ -182,7 +182,7 @@ export function ActionsCard({
                         <p className="text-[11px] text-[var(--inbox-text-secondary)]">{group.helper}</p>
                       </div>
                     </div>
-                    <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+                    <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
                       {group.items.length}
                     </span>
                   </div>
@@ -204,7 +204,7 @@ export function ActionsCard({
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
-                              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
+                              <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", actionStatusBadge(action.status))}>
                                 {actionStatusLabel(action.status)}
                               </span>
                               {action.status === "suggested" && (
