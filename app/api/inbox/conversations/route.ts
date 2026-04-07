@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get("q")?.trim() || undefined
     const assignedTo = searchParams.get("assignedTo") ?? undefined
 
-    const { data, total } = await listConversations({
+    const { data, total, leads, urgent } = await listConversations({
       workspaceId,
       skip,
       take: pageSize,
@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
         pageSize,
         total,
         totalPages: Math.ceil(total / pageSize),
+        leads,
+        urgent,
       },
     )
   } catch (error) {

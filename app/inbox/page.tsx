@@ -16,6 +16,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { useFetch } from "@/hooks/use-fetch"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
@@ -30,6 +38,12 @@ interface WorkspaceMemberOption {
 }
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
+
+interface PendingActionInput {
+  action: { id: string; type: string; status: string }
+  operation: "approve_and_execute" | "execute" | "dismiss"
+  dialogType: "assign" | "dismiss"
+}
 
 interface ConversationListItem {
   id: string
@@ -324,6 +338,9 @@ function InboxPageContent() {
   const [mobileView, setMobileView] = useState<"list" | "thread">("list")
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const [cannedOpen, setCannedOpen] = useState(false)
+  const [pendingActionInput, setPendingActionInput] = useState<PendingActionInput | null>(null)
+  const [dialogAssignValue, setDialogAssignValue] = useState("")
+  const [dialogDismissReason, setDialogDismissReason] = useState("")
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -507,12 +524,15 @@ function InboxPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
 
+  const serverLeads = typeof conversationsMeta?.leads === "number" ? conversationsMeta.leads : null
+  const serverUrgent = typeof conversationsMeta?.urgent === "number" ? conversationsMeta.urgent : null
+
   const stats = useMemo(() => ({
     total: serverTotal ?? conversations.length,
-    leads: conversations.filter((item) => item.status === "lead_detected").length,
+    leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
     converted: conversations.filter((item) => item.status === "converted").length,
-    urgent: conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
-  }), [conversations, serverTotal])
+    urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
+  }), [conversations, serverTotal, serverLeads, serverUrgent])
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
@@ -536,18 +556,16 @@ function InboxPageContent() {
     }
   }
 
-  async function handleSuggestedAction(action: { id: string; type: string; status: string }, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") {
+  function openActionDialog(action: { id: string; type: string; status: string }, operation: "approve_and_execute" | "execute" | "dismiss", dialogType: "assign" | "dismiss") {
+    setDialogAssignValue("")
+    setDialogDismissReason("")
+    setPendingActionInput({ action, operation, dialogType })
+  }
+
+  async function executeActionWithPayload(action: { id: string; type: string; status: string }, operation: "approve" | "dismiss" | "execute" | "approve_and_execute", payload: Record<string, unknown>) {
     if (!selectedId) return
 
     if (operation === "approve_and_execute") {
-      let execPayload: Record<string, unknown> = {}
-
-      if (action.type === "assign_operator") {
-        const assignedTo = window.prompt("Enter the owner for this conversation:", "") ?? ""
-        if (!assignedTo.trim()) return
-        execPayload = { assignedTo: assignedTo.trim() }
-      }
-
       setPendingActionId(action.id)
       setActionState("Approving...")
       try {
@@ -559,7 +577,7 @@ function InboxPageContent() {
         const execRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: Object.keys(execPayload).length > 0 ? JSON.stringify(execPayload) : undefined,
+          body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
         })
         const execJson = await execRes.json()
         if (!execJson.success) throw new Error(execJson.error?.message || "Could not execute action")
@@ -574,25 +592,6 @@ function InboxPageContent() {
         setPendingActionId(null)
       }
       return
-    }
-
-    let payload: Record<string, unknown> = {}
-
-    if (operation === "dismiss") {
-      const executionNotes = window.prompt("Dismiss reason (optional):", "") ?? ""
-      payload = executionNotes.trim() ? { executionNotes: executionNotes.trim() } : {}
-    }
-
-    if (operation === "execute") {
-      if (action.type === "assign_operator") {
-        const assignedTo = window.prompt("Enter the owner for this conversation:", "") ?? ""
-        if (!assignedTo.trim()) return
-        payload = { assignedTo: assignedTo.trim() }
-      } else if (action.type === "schedule_followup" || action.type === "generate_proposal") {
-        const executionNotes = window.prompt("Describe how this action was executed:", "") ?? ""
-        if (!executionNotes.trim()) return
-        payload = { executionNotes: executionNotes.trim() }
-      }
     }
 
     setPendingActionId(action.id)
@@ -629,6 +628,42 @@ function InboxPageContent() {
     } finally {
       setPendingActionId(null)
     }
+  }
+
+  async function handleSuggestedAction(action: { id: string; type: string; status: string }, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") {
+    if (!selectedId) return
+
+    if (operation === "approve_and_execute" && action.type === "assign_operator") {
+      openActionDialog(action, operation, "assign")
+      return
+    }
+
+    if (operation === "execute" && action.type === "assign_operator") {
+      openActionDialog(action, operation, "assign")
+      return
+    }
+
+    if (operation === "dismiss") {
+      openActionDialog(action, operation, "dismiss")
+      return
+    }
+
+    await executeActionWithPayload(action, operation, {})
+  }
+
+  function handleDialogConfirm() {
+    if (!pendingActionInput) return
+    const { action, operation, dialogType } = pendingActionInput
+
+    if (dialogType === "assign") {
+      if (!dialogAssignValue.trim()) return
+      executeActionWithPayload(action, operation, { assignedTo: dialogAssignValue.trim() })
+    } else {
+      const payload = dialogDismissReason.trim() ? { executionNotes: dialogDismissReason.trim() } : {}
+      executeActionWithPayload(action, operation, payload)
+    }
+
+    setPendingActionInput(null)
   }
 
   async function updateHandoff(payload: Record<string, unknown>, successMessage = "Handoff updated") {
@@ -939,6 +974,7 @@ function InboxPageContent() {
   function handleSelectConversation(id: string) {
     setSelectedId(id)
     setMobileView("thread")
+    setPendingActionInput(null)
   }
 
   function handleBackToList() {
@@ -1233,6 +1269,98 @@ function InboxPageContent() {
           </SheetContent>
         </Sheet>
       </div>
+
+      {/* Action input dialog — replaces window.prompt */}
+      <Dialog open={!!pendingActionInput} onOpenChange={(open) => { if (!open) setPendingActionInput(null) }}>
+        <DialogContent className="max-w-sm">
+          {pendingActionInput?.dialogType === "assign" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Assign owner</DialogTitle>
+                <DialogDescription>Select a team member to assign this conversation to.</DialogDescription>
+              </DialogHeader>
+              <div className="py-3">
+                {members.length > 0 ? (
+                  <select
+                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                    value={dialogAssignValue}
+                    onChange={(e) => setDialogAssignValue(e.target.value)}
+                    autoFocus
+                  >
+                    <option value="">Choose a member…</option>
+                    {members.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.nombre || m.email} ({formatRoleLabel(m.role)})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="User ID"
+                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                    value={dialogAssignValue}
+                    onChange={(e) => setDialogAssignValue(e.target.value)}
+                    autoFocus
+                  />
+                )}
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--inbox-border)] px-4 py-2 text-sm hover:bg-[var(--inbox-background)]"
+                  onClick={() => setPendingActionInput(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md bg-[var(--inbox-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  disabled={!dialogAssignValue.trim()}
+                  onClick={handleDialogConfirm}
+                >
+                  Assign
+                </button>
+              </DialogFooter>
+            </>
+          )}
+
+          {pendingActionInput?.dialogType === "dismiss" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Dismiss action</DialogTitle>
+                <DialogDescription>Optionally explain why this action is being dismissed.</DialogDescription>
+              </DialogHeader>
+              <div className="py-3">
+                <textarea
+                  className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                  rows={3}
+                  placeholder="Reason (optional)"
+                  value={dialogDismissReason}
+                  onChange={(e) => setDialogDismissReason(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--inbox-border)] px-4 py-2 text-sm hover:bg-[var(--inbox-background)]"
+                  onClick={() => setPendingActionInput(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                  onClick={handleDialogConfirm}
+                >
+                  Dismiss
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }
