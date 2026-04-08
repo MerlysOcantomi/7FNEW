@@ -15,6 +15,7 @@ export type ActivityType =
   | "email_sent"
   | "email_failed"
   | "email_skipped"
+  | "email_received"
 
 export interface ActivityData {
   field?: string

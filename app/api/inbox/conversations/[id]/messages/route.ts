@@ -91,6 +91,14 @@ export async function POST(request: NextRequest, { params }: Params) {
             emailMeta = result.ok
               ? { emailSent: true }
               : { emailSent: false, emailError: result.error || "Email delivery failed" }
+
+            if (result.ok && result.id) {
+              const existingMeta = metadata ? (typeof metadata === "string" ? JSON.parse(metadata) : metadata) : {}
+              await db.message.update({
+                where: { id: message.id },
+                data: { metadata: JSON.stringify({ ...existingMeta, resendId: result.id }) },
+              })
+            }
           } catch {
             emailMeta = { emailSent: false, emailError: "Email service unavailable" }
           }
