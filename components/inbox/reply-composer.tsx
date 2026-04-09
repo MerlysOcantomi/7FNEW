@@ -261,6 +261,23 @@ export function ReplyComposer({
     }
   }
 
+  function focusComposerWithScroll() {
+    // Focus textarea
+    setTimeout(() => composerTextareaRef.current?.focus(), 100);
+    
+    // Scroll to composer smoothly (like WhatsApp)
+    setTimeout(() => {
+      const composerElement = composerTextareaRef.current?.closest('[data-composer="true"]') || 
+                             composerTextareaRef.current;
+      if (composerElement) {
+        composerElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    }, 150);
+  }
+
   // Dictation: append transcript to content in real time
   useEffect(() => {
     if (!speech.listening || !speech.transcript || composingIntentRef.current) return
@@ -298,7 +315,7 @@ export function ReplyComposer({
   }, [speech.listening])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5" data-composer="true">
       <div className="space-y-2 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow)] md:p-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -306,7 +323,11 @@ export function ReplyComposer({
               type="button"
               size="sm"
               variant={!replyIsInternal && emailMode === "reply" ? "accent" : "outline"}
-              onClick={() => { onReplyModeChange(false); onEmailModeChange("reply") }}
+              onClick={() => { 
+                onReplyModeChange(false); 
+                onEmailModeChange("reply");
+                focusComposerWithScroll();
+              }}
               className="h-7 rounded-lg text-xs px-2.5"
             >
               <Reply className="h-3 w-3" />
@@ -318,7 +339,11 @@ export function ReplyComposer({
                   type="button"
                   size="sm"
                   variant={!replyIsInternal && emailMode === "reply_all" ? "accent" : "outline"}
-                  onClick={() => { onReplyModeChange(false); onEmailModeChange("reply_all") }}
+                  onClick={() => { 
+                    onReplyModeChange(false); 
+                    onEmailModeChange("reply_all");
+                    focusComposerWithScroll();
+                  }}
                   className="h-7 rounded-lg text-xs px-2.5"
                 >
                   <ReplyAll className="h-3 w-3" />
@@ -328,7 +353,11 @@ export function ReplyComposer({
                   type="button"
                   size="sm"
                   variant={!replyIsInternal && emailMode === "forward" ? "accent" : "outline"}
-                  onClick={() => { onReplyModeChange(false); onEmailModeChange("forward") }}
+                  onClick={() => { 
+                    onReplyModeChange(false); 
+                    onEmailModeChange("forward");
+                    focusComposerWithScroll();
+                  }}
                   className="h-7 rounded-lg text-xs px-2.5"
                 >
                   <Forward className="h-3 w-3" />
@@ -340,7 +369,10 @@ export function ReplyComposer({
               type="button"
               size="sm"
               variant={replyIsInternal ? "secondary" : "outline"}
-              onClick={() => onReplyModeChange(true)}
+              onClick={() => {
+                onReplyModeChange(true);
+                focusComposerWithScroll();
+              }}
               className={cn("h-7 rounded-lg text-xs px-2.5", replyIsInternal && "border-amber-200 bg-amber-100 text-amber-950 hover:bg-amber-200")}
             >
               Internal note

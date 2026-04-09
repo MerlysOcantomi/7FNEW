@@ -906,7 +906,9 @@ function InboxPageContent() {
 
   // Get all messages from all conversations for the left column
   const allMessages = conversations.flatMap((conversation) => 
-    (conversation.messages || []).map((message) => {
+    (conversation.messages || [])
+      .filter(message => message.content && message.content.trim().length > 0) // Filter empty or test messages
+      .map((message) => {
       const isOutbound = message.direction === "outbound" && !message.isInternal
       const isInbound = message.direction === "inbound" && !message.isInternal
       const isInternal = message.isInternal
