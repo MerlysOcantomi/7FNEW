@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[email-inbound] Processed ${emailId} → conv=${result.conversationId} new=${result.isNewConversation}`,
+      `[email-inbound] Processed ${emailId} → conv=${result.conversationId} matched_by=${result.matchedBy} new=${result.isNewConversation}`,
     )
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
