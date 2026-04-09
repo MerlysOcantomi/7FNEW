@@ -29,6 +29,24 @@ function sanitizeDisplayName(name: string): string {
   return name.replace(/[\r\n]+/g, " ").trim() || "Business"
 }
 
+/**
+ * Resolve the inbox sender address.
+ *
+ * Priority:
+ *   1. `displayName` (workspace name or ack config) + INBOX_FROM_EMAIL
+ *   2. INBOX_FROM_NAME + INBOX_FROM_EMAIL  (global fallback with branding)
+ *   3. RESEND_FROM_EMAIL                   (bare-minimum fallback)
+ *
+ * Future: accept per-workspace sender from workspace.config.
+ */
+function resolveInboxFrom(displayName?: string): string | undefined {
+  const email = process.env.INBOX_FROM_EMAIL || process.env.RESEND_FROM_EMAIL
+  if (!email) return undefined
+
+  const name = displayName || process.env.INBOX_FROM_NAME
+  return name ? `${sanitizeDisplayName(name)} <${email}>` : email
+}
+
 export interface SendAcknowledgmentInput {
   workspaceName: string
   contactName: string | null
@@ -80,6 +98,7 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
 
   const result = await sendEmail({
     to: input.contactEmail,
+    from: resolveInboxFrom(displayName),
     subject,
     text: `${t.email.ack.greeting(input.contactName)}\n\n${heading}\n\n${subjectLabel}: ${convSubject}\n\n${body}\n\n— ${displayName}`,
     html,
@@ -104,7 +123,7 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
 export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<SendEmailResult> {
   const t = getTranslations(resolveLocaleFromConfig(input.workspaceConfig))
   const displayName = sanitizeDisplayName(input.workspaceName)
-  const from = `${displayName} <inbox@7f.app>`
+  const from = resolveInboxFrom(displayName)
   const subjectBase = input.subject?.trim() || t.email.outbound.defaultSubject
   const subject = ensureRePrefix(subjectBase)
 
