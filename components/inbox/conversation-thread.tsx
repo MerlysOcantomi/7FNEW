@@ -153,15 +153,15 @@ export function ConversationThread({
             <div className="flex min-w-[200px] items-center gap-2.5 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 shadow-sm">
               <Users className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
               <Select 
-                value={assignedTo} 
-                onValueChange={onAssign} 
+                value={assignedTo || "unassigned"} 
+                onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)} 
                 disabled={assignSaving}
               >
                 <SelectTrigger className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus:ring-0">
                   <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
                 <SelectContent className="min-w-[200px]">
-                  <SelectItem value="">
+                  <SelectItem value="unassigned">
                     <span className="text-[var(--inbox-text-secondary)]">Unassigned</span>
                   </SelectItem>
                   {members.map((member) => (
