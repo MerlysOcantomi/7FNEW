@@ -394,23 +394,30 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Last client message context ── */}
+        {/* ── Last client message context (compact & expandible) ── */}
         {!replyIsInternal && lastClientMessage && (
-          <div className="rounded-xl border border-blue-200/60 bg-blue-50/40 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                Replying to
-              </p>
-              <span className="text-xs text-blue-600">{lastClientMessage.timestamp}</span>
-            </div>
-            <div className="mb-2">
-              <p className="text-sm font-semibold text-blue-800">{lastClientMessage.authorName}</p>
-            </div>
-            <div className="rounded-lg bg-white/80 border border-blue-200/80 p-3">
-              <p className="text-sm leading-relaxed text-blue-900 line-clamp-3">
-                {lastClientMessage.content}
-              </p>
-            </div>
+          <div className="rounded-lg border border-blue-200/60 bg-blue-50/30 px-3 py-2">
+            <button 
+              type="button"
+              className="w-full text-left"
+              onClick={() => {/* TODO: expand/collapse logic */}}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs text-blue-600">↪</span>
+                  <span className="ml-1 text-xs font-medium text-blue-700">
+                    Replying to {lastClientMessage.authorName}:
+                  </span>
+                  <span className="ml-1 text-xs text-blue-600 truncate">
+                    "{lastClientMessage.content.slice(0, 60)}..."
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-blue-500">{lastClientMessage.timestamp}</span>
+                  <span className="text-xs text-blue-400">[expand]</span>
+                </div>
+              </div>
+            </button>
           </div>
         )}
 

@@ -1199,6 +1199,9 @@ function InboxPageContent() {
       handleConvert={handleConvert}
       actionState={actionState}
       channelLabel={channelLabel}
+      members={displayedMembers}
+      assignSaving={assignSaving}
+      onAssign={handleAssign}
     />
   ) : null
 
@@ -1258,10 +1261,6 @@ function InboxPageContent() {
                       detailErrorMessage={detailErrorMessage}
                       headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
                       headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
-                      assignedTo={selected?.assignedTo ?? ""}
-                      members={displayedMembers}
-                      assignSaving={assignSaving}
-                      onAssign={handleAssign}
                       statusValue={selected?.status || "new"}
                       statusOptions={statusEditOptions}
                       onStatusChange={handleStatusChange}
@@ -1269,12 +1268,6 @@ function InboxPageContent() {
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
-                      handoffSummary={fannySummary}
-                      nextAction={fannyNextAction}
-                      detectedLanguage={selected?.detectedLanguage}
-                      urgencyLabel={selected ? urgencyLabel(selected.urgency) : null}
-                      urgencyClassName={selected?.urgency && ["critica", "alta"].includes(selected.urgency) ? urgencyBadge(selected.urgency) : null}
-                      suggestedActionsCount={selected?.actions?.filter((a) => a.status === "suggested").length ?? 0}
                     />
                   </div>
 

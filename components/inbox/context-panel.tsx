@@ -3,6 +3,8 @@
 import { ActionsCard, type ActionItem } from "@/components/inbox/actions-card"
 import { BusinessContextCard } from "@/components/inbox/business-context-card"
 import { MessageIntelligenceCard } from "@/components/inbox/message-intelligence-card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Users, Loader2 } from "lucide-react"
 
 interface HandoffData {
   status: string
@@ -72,6 +74,10 @@ interface ContextPanelProps {
   handleConvert: (action: "cliente" | "proyecto" | "tarea" | "todo") => Promise<void>
   actionState: string | null
   channelLabel: (channel: string) => string
+  // Assignment management
+  members: Array<{ userId: string; nombre: string | null; email: string }>
+  assignSaving: boolean
+  onAssign: (value: string) => void
 }
 
 export function ContextPanel({
@@ -98,6 +104,9 @@ export function ContextPanel({
   handleConvert,
   actionState,
   channelLabel,
+  members,
+  assignSaving,
+  onAssign,
 }: ContextPanelProps) {
   const urgencyConfig = getUrgencyPresentation(selected.urgency)
   const intelligenceTitle = "Situation"
@@ -207,6 +216,49 @@ export function ContextPanel({
         onSaveNextRecommendedAction={(value) => updateHandoff({ nextRecommendedAction: value })}
         stateMessage={handoffState}
       />
+
+      {/* Assignment Management - only for shared channels */}
+      {(selected.channel === 'webchat' || selected.channel === 'portal' || selected.channel === 'web_chat') && (
+        <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]">
+          <div className="mb-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--inbox-text)]">
+              <Users className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+              Assignment
+            </div>
+          </div>
+          <div>
+            <Select 
+              value={selected.assignedTo || "unassigned"} 
+              onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)} 
+              disabled={assignSaving}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">
+                  <span className="text-[var(--inbox-text-secondary)]">Unassigned</span>
+                </SelectItem>
+                {members.map((member) => (
+                  <SelectItem key={member.userId} value={member.userId}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {member.nombre || member.email}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {assignSaving && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-[var(--inbox-text-secondary)]">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Updating assignment...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ActionsCard
         actions={selected.actions ?? []}
