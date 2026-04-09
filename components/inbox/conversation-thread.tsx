@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface MemberOption {
@@ -115,7 +116,7 @@ export function ConversationThread({
 
   return (
     <>
-      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94 md:px-5">
+      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-5 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94 md:px-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center justify-between gap-2 xl:hidden">
@@ -129,11 +130,11 @@ export function ConversationThread({
               </Button>
             </div>
 
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
-              Case thread
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--inbox-muted)]">
+              Case Thread
             </p>
-            <p className="truncate text-base font-semibold text-foreground md:text-lg">{headerTitle}</p>
-            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            <h1 className="mt-2 truncate text-lg font-bold text-foreground leading-tight md:text-xl">{headerTitle}</h1>
+            <p className="mt-2.5 line-clamp-2 text-sm leading-relaxed text-[var(--inbox-text-secondary)]">
               {headerSubtitle}
             </p>
           </div>
@@ -149,22 +150,32 @@ export function ConversationThread({
               <Sparkles className="h-3.5 w-3.5" />
               Context
             </Button>
-            <div className="flex min-w-[172px] items-center gap-2 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-2.5 py-1.5">
-              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-              <select
-                value={assignedTo}
-                onChange={(event) => onAssign(event.target.value)}
+            <div className="flex min-w-[200px] items-center gap-2.5 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 shadow-sm">
+              <Users className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+              <Select 
+                value={assignedTo} 
+                onValueChange={onAssign} 
                 disabled={assignSaving}
-                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none disabled:opacity-50"
               >
-                <option value="">Unassigned</option>
-                {members.map((member) => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.nombre || member.email}
-                  </option>
-                ))}
-              </select>
-              {assignSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <SelectTrigger className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus:ring-0">
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent className="min-w-[200px]">
+                  <SelectItem value="">
+                    <span className="text-[var(--inbox-text-secondary)]">Unassigned</span>
+                  </SelectItem>
+                  {members.map((member) => (
+                    <SelectItem key={member.userId} value={member.userId}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {member.nombre || member.email}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assignSaving && <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--inbox-text-secondary)]" />}
             </div>
 
             <InlineSelect
@@ -178,31 +189,33 @@ export function ConversationThread({
       </div>
 
       {hasSituationContext && (
-        <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-accent-soft)]/30 px-4 py-2.5 md:px-5">
-          <div className="flex items-start gap-2.5">
-            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+        <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-gradient-to-r from-[var(--inbox-accent-soft)]/25 to-[var(--inbox-accent-soft)]/35 px-5 py-3.5 md:px-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)]/60 shrink-0">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--inbox-accent)]" />
+            </div>
             <div className="min-w-0 flex-1">
               {handoffSummary && (
-                <p className="truncate text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                <p className="text-sm leading-relaxed text-[var(--inbox-text-secondary)] font-medium">
                   {handoffSummary}
                 </p>
               )}
               {nextAction && (
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-[var(--inbox-text)]">
-                  <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
+                <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--inbox-text)]">
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
                   <span className="truncate">{nextAction}</span>
                 </p>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-2">
               {detectedLanguage && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-text-secondary)]">
-                  <Globe className="h-2.5 w-2.5" />
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/80 px-2.5 py-1 text-xs font-semibold text-[var(--inbox-text-secondary)] backdrop-blur-sm">
+                  <Globe className="h-3 w-3" />
                   {detectedLanguage.toUpperCase()}
                 </span>
               )}
               {urgencyLabel && urgencyClassName && (
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", urgencyClassName)}>
+                <span className={cn("rounded-lg px-2.5 py-1 text-xs font-semibold", urgencyClassName)}>
                   {urgencyLabel}
                 </span>
               )}
@@ -210,9 +223,9 @@ export function ConversationThread({
                 <button
                   type="button"
                   onClick={onOpenContext}
-                  className="inline-flex items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent-soft)]/80"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--inbox-accent-soft)]/80 px-2.5 py-1 text-xs font-semibold text-[var(--inbox-accent)] transition-all duration-200 hover:bg-[var(--inbox-accent-soft)] hover:shadow-sm"
                 >
-                  <Sparkles className="h-2.5 w-2.5" />
+                  <Sparkles className="h-3 w-3" />
                   {suggestedActionsCount} action{suggestedActionsCount === 1 ? "" : "s"}
                 </button>
               )}

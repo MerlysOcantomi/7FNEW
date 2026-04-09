@@ -299,7 +299,7 @@ export function ReplyComposer({
 
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5">
-      <div className="space-y-2.5 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-2.5 shadow-[var(--inbox-panel-shadow-sm)] md:p-3">
+      <div className="space-y-3 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow)] md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -401,11 +401,11 @@ export function ReplyComposer({
               }
               rows={3}
               className={cn(
-                "min-h-[104px] max-h-[220px] resize-none overflow-y-auto rounded-2xl border-border/80 bg-background px-3.5 py-3 shadow-none focus-visible:ring-[4px]",
-                replyIsInternal && "border-amber-200 bg-amber-50/60",
-                speech.listening && voiceMode === "dictate" && "ring-2 ring-red-300",
-                speech.listening && voiceMode === "compose" && "ring-2 ring-violet-300",
-                isProcessing && "opacity-60",
+                "min-h-[104px] max-h-[220px] resize-none overflow-y-auto rounded-xl border bg-background px-4 py-3.5 shadow-sm transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20",
+                replyIsInternal && "border-amber-200 bg-amber-50/60 focus-visible:border-amber-400 focus-visible:ring-amber-400/20",
+                speech.listening && voiceMode === "dictate" && "border-red-300 bg-red-50/30 ring-2 ring-red-300/30",
+                speech.listening && voiceMode === "compose" && "border-violet-300 bg-violet-50/30 ring-2 ring-violet-300/30",
+                isProcessing && "opacity-60 cursor-not-allowed",
               )}
               disabled={isProcessing}
               onKeyDown={(event) => {
@@ -413,51 +413,63 @@ export function ReplyComposer({
               }}
             />
             {isProcessing && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/60">
-                <div className="flex items-center gap-2 rounded-full bg-[var(--inbox-surface)] px-3 py-1.5 shadow-sm">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--inbox-accent)]" />
-                  <span className="text-xs font-medium text-[var(--inbox-text-secondary)]">
-                    {assistLoading === "compose_from_intent" ? "Composing reply..." : "Rewriting..."}
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-sm">
+                <div className="flex items-center gap-2.5 rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-4 py-2.5 shadow-[var(--inbox-panel-shadow-sm)]">
+                  <div className="relative flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
+                    <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-[var(--inbox-accent)]/20" />
+                  </div>
+                  <span className="text-sm font-medium text-[var(--inbox-text)]">
+                    {assistLoading === "compose_from_intent" ? "Composing your reply..." : "Rewriting..."}
                   </span>
                 </div>
               </div>
             )}
             {speech.listening && voiceMode === "compose" && (
-              <div className="absolute bottom-2 left-3 right-3 flex items-center gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs text-violet-700">
-                <Mic className="h-3 w-3 animate-pulse" />
-                <span className="flex-1 truncate">
+              <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 text-sm text-violet-700 backdrop-blur-sm">
+                <div className="relative flex items-center justify-center">
+                  <Mic className="h-4 w-4 animate-pulse" />
+                  <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-violet-400/30" />
+                </div>
+                <span className="flex-1 truncate font-medium">
                   {speech.transcript || "Listening... describe what you want to say"}
                 </span>
                 <button
                   type="button"
                   onClick={() => speech.stop()}
-                  className="shrink-0 rounded-full bg-violet-200/60 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-200"
+                  className="shrink-0 rounded-lg bg-violet-200/80 px-2.5 py-1 text-xs font-medium text-violet-800 transition-colors hover:bg-violet-300"
                 >
                   Done
                 </button>
               </div>
             )}
             {speech.listening && voiceMode === "dictate" && (
-              <div className="absolute bottom-2 right-3 flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-medium text-red-600">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-                Dictating...
+              <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/90 px-3 py-1.5 text-xs font-medium text-red-600 backdrop-blur-sm">
+                <div className="relative flex items-center justify-center">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-red-400" />
+                </div>
+                Recording...
               </div>
             )}
           </div>
 
           {/* ── Smart tools row ── */}
           {(hasText || prevContentRef !== null) && !isProcessing && (
-            <div className="flex items-center gap-1.5 overflow-x-auto px-0.5 py-0.5">
-              <Sparkles className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
+            <div className="flex items-center gap-2 overflow-x-auto px-1 py-1">
+              <div className="flex items-center gap-1.5 rounded-lg bg-[var(--inbox-accent-soft)]/40 px-2 py-1">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+                <span className="text-xs font-medium text-[var(--inbox-accent)]">Smart tools</span>
+              </div>
               {SMART_TOOLS.map((tool) => (
                 <button
                   key={tool.action}
                   type="button"
                   onClick={() => handleAssist(tool.action)}
                   disabled={!hasText}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:border-[var(--inbox-accent)]/40 hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)] disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--inbox-surface)] disabled:hover:text-[var(--inbox-text-secondary)]"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--inbox-text-secondary)] shadow-sm transition-all duration-200 hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/60 hover:text-[var(--inbox-accent)] hover:shadow-md disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--inbox-surface)] disabled:hover:text-[var(--inbox-text-secondary)] disabled:hover:shadow-sm"
                 >
-                  <tool.icon className="h-2.5 w-2.5" />
+                  <tool.icon className="h-3 w-3" />
                   {tool.label}
                 </button>
               ))}
@@ -468,9 +480,9 @@ export function ReplyComposer({
                   <button
                     type="button"
                     disabled={!hasText}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:border-[var(--inbox-accent)]/40 hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)] disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--inbox-surface)] disabled:hover:text-[var(--inbox-text-secondary)]"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--inbox-text-secondary)] shadow-sm transition-all duration-200 hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/60 hover:text-[var(--inbox-accent)] hover:shadow-md disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--inbox-surface)] disabled:hover:text-[var(--inbox-text-secondary)] disabled:hover:shadow-sm"
                   >
-                    <Languages className="h-2.5 w-2.5" />
+                    <Languages className="h-3 w-3" />
                     Translate
                   </button>
                 </PopoverTrigger>
@@ -500,16 +512,16 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={handleUndoAssist}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 shadow-sm transition-all duration-200 hover:bg-amber-100 hover:shadow-md"
                 >
-                  Undo
+                  Undo changes
                 </button>
               )}
             </div>
           )}
 
           {/* ── Toolbar row ── */}
-          <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/50 px-4 py-2.5">
             {cannedResponses.length > 0 && (
               <Popover open={cannedOpen} onOpenChange={onCannedOpenChange}>
                 <PopoverTrigger asChild>
@@ -575,32 +587,45 @@ export function ReplyComposer({
 
             {/* ── Voice: Dictate / Compose toggle + mic ── */}
             {speech.supported && (
-              <div className="flex items-center gap-0.5 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)]">
+              <div className="flex items-center rounded-lg border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-sm">
                 <button
                   type="button"
                   onClick={() => setVoiceMode("dictate")}
                   className={cn(
-                    "rounded-l-[var(--inbox-radius-control)] px-2 py-1.5 text-[10px] font-medium transition-colors",
+                    "rounded-l-lg px-3 py-2 text-xs font-medium transition-all duration-200",
                     voiceMode === "dictate"
-                      ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+                      ? "bg-red-50 text-red-700 shadow-sm"
                       : "text-[var(--inbox-text-secondary)] hover:bg-[var(--inbox-background)]",
                   )}
                   title="Dictation mode: speech becomes text directly"
                 >
-                  Dictate
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn(
+                      "h-2 w-2 rounded-full transition-colors",
+                      voiceMode === "dictate" && speech.listening ? "bg-red-500 animate-pulse" : "bg-red-400",
+                      voiceMode !== "dictate" && "bg-gray-300"
+                    )} />
+                    Dictate
+                  </div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setVoiceMode("compose")}
                   className={cn(
-                    "border-l border-[var(--inbox-border)] px-2 py-1.5 text-[10px] font-medium transition-colors",
+                    "border-l border-[var(--inbox-border)] px-3 py-2 text-xs font-medium transition-all duration-200",
                     voiceMode === "compose"
-                      ? "bg-violet-50 text-violet-700"
+                      ? "bg-violet-50 text-violet-700 shadow-sm"
                       : "text-[var(--inbox-text-secondary)] hover:bg-[var(--inbox-background)]",
                   )}
                   title="Compose mode: describe your intent and AI writes the reply"
                 >
-                  Compose
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className={cn(
+                      "h-3 w-3 transition-colors",
+                      voiceMode === "compose" ? "text-violet-600" : "text-gray-400"
+                    )} />
+                    Compose
+                  </div>
                 </button>
                 <Button
                   type="button"
@@ -609,13 +634,14 @@ export function ReplyComposer({
                   onClick={handleMicToggle}
                   disabled={isProcessing}
                   className={cn(
-                    "h-auto rounded-l-none rounded-r-[var(--inbox-radius-control)] border-l border-[var(--inbox-border)] px-2 py-1.5",
-                    speech.listening && voiceMode === "dictate" && "bg-red-50 text-red-700 hover:bg-red-100",
-                    speech.listening && voiceMode === "compose" && "bg-violet-50 text-violet-700 hover:bg-violet-100",
+                    "h-auto rounded-l-none rounded-r-lg border-l border-[var(--inbox-border)] px-3 py-2 transition-all duration-200",
+                    speech.listening && voiceMode === "dictate" && "bg-red-100 text-red-700 hover:bg-red-200",
+                    speech.listening && voiceMode === "compose" && "bg-violet-100 text-violet-700 hover:bg-violet-200",
+                    !speech.listening && "hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
                   )}
-                  title={speech.listening ? "Stop" : voiceMode === "compose" ? "Describe your intent" : "Start dictation"}
+                  title={speech.listening ? "Stop recording" : voiceMode === "compose" ? "Describe your intent" : "Start dictation"}
                 >
-                  {speech.listening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                  {speech.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
               </div>
             )}

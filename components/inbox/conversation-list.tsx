@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
 
@@ -120,30 +121,32 @@ export function ConversationList({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={status}
-            onChange={(event) => onStatusChange(event.target.value)}
-            className="h-10 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-background)] px-3 text-sm text-[var(--inbox-text)] outline-none transition-[color,box-shadow] focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Select value={status} onValueChange={onStatusChange}>
+            <SelectTrigger className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-sm focus:border-[var(--inbox-accent)] focus:ring-[var(--inbox-accent)]/20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={channel}
-            onChange={(event) => onChannelChange(event.target.value)}
-            className="h-10 rounded-[var(--inbox-radius-control)] border border-[var(--inbox-border)] bg-[var(--inbox-background)] px-3 text-sm text-[var(--inbox-text)] outline-none transition-[color,box-shadow] focus-visible:border-[var(--inbox-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--inbox-accent)]/20"
-          >
-            {channelOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <Select value={channel} onValueChange={onChannelChange}>
+            <SelectTrigger className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-sm focus:border-[var(--inbox-accent)] focus:ring-[var(--inbox-accent)]/20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {channelOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -167,7 +170,7 @@ export function ConversationList({
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 px-3 py-3 md:px-4">
+        <div className="space-y-2 px-3 py-4 md:px-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="rounded-[var(--inbox-radius-control)] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/70 p-3">

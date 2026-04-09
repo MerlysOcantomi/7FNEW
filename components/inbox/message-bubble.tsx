@@ -61,21 +61,21 @@ export function MessageBubble({
                 : "justify-start text-left",
           )}
         >
-          <span className="text-[11px] font-medium text-foreground/90">{authorLabel}</span>
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/80">
+          <span className="text-xs font-semibold text-[var(--inbox-text)]">{authorLabel}</span>
+          <span className="text-xs uppercase tracking-wide font-medium text-[var(--inbox-text-secondary)]">
             {roleLabel}
           </span>
-          <span className="rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] leading-none text-muted-foreground">
+          <span className="rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2.5 py-0.5 text-xs leading-relaxed text-[var(--inbox-text-secondary)] font-medium">
             {metaLabel}
           </span>
-          <span className="text-[10px] whitespace-nowrap text-muted-foreground/90">{timestampLabel}</span>
+          <span className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
-            <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-medium text-blue-700">
+            <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
               Forwarded
             </span>
           )}
           {emailMeta?.mode === "reply_all" && (
-            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-medium text-violet-700">
+            <span className="rounded-lg bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700 border border-violet-200">
               Reply all
             </span>
           )}
@@ -92,15 +92,15 @@ export function MessageBubble({
 
         <div
           className={cn(
-            "rounded-2xl border px-4 py-3 text-[13px] leading-6 shadow-sm",
+            "rounded-xl border px-4 py-3.5 text-sm leading-relaxed shadow-sm transition-shadow duration-200",
             tone === "outbound" &&
-              "rounded-tr-md border-primary/15 bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(37,99,235,0.18)]",
+              "rounded-tr-lg border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent)] text-white shadow-[0_8px_32px_rgba(47,111,115,0.15)]",
             tone === "inbound" &&
-              "rounded-tl-md border-border/80 bg-card text-card-foreground",
+              "rounded-tl-lg border-[var(--inbox-border)] bg-[var(--inbox-surface)] text-[var(--inbox-text)] shadow-[0_4px_16px_rgba(17,24,39,0.04)]",
             tone === "internal" &&
-              "rounded-tl-md border-amber-200/80 bg-amber-50/90 text-amber-950",
+              "rounded-tl-lg border-amber-200 bg-amber-50 text-amber-900 shadow-[0_4px_16px_rgba(245,158,11,0.08)]",
             tone === "system" &&
-              "rounded-2xl border-dashed border-border/80 bg-muted/40 text-foreground/85",
+              "rounded-xl border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 text-[var(--inbox-text-secondary)]",
           )}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>

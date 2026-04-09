@@ -178,7 +178,7 @@ export function ContextPanel({
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <MessageIntelligenceCard
         title={intelligenceTitle}
         summary={intelligenceSummary}

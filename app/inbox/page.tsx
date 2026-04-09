@@ -180,21 +180,21 @@ function formatRelativeDate(value: string) {
 function statusBadge(status: string) {
   switch (status) {
     case "lead_detected":
-      return "bg-[#DCFCE7] text-[#166534]"
+      return "status-lead-detected"
     case "converted":
-      return "bg-[#DBEAFE] text-[#1D4ED8]"
+      return "status-converted"
     case "assigned":
-      return "bg-[#EDE9FE] text-[#6D28D9]"
+      return "status-assigned"
     case "awaiting_response":
-      return "bg-[#FCE7F3] text-[#BE185D]"
+      return "status-awaiting-response"
     case "closed":
     case "archived":
-      return "bg-[#F1F5F9] text-[#64748B]"
+      return "status-closed"
     case "triaged":
-      return "bg-[#FEF3C7] text-[#92400E]"
+      return "status-triaged"
     case "new":
     default:
-      return "bg-[#FEE2E2] text-[#991B1B]"
+      return "status-new"
   }
 }
 
@@ -214,13 +214,13 @@ function statusLabel(status: string) {
 function urgencyBadge(urgency: string) {
   switch (urgency) {
     case "critica":
-      return "bg-[#FEE2E2] text-[#991B1B]"
+      return "urgency-critical"
     case "alta":
-      return "bg-[#FEF3C7] text-[#92400E]"
+      return "urgency-high"
     case "media":
-      return "bg-[#DBEAFE] text-[#1D4ED8]"
+      return "urgency-medium"
     default:
-      return "bg-[#F1F5F9] text-[#64748B]"
+      return "urgency-low"
   }
 }
 
@@ -257,16 +257,16 @@ function actionTypeLabel(type: string) {
 function actionStatusBadge(status: string) {
   switch (status) {
     case "approved":
-      return "bg-[#EDE9FE] text-[#6D28D9]"
+      return "action-approved"
     case "executed":
-      return "bg-[#DCFCE7] text-[#166534]"
+      return "action-executed"
     case "dismissed":
-      return "bg-[#F1F5F9] text-[#64748B]"
+      return "action-dismissed"
     case "failed":
-      return "bg-[#FEE2E2] text-[#991B1B]"
+      return "action-failed"
     case "suggested":
     default:
-      return "bg-[#DBEAFE] text-[#1D4ED8]"
+      return "action-suggested"
   }
 }
 
