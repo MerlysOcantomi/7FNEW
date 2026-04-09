@@ -904,24 +904,32 @@ function InboxPageContent() {
         ]
       : members
 
-  const conversationItems = conversations.map((item) => ({
-    id: item.id,
-    channel: item.channel,
-    title:
-      item.channel === "email"
-        ? item.subject || item.contact.nombre || "New conversation"
-        : item.contact.nombre || item.contact.email || item.subject || "New conversation",
-    subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
-    preview: item.summary ?? item.classification?.summary ?? null,
-    timeLabel: formatRelativeDate(item.lastMessageAt),
-    isUnread: item.status === "new",
-    statusLabel: statusLabel(item.status),
-    statusClassName: statusBadge(item.status),
-    channelLabel: channelLabel(item.channel),
-    urgencyLabel: urgencyLabel(item.urgency),
-    urgencyClassName: urgencyBadge(item.urgency),
-    leadScore: item.leadScore,
-  }))
+  const conversationItems = conversations.map((item) => {
+    // Get first client message (original message)
+    const firstClientMessage = item.messages?.find(msg => 
+      msg.direction === "inbound" && !msg.isInternal
+    )
+    
+    return {
+      id: item.id,
+      channel: item.channel,
+      title:
+        item.channel === "email"
+          ? item.subject || item.contact.nombre || "New conversation"
+          : item.contact.nombre || item.contact.email || item.subject || "New conversation",
+      subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
+      preview: item.summary ?? item.classification?.summary ?? null,
+      fullMessage: firstClientMessage?.content || null,
+      timeLabel: formatRelativeDate(item.lastMessageAt),
+      isUnread: item.status === "new",
+      statusLabel: statusLabel(item.status),
+      statusClassName: statusBadge(item.status),
+      channelLabel: channelLabel(item.channel),
+      urgencyLabel: urgencyLabel(item.urgency),
+      urgencyClassName: urgencyBadge(item.urgency),
+      leadScore: item.leadScore,
+    }
+  })
 
   const threadMessages =
     selected?.messages.map((message) => {
@@ -1000,24 +1008,6 @@ function InboxPageContent() {
       ? "expanded"
       : "compact"
 
-  // Get last client message for composer context
-  const lastClientMessage = useMemo(() => {
-    if (!selected?.messages?.length) return null
-    
-    // Find the last inbound message (from client)
-    const clientMessages = selected.messages.filter(msg => 
-      msg.direction === "inbound" && !msg.isInternal
-    )
-    
-    if (clientMessages.length === 0) return null
-    
-    const lastMessage = clientMessages[clientMessages.length - 1]
-    return {
-      content: lastMessage.content,
-      authorName: selected.contact.nombre || selected.contact.email || "Contact",
-      timestamp: formatRelativeDate(lastMessage.createdAt)
-    }
-  }, [selected])
 
   const selectedIndex = useMemo(
     () => conversations.findIndex((item) => item.id === activeSelectedId),
@@ -1331,7 +1321,6 @@ function InboxPageContent() {
                         emailCc={emailCc}
                         emailBcc={emailBcc}
                         emailForwardTo={emailForwardTo}
-                        lastClientMessage={lastClientMessage}
                         onEmailModeChange={setEmailMode}
                         onEmailCcChange={setEmailCc}
                         onEmailBccChange={setEmailBcc}

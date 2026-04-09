@@ -17,6 +17,7 @@ interface ConversationItem {
   title: string
   subtitle: string
   preview: string | null
+  fullMessage?: string | null
   timeLabel: string
   isUnread: boolean
   statusLabel: string
@@ -221,6 +222,7 @@ export function ConversationList({
                   title={item.title}
                   subtitle={item.subtitle}
                   preview={item.preview}
+                  fullMessage={item.fullMessage}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}

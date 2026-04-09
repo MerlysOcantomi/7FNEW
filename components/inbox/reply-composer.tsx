@@ -58,11 +58,6 @@ interface ReplyComposerProps {
   emailCc: string
   emailBcc: string
   emailForwardTo: string
-  lastClientMessage?: {
-    content: string
-    authorName: string
-    timestamp: string
-  } | null
   onEmailModeChange: (mode: EmailSendMode) => void
   onEmailCcChange: (value: string) => void
   onEmailBccChange: (value: string) => void
@@ -101,7 +96,6 @@ export function ReplyComposer({
   emailCc,
   emailBcc,
   emailForwardTo,
-  lastClientMessage,
   onEmailModeChange,
   onEmailCcChange,
   onEmailBccChange,
@@ -391,33 +385,6 @@ export function ReplyComposer({
                 <p className="mt-1 truncate text-sm font-medium text-[var(--inbox-text)]">{composerConfig.subjectPreview}</p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ── Last client message context (compact & expandible) ── */}
-        {!replyIsInternal && lastClientMessage && (
-          <div className="rounded-lg border border-blue-200/60 bg-blue-50/30 px-3 py-2">
-            <button 
-              type="button"
-              className="w-full text-left"
-              onClick={() => {/* TODO: expand/collapse logic */}}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <span className="text-xs text-blue-600">↪</span>
-                  <span className="ml-1 text-xs font-medium text-blue-700">
-                    Replying to {lastClientMessage.authorName}:
-                  </span>
-                  <span className="ml-1 text-xs text-blue-600 truncate">
-                    "{lastClientMessage.content.slice(0, 60)}..."
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-blue-500">{lastClientMessage.timestamp}</span>
-                  <span className="text-xs text-blue-400">[expand]</span>
-                </div>
-              </div>
-            </button>
           </div>
         )}
 

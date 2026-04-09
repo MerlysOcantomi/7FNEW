@@ -1,14 +1,16 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
+import { ChevronDown, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
   title: string
   subtitle: string
   preview?: string | null
+  fullMessage?: string | null
   timeLabel: string
   selected: boolean
   isUnread: boolean
@@ -26,6 +28,7 @@ export function ConversationListItem({
   title,
   subtitle,
   preview,
+  fullMessage,
   timeLabel,
   selected,
   isUnread,
@@ -39,11 +42,18 @@ export function ConversationListItem({
   leadScore,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLButtonElement | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     if (!selected) return
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
+
+  useEffect(() => {
+    if (!selected) setExpanded(false)
+  }, [selected])
+
+  const hasFullMessage = selected && fullMessage && fullMessage !== preview
 
   return (
     <button
@@ -93,16 +103,42 @@ export function ConversationListItem({
             </span>
           </div>
 
-          {preview?.trim() ? (
-            <p
-              className={cn(
-                "mt-2.5 line-clamp-1 text-sm leading-relaxed",
-                isUnread ? "text-[var(--inbox-text-secondary)] font-medium" : "text-[var(--inbox-muted)]",
+          {(preview?.trim() || fullMessage?.trim()) && (
+            <div className="mt-2.5">
+              <p
+                className={cn(
+                  "text-sm leading-relaxed",
+                  expanded ? "whitespace-pre-wrap" : "line-clamp-1",
+                  isUnread ? "text-[var(--inbox-text-secondary)] font-medium" : "text-[var(--inbox-muted)]",
+                )}
+              >
+                {expanded && fullMessage ? fullMessage : preview}
+              </p>
+              
+              {hasFullMessage && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpanded(!expanded)
+                  }}
+                  className="mt-1.5 flex items-center gap-1 text-xs text-[var(--inbox-accent)] hover:text-[var(--inbox-accent-hover)] transition-colors"
+                >
+                  {expanded ? (
+                    <>
+                      <ChevronDown className="h-3 w-3" />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-3 w-3" />
+                      Read full message
+                    </>
+                  )}
+                </button>
               )}
-            >
-              {preview}
-            </p>
-          ) : null}
+            </div>
+          )}
 
           <ConversationMetaLine
             statusLabel={statusLabel}
