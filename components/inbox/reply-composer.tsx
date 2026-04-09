@@ -46,7 +46,7 @@ interface ReplyComposerProps {
   onReplyModeChange: (isInternal: boolean) => void
   onReplyContentChange: (value: string) => void
   onCannedOpenChange: (open: boolean) => void
-  onAttachFile: (file: File) => void
+  onAttachFiles: (files: File[]) => void
   onRemoveAttachment: (url: string) => void
   onSend: () => void
 }
@@ -67,7 +67,7 @@ export function ReplyComposer({
   onReplyModeChange,
   onReplyContentChange,
   onCannedOpenChange,
-  onAttachFile,
+  onAttachFiles,
   onRemoveAttachment,
   onSend,
 }: ReplyComposerProps) {
@@ -274,10 +274,11 @@ export function ReplyComposer({
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               className="hidden"
               onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) onAttachFile(file)
+                const files = e.target.files
+                if (files && files.length > 0) onAttachFiles(Array.from(files))
                 e.target.value = ""
               }}
             />

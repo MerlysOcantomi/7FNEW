@@ -760,15 +760,34 @@ function InboxPageContent() {
     }
   }
 
-  async function handleAttachFile(file: File) {
+  async function handleAttachFiles(files: File[]) {
     setAttachmentUploading(true)
+    const errors: string[] = []
+
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const res = await fetch("/api/inbox/attachments/upload", { method: "POST", body: formData })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Upload failed")
-      setReplyAttachments((prev) => [...prev, { url: json.url, filename: json.filename, contentType: json.contentType, size: json.size }])
+      const uploads = await Promise.allSettled(
+        files.map(async (file) => {
+          const formData = new FormData()
+          formData.append("file", file)
+          const res = await fetch("/api/inbox/attachments/upload", { method: "POST", body: formData })
+          const json = await res.json()
+          if (!res.ok) throw new Error(json.error || `Upload failed: ${file.name}`)
+          return { url: json.url, filename: json.filename, contentType: json.contentType, size: json.size } as ComposerAttachment
+        }),
+      )
+
+      const succeeded: ComposerAttachment[] = []
+      for (const result of uploads) {
+        if (result.status === "fulfilled") succeeded.push(result.value)
+        else errors.push(result.reason?.message || "Upload failed")
+      }
+
+      if (succeeded.length > 0) {
+        setReplyAttachments((prev) => [...prev, ...succeeded])
+      }
+      if (errors.length > 0) {
+        setReplyStatus(`${errors.length} file(s) failed: ${errors[0]}`)
+      }
     } catch (err) {
       setReplyStatus(err instanceof Error ? err.message : "Upload failed")
     } finally {
@@ -1268,7 +1287,7 @@ function InboxPageContent() {
                           if (autoPopulated) setAutoPopulated(false)
                         }}
                         onCannedOpenChange={setCannedOpen}
-                        onAttachFile={handleAttachFile}
+                        onAttachFiles={handleAttachFiles}
                         onRemoveAttachment={handleRemoveAttachment}
                         onSend={sendReply}
                       />
