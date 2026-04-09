@@ -6,7 +6,7 @@ import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
 import { FarahAssistCard, type FarahAssistState } from "@/components/inbox/farah-assist-card"
-import { ReplyComposer, type ComposerAttachment } from "@/components/inbox/reply-composer"
+import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -344,6 +344,10 @@ function InboxPageContent() {
   const [dialogDismissReason, setDialogDismissReason] = useState("")
   const [replyAttachments, setReplyAttachments] = useState<ComposerAttachment[]>([])
   const [attachmentUploading, setAttachmentUploading] = useState(false)
+  const [emailMode, setEmailMode] = useState<EmailSendMode>("reply")
+  const [emailCc, setEmailCc] = useState("")
+  const [emailBcc, setEmailBcc] = useState("")
+  const [emailForwardTo, setEmailForwardTo] = useState("")
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -725,7 +729,11 @@ function InboxPageContent() {
           direction: "outbound",
           isInternal: replyIsInternal,
           role: "operator",
+          mode: replyIsInternal ? "reply" : emailMode,
           ...(replyAttachments.length > 0 ? { attachments: replyAttachments } : {}),
+          ...(!replyIsInternal && emailCc.trim() ? { cc: parseEmailList(emailCc) } : {}),
+          ...(!replyIsInternal && emailBcc.trim() ? { bcc: parseEmailList(emailBcc) } : {}),
+          ...(!replyIsInternal && emailMode === "forward" && emailForwardTo.trim() ? { to: parseEmailList(emailForwardTo) } : {}),
         }),
       })
       const json = await res.json()
@@ -740,6 +748,10 @@ function InboxPageContent() {
       setReplyIsInternal(false)
       setAutoPopulated(false)
       setReplyAttachments([])
+      setEmailMode("reply")
+      setEmailCc("")
+      setEmailBcc("")
+      setEmailForwardTo("")
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
@@ -797,6 +809,10 @@ function InboxPageContent() {
 
   function handleRemoveAttachment(url: string) {
     setReplyAttachments((prev) => prev.filter((a) => a.url !== url))
+  }
+
+  function parseEmailList(raw: string): string[] {
+    return raw.split(",").map((s) => s.trim()).filter((s) => s.includes("@"))
   }
 
   const sendReplyRef = useRef(sendReply)
@@ -921,11 +937,21 @@ function InboxPageContent() {
             : "system"
 
       let msgAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> | undefined
+      let msgEmailMeta: { cc?: string[]; bcc?: string[]; to?: string[]; mode?: "reply" | "reply_all" | "forward" } | undefined
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
           if (Array.isArray(parsed?.attachments) && parsed.attachments.length > 0) {
             msgAttachments = parsed.attachments
+          }
+          const hasMeta = parsed?.cc || parsed?.bcc || parsed?.to || parsed?.mode ||
+            parsed?.emailCc || parsed?.emailTo
+          if (hasMeta) {
+            msgEmailMeta = {
+              cc: parsed.cc || parsed.emailCc || undefined,
+              to: parsed.to || parsed.emailTo || undefined,
+              mode: parsed.mode || undefined,
+            }
           }
         }
       } catch { /* ignore parse errors */ }
@@ -943,6 +969,7 @@ function InboxPageContent() {
         content: message.content,
         tone,
         attachments: msgAttachments,
+        emailMeta: msgEmailMeta,
       }
     }) ?? []
 
@@ -1281,6 +1308,14 @@ function InboxPageContent() {
                         composerTextareaRef={composerTextareaRef}
                         attachments={replyAttachments}
                         attachmentUploading={attachmentUploading}
+                        emailMode={emailMode}
+                        emailCc={emailCc}
+                        emailBcc={emailBcc}
+                        emailForwardTo={emailForwardTo}
+                        onEmailModeChange={setEmailMode}
+                        onEmailCcChange={setEmailCc}
+                        onEmailBccChange={setEmailBcc}
+                        onEmailForwardToChange={setEmailForwardTo}
                         onReplyModeChange={setReplyIsInternal}
                         onReplyContentChange={(value) => {
                           setReplyContent(value)

@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp, Mail, MessageSquareText, Clock3, Languages, X, FileText } from "lucide-react"
+import { Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp, Mail, MessageSquareText, Clock3, Languages, X, FileText, Reply, ReplyAll, Forward } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -30,6 +31,8 @@ export interface ComposerAttachment {
   size: number
 }
 
+export type EmailSendMode = "reply" | "reply_all" | "forward"
+
 interface ReplyComposerProps {
   channel: string
   channelLabel: string
@@ -43,6 +46,14 @@ interface ReplyComposerProps {
   composerTextareaRef: React.RefObject<HTMLTextAreaElement | null>
   attachments: ComposerAttachment[]
   attachmentUploading: boolean
+  emailMode: EmailSendMode
+  emailCc: string
+  emailBcc: string
+  emailForwardTo: string
+  onEmailModeChange: (mode: EmailSendMode) => void
+  onEmailCcChange: (value: string) => void
+  onEmailBccChange: (value: string) => void
+  onEmailForwardToChange: (value: string) => void
   onReplyModeChange: (isInternal: boolean) => void
   onReplyContentChange: (value: string) => void
   onCannedOpenChange: (open: boolean) => void
@@ -64,6 +75,14 @@ export function ReplyComposer({
   composerTextareaRef,
   attachments,
   attachmentUploading,
+  emailMode,
+  emailCc,
+  emailBcc,
+  emailForwardTo,
+  onEmailModeChange,
+  onEmailCcChange,
+  onEmailBccChange,
+  onEmailForwardToChange,
   onReplyModeChange,
   onReplyContentChange,
   onCannedOpenChange,
@@ -147,16 +166,41 @@ export function ReplyComposer({
       <div className="space-y-2.5 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-2.5 shadow-[var(--inbox-panel-shadow-sm)] md:p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 type="button"
                 size="sm"
-                variant={replyIsInternal ? "outline" : "accent"}
-                onClick={() => onReplyModeChange(false)}
+                variant={!replyIsInternal && emailMode === "reply" ? "accent" : "outline"}
+                onClick={() => { onReplyModeChange(false); onEmailModeChange("reply") }}
                 className="rounded-[var(--inbox-radius-control)]"
               >
+                <Reply className="h-3 w-3" />
                 Reply
               </Button>
+              {channel === "email" && (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!replyIsInternal && emailMode === "reply_all" ? "accent" : "outline"}
+                    onClick={() => { onReplyModeChange(false); onEmailModeChange("reply_all") }}
+                    className="rounded-[var(--inbox-radius-control)]"
+                  >
+                    <ReplyAll className="h-3 w-3" />
+                    Reply all
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!replyIsInternal && emailMode === "forward" ? "accent" : "outline"}
+                    onClick={() => { onReplyModeChange(false); onEmailModeChange("forward") }}
+                    className="rounded-[var(--inbox-radius-control)]"
+                  >
+                    <Forward className="h-3 w-3" />
+                    Forward
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -183,7 +227,13 @@ export function ReplyComposer({
               {channelLabel}
             </span>
             <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
-              {replyIsInternal ? "Internal workflow" : "Outbound reply"}
+              {replyIsInternal
+                ? "Internal workflow"
+                : emailMode === "forward"
+                  ? "Forward"
+                  : emailMode === "reply_all"
+                    ? "Reply all"
+                    : "Outbound reply"}
             </span>
           </div>
         </div>
@@ -347,6 +397,21 @@ export function ReplyComposer({
             </div>
           )}
 
+          {!replyIsInternal && channel === "email" && emailMode === "forward" && (
+            <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2.5">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
+                Forward to
+              </label>
+              <Input
+                type="text"
+                value={emailForwardTo}
+                onChange={(e) => onEmailForwardToChange(e.target.value)}
+                placeholder="recipient@example.com (comma-separated for multiple)"
+                className="mt-1.5 h-8 text-xs"
+              />
+            </div>
+          )}
+
           {advancedOpen && (
             <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/42 px-3 py-2.5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -362,6 +427,31 @@ export function ReplyComposer({
                   {speech.listening ? "Listening..." : "Ctrl+Enter to send"}
                 </span>
               </div>
+
+              {!replyIsInternal && channel === "email" && (
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">CC</label>
+                    <Input
+                      type="text"
+                      value={emailCc}
+                      onChange={(e) => onEmailCcChange(e.target.value)}
+                      placeholder="cc@example.com (comma-separated)"
+                      className="mt-1 h-8 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">BCC</label>
+                    <Input
+                      type="text"
+                      value={emailBcc}
+                      onChange={(e) => onEmailBccChange(e.target.value)}
+                      placeholder="bcc@example.com (comma-separated)"
+                      className="mt-1 h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 {composerConfig.advancedItems.map((item) => (
@@ -403,7 +493,7 @@ export function ReplyComposer({
             <Button
               type="button"
               onClick={handleSend}
-              disabled={replySending || !replyContent.trim()}
+              disabled={replySending || !replyContent.trim() || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
               className={cn(
                 "min-w-[148px] self-end rounded-[var(--inbox-radius-control)] px-4 sm:self-auto",
                 replyIsInternal && "bg-amber-900 text-white hover:bg-amber-950",
@@ -412,10 +502,18 @@ export function ReplyComposer({
             >
               {replySending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : emailMode === "forward" && !replyIsInternal ? (
+                <Forward className="h-3.5 w-3.5" />
               ) : (
                 <Send className="h-3.5 w-3.5" />
               )}
-              {replyIsInternal ? "Save note" : composerConfig.sendLabel}
+              {replyIsInternal
+                ? "Save note"
+                : emailMode === "forward"
+                  ? "Forward"
+                  : emailMode === "reply_all"
+                    ? "Reply all"
+                    : composerConfig.sendLabel}
             </Button>
           </div>
         </div>
@@ -476,8 +574,6 @@ function getComposerConfig({
         attachmentHint: "Email attachments can expand here into file picking, previews, multi-file handling and send validation.",
         attachmentTypes: ["Images", "PDFs", "Docs", "Spreadsheets"],
         advancedItems: [
-          { label: "Reply all and forward", hint: "Prepared as advanced email modes so the main Reply/Internal note switch stays simple.", tone: "accent" as const },
-          { label: "CC and BCC", hint: "Addressing controls can live in a secondary layer instead of crowding the main toolbar." },
           { label: "Edit subject", hint: "The current subject is already visible above and can become editable without changing the composer shell." },
           { label: "Save draft and schedule send", hint: "Future send options can branch from the footer instead of adding more primary buttons." },
         ] satisfies ComposerAdvancedItem[],

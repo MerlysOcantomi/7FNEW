@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
-import { MessageBubble, type MessageAttachment } from "@/components/inbox/message-bubble"
+import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
 
 interface MemberOption {
   userId: string
@@ -27,6 +27,7 @@ interface MessageItem {
   content: string
   tone: "inbound" | "outbound" | "internal" | "system"
   attachments?: MessageAttachment[]
+  emailMeta?: MessageEmailMeta
 }
 
 interface ConversationThreadProps {
@@ -179,6 +180,7 @@ export function ConversationThread({
                 content={message.content}
                 tone={message.tone}
                 attachments={message.attachments}
+                emailMeta={message.emailMeta}
               />
             ))
           )}

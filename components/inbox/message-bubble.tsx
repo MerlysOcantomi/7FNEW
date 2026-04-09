@@ -12,6 +12,13 @@ export interface MessageAttachment {
   size?: number
 }
 
+export interface MessageEmailMeta {
+  cc?: string[]
+  bcc?: string[]
+  to?: string[]
+  mode?: "reply" | "reply_all" | "forward"
+}
+
 interface MessageBubbleProps {
   authorLabel: string
   roleLabel: string
@@ -20,6 +27,7 @@ interface MessageBubbleProps {
   content: string
   tone: MessageTone
   attachments?: MessageAttachment[]
+  emailMeta?: MessageEmailMeta
 }
 
 export function MessageBubble({
@@ -30,6 +38,7 @@ export function MessageBubble({
   content,
   tone,
   attachments,
+  emailMeta,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
@@ -60,7 +69,26 @@ export function MessageBubble({
             {metaLabel}
           </span>
           <span className="text-[10px] whitespace-nowrap text-muted-foreground/90">{timestampLabel}</span>
+          {emailMeta?.mode === "forward" && (
+            <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-medium text-blue-700">
+              Forwarded
+            </span>
+          )}
+          {emailMeta?.mode === "reply_all" && (
+            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-medium text-violet-700">
+              Reply all
+            </span>
+          )}
         </div>
+
+        {emailMeta?.cc && emailMeta.cc.length > 0 && (
+          <p className={cn(
+            "mb-1 px-1 text-[10px] text-muted-foreground/70",
+            isRightAligned ? "text-right" : "text-left",
+          )}>
+            CC: {emailMeta.cc.join(", ")}
+          </p>
+        )}
 
         <div
           className={cn(

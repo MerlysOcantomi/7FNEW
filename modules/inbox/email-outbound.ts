@@ -9,6 +9,8 @@ export interface OutboundAttachment {
   contentType: string
 }
 
+export type EmailSendMode = "reply" | "reply_all" | "forward"
+
 export interface SendOutboundEmailInput {
   workspaceName: string
   contactEmail: string
@@ -17,6 +19,11 @@ export interface SendOutboundEmailInput {
   /** Raw workspace.config JSON for locale resolution. */
   workspaceConfig?: string | null
   attachments?: OutboundAttachment[]
+  cc?: string[]
+  bcc?: string[]
+  /** Override recipients (used by reply-all extra recipients or forward). */
+  to?: string[]
+  mode?: EmailSendMode
 }
 
 function ensureRePrefix(subject: string): string {
@@ -124,20 +131,28 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
   const t = getTranslations(resolveLocaleFromConfig(input.workspaceConfig))
   const displayName = sanitizeDisplayName(input.workspaceName)
   const from = resolveInboxFrom(displayName)
+  const mode = input.mode ?? "reply"
+
   const subjectBase = input.subject?.trim() || t.email.outbound.defaultSubject
-  const subject = ensureRePrefix(subjectBase)
+  const subject = mode === "forward"
+    ? ensureFwdPrefix(subjectBase)
+    : ensureRePrefix(subjectBase)
 
   const footerText = t.email.outbound.footer(displayName)
   const bodyText = `${input.messageContent}\n\n---\n${footerText}`
   const footerEscaped = escapeHtml(footerText)
   const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>`
 
+  const recipients = resolveRecipients(input)
+
   return sendEmail({
-    to: input.contactEmail,
+    to: recipients,
     from,
     subject,
     text: bodyText,
     html: bodyHtml,
+    ...(input.cc?.length ? { cc: input.cc } : {}),
+    ...(input.bcc?.length ? { bcc: input.bcc } : {}),
     ...(input.attachments?.length
       ? {
           attachments: input.attachments.map((a) => ({
@@ -148,4 +163,25 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
         }
       : {}),
   })
+}
+
+function ensureFwdPrefix(subject: string): string {
+  const trimmed = subject.trim()
+  if (/^fwd?:\s*/i.test(trimmed)) return trimmed
+  return `Fwd: ${trimmed}`
+}
+
+function resolveRecipients(input: SendOutboundEmailInput): string | string[] {
+  const mode = input.mode ?? "reply"
+
+  if (mode === "forward") {
+    return input.to?.length ? input.to : input.contactEmail
+  }
+
+  if (mode === "reply_all" && input.to?.length) {
+    const all = new Set([input.contactEmail, ...input.to])
+    return [...all]
+  }
+
+  return input.contactEmail
 }

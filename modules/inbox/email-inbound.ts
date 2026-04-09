@@ -21,6 +21,7 @@ interface ReceivedEmail {
   id: string
   from: string
   to: string[]
+  cc?: string[]
   subject: string | null
   text: string | null
   html: string | null
@@ -385,6 +386,8 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
       resendEmailId: email.id,
       emailMessageId: email.message_id,
       emailFrom: email.from,
+      emailTo: email.to,
+      emailCc: email.cc ?? [],
       emailSubject: subject,
       inReplyTo,
       references,

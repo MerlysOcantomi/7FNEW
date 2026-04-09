@@ -21,6 +21,8 @@ export interface SendEmailInput {
   /** Defaults to RESEND_FROM_EMAIL env var when omitted. */
   from?: string
   replyTo?: string
+  cc?: string[]
+  bcc?: string[]
   attachments?: EmailAttachment[]
 }
 
@@ -69,6 +71,8 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       text: input.text,
       html: input.html,
       replyTo: input.replyTo,
+      ...(input.cc?.length ? { cc: input.cc } : {}),
+      ...(input.bcc?.length ? { bcc: input.bcc } : {}),
       ...(input.attachments?.length
         ? {
             attachments: input.attachments.map((a) => ({

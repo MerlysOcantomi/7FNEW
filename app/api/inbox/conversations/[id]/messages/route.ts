@@ -23,17 +23,33 @@ export async function POST(request: NextRequest, { params }: Params) {
       metadata = null,
       sourceMessageId = null,
       attachments = null,
+      cc = null,
+      bcc = null,
+      to = null,
+      mode = "reply",
     } = body
 
     const parsedAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> =
       Array.isArray(attachments) ? attachments.filter((a: unknown) => a && typeof a === "object" && "url" in (a as Record<string, unknown>)) : []
 
+    const parsedCc: string[] = Array.isArray(cc) ? cc.filter((v: unknown) => typeof v === "string" && v.includes("@")) : []
+    const parsedBcc: string[] = Array.isArray(bcc) ? bcc.filter((v: unknown) => typeof v === "string" && v.includes("@")) : []
+    const parsedTo: string[] = Array.isArray(to) ? to.filter((v: unknown) => typeof v === "string" && v.includes("@")) : []
+    const sendMode: "reply" | "reply_all" | "forward" = ["reply", "reply_all", "forward"].includes(mode) ? mode : "reply"
+
     if (!content || typeof content !== "string" || content.trim().length === 0) {
       return errorResponse("VALIDATION_ERROR", "content es requerido")
     }
 
-    const enrichedMetadata = parsedAttachments.length > 0
-      ? { ...(metadata && typeof metadata === "object" ? metadata : {}), attachments: parsedAttachments }
+    const metaBase = metadata && typeof metadata === "object" ? metadata : {}
+    const emailFields: Record<string, unknown> = {}
+    if (parsedAttachments.length > 0) emailFields.attachments = parsedAttachments
+    if (parsedCc.length > 0) emailFields.cc = parsedCc
+    if (parsedBcc.length > 0) emailFields.bcc = parsedBcc
+    if (parsedTo.length > 0) emailFields.to = parsedTo
+    if (sendMode !== "reply") emailFields.mode = sendMode
+    const enrichedMetadata = Object.keys(emailFields).length > 0
+      ? { ...metaBase, ...emailFields }
       : metadata
 
     const message = await addMessage({
@@ -95,9 +111,11 @@ export async function POST(request: NextRequest, { params }: Params) {
               subject: conv.subject ?? "",
               messageContent: message.content,
               workspaceConfig: conv.workspace.config,
-              ...(parsedAttachments.length > 0
-                ? { attachments: parsedAttachments }
-                : {}),
+              mode: sendMode,
+              ...(parsedAttachments.length > 0 ? { attachments: parsedAttachments } : {}),
+              ...(parsedCc.length > 0 ? { cc: parsedCc } : {}),
+              ...(parsedBcc.length > 0 ? { bcc: parsedBcc } : {}),
+              ...(parsedTo.length > 0 ? { to: parsedTo } : {}),
             })
             emailMeta = result.ok
               ? { emailSent: true }
