@@ -1,11 +1,12 @@
 "use client"
 
-import { AlertTriangle, ChevronLeft, Loader2, MessageSquare, Sparkles, Users } from "lucide-react"
+import { AlertTriangle, ArrowRight, ChevronLeft, Globe, Loader2, MessageSquare, Sparkles, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
+import { cn } from "@/lib/utils"
 
 interface MemberOption {
   userId: string
@@ -47,6 +48,12 @@ interface ConversationThreadProps {
   messages: MessageItem[]
   onBack?: () => void
   onOpenContext?: () => void
+  handoffSummary?: string | null
+  nextAction?: string | null
+  detectedLanguage?: string | null
+  urgencyLabel?: string | null
+  urgencyClassName?: string | null
+  suggestedActionsCount?: number
 }
 
 export function ConversationThread({
@@ -66,7 +73,14 @@ export function ConversationThread({
   messages,
   onBack,
   onOpenContext,
+  handoffSummary,
+  nextAction,
+  detectedLanguage,
+  urgencyLabel,
+  urgencyClassName,
+  suggestedActionsCount = 0,
 }: ConversationThreadProps) {
+  const hasSituationContext = Boolean(handoffSummary || nextAction)
   if (!hasSelectedId) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -162,6 +176,50 @@ export function ConversationThread({
           </div>
         </div>
       </div>
+
+      {hasSituationContext && (
+        <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-accent-soft)]/30 px-4 py-2.5 md:px-5">
+          <div className="flex items-start gap-2.5">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+            <div className="min-w-0 flex-1">
+              {handoffSummary && (
+                <p className="truncate text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                  {handoffSummary}
+                </p>
+              )}
+              {nextAction && (
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-[var(--inbox-text)]">
+                  <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
+                  <span className="truncate">{nextAction}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {detectedLanguage && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-text-secondary)]">
+                  <Globe className="h-2.5 w-2.5" />
+                  {detectedLanguage.toUpperCase()}
+                </span>
+              )}
+              {urgencyLabel && urgencyClassName && (
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", urgencyClassName)}>
+                  {urgencyLabel}
+                </span>
+              )}
+              {suggestedActionsCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenContext}
+                  className="inline-flex items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent-soft)]/80"
+                >
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {suggestedActionsCount} action{suggestedActionsCount === 1 ? "" : "s"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-4 py-4 md:px-5 md:py-5">

@@ -199,7 +199,7 @@ export function ActionsCard({
             )}
 
             <div className="grid gap-3">
-              {categorizedActions.map((group) => (
+              {categorizedActions.filter((group) => group.items.length > 0).map((group) => (
                 <div key={group.key} className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/38 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
@@ -275,15 +275,6 @@ export function ActionsCard({
                   )}
                 </div>
               ))}
-            </div>
-
-            <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
-                Channel context
-              </p>
-              <p className="mt-2 text-xs text-[var(--inbox-text-secondary)]">
-                {channelReadiness.primaryHint}
-              </p>
             </div>
 
             <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">

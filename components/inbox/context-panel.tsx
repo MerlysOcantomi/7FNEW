@@ -100,7 +100,7 @@ export function ContextPanel({
   channelLabel,
 }: ContextPanelProps) {
   const urgencyConfig = getUrgencyPresentation(selected.urgency)
-  const intelligenceTitle = "Message intelligence"
+  const intelligenceTitle = "Situation"
   const intelligenceSummary =
     selected.handoff?.summary ||
     selected.classification?.summary ||
@@ -125,8 +125,8 @@ export function ContextPanel({
 
   const businessContextMeta = [
     channelLabel(selected.channel),
-    selected.detectedLanguage?.toUpperCase() || "No language",
-    typeof selected.leadScore === "number" ? `Lead ${selected.leadScore}` : "No lead score",
+    ...(selected.detectedLanguage ? [selected.detectedLanguage.toUpperCase()] : []),
+    ...(typeof selected.leadScore === "number" ? [`Lead ${selected.leadScore}`] : []),
   ]
 
   const coreSections = [

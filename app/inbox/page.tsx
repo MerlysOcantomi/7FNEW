@@ -1250,6 +1250,12 @@ function InboxPageContent() {
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
+                      handoffSummary={farahSummary}
+                      nextAction={farahNextAction}
+                      detectedLanguage={selected?.detectedLanguage}
+                      urgencyLabel={selected ? urgencyLabel(selected.urgency) : null}
+                      urgencyClassName={selected?.urgency && ["critica", "alta"].includes(selected.urgency) ? urgencyBadge(selected.urgency) : null}
+                      suggestedActionsCount={selected?.actions?.filter((a) => a.status === "suggested").length ?? 0}
                     />
                   </div>
 
@@ -1263,6 +1269,7 @@ function InboxPageContent() {
                           suggestionContent={suggestedDraft?.content || null}
                           nextRecommendedAction={farahNextAction}
                           confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
+                          detectedLanguage={selected.detectedLanguage}
                           autoPopulated={autoPopulated}
                           onToggleExpanded={() => setFarahExpanded((value) => !value)}
                           onInsertSuggestion={suggestedDraft?.content
