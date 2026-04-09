@@ -1000,6 +1000,25 @@ function InboxPageContent() {
       ? "expanded"
       : "compact"
 
+  // Get last client message for composer context
+  const lastClientMessage = useMemo(() => {
+    if (!selected?.messages?.length) return null
+    
+    // Find the last inbound message (from client)
+    const clientMessages = selected.messages.filter(msg => 
+      msg.direction === "inbound" && !msg.isInternal
+    )
+    
+    if (clientMessages.length === 0) return null
+    
+    const lastMessage = clientMessages[clientMessages.length - 1]
+    return {
+      content: lastMessage.content,
+      authorName: selected.contact.nombre || selected.contact.email || "Contact",
+      timestamp: formatRelativeDate(lastMessage.createdAt)
+    }
+  }, [selected])
+
   const selectedIndex = useMemo(
     () => conversations.findIndex((item) => item.id === activeSelectedId),
     [activeSelectedId, conversations],
@@ -1319,6 +1338,7 @@ function InboxPageContent() {
                         emailCc={emailCc}
                         emailBcc={emailBcc}
                         emailForwardTo={emailForwardTo}
+                        lastClientMessage={lastClientMessage}
                         onEmailModeChange={setEmailMode}
                         onEmailCcChange={setEmailCc}
                         onEmailBccChange={setEmailBcc}

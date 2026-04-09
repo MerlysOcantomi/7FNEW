@@ -58,6 +58,11 @@ interface ReplyComposerProps {
   emailCc: string
   emailBcc: string
   emailForwardTo: string
+  lastClientMessage?: {
+    content: string
+    authorName: string
+    timestamp: string
+  } | null
   onEmailModeChange: (mode: EmailSendMode) => void
   onEmailCcChange: (value: string) => void
   onEmailBccChange: (value: string) => void
@@ -96,6 +101,7 @@ export function ReplyComposer({
   emailCc,
   emailBcc,
   emailForwardTo,
+  lastClientMessage,
   onEmailModeChange,
   onEmailCcChange,
   onEmailBccChange,
@@ -384,6 +390,26 @@ export function ReplyComposer({
                 </p>
                 <p className="mt-1 truncate text-sm font-medium text-[var(--inbox-text)]">{composerConfig.subjectPreview}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Last client message context ── */}
+        {!replyIsInternal && lastClientMessage && (
+          <div className="rounded-xl border border-blue-200/60 bg-blue-50/40 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                Replying to
+              </p>
+              <span className="text-xs text-blue-600">{lastClientMessage.timestamp}</span>
+            </div>
+            <div className="mb-2">
+              <p className="text-sm font-semibold text-blue-800">{lastClientMessage.authorName}</p>
+            </div>
+            <div className="rounded-lg bg-white/80 border border-blue-200/80 p-3">
+              <p className="text-sm leading-relaxed text-blue-900 line-clamp-3">
+                {lastClientMessage.content}
+              </p>
             </div>
           </div>
         )}
