@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       conversationId: conversation.id,
       contactId: contact.id,
       messageId: message.id,
-      note: "DEBUG — test conversation created. Farah intelligence running in background.",
+      note: "DEBUG — test conversation created. Fanny intelligence running in background.",
     })
   } catch (error) {
     console.error("[7F] Debug create error:", error)

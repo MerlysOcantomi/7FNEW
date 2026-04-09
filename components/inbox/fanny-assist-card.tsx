@@ -4,10 +4,10 @@ import { ChevronDown, ChevronRight, Globe, PenSquare, Sparkles, X } from "lucide
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export type FarahAssistState = "hidden" | "compact" | "expanded"
+export type FannyAssistState = "hidden" | "compact" | "expanded"
 
-interface FarahAssistCardProps {
-  state: Exclude<FarahAssistState, "hidden">
+interface FannyAssistCardProps {
+  state: Exclude<FannyAssistState, "hidden">
   summary?: string | null
   suggestionTitle?: string | null
   suggestionContent?: string | null
@@ -21,7 +21,7 @@ interface FarahAssistCardProps {
   onDismiss: () => void
 }
 
-export function FarahAssistCard({
+export function FannyAssistCard({
   state,
   summary,
   suggestionTitle,
@@ -34,7 +34,7 @@ export function FarahAssistCard({
   onInsertSuggestion,
   onEditSuggestion,
   onDismiss,
-}: FarahAssistCardProps) {
+}: FannyAssistCardProps) {
   const isExpanded = state === "expanded"
   const hasSuggestion = Boolean(suggestionContent?.trim())
   const languageHint = detectedLanguage && detectedLanguage.toLowerCase() !== "en"
@@ -59,7 +59,7 @@ export function FarahAssistCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--inbox-accent)]">
-                  Farah
+                  Fanny
                 </span>
                 {hasSuggestion && (
                   <span className="rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]">
@@ -143,7 +143,7 @@ export function FarahAssistCard({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--inbox-accent)]">
-                      Farah
+                      Fanny
                     </span>
                     {languageHint && (
                       <span className="inline-flex items-center gap-0.5 rounded-full border border-[var(--inbox-divider)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--inbox-text-secondary)]">

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
-import { FarahAssistCard, type FarahAssistState } from "@/components/inbox/farah-assist-card"
+import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -334,8 +334,8 @@ function InboxPageContent() {
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
   const [autoPopulated, setAutoPopulated] = useState(false)
-  const [farahDismissed, setFarahDismissed] = useState(false)
-  const [farahExpanded, setFarahExpanded] = useState(false)
+  const [fannyDismissed, setFannyDismissed] = useState(false)
+  const [fannyExpanded, setFannyExpanded] = useState(false)
   const [mobileView, setMobileView] = useState<"list" | "thread">("list")
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const [cannedOpen, setCannedOpen] = useState(false)
@@ -471,8 +471,8 @@ function InboxPageContent() {
     setActionsExpanded(false)
     setBusinessContextExpanded(false)
     setAutoPopulated(false)
-    setFarahDismissed(false)
-    setFarahExpanded(false)
+    setFannyDismissed(false)
+    setFannyExpanded(false)
     setContextSheetOpen(false)
     setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
@@ -978,12 +978,12 @@ function InboxPageContent() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
-  const farahSummary =
+  const fannySummary =
     selected?.handoff?.summary ||
     selected?.classification?.summary ||
     selected?.summary ||
     null
-  const farahNextAction =
+  const fannyNextAction =
     selected?.handoff?.nextRecommendedAction ||
     (selected?.classification?.nextBestAction &&
     typeof selected.classification.nextBestAction === "object"
@@ -993,10 +993,10 @@ function InboxPageContent() {
             .find((value): value is string => typeof value === "string" && value.trim().length > 0) ?? null
         )
       : null)
-  const farahHasContent = Boolean(suggestedDraft?.content?.trim() || farahSummary || farahNextAction)
-  const farahState: FarahAssistState = !selected || farahDismissed || !farahHasContent
+  const fannyHasContent = Boolean(suggestedDraft?.content?.trim() || fannySummary || fannyNextAction)
+  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasContent
     ? "hidden"
-    : autoPopulated || farahExpanded
+    : autoPopulated || fannyExpanded
       ? "expanded"
       : "compact"
 
@@ -1250,8 +1250,8 @@ function InboxPageContent() {
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
-                      handoffSummary={farahSummary}
-                      nextAction={farahNextAction}
+                      handoffSummary={fannySummary}
+                      nextAction={fannyNextAction}
                       detectedLanguage={selected?.detectedLanguage}
                       urgencyLabel={selected ? urgencyLabel(selected.urgency) : null}
                       urgencyClassName={selected?.urgency && ["critica", "alta"].includes(selected.urgency) ? urgencyBadge(selected.urgency) : null}
@@ -1261,24 +1261,24 @@ function InboxPageContent() {
 
                   {selected && (
                     <>
-                      {farahState !== "hidden" && (
-                        <FarahAssistCard
-                          state={farahState}
-                          summary={farahSummary}
+                      {fannyState !== "hidden" && (
+                        <FannyAssistCard
+                          state={fannyState}
+                          summary={fannySummary}
                           suggestionTitle={suggestedDraft?.title || null}
                           suggestionContent={suggestedDraft?.content || null}
-                          nextRecommendedAction={farahNextAction}
+                          nextRecommendedAction={fannyNextAction}
                           confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
                           detectedLanguage={selected.detectedLanguage}
                           autoPopulated={autoPopulated}
-                          onToggleExpanded={() => setFarahExpanded((value) => !value)}
+                          onToggleExpanded={() => setFannyExpanded((value) => !value)}
                           onInsertSuggestion={suggestedDraft?.content
                             ? () => {
                                 setReplyContent(suggestedDraft.content)
                                 setReplyIsInternal(false)
                                 setReplyStatus(null)
                                 setAutoPopulated(true)
-                                setFarahExpanded(true)
+                                setFannyExpanded(true)
                                 activeDraftIdRef.current = suggestedDraft.id
                                 requestComposerFocus(false)
                               }
@@ -1288,14 +1288,14 @@ function InboxPageContent() {
                                 setReplyContent(suggestedDraft.content)
                                 setReplyIsInternal(false)
                                 setReplyStatus(null)
-                                setFarahExpanded(true)
+                                setFannyExpanded(true)
                                 activeDraftIdRef.current = suggestedDraft.id
                                 updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
                                 requestComposerFocus(false)
                               }
                             : undefined}
                           onDismiss={() => {
-                            setFarahDismissed(true)
+                            setFannyDismissed(true)
                             if (autoPopulated) {
                               setAutoPopulated(false)
                             }

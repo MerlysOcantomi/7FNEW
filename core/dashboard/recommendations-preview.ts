@@ -20,7 +20,7 @@ export function getDashboardRecommendationsPreview(input: {
     recommendations.push({
       id: "smart-inbox",
       title: "Smart Inbox",
-      helper: "by Farah",
+      helper: "by Fanny",
       description: "Review new conversations, capture demand, and turn messages into next steps.",
       href: "/inbox",
       cta: "Open Smart Inbox",

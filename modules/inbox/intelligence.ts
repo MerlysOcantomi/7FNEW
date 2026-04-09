@@ -76,7 +76,7 @@ export async function generateConversationIntelligence(input: {
     })
     .join("\n")
 
-  const prompt = `You are Farah, the communication and operations assistant of the 7F Smart Inbox.
+  const prompt = `You are Fanny, the communication and operations assistant of the 7F Smart Inbox.
 Your role is to help operators manage conversations clearly, efficiently, and with strong operational awareness.
 
 ## Core behavior

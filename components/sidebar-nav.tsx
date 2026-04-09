@@ -71,7 +71,7 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       section: "Main",
       subtitle: "",
       items: [
-        { label: v.inbox.singular, href: "/inbox", icon: Inbox, helper: "by Farah" },
+        { label: v.inbox.singular, href: "/inbox", icon: Inbox, helper: "by Fanny" },
         { label: v.client.plural, href: "/clientes", icon: Users },
         { label: v.project.plural, href: "/proyectos", icon: FolderKanban },
         { label: v.task.plural, href: "/tareas", icon: CheckSquare },
