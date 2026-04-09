@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp, Mail, MessageSquareText, Clock3, Languages } from "lucide-react"
+import { Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp, Mail, MessageSquareText, Clock3, Languages, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -23,6 +23,13 @@ interface ComposerAdvancedItem {
   tone?: "default" | "accent"
 }
 
+export interface ComposerAttachment {
+  url: string
+  filename: string
+  contentType: string
+  size: number
+}
+
 interface ReplyComposerProps {
   channel: string
   channelLabel: string
@@ -34,9 +41,13 @@ interface ReplyComposerProps {
   replyStatus: string | null
   cannedOpen: boolean
   composerTextareaRef: React.RefObject<HTMLTextAreaElement | null>
+  attachments: ComposerAttachment[]
+  attachmentUploading: boolean
   onReplyModeChange: (isInternal: boolean) => void
   onReplyContentChange: (value: string) => void
   onCannedOpenChange: (open: boolean) => void
+  onAttachFile: (file: File) => void
+  onRemoveAttachment: (url: string) => void
   onSend: () => void
 }
 
@@ -51,16 +62,20 @@ export function ReplyComposer({
   replyStatus,
   cannedOpen,
   composerTextareaRef,
+  attachments,
+  attachmentUploading,
   onReplyModeChange,
   onReplyContentChange,
   onCannedOpenChange,
+  onAttachFile,
+  onRemoveAttachment,
   onSend,
 }: ReplyComposerProps) {
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
   const userInterruptedRef = useRef(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const { items: cannedResponses } = useCannedResponses()
   const composerConfig = getComposerConfig({
@@ -248,14 +263,24 @@ export function ReplyComposer({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setAttachmentsOpen((value) => !value)}
-              className="rounded-[var(--inbox-radius-control)] opacity-50"
-              title="Attachments — coming soon"
-              disabled
+              onClick={() => fileInputRef.current?.click()}
+              className={cn("rounded-[var(--inbox-radius-control)]", attachmentUploading && "opacity-60")}
+              title="Attach file"
+              disabled={attachmentUploading}
             >
-              <Paperclip className="h-3.5 w-3.5" />
-              Attach
+              {attachmentUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+              {attachmentUploading ? "Uploading…" : "Attach"}
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) onAttachFile(file)
+                e.target.value = ""
+              }}
+            />
 
             {speech.supported && (
               <Button
@@ -291,28 +316,30 @@ export function ReplyComposer({
             </Button>
           </div>
 
-          {attachmentsOpen && (
-            <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
-                    Attachments
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
-                    {composerConfig.attachmentHint}
-                  </p>
-                </div>
-                <span className="rounded-full bg-[var(--inbox-surface)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
-                  Future preview zone
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {composerConfig.attachmentTypes.map((item) => (
+          {attachments.length > 0 && (
+            <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-2.5">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--inbox-muted)]">
+                Attachments ({attachments.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {attachments.map((att) => (
                   <span
-                    key={item}
-                    className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-1 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+                    key={att.url}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)]"
                   >
-                    {item}
+                    <FileText className="h-3 w-3 shrink-0" />
+                    <span className="max-w-[140px] truncate">{att.filename}</span>
+                    <span className="text-[10px] text-[var(--inbox-muted)]">
+                      {att.size < 1024 ? `${att.size} B` : att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveAttachment(att.url)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--inbox-background)]"
+                      title="Remove"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </span>
                 ))}
               </div>

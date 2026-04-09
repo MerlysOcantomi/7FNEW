@@ -22,11 +22,19 @@ export async function POST(request: NextRequest, { params }: Params) {
       isInternal = false,
       metadata = null,
       sourceMessageId = null,
+      attachments = null,
     } = body
+
+    const parsedAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> =
+      Array.isArray(attachments) ? attachments.filter((a: unknown) => a && typeof a === "object" && "url" in (a as Record<string, unknown>)) : []
 
     if (!content || typeof content !== "string" || content.trim().length === 0) {
       return errorResponse("VALIDATION_ERROR", "content es requerido")
     }
+
+    const enrichedMetadata = parsedAttachments.length > 0
+      ? { ...(metadata && typeof metadata === "object" ? metadata : {}), attachments: parsedAttachments }
+      : metadata
 
     const message = await addMessage({
       workspaceId,
@@ -36,7 +44,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       direction,
       contentType,
       isInternal,
-      metadata,
+      metadata: enrichedMetadata,
       sourceMessageId,
     })
 
@@ -87,6 +95,9 @@ export async function POST(request: NextRequest, { params }: Params) {
               subject: conv.subject ?? "",
               messageContent: message.content,
               workspaceConfig: conv.workspace.config,
+              ...(parsedAttachments.length > 0
+                ? { attachments: parsedAttachments }
+                : {}),
             })
             emailMeta = result.ok
               ? { emailSent: true }

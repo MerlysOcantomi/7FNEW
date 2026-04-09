@@ -6,7 +6,7 @@ import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
 import { FarahAssistCard, type FarahAssistState } from "@/components/inbox/farah-assist-card"
-import { ReplyComposer } from "@/components/inbox/reply-composer"
+import { ReplyComposer, type ComposerAttachment } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -139,6 +139,7 @@ interface ConversationDetail extends ConversationListItem {
     content: string
     isInternal: boolean
     createdAt: string
+    metadata?: string | null
   }>
   inboxEntries?: Array<{
     id: string
@@ -341,6 +342,8 @@ function InboxPageContent() {
   const [pendingActionInput, setPendingActionInput] = useState<PendingActionInput | null>(null)
   const [dialogAssignValue, setDialogAssignValue] = useState("")
   const [dialogDismissReason, setDialogDismissReason] = useState("")
+  const [replyAttachments, setReplyAttachments] = useState<ComposerAttachment[]>([])
+  const [attachmentUploading, setAttachmentUploading] = useState(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -722,6 +725,7 @@ function InboxPageContent() {
           direction: "outbound",
           isInternal: replyIsInternal,
           role: "operator",
+          ...(replyAttachments.length > 0 ? { attachments: replyAttachments } : {}),
         }),
       })
       const json = await res.json()
@@ -735,6 +739,7 @@ function InboxPageContent() {
       setReplyContent("")
       setReplyIsInternal(false)
       setAutoPopulated(false)
+      setReplyAttachments([])
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
@@ -753,6 +758,26 @@ function InboxPageContent() {
     } finally {
       setReplySending(false)
     }
+  }
+
+  async function handleAttachFile(file: File) {
+    setAttachmentUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/inbox/attachments/upload", { method: "POST", body: formData })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Upload failed")
+      setReplyAttachments((prev) => [...prev, { url: json.url, filename: json.filename, contentType: json.contentType, size: json.size }])
+    } catch (err) {
+      setReplyStatus(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setAttachmentUploading(false)
+    }
+  }
+
+  function handleRemoveAttachment(url: string) {
+    setReplyAttachments((prev) => prev.filter((a) => a.url !== url))
   }
 
   const sendReplyRef = useRef(sendReply)
@@ -876,6 +901,16 @@ function InboxPageContent() {
             ? "inbound"
             : "system"
 
+      let msgAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> | undefined
+      try {
+        if (message.metadata) {
+          const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
+          if (Array.isArray(parsed?.attachments) && parsed.attachments.length > 0) {
+            msgAttachments = parsed.attachments
+          }
+        }
+      } catch { /* ignore parse errors */ }
+
       return {
         id: message.id,
         authorLabel: isInternal
@@ -888,6 +923,7 @@ function InboxPageContent() {
         timestampLabel: formatRelativeDate(message.createdAt),
         content: message.content,
         tone,
+        attachments: msgAttachments,
       }
     }) ?? []
 
@@ -1224,12 +1260,16 @@ function InboxPageContent() {
                         replyStatus={replyStatus}
                         cannedOpen={cannedOpen}
                         composerTextareaRef={composerTextareaRef}
+                        attachments={replyAttachments}
+                        attachmentUploading={attachmentUploading}
                         onReplyModeChange={setReplyIsInternal}
                         onReplyContentChange={(value) => {
                           setReplyContent(value)
                           if (autoPopulated) setAutoPopulated(false)
                         }}
                         onCannedOpenChange={setCannedOpen}
+                        onAttachFile={handleAttachFile}
+                        onRemoveAttachment={handleRemoveAttachment}
                         onSend={sendReply}
                       />
                     </>

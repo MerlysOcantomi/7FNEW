@@ -4,6 +4,15 @@ import { Resend } from "resend"
 // Types
 // ---------------------------------------------------------------------------
 
+export interface EmailAttachment {
+  filename: string
+  /** Public URL — Resend will fetch the file at send time. */
+  path?: string
+  /** Raw binary content. */
+  content?: Buffer
+  contentType?: string
+}
+
 export interface SendEmailInput {
   to: string | string[]
   subject: string
@@ -12,6 +21,7 @@ export interface SendEmailInput {
   /** Defaults to RESEND_FROM_EMAIL env var when omitted. */
   from?: string
   replyTo?: string
+  attachments?: EmailAttachment[]
 }
 
 export interface SendEmailResult {
@@ -59,6 +69,16 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       text: input.text,
       html: input.html,
       replyTo: input.replyTo,
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              path: a.path,
+              content: a.content,
+              content_type: a.contentType,
+            })),
+          }
+        : {}),
     })
 
     if (error) {

@@ -3,6 +3,12 @@ import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-te
 import { logActivity } from "@core/activity"
 import { getTranslations, resolveLocaleFromConfig } from "@core/i18n"
 
+export interface OutboundAttachment {
+  filename: string
+  url: string
+  contentType: string
+}
+
 export interface SendOutboundEmailInput {
   workspaceName: string
   contactEmail: string
@@ -10,6 +16,7 @@ export interface SendOutboundEmailInput {
   messageContent: string
   /** Raw workspace.config JSON for locale resolution. */
   workspaceConfig?: string | null
+  attachments?: OutboundAttachment[]
 }
 
 function ensureRePrefix(subject: string): string {
@@ -112,5 +119,14 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
     subject,
     text: bodyText,
     html: bodyHtml,
+    ...(input.attachments?.length
+      ? {
+          attachments: input.attachments.map((a) => ({
+            filename: a.filename,
+            path: a.url,
+            contentType: a.contentType,
+          })),
+        }
+      : {}),
   })
 }

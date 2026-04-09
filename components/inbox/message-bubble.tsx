@@ -1,8 +1,16 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { FileText, Download } from "lucide-react"
 
 type MessageTone = "inbound" | "outbound" | "internal" | "system"
+
+export interface MessageAttachment {
+  filename: string
+  url: string
+  contentType: string
+  size?: number
+}
 
 interface MessageBubbleProps {
   authorLabel: string
@@ -11,6 +19,7 @@ interface MessageBubbleProps {
   timestampLabel: string
   content: string
   tone: MessageTone
+  attachments?: MessageAttachment[]
 }
 
 export function MessageBubble({
@@ -20,6 +29,7 @@ export function MessageBubble({
   timestampLabel,
   content,
   tone,
+  attachments,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
@@ -66,6 +76,35 @@ export function MessageBubble({
           )}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>
+          {attachments && attachments.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1.5 border-t border-current/10 pt-2">
+              {attachments.map((att) => (
+                <a
+                  key={att.url || att.filename}
+                  href={att.url || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
+                    att.url
+                      ? "hover:bg-current/10 cursor-pointer"
+                      : "opacity-60 cursor-default",
+                    tone === "outbound" ? "text-primary-foreground/90" : "text-foreground/80",
+                  )}
+                  onClick={att.url ? undefined : (e) => e.preventDefault()}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                  <span className="max-w-[180px] truncate font-medium">{att.filename}</span>
+                  {att.size != null && (
+                    <span className="text-[10px] opacity-70">
+                      {att.size < 1024 ? `${att.size} B` : att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`}
+                    </span>
+                  )}
+                  {att.url && <Download className="h-3 w-3 shrink-0 opacity-70" />}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

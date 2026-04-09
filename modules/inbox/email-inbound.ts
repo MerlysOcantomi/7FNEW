@@ -8,6 +8,15 @@ import { logActivity } from "@core/activity"
 // Types
 // ---------------------------------------------------------------------------
 
+interface ReceivedEmailAttachment {
+  id: string
+  filename: string
+  content_type: string
+  size?: number
+  content_disposition?: string
+  content_id?: string | null
+}
+
 interface ReceivedEmail {
   id: string
   from: string
@@ -18,6 +27,15 @@ interface ReceivedEmail {
   headers: Record<string, string>
   message_id: string
   created_at: string
+  attachments?: ReceivedEmailAttachment[]
+}
+
+interface StoredAttachment {
+  filename: string
+  url: string
+  contentType: string
+  size?: number
+  source: "inbound"
 }
 
 interface InboundEmailResult {
@@ -89,6 +107,66 @@ async function fetchReceivedEmail(resendEmailId: string): Promise<ReceivedEmail>
   }
 
   return res.json() as Promise<ReceivedEmail>
+}
+
+// ---------------------------------------------------------------------------
+// Inbound attachment processing
+// ---------------------------------------------------------------------------
+
+async function processInboundAttachments(
+  resendEmailId: string,
+  rawAttachments: ReceivedEmailAttachment[],
+): Promise<StoredAttachment[]> {
+  if (!rawAttachments.length) return []
+
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return []
+
+  const stored: StoredAttachment[] = []
+
+  for (const att of rawAttachments) {
+    try {
+      const res = await fetch(
+        `https://api.resend.com/emails/receiving/${resendEmailId}/attachments/${att.id}`,
+        { headers: { Authorization: `Bearer ${apiKey}` } },
+      )
+
+      if (!res.ok) {
+        console.warn(`[email-inbound] Could not fetch attachment ${att.id}: ${res.status}`)
+        stored.push({
+          filename: att.filename,
+          url: "",
+          contentType: att.content_type,
+          size: att.size,
+          source: "inbound",
+        })
+        continue
+      }
+
+      const data = (await res.json()) as { download_url?: string; expires_at?: string }
+
+      if (data.download_url) {
+        const fileRes = await fetch(data.download_url)
+        if (fileRes.ok) {
+          const buffer = Buffer.from(await fileRes.arrayBuffer())
+          const { uploadToStorage, getStoragePath } = await import("@/lib/storage")
+          const path = getStoragePath("inbox-attachments-inbound", att.filename)
+          const url = await uploadToStorage(buffer, path, att.content_type)
+          stored.push({ filename: att.filename, url, contentType: att.content_type, size: att.size ?? buffer.length, source: "inbound" })
+        } else {
+          console.warn(`[email-inbound] Could not download attachment ${att.id}: ${fileRes.status}`)
+          stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+        }
+      } else {
+        stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+      }
+    } catch (err) {
+      console.warn(`[email-inbound] Attachment ${att.id} processing failed:`, err)
+      stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+    }
+  }
+
+  return stored
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +367,13 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     `[email-inbound] ${resendEmailId} from=${senderEmail} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation}`,
   )
 
-  // ---- 4. Create inbound message ----
+  // ---- 4. Process attachments if present ----
+  const storedAttachments = await processInboundAttachments(
+    resendEmailId,
+    email.attachments ?? [],
+  )
+
+  // ---- 5. Create inbound message ----
   const message = await addMessage({
     workspaceId,
     conversationId,
@@ -304,12 +388,13 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
       emailSubject: subject,
       inReplyTo,
       references,
+      ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
     },
   })
 
   if (!message) throw new Error("Failed to create inbound message")
 
-  // ---- 5. Post-processing (fire-and-forget) ----
+  // ---- 6. Post-processing (fire-and-forget) ----
   db.conversation
     .findFirst({
       where: { id: conversationId, workspaceId },
