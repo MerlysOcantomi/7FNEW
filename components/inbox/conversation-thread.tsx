@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
+import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { cn } from "@/lib/utils"
 
 interface MemberOption {
@@ -44,6 +45,19 @@ interface ConversationThreadProps {
   messages: MessageItem[]
   onBack?: () => void
   onOpenContext?: () => void
+  // Fanny props
+  fannyState: FannyAssistState
+  fannySummary?: string | null
+  fannySuggestionTitle?: string | null
+  fannySuggestionContent?: string | null
+  fannyNextRecommendedAction?: string | null
+  fannyConfidenceLabel?: string | null
+  fannyDetectedLanguage?: string | null
+  fannyAutoPopulated?: boolean
+  onFannyToggleExpanded: () => void
+  onFannyInsertSuggestion?: () => void
+  onFannyEditSuggestion?: () => void
+  onFannyDismiss: () => void
 }
 
 export function ConversationThread({
@@ -59,6 +73,18 @@ export function ConversationThread({
   messages,
   onBack,
   onOpenContext,
+  fannyState,
+  fannySummary,
+  fannySuggestionTitle,
+  fannySuggestionContent,
+  fannyNextRecommendedAction,
+  fannyConfidenceLabel,
+  fannyDetectedLanguage,
+  fannyAutoPopulated,
+  onFannyToggleExpanded,
+  onFannyInsertSuggestion,
+  onFannyEditSuggestion,
+  onFannyDismiss,
 }: ConversationThreadProps) {
   if (!hasSelectedId) {
     return (
@@ -94,27 +120,58 @@ export function ConversationThread({
 
   return (
     <>
-      <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
+      {/* Mobile navigation */}
+      <div className="xl:hidden shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" className="-ml-2 h-7 rounded-[var(--inbox-radius-control)] px-2 text-xs" onClick={onBack}>
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Inbox
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="h-7 rounded-[var(--inbox-radius-control)] text-xs" onClick={onOpenContext}>
+            <Sparkles className="h-3 w-3" />
+            Context
+          </Button>
+          <div className="ml-auto">
+            <InlineSelect
+              value={statusValue}
+              options={statusOptions}
+              onSave={onStatusChange}
+              badgeClassName={statusBadgeClassName}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Fanny header */}
+      {fannyState !== "hidden" && (
+        <div className="shrink-0">
+          <FannyAssistCard
+            state={fannyState}
+            summary={fannySummary}
+            suggestionTitle={fannySuggestionTitle}
+            suggestionContent={fannySuggestionContent}
+            nextRecommendedAction={fannyNextRecommendedAction}
+            confidenceLabel={fannyConfidenceLabel}
+            detectedLanguage={fannyDetectedLanguage}
+            autoPopulated={fannyAutoPopulated}
+            onToggleExpanded={onFannyToggleExpanded}
+            onInsertSuggestion={onFannyInsertSuggestion}
+            onEditSuggestion={onFannyEditSuggestion}
+            onDismiss={onFannyDismiss}
+          />
+        </div>
+      )}
+
+      {/* Desktop status (when no Fanny or collapsed) */}
+      <div className="hidden xl:block shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 xl:hidden mb-2">
-              <Button type="button" variant="ghost" size="sm" className="-ml-2 h-7 rounded-[var(--inbox-radius-control)] px-2 text-xs" onClick={onBack}>
-                <ChevronLeft className="h-3.5 w-3.5" />
-                Inbox
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="h-7 rounded-[var(--inbox-radius-control)] text-xs" onClick={onOpenContext}>
-                <Sparkles className="h-3 w-3" />
-                Context
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-semibold text-foreground">{headerTitle}</h1>
-              <span className="shrink-0 text-sm text-[var(--inbox-text-secondary)]">•</span>
-              <p className="truncate text-sm text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
+            <div className="flex items-center gap-2 text-sm">
+              <h1 className="truncate font-medium text-foreground">{headerTitle}</h1>
+              <span className="shrink-0 text-[var(--inbox-text-secondary)]">•</span>
+              <p className="truncate text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <InlineSelect
               value={statusValue}

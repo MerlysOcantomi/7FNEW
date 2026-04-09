@@ -26,6 +26,14 @@ interface ConversationItem {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
+  // Additional fields for messages view
+  conversationId?: string
+  messageId?: string
+  direction?: string
+  isInternal?: boolean
+  tone?: string
+  authorName?: string
+  createdAt?: string
 }
 
 interface ConversationListProps {
@@ -233,6 +241,8 @@ export function ConversationList({
                   urgencyLabel={item.urgencyLabel}
                   urgencyClassName={item.urgencyClassName}
                   leadScore={item.leadScore}
+                  tone={item.tone}
+                  authorName={item.authorName}
                 />
               ))}
               {hasMore && onLoadMore && (

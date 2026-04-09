@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
@@ -22,6 +22,9 @@ interface ConversationListItemProps {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
+  // Message-specific props
+  tone?: "inbound" | "outbound" | "internal" | "system"
+  authorName?: string
 }
 
 export function ConversationListItem({
@@ -40,6 +43,8 @@ export function ConversationListItem({
   urgencyLabel,
   urgencyClassName,
   leadScore,
+  tone,
+  authorName,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLButtonElement | null>(null)
   const [expanded, setExpanded] = useState(false)
@@ -81,6 +86,22 @@ export function ConversationListItem({
                 {isUnread && (
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--inbox-accent)] shadow-sm ring-2 ring-[var(--inbox-accent)]/20" aria-hidden="true" />
                 )}
+                
+                {/* Message direction indicator */}
+                {tone && (
+                  <div className="shrink-0">
+                    {tone === "inbound" && (
+                      <ArrowLeft className="h-3 w-3 text-blue-500" />
+                    )}
+                    {tone === "outbound" && (
+                      <ArrowRight className="h-3 w-3 text-green-500" />
+                    )}
+                    {tone === "internal" && (
+                      <MessageSquare className="h-3 w-3 text-amber-500" />
+                    )}
+                  </div>
+                )}
+                
                 <p
                   className={cn(
                     "truncate pr-1 text-[15px] leading-tight text-[var(--inbox-text)]",

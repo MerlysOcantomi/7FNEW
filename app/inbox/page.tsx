@@ -904,6 +904,44 @@ function InboxPageContent() {
         ]
       : members
 
+  // Get all messages from all conversations for the left column
+  const allMessages = conversations.flatMap((conversation) => 
+    (conversation.messages || []).map((message) => {
+      const isOutbound = message.direction === "outbound" && !message.isInternal
+      const isInbound = message.direction === "inbound" && !message.isInternal
+      const isInternal = message.isInternal
+      
+      return {
+        id: `${conversation.id}-${message.id}`,
+        conversationId: conversation.id,
+        messageId: message.id,
+        channel: conversation.channel,
+        title: isOutbound 
+          ? "You" 
+          : conversation.contact.nombre || conversation.contact.email || "Contact",
+        subtitle: isInternal 
+          ? `Internal note • ${conversation.contact.nombre || conversation.contact.email || "Unidentified"}`
+          : `${conversation.contact.nombre || conversation.contact.email || "Unidentified contact"}${conversation.contact.empresa ? ` · ${conversation.contact.empresa}` : ""}`,
+        preview: message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content,
+        fullMessage: message.content,
+        timeLabel: formatRelativeDate(message.createdAt),
+        createdAt: message.createdAt, // Keep raw date for sorting
+        isUnread: conversation.status === "new" && isInbound,
+        statusLabel: statusLabel(conversation.status),
+        statusClassName: statusBadge(conversation.status),
+        channelLabel: channelLabel(conversation.channel),
+        urgencyLabel: urgencyLabel(conversation.urgency),
+        urgencyClassName: urgencyBadge(conversation.urgency),
+        leadScore: conversation.leadScore,
+        direction: message.direction,
+        isInternal: message.isInternal,
+        tone: isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system",
+        authorName: isOutbound ? "You" : conversation.contact.nombre || conversation.contact.email || "Contact",
+      }
+    })
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Sort by most recent first
+
+  // Keep conversation items for now (we might need them for other purposes)
   const conversationItems = conversations.map((item) => {
     // Get first client message (original message)
     const firstClientMessage = item.messages?.find(msg => 
@@ -1211,8 +1249,8 @@ function InboxPageContent() {
               <ConversationList
                 loading={loading}
                 errorMessage={listErrorMessage}
-                conversations={conversationItems}
-                selectedId={activeSelectedId}
+                conversations={allMessages}
+                selectedId={selected ? `${selected.id}-${selected.messages?.[selected.messages.length - 1]?.id || ''}` : null}
                 search={search}
                 onSearchChange={setSearch}
                 status={status}
@@ -1223,8 +1261,12 @@ function InboxPageContent() {
                 onChannelChange={setChannel}
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
-                stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
-                onSelect={handleSelectConversation}
+                stats={{ total: allMessages.length, leads: stats.leads, urgent: stats.urgent }}
+                onSelect={(messageId) => {
+                  // Extract conversationId from the messageId format: "conversationId-messageId"
+                  const conversationId = messageId.split('-')[0]
+                  handleSelectConversation(conversationId)
+                }}
                 hasMore={hasMore}
                 loadingMore={loadingMore}
                 activeSearchTerm={debouncedSearch || undefined}
@@ -1258,52 +1300,48 @@ function InboxPageContent() {
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
+                      fannyState={fannyState}
+                      fannySummary={fannySummary}
+                      fannySuggestionTitle={suggestedDraft?.title || null}
+                      fannySuggestionContent={suggestedDraft?.content || null}
+                      fannyNextRecommendedAction={fannyNextAction}
+                      fannyConfidenceLabel={selected ? confidenceLabel(selected.handoff?.confidence) : null}
+                      fannyDetectedLanguage={selected?.detectedLanguage}
+                      fannyAutoPopulated={autoPopulated}
+                      onFannyToggleExpanded={() => setFannyExpanded((value) => !value)}
+                      onFannyInsertSuggestion={suggestedDraft?.content
+                        ? () => {
+                            setReplyContent(suggestedDraft.content)
+                            setReplyIsInternal(false)
+                            setReplyStatus(null)
+                            setAutoPopulated(true)
+                            setFannyExpanded(true)
+                            activeDraftIdRef.current = suggestedDraft.id
+                            requestComposerFocus(false)
+                          }
+                        : undefined}
+                      onFannyEditSuggestion={suggestedDraft?.content
+                        ? () => {
+                            setReplyContent(suggestedDraft.content)
+                            setReplyIsInternal(false)
+                            setReplyStatus(null)
+                            setFannyExpanded(true)
+                            activeDraftIdRef.current = suggestedDraft.id
+                            updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
+                            requestComposerFocus(false)
+                          }
+                        : undefined}
+                      onFannyDismiss={() => {
+                        setFannyDismissed(true)
+                        if (autoPopulated) {
+                          setAutoPopulated(false)
+                        }
+                      }}
                     />
                   </div>
 
                   {selected && (
                     <>
-                      {fannyState !== "hidden" && (
-                        <FannyAssistCard
-                          state={fannyState}
-                          summary={fannySummary}
-                          suggestionTitle={suggestedDraft?.title || null}
-                          suggestionContent={suggestedDraft?.content || null}
-                          nextRecommendedAction={fannyNextAction}
-                          confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
-                          detectedLanguage={selected.detectedLanguage}
-                          autoPopulated={autoPopulated}
-                          onToggleExpanded={() => setFannyExpanded((value) => !value)}
-                          onInsertSuggestion={suggestedDraft?.content
-                            ? () => {
-                                setReplyContent(suggestedDraft.content)
-                                setReplyIsInternal(false)
-                                setReplyStatus(null)
-                                setAutoPopulated(true)
-                                setFannyExpanded(true)
-                                activeDraftIdRef.current = suggestedDraft.id
-                                requestComposerFocus(false)
-                              }
-                            : undefined}
-                          onEditSuggestion={suggestedDraft?.content
-                            ? () => {
-                                setReplyContent(suggestedDraft.content)
-                                setReplyIsInternal(false)
-                                setReplyStatus(null)
-                                setFannyExpanded(true)
-                                activeDraftIdRef.current = suggestedDraft.id
-                                updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
-                                requestComposerFocus(false)
-                              }
-                            : undefined}
-                          onDismiss={() => {
-                            setFannyDismissed(true)
-                            if (autoPopulated) {
-                              setAutoPopulated(false)
-                            }
-                          }}
-                        />
-                      )}
                       <ReplyComposer
                         channel={selected.channel}
                         channelLabel={channelLabel(selected.channel)}
