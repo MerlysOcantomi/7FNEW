@@ -91,6 +91,19 @@ function parseReferencesHeader(refs: string | null | undefined): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Timeout helper
+// ---------------------------------------------------------------------------
+
+const FETCH_TIMEOUT_MS = 20_000
+const ATTACHMENT_TIMEOUT_MS = 30_000
+
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer))
+}
+
+// ---------------------------------------------------------------------------
 // Resend API — fetch full received email
 // ---------------------------------------------------------------------------
 
@@ -98,9 +111,11 @@ async function fetchReceivedEmail(resendEmailId: string): Promise<ReceivedEmail>
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) throw new Error("RESEND_API_KEY not configured")
 
-  const res = await fetch(`https://api.resend.com/emails/receiving/${resendEmailId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  })
+  const res = await fetchWithTimeout(
+    `https://api.resend.com/emails/receiving/${resendEmailId}`,
+    { headers: { Authorization: `Bearer ${apiKey}` } },
+    FETCH_TIMEOUT_MS,
+  )
 
   if (!res.ok) {
     const text = await res.text().catch(() => "(no body)")
@@ -126,44 +141,44 @@ async function processInboundAttachments(
   const stored: StoredAttachment[] = []
 
   for (const att of rawAttachments) {
+    const failEntry: StoredAttachment = { filename: att.filename || "unknown", url: "", contentType: att.content_type || "application/octet-stream", size: att.size, source: "inbound" }
+
     try {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `https://api.resend.com/emails/receiving/${resendEmailId}/attachments/${att.id}`,
         { headers: { Authorization: `Bearer ${apiKey}` } },
+        ATTACHMENT_TIMEOUT_MS,
       )
 
       if (!res.ok) {
-        console.warn(`[email-inbound] Could not fetch attachment ${att.id}: ${res.status}`)
-        stored.push({
-          filename: att.filename,
-          url: "",
-          contentType: att.content_type,
-          size: att.size,
-          source: "inbound",
-        })
+        console.warn(`[email-inbound] Attachment metadata fetch failed email=${resendEmailId} att=${att.id} status=${res.status}`)
+        stored.push(failEntry)
         continue
       }
 
       const data = (await res.json()) as { download_url?: string; expires_at?: string }
 
       if (data.download_url) {
-        const fileRes = await fetch(data.download_url)
+        const fileRes = await fetchWithTimeout(data.download_url, {}, ATTACHMENT_TIMEOUT_MS)
         if (fileRes.ok) {
           const buffer = Buffer.from(await fileRes.arrayBuffer())
           const { uploadToStorage, getStoragePath } = await import("@/lib/storage")
-          const path = getStoragePath("inbox-attachments-inbound", att.filename)
-          const url = await uploadToStorage(buffer, path, att.content_type)
-          stored.push({ filename: att.filename, url, contentType: att.content_type, size: att.size ?? buffer.length, source: "inbound" })
+          const path = getStoragePath("inbox-attachments-inbound", att.filename || "file")
+          const url = await uploadToStorage(buffer, path, att.content_type || "application/octet-stream")
+          stored.push({ filename: att.filename || "file", url, contentType: att.content_type || "application/octet-stream", size: att.size ?? buffer.length, source: "inbound" })
+          console.log(`[email-inbound] Attachment stored email=${resendEmailId} att=${att.id} file=${att.filename}`)
         } else {
-          console.warn(`[email-inbound] Could not download attachment ${att.id}: ${fileRes.status}`)
-          stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+          console.warn(`[email-inbound] Attachment download failed email=${resendEmailId} att=${att.id} status=${fileRes.status}`)
+          stored.push(failEntry)
         }
       } else {
-        stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+        console.warn(`[email-inbound] No download_url for attachment email=${resendEmailId} att=${att.id}`)
+        stored.push(failEntry)
       }
     } catch (err) {
-      console.warn(`[email-inbound] Attachment ${att.id} processing failed:`, err)
-      stored.push({ filename: att.filename, url: "", contentType: att.content_type, size: att.size, source: "inbound" })
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error(`[email-inbound] Attachment processing error email=${resendEmailId} att=${att.id}: ${errMsg}`)
+      stored.push(failEntry)
     }
   }
 
@@ -265,12 +280,15 @@ async function matchConversationByContact(
 
 export async function processInboundEmail(resendEmailId: string): Promise<InboundEmailResult> {
   // ---- dedup: check if this email was already ingested ----
+  // Search by resendEmailId in metadata across all inbound messages.
+  // resendEmailId is globally unique from Resend, so cross-workspace dedup is safe.
   const duplicate = await db.message.findFirst({
     where: { direction: "inbound", metadata: { contains: resendEmailId } },
     select: { id: true, conversationId: true },
   })
 
   if (duplicate) {
+    console.log(`[email-inbound] Dedup hit email=${resendEmailId} existing_msg=${duplicate.id}`)
     return {
       conversationId: duplicate.conversationId,
       messageId: duplicate.id,
@@ -282,14 +300,20 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
   }
 
   // ---- 1. Fetch full email ----
+  console.log(`[email-inbound] Fetching email=${resendEmailId}`)
   const email = await fetchReceivedEmail(resendEmailId)
+
+  if (!email.from) throw new Error(`Email ${resendEmailId} has no 'from' field`)
 
   const senderEmail = extractEmailAddress(email.from)
   const senderName = extractDisplayName(email.from)
   const subject = email.subject || "(No subject)"
   const content = email.text || stripHtml(email.html || "") || "(empty email)"
-  const inReplyTo = email.headers?.["in-reply-to"] ?? null
-  const references = email.headers?.["references"] ?? null
+  const headers = email.headers && typeof email.headers === "object" ? email.headers : {}
+  const inReplyTo = headers["in-reply-to"] ?? null
+  const references = headers["references"] ?? null
+
+  console.log(`[email-inbound] Parsed email=${resendEmailId} from=${senderEmail} subject="${subject}" attachments=${email.attachments?.length ?? 0}`)
 
   // ---- 2. Resolve contact & workspace ----
   const existingContact = await db.contact.findFirst({

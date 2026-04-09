@@ -88,7 +88,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         .catch(() => null)
     }
 
-    let emailMeta: { emailSent?: boolean; emailError?: string } | undefined
+    let emailMeta: { emailSent?: boolean; emailError?: string; emailStatus?: string } | undefined
 
     if (direction === "outbound" && !isInternal) {
       const conv = await db.conversation.findFirst({
@@ -104,6 +104,10 @@ export async function POST(request: NextRequest, { params }: Params) {
       if (conv?.channel === "email") {
         const contactEmail = conv.contact?.email?.trim()
         if (contactEmail) {
+          let emailStatus = "pending"
+          let emailError: string | undefined
+          let resendId: string | undefined
+
           try {
             const result = await sendOutboundEmail({
               workspaceName: conv.workspace.nombre,
@@ -117,20 +121,47 @@ export async function POST(request: NextRequest, { params }: Params) {
               ...(parsedBcc.length > 0 ? { bcc: parsedBcc } : {}),
               ...(parsedTo.length > 0 ? { to: parsedTo } : {}),
             })
-            emailMeta = result.ok
-              ? { emailSent: true }
-              : { emailSent: false, emailError: result.error || "Email delivery failed" }
 
-            if (result.ok && result.id) {
-              const existingMeta = metadata ? (typeof metadata === "string" ? JSON.parse(metadata) : metadata) : {}
-              await db.message.update({
-                where: { id: message.id },
-                data: { metadata: JSON.stringify({ ...existingMeta, resendId: result.id }) },
-              })
+            if (result.ok) {
+              emailStatus = "sent"
+              resendId = result.id
+              console.log(`[email-outbound] OK conv=${id} msg=${message.id} to=${contactEmail} resendId=${result.id}`)
+            } else {
+              emailStatus = "failed"
+              emailError = result.error || "Email delivery failed"
+              console.error(`[email-outbound] FAILED conv=${id} msg=${message.id} to=${contactEmail}: ${emailError}`)
             }
-          } catch {
-            emailMeta = { emailSent: false, emailError: "Email service unavailable" }
+          } catch (err) {
+            emailStatus = "failed"
+            emailError = err instanceof Error ? err.message : "Email service unavailable"
+            console.error(`[email-outbound] EXCEPTION conv=${id} msg=${message.id} to=${contactEmail}: ${emailError}`)
           }
+
+          emailMeta = {
+            emailSent: emailStatus === "sent",
+            ...(emailError ? { emailError } : {}),
+            emailStatus,
+          }
+
+          try {
+            const currentMeta = enrichedMetadata && typeof enrichedMetadata === "object" ? enrichedMetadata : {}
+            await db.message.update({
+              where: { id: message.id },
+              data: {
+                metadata: JSON.stringify({
+                  ...currentMeta,
+                  emailStatus,
+                  ...(resendId ? { resendId } : {}),
+                  ...(emailError ? { emailError } : {}),
+                  emailAttemptedAt: new Date().toISOString(),
+                }),
+              },
+            })
+          } catch (metaErr) {
+            console.error(`[email-outbound] Could not update message metadata msg=${message.id}:`, metaErr)
+          }
+        } else {
+          console.warn(`[email-outbound] No contact email for conv=${id}, skipping send`)
         }
       }
     }

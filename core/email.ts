@@ -48,13 +48,26 @@ function getResend(): Resend | null {
 }
 
 // ---------------------------------------------------------------------------
+// Timeout helper
+// ---------------------------------------------------------------------------
+
+const EMAIL_SEND_TIMEOUT_MS = 15_000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    promise.then(resolve, reject).finally(() => clearTimeout(timer))
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const resend = getResend()
   if (!resend) {
-    console.warn("[7F] sendEmail skipped: RESEND_API_KEY is not set")
+    console.warn("[email-send] Skipped: RESEND_API_KEY is not set")
     return { ok: false, error: "RESEND_API_KEY is not configured" }
   }
 
@@ -63,37 +76,44 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return { ok: false, error: "No sender address: set RESEND_FROM_EMAIL or pass `from`" }
   }
 
+  const to = Array.isArray(input.to) ? input.to.join(", ") : input.to
+
   try {
-    const { data, error } = await resend.emails.send({
-      from,
-      to: input.to,
-      subject: input.subject,
-      text: input.text,
-      html: input.html,
-      replyTo: input.replyTo,
-      ...(input.cc?.length ? { cc: input.cc } : {}),
-      ...(input.bcc?.length ? { bcc: input.bcc } : {}),
-      ...(input.attachments?.length
-        ? {
-            attachments: input.attachments.map((a) => ({
-              filename: a.filename,
-              path: a.path,
-              content: a.content,
-              content_type: a.contentType,
-            })),
-          }
-        : {}),
-    })
+    const { data, error } = await withTimeout(
+      resend.emails.send({
+        from,
+        to: input.to,
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+        replyTo: input.replyTo,
+        ...(input.cc?.length ? { cc: input.cc } : {}),
+        ...(input.bcc?.length ? { bcc: input.bcc } : {}),
+        ...(input.attachments?.length
+          ? {
+              attachments: input.attachments.map((a) => ({
+                filename: a.filename,
+                path: a.path,
+                content: a.content,
+                content_type: a.contentType,
+              })),
+            }
+          : {}),
+      }),
+      EMAIL_SEND_TIMEOUT_MS,
+      "Resend.emails.send",
+    )
 
     if (error) {
-      console.error("[7F] Resend send error:", error)
+      console.error(`[email-send] Resend API error to=${to} subject="${input.subject}":`, error.message)
       return { ok: false, error: error.message }
     }
 
+    console.log(`[email-send] OK to=${to} id=${data?.id}`)
     return { ok: true, id: data?.id }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error("[7F] sendEmail failed:", message)
+    console.error(`[email-send] Failed to=${to} subject="${input.subject}": ${message}`)
     return { ok: false, error: message }
   }
 }
