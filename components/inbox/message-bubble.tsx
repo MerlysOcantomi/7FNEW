@@ -61,11 +61,19 @@ export function MessageBubble({
                 : "justify-start text-left",
           )}
         >
-          <span className="text-xs font-semibold text-[var(--inbox-text)]">{authorLabel}</span>
+          <span className={cn(
+            "text-xs font-semibold",
+            tone === "inbound" ? "text-blue-800" : "text-[var(--inbox-text)]"
+          )}>{authorLabel}</span>
           <span className="text-xs uppercase tracking-wide font-medium text-[var(--inbox-text-secondary)]">
             {roleLabel}
           </span>
-          <span className="rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2.5 py-0.5 text-xs leading-relaxed text-[var(--inbox-text-secondary)] font-medium">
+          <span className={cn(
+            "rounded-lg border px-2.5 py-0.5 text-xs leading-relaxed font-medium",
+            tone === "inbound" 
+              ? "border-blue-300 bg-blue-100 text-blue-700" 
+              : "border-[var(--inbox-divider)] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]"
+          )}>
             {metaLabel}
           </span>
           <span className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
@@ -96,7 +104,7 @@ export function MessageBubble({
             tone === "outbound" &&
               "rounded-tr-lg border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent)] text-white shadow-[0_8px_32px_rgba(47,111,115,0.15)]",
             tone === "inbound" &&
-              "rounded-tl-lg border-[var(--inbox-border)] bg-[var(--inbox-surface)] text-[var(--inbox-text)] shadow-[0_4px_16px_rgba(17,24,39,0.04)]",
+              "rounded-tl-lg border-blue-200 bg-blue-50/80 text-blue-900 shadow-[0_4px_20px_rgba(59,130,246,0.08)] ring-1 ring-blue-100",
             tone === "internal" &&
               "rounded-tl-lg border-amber-200 bg-amber-50 text-amber-900 shadow-[0_4px_16px_rgba(245,158,11,0.08)]",
             tone === "system" &&
