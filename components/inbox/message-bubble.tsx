@@ -91,7 +91,7 @@ export function MessageBubble({
 
         {emailMeta?.cc && emailMeta.cc.length > 0 && (
           <p className={cn(
-            "mb-1 px-1 text-[10px] text-muted-foreground/70",
+            "mb-1 px-1 text-[10px] text-[var(--inbox-text-secondary)]/70",
             isRightAligned ? "text-right" : "text-left",
           )}>
             CC: {emailMeta.cc.join(", ")}
@@ -125,7 +125,7 @@ export function MessageBubble({
                     att.url
                       ? "hover:bg-current/10 cursor-pointer"
                       : "opacity-60 cursor-default",
-                    tone === "outbound" ? "text-primary-foreground/90" : "text-foreground/80",
+                    tone === "outbound" ? "text-white/90" : "text-[var(--inbox-text)]/80",
                   )}
                   onClick={att.url ? undefined : (e) => e.preventDefault()}
                 >

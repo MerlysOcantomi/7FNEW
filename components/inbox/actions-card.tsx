@@ -112,7 +112,7 @@ export function ActionsCard({
         <CollapsibleContent>
           <CardContent className="space-y-4 border-t border-[var(--inbox-divider)] px-4 py-4">
             {primaryAction ? (
-              <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[linear-gradient(180deg,rgba(230,241,242,0.5)_0%,rgba(255,255,255,1)_100%)] p-3">
+              <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-accent-soft)]/30 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-accent)]">
                   Recommended now
                 </p>
@@ -129,7 +129,7 @@ export function ActionsCard({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {STUB_ACTION_TYPES.has(primaryAction.type) && (
-                      <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                      <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-warning)]">
                         Coming soon
                       </span>
                     )}
@@ -234,7 +234,7 @@ export function ActionsCard({
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               {STUB_ACTION_TYPES.has(action.type) && (
-                                <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                                <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--inbox-warning)]">
                                   Soon
                                 </span>
                               )}

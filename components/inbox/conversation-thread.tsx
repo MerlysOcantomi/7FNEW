@@ -95,7 +95,7 @@ export function ConversationThread({
   if (detailLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--inbox-text-secondary)]" />
       </div>
     )
   }
@@ -161,7 +161,7 @@ export function ConversationThread({
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-sm">
-              <h1 className="truncate font-medium text-foreground">{headerTitle}</h1>
+              <h1 className="truncate font-medium text-[var(--inbox-text)]">{headerTitle}</h1>
               <span className="shrink-0 text-[var(--inbox-text-secondary)]">•</span>
               <p className="truncate text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
             </div>
@@ -178,10 +178,10 @@ export function ConversationThread({
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-5 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-5 py-6 md:px-6 md:py-7">
+        <div className="space-y-5 bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7">
           {messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6">
-              <p className="text-sm text-muted-foreground">No messages yet.</p>
+            <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-[var(--inbox-surface)]/50 p-6">
+              <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
             </div>
           ) : (
             messages.map((message) => (

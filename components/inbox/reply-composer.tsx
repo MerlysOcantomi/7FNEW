@@ -381,7 +381,7 @@ export function ReplyComposer({
                 onReplyModeChange(true);
                 focusComposerWithScroll();
               }}
-              className={cn("h-7 rounded-lg text-xs px-2.5", replyIsInternal && "border-amber-200 bg-amber-100 text-amber-950 hover:bg-amber-200")}
+              className={cn("h-7 rounded-lg text-xs px-2.5", replyIsInternal && "border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/15 text-[var(--inbox-warning)] hover:bg-[var(--inbox-warning)]/25")}
             >
               Internal note
             </Button>
@@ -438,7 +438,7 @@ export function ReplyComposer({
               }}
             />
             {isProcessing && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-sm">
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--inbox-surface)]/70 backdrop-blur-sm">
                 <div className="flex items-center gap-2.5 rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-4 py-2.5 shadow-[var(--inbox-panel-shadow-sm)]">
                   <div className="relative flex items-center justify-center">
                     <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
@@ -520,7 +520,7 @@ export function ReplyComposer({
                         key={lang.code}
                         type="button"
                         onClick={() => handleTranslate(lang.code)}
-                        className="w-full rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        className="w-full rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-[var(--inbox-text)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
                       >
                         {lang.label}
                       </button>
@@ -533,7 +533,7 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={handleUndoAssist}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 transition-all duration-150 hover:bg-amber-100"
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 px-2 py-1 text-xs font-medium text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--inbox-warning)]/20"
                 >
                   Undo changes
                 </button>
@@ -571,7 +571,7 @@ export function ReplyComposer({
                           >
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">{item.label}</p>
-                              <p className="truncate text-xs text-muted-foreground">{item.content}</p>
+                              <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{item.content}</p>
                             </div>
                           </CommandItem>
                         ))}
@@ -793,7 +793,7 @@ export function ReplyComposer({
                 <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">
                   More options
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-[var(--inbox-text-secondary)]">
                   {speech.listening
                     ? voiceMode === "compose" ? "Listening..." : "Dictating..."
                     : "Ctrl+Enter to send"}
@@ -848,7 +848,7 @@ export function ReplyComposer({
 
           {/* ── Footer: status + send ── */}
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-[10px] text-[var(--inbox-text-secondary)] truncate">
               {speech.listening
                 ? voiceMode === "compose"
                   ? "Describe your intent..."
@@ -861,7 +861,7 @@ export function ReplyComposer({
               disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
               className={cn(
                 "h-8 min-w-[120px] rounded-md text-xs px-3",
-                replyIsInternal && "bg-amber-900 text-white hover:bg-amber-950",
+                replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
               )}
               variant={replyIsInternal ? undefined : "accent"}
             >
@@ -895,7 +895,7 @@ export function ReplyComposer({
             </button>
           </div>
         )}
-        {replyStatus && !assistError && <p className="text-[11px] text-muted-foreground">{replyStatus}</p>}
+        {replyStatus && !assistError && <p className="text-[11px] text-[var(--inbox-text-secondary)]">{replyStatus}</p>}
       </div>
     </div>
   )

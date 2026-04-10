@@ -29,8 +29,8 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   if (loading) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#F8FAFC]">
-        <p className="text-sm text-[#94A3B8]">Checking session...</p>
+      <div className="flex h-dvh items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
       </div>
     )
   }
@@ -41,7 +41,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
@@ -50,11 +50,11 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <div className="hidden md:flex items-center justify-end gap-2 px-6 py-3 shrink-0">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 cursor-pointer hover:border-[#3B82F6]/30 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 cursor-pointer hover:border-primary/30 transition-colors"
             >
-              <Search className="h-3.5 w-3.5 text-[#94A3B8]" />
-              <span className="w-32 lg:w-48 text-left text-sm text-[#94A3B8]">Search...</span>
-              <kbd className="ml-auto text-[10px] font-mono text-[#94A3B8]/60 border border-[#E2E8F0] rounded px-1 py-0.5">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="w-32 lg:w-48 text-left text-sm text-muted-foreground">Search...</span>
+              <kbd className="ml-auto text-[10px] font-mono text-muted-foreground/60 border border-border rounded px-1 py-0.5">
                 Ctrl+K
               </kbd>
             </button>

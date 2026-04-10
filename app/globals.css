@@ -123,13 +123,25 @@
   --inbox-archive-color: #718096;
   --inbox-spam-color: #4a5568;
   
+  /* === TOKENS GENÉRICOS INBOX (alias que resuelven a zona chat por defecto) === */
+  --inbox-surface: var(--inbox-chat-surface);
+  --inbox-text: var(--inbox-chat-text);
+  --inbox-text-secondary: var(--inbox-chat-text-secondary);
+  --inbox-border: var(--inbox-chat-border);
+  --inbox-divider: var(--inbox-list-divider);
+  --inbox-muted: var(--inbox-chat-text-secondary);
+  --inbox-surface-elevated: var(--inbox-list-surface);
+  
   /* === SISTEMA GEOMETRICO === */
   --inbox-radius-premium: 16px;
   --inbox-radius-card: 12px;
   --inbox-radius-control: 8px;
+  --inbox-radius-panel: var(--inbox-radius-premium);
   --inbox-shadow-premium: 0 20px 60px rgba(99, 102, 241, 0.08);
   --inbox-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.06);
   --inbox-shadow-subtle: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --inbox-panel-shadow: var(--inbox-shadow-card);
+  --inbox-panel-shadow-sm: var(--inbox-shadow-subtle);
 }
 
 

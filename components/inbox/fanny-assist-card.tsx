@@ -46,7 +46,7 @@ export function FannyAssistCard({
       <div className={cn(
         "rounded-[var(--inbox-radius-panel)] border shadow-[var(--inbox-panel-shadow)]",
         hasSuggestion
-          ? "border-[var(--inbox-accent)]/35 bg-[linear-gradient(135deg,rgba(230,241,242,0.7)_0%,rgba(255,255,255,0.95)_50%,rgba(255,255,255,1)_100%)]"
+          ? "border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent-soft)]/40"
           : "border-[var(--inbox-border)] bg-[var(--inbox-surface)]",
       )}>
         {/* ── Compact state ── */}

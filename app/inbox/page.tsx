@@ -1374,8 +1374,8 @@ function InboxPageContent() {
             ) : (
               <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
                 <div className="text-center">
-                  <Sparkles className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
-                  <p className="text-xs text-muted-foreground">Context will appear here</p>
+                  <Sparkles className="mx-auto mb-2 h-8 w-8 text-[var(--inbox-text-secondary)]/30" />
+                  <p className="text-xs text-[var(--inbox-text-secondary)]">Context will appear here</p>
                 </div>
               </div>
             )}
@@ -1478,7 +1478,7 @@ function InboxPageContent() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                  className="rounded-md bg-[var(--inbox-destructive)] px-4 py-2 text-sm font-medium text-white"
                   onClick={handleDialogConfirm}
                 >
                   Dismiss
@@ -1583,7 +1583,7 @@ function InboxCenterSkeleton() {
           </div>
         </div>
       </div>
-      <div className="flex-1 space-y-4 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-4 py-4 md:px-5 md:py-5">
+      <div className="flex-1 space-y-4 bg-[var(--inbox-chat-background)] px-4 py-4 md:px-5 md:py-5">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
