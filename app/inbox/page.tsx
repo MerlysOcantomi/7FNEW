@@ -1223,13 +1223,13 @@ function InboxPageContent() {
   ) : null
 
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1520px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
-        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1600px]">
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50/30 md:-mx-8">
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-4 p-4", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
-              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:h-full xl:flex-col",
+              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-premium)] xl:flex xl:h-full xl:flex-col",
             )}
           >
             {showInitialListSkeleton ? (
@@ -1268,10 +1268,10 @@ function InboxPageContent() {
           <div
             className={cn(
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow)] xl:flex xl:h-full xl:min-h-0",
+              "min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] shadow-[var(--inbox-shadow-premium)] xl:flex xl:h-full xl:min-h-0",
             )}
           >
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--inbox-background)]/72">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--inbox-chat-background)]">
               {showInitialListSkeleton || showDetailSkeleton ? (
                 <InboxCenterSkeleton />
               ) : (
@@ -1370,11 +1370,11 @@ function InboxPageContent() {
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-premium)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
             {showInitialListSkeleton || showDetailSkeleton ? (
               <InboxContextSkeleton />
             ) : selected ? (
-              <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--inbox-background)]/7 p-4">{contextPanel}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">{contextPanel}</div>
             ) : (
               <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
                 <div className="text-center">

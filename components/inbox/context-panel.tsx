@@ -185,7 +185,19 @@ export function ContextPanel({
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 bg-[var(--inbox-intelligence-background)] p-6 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-intelligence-border)] shadow-[var(--inbox-shadow-premium)]">
+      
+      {/* Intelligence Hub Header */}
+      <div className="flex items-center gap-3 pb-4 border-b border-[var(--inbox-intelligence-border)]">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 flex items-center justify-center shadow-lg">
+          <Users className="w-5 h-5 text-white" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-[var(--inbox-intelligence-text)] tracking-tight">Intelligence Hub</h2>
+          <p className="text-sm text-[var(--inbox-intelligence-text-secondary)] font-medium">AI-powered insights</p>
+        </div>
+      </div>
+
       <MessageIntelligenceCard
         title={intelligenceTitle}
         summary={intelligenceSummary}
@@ -217,10 +229,10 @@ export function ContextPanel({
 
       {/* Assignment Management - only for shared channels */}
       {(selected.channel === 'web_chat' || selected.channel === 'portal') && (
-        <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]">
-          <div className="mb-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--inbox-text)]">
-              <Users className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+        <div className="rounded-[var(--inbox-radius-card)] border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-5 shadow-[var(--inbox-shadow-card)]">
+          <div className="mb-4">
+            <div className="flex items-center gap-2.5 text-base font-semibold text-[var(--inbox-intelligence-text)]">
+              <Users className="h-5 w-5 text-[var(--inbox-intelligence-text-secondary)]" />
               Assignment
             </div>
           </div>

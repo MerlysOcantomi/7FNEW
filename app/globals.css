@@ -45,41 +45,70 @@
   --blue-accent: #3B82F6;
   --blue-deep: #2563EB;
   --sidebar-dark: #0F172A;
-  /* Smart Inbox Premium - Violeta/Graphite System */
-  --inbox-background: #fafafa;
-  --inbox-surface: #ffffff;
-  --inbox-surface-elevated: #fbfbfb;
-  --inbox-text: #111827;
-  --inbox-text-secondary: #6b7280;
-  --inbox-muted: #9ca3af;
+  /* Smart Inbox Premium REAL - Dark Graphite + Violeta System */
   
-  /* Violeta familia - Accent principal */
+  /* === SIDEBAR PREMIUM DARK === */
+  --inbox-sidebar-dark: #1e1e2e;
+  --inbox-sidebar-darker: #181825;
+  --inbox-sidebar-text: #cdd6f4;
+  --inbox-sidebar-text-secondary: #9399b2;
+  --inbox-sidebar-accent: #cba6f7;
+  --inbox-sidebar-border: #313244;
+  
+  /* === LISTA PANEL PREMIUM === */
+  --inbox-list-background: #f8f9fb;
+  --inbox-list-surface: #ffffff;
+  --inbox-list-border: #e1e5e9;
+  --inbox-list-divider: #f1f3f5;
+  --inbox-list-text: #2d3748;
+  --inbox-list-text-secondary: #64748b;
+  --inbox-list-selected: #6366f1;
+  --inbox-list-selected-bg: #eef2ff;
+  
+  /* === CENTRO CHAT PREMIUM === */
+  --inbox-chat-background: #fafbfc;
+  --inbox-chat-surface: #ffffff;
+  --inbox-chat-bubble-outbound: #6366f1;
+  --inbox-chat-bubble-inbound: #ffffff;
+  --inbox-chat-text: #1a202c;
+  --inbox-chat-text-secondary: #718096;
+  --inbox-chat-border: #e2e8f0;
+  
+  /* === PANEL DERECHO INTELLIGENCE === */
+  --inbox-intelligence-background: #f7fafc;
+  --inbox-intelligence-surface: #ffffff;
+  --inbox-intelligence-accent: #805ad5;
+  --inbox-intelligence-text: #2d3748;
+  --inbox-intelligence-text-secondary: #4a5568;
+  --inbox-intelligence-border: #e2e8f0;
+  
+  /* === VIOLETA PREMIUM SYSTEM === */
   --inbox-accent: #6366f1;
   --inbox-accent-hover: #5855eb;
-  --inbox-accent-soft: #e0e7ff;
-  --inbox-accent-muted: #c7d2fe;
+  --inbox-accent-soft: #eef2ff;
+  --inbox-accent-rich: #4f46e5;
   
-  /* Colores funcionales premium */
-  --inbox-destructive: #dc2626;
-  --inbox-success: #059669;
-  --inbox-warning: #d97706;
+  /* === COLORES FUNCIONALES PREMIUM === */
+  --inbox-destructive: #e53e3e;
+  --inbox-success: #38a169;
+  --inbox-warning: #dd6b20;
   
-  /* Iconos coloridos subcarpetas */
-  --inbox-urgent-color: #dc2626;
-  --inbox-lead-color: #f59e0b;
-  --inbox-unread-color: #3b82f6;
-  --inbox-waiting-color: #ea580c;
-  --inbox-done-color: #16a34a;
-  --inbox-archive-color: #64748b;
-  --inbox-spam-color: #374151;
+  /* === ICONOS COLORIDOS PREMIUM === */
+  --inbox-urgent-color: #e53e3e;
+  --inbox-lead-color: #ed8936;
+  --inbox-unread-color: #3182ce;
+  --inbox-waiting-color: #dd6b20;
+  --inbox-done-color: #38a169;
+  --inbox-archive-color: #718096;
+  --inbox-spam-color: #4a5568;
   
-  /* Borders y superficies */
-  --inbox-border: #e5e7eb;
-  --inbox-divider: #f1f5f9;
-  --inbox-radius-panel: 12px;
+  /* === SISTEMA GEOMETRICO === */
+  --inbox-radius-premium: 16px;
+  --inbox-radius-card: 12px;
   --inbox-radius-control: 8px;
-  --inbox-panel-shadow: 0 8px 32px rgba(99, 102, 241, 0.04);
-  --inbox-panel-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --inbox-shadow-premium: 0 20px 60px rgba(99, 102, 241, 0.08);
+  --inbox-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --inbox-shadow-subtle: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 

@@ -29,6 +29,13 @@ import {
   LogIn,
   ChevronDown,
   Search,
+  Circle,
+  Star,
+  Mail,
+  Clock,
+  CheckCircle,
+  Archive,
+  Shield,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -81,6 +88,19 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       ],
     },
     {
+      section: "Smart Inbox",
+      subtitle: "Premium folders",
+      items: [
+        { label: "Urgent", href: "/inbox?filter=urgent", icon: Circle },
+        { label: "Leads", href: "/inbox?filter=lead", icon: Star },
+        { label: "Unread", href: "/inbox?filter=unread", icon: Mail },
+        { label: "Needs Reply", href: "/inbox?filter=reply", icon: MessageSquarePlus },
+        { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock },
+        { label: "Done", href: "/inbox?filter=done", icon: CheckCircle },
+        { label: "Archived", href: "/inbox?filter=archived", icon: Archive },
+      ],
+    },
+    {
       section: "More",
       subtitle: "",
       icon: BookOpen,
@@ -124,6 +144,62 @@ function getActiveSectionFor(pathname: string): string {
     }
   }
   return "Main";
+}
+
+// ── Smart Inbox NavLink ──────────────────────────────────────────────────────
+function SmartInboxNavLink({
+  href,
+  icon: Icon,
+  label,
+  collapsed,
+  onClick,
+}: NavItem & { collapsed?: boolean; onClick?: () => void }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || (href.includes('?') && pathname.includes('inbox'));
+
+  const getIconColor = (label: string) => {
+    switch (label) {
+      case "Urgent": return "text-[var(--inbox-urgent-color)]";
+      case "Leads": return "text-[var(--inbox-lead-color)]";
+      case "Unread": return "text-[var(--inbox-unread-color)]";
+      case "Needs Reply": return "text-[var(--inbox-accent)]";
+      case "Waiting": return "text-[var(--inbox-waiting-color)]";
+      case "Done": return "text-[var(--inbox-done-color)]";
+      case "Archived": return "text-[var(--inbox-archive-color)]";
+      default: return "text-[var(--inbox-sidebar-text-secondary)]";
+    }
+  };
+
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      title={collapsed ? label : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group",
+        collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
+        isActive
+          ? "text-[var(--inbox-sidebar-text)] bg-[var(--inbox-sidebar-darker)] shadow-[0_0_0_1px_var(--inbox-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
+          : "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] hover:bg-[var(--inbox-sidebar-darker)]/60"
+      )}
+    >
+      {isActive && !collapsed && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--inbox-accent)] rounded-r-full" />
+      )}
+      <span className="relative shrink-0">
+        <Icon
+          size={15}
+          strokeWidth={1.75}
+          className={cn(
+            getIconColor(label),
+            label === "Urgent" && "fill-current",
+            label === "Leads" && "fill-current"
+          )}
+        />
+      </span>
+      {!collapsed && <span className="truncate">{label}</span>}
+    </Link>
+  );
 }
 
 // ── NavLink ──────────────────────────────────────────────────────────────────
@@ -208,12 +284,17 @@ function AccordionSection({
 }) {
   const isDashboard = section === "Overview";
   const isDirectGroup = section === "Main";
+  const isSmartInbox = section === "Smart Inbox";
 
   if (isDashboard || isDirectGroup) {
     return (
-      <div className={cn(dividerAbove && "pt-3 border-t border-[#1E293B]")}>
+      <div className={cn(dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
         {items.map((item) => (
-          <NavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
+          isSmartInbox ? (
+            <SmartInboxNavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
+          ) : (
+            <NavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
+          )
         ))}
       </div>
     );
@@ -222,19 +303,28 @@ function AccordionSection({
   if (collapsed) {
     // Icon-only: just render links without accordion
     return (
-      <div className={cn("space-y-0.5", dividerAbove && "pt-3 border-t border-[#1E293B]")}>
+      <div className={cn("space-y-0.5", dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
         {items.map((item) => (
-          <NavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
+          isSmartInbox ? (
+            <SmartInboxNavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
+          ) : (
+            <NavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
+          )
         ))}
       </div>
     );
   }
 
   return (
-    <div className={cn(dividerAbove && "pt-3 border-t border-[#1E293B]")}>
+    <div className={cn(dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between rounded-[8px] px-3 py-2 mb-1 border border-[#1E293B] bg-[#111827]/70 hover:bg-[#1E293B] transition-colors group"
+        className={cn(
+          "w-full flex items-center justify-between rounded-[10px] px-3 py-2 mb-1 border transition-colors group",
+          isSmartInbox 
+            ? "border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent)]/5 hover:bg-[var(--inbox-accent)]/10"
+            : "border-[var(--inbox-sidebar-border)] bg-[var(--inbox-sidebar-darker)]/70 hover:bg-[var(--inbox-sidebar-border)]"
+        )}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {SectionIcon ? (
@@ -263,7 +353,11 @@ function AccordionSection({
       {isOpen && (
         <div className="space-y-0.5">
           {items.map((item) => (
-            <NavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
+            isSmartInbox ? (
+              <SmartInboxNavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
+            ) : (
+              <NavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
+            )
           ))}
         </div>
       )}
@@ -301,23 +395,23 @@ export function SidebarNav() {
   return (
     <aside
       className={cn(
-        "hidden md:flex flex-col shrink-0 h-screen sticky top-0 bg-[#0F172A] text-[#CBD5E1] overflow-y-auto overflow-x-hidden transition-all duration-300",
-        collapsed ? "w-14" : "w-52"
+        "hidden md:flex flex-col shrink-0 h-screen sticky top-0 bg-[var(--inbox-sidebar-dark)] text-[var(--inbox-sidebar-text)] overflow-y-auto overflow-x-hidden transition-all duration-300 border-r border-[var(--inbox-sidebar-border)]",
+        collapsed ? "w-14" : "w-56"
       )}
     >
       {/* Logo + Collapse Toggle */}
       <div className={cn("flex items-center shrink-0 px-3 pt-5 pb-4", collapsed ? "justify-center" : "justify-between px-5")}>
         {!collapsed && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold tracking-tight">7F</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[var(--inbox-accent)] flex items-center justify-center shrink-0 shadow-lg">
+              <span className="text-white text-sm font-bold tracking-tight">7F</span>
             </div>
-            <span className="text-white font-semibold text-sm tracking-wide">7F</span>
+            <span className="text-[var(--inbox-sidebar-text)] font-semibold text-base tracking-wide">7F</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold tracking-tight">7F</span>
+          <div className="w-8 h-8 rounded-xl bg-[var(--inbox-accent)] flex items-center justify-center shadow-lg">
+            <span className="text-white text-sm font-bold tracking-tight">7F</span>
           </div>
         )}
         <button

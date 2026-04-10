@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, Inbox } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
 import { InboxSubNavigation, type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
 
@@ -96,17 +97,23 @@ export function ConversationList({
         ? "Unassigned conversations"
         : "All conversations"
   return (
-    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
-      <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
-        {/* Header simplificado */}
+    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden border-r border-[var(--inbox-list-border)]">
+      <div className="space-y-3 border-b border-[var(--inbox-list-border)] bg-[var(--inbox-list-surface)] px-4 py-5 md:px-6 shadow-sm">
+        {/* Header Premium */}
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-[var(--inbox-text)]">Inbox</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--inbox-accent)] to-[var(--inbox-accent-rich)] flex items-center justify-center shadow-lg">
+              <Inbox className="w-5 h-5 text-white" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-[var(--inbox-list-text)]">Smart Inbox</h1>
+              <p className="text-xs text-[var(--inbox-list-text-secondary)] font-medium">Premium conversations</p>
+            </div>
           </div>
           {activeSearchTerm && (
-            <p className="text-xs text-[var(--inbox-text-secondary)]">
+            <div className="px-2 py-1 rounded-md bg-[var(--inbox-list-selected-bg)] text-xs text-[var(--inbox-list-selected)] font-medium">
               Searching: "{activeSearchTerm}"
-            </p>
+            </div>
           )}
         </div>
 
@@ -117,21 +124,21 @@ export function ConversationList({
           onFilterChange={onFilterChange}
         />
 
-        {/* Search */}
+        {/* Search Premium */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--inbox-muted)]" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--inbox-list-text-secondary)]" />
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search by name, email, subject, messages..."
-            className="h-9 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] pl-10 shadow-none"
+            placeholder="Search conversations..."
+            className="h-10 rounded-[var(--inbox-radius-card)] border-[var(--inbox-list-border)] bg-white pl-10 shadow-sm focus:border-[var(--inbox-list-selected)] focus:ring-2 focus:ring-[var(--inbox-list-selected)]/20 transition-all"
           />
         </div>
 
-        {/* Filtros avanzados - más discretos */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        {/* Filtros Premium Discretos */}
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[100px] rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-xs">
+            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-white text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -144,7 +151,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[100px] rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-xs">
+            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-white text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -156,7 +163,7 @@ export function ConversationList({
             </SelectContent>
           </Select>
 
-          <div className="flex gap-1">
+          <div className="flex gap-1 ml-2">
             {([
               { value: "all", label: "All" },
               { value: "mine", label: "Mine" },
@@ -167,7 +174,12 @@ export function ConversationList({
                 type="button"
                 size="sm"
                 variant={assignmentFilter === option.value ? "secondary" : "ghost"}
-                className="h-7 px-2 text-xs"
+                className={cn(
+                  "h-7 px-2.5 text-xs rounded-lg transition-all",
+                  assignmentFilter === option.value 
+                    ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm" 
+                    : "text-[var(--inbox-list-text-secondary)] hover:bg-white hover:shadow-sm"
+                )}
                 onClick={() => onAssignmentFilterChange(option.value)}
               >
                 {option.label}
@@ -177,11 +189,11 @@ export function ConversationList({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-2 px-3 py-4 md:px-4">
+      <ScrollArea className="min-h-0 flex-1 bg-[var(--inbox-list-background)]">
+        <div className="space-y-1 px-3 py-3 md:px-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-[var(--inbox-radius-control)] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/70 p-3">
+              <div key={index} className="rounded-[var(--inbox-radius-card)] border border-[var(--inbox-list-divider)] bg-white/70 p-4 shadow-sm">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="mt-2 h-3 w-1/2" />
                 <Skeleton className="mt-3 h-3 w-full" />

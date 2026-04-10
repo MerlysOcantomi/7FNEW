@@ -77,16 +77,16 @@ export function ConversationListItem({
       onMouseLeave={() => setIsHovered(false)}
       aria-pressed={selected}
       className={cn(
-        "group relative w-full rounded-[var(--inbox-radius-control)] border px-4 py-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/30",
+        "group relative w-full rounded-[var(--inbox-radius-card)] border px-4 py-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
         selected
-          ? "border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent-soft)]/85 shadow-[0_8px_24px_rgba(99,102,241,0.08)]"
-          : "border-transparent bg-transparent hover:border-[var(--inbox-divider)]/60 hover:bg-[var(--inbox-background)]/95 hover:shadow-sm",
+          ? "border-[var(--inbox-list-selected)]/30 bg-[var(--inbox-list-selected-bg)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-list-selected)]/10"
+          : "border-[var(--inbox-list-divider)]/40 bg-white hover:border-[var(--inbox-list-selected)]/20 hover:shadow-[var(--inbox-shadow-subtle)] hover:bg-white",
       )}
     >
       <span
         className={cn(
-          "absolute inset-y-3 left-0 w-1.5 rounded-r-full transition-all duration-200",
-          selected ? "bg-[var(--inbox-accent)] shadow-sm" : "bg-transparent group-hover:bg-[var(--inbox-divider)]/50",
+          "absolute inset-y-4 left-0 w-1 rounded-r-full transition-all duration-200",
+          selected ? "bg-[var(--inbox-list-selected)] shadow-sm" : "bg-transparent group-hover:bg-[var(--inbox-list-selected)]/30",
         )}
       />
       <div className="flex items-start gap-3">
@@ -95,7 +95,7 @@ export function ConversationListItem({
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex items-center gap-2.5">
                 {isUnread && (
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--inbox-accent)] shadow-sm ring-2 ring-[var(--inbox-accent)]/20" aria-hidden="true" />
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--inbox-list-selected)] shadow-sm ring-2 ring-[var(--inbox-list-selected)]/20" aria-hidden="true" />
                 )}
                 
                 {/* Message direction indicator */}
@@ -115,21 +115,21 @@ export function ConversationListItem({
                 
                 <p
                   className={cn(
-                    "truncate pr-1 text-[15px] leading-tight text-[var(--inbox-text)]",
-                    isUnread ? "font-semibold tracking-tight" : "font-medium",
+                    "truncate pr-1 text-[15px] leading-tight",
+                    isUnread ? "font-semibold tracking-tight text-[var(--inbox-list-text)]" : "font-medium text-[var(--inbox-list-text-secondary)]",
                   )}
                 >
                   {title}
                 </p>
                 <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
               </div>
-              <p className="truncate text-xs leading-relaxed text-[var(--inbox-text-secondary)]">{subtitle}</p>
+              <p className="truncate text-xs leading-relaxed text-[var(--inbox-list-text-secondary)]">{subtitle}</p>
             </div>
             <span
               suppressHydrationWarning
               className={cn(
                 "shrink-0 whitespace-nowrap pt-1 text-xs font-medium",
-                isUnread ? "text-[var(--inbox-text)] font-semibold" : "text-[var(--inbox-muted)]",
+                isUnread ? "text-[var(--inbox-list-text)] font-semibold" : "text-[var(--inbox-list-text-secondary)]",
               )}
             >
               {timeLabel}
@@ -142,7 +142,7 @@ export function ConversationListItem({
                 className={cn(
                   "text-sm leading-relaxed",
                   expanded ? "whitespace-pre-wrap" : "line-clamp-1",
-                  isUnread ? "text-[var(--inbox-text-secondary)] font-medium" : "text-[var(--inbox-muted)]",
+                  isUnread ? "text-[var(--inbox-list-text-secondary)] font-medium" : "text-[var(--inbox-list-text-secondary)]/75",
                 )}
               >
                 {expanded && fullMessage ? fullMessage : preview}
@@ -155,7 +155,7 @@ export function ConversationListItem({
                     e.stopPropagation()
                     setExpanded(!expanded)
                   }}
-                  className="mt-1.5 flex items-center gap-1 text-xs text-[var(--inbox-accent)] hover:text-[var(--inbox-accent-hover)] transition-colors"
+                  className="mt-1.5 flex items-center gap-1 text-xs text-[var(--inbox-list-selected)] hover:text-[var(--inbox-list-selected)]/80 transition-colors"
                 >
                   {expanded ? (
                     <>

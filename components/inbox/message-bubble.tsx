@@ -100,15 +100,15 @@ export function MessageBubble({
 
         <div
           className={cn(
-            "rounded-xl border px-4 py-3.5 text-sm leading-relaxed shadow-sm transition-all duration-200",
+            "rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-sm transition-all duration-300",
             tone === "outbound" &&
-              "rounded-tr-lg border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent)] text-white shadow-[0_8px_32px_rgba(99,102,241,0.12)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.16)]",
+              "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/20 bg-[var(--inbox-chat-bubble-outbound)] text-white shadow-[0_8px_32px_rgba(99,102,241,0.15)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.20)] backdrop-blur-sm",
             tone === "inbound" &&
-              "rounded-tl-lg border-[var(--inbox-border)] bg-white text-[var(--inbox-text)] shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-[var(--inbox-border)]/50 hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
+              "rounded-tl-lg border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-chat-text)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-chat-border)]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]",
             tone === "internal" &&
-              "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/5 text-[var(--inbox-warning)] shadow-[0_4px_16px_rgba(217,119,6,0.08)]",
+              "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&
-              "rounded-xl border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 text-[var(--inbox-text-secondary)]",
+              "rounded-2xl border-dashed border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)]/60 text-[var(--inbox-chat-text-secondary)]",
           )}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>

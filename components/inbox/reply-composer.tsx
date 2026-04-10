@@ -323,8 +323,8 @@ export function ReplyComposer({
   }, [speech.listening])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-5" data-composer="true">
-      <div className="space-y-2 rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-3 shadow-[var(--inbox-panel-shadow)] md:p-3.5">
+    <div className="shrink-0 border-t border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)]/96 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-chat-surface)]/92 md:px-6" data-composer="true">
+      <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)]/60 bg-[var(--inbox-chat-surface)] p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -388,10 +388,10 @@ export function ReplyComposer({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-0.5 text-[9px] font-medium text-[var(--inbox-text-secondary)]">
+            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
               {channelLabel}
             </span>
-            <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--inbox-text-secondary)]">
+            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
               {replyIsInternal
                 ? "Internal"
                 : emailMode === "forward"
@@ -426,7 +426,7 @@ export function ReplyComposer({
               }
               rows={2}
               className={cn(
-                "min-h-[68px] max-h-[220px] resize-none overflow-y-auto rounded-lg border bg-background px-3 py-2.5 text-sm transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/20",
+                "min-h-[72px] max-h-[220px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
                 replyIsInternal && "border-amber-200 bg-amber-50/60 focus-visible:border-amber-400 focus-visible:ring-amber-400/20",
                 speech.listening && voiceMode === "dictate" && "border-red-300 bg-red-50/30 ring-2 ring-red-300/30",
                 speech.listening && voiceMode === "compose" && "border-violet-300 bg-violet-50/30 ring-2 ring-violet-300/30",
