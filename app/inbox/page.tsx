@@ -534,12 +534,17 @@ function InboxPageContent() {
   const serverLeads = typeof conversationsMeta?.leads === "number" ? conversationsMeta.leads : null
   const serverUrgent = typeof conversationsMeta?.urgent === "number" ? conversationsMeta.urgent : null
 
-  const stats = useMemo(() => ({
-    total: serverTotal ?? conversations.length,
-    leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
-    converted: conversations.filter((item) => item.status === "converted").length,
-    urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
-  }), [conversations, serverTotal, serverLeads, serverUrgent])
+  const stats = useMemo(() => {
+    if (conversations.length === 0) {
+      return { total: 0, leads: 0, converted: 0, urgent: 0 }
+    }
+    return {
+      total: serverTotal ?? conversations.length,
+      leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
+      converted: conversations.filter((item) => item.status === "converted").length,
+      urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
+    }
+  }, [conversations, serverTotal, serverLeads, serverUrgent])
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
@@ -1042,7 +1047,7 @@ function InboxPageContent() {
         )
       : null)
   const fannyHasContent = Boolean(suggestedDraft?.content?.trim() || fannySummary || fannyNextAction)
-  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasContent
+  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasContent || conversations.length === 0
     ? "hidden"
     : autoPopulated || fannyExpanded
       ? "expanded"
@@ -1204,7 +1209,7 @@ function InboxPageContent() {
   const showInitialListSkeleton = loading && conversations.length === 0
   const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
 
-  const contextPanel = selected ? (
+  const contextPanel = selected && conversations.length > 0 ? (
     <ContextPanel
       selected={selected}
       handoffExpanded={handoffExpanded}

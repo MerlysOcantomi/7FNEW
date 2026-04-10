@@ -400,8 +400,6 @@ export async function listConversations(params: ListConversationsParams) {
       : {}),
   }
 
-  const workspaceWhere = { workspaceId }
-
   const [data, total, leads, urgent] = await Promise.all([
     db.conversation.findMany({
       where,
@@ -418,9 +416,9 @@ export async function listConversations(params: ListConversationsParams) {
       },
     }),
     db.conversation.count({ where }),
-    db.conversation.count({ where: { ...workspaceWhere, status: "lead_detected" } }),
+    db.conversation.count({ where: { ...where, status: "lead_detected" } }),
     db.conversation.count({
-      where: { ...workspaceWhere, urgency: { in: ["alta", "critica"] } },
+      where: { ...where, urgency: { in: ["alta", "critica"] } },
     }),
   ])
 
