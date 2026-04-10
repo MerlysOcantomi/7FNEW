@@ -323,8 +323,8 @@ export function ReplyComposer({
   }, [speech.listening])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)]/98 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-chat-background)]/94 md:px-6" data-composer="true">
-      <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)]/70 bg-[var(--inbox-chat-surface)]/94 p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
+    <div className="shrink-0 border-t border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
+      <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)]/80 bg-[var(--inbox-chat-surface)]/92 p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -388,10 +388,10 @@ export function ReplyComposer({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
+            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
               {channelLabel}
             </span>
-            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
+            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
               {replyIsInternal
                 ? "Internal"
                 : emailMode === "forward"
@@ -404,7 +404,7 @@ export function ReplyComposer({
         </div>
 
         {!replyIsInternal && composerConfig.subjectPreview && (
-          <div className="rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-chat-background)] px-2.5 py-1.5">
+          <div className="rounded-lg border border-[var(--inbox-divider)] bg-[var(--inbox-chat-surface)] px-2.5 py-1.5">
             <div className="flex items-center gap-2">
               <Mail className="h-3 w-3 text-[var(--inbox-text-secondary)]" />
               <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">Subject:</span>

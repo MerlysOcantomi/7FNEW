@@ -62,36 +62,36 @@
   --inbox-sidebar-border: #2a2438;
   
   /* === CARDS DE CONTENIDO (menos blancas, mas cercanas a referencia) === */
-  --inbox-list-background: #eef0f7;
-  --inbox-list-surface: #ebeef6;
-  --inbox-list-border: #d7d8e6;
-  --inbox-list-divider: #e1e3ee;
+  --inbox-list-background: #e7e9f2;
+  --inbox-list-surface: #e2e5ef;
+  --inbox-list-border: #cfd3df;
+  --inbox-list-divider: #d7dbe6;
   --inbox-list-text: #1e1b2e;
   --inbox-list-text-secondary: #6b6880;
   --inbox-list-selected: #7c3aed;
-  --inbox-list-selected-bg: #e7e2fb;
+  --inbox-list-selected-bg: #ddd7f6;
   
   /* === CENTRO CHAT (superficie suave; blanco solo en escritura/bubble inbound) === */
-  --inbox-chat-background: #eff1f8;
-  --inbox-chat-surface: #eceef6;
+  --inbox-chat-background: #eaedf5;
+  --inbox-chat-surface: #e5e8f1;
   --inbox-chat-bubble-outbound: #7c3aed;
   --inbox-chat-bubble-inbound: #FFFFFF;
   --inbox-chat-text: #1a1628;
   --inbox-chat-text-secondary: #6b6880;
-  --inbox-chat-border: #d8d9e6;
+  --inbox-chat-border: #cfd4e0;
   
   /* === PANEL DERECHO INTELLIGENCE HUB (mas rico y menos blanco) === */
-  --inbox-intelligence-background: #e9e6f2;
-  --inbox-intelligence-surface: #f0edf7;
+  --inbox-intelligence-background: #dfd9ec;
+  --inbox-intelligence-surface: #e8e2f3;
   --inbox-intelligence-accent: #7c3aed;
   --inbox-intelligence-text: #1e1b2e;
   --inbox-intelligence-text-secondary: #6b6880;
-  --inbox-intelligence-border: #cfc9e0;
+  --inbox-intelligence-border: #c4bdd8;
   
   /* === VIOLETA PREMIUM SYSTEM === */
   --inbox-accent: #7c3aed;
   --inbox-accent-hover: #6d28d9;
-  --inbox-accent-soft: #ebe5ff;
+  --inbox-accent-soft: #e1d8fb;
   --inbox-accent-rich: #5b21b6;
   
   /* === COLORES FUNCIONALES PREMIUM === */

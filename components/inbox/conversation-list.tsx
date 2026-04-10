@@ -94,7 +94,7 @@ export function ConversationList({
         : "All conversations"
   return (
     <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden">
-      <div className="space-y-3 border-b border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-4 py-4 md:px-5">
+      <div className="space-y-3 border-b border-[var(--inbox-list-border)] bg-[var(--inbox-list-surface)] px-4 py-4 md:px-5">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-bold tracking-tight text-[var(--inbox-list-text)]">Inbox</h1>
           {activeSearchTerm && (
@@ -110,14 +110,14 @@ export function ConversationList({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search conversations..."
-            className="h-9 rounded-lg border-[var(--inbox-list-border)] bg-[var(--inbox-list-surface)] pl-9 text-sm focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 transition-all"
+            className="h-9 rounded-lg border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] pl-9 text-sm focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 transition-all"
           />
         </div>
 
         {/* Filtros Premium Discretos */}
         <div className="flex flex-wrap items-center gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-background)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-surface)] transition-colors">
+            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -130,7 +130,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-background)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-surface)] transition-colors">
+            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
