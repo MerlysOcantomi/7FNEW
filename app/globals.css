@@ -45,21 +45,41 @@
   --blue-accent: #3B82F6;
   --blue-deep: #2563EB;
   --sidebar-dark: #0F172A;
-  /* Smart Inbox phase 1 tokens */
-  --inbox-background: #F6F7F9;
-  --inbox-surface: #FFFFFF;
+  /* Smart Inbox Premium - Violeta/Graphite System */
+  --inbox-background: #fafafa;
+  --inbox-surface: #ffffff;
+  --inbox-surface-elevated: #fbfbfb;
   --inbox-text: #111827;
-  --inbox-text-secondary: #4B5563;
-  --inbox-muted: #6B7280;
-  --inbox-accent: #2F6F73;
-  --inbox-accent-hover: #275E61;
-  --inbox-accent-soft: #E6F1F2;
-  --inbox-border: #E5E7EB;
-  --inbox-divider: #EEF1F4;
+  --inbox-text-secondary: #6b7280;
+  --inbox-muted: #9ca3af;
+  
+  /* Violeta familia - Accent principal */
+  --inbox-accent: #6366f1;
+  --inbox-accent-hover: #5855eb;
+  --inbox-accent-soft: #e0e7ff;
+  --inbox-accent-muted: #c7d2fe;
+  
+  /* Colores funcionales premium */
+  --inbox-destructive: #dc2626;
+  --inbox-success: #059669;
+  --inbox-warning: #d97706;
+  
+  /* Iconos coloridos subcarpetas */
+  --inbox-urgent-color: #dc2626;
+  --inbox-lead-color: #f59e0b;
+  --inbox-unread-color: #3b82f6;
+  --inbox-waiting-color: #ea580c;
+  --inbox-done-color: #16a34a;
+  --inbox-archive-color: #64748b;
+  --inbox-spam-color: #374151;
+  
+  /* Borders y superficies */
+  --inbox-border: #e5e7eb;
+  --inbox-divider: #f1f5f9;
   --inbox-radius-panel: 12px;
-  --inbox-radius-control: 10px;
-  --inbox-panel-shadow: 0 18px 48px rgba(17, 24, 39, 0.05);
-  --inbox-panel-shadow-sm: 0 10px 28px rgba(17, 24, 39, 0.04);
+  --inbox-radius-control: 8px;
+  --inbox-panel-shadow: 0 8px 32px rgba(99, 102, 241, 0.04);
+  --inbox-panel-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 

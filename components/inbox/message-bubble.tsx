@@ -100,13 +100,13 @@ export function MessageBubble({
 
         <div
           className={cn(
-            "rounded-xl border px-4 py-3.5 text-sm leading-relaxed shadow-sm transition-shadow duration-200",
+            "rounded-xl border px-4 py-3.5 text-sm leading-relaxed shadow-sm transition-all duration-200",
             tone === "outbound" &&
-              "rounded-tr-lg border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent)] text-white shadow-[0_8px_32px_rgba(47,111,115,0.15)]",
+              "rounded-tr-lg border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent)] text-white shadow-[0_8px_32px_rgba(99,102,241,0.12)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.16)]",
             tone === "inbound" &&
-              "rounded-tl-lg border-blue-200 bg-blue-50/80 text-blue-900 shadow-[0_4px_20px_rgba(59,130,246,0.08)] ring-1 ring-blue-100",
+              "rounded-tl-lg border-[var(--inbox-border)] bg-white text-[var(--inbox-text)] shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-[var(--inbox-border)]/50 hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
             tone === "internal" &&
-              "rounded-tl-lg border-amber-200 bg-amber-50 text-amber-900 shadow-[0_4px_16px_rgba(245,158,11,0.08)]",
+              "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/5 text-[var(--inbox-warning)] shadow-[0_4px_16px_rgba(217,119,6,0.08)]",
             tone === "system" &&
               "rounded-xl border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 text-[var(--inbox-text-secondary)]",
           )}

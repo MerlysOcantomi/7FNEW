@@ -5,6 +5,7 @@ import {
   Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp,
   Mail, MessageSquareText, Languages, X, FileText, Reply, ReplyAll, Forward,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
+  MapPin, Calendar, Link, User, Camera, Image, Video
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,13 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
@@ -574,18 +582,77 @@ export function ReplyComposer({
               </Popover>
             )}
 
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              className={cn("h-7 rounded-md text-xs px-2.5", attachmentUploading && "opacity-60")}
-              title="Attach file"
-              disabled={attachmentUploading}
-            >
-              {attachmentUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-              {attachmentUploading ? "Uploading…" : "Attach"}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn("h-7 rounded-md text-xs px-2.5", attachmentUploading && "opacity-60")}
+                  disabled={attachmentUploading}
+                >
+                  {attachmentUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+                  {attachmentUploading ? "Uploading…" : "Attach"}
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuItem 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+                  <div className="flex flex-col">
+                    <span>Upload file</span>
+                    <span className="text-[10px] text-[var(--inbox-muted)]">Documents, images, audio</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <MapPin className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Share location</span>
+                    <span className="text-[10px]">Send current location</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <Camera className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Take photo</span>
+                    <span className="text-[10px]">Camera capture</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <Video className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Record video</span>
+                    <span className="text-[10px]">Video message</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <User className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Share contact</span>
+                    <span className="text-[10px]">Send contact card</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <Calendar className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Schedule meeting</span>
+                    <span className="text-[10px]">Calendar integration</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
+                  <Link className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Insert link</span>
+                    <span className="text-[10px]">Web link or resource</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               ref={fileInputRef}
               type="file"

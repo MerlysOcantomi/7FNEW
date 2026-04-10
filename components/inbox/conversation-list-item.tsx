@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
-import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft, MessageSquare } from "lucide-react"
+import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft, MessageSquare, Star, Archive, Trash2, MailOpen, MailCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
@@ -23,6 +23,12 @@ interface ConversationListItemProps {
   urgencyClassName: string
   leadScore?: number | null
   tone?: "inbound" | "outbound" | "internal" | "system"
+  // Quick actions
+  onFavorite?: () => void
+  onArchive?: () => void
+  onDelete?: () => void
+  onMarkRead?: () => void
+  isFavorited?: boolean
 }
 
 export function ConversationListItem({
@@ -42,9 +48,16 @@ export function ConversationListItem({
   urgencyClassName,
   leadScore,
   tone,
+  // Quick actions
+  onFavorite,
+  onArchive,
+  onDelete,
+  onMarkRead,
+  isFavorited = false,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLButtonElement | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   useEffect(() => {
     if (!selected) {
@@ -60,11 +73,13 @@ export function ConversationListItem({
     <button
       ref={itemRef}
       onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       aria-pressed={selected}
       className={cn(
         "group relative w-full rounded-[var(--inbox-radius-control)] border px-4 py-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/30",
         selected
-          ? "border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent-soft)]/85 shadow-[0_8px_24px_rgba(47,111,115,0.08)]"
+          ? "border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent-soft)]/85 shadow-[0_8px_24px_rgba(99,102,241,0.08)]"
           : "border-transparent bg-transparent hover:border-[var(--inbox-divider)]/60 hover:bg-[var(--inbox-background)]/95 hover:shadow-sm",
       )}
     >
@@ -168,6 +183,69 @@ export function ConversationListItem({
 
         </div>
       </div>
+
+      {/* Quick Actions Overlay */}
+      {isHovered && !selected && (onFavorite || onArchive || onDelete || onMarkRead) && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
+          {onMarkRead && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarkRead()
+              }}
+              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)] hover:bg-[var(--inbox-background)] transition-colors"
+              title={isUnread ? "Mark as read" : "Mark as unread"}
+            >
+              {isUnread ? <MailOpen className="h-3.5 w-3.5" /> : <MailCheck className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          {onFavorite && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onFavorite()
+              }}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                isFavorited 
+                  ? "text-[var(--inbox-lead-color)] hover:text-[var(--inbox-lead-color)]/80" 
+                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-lead-color)]"
+              )}
+              title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Star className={cn("h-3.5 w-3.5", isFavorited && "fill-current")} />
+            </button>
+          )}
+          {onArchive && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onArchive()
+              }}
+              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-archive-color)] hover:bg-[var(--inbox-background)] transition-colors"
+              title="Archive"
+            >
+              <Archive className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-destructive)] hover:bg-red-50 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
     </button>
   )
 }

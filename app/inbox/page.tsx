@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
+import { type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { ContextPanel } from "@/components/inbox/context-panel"
 import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
@@ -330,6 +331,7 @@ function InboxPageContent() {
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const [businessContextExpanded, setBusinessContextExpanded] = useState(false)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
+  const [activeFilter, setActiveFilter] = useState<InboxFilter>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
@@ -536,14 +538,27 @@ function InboxPageContent() {
 
   const stats = useMemo(() => {
     if (conversations.length === 0) {
-      return { total: 0, leads: 0, urgent: 0 }
+      return { total: 0, leads: 0, urgent: 0, unread: 0, reply: 0, waiting: 0, done: 0, archived: 0, spam: 0 }
     }
+    
+    const unreadCount = allMessages.filter(msg => msg.isUnread).length
+    const replyCount = conversations.filter(conv => 
+      conv.status === "awaiting_response" || 
+      (conv.messages?.[conv.messages.length - 1]?.direction === "inbound" && conv.status !== "closed")
+    ).length
+    
     return {
       total: serverTotal ?? conversations.length,
       leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
       urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
+      unread: unreadCount,
+      reply: replyCount,
+      waiting: conversations.filter(conv => conv.status === "triaged").length,
+      done: conversations.filter(conv => conv.status === "closed").length,
+      archived: conversations.filter(conv => conv.status === "archived").length,
+      spam: 0, // TODO: Implement spam detection
     }
-  }, [conversations, serverTotal, serverLeads, serverUrgent])
+  }, [conversations, allMessages, serverTotal, serverLeads, serverUrgent])
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
@@ -1235,7 +1250,9 @@ function InboxPageContent() {
                 onChannelChange={setChannel}
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
-                stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                stats={stats}
                 onSelect={(itemId) => {
                   const msg = allMessages.find(m => m.id === itemId)
                   if (msg) handleSelectConversation(msg.conversationId)

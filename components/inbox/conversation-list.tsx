@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
+import { InboxSubNavigation, type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
@@ -48,7 +49,15 @@ interface ConversationListProps {
     total: number
     leads: number
     urgent: number
+    unread: number
+    reply: number
+    waiting: number
+    done: number
+    archived: number
+    spam: number
   }
+  activeFilter: InboxFilter
+  onFilterChange: (filter: InboxFilter) => void
   onSelect: (id: string) => void
   hasMore?: boolean
   loadingMore?: boolean
@@ -72,6 +81,8 @@ export function ConversationList({
   assignmentFilter,
   onAssignmentFilterChange,
   stats,
+  activeFilter,
+  onFilterChange,
   onSelect,
   hasMore = false,
   loadingMore = false,
@@ -87,45 +98,40 @@ export function ConversationList({
   return (
     <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-surface)] xl:flex xl:flex-col xl:overflow-hidden">
       <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
-        <div className="flex items-start justify-between gap-3">
+        {/* Header simplificado */}
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-[var(--inbox-text)]">Inbox</h1>
-            <p className="mt-1 max-w-[18rem] text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
-              {activeSearchTerm
-                ? `Searching: "${activeSearchTerm}"`
-                : viewLabel}
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--inbox-text)]">Inbox</h1>
+          </div>
+          {activeSearchTerm && (
+            <p className="text-xs text-[var(--inbox-text-secondary)]">
+              Searching: "{activeSearchTerm}"
             </p>
-          </div>
-          <div className="flex max-w-[10rem] flex-wrap justify-end gap-1.5 text-[11px]">
-            <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-1 text-[var(--inbox-text-secondary)]">
-              {loading ? "..." : `${stats.total} conv`}
-            </span>
-            {stats.leads > 0 && (
-              <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">
-                {stats.leads} leads
-              </span>
-            )}
-            {stats.urgent > 0 && (
-              <span className="rounded-full bg-rose-50 px-2 py-1 font-semibold text-rose-700">
-                {stats.urgent} urgent
-              </span>
-            )}
-          </div>
+          )}
         </div>
 
+        {/* Sub-navegación con iconitos coloridos */}
+        <InboxSubNavigation 
+          activeFilter={activeFilter}
+          stats={stats}
+          onFilterChange={onFilterChange}
+        />
+
+        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--inbox-muted)]" />
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search by name, email, subject, messages..."
-            className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] pl-10 shadow-none"
+            className="h-9 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] pl-10 shadow-none"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* Filtros avanzados - más discretos */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-sm focus:border-[var(--inbox-accent)] focus:ring-[var(--inbox-accent)]/20">
+            <SelectTrigger className="h-8 w-auto min-w-[100px] rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -138,7 +144,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-10 rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-sm focus:border-[var(--inbox-accent)] focus:ring-[var(--inbox-accent)]/20">
+            <SelectTrigger className="h-8 w-auto min-w-[100px] rounded-[var(--inbox-radius-control)] border-[var(--inbox-border)] bg-[var(--inbox-background)] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -149,25 +155,25 @@ export function ConversationList({
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {([
-            { value: "all", label: "All" },
-            { value: "mine", label: "Mine" },
-            { value: "unassigned", label: "Unassigned" },
-          ] as const).map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              size="sm"
-              variant={assignmentFilter === option.value ? "accent" : "outline"}
-              className="rounded-[var(--inbox-radius-control)] px-2 text-[11px] sm:text-xs"
-              onClick={() => onAssignmentFilterChange(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
+          <div className="flex gap-1">
+            {([
+              { value: "all", label: "All" },
+              { value: "mine", label: "Mine" },
+              { value: "unassigned", label: "Unassigned" },
+            ] as const).map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={assignmentFilter === option.value ? "secondary" : "ghost"}
+                className="h-7 px-2 text-xs"
+                onClick={() => onAssignmentFilterChange(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -235,6 +241,12 @@ export function ConversationList({
                   urgencyClassName={item.urgencyClassName}
                   leadScore={item.leadScore}
                   tone={item.tone}
+                  // Quick actions - TODO: Implement real callbacks
+                  onFavorite={() => console.log('Favorite:', item.id)}
+                  onArchive={() => console.log('Archive:', item.id)}
+                  onDelete={() => console.log('Delete:', item.id)}
+                  onMarkRead={() => console.log('Mark read:', item.id)}
+                  isFavorited={false}
                 />
               ))}
               {hasMore && onLoadMore && (
