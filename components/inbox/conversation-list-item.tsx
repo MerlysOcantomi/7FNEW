@@ -175,35 +175,33 @@ export function ConversationListItem({
             leadScore={leadScore}
           />
 
-          {/* ── TEMPORAL: Debug trace para identificar fuente de datos ── */}
-          {process.env.NODE_ENV !== "production" && (
-            <div className="mt-1.5 flex items-center gap-2 rounded border border-dashed border-red-300 bg-red-50/50 px-2 py-1">
-              <span className="text-[8px] font-mono text-red-500 truncate">
-                conv:{conversationId?.slice(0, 8)} | msg:{messageId?.slice(0, 8)}
-              </span>
-              <button
-                type="button"
-                onClick={async (e) => {
-                  e.stopPropagation()
-                  if (!conversationId) return
-                  if (!confirm(`¿Eliminar esta conversación?\nID: ${conversationId}`)) return
-                  try {
-                    const res = await fetch(`/api/inbox/conversations/${conversationId}`, { method: 'DELETE' })
-                    if (res.ok) {
-                      window.location.reload()
-                    } else {
-                      alert('Error al eliminar. Ver consola.')
-                    }
-                  } catch (err) {
-                    alert('Error de red al eliminar.')
+          {/* ── TEMPORAL: Debug trace — eliminar después de limpiar datos de prueba ── */}
+          <div className="mt-1.5 flex items-center gap-2 rounded border border-dashed border-red-300 bg-red-50/50 px-2 py-1">
+            <span className="text-[8px] font-mono text-red-500 truncate">
+              conv:{conversationId?.slice(0, 8)} | msg:{messageId?.slice(0, 8)}
+            </span>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation()
+                if (!conversationId) return
+                if (!confirm(`¿Eliminar esta conversación?\nID: ${conversationId}`)) return
+                try {
+                  const res = await fetch(`/api/inbox/conversations/${conversationId}`, { method: 'DELETE' })
+                  if (res.ok) {
+                    window.location.reload()
+                  } else {
+                    alert('Error al eliminar. Ver consola.')
                   }
-                }}
-                className="shrink-0 rounded bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white hover:bg-red-600"
-              >
-                DEL
-              </button>
-            </div>
-          )}
+                } catch (err) {
+                  alert('Error de red al eliminar.')
+                }
+              }}
+              className="shrink-0 rounded bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white hover:bg-red-600"
+            >
+              DEL
+            </button>
+          </div>
         </div>
       </div>
     </button>
