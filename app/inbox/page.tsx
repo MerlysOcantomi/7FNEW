@@ -541,10 +541,10 @@ function InboxPageContent() {
       return { total: 0, leads: 0, urgent: 0, unread: 0, reply: 0, waiting: 0, done: 0, archived: 0, spam: 0 }
     }
     
-    const unreadCount = allMessages.filter(msg => msg.isUnread).length
+    // Safe counting to avoid hydration mismatches
+    const unreadCount = conversations.filter(conv => conv.status === "new").length
     const replyCount = conversations.filter(conv => 
-      conv.status === "awaiting_response" || 
-      (conv.messages?.[conv.messages.length - 1]?.direction === "inbound" && conv.status !== "closed")
+      conv.status === "awaiting_response" || conv.status === "triaged"
     ).length
     
     return {
@@ -558,7 +558,7 @@ function InboxPageContent() {
       archived: conversations.filter(conv => conv.status === "archived").length,
       spam: 0, // TODO: Implement spam detection
     }
-  }, [conversations, allMessages, serverTotal, serverLeads, serverUrgent])
+  }, [conversations, serverTotal, serverLeads, serverUrgent])
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
