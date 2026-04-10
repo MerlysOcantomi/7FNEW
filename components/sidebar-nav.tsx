@@ -28,6 +28,7 @@ import {
   PanelLeftOpen,
   LogIn,
   ChevronDown,
+  ChevronRight,
   Search,
   Circle,
   Star,
@@ -57,7 +58,14 @@ export function useSidebarCollapse() {
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type NavItem = { label: string; href: string; icon: React.ElementType; helper?: string; badge?: number };
+type NavItem = { 
+  label: string; 
+  href: string; 
+  icon: React.ElementType; 
+  helper?: string; 
+  badge?: number;
+  subitems?: NavItem[];
+};
 type NavSection = {
   section: string;
   subtitle: string;
@@ -78,26 +86,27 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       section: "Main",
       subtitle: "",
       items: [
-        { label: v.inbox.singular, href: "/inbox", icon: Inbox, helper: "by Fanny" },
+        { 
+          label: v.inbox.singular, 
+          href: "/inbox", 
+          icon: Inbox, 
+          helper: "by Fanny",
+          subitems: [
+            { label: "Urgent", href: "/inbox?filter=urgent", icon: Circle },
+            { label: "Leads", href: "/inbox?filter=lead", icon: Star },
+            { label: "Unread", href: "/inbox?filter=unread", icon: Mail },
+            { label: "Needs Reply", href: "/inbox?filter=reply", icon: MessageSquarePlus },
+            { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock },
+            { label: "Done", href: "/inbox?filter=done", icon: CheckCircle },
+            { label: "Archived", href: "/inbox?filter=archived", icon: Archive },
+          ]
+        },
         { label: v.client.plural, href: "/clientes", icon: Users },
         { label: v.project.plural, href: "/proyectos", icon: FolderKanban },
         { label: v.task.plural, href: "/tareas", icon: CheckSquare },
         { label: v.billing.singular, href: "/facturacion", icon: FileText, helper: "by Felix" },
         { label: v.finance.singular, href: "/finanzas", icon: DollarSign },
         { label: v.marketing.singular, href: "/contenido", icon: FileEdit, helper: "by Fiona" },
-      ],
-    },
-    {
-      section: "Smart Inbox",
-      subtitle: "Premium folders",
-      items: [
-        { label: "Urgent", href: "/inbox?filter=urgent", icon: Circle },
-        { label: "Leads", href: "/inbox?filter=lead", icon: Star },
-        { label: "Unread", href: "/inbox?filter=unread", icon: Mail },
-        { label: "Needs Reply", href: "/inbox?filter=reply", icon: MessageSquarePlus },
-        { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock },
-        { label: "Done", href: "/inbox?filter=done", icon: CheckCircle },
-        { label: "Archived", href: "/inbox?filter=archived", icon: Archive },
       ],
     },
     {
@@ -202,6 +211,98 @@ function SmartInboxNavLink({
   );
 }
 
+// ── NavLink with Subitems ─────────────────────────────────────────────────────
+function NavLinkWithSubitems({
+  href,
+  icon: Icon,
+  label,
+  helper,
+  badge,
+  subitems,
+  collapsed,
+  onClick,
+}: NavItem & { collapsed?: boolean; onClick?: () => void }) {
+  const pathname = usePathname();
+  const [expanded, setExpanded] = useState(false);
+  const isActive =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  const hasActiveSubitem = subitems?.some(subitem => 
+    pathname === subitem.href || pathname.startsWith(subitem.href)
+  );
+
+  if (!subitems || subitems.length === 0) {
+    return <NavLink href={href} icon={Icon} label={label} helper={helper} badge={badge} collapsed={collapsed} onClick={onClick} />;
+  }
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group cursor-pointer",
+          collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
+          isActive || hasActiveSubitem
+            ? "text-white bg-[var(--inbox-sidebar-darker)] shadow-[0_0_0_1px_var(--inbox-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
+            : "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] hover:bg-[var(--inbox-sidebar-darker)]/60"
+        )}
+        onClick={() => {
+          if (!collapsed) setExpanded(!expanded);
+          if (onClick) onClick();
+        }}
+      >
+        {(isActive || hasActiveSubitem) && !collapsed && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--inbox-accent)] rounded-r-full" />
+        )}
+        <span className="relative shrink-0">
+          <Icon
+            size={15}
+            strokeWidth={1.75}
+            className={cn(isActive || hasActiveSubitem ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)]")}
+          />
+          {collapsed && typeof badge === "number" && badge > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--inbox-accent)] text-[8px] font-bold text-white ring-2 ring-[var(--inbox-sidebar-dark)]">
+              {badge > 9 ? "9+" : badge}
+            </span>
+          )}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="flex min-w-0 flex-1 flex-col items-start">
+              <span className="truncate">{label}</span>
+              {helper ? (
+                <span className="text-[10px] text-[var(--inbox-sidebar-text-secondary)] opacity-75">{helper}</span>
+              ) : null}
+            </span>
+            {!collapsed && typeof badge === "number" && badge > 0 && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--inbox-accent)] text-[9px] font-bold text-white">
+                {badge > 9 ? "9+" : badge}
+              </span>
+            )}
+            <ChevronRight
+              size={12}
+              className={cn(
+                "text-[var(--inbox-sidebar-text-secondary)] transition-transform duration-200",
+                expanded ? "rotate-90" : "rotate-0"
+              )}
+            />
+          </>
+        )}
+      </div>
+      {!collapsed && expanded && subitems && (
+        <div className="ml-4 mt-1 space-y-0.5 border-l border-[var(--inbox-sidebar-border)] pl-3">
+          {subitems.map((subitem) => (
+            <SmartInboxNavLink 
+              key={subitem.href} 
+              {...subitem} 
+              collapsed={false} 
+              onClick={onClick} 
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── NavLink ──────────────────────────────────────────────────────────────────
 function NavLink({
   href,
@@ -284,17 +385,12 @@ function AccordionSection({
 }) {
   const isDashboard = section === "Overview";
   const isDirectGroup = section === "Main";
-  const isSmartInbox = section === "Smart Inbox";
 
   if (isDashboard || isDirectGroup) {
     return (
       <div className={cn(dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
         {items.map((item) => (
-          isSmartInbox ? (
-            <SmartInboxNavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
-          ) : (
-            <NavLink key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
-          )
+          <NavLinkWithSubitems key={item.href} {...item} collapsed={collapsed} onClick={onNavClick} />
         ))}
       </div>
     );
@@ -305,11 +401,7 @@ function AccordionSection({
     return (
       <div className={cn("space-y-0.5", dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
         {items.map((item) => (
-          isSmartInbox ? (
-            <SmartInboxNavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
-          ) : (
-            <NavLink key={item.href} {...item} collapsed={true} onClick={onNavClick} />
-          )
+          <NavLinkWithSubitems key={item.href} {...item} collapsed={true} onClick={onNavClick} />
         ))}
       </div>
     );
@@ -319,12 +411,7 @@ function AccordionSection({
     <div className={cn(dividerAbove && "pt-3 border-t border-[var(--inbox-sidebar-border)]")}>
       <button
         onClick={onToggle}
-        className={cn(
-          "w-full flex items-center justify-between rounded-[10px] px-3 py-2 mb-1 border transition-colors group",
-          isSmartInbox 
-            ? "border-[var(--inbox-accent)]/20 bg-[var(--inbox-accent)]/5 hover:bg-[var(--inbox-accent)]/10"
-            : "border-[var(--inbox-sidebar-border)] bg-[var(--inbox-sidebar-darker)]/70 hover:bg-[var(--inbox-sidebar-border)]"
-        )}
+        className="w-full flex items-center justify-between rounded-[10px] px-3 py-2 mb-1 border border-[var(--inbox-sidebar-border)] bg-[var(--inbox-sidebar-darker)]/70 hover:bg-[var(--inbox-sidebar-border)] transition-colors group"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {SectionIcon ? (
@@ -353,11 +440,7 @@ function AccordionSection({
       {isOpen && (
         <div className="space-y-0.5">
           {items.map((item) => (
-            isSmartInbox ? (
-              <SmartInboxNavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
-            ) : (
-              <NavLink key={item.href} {...item} collapsed={false} onClick={onNavClick} />
-            )
+            <NavLinkWithSubitems key={item.href} {...item} collapsed={false} onClick={onNavClick} />
           ))}
         </div>
       )}
