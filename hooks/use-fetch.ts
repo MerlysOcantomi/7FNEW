@@ -23,6 +23,9 @@ export function useFetch<T>(url: string | null, options?: FetchOptions): FetchRe
 
   const fetchData = useCallback(async () => {
     if (!url) {
+      setData(null)
+      setMeta(null)
+      setError(null)
       setLoading(false)
       return
     }
