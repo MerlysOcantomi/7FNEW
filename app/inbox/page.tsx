@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
-import { type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { ContextPanel } from "@/components/inbox/context-panel"
 import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
@@ -331,7 +330,6 @@ function InboxPageContent() {
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const [businessContextExpanded, setBusinessContextExpanded] = useState(false)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
-  const [activeFilter, setActiveFilter] = useState<InboxFilter>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
@@ -1250,8 +1248,6 @@ function InboxPageContent() {
                 onChannelChange={setChannel}
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
                 stats={stats}
                 onSelect={(itemId) => {
                   const msg = allMessages.find(m => m.id === itemId)

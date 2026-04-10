@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
-import { InboxSubNavigation, type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { cn } from "@/lib/utils"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
@@ -57,8 +57,6 @@ interface ConversationListProps {
     archived: number
     spam: number
   }
-  activeFilter: InboxFilter
-  onFilterChange: (filter: InboxFilter) => void
   onSelect: (id: string) => void
   hasMore?: boolean
   loadingMore?: boolean
@@ -82,8 +80,6 @@ export function ConversationList({
   assignmentFilter,
   onAssignmentFilterChange,
   stats,
-  activeFilter,
-  onFilterChange,
   onSelect,
   hasMore = false,
   loadingMore = false,
@@ -117,12 +113,7 @@ export function ConversationList({
           )}
         </div>
 
-        {/* Sub-navegación con iconitos coloridos */}
-        <InboxSubNavigation 
-          activeFilter={activeFilter}
-          stats={stats}
-          onFilterChange={onFilterChange}
-        />
+        {/* Sub-navegación ahora está en el sidebar */}
 
         {/* Search Premium */}
         <div className="relative">

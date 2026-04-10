@@ -224,18 +224,18 @@ function NavLinkWithSubitems({
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
   const pathname = usePathname();
   const hasActiveSubitem = subitems?.some(subitem => 
-    pathname === subitem.href || pathname.startsWith(subitem.href)
+    pathname === subitem.href
   );
-  const [expanded, setExpanded] = useState(hasActiveSubitem || pathname.startsWith(href));
-  const isActive =
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  const [expanded, setExpanded] = useState(hasActiveSubitem || pathname === href);
+  // Solo debe estar activo si es exactamente la URL del item principal
+  const isActive = href === "/" ? pathname === "/" : pathname === href;
 
   // Auto-expand when navigating to subitem
   useEffect(() => {
-    if (hasActiveSubitem || pathname.startsWith(href)) {
+    if (hasActiveSubitem) {
       setExpanded(true);
     }
-  }, [pathname, href, hasActiveSubitem]);
+  }, [hasActiveSubitem]);
 
   if (!subitems || subitems.length === 0) {
     return <NavLink href={href} icon={Icon} label={label} helper={helper} badge={badge} collapsed={collapsed} onClick={onClick} />;
@@ -247,7 +247,7 @@ function NavLinkWithSubitems({
         className={cn(
           "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group cursor-pointer",
           collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
-          isActive || hasActiveSubitem
+          isActive
             ? "text-white bg-[var(--inbox-sidebar-darker)] shadow-[0_0_0_1px_var(--inbox-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
             : "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] hover:bg-[var(--inbox-sidebar-darker)]/60"
         )}
@@ -256,14 +256,14 @@ function NavLinkWithSubitems({
           if (onClick) onClick();
         }}
       >
-        {(isActive || hasActiveSubitem) && !collapsed && (
+        {isActive && !collapsed && (
           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--inbox-accent)] rounded-r-full" />
         )}
         <span className="relative shrink-0">
           <Icon
             size={15}
             strokeWidth={1.75}
-            className={cn(isActive || hasActiveSubitem ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)]")}
+            className={cn(isActive ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)]")}
           />
           {collapsed && typeof badge === "number" && badge > 0 && (
             <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--inbox-accent)] text-[8px] font-bold text-white ring-2 ring-[var(--inbox-sidebar-dark)]">
