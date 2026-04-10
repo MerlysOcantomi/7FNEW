@@ -44,7 +44,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     return successResponse({ deleted: true, id })
   } catch (error) {
-    console.error("[DELETE CONVERSATION]", error)
     return handleError(error, "Conversation")
   }
 }

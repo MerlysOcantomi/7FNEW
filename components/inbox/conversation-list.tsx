@@ -223,7 +223,6 @@ export function ConversationList({
               {conversations.map((item) => (
                 <ConversationListItem
                   key={item.id}
-                  id={item.id}
                   channel={item.channel}
                   title={item.title}
                   subtitle={item.subtitle}

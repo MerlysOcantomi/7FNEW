@@ -216,7 +216,7 @@ export function ContextPanel({
       />
 
       {/* Assignment Management - only for shared channels */}
-      {(selected.channel === 'webchat' || selected.channel === 'portal' || selected.channel === 'web_chat') && (
+      {(selected.channel === 'web_chat' || selected.channel === 'portal') && (
         <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]">
           <div className="mb-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--inbox-text)]">

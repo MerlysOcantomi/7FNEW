@@ -33,6 +33,16 @@ export function useFetch<T>(url: string | null, options?: FetchOptions): FetchRe
     setError(null)
     try {
       const res = await fetch(url)
+      if (!res.ok) {
+        const text = await res.text()
+        try {
+          const json = JSON.parse(text)
+          throw new Error(json.error?.message || `Error ${res.status}`)
+        } catch (parseErr) {
+          if (parseErr instanceof SyntaxError) throw new Error(`Error ${res.status}: ${res.statusText}`)
+          throw parseErr
+        }
+      }
       const json = await res.json()
       if (!json.success) throw new Error(json.error?.message || "Error desconocido")
       setData(json.data)

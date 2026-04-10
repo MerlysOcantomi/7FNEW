@@ -7,7 +7,6 @@ import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft, MessageSquare } from 
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
-  id: string
   title: string
   subtitle: string
   preview?: string | null
@@ -27,7 +26,6 @@ interface ConversationListItemProps {
 }
 
 export function ConversationListItem({
-  id,
   title,
   subtitle,
   preview,
@@ -49,12 +47,11 @@ export function ConversationListItem({
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
-    if (!selected) return
+    if (!selected) {
+      setExpanded(false)
+      return
+    }
     itemRef.current?.scrollIntoView({ block: "nearest" })
-  }, [selected])
-
-  useEffect(() => {
-    if (!selected) setExpanded(false)
   }, [selected])
 
   const hasFullMessage = selected && fullMessage && fullMessage !== preview

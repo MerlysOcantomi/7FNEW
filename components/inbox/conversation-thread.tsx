@@ -177,7 +177,6 @@ export function ConversationThread({
         </div>
       </div>
 
-
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 bg-[linear-gradient(180deg,rgba(246,247,249,0.92)_0%,rgba(246,247,249,0.5)_72%,rgba(246,247,249,0.24)_100%)] px-5 py-6 md:px-6 md:py-7">
           {messages.length === 0 ? (
@@ -199,7 +198,6 @@ export function ConversationThread({
               />
             ))
           )}
-
         </div>
       </ScrollArea>
     </>
