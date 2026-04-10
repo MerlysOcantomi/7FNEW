@@ -46,43 +46,43 @@
   --blue-deep: #2563EB;
   --sidebar-dark: #0F172A;
   /* ══════════════════════════════════════════════════════════
-     SMART INBOX — DARK PREMIUM VISUAL SYSTEM
-     Canvas oscuro + paneles claros elevados = contraste real
+     SMART INBOX — PREMIUM VISUAL SYSTEM
+     Fondo neutro lila + cards claras + sidebar oscuro premium
      ══════════════════════════════════════════════════════════ */
   
-  /* === CANVAS PRINCIPAL (fondo oscuro violeta detrás de los paneles) === */
-  --inbox-background: #1c1530;
+  /* === FONDO GENERAL APP (base neutra externa) === */
+  --inbox-background: #E5E7F0;
   
-  /* === SIDEBAR DARK GRAPHITE === */
-  --inbox-sidebar-dark: #13111c;
-  --inbox-sidebar-darker: #0e0c14;
+  /* === SIDEBAR PREMIUM OSCURO === */
+  --inbox-sidebar-dark: #1E1B2E;
+  --inbox-sidebar-darker: #16132a;
   --inbox-sidebar-text: #e2e8f0;
   --inbox-sidebar-text-secondary: #8b8fa3;
   --inbox-sidebar-accent: #a78bfa;
   --inbox-sidebar-border: #2a2438;
   
-  /* === LISTA DE CONVERSACIONES (panel claro elevado) === */
-  --inbox-list-background: #f8f7fc;
-  --inbox-list-surface: #ffffff;
-  --inbox-list-border: #e8e5f0;
-  --inbox-list-divider: #f0eef5;
+  /* === CARDS DE CONTENIDO (lista, paneles — claridad y legibilidad) === */
+  --inbox-list-background: #F4F5FA;
+  --inbox-list-surface: #F4F5FA;
+  --inbox-list-border: #dddce6;
+  --inbox-list-divider: #eae9f0;
   --inbox-list-text: #1e1b2e;
   --inbox-list-text-secondary: #6b6880;
   --inbox-list-selected: #7c3aed;
-  --inbox-list-selected-bg: #f3f0ff;
+  --inbox-list-selected-bg: #ece8ff;
   
-  /* === CENTRO CHAT (blanco limpio, máximo aire) === */
-  --inbox-chat-background: #faf9fe;
-  --inbox-chat-surface: #ffffff;
+  /* === CENTRO CHAT (card clara, input blanco para foco) === */
+  --inbox-chat-background: #F4F5FA;
+  --inbox-chat-surface: #F4F5FA;
   --inbox-chat-bubble-outbound: #7c3aed;
-  --inbox-chat-bubble-inbound: #ffffff;
+  --inbox-chat-bubble-inbound: #FFFFFF;
   --inbox-chat-text: #1a1628;
   --inbox-chat-text-secondary: #6b6880;
-  --inbox-chat-border: #e8e5f0;
+  --inbox-chat-border: #dddce6;
   
-  /* === PANEL DERECHO INTELLIGENCE HUB (superficie con tinte violeta claro) === */
-  --inbox-intelligence-background: #f0edf8;
-  --inbox-intelligence-surface: #f8f6fe;
+  /* === PANEL DERECHO INTELLIGENCE HUB (card con tinte lila) === */
+  --inbox-intelligence-background: #F4F5FA;
+  --inbox-intelligence-surface: #F4F5FA;
   --inbox-intelligence-accent: #7c3aed;
   --inbox-intelligence-text: #1e1b2e;
   --inbox-intelligence-text-secondary: #6b6880;

@@ -426,7 +426,7 @@ export function ReplyComposer({
               }
               rows={2}
               className={cn(
-                "min-h-[72px] max-h-[220px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
+                "min-h-[72px] max-h-[220px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-white px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
                 replyIsInternal && "border-[var(--inbox-warning)]/40 bg-[var(--inbox-warning)]/10 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
                 speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
                 speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",

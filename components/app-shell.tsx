@@ -30,7 +30,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
   if (loading) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[var(--inbox-background)]">
-        <p className="text-sm text-white/50">Checking session...</p>
+        <p className="text-sm text-[var(--inbox-list-text-secondary)]">Checking session...</p>
       </div>
     )
   }
@@ -50,11 +50,11 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--inbox-background)]">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 cursor-pointer hover:bg-white/10 hover:border-white/20 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-black/5 bg-white/60 px-3 py-1.5 cursor-pointer hover:bg-white/80 transition-colors"
             >
-              <Search className="h-3.5 w-3.5 text-white/50" />
-              <span className="w-32 lg:w-48 text-left text-sm text-white/50">Search...</span>
-              <kbd className="ml-auto text-[10px] font-mono text-white/30 border border-white/10 rounded px-1 py-0.5">
+              <Search className="h-3.5 w-3.5 text-[var(--inbox-list-text-secondary)]" />
+              <span className="w-32 lg:w-48 text-left text-sm text-[var(--inbox-list-text-secondary)]">Search...</span>
+              <kbd className="ml-auto text-[10px] font-mono text-[var(--inbox-list-text-secondary)]/60 border border-black/5 rounded px-1 py-0.5">
                 Ctrl+K
               </kbd>
             </button>
