@@ -80,7 +80,7 @@ export function ConversationListItem({
         "group relative w-full rounded-lg border-b px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
         selected
           ? "border-b-[var(--inbox-list-selected)]/20 bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/10"
-          : "border-b-[var(--inbox-list-divider)]/30 bg-[var(--inbox-list-surface)] hover:bg-[var(--inbox-list-background)]",
+          : "border-b-[var(--inbox-list-divider)]/40 bg-[var(--inbox-list-surface)] hover:bg-[var(--inbox-list-surface)]/92",
       )}
     >
       <span
@@ -186,7 +186,7 @@ export function ConversationListItem({
 
       {/* Quick Actions Overlay */}
       {isHovered && !selected && (onFavorite || onArchive || onDelete || onMarkRead) && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[var(--inbox-list-surface)]/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[var(--inbox-list-background)]/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
           {onMarkRead && (
             <button
               type="button"

@@ -50,7 +50,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--inbox-background)]">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2 rounded-lg border border-black/5 bg-white/60 px-3 py-1.5 cursor-pointer hover:bg-white/80 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-black/5 bg-[var(--inbox-list-surface)]/85 px-3 py-1.5 cursor-pointer hover:bg-[var(--inbox-list-surface)] transition-colors"
             >
               <Search className="h-3.5 w-3.5 text-[var(--inbox-list-text-secondary)]" />
               <span className="w-32 lg:w-48 text-left text-sm text-[var(--inbox-list-text-secondary)]">Search...</span>
