@@ -38,7 +38,7 @@ import {
   Archive,
   Shield,
 } from "lucide-react";
-import { useState, createContext, useContext, useMemo } from "react";
+import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
 import { useInboxBadge } from "@/hooks/use-inbox-badge";
 import type { EntityVocabulary } from "@core/personalization";
@@ -223,12 +223,19 @@ function NavLinkWithSubitems({
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState(false);
-  const isActive =
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
   const hasActiveSubitem = subitems?.some(subitem => 
     pathname === subitem.href || pathname.startsWith(subitem.href)
   );
+  const [expanded, setExpanded] = useState(hasActiveSubitem || pathname.startsWith(href));
+  const isActive =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+
+  // Auto-expand when navigating to subitem
+  useEffect(() => {
+    if (hasActiveSubitem || pathname.startsWith(href)) {
+      setExpanded(true);
+    }
+  }, [pathname, href, hasActiveSubitem]);
 
   if (!subitems || subitems.length === 0) {
     return <NavLink href={href} icon={Icon} label={label} helper={helper} badge={badge} collapsed={collapsed} onClick={onClick} />;
