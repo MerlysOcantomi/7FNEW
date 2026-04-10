@@ -26,11 +26,7 @@ interface ConversationItem {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
-  conversationId?: string
-  direction?: string
-  isInternal?: boolean
   tone?: string
-  createdAt?: string
 }
 
 interface ConversationListProps {

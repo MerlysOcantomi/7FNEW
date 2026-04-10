@@ -48,10 +48,11 @@ export async function GET(request: NextRequest) {
       if (workspaceError.code === "NO_WORKSPACE") {
         return successResponse([], {
           page: 1,
-          pageSize: 100,
+          pageSize: 50,
           total: 0,
           totalPages: 0,
-          emptyState: "workspace-unavailable",
+          leads: 0,
+          urgent: 0,
         })
       }
     }

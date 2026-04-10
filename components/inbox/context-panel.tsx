@@ -323,7 +323,7 @@ function getUrgencyPresentation(urgency?: string | null) {
     case "media":
       return { label: "Medium", className: "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]" }
     case "baja":
-      return { label: "Low", className: "bg-[#F3F4F6] text-[#4B5563]" }
+      return { label: "Low", className: "bg-[#F3F4F6] text-[var(--inbox-text-secondary)]" }
     default:
       return null
   }

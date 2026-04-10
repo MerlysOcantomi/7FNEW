@@ -938,8 +938,6 @@ function InboxPageContent() {
         urgencyLabel: urgencyLabel(conversation.urgency),
         urgencyClassName: urgencyBadge(conversation.urgency),
         leadScore: conversation.leadScore,
-        direction: message.direction,
-        isInternal: message.isInternal,
         tone: isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system",
       }
     })
