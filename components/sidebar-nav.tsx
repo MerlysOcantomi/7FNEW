@@ -164,7 +164,7 @@ function SmartInboxNavLink({
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href.includes('?') && pathname.includes('inbox'));
+  const isActive = pathname === href;
 
   const getIconColor = (label: string) => {
     switch (label) {
@@ -333,21 +333,21 @@ function NavLink({
         "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group",
         collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
         isActive
-          ? "text-white bg-[#1E293B] shadow-[0_0_0_1px_#3B82F6,0_0_8px_0_rgba(59,130,246,0.18)]"
-          : "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#1E293B]/60"
+          ? "text-[var(--inbox-sidebar-text)] bg-[var(--inbox-sidebar-darker)] shadow-[0_0_0_1px_var(--inbox-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
+          : "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] hover:bg-[var(--inbox-sidebar-darker)]/60"
       )}
     >
       {isActive && !collapsed && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[#3B82F6] rounded-r-full" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--inbox-accent)] rounded-r-full" />
       )}
       <span className="relative shrink-0">
         <Icon
           size={15}
           strokeWidth={1.75}
-          className={cn(isActive ? "text-[#60A5FA]" : "text-[#64748B] group-hover:text-[#94A3B8]")}
+            className={cn(isActive ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)]")}
         />
         {collapsed && typeof badge === "number" && badge > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#3B82F6] text-[8px] font-bold text-white ring-2 ring-[#0F172A]">
+          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--inbox-accent)] text-[8px] font-bold text-white ring-2 ring-[var(--inbox-sidebar-dark)]">
             {badge > 9 ? "9+" : badge}
           </span>
         )}
@@ -357,13 +357,13 @@ function NavLink({
           <span className="flex min-w-0 flex-1 flex-col items-start">
             <span className="truncate">{label}</span>
             {helper ? (
-              <span className="text-[10px] font-normal text-[#64748B] group-hover:text-[#94A3B8]">
+              <span className="text-[10px] font-normal text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)]">
                 {helper}
               </span>
             ) : null}
           </span>
           {typeof badge === "number" && badge > 0 && (
-            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-[#3B82F6] px-1 text-[10px] font-bold text-white">
+            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent)] px-1 text-[10px] font-bold text-white">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
@@ -422,16 +422,16 @@ function AccordionSection({
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {SectionIcon ? (
-            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-[#334155] bg-[#1E293B] text-[#94A3B8] shrink-0">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--inbox-sidebar-border)] bg-[var(--inbox-sidebar-darker)] text-[var(--inbox-sidebar-text-secondary)] shrink-0">
               <SectionIcon size={13} strokeWidth={1.9} />
             </span>
           ) : null}
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[11px] font-semibold text-[#CBD5E1] group-hover:text-white transition-colors tracking-wide">
+            <span className="text-[11px] font-semibold text-[var(--inbox-sidebar-text)] group-hover:text-white transition-colors tracking-wide">
               {section}
             </span>
             {subtitle && (
-              <span className="text-[9px] text-[#64748B] mt-0.5 tracking-wide">{subtitle}</span>
+              <span className="text-[9px] text-[var(--inbox-sidebar-text-secondary)] mt-0.5 tracking-wide">{subtitle}</span>
             )}
           </div>
         </div>
@@ -439,7 +439,7 @@ function AccordionSection({
           size={12}
           strokeWidth={2}
           className={cn(
-            "text-[#64748B] group-hover:text-[#CBD5E1] transition-all duration-200 shrink-0",
+            "text-[var(--inbox-sidebar-text-secondary)] group-hover:text-[var(--inbox-sidebar-text)] transition-all duration-200 shrink-0",
             isOpen ? "rotate-0" : "-rotate-90"
           )}
         />
@@ -507,7 +507,7 @@ export function SidebarNav() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "text-[#475569] hover:text-[#94A3B8] transition-colors p-1 rounded",
+            "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] transition-colors p-1 rounded",
             collapsed && "mt-1"
           )}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -524,7 +524,7 @@ export function SidebarNav() {
           className={cn(
             "w-full flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150",
             collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
-            "text-[#94A3B8] hover:text-[#E2E8F0] hover:bg-[#1E293B]/60"
+            "text-[var(--inbox-sidebar-text-secondary)] hover:text-[var(--inbox-sidebar-text)] hover:bg-[var(--inbox-sidebar-darker)]/60"
           )}
           title="Search (Ctrl+K)"
         >
@@ -551,22 +551,22 @@ export function SidebarNav() {
 
       {/* Footer */}
       {!collapsed && (
-        <div className="px-4 pb-5 pt-4 border-t border-[#1E293B] shrink-0">
+        <div className="px-4 pb-5 pt-4 border-t border-[var(--inbox-sidebar-border)] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[#1E293B] flex items-center justify-center text-xs font-medium text-[#94A3B8]">
+            <div className="w-7 h-7 rounded-full bg-[var(--inbox-sidebar-darker)] flex items-center justify-center text-xs font-medium text-[var(--inbox-sidebar-text-secondary)]">
               EA
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-medium text-[#E2E8F0] truncate">Executive Admin</span>
-              <span className="text-[10px] text-[#64748B] truncate">admin@7fcopilot.com</span>
+              <span className="text-xs font-medium text-[var(--inbox-sidebar-text)] truncate">Executive Admin</span>
+              <span className="text-[10px] text-[var(--inbox-sidebar-text-secondary)] truncate">admin@7fcopilot.com</span>
             </div>
           </div>
         </div>
       )}
       {collapsed && (
-        <div className="pb-5 pt-4 border-t border-[#1E293B] shrink-0 flex justify-center">
+        <div className="pb-5 pt-4 border-t border-[var(--inbox-sidebar-border)] shrink-0 flex justify-center">
           <div
-            className="w-7 h-7 rounded-full bg-[#1E293B] flex items-center justify-center text-xs font-medium text-[#94A3B8]"
+            className="w-7 h-7 rounded-full bg-[var(--inbox-sidebar-darker)] flex items-center justify-center text-xs font-medium text-[var(--inbox-sidebar-text-secondary)]"
             title="Executive Admin"
           >
             EA
@@ -595,9 +595,9 @@ export function MobileSidebarNav() {
 
   return (
     <>
-      <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[#0F172A] sticky top-0 z-50">
+      <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[var(--inbox-sidebar-dark)] sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-[#3B82F6] flex items-center justify-center">
+          <div className="w-6 h-6 rounded bg-[var(--inbox-accent)] flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">7F</span>
           </div>
           <span className="text-white font-semibold text-sm">7F</span>
@@ -605,14 +605,14 @@ export function MobileSidebarNav() {
         <div className="flex items-center gap-1">
           <button
             onClick={openSearch}
-            className="text-[#94A3B8] hover:text-white p-1"
+            className="text-[var(--inbox-sidebar-text-secondary)] hover:text-white p-1"
             aria-label="Search"
           >
             <Search size={20} />
           </button>
           <button
             onClick={() => setOpen(true)}
-            className="text-[#94A3B8] hover:text-white p-1"
+            className="text-[var(--inbox-sidebar-text-secondary)] hover:text-white p-1"
             aria-label="Open navigation"
           >
             <Menu size={20} />
@@ -623,12 +623,12 @@ export function MobileSidebarNav() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="left"
-          className="w-64 p-0 bg-[#0F172A] border-r-0 [&>button]:hidden"
+          className="w-64 p-0 bg-[var(--inbox-sidebar-dark)] border-r-0 [&>button]:hidden"
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-[#3B82F6] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-md bg-[var(--inbox-accent)] flex items-center justify-center">
                 <span className="text-white text-xs font-bold">7F</span>
               </div>
               <span className="text-white font-semibold text-sm">7F</span>

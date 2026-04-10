@@ -47,13 +47,13 @@
   --sidebar-dark: #0F172A;
   /* Smart Inbox Premium REAL - Dark Graphite + Violeta System */
   
-  /* === SIDEBAR PREMIUM DARK === */
-  --inbox-sidebar-dark: #1e1e2e;
-  --inbox-sidebar-darker: #181825;
-  --inbox-sidebar-text: #cdd6f4;
-  --inbox-sidebar-text-secondary: #9399b2;
+  /* === SIDEBAR PREMIUM DARK GRAPHITE REAL === */
+  --inbox-sidebar-dark: #1a1a2e;
+  --inbox-sidebar-darker: #141420;
+  --inbox-sidebar-text: #e2e8f0;
+  --inbox-sidebar-text-secondary: #94a3b8;
   --inbox-sidebar-accent: #cba6f7;
-  --inbox-sidebar-border: #313244;
+  --inbox-sidebar-border: #2d3748;
   
   /* === LISTA PANEL PREMIUM === */
   --inbox-list-background: #f8f9fb;
@@ -74,13 +74,13 @@
   --inbox-chat-text-secondary: #718096;
   --inbox-chat-border: #e2e8f0;
   
-  /* === PANEL DERECHO INTELLIGENCE === */
-  --inbox-intelligence-background: #f7fafc;
+  /* === PANEL DERECHO INTELLIGENCE HUB PREMIUM === */
+  --inbox-intelligence-background: #f1f5f9;
   --inbox-intelligence-surface: #ffffff;
-  --inbox-intelligence-accent: #805ad5;
-  --inbox-intelligence-text: #2d3748;
-  --inbox-intelligence-text-secondary: #4a5568;
-  --inbox-intelligence-border: #e2e8f0;
+  --inbox-intelligence-accent: #6366f1;
+  --inbox-intelligence-text: #1e293b;
+  --inbox-intelligence-text-secondary: #475569;
+  --inbox-intelligence-border: #cbd5e1;
   
   /* === VIOLETA PREMIUM SYSTEM === */
   --inbox-accent: #6366f1;
