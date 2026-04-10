@@ -29,8 +29,8 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   if (loading) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Checking session...</p>
+      <div className="flex h-dvh items-center justify-center bg-[var(--inbox-background)]">
+        <p className="text-sm text-white/50">Checking session...</p>
       </div>
     )
   }
@@ -41,20 +41,20 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background font-sans md:flex-row">
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Toolbar */}
-          <div className="hidden md:flex items-center justify-end gap-2 px-6 py-3 shrink-0">
+          <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--inbox-background)]">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 cursor-pointer hover:border-primary/30 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 cursor-pointer hover:bg-white/10 hover:border-white/20 transition-colors"
             >
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="w-32 lg:w-48 text-left text-sm text-muted-foreground">Search...</span>
-              <kbd className="ml-auto text-[10px] font-mono text-muted-foreground/60 border border-border rounded px-1 py-0.5">
+              <Search className="h-3.5 w-3.5 text-white/50" />
+              <span className="w-32 lg:w-48 text-left text-sm text-white/50">Search...</span>
+              <kbd className="ml-auto text-[10px] font-mono text-white/30 border border-white/10 rounded px-1 py-0.5">
                 Ctrl+K
               </kbd>
             </button>

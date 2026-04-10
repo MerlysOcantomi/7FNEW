@@ -50,8 +50,8 @@
      Canvas oscuro + paneles claros elevados = contraste real
      ══════════════════════════════════════════════════════════ */
   
-  /* === CANVAS PRINCIPAL (fondo oscuro detrás de los paneles) === */
-  --inbox-background: #1a1625;
+  /* === CANVAS PRINCIPAL (fondo oscuro violeta detrás de los paneles) === */
+  --inbox-background: #1c1530;
   
   /* === SIDEBAR DARK GRAPHITE === */
   --inbox-sidebar-dark: #13111c;
@@ -80,13 +80,13 @@
   --inbox-chat-text-secondary: #6b6880;
   --inbox-chat-border: #e8e5f0;
   
-  /* === PANEL DERECHO INTELLIGENCE HUB (superficie con tinte) === */
-  --inbox-intelligence-background: #f5f3fa;
-  --inbox-intelligence-surface: #faf9fe;
+  /* === PANEL DERECHO INTELLIGENCE HUB (superficie con tinte violeta claro) === */
+  --inbox-intelligence-background: #f0edf8;
+  --inbox-intelligence-surface: #f8f6fe;
   --inbox-intelligence-accent: #7c3aed;
   --inbox-intelligence-text: #1e1b2e;
   --inbox-intelligence-text-secondary: #6b6880;
-  --inbox-intelligence-border: #e0dced;
+  --inbox-intelligence-border: #d8d3e8;
   
   /* === VIOLETA PREMIUM SYSTEM === */
   --inbox-accent: #7c3aed;

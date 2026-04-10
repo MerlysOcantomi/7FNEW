@@ -1222,7 +1222,7 @@ function InboxPageContent() {
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1600px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-br from-[#1c1530] via-[#251b40] to-[#1a1625] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
@@ -1495,8 +1495,8 @@ function InboxPageContent() {
 function InboxPageFallback() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1520px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
-        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-br from-[#1c1530] via-[#251b40] to-[#1a1625] md:-mx-8">
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div className="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-list-background)] shadow-xl shadow-black/10 xl:h-full">
             <InboxListSkeleton />
           </div>
