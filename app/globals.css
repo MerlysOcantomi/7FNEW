@@ -47,6 +47,9 @@
   --sidebar-dark: #0F172A;
   /* Smart Inbox Premium REAL - Dark Graphite + Violeta System */
   
+  /* === BACKGROUND PRINCIPAL === */
+  --inbox-background: #f8f9fa;
+  
   /* === SIDEBAR PREMIUM DARK GRAPHITE REAL === */
   --inbox-sidebar-dark: #1a1a2e;
   --inbox-sidebar-darker: #141420;
@@ -92,6 +95,24 @@
   --inbox-destructive: #e53e3e;
   --inbox-success: #38a169;
   --inbox-warning: #dd6b20;
+  
+  /* === URGENCIA BADGES PREMIUM === */
+  --inbox-urgency-critical-bg: #fee2e2;
+  --inbox-urgency-critical-text: #991b1b;
+  --inbox-urgency-high-bg: #fef3c7;
+  --inbox-urgency-high-text: #92400e;
+  --inbox-urgency-medium-bg: var(--inbox-accent-soft);
+  --inbox-urgency-medium-text: var(--inbox-accent);
+  --inbox-urgency-low-bg: #f3f4f6;
+  --inbox-urgency-low-text: var(--inbox-intelligence-text-secondary);
+  
+  /* === VOICE COMPOSER STATES === */
+  --inbox-voice-dictate-bg: #fef2f2;
+  --inbox-voice-dictate-text: #dc2626;
+  --inbox-voice-dictate-border: #fecaca;
+  --inbox-voice-compose-bg: #f5f3ff;
+  --inbox-voice-compose-text: #7c3aed;
+  --inbox-voice-compose-border: #c4b5fd;
   
   /* === ICONOS COLORIDOS PREMIUM === */
   --inbox-urgent-color: #e53e3e;

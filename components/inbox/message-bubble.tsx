@@ -63,7 +63,7 @@ export function MessageBubble({
         >
           <span className={cn(
             "text-xs font-semibold",
-            tone === "inbound" ? "text-blue-800" : "text-[var(--inbox-text)]"
+            tone === "inbound" ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-text)]"
           )}>{authorLabel}</span>
           <span className="text-xs uppercase tracking-wide font-medium text-[var(--inbox-text-secondary)]">
             {roleLabel}
@@ -71,19 +71,19 @@ export function MessageBubble({
           <span className={cn(
             "rounded-lg border px-2.5 py-0.5 text-xs leading-relaxed font-medium",
             tone === "inbound" 
-              ? "border-blue-300 bg-blue-100 text-blue-700" 
+              ? "border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]" 
               : "border-[var(--inbox-divider)] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]"
           )}>
             {metaLabel}
           </span>
           <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
-            <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
+            <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
               Forwarded
             </span>
           )}
           {emailMeta?.mode === "reply_all" && (
-            <span className="rounded-lg bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700 border border-violet-200">
+            <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
               Reply all
             </span>
           )}

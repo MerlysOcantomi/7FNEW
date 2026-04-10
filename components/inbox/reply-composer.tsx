@@ -427,9 +427,9 @@ export function ReplyComposer({
               rows={2}
               className={cn(
                 "min-h-[72px] max-h-[220px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
-                replyIsInternal && "border-amber-200 bg-amber-50/60 focus-visible:border-amber-400 focus-visible:ring-amber-400/20",
-                speech.listening && voiceMode === "dictate" && "border-red-300 bg-red-50/30 ring-2 ring-red-300/30",
-                speech.listening && voiceMode === "compose" && "border-violet-300 bg-violet-50/30 ring-2 ring-violet-300/30",
+                replyIsInternal && "border-[var(--inbox-warning)]/40 bg-[var(--inbox-warning)]/10 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
+                speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
+                speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
                 isProcessing && "opacity-60 cursor-not-allowed",
               )}
               disabled={isProcessing}
@@ -451,10 +451,10 @@ export function ReplyComposer({
               </div>
             )}
             {speech.listening && voiceMode === "compose" && (
-              <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 text-sm text-violet-700 backdrop-blur-sm">
+              <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/90 px-3 py-2.5 text-sm text-[var(--inbox-voice-compose-text)] backdrop-blur-sm">
                 <div className="relative flex items-center justify-center">
                   <Mic className="h-4 w-4 animate-pulse" />
-                  <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-violet-400/30" />
+                  <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-[var(--inbox-voice-compose-text)]/30" />
                 </div>
                 <span className="flex-1 truncate font-medium">
                   {speech.transcript || "Listening... describe what you want to say"}
@@ -462,17 +462,17 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={() => speech.stop()}
-                  className="shrink-0 rounded-lg bg-violet-200/80 px-2.5 py-1 text-xs font-medium text-violet-800 transition-colors hover:bg-violet-300"
+                  className="shrink-0 rounded-lg bg-[var(--inbox-voice-compose-border)]/80 px-2.5 py-1 text-xs font-medium text-[var(--inbox-voice-compose-text)] transition-colors hover:bg-[var(--inbox-voice-compose-border)]"
                 >
                   Done
                 </button>
               </div>
             )}
             {speech.listening && voiceMode === "dictate" && (
-              <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/90 px-3 py-1.5 text-xs font-medium text-red-600 backdrop-blur-sm">
+              <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm">
                 <div className="relative flex items-center justify-center">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-red-400" />
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--inbox-voice-dictate-text)]" />
+                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-[var(--inbox-voice-dictate-text)]/80" />
                 </div>
                 Recording...
               </div>
@@ -674,7 +674,7 @@ export function ReplyComposer({
                   className={cn(
                     "rounded-l-md px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
                     voiceMode === "dictate"
-                      ? "bg-red-50 text-red-700"
+                      ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
                       : "text-[var(--inbox-text-secondary)] hover:bg-[var(--inbox-background)]",
                   )}
                   title="Dictation mode: speech becomes text directly"
@@ -682,8 +682,8 @@ export function ReplyComposer({
                   <div className="flex items-center gap-1">
                     <div className={cn(
                       "h-1.5 w-1.5 rounded-full transition-colors",
-                      voiceMode === "dictate" && speech.listening ? "bg-red-500 animate-pulse" : "bg-red-400",
-                      voiceMode !== "dictate" && "bg-gray-300"
+                      voiceMode === "dictate" && speech.listening ? "bg-[var(--inbox-voice-dictate-text)] animate-pulse" : "bg-[var(--inbox-voice-dictate-text)]/80",
+                      voiceMode !== "dictate" && "bg-[var(--inbox-intelligence-text-secondary)]"
                     )} />
                     Dictate
                   </div>
@@ -694,7 +694,7 @@ export function ReplyComposer({
                   className={cn(
                     "border-l border-[var(--inbox-border)] px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
                     voiceMode === "compose"
-                      ? "bg-violet-50 text-violet-700"
+                      ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
                       : "text-[var(--inbox-text-secondary)] hover:bg-[var(--inbox-background)]",
                   )}
                   title="Compose mode: describe your intent and AI writes the reply"
@@ -702,7 +702,7 @@ export function ReplyComposer({
                   <div className="flex items-center gap-1">
                     <Sparkles className={cn(
                       "h-3 w-3 transition-colors",
-                      voiceMode === "compose" ? "text-violet-600" : "text-gray-400"
+                      voiceMode === "compose" ? "text-[var(--inbox-voice-compose-text)]" : "text-[var(--inbox-intelligence-text-secondary)]"
                     )} />
                     Compose
                   </div>
@@ -715,8 +715,8 @@ export function ReplyComposer({
                   disabled={isProcessing}
                   className={cn(
                     "h-7 rounded-l-none rounded-r-md border-l border-[var(--inbox-border)] px-2.5 py-1.5 transition-all duration-150",
-                    speech.listening && voiceMode === "dictate" && "bg-red-100 text-red-700 hover:bg-red-200",
-                    speech.listening && voiceMode === "compose" && "bg-violet-100 text-violet-700 hover:bg-violet-200",
+                    speech.listening && voiceMode === "dictate" && "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)] hover:bg-[var(--inbox-voice-dictate-border)]",
+                    speech.listening && voiceMode === "compose" && "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)] hover:bg-[var(--inbox-voice-compose-border)]",
                     !speech.listening && "hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
                   )}
                   title={speech.listening ? "Stop recording" : voiceMode === "compose" ? "Describe your intent" : "Start dictation"}
@@ -884,12 +884,12 @@ export function ReplyComposer({
         </div>
 
         {assistError && (
-          <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1">
-            <p className="flex-1 text-[11px] text-red-700">{assistError}</p>
+          <div className="flex items-center gap-2 rounded-md border border-[var(--inbox-urgency-critical-bg)] bg-[var(--inbox-urgency-critical-bg)] px-2.5 py-1">
+            <p className="flex-1 text-[11px] text-[var(--inbox-urgency-critical-text)]">{assistError}</p>
             <button
               type="button"
               onClick={() => setAssistError(null)}
-              className="shrink-0 rounded p-0.5 text-red-400 hover:text-red-600"
+              className="shrink-0 rounded p-0.5 text-[var(--inbox-urgency-critical-text)]/60 hover:text-[var(--inbox-urgency-critical-text)]"
             >
               <X className="h-2.5 w-2.5" />
             </button>

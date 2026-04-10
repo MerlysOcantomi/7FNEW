@@ -77,10 +77,10 @@ export function ConversationListItem({
       onMouseLeave={() => setIsHovered(false)}
       aria-pressed={selected}
       className={cn(
-        "group relative w-full rounded-[var(--inbox-radius-card)] border px-4 py-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+        "group relative w-full rounded-lg border-b px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
         selected
-          ? "border-[var(--inbox-list-selected)]/30 bg-[var(--inbox-list-selected-bg)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-list-selected)]/10"
-          : "border-[var(--inbox-list-divider)]/40 bg-white hover:border-[var(--inbox-list-selected)]/20 hover:shadow-[var(--inbox-shadow-subtle)] hover:bg-white",
+          ? "border-b-[var(--inbox-list-selected)]/20 bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/10"
+          : "border-b-[var(--inbox-list-divider)]/30 bg-[var(--inbox-list-surface)] hover:bg-[var(--inbox-list-background)]",
       )}
     >
       <span
@@ -102,10 +102,10 @@ export function ConversationListItem({
                 {tone && (
                   <div className="shrink-0">
                     {tone === "inbound" && (
-                      <ArrowLeft className="h-3 w-3 text-blue-500" />
+                      <ArrowLeft className="h-3 w-3 text-[var(--inbox-accent)]" />
                     )}
                     {tone === "outbound" && (
-                      <ArrowRight className="h-3 w-3 text-green-500" />
+                      <ArrowRight className="h-3 w-3 text-[var(--inbox-success)]" />
                     )}
                     {tone === "internal" && (
                       <MessageSquare className="h-3 w-3 text-amber-500" />
@@ -186,7 +186,7 @@ export function ConversationListItem({
 
       {/* Quick Actions Overlay */}
       {isHovered && !selected && (onFavorite || onArchive || onDelete || onMarkRead) && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[var(--inbox-list-surface)]/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
           {onMarkRead && (
             <button
               type="button"
@@ -238,7 +238,7 @@ export function ConversationListItem({
                 e.stopPropagation()
                 onDelete()
               }}
-              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-destructive)] hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-destructive)] hover:bg-[var(--inbox-urgency-critical-bg)] transition-colors"
               title="Delete"
             >
               <Trash2 className="h-3.5 w-3.5" />

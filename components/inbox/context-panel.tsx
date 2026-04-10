@@ -329,13 +329,13 @@ function formatBriefLabel(value: string) {
 function getUrgencyPresentation(urgency?: string | null) {
   switch (urgency) {
     case "critica":
-      return { label: "Critical", className: "bg-[#FEF2F2] text-[#991B1B]" }
+      return { label: "Critical", className: "bg-[var(--inbox-urgency-critical-bg)] text-[var(--inbox-urgency-critical-text)]" }
     case "alta":
-      return { label: "High", className: "bg-[#FFF7ED] text-[#9A3412]" }
+      return { label: "High", className: "bg-[var(--inbox-urgency-high-bg)] text-[var(--inbox-urgency-high-text)]" }
     case "media":
-      return { label: "Medium", className: "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]" }
+      return { label: "Medium", className: "bg-[var(--inbox-urgency-medium-bg)] text-[var(--inbox-urgency-medium-text)]" }
     case "baja":
-      return { label: "Low", className: "bg-[#F3F4F6] text-[var(--inbox-text-secondary)]" }
+      return { label: "Low", className: "bg-[var(--inbox-urgency-low-bg)] text-[var(--inbox-urgency-low-text)]" }
     default:
       return null
   }

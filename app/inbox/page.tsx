@@ -1222,7 +1222,7 @@ function InboxPageContent() {
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1600px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[#fafbfc] md:-mx-8">
+      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-4 p-4", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
