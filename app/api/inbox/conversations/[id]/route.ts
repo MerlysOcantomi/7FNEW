@@ -23,6 +23,27 @@ export async function GET(_request: NextRequest, { params }: Params) {
   }
 }
 
+export async function DELETE(request: NextRequest, { params }: Params) {
+  try {
+    const { workspaceId } = await requireWriteAccess(request)
+    const { id } = await params
+    const existing = await db.conversation.findFirst({ where: { id, workspaceId } })
+    if (!existing) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+
+    // Delete related records in order
+    await db.message.deleteMany({ where: { conversationId: id } })
+    await db.conversationClassification.deleteMany({ where: { conversationId: id } })
+    await db.conversationHandoff.deleteMany({ where: { conversationId: id } })
+    await db.conversationDraft.deleteMany({ where: { conversationId: id } })
+    await db.conversationAction.deleteMany({ where: { conversationId: id } })
+    await db.conversation.delete({ where: { id } })
+
+    return successResponse({ deleted: true, id })
+  } catch (error) {
+    return handleError(error, "Conversation")
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { workspaceId } = await requireWriteAccess(request)

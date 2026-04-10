@@ -905,9 +905,20 @@ function InboxPageContent() {
       : members
 
   // Get all messages from all conversations for the left column
+  if (typeof window !== "undefined" && conversations.length > 0) {
+    console.group("[INBOX DEBUG] Datos exactos de cada conversación y mensaje")
+    conversations.forEach((conv) => {
+      console.log(`conv:${conv.id} | source:${conv.source} | summary:"${conv.summary?.slice(0, 60)}" | classification:"${conv.classification?.summary?.slice(0, 60)}" | contact:${conv.contact.nombre}/${conv.contact.email} | msgs:${conv.messages?.length}`)
+      conv.messages?.forEach((msg) => {
+        console.log(`  msg:${msg.id} | dir:${msg.direction} | internal:${msg.isInternal} | content:"${msg.content?.slice(0, 80)}"`)
+      })
+    })
+    console.groupEnd()
+  }
+
   const allMessages = conversations.flatMap((conversation) => 
     (conversation.messages || [])
-      .filter(message => message.content && message.content.trim().length > 0) // Filter empty or test messages
+      .filter(message => message.content && message.content.trim().length > 0)
       .map((message) => {
       const isOutbound = message.direction === "outbound" && !message.isInternal
       const isInbound = message.direction === "inbound" && !message.isInternal
