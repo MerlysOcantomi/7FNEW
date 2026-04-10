@@ -76,7 +76,7 @@ export function MessageBubble({
           )}>
             {metaLabel}
           </span>
-          <span className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
+          <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
             <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
               Forwarded

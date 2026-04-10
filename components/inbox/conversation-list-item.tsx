@@ -121,6 +121,7 @@ export function ConversationListItem({
               <p className="truncate text-xs leading-relaxed text-[var(--inbox-text-secondary)]">{subtitle}</p>
             </div>
             <span
+              suppressHydrationWarning
               className={cn(
                 "shrink-0 whitespace-nowrap pt-1 text-xs font-medium",
                 isUnread ? "text-[var(--inbox-text)] font-semibold" : "text-[var(--inbox-muted)]",

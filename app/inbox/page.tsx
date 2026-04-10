@@ -502,7 +502,7 @@ function InboxPageContent() {
       : isGenericDetailFailure
         ? "This conversation could not be loaded right now."
         : detailError
-  const selected = detailData ?? null
+  const selected = activeSelectedId ? (detailData ?? null) : null
 
   useEffect(() => {
     if (!selected?.drafts?.length || !selected?.messages?.length) return
