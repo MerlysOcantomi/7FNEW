@@ -849,11 +849,7 @@ function getComposerConfig({
 }) {
   if (replyIsInternal) {
     return {
-      headerLabel: "Internal note",
-      headerDescription: "Capture context, decisions and operational notes without sending anything externally.",
       placeholder: "Add an internal note...",
-      quickHint: "Internal notes stay lightweight but still benefit from snippets, dictation and smart tools.",
-      footerHint: "This note will stay internal and will not be delivered externally.",
       sendLabel: "Save note",
       subjectPreview: null,
       advancedItems: [
@@ -866,11 +862,7 @@ function getComposerConfig({
   switch (channel) {
     case "email":
       return {
-        headerLabel: "Email composer",
-        headerDescription: "Write, rewrite, or compose your reply using smart tools and voice.",
         placeholder: "Write your reply...",
-        quickHint: "Use smart tools above the textarea to proofread, change tone, or translate. Use Compose voice mode to describe your intent.",
-        footerHint: "This reply uses the current outbound email flow.",
         sendLabel: "Send reply",
         subjectPreview: subject || "No subject available",
         advancedItems: [
@@ -880,11 +872,7 @@ function getComposerConfig({
       }
     case "whatsapp":
       return {
-        headerLabel: "WhatsApp composer",
-        headerDescription: "Fast message-first response with dictation, smart tools and voice compose.",
         placeholder: "Type your message...",
-        quickHint: "Use Dictate for literal speech or Compose to describe your intent and let Fanny write it.",
-        footerHint: "This reply uses the current outbound flow for WhatsApp.",
         sendLabel: "Send message",
         subjectPreview: null,
         advancedItems: [
@@ -895,11 +883,7 @@ function getComposerConfig({
     case "web_chat":
     case "portal":
       return {
-        headerLabel: `${channelLabel} composer`,
-        headerDescription: "Conversation-first messaging with smart tools and voice compose.",
         placeholder: "Type your message...",
-        quickHint: "Smart tools help you proofread, change tone, or translate before sending.",
-        footerHint: `This reply uses the current outbound flow for ${channelLabel.toLowerCase()}.`,
         sendLabel: "Send message",
         subjectPreview: null,
         advancedItems: [
@@ -909,11 +893,7 @@ function getComposerConfig({
       }
     default:
       return {
-        headerLabel: `${channelLabel} composer`,
-        headerDescription: "A clean shared composer with smart tools and voice compose.",
         placeholder: "Write your message...",
-        quickHint: "The composer adapts per channel. Smart tools and voice work everywhere.",
-        footerHint: "This reply uses the current outbound flow.",
         sendLabel: "Send reply",
         subjectPreview: null,
         advancedItems: [

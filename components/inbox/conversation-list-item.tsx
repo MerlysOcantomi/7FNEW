@@ -23,11 +23,7 @@ interface ConversationListItemProps {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
-  // Message-specific props
   tone?: "inbound" | "outbound" | "internal" | "system"
-  authorName?: string
-  conversationId?: string
-  messageId?: string
 }
 
 export function ConversationListItem({
@@ -48,9 +44,6 @@ export function ConversationListItem({
   urgencyClassName,
   leadScore,
   tone,
-  authorName,
-  conversationId,
-  messageId,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLButtonElement | null>(null)
   const [expanded, setExpanded] = useState(false)

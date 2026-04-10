@@ -536,12 +536,11 @@ function InboxPageContent() {
 
   const stats = useMemo(() => {
     if (conversations.length === 0) {
-      return { total: 0, leads: 0, converted: 0, urgent: 0 }
+      return { total: 0, leads: 0, urgent: 0 }
     }
     return {
       total: serverTotal ?? conversations.length,
       leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
-      converted: conversations.filter((item) => item.status === "converted").length,
       urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
     }
   }, [conversations, serverTotal, serverLeads, serverUrgent])
@@ -921,7 +920,6 @@ function InboxPageContent() {
       return {
         id: `${conversation.id}-${message.id}`,
         conversationId: conversation.id,
-        messageId: message.id,
         channel: conversation.channel,
         title: isOutbound 
           ? "You" 
@@ -932,7 +930,7 @@ function InboxPageContent() {
         preview: message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content,
         fullMessage: message.content,
         timeLabel: formatRelativeDate(message.createdAt),
-        createdAt: message.createdAt, // Keep raw date for sorting
+        createdAt: message.createdAt,
         isUnread: conversation.status === "new" && isInbound,
         statusLabel: statusLabel(conversation.status),
         statusClassName: statusBadge(conversation.status),
@@ -943,38 +941,9 @@ function InboxPageContent() {
         direction: message.direction,
         isInternal: message.isInternal,
         tone: isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system",
-        authorName: isOutbound ? "You" : conversation.contact.nombre || conversation.contact.email || "Contact",
       }
     })
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Sort by most recent first
-
-  // Keep conversation items for now (we might need them for other purposes)
-  const conversationItems = conversations.map((item) => {
-    // Get first client message (original message)
-    const firstClientMessage = item.messages?.find(msg => 
-      msg.direction === "inbound" && !msg.isInternal
-    )
-    
-    return {
-      id: item.id,
-      channel: item.channel,
-      title:
-        item.channel === "email"
-          ? item.subject || item.contact.nombre || "New conversation"
-          : item.contact.nombre || item.contact.email || item.subject || "New conversation",
-      subtitle: `${item.contact.nombre || item.contact.email || "Unidentified contact"}${item.contact.empresa ? ` · ${item.contact.empresa}` : ""}`,
-      preview: item.summary ?? item.classification?.summary ?? null,
-      fullMessage: firstClientMessage?.content || null,
-      timeLabel: formatRelativeDate(item.lastMessageAt),
-      isUnread: item.status === "new",
-      statusLabel: statusLabel(item.status),
-      statusClassName: statusBadge(item.status),
-      channelLabel: channelLabel(item.channel),
-      urgencyLabel: urgencyLabel(item.urgency),
-      urgencyClassName: urgencyBadge(item.urgency),
-      leadScore: item.leadScore,
-    }
-  })
 
   const threadMessages =
     selected?.messages.map((message) => {
@@ -1268,11 +1237,10 @@ function InboxPageContent() {
                 onChannelChange={setChannel}
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
-                stats={{ total: allMessages.length, leads: stats.leads, urgent: stats.urgent }}
-                onSelect={(messageId) => {
-                  // Extract conversationId from the messageId format: "conversationId-messageId"
-                  const conversationId = messageId.split('-')[0]
-                  handleSelectConversation(conversationId)
+                stats={{ total: stats.total, leads: stats.leads, urgent: stats.urgent }}
+                onSelect={(itemId) => {
+                  const msg = allMessages.find(m => m.id === itemId)
+                  if (msg) handleSelectConversation(msg.conversationId)
                 }}
                 hasMore={hasMore}
                 loadingMore={loadingMore}

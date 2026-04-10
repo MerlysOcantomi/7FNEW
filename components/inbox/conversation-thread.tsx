@@ -9,12 +9,6 @@ import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/
 import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { cn } from "@/lib/utils"
 
-interface MemberOption {
-  userId: string
-  nombre: string | null
-  email: string
-}
-
 interface StatusOption {
   value: string
   label: string

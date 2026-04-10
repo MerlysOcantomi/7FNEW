@@ -119,8 +119,6 @@ export function ContextPanel({
     selected.handoff?.nextRecommendedAction ||
     getStringValue(selected.classification?.nextBestAction, ["label", "title", "action"]) ||
     null
-  const assignedLabel = selected.assignedTo ? `Assigned · ${selected.assignedTo}` : null
-
   const briefDataEntries = normalizeBriefData(selected.classification?.briefData)
   const risks = selected.handoff?.risks?.length ? selected.handoff.risks : selected.classification?.risks || []
   const pendingItems = selected.handoff?.pendingItems?.length
