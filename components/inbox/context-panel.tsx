@@ -185,7 +185,7 @@ export function ContextPanel({
   ]
 
   return (
-    <div className="space-y-4 bg-[var(--inbox-intelligence-background)] p-6 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-intelligence-border)] shadow-[var(--inbox-shadow-premium)]">
+    <div className="space-y-4 bg-[var(--inbox-intelligence-background)] p-5">
       
       {/* Intelligence Hub Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-[var(--inbox-intelligence-border)]">

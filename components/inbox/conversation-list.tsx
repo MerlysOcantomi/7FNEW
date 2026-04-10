@@ -93,7 +93,7 @@ export function ConversationList({
         ? "Unassigned conversations"
         : "All conversations"
   return (
-    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden border-r border-[var(--inbox-list-border)]">
+    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden">
       <div className="space-y-3 border-b border-[var(--inbox-list-border)] bg-[var(--inbox-list-surface)] px-4 py-5 md:px-6 shadow-sm">
         {/* Header Premium */}
         <div className="flex items-center justify-between gap-3">

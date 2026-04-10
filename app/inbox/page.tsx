@@ -1223,11 +1223,11 @@ function InboxPageContent() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1600px]">
       <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
-        <div className={cn("flex min-h-0 flex-1 flex-col gap-4 p-4", DESKTOP_INBOX_GRID)}>
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
-              "min-h-0 overflow-hidden rounded-[var(--inbox-radius-premium)] xl:flex xl:h-full xl:flex-col",
+              "min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-list-background)] shadow-xl shadow-black/10 xl:flex xl:h-full xl:flex-col",
             )}
           >
             {showInitialListSkeleton ? (
@@ -1264,7 +1264,7 @@ function InboxPageContent() {
           <div
             className={cn(
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-surface)] shadow-[var(--inbox-shadow-premium)] xl:flex xl:h-full xl:min-h-0",
+              "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-chat-surface)] shadow-xl shadow-black/10 xl:flex xl:h-full xl:min-h-0",
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--inbox-chat-background)]">
@@ -1366,7 +1366,7 @@ function InboxPageContent() {
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-premium)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-intelligence-background)] shadow-xl shadow-black/10 xl:flex xl:flex-col xl:h-full xl:min-h-0">
             {showInitialListSkeleton || showDetailSkeleton ? (
               <InboxContextSkeleton />
             ) : selected ? (
@@ -1497,13 +1497,13 @@ function InboxPageFallback() {
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1520px]">
       <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 bg-[var(--inbox-background)] p-3", DESKTOP_INBOX_GRID)}>
-          <div className="min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:h-full">
+          <div className="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-list-background)] shadow-xl shadow-black/10 xl:h-full">
             <InboxListSkeleton />
           </div>
-          <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow)] xl:flex xl:h-full xl:min-h-0">
+          <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-chat-surface)] shadow-xl shadow-black/10 xl:flex xl:h-full xl:min-h-0">
             <InboxCenterSkeleton />
           </div>
-          <div className="hidden min-h-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] shadow-[var(--inbox-panel-shadow-sm)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--inbox-intelligence-background)] shadow-xl shadow-black/10 xl:flex xl:flex-col xl:h-full xl:min-h-0">
             <InboxContextSkeleton />
           </div>
         </div>
