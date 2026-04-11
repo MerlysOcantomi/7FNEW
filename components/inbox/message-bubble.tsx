@@ -71,12 +71,14 @@ export function MessageBubble({
           <span className={cn(
             "rounded-lg border px-2.5 py-0.5 text-xs leading-relaxed font-medium",
             tone === "inbound" 
-              ? "border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]" 
-              : "border-[var(--inbox-divider)] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]"
+              ? "border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+              : tone === "outbound"
+                ? "border-[#332455] bg-[#2B2144] text-[#E8DFFF]"
+                : "border-[var(--inbox-divider)] bg-[var(--surface-3)] text-[var(--inbox-text-secondary)]"
           )}>
             {metaLabel}
           </span>
-          <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--inbox-muted)]">{timestampLabel}</span>
+          <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--text-secondary-dark)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
             <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
               Forwarded
@@ -102,9 +104,9 @@ export function MessageBubble({
           className={cn(
             "rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-sm transition-all duration-300",
             tone === "outbound" &&
-              "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/20 bg-[var(--inbox-chat-bubble-outbound)] text-white shadow-[0_8px_32px_rgba(99,102,241,0.15)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.20)] backdrop-blur-sm",
+              "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/18 bg-[linear-gradient(135deg,#7C4DFF_0%,#6E40F0_100%)] text-white shadow-[0_8px_24px_rgba(110,64,240,0.18)] hover:shadow-[0_12px_30px_rgba(110,64,240,0.22)]",
             tone === "inbound" &&
-              "rounded-tl-lg border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-chat-text)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-chat-border)]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]",
+              "rounded-tl-lg border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-chat-text)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-chat-border)]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]",
             tone === "internal" &&
               "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&

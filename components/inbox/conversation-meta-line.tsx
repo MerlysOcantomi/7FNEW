@@ -26,7 +26,7 @@ export function ConversationMetaLine({
         {urgencyLabel}
       </span>
       {typeof leadScore === "number" && (
-        <span className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+        <span className="rounded-full border border-[var(--accent-rich)]/16 bg-[var(--accent-rich)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-primary-light)] shadow-[0_4px_12px_rgba(91,33,182,0.16)]">
           Lead {leadScore}
         </span>
       )}
