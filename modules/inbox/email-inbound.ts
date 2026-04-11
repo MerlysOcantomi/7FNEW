@@ -407,12 +407,39 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
   if (threadMatch) {
     conversationId = threadMatch.conversationId
     matchedBy = threadMatch.matchedBy
+
+    // Backfill connectionId on existing conversation if we resolved one and it's missing
+    if (connectionId) {
+      const existing = await db.conversation.findFirst({
+        where: { id: conversationId },
+        select: { connectionId: true },
+      })
+      if (existing && !existing.connectionId) {
+        await db.conversation.update({
+          where: { id: conversationId },
+          data: { connectionId },
+        })
+      }
+    }
   } else {
     const contactMatch = await matchConversationByContact(workspaceId, contactId)
 
     if (contactMatch) {
       conversationId = contactMatch.conversationId
       matchedBy = contactMatch.matchedBy
+
+      if (connectionId) {
+        const existing = await db.conversation.findFirst({
+          where: { id: conversationId },
+          select: { connectionId: true },
+        })
+        if (existing && !existing.connectionId) {
+          await db.conversation.update({
+            where: { id: conversationId },
+            data: { connectionId },
+          })
+        }
+      }
     } else {
       const conv = await db.conversation.create({
         data: {
@@ -435,7 +462,7 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
   }
 
   console.log(
-    `[email-inbound] ${resendEmailId} from=${senderEmail} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation}`,
+    `[email-inbound] ${resendEmailId} from=${senderEmail} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation} conn=${connectionId ?? "none"}`,
   )
 
   // ---- 4. Process attachments if present ----
@@ -501,9 +528,11 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     data: {
       resendEmailId: email.id,
       from: senderEmail,
+      to: recipientAddresses,
       subject,
       isNew: isNewConversation,
       matchedBy,
+      ...(connectionId ? { connectionId } : {}),
     },
     workspaceId,
   }).catch(() => null)

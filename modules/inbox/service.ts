@@ -48,6 +48,7 @@ interface AddMessageInput {
   isInternal?: boolean
   metadata?: Record<string, unknown> | null
   sourceMessageId?: string | null
+  connectionId?: string | null
 }
 
 interface ConvertConversationInput {
@@ -474,6 +475,7 @@ export async function addMessage(input: AddMessageInput) {
         isInternal: input.isInternal ?? false,
         metadata,
         sourceMessageId: input.sourceMessageId ?? null,
+        connectionId: input.connectionId ?? null,
       },
     })
 

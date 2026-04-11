@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
-import { sendOutboundEmail } from "@modules/inbox/email-outbound"
+import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
 
 type Params = { params: Promise<{ id: string; messageId: string }> }
 
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       select: {
         channel: true,
         subject: true,
+        connectionId: true,
         contact: { select: { email: true } },
         workspace: { select: { nombre: true, config: true } },
       },
@@ -47,13 +48,35 @@ export async function POST(request: NextRequest, { params }: Params) {
       return errorResponse("VALIDATION_ERROR", "No contact email available")
     }
 
+    // Resolve sender from ChannelConnection if available
+    let connectionSender: ConnectionSender | null = null
+    if (conv.connectionId) {
+      const conn = await db.channelConnection.findUnique({
+        where: { id: conv.connectionId },
+        select: { config: true, externalAccountId: true },
+      })
+      if (conn) {
+        const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
+        connectionSender = {
+          fromEmail: cfg?.fromEmail || conn.externalAccountId || "",
+          fromName: cfg?.fromName || null,
+        }
+        if (!connectionSender.fromEmail) connectionSender = null
+      }
+    }
+
+    const fromAddress = connectionSender?.fromEmail
+      || process.env.INBOX_FROM_EMAIL
+      || process.env.RESEND_FROM_EMAIL
+      || undefined
+
     const mode = (meta.mode as "reply" | "reply_all" | "forward") ?? "reply"
     const cc = Array.isArray(meta.cc) ? meta.cc as string[] : []
     const bcc = Array.isArray(meta.bcc) ? meta.bcc as string[] : []
     const to = Array.isArray(meta.to) ? meta.to as string[] : []
     const attachments = Array.isArray(meta.attachments) ? meta.attachments as Array<{ filename: string; url: string; contentType: string }> : []
 
-    console.log(`[email-retry] Retrying msg=${messageId} conv=${id} to=${contactEmail}`)
+    console.log(`[email-retry] Retrying msg=${messageId} conv=${id} to=${contactEmail} from=${fromAddress}`)
 
     const result = await sendOutboundEmail({
       workspaceName: conv.workspace.nombre,
@@ -62,6 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       messageContent: message.content,
       workspaceConfig: conv.workspace.config,
       mode,
+      connectionSender,
       ...(cc.length > 0 ? { cc } : {}),
       ...(bcc.length > 0 ? { bcc } : {}),
       ...(to.length > 0 ? { to } : {}),
@@ -78,6 +102,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           emailStatus: newStatus,
           ...(result.id ? { resendId: result.id } : {}),
           ...(result.ok ? { emailError: undefined } : { emailError: result.error }),
+          ...(fromAddress ? { fromAddress } : {}),
           emailRetryAt: new Date().toISOString(),
         }),
       },

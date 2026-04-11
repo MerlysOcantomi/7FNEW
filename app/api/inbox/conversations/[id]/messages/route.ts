@@ -4,7 +4,7 @@ import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
-import { sendOutboundEmail } from "@modules/inbox/email-outbound"
+import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
@@ -52,6 +52,16 @@ export async function POST(request: NextRequest, { params }: Params) {
       ? { ...metaBase, ...emailFields }
       : metadata
 
+    // Resolve connectionId from conversation for outbound messages
+    let convConnectionId: string | null = null
+    if (direction === "outbound" && !isInternal) {
+      const convForConn = await db.conversation.findFirst({
+        where: { id, workspaceId },
+        select: { connectionId: true },
+      })
+      convConnectionId = convForConn?.connectionId ?? null
+    }
+
     const message = await addMessage({
       workspaceId,
       conversationId: id,
@@ -62,6 +72,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       isInternal,
       metadata: enrichedMetadata,
       sourceMessageId,
+      connectionId: convConnectionId,
     })
 
     if (!message) {
@@ -88,7 +99,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         .catch(() => null)
     }
 
-    let emailMeta: { emailSent?: boolean; emailError?: string; emailStatus?: string } | undefined
+    let emailMeta: { emailSent?: boolean; emailError?: string; emailStatus?: string; fromAddress?: string } | undefined
 
     if (direction === "outbound" && !isInternal) {
       const conv = await db.conversation.findFirst({
@@ -96,6 +107,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         select: {
           channel: true,
           subject: true,
+          connectionId: true,
           contact: { select: { email: true } },
           workspace: { select: { nombre: true, config: true } },
         },
@@ -107,6 +119,28 @@ export async function POST(request: NextRequest, { params }: Params) {
           let emailStatus = "pending"
           let emailError: string | undefined
           let resendId: string | undefined
+          let fromAddress: string | undefined
+
+          let connectionSender: ConnectionSender | null = null
+          if (conv.connectionId) {
+            const conn = await db.channelConnection.findUnique({
+              where: { id: conv.connectionId },
+              select: { config: true, externalAccountId: true },
+            })
+            if (conn) {
+              const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
+              connectionSender = {
+                fromEmail: cfg?.fromEmail || conn.externalAccountId || "",
+                fromName: cfg?.fromName || null,
+              }
+              if (!connectionSender.fromEmail) connectionSender = null
+            }
+          }
+
+          fromAddress = connectionSender?.fromEmail
+            || process.env.INBOX_FROM_EMAIL
+            || process.env.RESEND_FROM_EMAIL
+            || undefined
 
           try {
             const result = await sendOutboundEmail({
@@ -116,6 +150,7 @@ export async function POST(request: NextRequest, { params }: Params) {
               messageContent: message.content,
               workspaceConfig: conv.workspace.config,
               mode: sendMode,
+              connectionSender,
               ...(parsedAttachments.length > 0 ? { attachments: parsedAttachments } : {}),
               ...(parsedCc.length > 0 ? { cc: parsedCc } : {}),
               ...(parsedBcc.length > 0 ? { bcc: parsedBcc } : {}),
@@ -125,7 +160,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             if (result.ok) {
               emailStatus = "sent"
               resendId = result.id
-              console.log(`[email-outbound] OK conv=${id} msg=${message.id} to=${contactEmail} resendId=${result.id}`)
+              console.log(`[email-outbound] OK conv=${id} msg=${message.id} to=${contactEmail} from=${fromAddress} resendId=${result.id}`)
             } else {
               emailStatus = "failed"
               emailError = result.error || "Email delivery failed"
@@ -141,6 +176,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             emailSent: emailStatus === "sent",
             ...(emailError ? { emailError } : {}),
             emailStatus,
+            ...(fromAddress ? { fromAddress } : {}),
           }
 
           try {
@@ -153,6 +189,7 @@ export async function POST(request: NextRequest, { params }: Params) {
                   emailStatus,
                   ...(resendId ? { resendId } : {}),
                   ...(emailError ? { emailError } : {}),
+                  ...(fromAddress ? { fromAddress } : {}),
                   emailAttemptedAt: new Date().toISOString(),
                 }),
               },
