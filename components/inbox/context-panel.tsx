@@ -229,7 +229,7 @@ export function ContextPanel({
 
       {/* Assignment Management - only for shared channels */}
       {(selected.channel === 'web_chat' || selected.channel === 'portal') && (
-        <div className="rounded-[var(--inbox-radius-card)] border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]/88 p-5 shadow-[var(--inbox-shadow-card)]">
+        <div className="rounded-[var(--inbox-radius-card)] border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-5 shadow-[var(--inbox-shadow-card)]">
           <div className="mb-4">
             <div className="flex items-center gap-2.5 text-base font-semibold text-[var(--inbox-intelligence-text)]">
               <Users className="h-5 w-5 text-[var(--inbox-intelligence-text-secondary)]" />
@@ -247,7 +247,7 @@ export function ContextPanel({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">
-                  <span className="text-[var(--inbox-text-secondary)]">Unassigned</span>
+                  <span className="text-[var(--inbox-intelligence-text-secondary)]">Unassigned</span>
                 </SelectItem>
                 {members.map((member) => (
                   <SelectItem key={member.userId} value={member.userId}>
@@ -261,7 +261,7 @@ export function ContextPanel({
               </SelectContent>
             </Select>
             {assignSaving && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-[var(--inbox-text-secondary)]">
+              <div className="mt-2 flex items-center gap-2 text-xs text-[var(--inbox-intelligence-text-secondary)]">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Updating assignment...
               </div>
