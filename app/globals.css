@@ -74,6 +74,32 @@
 
   --surface-selected: #E9E2FF;
   --surface-hover: #F7F4FB;
+  --surface-card: var(--surface-1);
+  --surface-card-foreground: var(--text-primary-dark);
+  --surface-card-border: var(--border-light);
+  --surface-overlay: var(--app-surface-dark-elevated);
+  --surface-overlay-foreground: var(--text-primary-light);
+  --surface-overlay-muted: var(--text-secondary-light);
+  --surface-overlay-border: var(--border-dark);
+
+  /* Shadcn/base tokens remapped to premium system */
+  --background: var(--surface-1);
+  --foreground: var(--text-primary-dark);
+  --card: var(--surface-card);
+  --card-foreground: var(--surface-card-foreground);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--surface-overlay-foreground);
+  --primary: var(--accent-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--surface-hover);
+  --secondary-foreground: var(--text-primary-dark);
+  --muted: var(--surface-1);
+  --muted-foreground: var(--text-secondary-dark);
+  --accent: var(--accent-soft);
+  --accent-foreground: var(--text-primary-dark);
+  --border: var(--border-light);
+  --input: var(--border-light);
+  --ring: rgba(124, 77, 255, 0.32);
 
   /* ==========================================================
      INBOX TOKENS — MAPEADOS DESDE EL SISTEMA

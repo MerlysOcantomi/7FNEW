@@ -41,18 +41,18 @@ export function BusinessContextCard({
   alerts,
 }: BusinessContextCardProps) {
   return (
-    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-border)] bg-[var(--inbox-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
+    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
       <Collapsible open={expanded} onOpenChange={onExpandedChange}>
         <CardHeader className="px-4 py-0">
           <CollapsibleTrigger asChild>
-            <button className="flex w-full items-center justify-between gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-text)]">
+            <button className="flex w-full items-center justify-between gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-intelligence-text)]">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-white/6 text-[var(--inbox-intelligence-text-secondary)]">
                   <Briefcase className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <CardTitle className="text-sm text-[var(--inbox-text)]">Business context</CardTitle>
-                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                  <CardTitle className="text-sm text-[var(--inbox-intelligence-text)]">Business context</CardTitle>
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
                     {summaryLabel}
                   </p>
                   {summaryMeta.length > 0 && (
@@ -60,7 +60,7 @@ export function BusinessContextCard({
                       {summaryMeta.map((item) => (
                         <span
                           key={item}
-                          className="rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+                          className="rounded-full border border-[var(--inbox-intelligence-border)] bg-white/6 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]"
                         >
                           {item}
                         </span>
@@ -71,16 +71,16 @@ export function BusinessContextCard({
               </div>
 
               {expanded ? (
-                <ChevronDown className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+                <ChevronDown className="h-4 w-4 text-[var(--inbox-intelligence-text-secondary)]" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+                <ChevronRight className="h-4 w-4 text-[var(--inbox-intelligence-text-secondary)]" />
               )}
             </button>
           </CollapsibleTrigger>
         </CardHeader>
 
         <CollapsibleContent>
-          <CardContent className="space-y-3 border-t border-[var(--inbox-divider)] px-4 py-4">
+          <CardContent className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-4">
             {core.map((section) => (
               <ContextSection
                 key={section.title}

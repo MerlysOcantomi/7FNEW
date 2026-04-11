@@ -56,7 +56,7 @@ export function MessageIntelligenceCard({
   stateMessage,
 }: MessageIntelligenceCardProps) {
   return (
-    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-border)] bg-[var(--inbox-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
+    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
       <CardHeader className="px-4 py-4">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
@@ -66,8 +66,8 @@ export function MessageIntelligenceCard({
           <div className="min-w-0 flex-1 space-y-2.5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <CardTitle className="text-sm text-[var(--inbox-text)]">Situation</CardTitle>
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                <CardTitle className="text-sm text-[var(--inbox-intelligence-text)]">Situation</CardTitle>
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
                   {summary}
                 </p>
               </div>
@@ -89,7 +89,7 @@ export function MessageIntelligenceCard({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="h-7 w-7 rounded-[var(--inbox-radius-control)] text-[var(--inbox-text-secondary)] hover:bg-[var(--inbox-background)]"
+                    className="h-7 w-7 rounded-[var(--inbox-radius-control)] text-[var(--inbox-intelligence-text-secondary)] hover:bg-white/8"
                   onClick={() => onExpandedChange(!expanded)}
                   title={expanded ? "Collapse" : "Expand"}
                 >
@@ -108,12 +108,12 @@ export function MessageIntelligenceCard({
                 </span>
               )}
               {intent && (
-                <span className="rounded-full border border-[var(--inbox-divider)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+                <span className="rounded-full border border-[var(--inbox-intelligence-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
                   {intent}
                 </span>
               )}
               {sentiment && (
-                <span className="rounded-full border border-[var(--inbox-divider)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+                <span className="rounded-full border border-[var(--inbox-intelligence-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
                   {sentiment}
                 </span>
               )}
@@ -125,9 +125,9 @@ export function MessageIntelligenceCard({
             </div>
 
             {!expanded && nextRecommendedAction && (
-              <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Next step</p>
-                <p className="mt-0.5 text-xs font-medium leading-relaxed text-[var(--inbox-text)]">
+              <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Next step</p>
+                <p className="mt-0.5 text-xs font-medium leading-relaxed text-[var(--inbox-intelligence-text)]">
                   {nextRecommendedAction}
                 </p>
               </div>
@@ -137,69 +137,69 @@ export function MessageIntelligenceCard({
       </CardHeader>
 
       {expanded && (
-        <CardContent className="space-y-3 border-t border-[var(--inbox-divider)] px-4 py-3.5">
+        <CardContent className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3.5">
           <div className="grid gap-2 sm:grid-cols-3">
-            <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Intent</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-text)]">{intent || "Unclassified"}</p>
+            <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Intent</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-intelligence-text)]">{intent || "Unclassified"}</p>
             </div>
-            <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Sentiment</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-text)]">{sentiment || "Unknown"}</p>
+            <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Sentiment</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-intelligence-text)]">{sentiment || "Unknown"}</p>
             </div>
-            <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Urgency</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-text)]">{urgencyLabel || "Normal"}</p>
+            <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Urgency</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--inbox-intelligence-text)]">{urgencyLabel || "Normal"}</p>
             </div>
           </div>
 
           {(risksCount > 0 || pendingItemsCount > 0) && (
             <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Risk signals</p>
-                <p className="mt-0.5 text-xs font-medium text-[var(--inbox-text)]">{risksCount}</p>
+              <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Risk signals</p>
+                <p className="mt-0.5 text-xs font-medium text-[var(--inbox-intelligence-text)]">{risksCount}</p>
               </div>
-              <div className="rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">Pending</p>
-                <p className="mt-0.5 text-xs font-medium text-[var(--inbox-text)]">{pendingItemsCount}</p>
+              <div className="rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">Pending</p>
+                <p className="mt-0.5 text-xs font-medium text-[var(--inbox-intelligence-text)]">{pendingItemsCount}</p>
               </div>
             </div>
           )}
 
           {translationHint && (
-            <div className="flex items-start gap-2 rounded-[8px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 px-3 py-2">
+            <div className="flex items-start gap-2 rounded-[8px] border border-[var(--inbox-intelligence-border)] bg-white/6 px-3 py-2">
               <Languages className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-              <p className="text-xs leading-relaxed text-[var(--inbox-text-secondary)]">{translationHint}</p>
+              <p className="text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">{translationHint}</p>
             </div>
           )}
 
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">
               Summary
             </p>
             <InlineTextarea
               value={detailSummary || ""}
               placeholder="Add intelligence summary..."
-              className="mt-0 rounded-[8px] bg-[var(--inbox-background)]/60"
+              className="mt-0 rounded-[8px] bg-white/6 text-[var(--inbox-intelligence-text)]"
               rows={3}
               onSave={onSaveSummary}
             />
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-muted)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--inbox-intelligence-text-secondary)]">
               Next recommended action
             </p>
             <InlineTextarea
               value={detailNextRecommendedAction || ""}
               placeholder="Add recommended next step..."
-              className="mt-0 rounded-[8px] bg-[var(--inbox-background)]/60"
+              className="mt-0 rounded-[8px] bg-white/6 text-[var(--inbox-intelligence-text)]"
               rows={2}
               onSave={onSaveNextRecommendedAction}
             />
           </div>
 
-          {stateMessage && <p className="text-xs text-[var(--inbox-muted)]">{stateMessage}</p>}
+          {stateMessage && <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">{stateMessage}</p>}
         </CardContent>
       )}
     </Card>

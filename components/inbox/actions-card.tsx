@@ -69,24 +69,24 @@ export function ActionsCard({
   ]
 
   return (
-    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-border)] bg-[var(--inbox-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
+    <Card className="gap-0 overflow-hidden rounded-[var(--inbox-radius-panel)] border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] py-0 shadow-[var(--inbox-panel-shadow-sm)]">
       <Collapsible open={expanded} onOpenChange={onExpandedChange}>
         <CardHeader className="px-4 py-0">
           <CollapsibleTrigger asChild>
-            <button className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-text)]">
+            <button className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-4 text-left transition-colors hover:text-[var(--inbox-intelligence-text)]">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-white/6 text-[var(--inbox-intelligence-text-secondary)]">
                   <WandSparkles className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <CardTitle className="text-sm text-[var(--inbox-text)]">Actions</CardTitle>
-                  <p className="mt-1 text-xs text-[var(--inbox-text-secondary)]">
+                  <CardTitle className="text-sm text-[var(--inbox-intelligence-text)]">Actions</CardTitle>
+                  <p className="mt-1 text-xs text-[var(--inbox-intelligence-text-secondary)]">
                     {actions.length > 0
                       ? `${actions.length} action${actions.length === 1 ? "" : "s"} available`
                       : "No actions available yet"}
                   </p>
                   {collapsedHint && (
-                    <p className="mt-1 truncate text-[11px] text-[var(--inbox-muted)]">
+                    <p className="mt-1 truncate text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
                       {primaryAction ? `Suggested now: ${collapsedHint}` : collapsedHint}
                     </p>
                   )}
@@ -100,9 +100,9 @@ export function ActionsCard({
                   </span>
                 )}
                 {expanded ? (
-                  <ChevronDown className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+                  <ChevronDown className="h-4 w-4 text-[var(--inbox-intelligence-text-secondary)]" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
+                  <ChevronRight className="h-4 w-4 text-[var(--inbox-intelligence-text-secondary)]" />
                 )}
               </div>
             </button>
@@ -110,7 +110,7 @@ export function ActionsCard({
         </CardHeader>
 
         <CollapsibleContent>
-          <CardContent className="space-y-4 border-t border-[var(--inbox-divider)] px-4 py-4">
+          <CardContent className="space-y-4 border-t border-[var(--inbox-intelligence-border)] px-4 py-4">
             {primaryAction ? (
               <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-accent-soft)]/30 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-accent)]">
@@ -118,11 +118,11 @@ export function ActionsCard({
                 </p>
                 <div className="mt-2 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[var(--inbox-text)]">
+                    <p className="text-sm font-semibold text-[var(--inbox-intelligence-text)]">
                       {getActionTitle(primaryAction, actionTypeLabel)}
                     </p>
                     {getActionDescription(primaryAction) && (
-                      <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
                         {getActionDescription(primaryAction)}
                       </p>
                     )}
@@ -188,11 +188,11 @@ export function ActionsCard({
                 )}
               </div>
             ) : (
-              <div className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
+              <div className="rounded-[10px] border border-[var(--inbox-intelligence-border)] bg-white/6 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-intelligence-text-secondary)]">
                   Recommended now
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
                   {channelReadiness.primaryHint}
                 </p>
               </div>
@@ -200,18 +200,18 @@ export function ActionsCard({
 
             <div className="grid gap-3">
               {categorizedActions.filter((group) => group.items.length > 0).map((group) => (
-                <div key={group.key} className="rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/38 p-3">
+                <div key={group.key} className="rounded-[10px] border border-[var(--inbox-intelligence-border)] bg-white/6 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--inbox-surface)] text-[var(--inbox-text-secondary)]">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-white/8 text-[var(--inbox-intelligence-text-secondary)]">
                         <group.icon className="h-3.5 w-3.5" />
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-[var(--inbox-text)]">{group.label}</p>
-                        <p className="text-[11px] text-[var(--inbox-text-secondary)]">{group.helper}</p>
+                        <p className="text-xs font-semibold text-[var(--inbox-intelligence-text)]">{group.label}</p>
+                        <p className="text-[11px] text-[var(--inbox-intelligence-text-secondary)]">{group.helper}</p>
                       </div>
                     </div>
-                    <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+                    <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--inbox-intelligence-border)] bg-white/8 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
                       {group.items.length}
                     </span>
                   </div>
@@ -221,13 +221,13 @@ export function ActionsCard({
                       {group.items.map((action) => {
                         const isPending = pendingActionId === action.id
                         return (
-                          <div key={action.id} className="flex items-start justify-between gap-3 rounded-[8px] bg-[var(--inbox-surface)] px-3 py-2.5">
+                          <div key={action.id} className="flex items-start justify-between gap-3 rounded-[8px] bg-white/8 px-3 py-2.5">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-[var(--inbox-text)]">
+                              <p className="truncate text-sm font-medium text-[var(--inbox-intelligence-text)]">
                                 {getActionTitle(action, actionTypeLabel)}
                               </p>
                               {getActionDescription(action) && (
-                                <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-text-secondary)]">
+                                <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
                                   {getActionDescription(action)}
                                 </p>
                               )}
@@ -271,14 +271,14 @@ export function ActionsCard({
                       })}
                     </div>
                   ) : (
-                    <p className="mt-3 text-xs text-[var(--inbox-muted)]">{group.emptyText}</p>
+                    <p className="mt-3 text-xs text-[var(--inbox-intelligence-text-secondary)]">{group.emptyText}</p>
                   )}
                 </div>
               ))}
             </div>
 
-            <div className="rounded-[10px] border border-dashed border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
+            <div className="rounded-[10px] border border-dashed border-[var(--inbox-intelligence-border)] bg-white/6 p-3">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-intelligence-text-secondary)]">
                 Quick conversions
               </p>
               <div className="flex flex-wrap gap-2">

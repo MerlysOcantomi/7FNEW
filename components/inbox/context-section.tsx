@@ -25,16 +25,16 @@ export function ContextSection({
   const visibleItems = items.filter((item) => item.value !== null && item.value !== undefined && `${item.value}`.trim() !== "")
 
   return (
-    <section className="space-y-3 rounded-[10px] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/44 p-3">
+    <section className="space-y-3 rounded-[10px] border border-[var(--inbox-intelligence-border)] bg-white/6 p-3">
       <div className="space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-muted)]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--inbox-intelligence-text-secondary)]">
           {title}
         </p>
-        {summary && <p className="text-xs leading-relaxed text-[var(--inbox-text-secondary)]">{summary}</p>}
+        {summary && <p className="text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">{summary}</p>}
       </div>
 
       {visibleItems.length === 0 ? (
-        <p className="text-xs text-[var(--inbox-muted)]">{emptyLabel}</p>
+        <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">{emptyLabel}</p>
       ) : (
         <div className="space-y-2">
           {visibleItems.map((item) => {
@@ -42,12 +42,12 @@ export function ContextSection({
               item.tone === "accent"
                 ? "text-[var(--inbox-accent)]"
                 : item.tone === "warning"
-                  ? "text-amber-700"
-                  : "text-[var(--inbox-text)]"
+                  ? "text-[var(--inbox-warning)]"
+                  : "text-[var(--inbox-intelligence-text)]"
 
             return (
               <div key={`${title}-${item.label}`} className="flex items-start justify-between gap-3 text-sm">
-                <span className="min-w-0 text-[var(--inbox-text-secondary)]">{item.label}</span>
+                <span className="min-w-0 text-[var(--inbox-intelligence-text-secondary)]">{item.label}</span>
                 {item.href ? (
                   <a
                     href={item.href}
