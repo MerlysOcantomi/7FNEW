@@ -315,41 +315,86 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
 
   console.log(`[email-inbound] Parsed email=${resendEmailId} from=${senderEmail} subject="${subject}" attachments=${email.attachments?.length ?? 0}`)
 
-  // ---- 2. Resolve contact & workspace ----
-  const existingContact = await db.contact.findFirst({
-    where: { email: senderEmail },
-    orderBy: { lastSeenAt: "desc" },
-  })
+  // ---- 2. Resolve workspace via ChannelConnection (by recipient address) ----
+  // Try to determine workspace from the email's "to" addresses by matching
+  // against ChannelConnection.externalAccountId. This is the primary routing
+  // mechanism for multi-email workspaces.
+  const recipientAddresses = (email.to ?? []).map(extractEmailAddress)
 
-  let workspaceId: string
+  let connectionId: string | null = null
+  let workspaceId: string | undefined
+
+  if (recipientAddresses.length > 0) {
+    const connection = await db.channelConnection.findFirst({
+      where: {
+        channelType: "email",
+        status: "active",
+        externalAccountId: { in: recipientAddresses },
+      },
+      select: { id: true, workspaceId: true },
+    })
+
+    if (connection) {
+      workspaceId = connection.workspaceId
+      connectionId = connection.id
+      console.log(`[email-inbound] Routed by connection=${connection.id} workspace=${workspaceId} to=${recipientAddresses.join(",")}`)
+    }
+  }
+
+  // ---- 2b. Resolve contact (workspace-scoped) ----
+  // If no connection matched, fall back to existing contact lookup (now
+  // workspace-scoped when possible) or DEFAULT_WORKSPACE_ID / first workspace.
   let contactId: string
 
-  if (existingContact) {
-    workspaceId = existingContact.workspaceId
-    contactId = existingContact.id
-    await db.contact.update({
-      where: { id: contactId },
-      data: { lastSeenAt: new Date() },
+  if (workspaceId) {
+    // Workspace known from connection — scope contact search to it
+    const existingContact = await db.contact.findFirst({
+      where: { email: senderEmail, workspaceId },
+      orderBy: { lastSeenAt: "desc" },
     })
+
+    if (existingContact) {
+      contactId = existingContact.id
+      await db.contact.update({
+        where: { id: contactId },
+        data: { lastSeenAt: new Date() },
+      })
+    } else {
+      const contact = await db.contact.create({
+        data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
+      })
+      contactId = contact.id
+    }
   } else {
-    const defaultWsId = process.env.DEFAULT_WORKSPACE_ID
-    const workspace = defaultWsId
-      ? await db.workspace.findUnique({ where: { id: defaultWsId } })
-      : await db.workspace.findFirst({ orderBy: { createdAt: "asc" } })
-
-    if (!workspace) throw new Error("No workspace available for inbound email")
-    workspaceId = workspace.id
-
-    const contact = await db.contact.create({
-      data: {
-        workspaceId,
-        email: senderEmail,
-        nombre: senderName,
-        canal: "email",
-        tipo: "visitante",
-      },
+    // No connection found — fallback: try to find contact scoped to any workspace,
+    // then fall back to DEFAULT_WORKSPACE_ID or first workspace.
+    const existingContact = await db.contact.findFirst({
+      where: { email: senderEmail },
+      orderBy: { lastSeenAt: "desc" },
     })
-    contactId = contact.id
+
+    if (existingContact) {
+      workspaceId = existingContact.workspaceId
+      contactId = existingContact.id
+      await db.contact.update({
+        where: { id: contactId },
+        data: { lastSeenAt: new Date() },
+      })
+    } else {
+      // Last resort: default workspace (temporary fallback for workspaces without connections)
+      const defaultWsId = process.env.DEFAULT_WORKSPACE_ID
+      const workspace = defaultWsId
+        ? await db.workspace.findUnique({ where: { id: defaultWsId } })
+        : await db.workspace.findFirst({ orderBy: { createdAt: "asc" } })
+
+      if (!workspace) throw new Error("No workspace available for inbound email")
+      workspaceId = workspace.id
+
+      const contact = await db.contact.create({
+        data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
+      })
+      contactId = contact.id
+    }
   }
 
   // ---- 3. Match conversation (thread-first, contact-fallback, new) ----
@@ -373,6 +418,7 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
         data: {
           workspaceId,
           contactId,
+          connectionId,
           channel: "email",
           source: "email",
           status: "new",
@@ -406,6 +452,7 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     direction: "inbound",
     content,
     contentType: "text",
+    connectionId,
     metadata: {
       resendEmailId: email.id,
       emailMessageId: email.message_id,
@@ -415,6 +462,7 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
       emailSubject: subject,
       inReplyTo,
       references,
+      ...(connectionId ? { connectionId } : {}),
       ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
     },
   })

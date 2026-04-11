@@ -11,6 +11,12 @@ export interface OutboundAttachment {
 
 export type EmailSendMode = "reply" | "reply_all" | "forward"
 
+/** Resolved sender info from a ChannelConnection, if available. */
+export interface ConnectionSender {
+  fromEmail: string
+  fromName?: string | null
+}
+
 export interface SendOutboundEmailInput {
   workspaceName: string
   contactEmail: string
@@ -24,6 +30,8 @@ export interface SendOutboundEmailInput {
   /** Override recipients (used by reply-all extra recipients or forward). */
   to?: string[]
   mode?: EmailSendMode
+  /** Per-connection sender override. Takes priority over env vars. */
+  connectionSender?: ConnectionSender | null
 }
 
 function ensureRePrefix(subject: string): string {
@@ -40,13 +48,17 @@ function sanitizeDisplayName(name: string): string {
  * Resolve the inbox sender address.
  *
  * Priority:
- *   1. `displayName` (workspace name or ack config) + INBOX_FROM_EMAIL
- *   2. INBOX_FROM_NAME + INBOX_FROM_EMAIL  (global fallback with branding)
- *   3. RESEND_FROM_EMAIL                   (bare-minimum fallback)
- *
- * Future: accept per-workspace sender from workspace.config.
+ *   1. connectionSender (from ChannelConnection.config) — per-connection override
+ *   2. `displayName` (workspace name or ack config) + INBOX_FROM_EMAIL
+ *   3. INBOX_FROM_NAME + INBOX_FROM_EMAIL  (global fallback with branding)
+ *   4. RESEND_FROM_EMAIL                   (bare-minimum fallback)
  */
-function resolveInboxFrom(displayName?: string): string | undefined {
+function resolveInboxFrom(displayName?: string, connectionSender?: ConnectionSender | null): string | undefined {
+  if (connectionSender?.fromEmail) {
+    const name = connectionSender.fromName || displayName || process.env.INBOX_FROM_NAME
+    return name ? `${sanitizeDisplayName(name)} <${connectionSender.fromEmail}>` : connectionSender.fromEmail
+  }
+
   const email = process.env.INBOX_FROM_EMAIL || process.env.RESEND_FROM_EMAIL
   if (!email) return undefined
 
@@ -130,7 +142,7 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
 export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<SendEmailResult> {
   const t = getTranslations(resolveLocaleFromConfig(input.workspaceConfig))
   const displayName = sanitizeDisplayName(input.workspaceName)
-  const from = resolveInboxFrom(displayName)
+  const from = resolveInboxFrom(displayName, input.connectionSender)
   const mode = input.mode ?? "reply"
 
   const subjectBase = input.subject?.trim() || t.email.outbound.defaultSubject

@@ -60,6 +60,7 @@ model Workspace {
   conversationDrafts ConversationDraft[]
   conversationReads ConversationRead[]
   forteSnapshot  ForteSnapshot?
+  channelConnections ChannelConnection[]
 }
 
 model Cliente {
@@ -392,6 +393,7 @@ model Conversation {
   lastMessageAt DateTime @default(now())
   messageCount  Int      @default(0)
   closedAt      DateTime?
+  connectionId  String?
   workspaceId   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -400,6 +402,7 @@ model Conversation {
   contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
   cliente        Cliente?             @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   proyecto       Proyecto?            @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+  connection     ChannelConnection?   @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   messages       Message[]
   actions        ConversationAction[]
   classification AIClassification?
@@ -414,6 +417,7 @@ model Conversation {
   @@index([contactId])
   @@index([clienteId])
   @@index([proyectoId])
+  @@index([connectionId])
 }
 
 model ConversationRead {
@@ -441,11 +445,13 @@ model Message {
   metadata        String?
   isInternal      Boolean  @default(false)
   sourceMessageId String?
+  connectionId    String?
   workspaceId     String
   createdAt       DateTime @default(now())
 
-  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  connection   ChannelConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
 
   @@index([conversationId, createdAt])
   @@index([workspaceId, createdAt])
@@ -817,6 +823,30 @@ model Attachment {
   createdAt   DateTime @default(now())
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+// ── Channel Connections (multi-channel inbox) ──
+
+model ChannelConnection {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  channelType       String   // "email" | "whatsapp" | "web_chat"
+  provider          String   // "resend" | "twilio" | "meta"
+  name              String   // human-readable label, e.g. "inbox@skina.digital"
+  config            String?  // JSON: { fromEmail, fromName, apiKey?, ... }
+  status            String   @default("active")
+  externalAccountId String?  // email address, phone number, etc.
+  isDefault         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  messages      Message[]
+
+  @@index([workspaceId, channelType])
+  @@index([workspaceId, status])
+  @@unique([workspaceId, externalAccountId])
 }
 
 // ── Forte Analysis Snapshot ──
