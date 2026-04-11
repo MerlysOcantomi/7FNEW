@@ -125,15 +125,28 @@ export async function POST(request: NextRequest, { params }: Params) {
           if (conv.connectionId) {
             const conn = await db.channelConnection.findUnique({
               where: { id: conv.connectionId },
-              select: { config: true, externalAccountId: true },
+              select: { provider: true, config: true, credentials: true, externalAccountId: true },
             })
             if (conn) {
               const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
-              connectionSender = {
-                fromEmail: cfg?.fromEmail || conn.externalAccountId || "",
-                fromName: cfg?.fromName || null,
+              const fromEmail = cfg?.fromEmail || conn.externalAccountId || ""
+              if (fromEmail) {
+                connectionSender = {
+                  fromEmail,
+                  fromName: cfg?.fromName || null,
+                  provider: conn.provider as "resend" | "imap_smtp",
+                }
+                if (conn.provider === "imap_smtp" && conn.credentials && cfg) {
+                  connectionSender.smtpConfig = {
+                    smtpHost: cfg.smtpHost || "",
+                    smtpPort: Number(cfg.smtpPort) || 465,
+                    smtpSecure: cfg.smtpSecure !== "false",
+                    fromEmail,
+                    fromName: cfg.fromName || null,
+                  }
+                  connectionSender.encryptedCredentials = conn.credentials
+                }
               }
-              if (!connectionSender.fromEmail) connectionSender = null
             }
           }
 

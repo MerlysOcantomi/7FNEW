@@ -828,17 +828,20 @@ model Attachment {
 // ── Channel Connections (multi-channel inbox) ──
 
 model ChannelConnection {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   workspaceId       String
-  channelType       String   // "email" | "whatsapp" | "web_chat"
-  provider          String   // "resend" | "twilio" | "meta"
-  name              String   // human-readable label, e.g. "inbox@skina.digital"
-  config            String?  // JSON: { fromEmail, fromName, apiKey?, ... }
-  status            String   @default("active")
-  externalAccountId String?  // email address, phone number, etc.
-  isDefault         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  channelType       String    // "email" | "whatsapp" | "web_chat"
+  provider          String    // "resend" | "imap_smtp" | "twilio" | "meta"
+  name              String    // human-readable label, e.g. "inbox@skina.digital"
+  config            String?   // JSON: { fromEmail, fromName, imapHost?, smtpHost?, ... }
+  credentials       String?   // AES-256-GCM encrypted JSON (passwords, tokens)
+  status            String    @default("active")
+  externalAccountId String?   // email address, phone number, etc.
+  isDefault         Boolean   @default(false)
+  lastSyncAt        DateTime?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations Conversation[]

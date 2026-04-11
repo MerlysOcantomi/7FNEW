@@ -1,4 +1,5 @@
 import { sendEmail, type SendEmailResult } from "@core/email"
+import { sendEmailSmtp, type SmtpConnectionConfig } from "./email-smtp"
 import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
 import { logActivity } from "@core/activity"
 import { getTranslations, resolveLocaleFromConfig } from "@core/i18n"
@@ -15,6 +16,10 @@ export type EmailSendMode = "reply" | "reply_all" | "forward"
 export interface ConnectionSender {
   fromEmail: string
   fromName?: string | null
+  /** When set, send via SMTP instead of Resend. */
+  provider?: "resend" | "imap_smtp"
+  smtpConfig?: SmtpConnectionConfig
+  encryptedCredentials?: string
 }
 
 export interface SendOutboundEmailInput {
@@ -142,7 +147,6 @@ export async function sendAcknowledgmentEmail(input: SendAcknowledgmentInput): P
 export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<SendEmailResult> {
   const t = getTranslations(resolveLocaleFromConfig(input.workspaceConfig))
   const displayName = sanitizeDisplayName(input.workspaceName)
-  const from = resolveInboxFrom(displayName, input.connectionSender)
   const mode = input.mode ?? "reply"
 
   const subjectBase = input.subject?.trim() || t.email.outbound.defaultSubject
@@ -156,7 +160,33 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
   const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>`
 
   const recipients = resolveRecipients(input)
+  const cs = input.connectionSender
 
+  // Dispatch via SMTP when the connection uses imap_smtp provider
+  if (cs?.provider === "imap_smtp" && cs.smtpConfig && cs.encryptedCredentials) {
+    return sendEmailSmtp({
+      connectionConfig: cs.smtpConfig,
+      encryptedCredentials: cs.encryptedCredentials,
+      to: recipients,
+      subject,
+      text: bodyText,
+      html: bodyHtml,
+      ...(input.cc?.length ? { cc: input.cc } : {}),
+      ...(input.bcc?.length ? { bcc: input.bcc } : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              path: a.url,
+              contentType: a.contentType,
+            })),
+          }
+        : {}),
+    })
+  }
+
+  // Default: send via Resend
+  const from = resolveInboxFrom(displayName, cs)
   return sendEmail({
     to: recipients,
     from,
@@ -167,12 +197,12 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
     ...(input.bcc?.length ? { bcc: input.bcc } : {}),
     ...(input.attachments?.length
       ? {
-          attachments: input.attachments.map((a) => ({
-            filename: a.filename,
-            path: a.url,
-            contentType: a.contentType,
-          })),
-        }
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              path: a.url,
+              contentType: a.contentType,
+            })),
+          }
       : {}),
   })
 }
