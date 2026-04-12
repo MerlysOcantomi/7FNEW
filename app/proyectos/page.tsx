@@ -3,6 +3,9 @@
 import { useState, useMemo } from "react";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
 import { CopilotPanel } from "@/components/copilot-panel";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { Button } from "@/components/ui/button";
 import {
   Search,
   ChevronDown,
@@ -43,23 +46,23 @@ const PRIORIDAD_OPTIONS = [
 ];
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  planificacion: { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]" },
-  en_progreso: { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
-  revision: { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]" },
-  completado: { bg: "bg-[#F0FDF4]", text: "text-[#166534]" },
-  cancelado: { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
+  planificacion: { bg: "bg-[var(--status-info-bg)]", text: "text-[var(--status-info-text)]" },
+  en_progreso: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+  revision: { bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
+  completado: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+  cancelado: { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" },
 };
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
-      <div className="h-full bg-[#3B82F6] rounded-full" style={{ width: `${Math.min(100, value)}%` }} />
+    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, value)}%` }} />
     </div>
   );
 }
 
 function StatusBadge({ estado }: { estado: string }) {
-  const s = STATUS_STYLE[estado] ?? { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" };
+  const s = STATUS_STYLE[estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
   const label = displayLabel(estado, estadoLabel) || estado;
   return (
     <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", s.bg, s.text)}>
@@ -108,10 +111,10 @@ export default function ProyectosPage() {
       return new Date(p.fechaFin) < hoy;
     }).length;
     return [
-      { label: "In progress", value: String(enProgreso), sub: "Active", icon: Briefcase, color: "text-[#3B82F6]" },
-      { label: "In review", value: String(revision), sub: "Need attention", icon: AlertTriangle, color: "text-[#F59E0B]" },
-      { label: "Overdue", value: String(vencidos), sub: "Past due date", icon: Clock, color: "text-[#EF4444]" },
-      { label: "Completed", value: String(completado), sub: "Finished", icon: CheckCircle2, color: "text-[#22C55E]" },
+      { label: "In progress", value: String(enProgreso), sub: "Active", icon: Briefcase, iconClass: "text-primary" },
+      { label: "In review", value: String(revision), sub: "Need attention", icon: AlertTriangle, iconClass: "text-[var(--status-warning-text)]" },
+      { label: "Overdue", value: String(vencidos), sub: "Past due date", icon: Clock, iconClass: "text-destructive" },
+      { label: "Completed", value: String(completado), sub: "Finished", icon: CheckCircle2, iconClass: "text-[var(--status-success-text)]" },
     ];
   }, [proyectos]);
 
@@ -121,68 +124,65 @@ export default function ProyectosPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
       <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Header */}
-        <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Core</p>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Projects</h1>
-            </div>
-            <button
-              onClick={() => setFormOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors shadow-sm self-start sm:self-auto"
-            >
+        <PageHeader
+          eyebrow="Core"
+          title="Projects"
+          actions={
+            <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />
               New project
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        />
 
         <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8">
           {/* Overview Cards */}
           <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3">
-            {overview.map(({ label, value, sub, icon: Icon, color }) => (
-              <div key={label} className="bg-[#EFF6FF] rounded-xl p-4 shadow-sm">
-                <Icon size={16} className={cn("mb-3", color)} strokeWidth={1.75} />
-                <p className="text-2xl font-bold text-[#0F172A] tracking-tight">{value}</p>
-                <p className="text-xs font-medium text-[#0F172A] mt-0.5">{label}</p>
-                <p className="text-[10px] text-[#64748B]">{sub}</p>
-              </div>
+            {overview.map(({ label, value, sub, icon, iconClass }) => (
+              <StatCard
+                key={label}
+                label={label}
+                value={value}
+                subtitle={sub}
+                icon={icon}
+                iconClassName={iconClass}
+                className="bg-accent shadow-sm"
+              />
             ))}
           </div>
 
           {/* Search + Filters */}
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search projects or clients..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[130px] justify-between"
               >
                 <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
-                <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", statusOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[130px]">
                   {ESTADO_OPTIONS.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt.value ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
+                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt.value ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
                     >
                       {opt.label}
                     </button>
@@ -193,18 +193,18 @@ export default function ProyectosPage() {
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors min-w-[130px] justify-between"
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[130px] justify-between"
               >
                 <span>{PRIORIDAD_OPTIONS.find((o) => o.value === priorityFilter)?.label ?? "Priority"}</span>
-                <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", priorityOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", priorityOpen && "rotate-180")} />
               </button>
               {priorityOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[130px]">
                   {PRIORIDAD_OPTIONS.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setPriorityFilter(opt.value); setPriorityOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", priorityFilter === opt.value ? "bg-[#EFF6FF] text-[#2563EB] font-medium" : "text-[#334155] hover:bg-[#F8FAFC]")}
+                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", priorityFilter === opt.value ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
                     >
                       {opt.label}
                     </button>
@@ -217,64 +217,61 @@ export default function ProyectosPage() {
           {/* Projects List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest">All projects</h2>
-              <span className="text-xs text-[#94A3B8]">{proyectos.length} project{proyectos.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">All projects</h2>
+              <span className="text-xs text-muted-foreground">{proyectos.length} project{proyectos.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-[#94A3B8]" />
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : error ? (
-              <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-8 text-center">
-                <AlertTriangle className="mx-auto h-10 w-10 text-[#EF4444] mb-3" />
-                <p className="text-sm font-medium text-[#991B1B]">{error}</p>
-                <p className="text-xs text-[#B91C1C] mt-1">Projects could not be loaded</p>
+              <div className="bg-destructive/5 rounded-xl border border-destructive/20 p-8 text-center">
+                <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3" />
+                <p className="text-sm font-medium text-destructive">{error}</p>
+                <p className="text-xs text-destructive/80 mt-1">Projects could not be loaded</p>
               </div>
             ) : proyectos.length === 0 ? (
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-16 text-center">
-                <FolderKanban className="mx-auto h-12 w-12 text-[#CBD5E1] mb-4" />
-                <p className="text-sm font-medium text-[#334155]">No projects yet</p>
-                <p className="text-xs text-[#64748B] mt-1">
+              <div className="bg-card rounded-xl border border-border p-16 text-center">
+                <FolderKanban className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-sm font-medium text-foreground">No projects yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   {search || statusFilter || priorityFilter ? "No results for the selected filters." : "Create your first project to get started."}
                 </p>
                 {!search && !statusFilter && !priorityFilter && (
-                  <button
-                    onClick={() => setFormOpen(true)}
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
-                  >
+                  <Button onClick={() => setFormOpen(true)} className="mt-4">
                     <Plus size={14} />
                     New project
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
               <>
                 {/* Desktop list */}
-                <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Project</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Client</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Progress</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Due date</span>
+                <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-muted bg-background">
+                    <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Project</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due date</span>
                     <span className="col-span-1" />
                   </div>
                   {proyectos.map((p: any, i: number) => (
-                    <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < proyectos.length - 1 && "border-b border-[#F1F5F9]")}>
+                    <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-background transition-colors", i < proyectos.length - 1 && "border-b border-muted")}>
                       <div className="col-span-4 min-w-0">
-                        <p className="text-sm font-medium text-[#0F172A] truncate">{p.nombre}</p>
-                        <p className="text-[10px] text-[#64748B]">{p.tags || displayLabel(p.prioridad, prioridadLabel)}</p>
+                        <p className="text-sm font-medium text-foreground truncate">{p.nombre}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.tags || displayLabel(p.prioridad, prioridadLabel)}</p>
                       </div>
-                      <span className="col-span-2 text-sm text-[#64748B] truncate">{p.cliente?.nombre ?? "—"}</span>
+                      <span className="col-span-2 text-sm text-muted-foreground truncate">{p.cliente?.nombre ?? "—"}</span>
                       <div className="col-span-2"><StatusBadge estado={p.estado} /></div>
                       <div className="col-span-2 pr-4">
                         <ProgressBar value={p.progreso ?? 0} />
-                        <p className="text-[10px] text-[#94A3B8] mt-1">{p.progreso ?? 0}%</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{p.progreso ?? 0}%</p>
                       </div>
-                      <span className="col-span-1 text-xs text-[#64748B] whitespace-nowrap">{formatDate(p.fechaFin)}</span>
+                      <span className="col-span-1 text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.fechaFin)}</span>
                       <div className="col-span-1 flex justify-end">
-                        <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                        <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
                           View <ArrowUpRight size={11} />
                         </Link>
                       </div>
@@ -285,19 +282,19 @@ export default function ProyectosPage() {
                 {/* Mobile cards */}
                 <div className="sm:hidden space-y-3">
                   {proyectos.map((p: any) => (
-                    <div key={p.id} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4">
+                    <div key={p.id} className="bg-card rounded-xl border border-border shadow-sm p-4">
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[#0F172A] truncate">{p.nombre}</p>
-                          <p className="text-xs text-[#64748B]">{p.cliente?.nombre ?? "—"} · {displayLabel(p.prioridad, prioridadLabel)}</p>
+                          <p className="text-sm font-semibold text-foreground truncate">{p.nombre}</p>
+                          <p className="text-xs text-muted-foreground">{p.cliente?.nombre ?? "—"} · {displayLabel(p.prioridad, prioridadLabel)}</p>
                         </div>
                         <StatusBadge estado={p.estado} />
                       </div>
                       <div className="mb-3">
                         <ProgressBar value={p.progreso ?? 0} />
-                        <p className="text-[10px] text-[#94A3B8] mt-1">{p.progreso ?? 0}% · Due {formatDate(p.fechaFin)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{p.progreso ?? 0}% · Due {formatDate(p.fechaFin)}</p>
                       </div>
-                      <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
+                      <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-primary font-medium hover:text-primary/80 transition-colors">
                         View project <ArrowUpRight size={11} />
                       </Link>
                     </div>
