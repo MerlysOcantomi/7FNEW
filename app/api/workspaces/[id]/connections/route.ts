@@ -91,7 +91,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     console.log(`${TAG} POST workspace=${id} email=${email} skip=${skipValidation}`)
-    console.log(`${TAG} User-provided: imapHost=${imapHost ?? "(none)"} imapPort=${imapPort ?? "(none)"} smtpHost=${smtpHost ?? "(none)"} smtpPort=${smtpPort ?? "(none)"}`)
+    console.log(`${TAG} Raw body keys: ${Object.keys(body).join(", ")}`)
+    console.log(`${TAG} User-provided: imapHost=${JSON.stringify(imapHost)} imapPort=${JSON.stringify(imapPort)} smtpHost=${JSON.stringify(smtpHost)} smtpPort=${JSON.stringify(smtpPort)}`)
 
     step = "check-duplicate"
     const existing = await db.channelConnection.findFirst({

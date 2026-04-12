@@ -46,15 +46,15 @@ export async function POST(_request: NextRequest, { params }: Params) {
     const resolved = resolveConfig({
       email: creds.email,
       password: creds.password,
-      imapHost: cfg.imapHost,
+      imapHost: cfg.imapHost || undefined,
       imapPort: cfg.imapPort ? Number(cfg.imapPort) : undefined,
       imapSecure: cfg.imapSecure !== "false",
-      smtpHost: cfg.smtpHost,
+      smtpHost: cfg.smtpHost || undefined,
       smtpPort: cfg.smtpPort ? Number(cfg.smtpPort) : undefined,
       smtpSecure: cfg.smtpSecure !== "false",
     })
 
-    const validation = await validateImapSmtp({ ...resolved, password: creds.password })
+    const validation = await validateImapSmtp(resolved)
 
     const newStatus = validation.ok ? "active" : "error"
     const lastError = validation.ok

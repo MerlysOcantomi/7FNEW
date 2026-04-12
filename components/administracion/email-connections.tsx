@@ -358,8 +358,8 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
               )}
               {result.resolvedSettings && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Hosts detectados: IMAP {String(result.resolvedSettings.imapHost)}:{String(result.resolvedSettings.imapPort)}, SMTP {String(result.resolvedSettings.smtpHost)}:{String(result.resolvedSettings.smtpPort)}.
-                  Verifica tu email, password y configuración avanzada.
+                  Configuración usada: IMAP {String(result.resolvedSettings.imapHost)}:{String(result.resolvedSettings.imapPort)}, SMTP {String(result.resolvedSettings.smtpHost)}:{String(result.resolvedSettings.smtpPort)}.
+                  Si estos hosts no son correctos, ajústalos en configuración avanzada.
                 </p>
               )}
             </div>

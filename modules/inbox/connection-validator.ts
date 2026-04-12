@@ -59,18 +59,26 @@ export function autodetectSettings(email: string): ProviderDefaults {
 /** Fill missing fields with autodetected values. User-provided values always win. */
 export function resolveConfig(input: ImapSmtpConfig): Required<ImapSmtpConfig> {
   const detected = autodetectSettings(input.email)
+
+  const userImapHost = input.imapHost?.trim() || ""
+  const userSmtpHost = input.smtpHost?.trim() || ""
+  const userImapPort = typeof input.imapPort === "number" && input.imapPort > 0 ? input.imapPort : 0
+  const userSmtpPort = typeof input.smtpPort === "number" && input.smtpPort > 0 ? input.smtpPort : 0
+
   const resolved = {
     email: input.email,
     password: input.password,
-    imapHost: (input.imapHost && input.imapHost.trim()) || detected.imapHost,
-    imapPort: input.imapPort ?? detected.imapPort,
+    imapHost: userImapHost || detected.imapHost,
+    imapPort: userImapPort || detected.imapPort,
     imapSecure: input.imapSecure ?? detected.secure,
-    smtpHost: (input.smtpHost && input.smtpHost.trim()) || detected.smtpHost,
-    smtpPort: input.smtpPort ?? detected.smtpPort,
+    smtpHost: userSmtpHost || detected.smtpHost,
+    smtpPort: userSmtpPort || detected.smtpPort,
     smtpSecure: input.smtpSecure ?? detected.secure,
   }
+
+  const usedAutodetect = !userImapHost || !userSmtpHost
   console.log(
-    `[connection-validator] resolveConfig: input imap=${input.imapHost ?? "(none)"}:${input.imapPort ?? "(none)"} smtp=${input.smtpHost ?? "(none)"}:${input.smtpPort ?? "(none)"} → resolved imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}`,
+    `[connection-validator] resolveConfig: userInput=[imap=${userImapHost || "(none)"}:${userImapPort || "(none)"} smtp=${userSmtpHost || "(none)"}:${userSmtpPort || "(none)"}] autodetect=${usedAutodetect ? "yes" : "no"} → final=[imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}]`,
   )
   return resolved
 }
@@ -127,13 +135,12 @@ async function testSmtp(cfg: Required<ImapSmtpConfig>): Promise<{ ok: boolean; e
   }
 }
 
-/** Validate both IMAP and SMTP for a custom email connection. */
-export async function validateImapSmtp(input: ImapSmtpConfig): Promise<ValidationResult> {
-  const cfg: Required<ImapSmtpConfig> = (
-    input.imapHost && input.smtpHost && input.imapPort && input.smtpPort
-  )
-    ? input as Required<ImapSmtpConfig>
-    : resolveConfig(input)
+/**
+ * Validate both IMAP and SMTP for a custom email connection.
+ * Expects a fully-resolved config — call resolveConfig() before this.
+ */
+export async function validateImapSmtp(cfg: Required<ImapSmtpConfig>): Promise<ValidationResult> {
+  console.log(`[connection-validator] validateImapSmtp: imap=${cfg.imapHost}:${cfg.imapPort} smtp=${cfg.smtpHost}:${cfg.smtpPort}`)
   const [imap, smtp] = await Promise.all([testImap(cfg), testSmtp(cfg)])
   return { ok: imap.ok && smtp.ok, imap, smtp }
 }
