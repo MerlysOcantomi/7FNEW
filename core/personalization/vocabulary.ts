@@ -18,7 +18,7 @@ export const DEFAULT_VOCABULARY: EntityVocabulary = {
   member:     { singular: "Member",     plural: "Members" },
   inbox:      { singular: "Inbox",      plural: "Inbox" },
   finance:    { singular: "Finance",    plural: "Finance" },
-  billing:    { singular: "Billing",    plural: "Billing" },
+  billing:    { singular: "Invoices",   plural: "Invoices" },
   marketing:  { singular: "Marketing",  plural: "Marketing" },
   calendar:   { singular: "Calendar",   plural: "Calendar" },
   automation: { singular: "Automation", plural: "Automations" },

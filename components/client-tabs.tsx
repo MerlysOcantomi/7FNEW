@@ -38,7 +38,7 @@ const tabs: Tab[] = [
   { id: "informacion", label: "Information", icon: Info, color: "var(--tab-info)" },
   { id: "proyectos", label: "Projects", icon: FolderKanban, color: "var(--tab-phases)" },
   { id: "documentos", label: "Files", icon: FileText, color: "var(--tab-docs)" },
-  { id: "facturacion", label: "Billing", icon: Receipt, color: "var(--tab-billing)" },
+  { id: "facturacion", label: "Invoices", icon: Receipt, color: "var(--tab-billing)" },
   { id: "notas", label: "Notes", icon: StickyNote, color: "var(--tab-tasks)" },
   { id: "historial", label: "History", icon: History, color: "var(--tab-review)" },
   { id: "ia", label: "AI Assistant", icon: Sparkles, color: "var(--tab-ai)" },
@@ -380,7 +380,7 @@ const historyFilterLabels: Record<string, string> = {
   documento: "Files",
   tarea: "Tasks",
   comunicacion: "Conversations",
-  facturacion: "Billing",
+  facturacion: "Invoices",
   nota: "Notes",
 }
 

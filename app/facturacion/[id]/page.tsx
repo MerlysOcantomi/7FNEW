@@ -758,7 +758,7 @@ export default function InvoiceDetailPage() {
     <ContextShell
       breadcrumbs={[
         { label: "Revenue", href: "/" },
-        { label: "Billing", href: "/facturacion" },
+        { label: "Invoices", href: "/facturacion" },
         { label: factura.numero },
       ]}
       heading={

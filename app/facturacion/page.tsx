@@ -114,7 +114,7 @@ export default function FacturacionPage() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         <PageHeader
           eyebrow="Revenue"
-          title="Billing"
+          title="Invoices"
           actions={
             <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />

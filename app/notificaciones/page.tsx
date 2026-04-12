@@ -40,8 +40,8 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: stri
   tarea_estado: { icon: RefreshCw, color: "text-amber-500 bg-amber-500/10", label: "Task" },
   proyecto_actualizado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Project" },
   proyecto_estado: { icon: FolderKanban, color: "text-purple-500 bg-purple-500/10", label: "Project" },
-  factura_creada: { icon: Receipt, color: "text-emerald-500 bg-emerald-500/10", label: "Billing" },
-  factura_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Billing" },
+  factura_creada: { icon: Receipt, color: "text-emerald-500 bg-emerald-500/10", label: "Invoices" },
+  factura_vencida: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10", label: "Invoices" },
   documento_subido: { icon: FileText, color: "text-cyan-500 bg-cyan-500/10", label: "Files" },
   comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comment" },
   mencion: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mention" },
@@ -56,7 +56,7 @@ const TYPE_FILTERS = [
   { value: "inbox", label: "Inbox" },
   { value: "tarea", label: "Tasks" },
   { value: "proyecto", label: "Projects" },
-  { value: "factura", label: "Billing" },
+  { value: "factura", label: "Invoices" },
   { value: "documento", label: "Files" },
 ]
 

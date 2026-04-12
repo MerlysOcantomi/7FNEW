@@ -46,7 +46,7 @@ const quickLinks = [
   { label: "Departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
   { label: "Improvements", href: "/forte/improvements", icon: Settings, keywords: "improvements optimize workspace modules forte" },
   { label: "Finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
-  { label: "Billing", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments" },
+  { label: "Invoices", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments billing" },
   { label: "Communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },
   { label: "Notifications", href: "/notificaciones", icon: BellRing, keywords: "alerts notices" },
   { label: "AI workspace", href: "/motor", icon: Workflow, keywords: "ai workspace classification rules automations" },

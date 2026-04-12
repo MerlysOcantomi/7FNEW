@@ -9,7 +9,7 @@ import { DEFAULT_VOCABULARY } from "@core/personalization";
 const v = DEFAULT_VOCABULARY;
 
 // ── Workspace context chips ──────────────────────────────────────────────────
-const CONTEXT_CHIPS = ["Overview", "Clients", "Projects", "Finance", "Billing", "Improvements"] as const;
+const CONTEXT_CHIPS = ["Overview", "Clients", "Projects", "Finance", "Invoices", "Improvements"] as const;
 type ContextChip = (typeof CONTEXT_CHIPS)[number];
 
 const CHIP_LABELS: Record<ContextChip, string> = {

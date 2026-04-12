@@ -46,7 +46,7 @@ const tabs: Tab[] = [
   { id: "tareas", label: "Tasks", icon: CheckSquare, color: "var(--tab-tasks)" },
   { id: "documentos", label: "Documents", icon: FileText, color: "var(--tab-docs)" },
   { id: "revision", label: "Review", icon: MessageSquareText, color: "var(--tab-review)" },
-  { id: "facturacion", label: "Billing", icon: Receipt, color: "var(--tab-billing)" },
+  { id: "facturacion", label: "Invoices", icon: Receipt, color: "var(--tab-billing)" },
   { id: "ia", label: "AI", icon: Sparkles, color: "var(--tab-ai)" },
 ]
 

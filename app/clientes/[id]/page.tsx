@@ -352,7 +352,7 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
 const TABS = [
   { key: "resumen", label: "Summary" },
   { key: "proyectos", label: "Projects" },
-  { key: "facturacion", label: "Billing" },
+  { key: "facturacion", label: "Invoices" },
   { key: "actividad", label: "Activity" },
 ];
 
