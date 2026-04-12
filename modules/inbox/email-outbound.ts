@@ -162,34 +162,9 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
   const recipients = resolveRecipients(input)
   const cs = input.connectionSender
 
-  // Dispatch via SMTP when the connection uses imap_smtp provider
-  if (cs?.provider === "imap_smtp" && cs.smtpConfig && cs.encryptedCredentials) {
-    return sendEmailSmtp({
-      connectionConfig: cs.smtpConfig,
-      encryptedCredentials: cs.encryptedCredentials,
-      to: recipients,
-      subject,
-      text: bodyText,
-      html: bodyHtml,
-      ...(input.cc?.length ? { cc: input.cc } : {}),
-      ...(input.bcc?.length ? { bcc: input.bcc } : {}),
-      ...(input.attachments?.length
-        ? {
-            attachments: input.attachments.map((a) => ({
-              filename: a.filename,
-              path: a.url,
-              contentType: a.contentType,
-            })),
-          }
-        : {}),
-    })
-  }
+  const outboundProvider = process.env.DEFAULT_OUTBOUND_PROVIDER || "resend"
 
-  // Default: send via Resend
-  const from = resolveInboxFrom(displayName, cs)
-  return sendEmail({
-    to: recipients,
-    from,
+  const commonPayload = {
     subject,
     text: bodyText,
     html: bodyHtml,
@@ -197,13 +172,40 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
     ...(input.bcc?.length ? { bcc: input.bcc } : {}),
     ...(input.attachments?.length
       ? {
-            attachments: input.attachments.map((a) => ({
-              filename: a.filename,
-              path: a.url,
-              contentType: a.contentType,
-            })),
-          }
+          attachments: input.attachments.map((a) => ({
+            filename: a.filename,
+            path: a.url,
+            contentType: a.contentType,
+          })),
+        }
       : {}),
+  }
+
+  if (
+    outboundProvider === "connection_smtp" &&
+    cs?.provider === "imap_smtp" &&
+    cs.smtpConfig &&
+    cs.encryptedCredentials
+  ) {
+    console.log(`[email-outbound] Sending via SMTP (connection provider)`)
+    return sendEmailSmtp({
+      connectionConfig: cs.smtpConfig,
+      encryptedCredentials: cs.encryptedCredentials,
+      to: recipients,
+      ...commonPayload,
+    })
+  }
+
+  if (cs?.provider === "imap_smtp") {
+    console.log(`[email-outbound] Connection is imap_smtp but outbound=${outboundProvider}, using Resend`)
+  }
+
+  const from = resolveInboxFrom(displayName, cs)
+  console.log(`[email-outbound] Sending via Resend from=${from}`)
+  return sendEmail({
+    to: recipients,
+    from,
+    ...commonPayload,
   })
 }
 
