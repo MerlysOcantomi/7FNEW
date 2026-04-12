@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ContextShell } from "@/components/context-shell";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -30,32 +31,38 @@ import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  planificacion: { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]" },
-  en_progreso: { bg: "bg-[#DCFCE7]", text: "text-[#166534]" },
-  revision: { bg: "bg-[#FEF9C3]", text: "text-[#854D0E]" },
-  completado: { bg: "bg-[#F0FDF4]", text: "text-[#166534]" },
-  cancelado: { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" },
+  planificacion: { bg: "bg-[var(--status-info-bg)]", text: "text-[var(--status-info-text)]" },
+  en_progreso: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+  revision: { bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
+  completado: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+  cancelado: { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" },
 };
 
 const TAREA_ESTADO_STYLE: Record<string, string> = {
-  pendiente: "bg-[#F1F5F9] text-[#64748B]",
-  en_progreso: "bg-[#EFF6FF] text-[#1D4ED8]",
-  revision: "bg-[#FEF9C3] text-[#854D0E]",
-  completada: "bg-[#DCFCE7] text-[#166534]",
-  cancelada: "bg-[#F1F5F9] text-[#94A3B8]",
+  pendiente: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+  en_progreso: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  revision: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+  completada: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+  cancelada: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
 };
 
 const FACTURA_ESTADO_STYLE: Record<string, string> = {
-  borrador: "bg-[#F1F5F9] text-[#64748B]",
-  enviada: "bg-[#EFF6FF] text-[#1D4ED8]",
-  pagada: "bg-[#DCFCE7] text-[#166534]",
-  vencida: "bg-[#FEE2E2] text-[#991B1B]",
+  borrador: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+  enviada: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  pagada: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+  vencida: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
 };
 
 const FIN_VARIANT: Record<"neutral" | "positive" | "warning", string> = {
-  neutral: "text-[#334155]",
-  positive: "text-[#166534]",
-  warning: "text-[#854D0E]",
+  neutral: "text-foreground",
+  positive: "text-[var(--status-success-text)]",
+  warning: "text-[var(--status-warning-text)]",
+};
+
+const FIN_BG: Record<"neutral" | "positive" | "warning", string> = {
+  neutral: "bg-accent",
+  positive: "bg-[var(--status-success-bg)]",
+  warning: "bg-[var(--status-warning-bg)]",
 };
 
 function formatDate(value: string | Date | null | undefined): string {
@@ -75,20 +82,20 @@ function formatCurrency(value: number | null | undefined): string {
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
-      <div className="h-full bg-[#3B82F6] rounded-full transition-all" style={{ width: `${Math.min(100, value)}%` }} />
+    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, value)}%` }} />
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">{children}</h3>;
+  return <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{children}</h3>;
 }
 
 // ── Tab content panels ────────────────────────────────────────────────────────
 
 function TabResumen({ project }: { project: any }) {
-  const statusStyle = STATUS_STYLE[project.estado] ?? { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" };
+  const statusStyle = STATUS_STYLE[project.estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
   const tareas = project.tareas ?? [];
   const completadas = tareas.filter((t: any) => t.estado === "completada").length;
   const totalTareas = tareas.length;
@@ -107,17 +114,17 @@ function TabResumen({ project }: { project: any }) {
     <div className="space-y-8">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {keyMetrics.map(({ label, value }) => (
-          <div key={label} className="bg-[#EFF6FF] rounded-xl p-4">
-            <p className="text-xl font-bold text-[#0F172A] tracking-tight">{value}</p>
-            <p className="text-[10px] text-[#64748B] mt-0.5">{label}</p>
+          <div key={label} className="bg-accent rounded-xl p-4">
+            <p className="text-xl font-bold text-foreground tracking-tight">{value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#E2E8F0] p-5">
+        <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5">
           <SectionLabel>Project description</SectionLabel>
-          <p className="text-sm text-[#334155] leading-relaxed">{project.descripcion || "No description."}</p>
+          <p className="text-sm text-foreground leading-relaxed">{project.descripcion || "No description."}</p>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
               { label: "Responsable", value: project.assignedTo || "—" },
@@ -127,18 +134,18 @@ function TabResumen({ project }: { project: any }) {
               { label: "Estado", value: displayLabel(project.estado, estadoLabel) },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[10px] text-[#94A3B8] mb-0.5">{label}</p>
-                <p className="text-xs font-medium text-[#334155]">{value}</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+                <p className="text-xs font-medium text-foreground">{value}</p>
               </div>
             ))}
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="bg-[#DBEAFE] rounded-xl p-4">
-            <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mb-2">Progreso general</p>
+          <div className="bg-primary/15 rounded-xl p-4">
+            <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Progreso general</p>
             <div className="flex items-end gap-2 mb-2">
-              <span className="text-2xl font-bold text-[#0F172A]">{project.progreso ?? 0}%</span>
+              <span className="text-2xl font-bold text-foreground">{project.progreso ?? 0}%</span>
             </div>
             <ProgressBar value={project.progreso ?? 0} />
           </div>
@@ -159,11 +166,11 @@ function TabTareas({ project }: { project: any }) {
     return (
       <div className="space-y-5">
         <SectionLabel>Project tasks</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-          <CheckCircle2 className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No tasks in this project</p>
-          <p className="text-xs text-[#94A3B8] mt-1">Las tareas vinculadas a este proyecto aparecerán aquí</p>
-          <Link href="/tareas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No tasks in this project</p>
+          <p className="text-xs text-muted-foreground mt-1">Las tareas vinculadas a este proyecto aparecerán aquí</p>
+          <Link href="/tareas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80">
             Go to tasks <ArrowUpRight size={12} />
           </Link>
         </div>
@@ -175,31 +182,33 @@ function TabTareas({ project }: { project: any }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <SectionLabel>Project tasks</SectionLabel>
-        <Link href="/tareas" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors">
-          <Plus size={12} strokeWidth={2.5} />
-          Nueva tarea
-        </Link>
+        <Button asChild size="sm">
+          <Link href="/tareas">
+            <Plus size={12} strokeWidth={2.5} />
+            Nueva tarea
+          </Link>
+        </Button>
       </div>
 
-      <div className="hidden sm:block bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
-        <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-          <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Tarea</span>
-          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Responsable</span>
-          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Vencimiento</span>
-          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Prioridad</span>
-          <span className="col-span-1 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Estado</span>
+      <div className="hidden sm:block bg-card rounded-xl border border-border overflow-hidden">
+        <div className="grid grid-cols-12 px-5 py-2.5 border-b border-muted bg-background">
+          <span className="col-span-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tarea</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Responsable</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Vencimiento</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Prioridad</span>
+          <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Estado</span>
         </div>
         {tareas.map((t: any, i: number) => (
           <Link
             key={t.id}
             href={`/tareas/${t.id}`}
-            className={cn("grid grid-cols-12 items-center px-5 py-3.5 hover:bg-[#F8FAFC] transition-colors", i < tareas.length - 1 && "border-b border-[#F1F5F9]")}
+            className={cn("grid grid-cols-12 items-center px-5 py-3.5 hover:bg-background transition-colors", i < tareas.length - 1 && "border-b border-muted")}
           >
-            <span className="col-span-5 text-sm text-[#334155] pr-3 truncate">{t.titulo}</span>
-            <span className="col-span-2 text-xs text-[#64748B]">{t.usuario?.nombre ?? "—"}</span>
-            <span className="col-span-2 text-xs text-[#64748B]">{formatDate(t.fechaLimite)}</span>
-            <span className="col-span-2 text-xs text-[#64748B]">{displayLabel(t.prioridad, prioridadLabel)}</span>
-            <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[#F1F5F9] text-[#64748B]")}>
+            <span className="col-span-5 text-sm text-foreground pr-3 truncate">{t.titulo}</span>
+            <span className="col-span-2 text-xs text-muted-foreground">{t.usuario?.nombre ?? "—"}</span>
+            <span className="col-span-2 text-xs text-muted-foreground">{formatDate(t.fechaLimite)}</span>
+            <span className="col-span-2 text-xs text-muted-foreground">{displayLabel(t.prioridad, prioridadLabel)}</span>
+            <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
               {displayLabel(t.estado, estadoLabel)}
             </span>
           </Link>
@@ -208,14 +217,14 @@ function TabTareas({ project }: { project: any }) {
 
       <div className="sm:hidden space-y-3">
         {tareas.map((t: any) => (
-          <Link key={t.id} href={`/tareas/${t.id}`} className="block bg-white rounded-xl border border-[#E2E8F0] p-4 hover:bg-[#F8FAFC]">
+          <Link key={t.id} href={`/tareas/${t.id}`} className="block bg-card rounded-xl border border-border p-4 hover:bg-background">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <p className="text-sm font-medium text-[#334155] leading-snug">{t.titulo}</p>
-              <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[#F1F5F9] text-[#64748B]")}>
+              <p className="text-sm font-medium text-foreground leading-snug">{t.titulo}</p>
+              <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
                 {displayLabel(t.estado, estadoLabel)}
               </span>
             </div>
-            <div className="flex items-center gap-3 flex-wrap text-[10px] text-[#94A3B8]">
+            <div className="flex items-center gap-3 flex-wrap text-[10px] text-muted-foreground">
               <span>{t.usuario?.nombre ?? "—"}</span>
               <span>·</span>
               <span>Vence {formatDate(t.fechaLimite)}</span>
@@ -233,10 +242,10 @@ function TabHitos({ project }: { project: any }) {
   return (
     <div className="space-y-3">
       <SectionLabel>Cronograma de hitos</SectionLabel>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-        <Clock className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-        <p className="text-sm font-medium text-[#64748B]">Los hitos no están disponibles aún</p>
-        <p className="text-xs text-[#94A3B8] mt-1">Esta funcionalidad se implementará en una futura versión</p>
+      <div className="bg-card rounded-xl border border-border p-12 text-center">
+        <Clock className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+        <p className="text-sm font-medium text-muted-foreground">Los hitos no están disponibles aún</p>
+        <p className="text-xs text-muted-foreground mt-1">Esta funcionalidad se implementará en una futura versión</p>
       </div>
     </div>
   );
@@ -245,22 +254,22 @@ function TabHitos({ project }: { project: any }) {
 function TabArchivos({ project }: { project: any }) {
   const documentos = project.documentos ?? [];
   const typeColors: Record<string, string> = {
-    pdf: "bg-[#FEE2E2] text-[#991B1B]",
-    PDF: "bg-[#FEE2E2] text-[#991B1B]",
-    xlsx: "bg-[#DCFCE7] text-[#166534]",
-    doc: "bg-[#F1F5F9] text-[#64748B]",
-    image: "bg-[#EFF6FF] text-[#1D4ED8]",
+    pdf: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
+    PDF: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
+    xlsx: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+    doc: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+    image: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
   };
 
   if (documentos.length === 0) {
     return (
       <div className="space-y-3">
         <SectionLabel>Project files</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-          <Paperclip className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No files in this project</p>
-          <p className="text-xs text-[#94A3B8] mt-1">Los documentos vinculados al proyecto aparecerán aquí</p>
-          <Link href="/archivos" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <Paperclip className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No files in this project</p>
+          <p className="text-xs text-muted-foreground mt-1">Los documentos vinculados al proyecto aparecerán aquí</p>
+          <Link href="/archivos" className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80">
             Go to files <ArrowUpRight size={12} />
           </Link>
         </div>
@@ -271,25 +280,25 @@ function TabArchivos({ project }: { project: any }) {
   return (
     <div className="space-y-3">
       <SectionLabel>Project files</SectionLabel>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {documentos.map((d: any, i: number) => (
           <div
             key={d.id}
-            className={cn("flex items-center gap-4 px-5 py-4 hover:bg-[#F8FAFC] transition-colors", i < documentos.length - 1 && "border-b border-[#F1F5F9]")}
+            className={cn("flex items-center gap-4 px-5 py-4 hover:bg-background transition-colors", i < documentos.length - 1 && "border-b border-muted")}
           >
-            <Paperclip size={14} className="text-[#94A3B8] shrink-0" strokeWidth={1.75} />
+            <Paperclip size={14} className="text-muted-foreground shrink-0" strokeWidth={1.75} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#334155] truncate">{d.nombre}</p>
-              <p className="text-[10px] text-[#94A3B8] mt-0.5">{d.tipo} · {(d.tamano ? d.tamano / 1024 : 0).toFixed(1)} KB</p>
+              <p className="text-sm font-medium text-foreground truncate">{d.nombre}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{d.tipo} · {(d.tamano ? d.tamano / 1024 : 0).toFixed(1)} KB</p>
             </div>
-            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", typeColors[d.tipo] ?? "bg-[#F1F5F9] text-[#64748B]")}>
+            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", typeColors[d.tipo] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
               {d.tipo}
             </span>
             <a
               href={d.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#3B82F6] hover:border-[#BFDBFE] transition-colors"
+              className="shrink-0 p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
               aria-label="Descargar"
             >
               <Download size={13} strokeWidth={1.75} />
@@ -314,11 +323,11 @@ function TabFinanzas({ project }: { project: any }) {
     return (
       <div className="space-y-6">
         <SectionLabel>Project finance</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-          <DollarSign className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No financial data yet</p>
-          <p className="text-xs text-[#94A3B8] mt-1">Las facturas y transacciones vinculadas aparecerán aquí</p>
-          <Link href="/finanzas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB]">
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <DollarSign className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No financial data yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Las facturas y transacciones vinculadas aparecerán aquí</p>
+          <Link href="/finanzas" className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80">
             Open finance <ArrowUpRight size={12} />
           </Link>
         </div>
@@ -336,9 +345,9 @@ function TabFinanzas({ project }: { project: any }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {financialItems.map(({ label, value, variant }) => (
-          <div key={label} className={cn("rounded-xl p-4", variant === "warning" ? "bg-[#FEF9C3]" : variant === "positive" ? "bg-[#DCFCE7]" : "bg-[#EFF6FF]")}>
+          <div key={label} className={cn("rounded-xl p-4", FIN_BG[variant])}>
             <p className={cn("text-base font-bold tracking-tight", FIN_VARIANT[variant])}>{value}</p>
-            <p className="text-[10px] text-[#64748B] mt-0.5">{label}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
           </div>
         ))}
       </div>
@@ -346,20 +355,20 @@ function TabFinanzas({ project }: { project: any }) {
       {facturas.length > 0 && (
         <div>
           <SectionLabel>Facturas</SectionLabel>
-          <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
             {facturas.slice(0, 5).map((f: any) => (
               <Link
                 key={f.id}
                 href={`/facturacion/${f.id}`}
-                className="flex items-center justify-between px-5 py-3.5 hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0"
+                className="flex items-center justify-between px-5 py-3.5 hover:bg-background border-b border-muted last:border-0"
               >
                 <div>
-                  <p className="text-sm font-medium text-[#334155]">#{f.numero}</p>
-                  <p className="text-xs text-[#64748B]">{formatDate(f.fechaEmision)}</p>
+                  <p className="text-sm font-medium text-foreground">#{f.numero}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(f.fechaEmision)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">{formatCurrency(f.total)}</span>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", FACTURA_ESTADO_STYLE[f.estado] ?? "bg-[#F1F5F9] text-[#64748B]")}>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", FACTURA_ESTADO_STYLE[f.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
                     {displayLabel(f.estado, estadoLabel)}
                   </span>
                 </div>
@@ -370,7 +379,7 @@ function TabFinanzas({ project }: { project: any }) {
       )}
 
       <div className="flex items-center justify-end">
-        <Link href="/finanzas" className="flex items-center gap-1.5 text-xs text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
+        <Link href="/finanzas" className="flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors">
           Open finance <ArrowUpRight size={12} />
         </Link>
       </div>
@@ -385,10 +394,10 @@ function TabNotas({ project }: { project: any }) {
     return (
       <div className="space-y-3">
         <SectionLabel>Project notes</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-          <StickyNote className="mx-auto h-10 w-10 text-[#CBD5E1] mb-3" />
-          <p className="text-sm font-medium text-[#64748B]">No notes yet</p>
-          <p className="text-xs text-[#94A3B8] mt-1">Las notas vinculadas al proyecto aparecerán aquí</p>
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <StickyNote className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No notes yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Las notas vinculadas al proyecto aparecerán aquí</p>
         </div>
       </div>
     );
@@ -399,10 +408,10 @@ function TabNotas({ project }: { project: any }) {
       <SectionLabel>Project notes</SectionLabel>
       <div className="space-y-3">
         {notas.map((n: any) => (
-          <div key={n.id} className="bg-white rounded-xl border border-[#E2E8F0] p-5">
-            <p className="text-xs font-semibold text-[#334155] mb-1">{n.titulo}</p>
-            <p className="text-sm text-[#64748B] leading-relaxed">{n.contenido || "—"}</p>
-            <p className="text-[10px] text-[#94A3B8] mt-2">{formatDate(n.createdAt)}</p>
+          <div key={n.id} className="bg-card rounded-xl border border-border p-5">
+            <p className="text-xs font-semibold text-foreground mb-1">{n.titulo}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{n.contenido || "—"}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">{formatDate(n.createdAt)}</p>
           </div>
         ))}
       </div>
@@ -437,16 +446,16 @@ export default function ProjectDetailPage() {
   if (!id) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-[#64748B]">Invalid project ID</p>
+        <p className="text-sm text-muted-foreground">Invalid project ID</p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
+      <div className="flex flex-col md:flex-row min-h-screen bg-background">
         <div className="flex-1 flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-[#94A3B8]" />
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
@@ -454,11 +463,11 @@ export default function ProjectDetailPage() {
 
   if (error || !project || project.error) {
     return (
-      <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
+      <div className="flex flex-col md:flex-row min-h-screen bg-background">
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
-          <AlertTriangle className="h-12 w-12 text-[#EF4444] mb-4" />
-          <p className="text-sm font-medium text-[#991B1B]">{error || "Project not found"}</p>
-          <Link href="/proyectos" className="mt-4 text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium">
+          <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+          <p className="text-sm font-medium text-destructive">{error || "Project not found"}</p>
+          <Link href="/proyectos" className="mt-4 text-sm text-primary hover:text-primary/80 font-medium">
             Back to projects
           </Link>
         </div>
@@ -466,7 +475,7 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const statusStyle = STATUS_STYLE[project.estado] ?? { bg: "bg-[#F1F5F9]", text: "text-[#64748B]" };
+  const statusStyle = STATUS_STYLE[project.estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
 
   return (
     <>
@@ -478,30 +487,30 @@ export default function ProjectDetailPage() {
         ]}
         heading={
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight text-balance">{project.nombre}</h1>
+            <h1 className="text-xl font-semibold text-foreground tracking-tight text-balance">{project.nombre}</h1>
             <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", statusStyle.bg, statusStyle.text)}>
               {displayLabel(project.estado, estadoLabel)}
             </span>
-            <span className="text-xs text-[#94A3B8] font-medium">{displayLabel(project.prioridad, prioridadLabel)}</span>
+            <span className="text-xs text-muted-foreground font-medium">{displayLabel(project.prioridad, prioridadLabel)}</span>
           </div>
         }
         meta={
           <div className="flex items-center gap-4 flex-wrap">
             {project.clienteId && (
-              <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-                <Building2 size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-                <Link href={`/clientes/${project.clienteId}`} className="hover:text-[#3B82F6] transition-colors">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Building2 size={13} strokeWidth={1.75} className="text-muted-foreground" />
+                <Link href={`/clientes/${project.clienteId}`} className="hover:text-primary transition-colors">
                   {project.cliente?.nombre ?? "Client"}
                 </Link>
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Calendar size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Calendar size={13} strokeWidth={1.75} className="text-muted-foreground" />
               Vence {formatDate(project.fechaFin)}
             </span>
             {project.assignedTo && (
-              <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-                <User size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <User size={13} strokeWidth={1.75} className="text-muted-foreground" />
                 {project.assignedTo}
               </span>
             )}
@@ -509,20 +518,16 @@ export default function ProjectDetailPage() {
         }
         actions={
           <>
-            <button
-              onClick={() => setFormOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:bg-[#F8FAFC] transition-colors"
-            >
+            <Button variant="outline" size="sm" onClick={() => setFormOpen(true)}>
               <Pencil size={13} strokeWidth={1.75} />
               Actualizar
-            </button>
-            <Link
-              href="/finanzas"
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors"
-            >
-              <FileBarChart size={13} strokeWidth={1.75} />
-              Ver finanzas
-            </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/finanzas">
+                <FileBarChart size={13} strokeWidth={1.75} />
+                Ver finanzas
+              </Link>
+            </Button>
           </>
         }
         tabs={TABS}
