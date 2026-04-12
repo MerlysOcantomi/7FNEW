@@ -88,10 +88,12 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
         fromName: form.fromName || undefined,
         setAsDefault: form.setAsDefault,
       }
-      if (form.imapHost) body.imapHost = form.imapHost
-      if (form.imapPort) body.imapPort = Number(form.imapPort)
-      if (form.smtpHost) body.smtpHost = form.smtpHost
-      if (form.smtpPort) body.smtpPort = Number(form.smtpPort)
+      if (form.imapHost.trim()) body.imapHost = form.imapHost.trim()
+      if (form.imapPort.trim()) body.imapPort = Number(form.imapPort.trim())
+      if (form.smtpHost.trim()) body.smtpHost = form.smtpHost.trim()
+      if (form.smtpPort.trim()) body.smtpPort = Number(form.smtpPort.trim())
+
+      console.log("[email-connections] submit payload", JSON.stringify(body, null, 2))
 
       const res = await fetch(`/api/workspaces/${workspaceId}/connections`, {
         method: "POST",
@@ -307,7 +309,22 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
             <button
               type="button"
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1"
-              onClick={() => setShowAdvanced((v) => !v)}
+              onClick={() => {
+                setShowAdvanced((v) => {
+                  if (!v && form.email.includes("@") && !form.imapHost && !form.smtpHost) {
+                    const domain = form.email.split("@")[1]?.toLowerCase() ?? ""
+                    const known: Record<string, { imap: string; smtp: string; iPort: string; sPort: string }> = {
+                      "titan.email":   { imap: "imap.titan.email",   smtp: "smtp.titan.email",   iPort: "993", sPort: "465" },
+                      "hostinger.com": { imap: "imap.hostinger.com", smtp: "smtp.hostinger.com", iPort: "993", sPort: "465" },
+                      "gmail.com":     { imap: "imap.gmail.com",     smtp: "smtp.gmail.com",     iPort: "993", sPort: "465" },
+                    }
+                    const match = Object.entries(known).find(([k]) => domain === k || domain.endsWith(`.${k}`))
+                    const defaults = match ? match[1] : { imap: `imap.${domain}`, smtp: `smtp.${domain}`, iPort: "993", sPort: "465" }
+                    setForm((f) => ({ ...f, imapHost: defaults.imap, imapPort: defaults.iPort, smtpHost: defaults.smtp, smtpPort: defaults.sPort }))
+                  }
+                  return !v
+                })
+              }}
             >
               {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               Configuración avanzada
