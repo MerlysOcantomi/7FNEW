@@ -5,30 +5,21 @@ interface StatCardProps {
   label: string
   value: string
   subtitle?: string
-  icon: LucideIcon
-  accent?: "default" | "finance"
+  icon?: LucideIcon
+  className?: string
 }
 
-export function StatCard({ label, value, subtitle, icon: Icon, accent }: StatCardProps) {
+export function StatCard({ label, value, subtitle, icon: Icon, className }: StatCardProps) {
   return (
-    <div
-      className={cn(
-        "group relative rounded-xl border border-border bg-card p-5 transition-all hover:shadow-md",
-        accent === "finance" && "border-l-4 border-l-blue-600"
+    <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
+      {Icon && (
+        <Icon size={16} strokeWidth={1.75} className="mb-3 text-primary" />
       )}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-[#111827]">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          )}
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-          <Icon className="h-5 w-5 text-blue-600" />
-        </div>
-      </div>
+      <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+      <p className="mt-0.5 text-xs font-medium text-foreground">{label}</p>
+      {subtitle && (
+        <p className="mt-0.5 text-[10px] text-muted-foreground">{subtitle}</p>
+      )}
     </div>
   )
 }
