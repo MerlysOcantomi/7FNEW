@@ -506,6 +506,24 @@ const tables = [
     CONSTRAINT "ConversationRead_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "ConversationRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS "ChannelConnection" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "workspaceId" TEXT NOT NULL,
+    "channelType" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "config" TEXT,
+    "credentials" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "externalAccountId" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "syncState" TEXT,
+    "lastSyncAt" DATETIME,
+    "lastError" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ChannelConnection_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
 ]
 
 const uniqueIndexes = [
@@ -519,6 +537,9 @@ const uniqueIndexes = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "AIClassification_conversationId_key" ON "AIClassification"("conversationId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationHandoff_conversationId_key" ON "ConversationHandoff"("conversationId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationRead_conversationId_userId_key" ON "ConversationRead"("conversationId", "userId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_externalAccountId_key" ON "ChannelConnection"("workspaceId", "externalAccountId")`,
+  `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_channelType_idx" ON "ChannelConnection"("workspaceId", "channelType")`,
+  `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_status_idx" ON "ChannelConnection"("workspaceId", "status")`,
 ]
 
 async function main() {
@@ -581,6 +602,8 @@ async function main() {
     `ALTER TABLE "Conversation" ADD COLUMN "detectedLanguage" TEXT`,
     `ALTER TABLE "InboxEntry" ADD COLUMN "workspaceId" TEXT`,
     `ALTER TABLE "Notification" ADD COLUMN "workspaceId" TEXT`,
+    `ALTER TABLE "Conversation" ADD COLUMN "connectionId" TEXT`,
+    `ALTER TABLE "Message" ADD COLUMN "connectionId" TEXT`,
   ]
 
   console.log("\nAgregando columnas nuevas (si no existen)...")
