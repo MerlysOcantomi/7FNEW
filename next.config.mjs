@@ -6,6 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ["nodemailer", "imapflow"],
 }
 
 export default nextConfig
