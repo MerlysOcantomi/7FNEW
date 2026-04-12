@@ -342,6 +342,7 @@ function InboxPageContent() {
   const [pendingActionInput, setPendingActionInput] = useState<PendingActionInput | null>(null)
   const [dialogAssignValue, setDialogAssignValue] = useState("")
   const [dialogDismissReason, setDialogDismissReason] = useState("")
+  const [fetchingEmails, setFetchingEmails] = useState(false)
   const [replyAttachments, setReplyAttachments] = useState<ComposerAttachment[]>([])
   const [attachmentUploading, setAttachmentUploading] = useState(false)
   const [emailMode, setEmailMode] = useState<EmailSendMode>("reply")
@@ -1099,6 +1100,23 @@ function InboxPageContent() {
     setContextSheetOpen(false)
   }
 
+  const handleFetchEmails = useCallback(async () => {
+    setFetchingEmails(true)
+    try {
+      const res = await fetch("/api/inbox/fetch", { method: "POST" })
+      const json = await res.json()
+      console.log("[inbox] Fetch result:", json)
+      if (json.data?.count > 0 || json.data?.ingested > 0) {
+        setRefreshKey((v) => v + 1)
+        refetch()
+      }
+    } catch (err) {
+      console.error("[inbox] Fetch failed:", err)
+    } finally {
+      setFetchingEmails(false)
+    }
+  }, [refetch])
+
   const navigateConversation = useCallback((offset: 1 | -1) => {
     if (!activeSelectedId || conversations.length === 0 || selectedIndex < 0) return
 
@@ -1257,6 +1275,8 @@ function InboxPageContent() {
                 loadingMore={loadingMore}
                 activeSearchTerm={debouncedSearch || undefined}
                 onLoadMore={loadMore}
+                onFetchEmails={handleFetchEmails}
+                fetchingEmails={fetchingEmails}
               />
             )}
           </div>

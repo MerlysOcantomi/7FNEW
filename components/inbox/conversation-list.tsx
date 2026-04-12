@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Search, Inbox } from "lucide-react"
+import { Loader2, Search, Inbox, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -62,6 +62,8 @@ interface ConversationListProps {
   loadingMore?: boolean
   onLoadMore?: () => void
   activeSearchTerm?: string
+  onFetchEmails?: () => void
+  fetchingEmails?: boolean
 }
 
 export function ConversationList({
@@ -85,6 +87,8 @@ export function ConversationList({
   loadingMore = false,
   onLoadMore,
   activeSearchTerm,
+  onFetchEmails,
+  fetchingEmails = false,
 }: ConversationListProps) {
   const viewLabel =
     assignmentFilter === "mine"
@@ -97,11 +101,25 @@ export function ConversationList({
       <div className="space-y-3 border-b border-[var(--inbox-list-border)] bg-[var(--inbox-list-surface)] px-4 py-4 md:px-5">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-bold tracking-tight text-[var(--inbox-list-text)]">Inbox</h1>
-          {activeSearchTerm && (
-            <div className="px-2 py-1 rounded-md bg-[var(--inbox-list-selected-bg)] text-xs text-[var(--inbox-list-selected)] font-medium">
-              "{activeSearchTerm}"
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {activeSearchTerm && (
+              <div className="px-2 py-1 rounded-md bg-[var(--inbox-list-selected-bg)] text-xs text-[var(--inbox-list-selected)] font-medium">
+                "{activeSearchTerm}"
+              </div>
+            )}
+            {onFetchEmails && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)]"
+                onClick={onFetchEmails}
+                disabled={fetchingEmails}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", fetchingEmails && "animate-spin")} />
+                {fetchingEmails ? "Syncing…" : "Fetch"}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="relative">
