@@ -6,14 +6,15 @@ interface StatCardProps {
   value: string
   subtitle?: string
   icon?: LucideIcon
+  iconClassName?: string
   className?: string
 }
 
-export function StatCard({ label, value, subtitle, icon: Icon, className }: StatCardProps) {
+export function StatCard({ label, value, subtitle, icon: Icon, iconClassName, className }: StatCardProps) {
   return (
     <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
       {Icon && (
-        <Icon size={16} strokeWidth={1.75} className="mb-3 text-primary" />
+        <Icon size={16} strokeWidth={1.75} className={cn("mb-3 text-primary", iconClassName)} />
       )}
       <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
       <p className="mt-0.5 text-xs font-medium text-foreground">{label}</p>
