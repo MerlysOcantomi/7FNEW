@@ -91,6 +91,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     console.log(`${TAG} POST workspace=${id} email=${email} skip=${skipValidation}`)
+    console.log(`${TAG} User-provided: imapHost=${imapHost ?? "(none)"} imapPort=${imapPort ?? "(none)"} smtpHost=${smtpHost ?? "(none)"} smtpPort=${smtpPort ?? "(none)"}`)
 
     step = "check-duplicate"
     const existing = await db.channelConnection.findFirst({
@@ -111,12 +112,12 @@ export async function POST(request: NextRequest, { params }: Params) {
       smtpPort,
       smtpSecure,
     })
-    console.log(`${TAG} Resolved imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}`)
+    console.log(`${TAG} Final config: imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}`)
 
     if (!skipValidation) {
       step = "validate-imap-smtp"
       try {
-        const validation = await validateImapSmtp({ email, password, ...resolved })
+        const validation = await validateImapSmtp(resolved)
         if (!validation.ok) {
           console.log(`${TAG} Validation failed imap=${validation.imap.ok} smtp=${validation.smtp.ok}`)
           return successResponse({

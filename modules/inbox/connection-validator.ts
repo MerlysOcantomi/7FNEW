@@ -56,19 +56,23 @@ export function autodetectSettings(email: string): ProviderDefaults {
   }
 }
 
-/** Fill missing fields with autodetected values. */
+/** Fill missing fields with autodetected values. User-provided values always win. */
 export function resolveConfig(input: ImapSmtpConfig): Required<ImapSmtpConfig> {
   const detected = autodetectSettings(input.email)
-  return {
+  const resolved = {
     email: input.email,
     password: input.password,
-    imapHost: input.imapHost || detected.imapHost,
-    imapPort: input.imapPort || detected.imapPort,
+    imapHost: (input.imapHost && input.imapHost.trim()) || detected.imapHost,
+    imapPort: input.imapPort ?? detected.imapPort,
     imapSecure: input.imapSecure ?? detected.secure,
-    smtpHost: input.smtpHost || detected.smtpHost,
-    smtpPort: input.smtpPort || detected.smtpPort,
+    smtpHost: (input.smtpHost && input.smtpHost.trim()) || detected.smtpHost,
+    smtpPort: input.smtpPort ?? detected.smtpPort,
     smtpSecure: input.smtpSecure ?? detected.secure,
   }
+  console.log(
+    `[connection-validator] resolveConfig: input imap=${input.imapHost ?? "(none)"}:${input.imapPort ?? "(none)"} smtp=${input.smtpHost ?? "(none)"}:${input.smtpPort ?? "(none)"} → resolved imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}`,
+  )
+  return resolved
 }
 
 const CONNECT_TIMEOUT_MS = 15_000
@@ -125,7 +129,11 @@ async function testSmtp(cfg: Required<ImapSmtpConfig>): Promise<{ ok: boolean; e
 
 /** Validate both IMAP and SMTP for a custom email connection. */
 export async function validateImapSmtp(input: ImapSmtpConfig): Promise<ValidationResult> {
-  const cfg = resolveConfig(input)
+  const cfg: Required<ImapSmtpConfig> = (
+    input.imapHost && input.smtpHost && input.imapPort && input.smtpPort
+  )
+    ? input as Required<ImapSmtpConfig>
+    : resolveConfig(input)
   const [imap, smtp] = await Promise.all([testImap(cfg), testSmtp(cfg)])
   return { ok: imap.ok && smtp.ok, imap, smtp }
 }
