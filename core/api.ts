@@ -42,8 +42,9 @@ export function handleError(error: unknown, entity: string) {
       return errorResponse("CONFLICT", `${entity} ya existe con esos datos`, 409)
     }
   }
-  console.error(`[7F] Error in ${entity}:`, error)
-  return errorResponse("INTERNAL_ERROR", "Error interno del servidor", 500)
+  const detail = error instanceof Error ? error.message : String(error)
+  console.error(`[7F] Error in ${entity}: ${detail}`, error)
+  return errorResponse("INTERNAL_ERROR", `Error interno: ${detail}`, 500)
 }
 
 export function getPaginationParams(searchParams: URLSearchParams) {
