@@ -9,6 +9,128 @@ import { notifyInboundMessage } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
 
+interface OutboundAsyncInput {
+  workspaceId: string
+  conversationId: string
+  messageId: string
+  messageContent: string
+  sendMode: "reply" | "reply_all" | "forward"
+  parsedAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }>
+  parsedCc: string[]
+  parsedBcc: string[]
+  parsedTo: string[]
+  enrichedMetadata: unknown
+}
+
+async function sendOutboundAsync(input: OutboundAsyncInput) {
+  const { workspaceId, conversationId, messageId, messageContent, sendMode } = input
+
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+    select: {
+      channel: true,
+      subject: true,
+      connectionId: true,
+      contact: { select: { email: true } },
+      workspace: { select: { nombre: true, config: true } },
+    },
+  })
+
+  if (conv?.channel !== "email") return
+  const contactEmail = conv.contact?.email?.trim()
+  if (!contactEmail) {
+    console.warn(`[email-outbound] No contact email for conv=${conversationId}, skipping send`)
+    return
+  }
+
+  let connectionSender: ConnectionSender | null = null
+  if (conv.connectionId) {
+    const conn = await db.channelConnection.findUnique({
+      where: { id: conv.connectionId },
+      select: { provider: true, config: true, credentials: true, externalAccountId: true },
+    })
+    if (conn) {
+      const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
+      const fromEmail = cfg?.fromEmail || conn.externalAccountId || ""
+      if (fromEmail) {
+        connectionSender = {
+          fromEmail,
+          fromName: cfg?.fromName || null,
+          provider: conn.provider as "resend" | "imap_smtp",
+        }
+        if (conn.provider === "imap_smtp" && conn.credentials && cfg) {
+          connectionSender.smtpConfig = {
+            smtpHost: cfg.smtpHost || "",
+            smtpPort: Number(cfg.smtpPort) || 465,
+            smtpSecure: cfg.smtpSecure !== "false",
+            fromEmail,
+            fromName: cfg.fromName || null,
+          }
+          connectionSender.encryptedCredentials = conn.credentials
+        }
+      }
+    }
+  }
+
+  const fromAddress = connectionSender?.fromEmail
+    || process.env.INBOX_FROM_EMAIL
+    || process.env.RESEND_FROM_EMAIL
+    || undefined
+
+  let emailStatus = "pending"
+  let emailError: string | undefined
+  let resendId: string | undefined
+
+  try {
+    const result = await sendOutboundEmail({
+      workspaceName: conv.workspace.nombre,
+      contactEmail,
+      subject: conv.subject ?? "",
+      messageContent,
+      workspaceConfig: conv.workspace.config,
+      mode: sendMode,
+      connectionSender,
+      ...(input.parsedAttachments.length > 0 ? { attachments: input.parsedAttachments } : {}),
+      ...(input.parsedCc.length > 0 ? { cc: input.parsedCc } : {}),
+      ...(input.parsedBcc.length > 0 ? { bcc: input.parsedBcc } : {}),
+      ...(input.parsedTo.length > 0 ? { to: input.parsedTo } : {}),
+    })
+
+    if (result.ok) {
+      emailStatus = "sent"
+      resendId = result.id
+      console.log(`[email-outbound] OK conv=${conversationId} msg=${messageId} to=${contactEmail} from=${fromAddress} resendId=${result.id}`)
+    } else {
+      emailStatus = "failed"
+      emailError = result.error || "Email delivery failed"
+      console.error(`[email-outbound] FAILED conv=${conversationId} msg=${messageId} to=${contactEmail}: ${emailError}`)
+    }
+  } catch (err) {
+    emailStatus = "failed"
+    emailError = err instanceof Error ? err.message : "Email service unavailable"
+    console.error(`[email-outbound] EXCEPTION conv=${conversationId} msg=${messageId} to=${contactEmail}: ${emailError}`)
+  }
+
+  try {
+    const currentMeta = input.enrichedMetadata && typeof input.enrichedMetadata === "object" ? input.enrichedMetadata : {}
+    await db.message.update({
+      where: { id: messageId },
+      data: {
+        metadata: JSON.stringify({
+          ...(currentMeta as Record<string, unknown>),
+          emailStatus,
+          ...(resendId ? { resendId } : {}),
+          ...(emailError ? { emailError } : {}),
+          ...(fromAddress ? { fromAddress } : {}),
+          emailAttemptedAt: new Date().toISOString(),
+        }),
+      },
+    })
+  } catch (metaErr) {
+    console.error(`[email-outbound] Could not update message metadata msg=${messageId}:`, metaErr)
+  }
+}
+
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const { workspaceId } = await requireWriteAccess(request)
@@ -79,6 +201,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
     }
 
+    // ── Return response immediately; all remaining work is fire-and-forget ──
+
     if (direction === "inbound" && !isInternal) {
       void db.conversation
         .findFirst({
@@ -99,130 +223,32 @@ export async function POST(request: NextRequest, { params }: Params) {
         .catch(() => null)
     }
 
-    let emailMeta: { emailSent?: boolean; emailError?: string; emailStatus?: string; fromAddress?: string } | undefined
-
     if (direction === "outbound" && !isInternal) {
-      const conv = await db.conversation.findFirst({
-        where: { id, workspaceId },
-        select: {
-          channel: true,
-          subject: true,
-          connectionId: true,
-          contact: { select: { email: true } },
-          workspace: { select: { nombre: true, config: true } },
-        },
+      void sendOutboundAsync({
+        workspaceId,
+        conversationId: id,
+        messageId: message.id,
+        messageContent: message.content,
+        sendMode,
+        parsedAttachments,
+        parsedCc,
+        parsedBcc,
+        parsedTo,
+        enrichedMetadata,
+      }).catch((err) => {
+        console.error(`[email-outbound] Background send failed conv=${id} msg=${message.id}:`, err)
       })
-
-      if (conv?.channel === "email") {
-        const contactEmail = conv.contact?.email?.trim()
-        if (contactEmail) {
-          let emailStatus = "pending"
-          let emailError: string | undefined
-          let resendId: string | undefined
-          let fromAddress: string | undefined
-
-          let connectionSender: ConnectionSender | null = null
-          if (conv.connectionId) {
-            const conn = await db.channelConnection.findUnique({
-              where: { id: conv.connectionId },
-              select: { provider: true, config: true, credentials: true, externalAccountId: true },
-            })
-            if (conn) {
-              const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
-              const fromEmail = cfg?.fromEmail || conn.externalAccountId || ""
-              if (fromEmail) {
-                connectionSender = {
-                  fromEmail,
-                  fromName: cfg?.fromName || null,
-                  provider: conn.provider as "resend" | "imap_smtp",
-                }
-                if (conn.provider === "imap_smtp" && conn.credentials && cfg) {
-                  connectionSender.smtpConfig = {
-                    smtpHost: cfg.smtpHost || "",
-                    smtpPort: Number(cfg.smtpPort) || 465,
-                    smtpSecure: cfg.smtpSecure !== "false",
-                    fromEmail,
-                    fromName: cfg.fromName || null,
-                  }
-                  connectionSender.encryptedCredentials = conn.credentials
-                }
-              }
-            }
-          }
-
-          fromAddress = connectionSender?.fromEmail
-            || process.env.INBOX_FROM_EMAIL
-            || process.env.RESEND_FROM_EMAIL
-            || undefined
-
-          try {
-            const result = await sendOutboundEmail({
-              workspaceName: conv.workspace.nombre,
-              contactEmail,
-              subject: conv.subject ?? "",
-              messageContent: message.content,
-              workspaceConfig: conv.workspace.config,
-              mode: sendMode,
-              connectionSender,
-              ...(parsedAttachments.length > 0 ? { attachments: parsedAttachments } : {}),
-              ...(parsedCc.length > 0 ? { cc: parsedCc } : {}),
-              ...(parsedBcc.length > 0 ? { bcc: parsedBcc } : {}),
-              ...(parsedTo.length > 0 ? { to: parsedTo } : {}),
-            })
-
-            if (result.ok) {
-              emailStatus = "sent"
-              resendId = result.id
-              console.log(`[email-outbound] OK conv=${id} msg=${message.id} to=${contactEmail} from=${fromAddress} resendId=${result.id}`)
-            } else {
-              emailStatus = "failed"
-              emailError = result.error || "Email delivery failed"
-              console.error(`[email-outbound] FAILED conv=${id} msg=${message.id} to=${contactEmail}: ${emailError}`)
-            }
-          } catch (err) {
-            emailStatus = "failed"
-            emailError = err instanceof Error ? err.message : "Email service unavailable"
-            console.error(`[email-outbound] EXCEPTION conv=${id} msg=${message.id} to=${contactEmail}: ${emailError}`)
-          }
-
-          emailMeta = {
-            emailSent: emailStatus === "sent",
-            ...(emailError ? { emailError } : {}),
-            emailStatus,
-            ...(fromAddress ? { fromAddress } : {}),
-          }
-
-          try {
-            const currentMeta = enrichedMetadata && typeof enrichedMetadata === "object" ? enrichedMetadata : {}
-            await db.message.update({
-              where: { id: message.id },
-              data: {
-                metadata: JSON.stringify({
-                  ...currentMeta,
-                  emailStatus,
-                  ...(resendId ? { resendId } : {}),
-                  ...(emailError ? { emailError } : {}),
-                  ...(fromAddress ? { fromAddress } : {}),
-                  emailAttemptedAt: new Date().toISOString(),
-                }),
-              },
-            })
-          } catch (metaErr) {
-            console.error(`[email-outbound] Could not update message metadata msg=${message.id}:`, metaErr)
-          }
-        } else {
-          console.warn(`[email-outbound] No contact email for conv=${id}, skipping send`)
-        }
-      }
     }
 
-    await runConversationIntelligence({
+    void runConversationIntelligence({
       workspaceId,
       conversationId: id,
       trigger: "message_post",
-    }).catch(() => null)
+    }).catch((err) => {
+      console.error(`[inbox] Intelligence failed conv=${id}:`, err)
+    })
 
-    return successResponse(message, emailMeta)
+    return successResponse(message, { emailStatus: "pending" })
   } catch (error) {
     return handleError(error, "ConversationMessage")
   }
