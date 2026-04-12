@@ -98,6 +98,25 @@
   --app-control-radius: 8px;
   --app-shadow-subtle: 0 4px 10px rgba(36, 28, 58, 0.06);
 
+  /* ==========================================================
+     SHARED STATUS TOKENS — Semantic colors for badges & indicators
+     Used by Badge variants (urgency, status, action)
+     ========================================================== */
+  --status-danger-bg: rgba(232, 111, 116, 0.14);
+  --status-danger-text: #E86F74;
+  --status-warning-bg: rgba(242, 198, 109, 0.18);
+  --status-warning-text: #D6A84A;
+  --status-info-bg: var(--accent-soft);
+  --status-info-text: var(--accent-primary);
+  --status-success-bg: rgba(143, 198, 162, 0.16);
+  --status-success-text: #6FAE87;
+  --status-accent-bg: var(--accent-soft);
+  --status-accent-text: var(--accent-rich);
+  --status-neutral-bg: var(--surface-3);
+  --status-neutral-text: var(--text-secondary-dark);
+  --status-notice-bg: rgba(232, 111, 116, 0.08);
+  --status-notice-text: #D4888C;
+
   /* Shadcn/base tokens remapped to premium system */
   --background: var(--surface-1);
   --foreground: var(--text-primary-dark);

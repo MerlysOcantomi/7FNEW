@@ -17,25 +17,25 @@ const badgeVariants = cva(
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
-        // Inbox Status Variants
-        'status-new': 'border-transparent bg-red-50 text-red-700',
-        'status-triaged': 'border-transparent bg-amber-50 text-amber-700',
-        'status-assigned': 'border-transparent bg-violet-50 text-violet-700',
-        'status-awaiting-response': 'border-transparent bg-pink-50 text-pink-700',
-        'status-lead-detected': 'border-transparent bg-emerald-50 text-emerald-700',
-        'status-converted': 'border-transparent bg-blue-50 text-blue-700',
-        'status-closed': 'border-transparent bg-slate-50 text-slate-600',
-        // Inbox Urgency Variants
-        'urgency-critical': 'border-transparent bg-red-50 text-red-700',
-        'urgency-high': 'border-transparent bg-amber-50 text-amber-700',
-        'urgency-medium': 'border-transparent bg-blue-50 text-blue-700',
-        'urgency-low': 'border-transparent bg-slate-50 text-slate-600',
-        // Action Status Variants
-        'action-suggested': 'border-transparent bg-blue-50 text-blue-700',
-        'action-approved': 'border-transparent bg-violet-50 text-violet-700',
-        'action-executed': 'border-transparent bg-emerald-50 text-emerald-700',
-        'action-dismissed': 'border-transparent bg-slate-50 text-slate-600',
-        'action-failed': 'border-transparent bg-red-50 text-red-700',
+        // Status Variants
+        'status-new': 'border-transparent bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+        'status-triaged': 'border-transparent bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
+        'status-assigned': 'border-transparent bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]',
+        'status-awaiting-response': 'border-transparent bg-[var(--status-notice-bg)] text-[var(--status-notice-text)]',
+        'status-lead-detected': 'border-transparent bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+        'status-converted': 'border-transparent bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+        'status-closed': 'border-transparent bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]',
+        // Urgency Variants
+        'urgency-critical': 'border-transparent bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+        'urgency-high': 'border-transparent bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
+        'urgency-medium': 'border-transparent bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+        'urgency-low': 'border-transparent bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]',
+        // Action Variants
+        'action-suggested': 'border-transparent bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+        'action-approved': 'border-transparent bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]',
+        'action-executed': 'border-transparent bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+        'action-dismissed': 'border-transparent bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]',
+        'action-failed': 'border-transparent bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
       },
     },
     defaultVariants: {
