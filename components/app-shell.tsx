@@ -29,8 +29,8 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   if (loading) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[var(--inbox-background)]">
-        <p className="text-sm text-[var(--inbox-list-text-secondary)]">Checking session...</p>
+      <div className="flex h-dvh items-center justify-center bg-[var(--app-shell-bg)]">
+        <p className="text-sm text-[var(--app-sidebar-text-muted)]">Checking session...</p>
       </div>
     )
   }
@@ -41,13 +41,13 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] font-sans md:flex-row">
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Toolbar */}
-          <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--inbox-background)]">
+          <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--app-shell-bg)]">
             <button
               onClick={openSearch}
               className="flex items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/6 px-3 py-1.5 cursor-pointer hover:bg-white/10 transition-colors"

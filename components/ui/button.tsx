@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         accent:
-          'rounded-[var(--inbox-radius-control)] bg-[var(--inbox-accent)] text-white shadow-[var(--inbox-panel-shadow-sm)] hover:bg-[var(--inbox-accent-hover)] focus-visible:border-[var(--inbox-accent)]',
+          'rounded-[var(--app-control-radius)] bg-[var(--app-accent)] text-white shadow-[var(--app-shadow-subtle)] hover:bg-[var(--app-accent-hover)] focus-visible:border-[var(--app-accent)]',
         destructive:
           'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         outline:

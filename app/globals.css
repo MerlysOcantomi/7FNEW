@@ -83,6 +83,21 @@
   --surface-overlay-muted: var(--text-secondary-light);
   --surface-overlay-border: var(--border-dark);
 
+  /* ==========================================================
+     APP SHELL TOKENS — Global navigation & shell
+     Decoupled from inbox namespace for independent evolution
+     ========================================================== */
+  --app-sidebar-bg: var(--app-sidebar);
+  --app-sidebar-surface: var(--app-sidebar);
+  --app-sidebar-text: var(--text-primary-light);
+  --app-sidebar-text-muted: var(--text-secondary-light);
+  --app-sidebar-border: var(--border-dark);
+  --app-accent: var(--accent-primary);
+  --app-accent-hover: var(--accent-primary-hover);
+  --app-shell-bg: var(--app-canvas);
+  --app-control-radius: 8px;
+  --app-shadow-subtle: 0 4px 10px rgba(36, 28, 58, 0.06);
+
   /* Shadcn/base tokens remapped to premium system */
   --background: var(--surface-1);
   --foreground: var(--text-primary-dark);
