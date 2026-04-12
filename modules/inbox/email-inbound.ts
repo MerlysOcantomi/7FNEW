@@ -31,7 +31,7 @@ interface ReceivedEmail {
   attachments?: ReceivedEmailAttachment[]
 }
 
-interface StoredAttachment {
+export interface StoredAttachment {
   filename: string
   url: string
   contentType: string
@@ -39,7 +39,7 @@ interface StoredAttachment {
   source: "inbound"
 }
 
-interface InboundEmailResult {
+export interface InboundEmailResult {
   conversationId: string
   messageId: string
   contactId: string
@@ -48,38 +48,52 @@ interface InboundEmailResult {
   alreadyProcessed?: boolean
 }
 
-type MatchMethod = "in-reply-to" | "references" | "contact-active" | "contact-reopen" | "new"
+export type MatchMethod = "in-reply-to" | "references" | "contact-active" | "contact-reopen" | "new"
+
+/**
+ * Normalized inbound email — the common format that all sources
+ * (Resend webhook, IMAP sync, future Gmail/Microsoft) convert into
+ * before passing to `ingestInboundEmail`.
+ */
+export interface IngestInboundEmailInput {
+  source: string
+  sourceId: string
+  from: string
+  to: string[]
+  cc?: string[]
+  subject: string | null
+  text: string | null
+  html: string | null
+  headers: Record<string, string>
+  messageId: string
+  receivedAt?: Date
+  attachments?: StoredAttachment[]
+  connectionId?: string | null
+  workspaceId?: string
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function extractEmailAddress(raw: string): string {
+export function extractEmailAddress(raw: string): string {
   const match = raw.match(/<([^>]+)>/)
   return (match ? match[1] : raw).trim().toLowerCase()
 }
 
-function extractDisplayName(raw: string): string | null {
+export function extractDisplayName(raw: string): string | null {
   const match = raw.match(/^(.+?)\s*</)
   return match ? match[1].replace(/^"|"$/g, "").trim() || null : null
 }
 
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim()
 }
 
-/**
- * Normalize an RFC 2822 Message-ID: strip angle brackets, trim, lowercase.
- * "<abc@example.com>" → "abc@example.com"
- */
 function normalizeMessageId(raw: string): string {
   return raw.replace(/^</, "").replace(/>$/, "").trim().toLowerCase()
 }
 
-/**
- * Parse the References header into individual Message-IDs (newest last per RFC).
- * Returns them in **reverse** order so the most recent reference is tried first.
- */
 function parseReferencesHeader(refs: string | null | undefined): string[] {
   if (!refs) return []
   const matches = refs.match(/<[^>]+>/g)
@@ -126,10 +140,10 @@ async function fetchReceivedEmail(resendEmailId: string): Promise<ReceivedEmail>
 }
 
 // ---------------------------------------------------------------------------
-// Inbound attachment processing
+// Resend attachment processing
 // ---------------------------------------------------------------------------
 
-async function processInboundAttachments(
+async function processResendAttachments(
   resendEmailId: string,
   rawAttachments: ReceivedEmailAttachment[],
 ): Promise<StoredAttachment[]> {
@@ -189,19 +203,11 @@ async function processInboundAttachments(
 // Thread matching — search by email metadata
 // ---------------------------------------------------------------------------
 
-/**
- * Try to find the conversation an inbound email belongs to by checking
- * In-Reply-To and References headers against metadata already stored in
- * existing messages (both inbound `emailMessageId` and outbound `resendId`).
- *
- * Scoped to a workspace to prevent cross-tenant leaks.
- */
 async function matchConversationByThread(
   inReplyTo: string | null | undefined,
   references: string | null | undefined,
   workspaceId: string,
 ): Promise<{ conversationId: string; matchedBy: "in-reply-to" | "references" } | null> {
-  // --- 1. In-Reply-To (direct parent) ---
   if (inReplyTo) {
     const normalizedId = normalizeMessageId(inReplyTo)
     if (normalizedId) {
@@ -214,7 +220,6 @@ async function matchConversationByThread(
     }
   }
 
-  // --- 2. References (thread chain, newest first) ---
   const refIds = parseReferencesHeader(references)
   for (const refId of refIds) {
     const hit = await db.message.findFirst({
@@ -229,7 +234,7 @@ async function matchConversationByThread(
 }
 
 // ---------------------------------------------------------------------------
-// Contact-based fallback matching (v1 logic preserved)
+// Contact-based fallback matching
 // ---------------------------------------------------------------------------
 
 async function matchConversationByContact(
@@ -275,90 +280,116 @@ async function matchConversationByContact(
 }
 
 // ---------------------------------------------------------------------------
-// Core processing
+// Backfill connectionId helper
 // ---------------------------------------------------------------------------
 
-export async function processInboundEmail(resendEmailId: string): Promise<InboundEmailResult> {
-  // ---- dedup: check if this email was already ingested ----
-  // Search by resendEmailId in metadata across all inbound messages.
-  // resendEmailId is globally unique from Resend, so cross-workspace dedup is safe.
-  const duplicate = await db.message.findFirst({
-    where: { direction: "inbound", metadata: { contains: resendEmailId } },
-    select: { id: true, conversationId: true },
+async function backfillConnectionId(conversationId: string, connectionId: string) {
+  const existing = await db.conversation.findFirst({
+    where: { id: conversationId },
+    select: { connectionId: true },
   })
+  if (existing && !existing.connectionId) {
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { connectionId },
+    })
+  }
+}
 
-  if (duplicate) {
-    console.log(`[email-inbound] Dedup hit email=${resendEmailId} existing_msg=${duplicate.id}`)
-    return {
-      conversationId: duplicate.conversationId,
-      messageId: duplicate.id,
-      contactId: "",
-      isNewConversation: false,
-      matchedBy: "in-reply-to",
-      alreadyProcessed: true,
+// ---------------------------------------------------------------------------
+// Unified inbound ingestion — used by all sources (Resend, IMAP, future)
+// ---------------------------------------------------------------------------
+
+export async function ingestInboundEmail(input: IngestInboundEmailInput): Promise<InboundEmailResult> {
+  const tag = `[inbound:${input.source}]`
+
+  // ---- Dedup by sourceId (e.g. resendEmailId, IMAP UID key) ----
+  if (input.sourceId) {
+    const duplicate = await db.message.findFirst({
+      where: { direction: "inbound", metadata: { contains: input.sourceId } },
+      select: { id: true, conversationId: true },
+    })
+    if (duplicate) {
+      console.log(`${tag} Dedup hit sourceId=${input.sourceId} existing_msg=${duplicate.id}`)
+      return {
+        conversationId: duplicate.conversationId,
+        messageId: duplicate.id,
+        contactId: "",
+        isNewConversation: false,
+        matchedBy: "in-reply-to",
+        alreadyProcessed: true,
+      }
     }
   }
 
-  // ---- 1. Fetch full email ----
-  console.log(`[email-inbound] Fetching email=${resendEmailId}`)
-  const email = await fetchReceivedEmail(resendEmailId)
+  // ---- Dedup by RFC Message-ID ----
+  if (input.messageId) {
+    const normalizedMsgId = normalizeMessageId(input.messageId)
+    if (normalizedMsgId) {
+      const duplicate = await db.message.findFirst({
+        where: { direction: "inbound", metadata: { contains: normalizedMsgId } },
+        select: { id: true, conversationId: true },
+      })
+      if (duplicate) {
+        console.log(`${tag} Dedup hit messageId=${normalizedMsgId} existing_msg=${duplicate.id}`)
+        return {
+          conversationId: duplicate.conversationId,
+          messageId: duplicate.id,
+          contactId: "",
+          isNewConversation: false,
+          matchedBy: "in-reply-to",
+          alreadyProcessed: true,
+        }
+      }
+    }
+  }
 
-  if (!email.from) throw new Error(`Email ${resendEmailId} has no 'from' field`)
+  if (!input.from) throw new Error(`Inbound email from ${input.source} has no 'from' field`)
 
-  const senderEmail = extractEmailAddress(email.from)
-  const senderName = extractDisplayName(email.from)
-  const subject = email.subject || "(No subject)"
-  const content = email.text || stripHtml(email.html || "") || "(empty email)"
-  const headers = email.headers && typeof email.headers === "object" ? email.headers : {}
+  const senderEmail = extractEmailAddress(input.from)
+  const senderName = extractDisplayName(input.from)
+  const subject = input.subject || "(No subject)"
+  const content = input.text || stripHtml(input.html || "") || "(empty email)"
+  const headers = input.headers ?? {}
   const inReplyTo = headers["in-reply-to"] ?? null
   const references = headers["references"] ?? null
 
-  console.log(`[email-inbound] Parsed email=${resendEmailId} from=${senderEmail} subject="${subject}" attachments=${email.attachments?.length ?? 0}`)
+  console.log(`${tag} from=${senderEmail} subject="${subject}"`)
 
-  // ---- 2. Resolve workspace via ChannelConnection (by recipient address) ----
-  // Try to determine workspace from the email's "to" addresses by matching
-  // against ChannelConnection.externalAccountId. This is the primary routing
-  // mechanism for multi-email workspaces.
-  const recipientAddresses = (email.to ?? []).map(extractEmailAddress)
+  // ---- Resolve workspace & connection ----
+  let connectionId = input.connectionId ?? null
+  let workspaceId = input.workspaceId
 
-  let connectionId: string | null = null
-  let workspaceId: string | undefined
-
-  if (recipientAddresses.length > 0) {
-    const connection = await db.channelConnection.findFirst({
-      where: {
-        channelType: "email",
-        status: "active",
-        externalAccountId: { in: recipientAddresses },
-      },
-      select: { id: true, workspaceId: true },
-    })
-
-    if (connection) {
-      workspaceId = connection.workspaceId
-      connectionId = connection.id
-      console.log(`[email-inbound] Routed by connection=${connection.id} workspace=${workspaceId} to=${recipientAddresses.join(",")}`)
+  if (!workspaceId) {
+    const recipientAddresses = (input.to ?? []).map(extractEmailAddress)
+    if (recipientAddresses.length > 0) {
+      const connection = await db.channelConnection.findFirst({
+        where: {
+          channelType: "email",
+          status: "active",
+          externalAccountId: { in: recipientAddresses },
+        },
+        select: { id: true, workspaceId: true },
+      })
+      if (connection) {
+        workspaceId = connection.workspaceId
+        connectionId = connectionId ?? connection.id
+        console.log(`${tag} Routed by connection=${connection.id} workspace=${workspaceId}`)
+      }
     }
   }
 
-  // ---- 2b. Resolve contact (workspace-scoped) ----
-  // If no connection matched, fall back to existing contact lookup (now
-  // workspace-scoped when possible) or DEFAULT_WORKSPACE_ID / first workspace.
+  // ---- Resolve contact ----
   let contactId: string
 
   if (workspaceId) {
-    // Workspace known from connection — scope contact search to it
     const existingContact = await db.contact.findFirst({
       where: { email: senderEmail, workspaceId },
       orderBy: { lastSeenAt: "desc" },
     })
-
     if (existingContact) {
       contactId = existingContact.id
-      await db.contact.update({
-        where: { id: contactId },
-        data: { lastSeenAt: new Date() },
-      })
+      await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
     } else {
       const contact = await db.contact.create({
         data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
@@ -366,30 +397,21 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
       contactId = contact.id
     }
   } else {
-    // No connection found — fallback: try to find contact scoped to any workspace,
-    // then fall back to DEFAULT_WORKSPACE_ID or first workspace.
     const existingContact = await db.contact.findFirst({
       where: { email: senderEmail },
       orderBy: { lastSeenAt: "desc" },
     })
-
     if (existingContact) {
       workspaceId = existingContact.workspaceId
       contactId = existingContact.id
-      await db.contact.update({
-        where: { id: contactId },
-        data: { lastSeenAt: new Date() },
-      })
+      await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
     } else {
-      // Last resort: default workspace (temporary fallback for workspaces without connections)
       const defaultWsId = process.env.DEFAULT_WORKSPACE_ID
       const workspace = defaultWsId
         ? await db.workspace.findUnique({ where: { id: defaultWsId } })
         : await db.workspace.findFirst({ orderBy: { createdAt: "asc" } })
-
       if (!workspace) throw new Error("No workspace available for inbound email")
       workspaceId = workspace.id
-
       const contact = await db.contact.create({
         data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
       })
@@ -397,7 +419,7 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     }
   }
 
-  // ---- 3. Match conversation (thread-first, contact-fallback, new) ----
+  // ---- Match conversation ----
   let conversationId: string
   let isNewConversation = false
   let matchedBy: MatchMethod
@@ -407,39 +429,13 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
   if (threadMatch) {
     conversationId = threadMatch.conversationId
     matchedBy = threadMatch.matchedBy
-
-    // Backfill connectionId on existing conversation if we resolved one and it's missing
-    if (connectionId) {
-      const existing = await db.conversation.findFirst({
-        where: { id: conversationId },
-        select: { connectionId: true },
-      })
-      if (existing && !existing.connectionId) {
-        await db.conversation.update({
-          where: { id: conversationId },
-          data: { connectionId },
-        })
-      }
-    }
+    if (connectionId) await backfillConnectionId(conversationId, connectionId)
   } else {
     const contactMatch = await matchConversationByContact(workspaceId, contactId)
-
     if (contactMatch) {
       conversationId = contactMatch.conversationId
       matchedBy = contactMatch.matchedBy
-
-      if (connectionId) {
-        const existing = await db.conversation.findFirst({
-          where: { id: conversationId },
-          select: { connectionId: true },
-        })
-        if (existing && !existing.connectionId) {
-          await db.conversation.update({
-            where: { id: conversationId },
-            data: { connectionId },
-          })
-        }
-      }
+      if (connectionId) await backfillConnectionId(conversationId, connectionId)
     } else {
       const conv = await db.conversation.create({
         data: {
@@ -461,17 +457,9 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     }
   }
 
-  console.log(
-    `[email-inbound] ${resendEmailId} from=${senderEmail} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation} conn=${connectionId ?? "none"}`,
-  )
+  console.log(`${tag} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation} conn=${connectionId ?? "none"}`)
 
-  // ---- 4. Process attachments if present ----
-  const storedAttachments = await processInboundAttachments(
-    resendEmailId,
-    email.attachments ?? [],
-  )
-
-  // ---- 5. Create inbound message ----
+  // ---- Create inbound message ----
   const message = await addMessage({
     workspaceId,
     conversationId,
@@ -481,22 +469,23 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     contentType: "text",
     connectionId,
     metadata: {
-      resendEmailId: email.id,
-      emailMessageId: email.message_id,
-      emailFrom: email.from,
-      emailTo: email.to,
-      emailCc: email.cc ?? [],
+      source: input.source,
+      sourceId: input.sourceId,
+      emailMessageId: input.messageId,
+      emailFrom: input.from,
+      emailTo: input.to,
+      emailCc: input.cc ?? [],
       emailSubject: subject,
       inReplyTo,
       references,
       ...(connectionId ? { connectionId } : {}),
-      ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
+      ...(input.attachments && input.attachments.length > 0 ? { attachments: input.attachments } : {}),
     },
   })
 
   if (!message) throw new Error("Failed to create inbound message")
 
-  // ---- 6. Post-processing (fire-and-forget) ----
+  // ---- Post-processing (fire-and-forget) ----
   db.conversation
     .findFirst({
       where: { id: conversationId, workspaceId },
@@ -526,9 +515,10 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
     recordId: conversationId,
     type: "email_received",
     data: {
-      resendEmailId: email.id,
+      source: input.source,
+      sourceId: input.sourceId,
       from: senderEmail,
-      to: recipientAddresses,
+      to: input.to,
       subject,
       isNew: isNewConversation,
       matchedBy,
@@ -538,4 +528,32 @@ export async function processInboundEmail(resendEmailId: string): Promise<Inboun
   }).catch(() => null)
 
   return { conversationId, messageId: message.id, contactId, isNewConversation, matchedBy }
+}
+
+// ---------------------------------------------------------------------------
+// Resend adapter — thin wrapper that fetches from Resend API, then calls
+// the unified ingestInboundEmail pipeline.
+// ---------------------------------------------------------------------------
+
+export async function processInboundEmail(resendEmailId: string): Promise<InboundEmailResult> {
+  console.log(`[email-inbound] Fetching email=${resendEmailId}`)
+  const email = await fetchReceivedEmail(resendEmailId)
+
+  const headers = email.headers && typeof email.headers === "object" ? email.headers : {}
+  const attachments = await processResendAttachments(resendEmailId, email.attachments ?? [])
+
+  return ingestInboundEmail({
+    source: "resend",
+    sourceId: resendEmailId,
+    from: email.from,
+    to: email.to ?? [],
+    cc: email.cc,
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+    headers,
+    messageId: email.message_id,
+    receivedAt: email.created_at ? new Date(email.created_at) : undefined,
+    attachments,
+  })
 }

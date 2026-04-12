@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Mail, Plus, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp,
-  RefreshCw, Trash2, Star, Eye, EyeOff, AlertCircle,
+  RefreshCw, Trash2, Star, Eye, EyeOff, AlertCircle, Download,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -46,6 +46,8 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [syncingId, setSyncingId] = useState<string | null>(null)
+  const [syncResult, setSyncResult] = useState<{ connId: string; msg: string } | null>(null)
 
   const [form, setForm] = useState({
     name: "",
@@ -138,6 +140,24 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
     } catch { /* ignore */ }
   }, [workspaceId])
 
+  const handleSync = useCallback(async (connId: string) => {
+    setSyncingId(connId)
+    setSyncResult(null)
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/connections/${connId}/sync`, { method: "POST" })
+      const json = await res.json()
+      const data = json.data ?? json
+      const msg = data.ok
+        ? `Sync OK: ${data.ingested} nuevos, ${data.skipped} omitidos`
+        : `Sync con errores: ${(data.errors ?? []).join("; ")}`
+      setSyncResult({ connId, msg })
+      setRefreshKey((k) => k + 1)
+    } catch {
+      setSyncResult({ connId, msg: "Error al sincronizar" })
+    }
+    setSyncingId(null)
+  }, [workspaceId])
+
   const handleSetDefault = useCallback(async (connId: string) => {
     try {
       await fetch(`/api/workspaces/${workspaceId}/connections/${connId}`, {
@@ -197,11 +217,23 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
                         <span className="truncate">{conn.lastError}</span>
                       </p>
                     )}
+                    {syncResult?.connId === conn.id && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{syncResult.msg}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {!conn.isDefault && (
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="Marcar como default" onClick={() => handleSetDefault(conn.id)}>
                         <Star className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {conn.provider === "imap_smtp" && (
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7" title="Sync now (descargar emails)"
+                        disabled={syncingId === conn.id}
+                        onClick={() => handleSync(conn.id)}
+                      >
+                        {syncingId === conn.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                       </Button>
                     )}
                     <Button

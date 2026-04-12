@@ -838,6 +838,7 @@ model ChannelConnection {
   status            String    @default("active")
   externalAccountId String?   // email address, phone number, etc.
   isDefault         Boolean   @default(false)
+  syncState         String?   // JSON: { lastUid, uidValidity, ... } — incremental sync cursor
   lastSyncAt        DateTime?
   lastError         String?
   createdAt         DateTime  @default(now())
