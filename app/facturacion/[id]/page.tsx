@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { ContextShell } from "@/components/context-shell";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Download, Send, CheckCircle2, AlertTriangle, Clock,
@@ -61,19 +62,19 @@ interface ActivityData {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ElementType; label: string }> = {
-  pagada:    { bg: "bg-[#DCFCE7]", text: "text-[#166534]", icon: CheckCircle2, label: "Paid" },
-  enviada:   { bg: "bg-[#EFF6FF]", text: "text-[#1D4ED8]",  icon: Clock,        label: "Pending" },
-  vencida:   { bg: "bg-[#FEE2E2]", text: "text-[#991B1B]",  icon: AlertTriangle, label: "Overdue" },
-  borrador:  { bg: "bg-[#F1F5F9]", text: "text-[#64748B]",  icon: FileText,     label: "Draft" },
-  cancelada: { bg: "bg-[#F1F5F9]", text: "text-[#94A3B8]",  icon: FileText,     label: "Canceled" },
+  pagada:    { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]", icon: CheckCircle2, label: "Paid" },
+  enviada:   { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    icon: Clock,        label: "Pending" },
+  vencida:   { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  icon: AlertTriangle, label: "Overdue" },
+  borrador:  { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText,     label: "Draft" },
+  cancelada: { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText,     label: "Canceled" },
 };
 
 const ACTIVITY_TYPE_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  created:       { bg: "bg-[#EFF6FF]",  text: "text-[#1D4ED8]",  dot: "bg-[#3B82F6]", label: "Creada" },
-  comment:       { bg: "bg-[#F1F5F9]",  text: "text-[#64748B]",  dot: "bg-[#94A3B8]", label: "Comentario" },
-  updated:       { bg: "bg-[#FEF9C3]",  text: "text-[#854D0E]",  dot: "bg-[#EAB308]", label: "Actualizada" },
-  deleted:       { bg: "bg-[#FEE2E2]",  text: "text-[#991B1B]",  dot: "bg-[#EF4444]", label: "Eliminada" },
-  status_change: { bg: "bg-[#DCFCE7]",  text: "text-[#166534]",  dot: "bg-[#22C55E]", label: "Estado" },
+  created:       { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    dot: "bg-primary",                        label: "Creada" },
+  comment:       { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", dot: "bg-muted-foreground",               label: "Comentario" },
+  updated:       { bg: "bg-[var(--status-warning-bg)]",  text: "text-[var(--status-warning-text)]", dot: "bg-[var(--status-warning-text)]",   label: "Actualizada" },
+  deleted:       { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  dot: "bg-destructive",                    label: "Eliminada" },
+  status_change: { bg: "bg-[var(--status-success-bg)]",  text: "text-[var(--status-success-text)]", dot: "bg-[var(--status-success-text)]",   label: "Estado" },
 };
 
 function formatDate(value: string | Date | null | undefined): string {
@@ -99,7 +100,7 @@ function formatFileSize(bytes: number): string {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">
+    <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">
       {children}
     </h3>
   );
@@ -115,11 +116,11 @@ function TabResumen({ factura }: { factura: FacturaData }) {
   return (
     <div className="space-y-6">
       {factura.estado === "vencida" && (
-        <div className="flex items-start gap-3 bg-[#FEE2E2] border border-[#FECACA] rounded-xl p-4">
-          <AlertTriangle size={15} className="text-[#DC2626] mt-0.5 shrink-0" strokeWidth={1.75} />
+        <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+          <AlertTriangle size={15} className="text-destructive mt-0.5 shrink-0" strokeWidth={1.75} />
           <div>
-            <p className="text-sm font-semibold text-[#991B1B]">Overdue payment — immediate action required</p>
-            <p className="text-xs text-[#991B1B] mt-0.5">
+            <p className="text-sm font-semibold text-destructive">Overdue payment — immediate action required</p>
+            <p className="text-xs text-destructive/80 mt-0.5">
               Esta factura venció el {formatDate(factura.fechaVencimiento)}. Contacta al equipo de cuentas a pagar de{" "}
               {factura.cliente?.nombre ?? "el cliente"}.
             </p>
@@ -128,46 +129,46 @@ function TabResumen({ factura }: { factura: FacturaData }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-5">
+        <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5 space-y-5">
           <SectionLabel>Desglose del importe</SectionLabel>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#EFF6FF] rounded-xl p-4">
-              <p className="text-xl font-bold text-[#0F172A] tracking-tight">{formatCurrency(factura.subtotal)}</p>
-              <p className="text-[10px] text-[#64748B] mt-0.5">Subtotal</p>
+            <div className="bg-accent rounded-xl p-4">
+              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.subtotal)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Subtotal</p>
             </div>
-            <div className="bg-[#EFF6FF] rounded-xl p-4">
-              <p className="text-xl font-bold text-[#0F172A] tracking-tight">{formatCurrency(factura.impuesto)}</p>
-              <p className="text-[10px] text-[#64748B] mt-0.5">Impuestos</p>
+            <div className="bg-accent rounded-xl p-4">
+              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.impuesto)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Impuestos</p>
             </div>
-            <div className="bg-[#DBEAFE] rounded-xl p-4">
-              <p className="text-xl font-bold text-[#1D4ED8] tracking-tight">{formatCurrency(factura.total)}</p>
-              <p className="text-[10px] text-[#1D4ED8] mt-0.5">Total</p>
+            <div className="bg-primary/15 rounded-xl p-4">
+              <p className="text-xl font-bold text-primary tracking-tight">{formatCurrency(factura.total)}</p>
+              <p className="text-[10px] text-primary mt-0.5">Total</p>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#64748B]">Estado de cobro</span>
-              <span className="text-xs font-semibold text-[#0F172A]">{paidPercent}% cobrado</span>
+              <span className="text-xs text-muted-foreground">Estado de cobro</span>
+              <span className="text-xs font-semibold text-foreground">{paidPercent}% cobrado</span>
             </div>
-            <div className="h-2 rounded-full bg-[#E2E8F0] overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  paidPercent === 100 ? "bg-[#22C55E]" : paidPercent > 0 ? "bg-[#3B82F6]" : "bg-[#E2E8F0]"
+                  paidPercent === 100 ? "bg-[var(--status-success-text)]" : paidPercent > 0 ? "bg-primary" : "bg-muted"
                 )}
                 style={{ width: `${paidPercent}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[10px] text-[#94A3B8]">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
               <span>Outstanding: {paidRaw > 0 ? formatCurrency(factura.total - paidRaw) : formatCurrency(factura.total)}</span>
-              {paidRaw > 0 && <span className="text-[#22C55E] font-medium">Paid: {formatCurrency(paidRaw)}</span>}
+              {paidRaw > 0 && <span className="text-[var(--status-success-text)] font-medium">Paid: {formatCurrency(paidRaw)}</span>}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 border-t border-[#F1F5F9]">
-            <span className="text-xs text-[#64748B]">Estado</span>
+          <div className="flex items-center justify-between pt-1 border-t border-muted">
+            <span className="text-xs text-muted-foreground">Estado</span>
             <span className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold",
               statusCfg.bg,
@@ -178,20 +179,20 @@ function TabResumen({ factura }: { factura: FacturaData }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-4">
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div>
             <SectionLabel>Cliente</SectionLabel>
             {factura.clienteId ? (
               <Link
                 href={`/clientes/${factura.clienteId}`}
-                className="flex items-center gap-1.5 text-sm font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
+                className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Building2 size={13} strokeWidth={1.75} />
                 {factura.cliente?.nombre ?? "—"}
                 <ArrowUpRight size={11} />
               </Link>
             ) : (
-              <span className="text-sm text-[#94A3B8]">—</span>
+              <span className="text-sm text-muted-foreground">—</span>
             )}
           </div>
 
@@ -200,29 +201,29 @@ function TabResumen({ factura }: { factura: FacturaData }) {
             {factura.proyectoId ? (
               <Link
                 href={`/proyectos/${factura.proyectoId}`}
-                className="flex items-center gap-1.5 text-sm font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
+                className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Hash size={13} strokeWidth={1.75} />
                 {factura.proyecto?.nombre ?? "—"}
                 <ArrowUpRight size={11} />
               </Link>
             ) : (
-              <span className="text-sm text-[#94A3B8]">—</span>
+              <span className="text-sm text-muted-foreground">—</span>
             )}
           </div>
 
-          <div className="space-y-2 pt-1 border-t border-[#F1F5F9]">
+          <div className="space-y-2 pt-1 border-t border-muted">
             {[
               { label: "Issue date", value: formatDate(factura.fechaEmision), icon: Calendar },
               { label: "Due date", value: formatDate(factura.fechaVencimiento), icon: Calendar },
               ...(factura.paidAt ? [{ label: "Payment date", value: formatDate(factura.paidAt), icon: CreditCard }] : []),
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="flex items-start justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-xs text-[#94A3B8] shrink-0">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
                   <Icon size={11} strokeWidth={1.75} />
                   {label}
                 </span>
-                <span className="text-xs font-medium text-[#334155] text-right">{value}</span>
+                <span className="text-xs font-medium text-foreground text-right">{value}</span>
               </div>
             ))}
           </div>
@@ -239,10 +240,10 @@ function TabLineas({ factura }: { factura: FacturaData }) {
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-        <FileText size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-[#334155]">No invoice lines</p>
-        <p className="text-xs text-[#94A3B8] mt-1">Esta factura no tiene conceptos registrados.</p>
+      <div className="bg-card rounded-xl border border-border p-12 text-center">
+        <FileText size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
+        <p className="text-sm font-medium text-foreground">No invoice lines</p>
+        <p className="text-xs text-muted-foreground mt-1">Esta factura no tiene conceptos registrados.</p>
       </div>
     );
   }
@@ -251,48 +252,48 @@ function TabLineas({ factura }: { factura: FacturaData }) {
     <div className="space-y-4">
       <SectionLabel>Invoice lines</SectionLabel>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
-        <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-          <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Concepto</span>
-          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider text-right">Cantidad</span>
-          <span className="col-span-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider text-right">P. unitario</span>
-          <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider text-right">Total</span>
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-muted bg-background">
+          <span className="col-span-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Concepto</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Cantidad</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">P. unitario</span>
+          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Total</span>
         </div>
 
         {items.map((item, i) => (
           <div
             key={i}
-            className={cn(i < items.length - 1 && "border-b border-[#F1F5F9]")}
+            className={cn(i < items.length - 1 && "border-b border-muted")}
           >
             <div className="hidden md:grid grid-cols-12 items-center px-5 py-4">
-              <span className="col-span-5 text-sm text-[#334155] pr-4 leading-snug">{item.descripcion || "—"}</span>
-              <span className="col-span-2 text-sm text-[#64748B] text-right">{item.cantidad}</span>
-              <span className="col-span-2 text-sm text-[#64748B] text-right">{formatCurrency(item.precioUnitario)}</span>
-              <span className="col-span-3 text-sm font-semibold text-[#0F172A] text-right">{formatCurrency(item.total)}</span>
+              <span className="col-span-5 text-sm text-foreground pr-4 leading-snug">{item.descripcion || "—"}</span>
+              <span className="col-span-2 text-sm text-muted-foreground text-right">{item.cantidad}</span>
+              <span className="col-span-2 text-sm text-muted-foreground text-right">{formatCurrency(item.precioUnitario)}</span>
+              <span className="col-span-3 text-sm font-semibold text-foreground text-right">{formatCurrency(item.total)}</span>
             </div>
 
             <div className="md:hidden px-4 py-4 space-y-2">
-              <p className="text-sm text-[#334155] leading-snug">{item.descripcion || "—"}</p>
+              <p className="text-sm text-foreground leading-snug">{item.descripcion || "—"}</p>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-[#94A3B8]">{item.cantidad} × {formatCurrency(item.precioUnitario)}</span>
-                <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(item.total)}</span>
+                <span className="text-xs text-muted-foreground">{item.cantidad} × {formatCurrency(item.precioUnitario)}</span>
+                <span className="text-sm font-semibold text-foreground">{formatCurrency(item.total)}</span>
               </div>
             </div>
           </div>
         ))}
 
-        <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-5 py-4 space-y-1.5">
+        <div className="border-t border-border bg-background px-5 py-4 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#64748B]">Subtotal</span>
-            <span className="text-sm text-[#334155]">{formatCurrency(factura.subtotal)}</span>
+            <span className="text-xs text-muted-foreground">Subtotal</span>
+            <span className="text-sm text-foreground">{formatCurrency(factura.subtotal)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#64748B]">Impuestos</span>
-            <span className="text-sm text-[#334155]">{formatCurrency(factura.impuesto)}</span>
+            <span className="text-xs text-muted-foreground">Impuestos</span>
+            <span className="text-sm text-foreground">{formatCurrency(factura.impuesto)}</span>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0]">
-            <span className="text-sm font-semibold text-[#0F172A]">Total a pagar</span>
-            <span className="text-base font-bold text-[#0F172A]">{formatCurrency(factura.total)}</span>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-sm font-semibold text-foreground">Total a pagar</span>
+            <span className="text-base font-bold text-foreground">{formatCurrency(factura.total)}</span>
           </div>
         </div>
       </div>
@@ -317,27 +318,27 @@ function TabPagos({ factura }: { factura: FacturaData }) {
         <SectionLabel>Recorded payments</SectionLabel>
 
         {payments.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-10 text-center">
-            <CreditCard size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-[#334155]">No payments recorded</p>
-            <p className="text-xs text-[#94A3B8] mt-1">
+          <div className="bg-card rounded-xl border border-border px-5 py-10 text-center">
+            <CreditCard size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
+            <p className="text-sm font-medium text-foreground">No payments recorded</p>
+            <p className="text-xs text-muted-foreground mt-1">
               {factura.estado === "vencida"
                 ? "Esta factura está vencida. Marca como pagada cuando se reciba el pago."
                 : "El pago aparecerá aquí cuando se confirme la recepción."}
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
-            <div className="hidden sm:grid grid-cols-12 px-5 py-3 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-              <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Fecha</span>
-              <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Método</span>
-              <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider text-right">Importe</span>
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="hidden sm:grid grid-cols-12 px-5 py-3 border-b border-muted bg-background">
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fecha</span>
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Método</span>
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Importe</span>
             </div>
             {payments.map((p, i) => (
-              <div key={i} className="grid grid-cols-12 items-center px-5 py-4 border-b border-[#F1F5F9] last:border-0">
-                <span className="col-span-4 text-sm text-[#334155]">{p.date}</span>
-                <span className="col-span-4 text-sm text-[#64748B]">{p.method}</span>
-                <span className="col-span-4 text-sm font-semibold text-[#22C55E] text-right">{p.amount}</span>
+              <div key={i} className="grid grid-cols-12 items-center px-5 py-4 border-b border-muted last:border-0">
+                <span className="col-span-4 text-sm text-foreground">{p.date}</span>
+                <span className="col-span-4 text-sm text-muted-foreground">{p.method}</span>
+                <span className="col-span-4 text-sm font-semibold text-[var(--status-success-text)] text-right">{p.amount}</span>
               </div>
             ))}
           </div>
@@ -346,35 +347,35 @@ function TabPagos({ factura }: { factura: FacturaData }) {
 
       <div className="space-y-4">
         <SectionLabel>Collection summary</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-4">
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#EFF6FF] rounded-xl p-3.5">
-              <p className="text-base font-bold text-[#0F172A]">{formatCurrency(factura.total)}</p>
-              <p className="text-[10px] text-[#64748B] mt-0.5">Total emitido</p>
+            <div className="bg-accent rounded-xl p-3.5">
+              <p className="text-base font-bold text-foreground">{formatCurrency(factura.total)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Total emitido</p>
             </div>
-            <div className={cn("rounded-xl p-3.5", paidRaw > 0 ? "bg-[#DCFCE7]" : "bg-[#F1F5F9]")}>
-              <p className={cn("text-base font-bold", paidRaw > 0 ? "text-[#166534]" : "text-[#94A3B8]")}>
+            <div className={cn("rounded-xl p-3.5", paidRaw > 0 ? "bg-[var(--status-success-bg)]" : "bg-[var(--status-neutral-bg)]")}>
+              <p className={cn("text-base font-bold", paidRaw > 0 ? "text-[var(--status-success-text)]" : "text-muted-foreground")}>
                 {paidRaw > 0 ? formatCurrency(paidRaw) : "$0"}
               </p>
-              <p className="text-[10px] text-[#64748B] mt-0.5">Total cobrado</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Total cobrado</p>
             </div>
           </div>
           <div className="space-y-1.5">
-            <div className="h-2 rounded-full bg-[#E2E8F0] overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
-                className={cn("h-full rounded-full", paidPercent === 100 ? "bg-[#22C55E]" : "bg-[#3B82F6]")}
+                className={cn("h-full rounded-full", paidPercent === 100 ? "bg-[var(--status-success-text)]" : "bg-primary")}
                 style={{ width: `${paidPercent}%` }}
               />
             </div>
-            <p className="text-[10px] text-[#94A3B8]">{paidPercent}% cobrado</p>
+            <p className="text-[10px] text-muted-foreground">{paidPercent}% cobrado</p>
           </div>
-          <div className="pt-1 border-t border-[#F1F5F9] space-y-2">
+          <div className="pt-1 border-t border-muted space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs text-[#94A3B8]">Fecha vencimiento</span>
-              <span className="text-xs font-medium text-[#334155] text-right">{formatDate(factura.fechaVencimiento)}</span>
+              <span className="text-xs text-muted-foreground">Fecha vencimiento</span>
+              <span className="text-xs font-medium text-foreground text-right">{formatDate(factura.fechaVencimiento)}</span>
             </div>
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs text-[#94A3B8]">Estado</span>
+              <span className="text-xs text-muted-foreground">Estado</span>
               <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", statusCfg.bg, statusCfg.text)}>
                 {displayLabel(factura.estado, estadoLabel)}
               </span>
@@ -429,7 +430,7 @@ function TabArchivos({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[#94A3B8]" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -438,12 +439,12 @@ function TabArchivos({
     return (
       <div className="max-w-2xl space-y-4">
         <SectionLabel>Attached files</SectionLabel>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-          <Paperclip size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-          <p className="text-sm font-medium text-[#334155]">No attached files</p>
-          <p className="text-xs text-[#94A3B8] mt-1">Sube documentos relacionados con esta factura.</p>
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <Paperclip size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
+          <p className="text-sm font-medium text-foreground">No attached files</p>
+          <p className="text-xs text-muted-foreground mt-1">Sube documentos relacionados con esta factura.</p>
         </div>
-        <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-[#E2E8F0] text-sm text-[#94A3B8] hover:border-[#BFDBFE] hover:text-[#3B82F6] hover:bg-[#F8FAFC] transition-colors justify-center cursor-pointer">
+        <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-background transition-colors justify-center cursor-pointer">
           <Upload size={14} strokeWidth={1.75} />
           {uploading ? "Subiendo…" : "Subir archivo adjunto"}
           <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
@@ -456,27 +457,27 @@ function TabArchivos({
     <div className="max-w-2xl space-y-4">
       <SectionLabel>Attached files</SectionLabel>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {attachments.map((file, i) => (
           <div
             key={file.id}
             className={cn(
-              "flex items-center gap-4 px-5 py-4 hover:bg-[#F8FAFC] transition-colors",
-              i < attachments.length - 1 && "border-b border-[#F1F5F9]"
+              "flex items-center gap-4 px-5 py-4 hover:bg-background transition-colors",
+              i < attachments.length - 1 && "border-b border-muted"
             )}
           >
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-[#EFF6FF]">
-              <FileText size={15} className="text-[#3B82F6]" strokeWidth={1.75} />
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-accent">
+              <FileText size={15} className="text-primary" strokeWidth={1.75} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#334155] truncate">{file.nombre}</p>
-              <span className="text-[10px] text-[#94A3B8]">{formatFileSize(file.tamano)}</span>
+              <p className="text-sm font-medium text-foreground truncate">{file.nombre}</p>
+              <span className="text-[10px] text-muted-foreground">{formatFileSize(file.tamano)}</span>
             </div>
             <a
               href={file.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-medium text-[#64748B] hover:text-[#3B82F6] hover:border-[#BFDBFE] transition-colors"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
             >
               <Download size={12} strokeWidth={1.75} />
               Descargar
@@ -485,7 +486,7 @@ function TabArchivos({
         ))}
       </div>
 
-      <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-[#E2E8F0] text-sm text-[#94A3B8] hover:border-[#BFDBFE] hover:text-[#3B82F6] hover:bg-[#F8FAFC] transition-colors justify-center cursor-pointer">
+      <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-background transition-colors justify-center cursor-pointer">
         <Upload size={14} strokeWidth={1.75} />
         {uploading ? "Subiendo…" : "Subir archivo adjunto"}
         <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
@@ -541,7 +542,7 @@ function TabNotas({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[#94A3B8]" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -549,10 +550,10 @@ function TabNotas({
   return (
     <div className="max-w-2xl space-y-4">
       <SectionLabel>Internal notes</SectionLabel>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 space-y-4">
+      <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <div className="flex items-start gap-3">
-          <StickyNote size={14} className="text-[#94A3B8] mt-0.5 shrink-0" strokeWidth={1.75} />
-          <p className="text-xs text-[#94A3B8] leading-relaxed">
+          <StickyNote size={14} className="text-muted-foreground mt-0.5 shrink-0" strokeWidth={1.75} />
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Las notas internas son visibles únicamente para el equipo. No se incluyen en la factura enviada al cliente.
           </p>
         </div>
@@ -561,31 +562,27 @@ function TabNotas({
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm text-[#334155] placeholder:text-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-[#BFDBFE] focus:border-[#3B82F6] resize-none transition-colors leading-relaxed"
+            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition-colors leading-relaxed"
             rows={4}
             placeholder="Agrega una nota interna sobre esta factura..."
           />
           <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving || !comment.trim()}
-              className="px-4 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors disabled:opacity-50"
-            >
+            <Button type="submit" size="sm" disabled={saving || !comment.trim()}>
               {saving ? "Saving..." : "Save note"}
-            </button>
+            </Button>
           </div>
         </form>
 
         {comments.length > 0 && (
-          <div className="pt-4 border-t border-[#F1F5F9] space-y-3">
-            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Previous notes</p>
+          <div className="pt-4 border-t border-muted space-y-3">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Previous notes</p>
             <div className="space-y-2">
               {comments.map((a) => (
                 <div key={a.id} className="flex items-start gap-3 py-2">
-                  <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-[#94A3B8]" />
+                  <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-[#334155] leading-snug">{a.data?.comment ?? "—"}</p>
-                    <p className="text-[10px] text-[#94A3B8] mt-0.5">
+                    <p className="text-sm text-foreground leading-snug">{a.data?.comment ?? "—"}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       {a.userName ?? "Usuario"} · {formatDate(a.createdAt)}
                     </p>
                   </div>
@@ -596,7 +593,7 @@ function TabNotas({
         )}
 
         {comments.length === 0 && (
-          <p className="text-xs text-[#94A3B8]">No hay notas anteriores.</p>
+          <p className="text-xs text-muted-foreground">No hay notas anteriores.</p>
         )}
       </div>
     </div>
@@ -609,17 +606,17 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[#94A3B8]" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (activities.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-        <Clock size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-[#334155]">Sin actividad registrada</p>
-        <p className="text-xs text-[#94A3B8] mt-1">Los cambios y comentarios aparecerán aquí.</p>
+      <div className="bg-card rounded-xl border border-border p-12 text-center">
+        <Clock size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
+        <p className="text-sm font-medium text-foreground">Sin actividad registrada</p>
+        <p className="text-xs text-muted-foreground mt-1">Los cambios y comentarios aparecerán aquí.</p>
       </div>
     );
   }
@@ -628,10 +625,10 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
 
   if (nonComments.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center">
-        <Clock size={28} className="text-[#CBD5E1] mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-[#334155]">No change history</p>
-        <p className="text-xs text-[#94A3B8] mt-1">Only comments are available in the Notes tab.</p>
+      <div className="bg-card rounded-xl border border-border p-12 text-center">
+        <Clock size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
+        <p className="text-sm font-medium text-foreground">No change history</p>
+        <p className="text-xs text-muted-foreground mt-1">Only comments are available in the Notes tab.</p>
       </div>
     );
   }
@@ -639,7 +636,7 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
   return (
     <div className="space-y-4">
       <SectionLabel>Historial de actividad</SectionLabel>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-2 divide-y divide-[#F1F5F9]">
+      <div className="bg-card rounded-xl border border-border px-5 py-2 divide-y divide-muted">
         {nonComments.map((event) => {
           const cfg = ACTIVITY_TYPE_CONFIG[event.type] ?? ACTIVITY_TYPE_CONFIG.updated;
           const label = event.data?.label ?? event.type;
@@ -659,8 +656,8 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
             <div key={event.id} className="flex items-start gap-3 py-4">
               <span className={cn("mt-1.5 shrink-0 w-2 h-2 rounded-full", cfg.dot)} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#334155] leading-snug">{desc}</p>
-                <p className="text-[10px] text-[#94A3B8] mt-0.5">{formatDate(event.createdAt)} · {event.userName ?? "Sistema"}</p>
+                <p className="text-sm text-foreground leading-snug">{desc}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(event.createdAt)} · {event.userName ?? "Sistema"}</p>
               </div>
               <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", cfg.bg, cfg.text)}>
                 {cfg.label}
@@ -725,9 +722,9 @@ export default function InvoiceDetailPage() {
 
   if (loading && !factura) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+      <div className="flex flex-col min-h-screen bg-background">
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-[#94A3B8]" />
+          <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
@@ -735,15 +732,15 @@ export default function InvoiceDetailPage() {
 
   if (error || !factura) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+      <div className="flex flex-col min-h-screen bg-background">
         <div className="flex-1 flex items-center justify-center p-8">
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-8 text-center max-w-md">
-            <AlertTriangle className="mx-auto h-12 w-12 text-[#EF4444] mb-4" />
-            <p className="text-sm font-medium text-[#991B1B]">{error ?? "Factura no encontrada"}</p>
-            <p className="text-xs text-[#64748B] mt-2">La factura puede no existir o no tener acceso.</p>
+          <div className="bg-card rounded-xl border border-border p-8 text-center max-w-md">
+            <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <p className="text-sm font-medium text-destructive">{error ?? "Factura no encontrada"}</p>
+            <p className="text-xs text-muted-foreground mt-2">La factura puede no existir o no tener acceso.</p>
             <Link
               href="/facturacion"
-              className="mt-4 inline-block text-sm font-medium text-[#3B82F6] hover:text-[#2563EB]"
+              className="mt-4 inline-block text-sm font-medium text-primary hover:text-primary/80"
             >
               Back to billing
             </Link>
@@ -763,7 +760,7 @@ export default function InvoiceDetailPage() {
       ]}
       heading={
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
+          <h1 className="text-xl font-semibold text-foreground tracking-tight">
             Factura {factura.numero}
           </h1>
           <span className={cn(
@@ -778,59 +775,53 @@ export default function InvoiceDetailPage() {
       meta={
         <div className="flex items-center gap-4 flex-wrap">
           {factura.clienteId && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Building2 size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              <Link href={`/clientes/${factura.clienteId}`} className="hover:text-[#3B82F6] transition-colors">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Building2 size={13} strokeWidth={1.75} className="text-muted-foreground" />
+              <Link href={`/clientes/${factura.clienteId}`} className="hover:text-primary transition-colors">
                 {factura.cliente?.nombre ?? "—"}
               </Link>
             </span>
           )}
           {factura.proyectoId && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Hash size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
-              <Link href={`/proyectos/${factura.proyectoId}`} className="hover:text-[#3B82F6] transition-colors">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Hash size={13} strokeWidth={1.75} className="text-muted-foreground" />
+              <Link href={`/proyectos/${factura.proyectoId}`} className="hover:text-primary transition-colors">
                 {factura.proyecto?.nombre ?? "—"}
               </Link>
             </span>
           )}
-          <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-            <Calendar size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Calendar size={13} strokeWidth={1.75} className="text-muted-foreground" />
             Emitida {formatDate(factura.fechaEmision)}
           </span>
           {factura.fechaVencimiento && (
-            <span className="flex items-center gap-1.5 text-sm text-[#64748B]">
-              <Calendar size={13} strokeWidth={1.75} className="text-[#94A3B8]" />
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Calendar size={13} strokeWidth={1.75} className="text-muted-foreground" />
               Vence {formatDate(factura.fechaVencimiento)}
             </span>
           )}
-          <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(factura.total)}</span>
+          <span className="text-sm font-bold text-foreground">{formatCurrency(factura.total)}</span>
         </div>
       }
       actions={
         <>
-          <button
-            onClick={() => setEditOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil size={13} strokeWidth={1.75} />
             Edit
-          </button>
-          <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors">
+          </Button>
+          <Button variant="outline" size="sm">
             <Download size={13} strokeWidth={1.75} />
             Descargar PDF
-          </button>
-          <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#334155] text-xs font-medium hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors">
+          </Button>
+          <Button variant="outline" size="sm">
             <Send size={13} strokeWidth={1.75} />
             Send by email
-          </button>
+          </Button>
           {(factura.estado === "enviada" || factura.estado === "vencida") && (
-            <button
-              onClick={handleMarkAsPaid}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] text-white text-xs font-medium hover:bg-[#1E293B] transition-colors"
-            >
+            <Button size="sm" onClick={handleMarkAsPaid}>
               <CheckCircle2 size={13} strokeWidth={1.75} />
               Marcar como pagada
-            </button>
+            </Button>
           )}
         </>
       }
