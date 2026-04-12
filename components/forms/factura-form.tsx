@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from "react"
 import { X, Plus, Trash2 } from "lucide-react"
 import { apiPost, apiPatch } from "@/lib/api-client"
 import { useFetch } from "@/hooks/use-fetch"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { INPUT_CLASS } from "@/lib/form-classes"
 import { toast } from "sonner"
 
 interface Props {
@@ -133,9 +136,9 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
+        <Button variant="ghost" size="icon-sm" onClick={onClose} className="absolute right-4 top-4 h-6 w-6" aria-label="Close">
           <X className="h-3.5 w-3.5" />
-        </button>
+        </Button>
 
         <h2 className="text-lg font-semibold text-foreground mb-6">
           {isEditing ? "Edit invoice" : "New invoice"}
@@ -144,36 +147,36 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Invoice number *">
-              <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="FAC-001" className="input-field" autoFocus />
+              <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="FAC-001" className={INPUT_CLASS} autoFocus />
             </Field>
             <Field label="Status">
-              <select value={estado} onChange={(e) => setEstado(e.target.value)} className="input-field">
+              <select value={estado} onChange={(e) => setEstado(e.target.value)} className={INPUT_CLASS}>
                 {estadoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
             <Field label="Tax (%)">
-              <input type="number" value={impuestoPct} onChange={(e) => setImpuestoPct(Number(e.target.value) || 0)} min="0" max="100" className="input-field" />
+              <input type="number" value={impuestoPct} onChange={(e) => setImpuestoPct(Number(e.target.value) || 0)} min="0" max="100" className={INPUT_CLASS} />
             </Field>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Client">
-              <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="input-field">
+              <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className={INPUT_CLASS}>
                 <option value="">No client</option>
                 {clientesList.map((c: any) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </Field>
             <Field label="Project">
-              <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} className="input-field">
+              <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} className={INPUT_CLASS}>
                 <option value="">No project</option>
                 {proyectosList.map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </Field>
             <Field label="Issue date">
-              <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} className="input-field" />
+              <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} className={INPUT_CLASS} />
             </Field>
             <Field label="Due date">
-              <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} className="input-field" />
+              <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} className={INPUT_CLASS} />
             </Field>
           </div>
 
@@ -181,9 +184,9 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="block text-xs font-medium text-muted-foreground">Line items</label>
-              <button type="button" onClick={addItem} className="flex items-center gap-1 text-xs font-medium text-foreground hover:opacity-70 transition-opacity">
+              <Button variant="ghost" size="sm" type="button" onClick={addItem} className="h-auto px-2 py-1 text-xs">
                 <Plus className="h-3 w-3" /> Add item
-              </button>
+              </Button>
             </div>
             <div className="flex flex-col gap-2">
               {items.map((item, i) => (
@@ -193,7 +196,7 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     value={item.descripcion}
                     onChange={(e) => updateItem(i, "descripcion", e.target.value)}
                     placeholder="Description"
-                    className="input-field"
+                    className={INPUT_CLASS}
                   />
                   <input
                     type="number"
@@ -201,7 +204,7 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     onChange={(e) => updateItem(i, "cantidad", e.target.value)}
                     placeholder="Qty."
                     min="0"
-                    className="input-field text-center"
+                    className={cn(INPUT_CLASS, "text-center")}
                   />
                   <input
                     type="number"
@@ -210,9 +213,9 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     placeholder="Price"
                     min="0"
                     step="0.01"
-                    className="input-field text-right"
+                    className={cn(INPUT_CLASS, "text-right")}
                   />
-                  <div className="input-field bg-muted/30 text-right font-medium text-xs flex items-center justify-end">
+                  <div className={cn(INPUT_CLASS, "bg-muted/30 text-right font-medium text-xs flex items-center justify-end")}>
                     ${item.total.toLocaleString("es-MX", { minimumFractionDigits: 0 })}
                   </div>
                   <button
@@ -245,36 +248,15 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
+            <Button variant="outline" type="button" onClick={onClose}>
               Cancel
-            </button>
-            <button type="submit" disabled={saving} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? "Saving..." : isEditing ? "Update invoice" : "Create invoice"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-
-      <style jsx>{`
-        .input-field {
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid var(--border);
-          background-color: var(--card);
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--foreground);
-          outline: none;
-          transition: border-color 0.15s;
-        }
-        .input-field:focus {
-          border-color: var(--ring);
-          box-shadow: 0 0 0 1px var(--ring);
-        }
-        .input-field::placeholder {
-          color: var(--muted-foreground);
-        }
-      `}</style>
     </div>
   )
 }
