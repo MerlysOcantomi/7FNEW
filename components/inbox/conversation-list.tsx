@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Search, Inbox, RefreshCw } from "lucide-react"
+import { Loader2, Search, Inbox, RefreshCw, PenSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -64,6 +64,7 @@ interface ConversationListProps {
   activeSearchTerm?: string
   onFetchEmails?: () => void
   fetchingEmails?: boolean
+  onCompose?: () => void
 }
 
 export function ConversationList({
@@ -89,6 +90,7 @@ export function ConversationList({
   activeSearchTerm,
   onFetchEmails,
   fetchingEmails = false,
+  onCompose,
 }: ConversationListProps) {
   const viewLabel =
     assignmentFilter === "mine"
@@ -106,6 +108,17 @@ export function ConversationList({
               <div className="px-2 py-1 rounded-md bg-[var(--inbox-list-selected-bg)] text-xs text-[var(--inbox-list-selected)] font-medium">
                 "{activeSearchTerm}"
               </div>
+            )}
+            {onCompose && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)]"
+                onClick={onCompose}
+              >
+                <PenSquare className="h-3.5 w-3.5" />
+                Compose
+              </Button>
             )}
             {onFetchEmails && (
               <Button

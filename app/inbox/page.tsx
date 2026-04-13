@@ -27,7 +27,9 @@ import {
 import { useFetch } from "@/hooks/use-fetch"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
-import { Sparkles } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Sparkles, X, Send, Loader2 } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
@@ -343,6 +345,11 @@ function InboxPageContent() {
   const [dialogAssignValue, setDialogAssignValue] = useState("")
   const [dialogDismissReason, setDialogDismissReason] = useState("")
   const [fetchingEmails, setFetchingEmails] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [composeTo, setComposeTo] = useState("")
+  const [composeSubject, setComposeSubject] = useState("")
+  const [composeBody, setComposeBody] = useState("")
+  const [composeSending, setComposeSending] = useState(false)
   const [replyAttachments, setReplyAttachments] = useState<ComposerAttachment[]>([])
   const [attachmentUploading, setAttachmentUploading] = useState(false)
   const [emailMode, setEmailMode] = useState<EmailSendMode>("reply")
@@ -1100,6 +1107,32 @@ function InboxPageContent() {
     setContextSheetOpen(false)
   }
 
+  const handleComposeSend = useCallback(async () => {
+    if (!composeTo.includes("@") || !composeBody.trim()) return
+    setComposeSending(true)
+    try {
+      const res = await fetch("/api/inbox/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: composeTo, subject: composeSubject, content: composeBody }),
+      })
+      const json = await res.json()
+      if (res.ok && json.data?.conversationId) {
+        setComposeOpen(false)
+        setComposeTo("")
+        setComposeSubject("")
+        setComposeBody("")
+        setRefreshKey((v) => v + 1)
+        refetch()
+        handleSelectConversation(json.data.conversationId)
+      }
+    } catch (err) {
+      console.error("[inbox] Compose send failed:", err)
+    } finally {
+      setComposeSending(false)
+    }
+  }, [composeTo, composeSubject, composeBody, refetch])
+
   const handleFetchEmails = useCallback(async () => {
     setFetchingEmails(true)
     try {
@@ -1277,6 +1310,7 @@ function InboxPageContent() {
                 onLoadMore={loadMore}
                 onFetchEmails={handleFetchEmails}
                 fetchingEmails={fetchingEmails}
+                onCompose={() => setComposeOpen(true)}
               />
             )}
           </div>
@@ -1506,6 +1540,61 @@ function InboxPageContent() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Compose new email */}
+      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New Email</DialogTitle>
+            <DialogDescription>Compose and send a new email from your inbox.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">To</label>
+              <Input
+                placeholder="recipient@example.com"
+                type="email"
+                value={composeTo}
+                onChange={(e) => setComposeTo(e.target.value)}
+                disabled={composeSending}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Subject</label>
+              <Input
+                placeholder="Subject"
+                value={composeSubject}
+                onChange={(e) => setComposeSubject(e.target.value)}
+                disabled={composeSending}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Message</label>
+              <textarea
+                className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                placeholder="Write your message..."
+                value={composeBody}
+                onChange={(e) => setComposeBody(e.target.value)}
+                disabled={composeSending}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleComposeSend}
+              disabled={composeSending || !composeTo.includes("@") || !composeBody.trim()}
+              className="gap-1.5"
+            >
+              {composeSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {composeSending ? "Sending…" : "Send"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppShell>
