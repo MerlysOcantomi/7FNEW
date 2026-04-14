@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/toast-provider'
 import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider'
 import { UserProvider } from '@/hooks/use-user'
@@ -39,17 +40,19 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <UserProvider>
-          <ToastProvider>
-            <KeyboardShortcutsProvider>
-              <GlobalSearchProvider>
-                {children}
-              </GlobalSearchProvider>
-            </KeyboardShortcutsProvider>
-          </ToastProvider>
-        </UserProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <UserProvider>
+            <ToastProvider>
+              <KeyboardShortcutsProvider>
+                <GlobalSearchProvider>
+                  {children}
+                </GlobalSearchProvider>
+              </KeyboardShortcutsProvider>
+            </ToastProvider>
+          </UserProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

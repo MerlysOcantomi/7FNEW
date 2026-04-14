@@ -7,9 +7,23 @@ import {
 } from "@core/verticals"
 import { resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
 
+/**
+ * @deprecated Avoid using a global default workspace. Each operation should
+ * resolve the workspace from the authenticated user's context. Kept
+ * temporarily for the setup/backfill script.
+ */
 export const DEFAULT_WORKSPACE_ID = "ws_default"
+
+/**
+ * @deprecated See DEFAULT_WORKSPACE_ID.
+ */
 export const DEFAULT_WORKSPACE_SLUG = "default"
 
+/**
+ * @deprecated Use `ensureUserHasDefaultWorkspace` instead. This function
+ * creates a shared "default" workspace that breaks tenant isolation.
+ * Only the setup/backfill script should reference it.
+ */
 export async function getOrCreateDefaultWorkspace() {
   const existing = await db.workspace.findUnique({
     where: { slug: DEFAULT_WORKSPACE_SLUG },
@@ -87,8 +101,15 @@ export async function ensureUserHasDefaultWorkspace(userId: string): Promise<str
   return ws.id
 }
 
+/**
+ * @deprecated This function always returned a hardcoded default, breaking
+ * multi-tenancy. Use `getRequiredWorkspaceId` from `@core/workspace-context`
+ * instead, which resolves from the authenticated user's session.
+ */
 export function getActiveWorkspaceId(): string {
-  return DEFAULT_WORKSPACE_ID
+  throw new Error(
+    "getActiveWorkspaceId is deprecated. Use getRequiredWorkspaceId from @core/workspace-context instead.",
+  )
 }
 
 export function workspaceFilter(workspaceId: string | null): { workspaceId?: string } {

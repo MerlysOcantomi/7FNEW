@@ -17,7 +17,7 @@ const CHIP_LABELS: Record<ContextChip, string> = {
   Clients: v.client.plural,
   Projects: v.project.plural,
   Finance: v.finance.singular,
-  Billing: v.billing.singular,
+  Invoices: v.billing.singular,
   Improvements: "Improvements",
 };
 
@@ -26,7 +26,7 @@ const CHIP_SUBTITLES: Record<ContextChip, string> = {
   Clients: "Relationships",
   Projects: "Execution",
   Finance: "Financial health",
-  Billing: "Collections",
+  Invoices: "Collections",
   Improvements: "System upgrades",
 };
 
@@ -51,7 +51,7 @@ const ENTITY_OPTIONS: Record<ContextChip, { label: string; href: string }[]> = {
     { label: "Operating reserve", href: "/finanzas" },
     { label: "Liquidity buffer", href: "/finanzas" },
   ],
-  Billing: [
+  Invoices: [
     { label: "INV-2024-089", href: "/facturacion" },
     { label: `Pending ${v.invoice.plural.toLowerCase()}`, href: "/facturacion" },
     { label: "Collections review", href: "/facturacion" },

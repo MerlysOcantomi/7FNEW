@@ -107,7 +107,7 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
         return result
       }
 
-      const currentUidValidity = mailbox.uidValidity
+      const currentUidValidity = Number(mailbox.uidValidity)
       const uidValidityChanged = syncState.uidValidity !== undefined &&
         syncState.uidValidity !== currentUidValidity
 
@@ -173,7 +173,8 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
           const senderEmail = extractEmailAddress(from)
           if (senderEmail === selfEmail) {
             result.skipped++
-            if (msg.uid > highestUid) highestUid = msg.uid
+            const numericUid = Number(msg.uid)
+        if (numericUid > highestUid) highestUid = numericUid
             continue
           }
 
@@ -230,7 +231,8 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
           console.error(`[imap-sync] Error processing UID ${msg.uid} for ${connectionId}: ${errMsg}`)
         }
 
-        if (msg.uid > highestUid) highestUid = msg.uid
+        const numericUid = Number(msg.uid)
+        if (numericUid > highestUid) highestUid = numericUid
       }
 
       const newSyncState: ImapSyncState = {

@@ -406,11 +406,13 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
       contactId = existingContact.id
       await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
     } else {
-      const defaultWsId = process.env.DEFAULT_WORKSPACE_ID
-      const workspace = defaultWsId
-        ? await db.workspace.findUnique({ where: { id: defaultWsId } })
-        : await db.workspace.findFirst({ orderBy: { createdAt: "asc" } })
-      if (!workspace) throw new Error("No workspace available for inbound email")
+      const fallbackWsId = process.env.INBOUND_EMAIL_FALLBACK_WORKSPACE_ID
+      if (!fallbackWsId) {
+        console.error("[email-inbound] No workspace resolved and INBOUND_EMAIL_FALLBACK_WORKSPACE_ID not set. Dropping email from:", senderEmail)
+        throw new Error("No workspace available for inbound email — set INBOUND_EMAIL_FALLBACK_WORKSPACE_ID or configure a channel connection")
+      }
+      const workspace = await db.workspace.findUnique({ where: { id: fallbackWsId } })
+      if (!workspace) throw new Error(`Fallback workspace ${fallbackWsId} not found`)
       workspaceId = workspace.id
       const contact = await db.contact.create({
         data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },

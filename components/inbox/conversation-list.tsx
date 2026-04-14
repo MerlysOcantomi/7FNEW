@@ -28,7 +28,7 @@ interface ConversationItem {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
-  tone?: string
+  tone?: "system" | "inbound" | "outbound" | "internal"
 }
 
 interface ConversationListProps {

@@ -69,7 +69,14 @@ interface ConversationListItem {
   classification?: {
     summary?: string | null
   } | null
-  messages?: Array<{ content: string; role: string }>
+  messages?: Array<{
+    id?: string
+    content: string
+    role: string
+    direction?: string
+    isInternal?: boolean
+    createdAt?: string
+  }>
 }
 
 interface ConversationDetail extends ConversationListItem {
@@ -950,8 +957,8 @@ function InboxPageContent() {
           : `${conversation.contact.nombre || conversation.contact.email || "Unidentified contact"}${conversation.contact.empresa ? ` · ${conversation.contact.empresa}` : ""}`,
         preview: message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content,
         fullMessage: message.content,
-        timeLabel: formatRelativeDate(message.createdAt),
-        createdAt: message.createdAt,
+        timeLabel: formatRelativeDate(message.createdAt ?? new Date().toISOString()),
+        createdAt: message.createdAt ?? new Date().toISOString(),
         isUnread: conversation.status === "new" && isInbound,
         statusLabel: statusLabel(conversation.status),
         statusClassName: statusBadge(conversation.status),
@@ -959,10 +966,10 @@ function InboxPageContent() {
         urgencyLabel: urgencyLabel(conversation.urgency),
         urgencyClassName: urgencyBadge(conversation.urgency),
         leadScore: conversation.leadScore,
-        tone: isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system",
+        tone: (isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system") as "internal" | "outbound" | "inbound" | "system",
       }
     })
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Sort by most recent first
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const threadMessages =
     selected?.messages.map((message) => {
