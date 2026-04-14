@@ -13,6 +13,7 @@ import { manifest as notasManifest } from "@modules/notas/manifest"
 import { manifest as automatizacionesManifest } from "@modules/automatizaciones/manifest"
 import { manifest as aiEngineManifest } from "@engines/ai/manifest"
 import { manifest as scanToolManifest } from "@tools/scan.manifest"
+import { manifest as fannyManifest } from "@/agents/fanny/manifest"
 import { registry } from "./module-registry"
 
 export const pilotModuleManifests = [
@@ -32,6 +33,7 @@ export const pilotModuleManifests = [
 ]
 export const pilotEngineManifests = [aiEngineManifest]
 export const pilotToolManifests = [scanToolManifest]
+export const pilotAgentManifests = [fannyManifest]
 
 /**
  * Manual-only pilot registration.
@@ -56,6 +58,12 @@ export function ensurePilotManifestsRegistered() {
   for (const manifest of pilotModuleManifests) {
     if (!registry.getModule(manifest.id)) {
       registry.registerModule(manifest)
+    }
+  }
+
+  for (const manifest of pilotAgentManifests) {
+    if (!registry.getAgent(manifest.id)) {
+      registry.registerAgent(manifest)
     }
   }
 

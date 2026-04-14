@@ -2,6 +2,7 @@ import type {
   ModuleManifest,
   EngineManifest,
   ToolManifest,
+  AgentManifest,
   AgentToolDefinition,
 } from "./types";
 
@@ -46,6 +47,7 @@ class ModuleRegistry {
   private modules = new Map<string, ModuleManifest>();
   private engines = new Map<string, EngineManifest>();
   private tools = new Map<string, ToolManifest>();
+  private agents = new Map<string, AgentManifest>();
 
   // ---- Registration -------------------------------------------------------
 
@@ -71,6 +73,13 @@ class ModuleRegistry {
       throw new Error(`Tool "${normalized.id}" is already registered`);
     }
     this.tools.set(normalized.id, normalized);
+  }
+
+  registerAgent(manifest: AgentManifest): void {
+    if (this.agents.has(manifest.id)) {
+      throw new Error(`Agent "${manifest.id}" is already registered`);
+    }
+    this.agents.set(manifest.id, manifest);
   }
 
   // ---- Queries — Modules --------------------------------------------------
@@ -113,6 +122,16 @@ class ModuleRegistry {
     return Array.from(this.tools.values());
   }
 
+  // ---- Queries — Agents ---------------------------------------------------
+
+  getAgent(id: string): AgentManifest | undefined {
+    return this.agents.get(id);
+  }
+
+  getAllAgents(): AgentManifest[] {
+    return Array.from(this.agents.values());
+  }
+
   // ---- Aggregated queries (for Mr Forte) ----------------------------------
 
   /**
@@ -152,6 +171,7 @@ class ModuleRegistry {
       modules: this.modules.size,
       engines: this.engines.size,
       tools: this.tools.size,
+      agents: this.agents.size,
     };
   }
 }

@@ -3,6 +3,7 @@ export {
   pilotModuleManifests,
   pilotEngineManifests,
   pilotToolManifests,
+  pilotAgentManifests,
   ensurePilotManifestsRegistered,
   registerPilotManifests,
 } from "./pilot-manifests";

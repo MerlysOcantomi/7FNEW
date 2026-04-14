@@ -117,7 +117,7 @@ export function ContextPanel({
     "This conversation does not have message intelligence yet."
   const nextRecommendedAction =
     selected.handoff?.nextRecommendedAction ||
-    getStringValue(selected.classification?.nextBestAction, ["label", "title", "action"]) ||
+    getStringValue(selected.classification?.nextBestAction, ["description", "label", "title", "action"]) ||
     null
   const briefDataEntries = normalizeBriefData(selected.classification?.briefData)
   const risks = selected.handoff?.risks?.length ? selected.handoff.risks : selected.classification?.risks || []
