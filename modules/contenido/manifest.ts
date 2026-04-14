@@ -2,22 +2,22 @@ import type { ModuleManifest } from "@core/registry"
 import { moduleProgression } from "./levels"
 
 export const manifest: ModuleManifest = {
-  id: "usuarios",
-  name: "Usuarios",
-  description: "Gestion de usuarios internos del sistema.",
+  id: "contenido",
+  name: "Contenido",
+  description: "Gestion de piezas de contenido, ideas editoriales y planificacion de publicacion.",
   version: "1.0.0",
   kind: "core",
-  namespace: "core.usuarios",
+  namespace: "core.contenido",
   dependencies: ["core/db"],
   capabilities: {
     crud: true,
     search: true,
     export: false,
-    ai: false,
+    ai: true,
     portal: false,
   },
-  models: ["Usuario"],
-  provides: ["users"],
-  optional: false,
+  models: ["ContentPiece", "ContentIdea"],
+  provides: ["content", "content-ideas"],
+  optional: true,
   progression: moduleProgression,
 }

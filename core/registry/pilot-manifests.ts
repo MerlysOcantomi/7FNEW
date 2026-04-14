@@ -2,6 +2,15 @@ import { manifest as usuariosManifest } from "@modules/usuarios/manifest"
 import { manifest as inboxManifest } from "@modules/inbox/manifest"
 import { manifest as clientesManifest } from "@modules/clientes/manifest"
 import { manifest as proyectosManifest } from "@modules/proyectos/manifest"
+import { manifest as tareasManifest } from "@modules/tareas/manifest"
+import { manifest as facturacionManifest } from "@modules/facturacion/manifest"
+import { manifest as finanzasManifest } from "@modules/finanzas/manifest"
+import { manifest as calendarioManifest } from "@modules/calendario/manifest"
+import { manifest as contenidoManifest } from "@modules/contenido/manifest"
+import { manifest as campanasManifest } from "@modules/campanas/manifest"
+import { manifest as documentosManifest } from "@modules/documentos/manifest"
+import { manifest as notasManifest } from "@modules/notas/manifest"
+import { manifest as automatizacionesManifest } from "@modules/automatizaciones/manifest"
 import { manifest as aiEngineManifest } from "@engines/ai/manifest"
 import { manifest as scanToolManifest } from "@tools/scan.manifest"
 import { registry } from "./module-registry"
@@ -11,6 +20,15 @@ export const pilotModuleManifests = [
   inboxManifest,
   clientesManifest,
   proyectosManifest,
+  tareasManifest,
+  facturacionManifest,
+  finanzasManifest,
+  calendarioManifest,
+  contenidoManifest,
+  campanasManifest,
+  documentosManifest,
+  notasManifest,
+  automatizacionesManifest,
 ]
 export const pilotEngineManifests = [aiEngineManifest]
 export const pilotToolManifests = [scanToolManifest]

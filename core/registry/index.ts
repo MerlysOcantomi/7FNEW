@@ -23,4 +23,10 @@ export type {
   ManifestKind,
   RegistryEntryKind,
   AnyManifest,
+  AgentManifest,
+  AgentRole,
+  AgentKnowledgeSourcePriority,
+  AgentSpecializationProfile,
+  AgentPolicy,
+  AgentPersonality,
 } from "./types";

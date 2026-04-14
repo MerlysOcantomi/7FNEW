@@ -237,4 +237,133 @@ export type ManifestKind = "module" | "engine" | "tool";
  */
 export type RegistryEntryKind = "core" | "tool" | "vertical" | "engine";
 
-export type AnyManifest = ModuleManifest | EngineManifest | ToolManifest;
+export type AnyManifest = ModuleManifest | EngineManifest | ToolManifest | AgentManifest;
+
+// ---------------------------------------------------------------------------
+// Agent Manifest (type contract only — no runtime implementation yet)
+// ---------------------------------------------------------------------------
+
+/**
+ * Role classification for an agent within the 7F system.
+ *
+ * - orchestrator: coordinates other agents and system-level decisions (Mr. Forte)
+ * - operator: handles specific operational flows (Fanny — inbox)
+ * - specialist: deep domain expertise by vertical/region/language (Fathon Tief)
+ * - strategist: business-level reasoning and direction (Francis)
+ * - functional: domain-specific execution (Fiona — marketing, Felix — finance)
+ * - generative: produces outputs like UI or content (Freya)
+ */
+export type AgentRole =
+  | "orchestrator"
+  | "operator"
+  | "specialist"
+  | "strategist"
+  | "functional"
+  | "generative";
+
+/**
+ * Defines how an agent's knowledge sources should be prioritized.
+ * Lower number = higher priority.
+ */
+export interface AgentKnowledgeSourcePriority {
+  workspaceKnowledge: number;
+  verticalSpecialization: number;
+  externalIntelligence: number;
+}
+
+/**
+ * Specialization profile that can be activated per workspace context.
+ * Primarily designed for Fathon Tief but usable by any agent.
+ */
+export interface AgentSpecializationProfile {
+  vertical: string;
+  region: string;
+  language: string;
+  confidence: number;
+  description?: string;
+}
+
+/**
+ * Defines what an agent is allowed or restricted from doing.
+ */
+export interface AgentPolicy {
+  canWrite: boolean;
+  canExecuteTools: boolean;
+  canDelegateToAgents: boolean;
+  canAccessExternalSources: boolean;
+  requiresApproval?: boolean;
+  maxAutonomyLevel?: "suggest" | "act" | "orchestrate";
+}
+
+/**
+ * Personality and communication traits for an agent.
+ */
+export interface AgentPersonality {
+  tone: string;
+  style: string;
+  traits?: string[];
+}
+
+/**
+ * Manifest for an AI agent in the 7F system.
+ *
+ * Agents are a layer above modules + engines + context. They consume
+ * capabilities from the registry and orchestrate actions through engines,
+ * modules, and tools — but they do not own data or business logic directly.
+ *
+ * This type is the contract for future agent registration. No runtime
+ * implementation exists yet.
+ */
+export interface AgentManifest {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+
+  kind: "agent";
+
+  /**
+   * Stable, machine-readable namespace.
+   * Example: "agent.forte", "agent.fanny", "agent.fathon"
+   */
+  namespace: string;
+
+  role: AgentRole;
+
+  /**
+   * Module IDs this agent can read from or act upon.
+   */
+  modules: string[];
+
+  /**
+   * Engine IDs this agent can use.
+   */
+  engines: string[];
+
+  /**
+   * Tool IDs this agent has access to.
+   */
+  tools?: string[];
+
+  /**
+   * Primary system section where this agent responds in the transversal chat.
+   * Example: "dashboard" for Francis, "inbox" for Fanny, "improvements" for Forte.
+   */
+  primarySection?: string;
+
+  personality: AgentPersonality;
+  policy: AgentPolicy;
+
+  /**
+   * Knowledge source prioritization for this agent.
+   * Determines the order in which workspace knowledge, vertical
+   * specialization, and external intelligence are consulted.
+   */
+  knowledgePriority?: AgentKnowledgeSourcePriority;
+
+  /**
+   * Activatable specialization profiles (primarily for Fathon Tief).
+   * Each profile is selected based on workspace vertical + region + language.
+   */
+  specializations?: AgentSpecializationProfile[];
+}

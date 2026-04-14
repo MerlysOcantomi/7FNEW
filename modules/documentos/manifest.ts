@@ -2,12 +2,12 @@ import type { ModuleManifest } from "@core/registry"
 import { moduleProgression } from "./levels"
 
 export const manifest: ModuleManifest = {
-  id: "usuarios",
-  name: "Usuarios",
-  description: "Gestion de usuarios internos del sistema.",
+  id: "documentos",
+  name: "Documentos",
+  description: "Repositorio de documentos del workspace con categorizacion y relacion con entidades.",
   version: "1.0.0",
   kind: "core",
-  namespace: "core.usuarios",
+  namespace: "core.documentos",
   dependencies: ["core/db"],
   capabilities: {
     crud: true,
@@ -16,8 +16,8 @@ export const manifest: ModuleManifest = {
     ai: false,
     portal: false,
   },
-  models: ["Usuario"],
-  provides: ["users"],
+  models: ["Documento"],
+  provides: ["documents"],
   optional: false,
   progression: moduleProgression,
 }

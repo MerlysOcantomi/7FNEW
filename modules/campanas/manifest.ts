@@ -2,12 +2,12 @@ import type { ModuleManifest } from "@core/registry"
 import { moduleProgression } from "./levels"
 
 export const manifest: ModuleManifest = {
-  id: "usuarios",
-  name: "Usuarios",
-  description: "Gestion de usuarios internos del sistema.",
+  id: "campanas",
+  name: "Campanas",
+  description: "Gestion de campanas de marketing, seguimiento de iniciativas y coordinacion editorial.",
   version: "1.0.0",
   kind: "core",
-  namespace: "core.usuarios",
+  namespace: "core.campanas",
   dependencies: ["core/db"],
   capabilities: {
     crud: true,
@@ -16,8 +16,8 @@ export const manifest: ModuleManifest = {
     ai: false,
     portal: false,
   },
-  models: ["Usuario"],
-  provides: ["users"],
-  optional: false,
+  models: ["Campaign"],
+  provides: ["campaigns"],
+  optional: true,
   progression: moduleProgression,
 }
