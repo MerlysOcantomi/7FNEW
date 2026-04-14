@@ -445,10 +445,6 @@ export async function getConversationById(id: string, workspaceId: string) {
       drafts: { orderBy: { createdAt: "desc" }, take: 10 },
       messages: { orderBy: { createdAt: "asc" } },
       actions: { orderBy: { createdAt: "desc" } },
-      inboxEntries: {
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      },
     },
   })
 }
@@ -886,7 +882,6 @@ export async function convertConversationToRecords(
       contact: true,
       classification: true,
       messages: { orderBy: { createdAt: "asc" } },
-      inboxEntries: { orderBy: { createdAt: "desc" } },
     },
   })
 
@@ -895,7 +890,6 @@ export async function convertConversationToRecords(
   }
 
   const classification = parseConversationClassification(conversation.classification)
-  const latestLegacyEntry = conversation.inboxEntries[0] ?? null
   const firstInboundMessage =
     conversation.messages.find((message) => message.direction === "inbound" && !message.isInternal)
     ?? conversation.messages[0]
@@ -908,54 +902,39 @@ export async function convertConversationToRecords(
     pickFirstString(
       firstInboundMessage?.content,
       latestInboundMessage?.content,
-      latestLegacyEntry?.mensaje,
     )
     ?? ""
-  const clienteSnapshot = latestLegacyEntry?.datosCliente
-    ? parseJson<Record<string, string>>(latestLegacyEntry.datosCliente)
-    : null
-  const proyectoSnapshot = latestLegacyEntry?.datosProyecto
-    ? parseJson<Record<string, string>>(latestLegacyEntry.datosProyecto)
-    : null
   const briefData = classification.briefData ?? null
   const contactName = pickFirstString(
     conversation.contact.nombre,
     getObjectStringValue(briefData, ["nombreCliente", "clientName", "customerName", "contactName", "nombreContacto"]),
-    getObjectStringValue(clienteSnapshot, ["nombre"]),
   )
   const contactEmail = pickFirstString(
     conversation.contact.email,
     getObjectStringValue(briefData, ["emailCliente", "clientEmail", "customerEmail", "email"]),
-    getObjectStringValue(clienteSnapshot, ["email"]),
   )
   const contactPhone = pickFirstString(
     conversation.contact.telefono,
     getObjectStringValue(briefData, ["telefonoCliente", "clientPhone", "customerPhone", "telefono"]),
-    getObjectStringValue(clienteSnapshot, ["telefono"]),
   )
   const contactCompany = pickFirstString(
     conversation.contact.empresa,
     getObjectStringValue(briefData, ["empresaCliente", "clientCompany", "customerCompany", "businessName", "empresa"]),
-    getObjectStringValue(clienteSnapshot, ["empresa"]),
   )
   const projectName = pickFirstString(
     getObjectStringValue(briefData, ["nombre", "projectName", "nombreProyecto"]),
     conversation.summary,
     conversation.intent,
     conversation.subject,
-    getObjectStringValue(proyectoSnapshot, ["nombre"]),
-    latestLegacyEntry?.resumen,
   )
   const projectDescription = pickFirstString(
     getObjectStringValue(briefData, ["descripcion", "projectDescription", "alcance"]),
     conversation.summary,
     classification.summary,
     sourceText.slice(0, 500),
-    getObjectStringValue(proyectoSnapshot, ["descripcion"]),
   )
   const projectBudget = pickFirstString(
     getObjectStringValue(briefData, ["presupuesto", "budget"]),
-    getObjectStringValue(proyectoSnapshot, ["presupuesto"]),
   )
   const conversationSummary = pickFirstString(
     classification.summary,
@@ -963,7 +942,6 @@ export async function convertConversationToRecords(
     conversation.intent,
     classification.sector,
     conversation.sector,
-    latestLegacyEntry?.resumen,
     sourceText.slice(0, 200),
   )
 
@@ -978,9 +956,9 @@ export async function convertConversationToRecords(
         tarea: false,
       },
       ids: {
-        clienteId: conversation.clienteId ?? latestLegacyEntry?.clienteId ?? null,
-        proyectoId: conversation.proyectoId ?? latestLegacyEntry?.proyectoId ?? null,
-        tareaId: latestLegacyEntry?.tareaId ?? null,
+        clienteId: conversation.clienteId ?? null,
+        proyectoId: conversation.proyectoId ?? null,
+        tareaId: null,
       },
     }
 
@@ -1055,7 +1033,6 @@ export async function convertConversationToRecords(
               classification.intent
               || conversation.intent
               || conversationSummary
-              || latestLegacyEntry?.intencion
               || "Tarea desde Inbox",
             descripcion: sourceText.slice(0, 1000),
             estado: "pendiente",
@@ -1088,17 +1065,6 @@ export async function convertConversationToRecords(
         clienteId: output.ids.clienteId,
         proyectoId: output.ids.proyectoId,
         status: transitionConversationStatus(conversation.status, "converted"),
-      },
-    })
-
-    await tx.inboxEntry.updateMany({
-      where: { workspaceId: input.workspaceId, conversationId: input.conversationId },
-      data: {
-        clienteId: output.ids.clienteId,
-        proyectoId: output.ids.proyectoId,
-        tareaId: output.ids.tareaId,
-        estado: "procesado",
-        processedAt: new Date(),
       },
     })
 

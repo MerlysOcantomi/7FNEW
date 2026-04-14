@@ -4,7 +4,7 @@ import { jwtVerify } from "jose"
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound"]
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/widget"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 function isPublic(pathname: string): boolean {

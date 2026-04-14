@@ -181,7 +181,9 @@ export async function POST(request: NextRequest) {
       workspaceId: workspace.id,
       conversationId: targetConversationId,
       trigger: "message_post",
-    }).catch(() => null)
+    }).catch((err) => {
+      console.error(`[public-chat] Intelligence failed conv=${targetConversationId}:`, err)
+    })
 
     return corsJson({
       success: true,

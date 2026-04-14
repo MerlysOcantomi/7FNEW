@@ -38,9 +38,9 @@ function readCannedResponses(configJson: string | null): CannedResponse[] {
   return list.filter(isValidCannedResponse)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { workspaceId } = await requireReadAccess()
+    const { workspaceId } = await requireReadAccess(request)
     const ws = await db.workspace.findUnique({
       where: { id: workspaceId },
       select: { config: true },
@@ -53,7 +53,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { workspaceId } = await requireAdminAccess()
+    const { workspaceId } = await requireAdminAccess(request)
 
     const body = await request.json()
     if (!Array.isArray(body)) {

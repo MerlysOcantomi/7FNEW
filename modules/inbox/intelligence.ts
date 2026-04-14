@@ -53,12 +53,8 @@ export async function generateConversationIntelligence(input: {
   }
   previousSummary?: string | null
   previousIntent?: string | null
-  latestLegacySnapshot?: {
-    resumen?: string | null
-    intencion?: string | null
-    urgencia?: string | null
-    tags?: string[] | null
-  } | null
+  /** @deprecated Legacy field — no longer consumed by the pipeline */
+  latestLegacySnapshot?: null
   messages: Array<{
     role: string
     direction: string
@@ -130,8 +126,6 @@ ${input.contact.empresa ? `- Empresa: ${input.contact.empresa}` : ""}
 ${input.contact.tipo ? `- Tipo contacto: ${input.contact.tipo}` : ""}
 ${input.previousSummary ? `- Resumen previo: ${input.previousSummary}` : ""}
 ${input.previousIntent ? `- Intención previa: ${input.previousIntent}` : ""}
-${input.latestLegacySnapshot?.resumen ? `- Snapshot legacy resumen: ${input.latestLegacySnapshot.resumen}` : ""}
-${input.latestLegacySnapshot?.intencion ? `- Snapshot legacy intención: ${input.latestLegacySnapshot.intencion}` : ""}
 
 MENSAJES RECIENTES:
 ${transcript || "Sin mensajes"}
@@ -277,7 +271,7 @@ REGLAS:
   return {
     tipo: "consulta",
     categoria: "seguimiento",
-    urgencia: input.latestLegacySnapshot?.urgencia as InboxClassification["urgencia"] ?? "media",
+    urgencia: "media",
     intencion: input.previousIntent ?? "Requiere revisión humana",
     resumen: fallbackSummary,
     leadScore: 35,
@@ -420,7 +414,6 @@ export async function runConversationIntelligence(input: {
   workspaceId: string
   conversationId: string
   trigger: "inbox_post" | "message_post" | "manual"
-  sourceInboxEntryId?: string | null
 }) {
   const conversation = await db.conversation.findFirst({
     where: { id: input.conversationId, workspaceId: input.workspaceId },
@@ -440,17 +433,12 @@ export async function runConversationIntelligence(input: {
         orderBy: { createdAt: "asc" },
         take: 20,
       },
-      inboxEntries: {
-        orderBy: { createdAt: "desc" },
-        take: 3,
-      },
     },
   })
 
   if (!conversation) return null
 
   const latestMessage = conversation.messages.at(-1) ?? null
-  const latestLegacyEntry = conversation.inboxEntries[0] ?? null
 
   const intelligence = await generateConversationIntelligence({
     conversationId: conversation.id,
@@ -469,14 +457,7 @@ export async function runConversationIntelligence(input: {
     },
     previousSummary: conversation.summary ?? conversation.classification?.summary,
     previousIntent: conversation.intent ?? conversation.classification?.intent,
-    latestLegacySnapshot: latestLegacyEntry
-      ? {
-          resumen: latestLegacyEntry.resumen,
-          intencion: latestLegacyEntry.intencion,
-          urgencia: latestLegacyEntry.urgencia,
-          tags: parseJson<string[]>(latestLegacyEntry.tags),
-        }
-      : null,
+    latestLegacySnapshot: null,
     messages: conversation.messages.map((message) => ({
       role: message.role,
       direction: message.direction,
@@ -723,27 +704,6 @@ export async function runConversationIntelligence(input: {
           },
         })
       }
-    }
-
-    if (input.sourceInboxEntryId) {
-      await tx.inboxEntry.update({
-        where: { id: input.sourceInboxEntryId },
-        data: {
-          tipo: intelligence.tipo,
-          categoria: intelligence.categoria,
-          urgencia: intelligence.urgencia,
-          intencion: intelligence.intencion,
-          resumen: intelligence.resumen,
-          datosCliente: stringifyJson(intelligence.datosCliente),
-          datosProyecto: stringifyJson(intelligence.datosProyecto),
-          notas: intelligence.notas,
-          tags: stringifyJson(intelligence.tags),
-          aiRaw: stringifyJson(intelligence),
-          estado: "clasificado",
-          conversationId: conversation.id,
-          contactId: conversation.contactId,
-        },
-      })
     }
 
     return classification

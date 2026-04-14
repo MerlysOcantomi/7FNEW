@@ -1,5 +1,6 @@
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 const DEEPSEEK_MODEL = "deepseek-reasoner"
+const DEEPSEEK_TIMEOUT_MS = 45_000
 
 const DEFAULT_SYSTEM_PROMPT =
   "Eres el motor operativo de 7F, una plataforma de gestion empresarial. " +
@@ -17,22 +18,37 @@ export async function askDeepSeek(
 
   console.log("[7F Motor IA] DeepSeek request →", prompt.slice(0, 80), "...")
 
-  const res = await fetch(DEEPSEEK_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 2048,
-    }),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 2048,
+      }),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timeout)
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`DeepSeek request timed out after ${DEEPSEEK_TIMEOUT_MS}ms`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!res.ok) {
     const errorBody = await res.text()

@@ -137,7 +137,6 @@ export async function POST(request: NextRequest) {
         workspaceId,
         conversationId: conversation.id,
         trigger: "inbox_post",
-        sourceInboxEntryId: entry.id,
       })
 
       return successResponse({

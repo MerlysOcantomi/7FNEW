@@ -510,7 +510,9 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
     workspaceId,
     conversationId,
     trigger: "message_post",
-  }).catch(() => null)
+  }).catch((err) => {
+    console.error(`[email-inbound] Intelligence failed conv=${conversationId}:`, err)
+  })
 
   logActivity({
     module: "email",

@@ -5,16 +5,18 @@ export async function POST(request: NextRequest) {
   let rawBody: string | undefined
 
   try {
-    // ---- webhook secret validation ----
+    // ---- webhook secret validation (required in production) ----
     const secret = process.env.RESEND_WEBHOOK_SECRET
-    if (secret) {
-      const url = new URL(request.url)
-      const qsSecret = url.searchParams.get("secret")
-      const headerSecret = request.headers.get("x-webhook-secret")
-      if (qsSecret !== secret && headerSecret !== secret) {
-        console.warn("[email-inbound-webhook] Unauthorized request rejected")
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
+    if (!secret) {
+      console.error("[email-inbound-webhook] RESEND_WEBHOOK_SECRET is not configured — rejecting request")
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 503 })
+    }
+    const url = new URL(request.url)
+    const qsSecret = url.searchParams.get("secret")
+    const headerSecret = request.headers.get("x-webhook-secret")
+    if (qsSecret !== secret && headerSecret !== secret) {
+      console.warn("[email-inbound-webhook] Unauthorized request rejected")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     // ---- parse body safely ----
