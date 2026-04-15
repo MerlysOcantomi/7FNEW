@@ -1,5 +1,6 @@
 import { askMotorIA } from "@engines/ai"
 import { db } from "@core/db"
+import { resolveWorkspaceContext, buildWorkspaceContextBlock } from "@core/workspace"
 import { FANNY_SYSTEM_PROMPT } from "@/agents/fanny/system-prompt"
 import type {
   ConversationIntelligenceOutput,
@@ -7,8 +8,8 @@ import type {
 } from "./types"
 import { transitionConversationStatus } from "./state"
 
-const PIPELINE_VERSION = "3"
-const PROMPT_VERSION = "fanny-v1"
+const PIPELINE_VERSION = "4"
+const PROMPT_VERSION = "fanny-v1.1"
 const MODEL_NAME = "operativo"
 const ACTION_SOURCE = "ai"
 const ALLOWED_ACTION_TYPES = new Set([
@@ -54,8 +55,7 @@ export async function generateConversationIntelligence(input: {
   }
   previousSummary?: string | null
   previousIntent?: string | null
-  /** @deprecated Legacy field — no longer consumed by the pipeline */
-  latestLegacySnapshot?: null
+  workspaceContextBlock?: string | null
   messages: Array<{
     role: string
     direction: string
@@ -76,8 +76,8 @@ export async function generateConversationIntelligence(input: {
   const prompt = `${FANNY_SYSTEM_PROMPT}
 
 Analiza la conversación y responde SOLO con JSON válido.
-
-CONTEXTO:
+${input.workspaceContextBlock ? `\n${input.workspaceContextBlock}\n` : ""}
+CONVERSACIÓN:
 - ConversationId: ${input.conversationId}
 - Canal: ${input.channel}
 - Estado actual: ${input.status}
@@ -406,6 +406,11 @@ export async function runConversationIntelligence(input: {
 
   const latestMessage = conversation.messages.at(-1) ?? null
 
+  const wsContext = await resolveWorkspaceContext(input.workspaceId)
+  const workspaceContextBlock = wsContext
+    ? buildWorkspaceContextBlock(wsContext)
+    : null
+
   const intelligence = await generateConversationIntelligence({
     conversationId: conversation.id,
     channel: conversation.channel,
@@ -423,7 +428,7 @@ export async function runConversationIntelligence(input: {
     },
     previousSummary: conversation.summary ?? conversation.classification?.summary,
     previousIntent: conversation.intent ?? conversation.classification?.intent,
-    latestLegacySnapshot: null,
+    workspaceContextBlock,
     messages: conversation.messages.map((message) => ({
       role: message.role,
       direction: message.direction,

@@ -14,3 +14,12 @@ export type {
   AgentToolDefinition,
   RegistryEntryKind,
 } from "./registry";
+export type {
+  WorkspaceAgentProfile,
+  WorkspaceServiceCatalogItem,
+} from "./verticals";
+export type { WorkspaceAgentContext } from "./workspace";
+export {
+  resolveWorkspaceContext,
+  buildWorkspaceContextBlock,
+} from "./workspace";

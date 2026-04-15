@@ -4,8 +4,82 @@ import {
   mergeConfigs,
   getVerticalByKey,
   type VerticalConfig,
+  type WorkspaceAgentProfile,
 } from "@core/verticals"
 import { resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
+
+// ---------------------------------------------------------------------------
+// Workspace Agent Context — resolved per workspace for Fanny and future agents
+// ---------------------------------------------------------------------------
+
+export interface WorkspaceAgentContext {
+  identity: {
+    name: string
+    description: string | null
+    vertical: string
+    verticalName: string | null
+    region: string | null
+    languages: string[]
+    tone: string | null
+    workingHours: string | null
+  }
+  attentionRules: string[]
+}
+
+export async function resolveWorkspaceContext(
+  workspaceId: string,
+): Promise<WorkspaceAgentContext | null> {
+  const ws = await db.workspace.findUnique({
+    where: { id: workspaceId },
+    select: {
+      nombre: true,
+      verticalKey: true,
+      config: true,
+    },
+  })
+  if (!ws) return null
+
+  const vertical = await getVerticalByKey(ws.verticalKey)
+  const defaults = parseJsonConfig(vertical?.defaultConfig)
+  const overrides = parseJsonConfig(ws.config)
+  const resolved = mergeConfigs(defaults, overrides)
+
+  const profile: WorkspaceAgentProfile = resolved.agentProfile ?? {}
+
+  return {
+    identity: {
+      name: profile.businessName || ws.nombre,
+      description: profile.businessDescription || null,
+      vertical: ws.verticalKey,
+      verticalName: vertical?.name || null,
+      region: profile.region || null,
+      languages: profile.languages ?? [],
+      tone: profile.tone || null,
+      workingHours: profile.workingHours || null,
+    },
+    attentionRules: profile.attentionRules ?? [],
+  }
+}
+
+export function buildWorkspaceContextBlock(ctx: WorkspaceAgentContext): string {
+  const lines: string[] = []
+
+  lines.push(`- Empresa: ${ctx.identity.name}`)
+  if (ctx.identity.description) lines.push(`- Descripción: ${ctx.identity.description}`)
+  if (ctx.identity.verticalName) lines.push(`- Vertical: ${ctx.identity.verticalName}`)
+  if (ctx.identity.region) lines.push(`- Región: ${ctx.identity.region}`)
+  if (ctx.identity.languages.length > 0) lines.push(`- Idiomas: ${ctx.identity.languages.join(", ")}`)
+  if (ctx.identity.tone) lines.push(`- Tono: ${ctx.identity.tone}`)
+  if (ctx.identity.workingHours) lines.push(`- Horario: ${ctx.identity.workingHours}`)
+  if (ctx.attentionRules.length > 0) {
+    lines.push(`- Reglas de atención:`)
+    for (const rule of ctx.attentionRules.slice(0, 10)) {
+      lines.push(`  · ${rule}`)
+    }
+  }
+
+  return `WORKSPACE (quién eres como empresa):\n${lines.join("\n")}`
+}
 
 /**
  * @deprecated Avoid using a global default workspace. Each operation should

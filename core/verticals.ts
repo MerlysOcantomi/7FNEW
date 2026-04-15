@@ -1,11 +1,31 @@
 import { db } from "@core/db"
 
+export interface WorkspaceAgentProfile {
+  businessName?: string
+  businessDescription?: string
+  tone?: string
+  region?: string
+  languages?: string[]
+  workingHours?: string
+  attentionRules?: string[]
+}
+
+export interface WorkspaceServiceCatalogItem {
+  name: string
+  description: string
+  active: boolean
+  category?: string
+  tags?: string[]
+}
+
 export interface VerticalConfig {
   modules: Record<string, boolean>
   locale?: string
   ui: {
     labels: Record<string, string>
   }
+  agentProfile?: WorkspaceAgentProfile
+  serviceCatalog?: WorkspaceServiceCatalogItem[]
   [key: string]: unknown
 }
 
