@@ -170,7 +170,7 @@ const STATUS_OPTIONS = [
   "archived",
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
-const DESKTOP_INBOX_GRID = "xl:grid xl:grid-cols-[minmax(296px,332px)_minmax(0,1fr)_360px] xl:grid-rows-[minmax(0,1fr)] min-[1536px]:grid-cols-[minmax(312px,352px)_minmax(0,1fr)_408px] min-[1720px]:grid-cols-[minmax(320px,360px)_minmax(0,1fr)_440px]"
+const DESKTOP_INBOX_GRID = "xl:grid xl:grid-cols-[minmax(320px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
 function formatRelativeDate(value: string) {
   const date = new Date(value)
@@ -1252,7 +1252,7 @@ function InboxPageContent() {
   ) : null
 
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1600px]">
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px]">
       <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div

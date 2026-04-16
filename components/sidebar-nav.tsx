@@ -96,13 +96,13 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
           icon: Inbox, 
           helper: "by Fanny",
           subitems: [
-            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "System" },
             { label: "New", href: "/inbox?filter=new", icon: Mail, group: "Work" },
             { label: "In Progress", href: "/inbox?filter=in_progress", icon: Loader, group: "Work" },
             { label: "Done", href: "/inbox?filter=done", icon: CheckCircle, group: "Work" },
             { label: "Urgent", href: "/inbox?filter=urgent", icon: Zap, group: "Smart views" },
             { label: "Needs Reply", href: "/inbox?filter=needs_reply", icon: MessageSquarePlus, group: "Smart views" },
             { label: "Leads", href: "/inbox?filter=leads", icon: Star, group: "Smart views" },
+            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "System" },
           ]
         },
         { label: v.client.plural, href: "/clientes", icon: Users },

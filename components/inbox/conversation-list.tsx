@@ -157,10 +157,9 @@ export function ConversationList({
           />
         </div>
 
-        {/* Filtros Premium Discretos */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -173,7 +172,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-auto min-w-[110px] rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -184,30 +183,30 @@ export function ConversationList({
               ))}
             </SelectContent>
           </Select>
+        </div>
 
-          <div className="flex gap-1 ml-2">
-            {([
-              { value: "all", label: "All" },
-              { value: "mine", label: "Mine" },
-              { value: "unassigned", label: "Unassigned" },
-            ] as const).map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                size="sm"
-                variant={assignmentFilter === option.value ? "secondary" : "ghost"}
-                className={cn(
-                  "h-7 px-2.5 text-xs rounded-lg transition-all",
-                  assignmentFilter === option.value 
-                    ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm" 
-                    : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:shadow-sm"
-                )}
-                onClick={() => onAssignmentFilterChange(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+        <div className="grid grid-cols-3 gap-1">
+          {([
+            { value: "all", label: "All" },
+            { value: "mine", label: "Mine" },
+            { value: "unassigned", label: "Unassigned" },
+          ] as const).map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              size="sm"
+              variant={assignmentFilter === option.value ? "secondary" : "ghost"}
+              className={cn(
+                "h-7 w-full text-xs rounded-lg transition-all",
+                assignmentFilter === option.value
+                  ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
+                  : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:shadow-sm",
+              )}
+              onClick={() => onAssignmentFilterChange(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
         </div>
       </div>
 
