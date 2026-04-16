@@ -1,27 +1,21 @@
 "use client"
 
-import { ActionsCard, type ActionItem } from "@/components/inbox/actions-card"
-import { BusinessContextCard } from "@/components/inbox/business-context-card"
-import { MessageIntelligenceCard } from "@/components/inbox/message-intelligence-card"
+import { useState } from "react"
+import { InlineTextarea } from "@/components/inline-edit"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Users, Loader2 } from "lucide-react"
-
-interface HandoffData {
-  status: string
-  headline?: string | null
-  summary?: string | null
-  facts?: string[] | null
-  decisions?: string[] | null
-  pendingItems?: string[] | null
-  risks?: string[] | null
-  nextRecommendedAction?: string | null
-  confidence?: number | null
-  reviewedBy?: string | null
-  reviewedAt?: string | null
-}
+import {
+  Users, ChevronDown, ChevronUp, Loader2,
+  Mail, Phone, Building2, Globe, ArrowRight,
+  User, FolderKanban, CheckSquare, Archive, MessageSquare,
+  Paperclip, PhoneCall,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import type { ActionItem } from "@/components/inbox/actions-card"
 
 interface ContextPanelProps {
   selected: {
+    id: string
     summary: string | null
     status: string
     urgency?: string | null
@@ -30,51 +24,38 @@ interface ContextPanelProps {
     classification?: {
       summary?: string | null
       intent?: string | null
-      risks?: string[] | null
-      pendingItems?: string[] | null
       nextBestAction?: Record<string, unknown> | null
-      briefData?: Record<string, unknown> | null
-      suggestedTags?: string[] | null
     } | null
-    handoff?: HandoffData | null
+    handoff?: {
+      status: string
+      summary?: string | null
+      nextRecommendedAction?: string | null
+      confidence?: number | null
+    } | null
     actions?: ActionItem[]
     contact: {
       nombre?: string | null
       email: string | null
       empresa: string | null
       telefono?: string | null
-      tipo?: string | null
+      tipo?: string
     }
-    messageCount: number
     cliente?: { id: string; nombre: string; email?: string | null; empresa?: string | null } | null
     proyecto?: { id: string; nombre: string; estado?: string | null } | null
     channel: string
     leadScore: number | null
     detectedLanguage: string | null
   }
-  handoffExpanded: boolean
-  setHandoffExpanded: (value: boolean) => void
-  actionsExpanded: boolean
-  setActionsExpanded: (value: boolean) => void
-  businessContextExpanded: boolean
-  setBusinessContextExpanded: (value: boolean) => void
-  conversationStatusLabel: string
-  conversationStatusClassName: string
   updateHandoff: (payload: Record<string, unknown>, successMessage?: string) => Promise<void>
   handoffState: string | null
-  linesToText: (value?: string[] | null) => string
-  textToLines: (value: string) => string[]
-  confidenceLabel: (value?: number | null) => string | null
-  formatDateTime: (value?: string | null) => string | null
-  pendingActionId: string | null
   handleSuggestedAction: (action: ActionItem, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
+  pendingActionId: string | null
   actionTypeLabel: (type: string) => string
   actionStatusBadge: (status: string) => string
   actionStatusLabel: (status: string) => string
   handleConvert: (action: "cliente" | "proyecto" | "tarea" | "todo") => Promise<void>
   actionState: string | null
   channelLabel: (channel: string) => string
-  // Assignment management
   members: Array<{ userId: string; nombre: string | null; email: string }>
   assignSaving: boolean
   onAssign: (value: string) => void
@@ -82,22 +63,10 @@ interface ContextPanelProps {
 
 export function ContextPanel({
   selected,
-  handoffExpanded,
-  setHandoffExpanded,
-  actionsExpanded,
-  setActionsExpanded,
-  businessContextExpanded,
-  setBusinessContextExpanded,
-  conversationStatusLabel,
-  conversationStatusClassName,
   updateHandoff,
   handoffState,
-  linesToText,
-  textToLines,
-  confidenceLabel,
-  formatDateTime,
-  pendingActionId,
   handleSuggestedAction,
+  pendingActionId,
   actionTypeLabel,
   actionStatusBadge,
   actionStatusLabel,
@@ -108,198 +77,351 @@ export function ContextPanel({
   assignSaving,
   onAssign,
 }: ContextPanelProps) {
-  const urgencyConfig = getUrgencyPresentation(selected.urgency)
-  const intelligenceTitle = "Situation"
-  const intelligenceSummary =
+  const [contactExpanded, setContactExpanded] = useState(false)
+  const [actionsExpanded, setActionsExpanded] = useState(false)
+
+  const contactName = selected.contact.nombre || selected.cliente?.nombre || "Unknown contact"
+  const contactType = selected.contact.tipo || "contact"
+  const contactEmail = selected.contact.email || selected.cliente?.email || null
+  const contactPhone = selected.contact.telefono || null
+  const contactCompany = selected.contact.empresa || selected.cliente?.empresa || null
+
+  const summary =
     selected.handoff?.summary ||
     selected.classification?.summary ||
     selected.summary ||
-    "This conversation does not have message intelligence yet."
+    null
+
   const nextRecommendedAction =
     selected.handoff?.nextRecommendedAction ||
     getStringValue(selected.classification?.nextBestAction, ["description", "label", "title", "action"]) ||
     null
-  const briefDataEntries = normalizeBriefData(selected.classification?.briefData)
-  const risks = selected.handoff?.risks?.length ? selected.handoff.risks : selected.classification?.risks || []
-  const pendingItems = selected.handoff?.pendingItems?.length
-    ? selected.handoff.pendingItems
-    : selected.classification?.pendingItems || []
 
-  const businessContextSummary = [
-    selected.cliente ? "Client linked" : selected.contact.nombre ? "Lead contact" : "Conversation contact",
-    selected.proyecto ? "Project linked" : "No project linked",
-  ].join(" · ")
+  const moodValue = mapSentimentToMood(selected.sentiment)
+  const urgencyValue = mapUrgency(selected.urgency)
 
-  const businessContextMeta = [
-    channelLabel(selected.channel),
-    ...(selected.detectedLanguage ? [selected.detectedLanguage.toUpperCase()] : []),
-    ...(typeof selected.leadScore === "number" ? [`Lead ${selected.leadScore}`] : []),
-  ]
-
-  const coreSections = [
-    {
-      title: "Cliente",
-      summary: selected.cliente ? "CRM and relationship data available." : "Conversation-level contact information.",
-      items: [
-        { label: "Name", value: selected.contact.nombre || selected.cliente?.nombre || null },
-        { label: "Email", value: selected.contact.email || selected.cliente?.email || null },
-        { label: "Company", value: selected.contact.empresa || selected.cliente?.empresa || null },
-        { label: "Phone", value: selected.contact.telefono || null },
-        { label: "Contact type", value: selected.contact.tipo || null },
-        { label: "Linked client", value: selected.cliente?.nombre || null, href: selected.cliente ? `/clientes/${selected.cliente.id}` : undefined, tone: "accent" as const },
-      ],
-      emptyLabel: "No client context available for this conversation.",
-    },
-    {
-      title: "Proyecto",
-      summary: briefDataEntries.length > 0 ? "Structured project signals inferred from the conversation." : "No project brief available yet.",
-      items: [
-        { label: "Linked project", value: selected.proyecto?.nombre || null, href: selected.proyecto ? `/proyectos/${selected.proyecto.id}` : undefined, tone: "accent" as const },
-        { label: "Project status", value: selected.proyecto?.estado || null },
-        ...briefDataEntries,
-      ],
-      emptyLabel: "No linked project or project brief found.",
-    },
-    {
-      title: "Conversation meta",
-      items: [
-        { label: "Channel", value: channelLabel(selected.channel) },
-        { label: "Language", value: selected.detectedLanguage?.toUpperCase() || null },
-        { label: "Lead score", value: selected.leadScore ?? null },
-        { label: "Sentiment", value: selected.sentiment || null },
-        { label: "Urgency", value: selected.urgency || null, tone: (selected.urgency === "critica" || selected.urgency === "alta" ? "warning" : "default") as "warning" | "default" },
-        { label: "Messages", value: selected.messageCount },
-      ],
-    },
-    {
-      title: "Operational signals",
-      summary: nextRecommendedAction ? "Signals currently available from classification and handoff." : undefined,
-      items: [
-        { label: "Intent", value: selected.classification?.intent || null },
-        { label: "Risks", value: risks.length > 0 ? `${risks.length} signal${risks.length === 1 ? "" : "s"}` : null, tone: (risks.length > 0 ? "warning" : "default") as "warning" | "default" },
-        { label: "Pending items", value: pendingItems.length > 0 ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"}` : null },
-        { label: "Next best action", value: nextRecommendedAction || null, tone: (nextRecommendedAction ? "accent" : "default") as "accent" | "default" },
-      ],
-      emptyLabel: "No operational signals available yet.",
-    },
-  ]
+  const suggestedActions = (selected.actions ?? []).filter((a) => a.status === "suggested" || a.status === "approved")
 
   return (
-    <div className="space-y-4 bg-[var(--inbox-intelligence-background)] p-5">
-      
-      {/* Intelligence Hub Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-[var(--inbox-intelligence-border)]">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 flex items-center justify-center shadow-lg">
-          <Users className="w-5 h-5 text-white" strokeWidth={1.75} />
+    <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
+
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
+          <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-[var(--inbox-intelligence-text)] tracking-tight">Intelligence Hub</h2>
-          <p className="text-sm text-[var(--inbox-intelligence-text-secondary)] font-medium">AI-powered insights</p>
+          <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Intelligence Hub</h2>
+          <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">AI-powered insights</p>
         </div>
       </div>
 
-      <MessageIntelligenceCard
-        title={intelligenceTitle}
-        summary={intelligenceSummary}
-        conversationStatusLabel={conversationStatusLabel}
-        conversationStatusClassName={conversationStatusClassName}
-        urgencyLabel={urgencyConfig?.label}
-        urgencyClassName={urgencyConfig?.className}
-        intent={selected.classification?.intent || null}
-        sentiment={selected.sentiment || null}
-        confidenceLabel={confidenceLabel(selected.handoff?.confidence)}
-        nextRecommendedAction={nextRecommendedAction}
-        pendingItemsCount={pendingItems.length}
-        risksCount={risks.length}
-        expanded={handoffExpanded}
-        onExpandedChange={setHandoffExpanded}
-        onMarkReviewed={selected.handoff ? () => updateHandoff({ status: "reviewed" }, "Handoff marked as reviewed") : undefined}
-        canMarkReviewed={Boolean(selected.handoff && selected.handoff.status !== "reviewed")}
-        translationHint={
-          selected.detectedLanguage && selected.detectedLanguage.toLowerCase() !== "en"
-            ? `Detected language: ${selected.detectedLanguage.toUpperCase()}. Translation tools can plug into this section later.`
-            : "Detected language is already aligned with the current workspace language."
-        }
-        detailSummary={selected.handoff?.summary || intelligenceSummary}
-        onSaveSummary={(value) => updateHandoff({ summary: value })}
-        detailNextRecommendedAction={nextRecommendedAction}
-        onSaveNextRecommendedAction={(value) => updateHandoff({ nextRecommendedAction: value })}
-        stateMessage={handoffState}
-      />
-
-      {/* Assignment Management - only for shared channels */}
-      {(selected.channel === 'web_chat' || selected.channel === 'portal') && (
-        <div className="rounded-[var(--inbox-radius-card)] border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-5 shadow-[var(--inbox-shadow-card)]">
-          <div className="mb-4">
-            <div className="flex items-center gap-2.5 text-base font-semibold text-[var(--inbox-intelligence-text)]">
-              <Users className="h-5 w-5 text-[var(--inbox-intelligence-text-secondary)]" />
-              Assignment
+      {/* ── 1. Contact ── */}
+      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
+            <span className="text-sm font-bold">{contactName.charAt(0).toUpperCase()}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
+                {formatContactType(contactType)}
+              </span>
+              {selected.detectedLanguage && (
+                <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
+                  {selected.detectedLanguage.toUpperCase()}
+                </span>
+              )}
+              <span className="text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+                {channelLabel(selected.channel)}
+              </span>
             </div>
           </div>
-          <div>
-            <Select 
-              value={selected.assignedTo || "unassigned"} 
-              onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)} 
-              disabled={assignSaving}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">
-                  <span className="text-[var(--inbox-intelligence-text-secondary)]">Unassigned</span>
-                </SelectItem>
-                {members.map((member) => (
-                  <SelectItem key={member.userId} value={member.userId}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        {member.nombre || member.email}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {assignSaving && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-[var(--inbox-intelligence-text-secondary)]">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Updating assignment...
+          <button
+            type="button"
+            onClick={() => setContactExpanded((v) => !v)}
+            className="shrink-0 rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] hover:bg-white/8"
+          >
+            {contactExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {contactExpanded && (
+          <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
+            {contactEmail && (
+              <div className="flex items-center gap-2 text-xs">
+                <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
+              </div>
+            )}
+            {contactPhone && (
+              <div className="flex items-center gap-2 text-xs">
+                <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
+              </div>
+            )}
+            {contactCompany && (
+              <div className="flex items-center gap-2 text-xs">
+                <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                <span className="text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
+              </div>
+            )}
+            {selected.cliente && (
+              <div className="flex items-center gap-2 text-xs">
+                <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+                <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                  {selected.cliente.nombre}
+                </a>
+              </div>
+            )}
+            {selected.proyecto && (
+              <div className="flex items-center gap-2 text-xs">
+                <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+                <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                  {selected.proyecto.nombre}
+                </a>
+                {selected.proyecto.estado && (
+                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+                    {selected.proyecto.estado}
+                  </span>
+                )}
               </div>
             )}
           </div>
+        )}
+      </section>
+
+      {/* ── 2. Summary ── */}
+      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Summary</p>
+        {summary ? (
+          <InlineTextarea
+            value={summary}
+            placeholder="Add summary..."
+            className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
+            rows={2}
+            onSave={(value) => updateHandoff({ summary: value })}
+          />
+        ) : (
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+            No summary available yet.
+          </p>
+        )}
+        {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
+      </section>
+
+      {/* ── 3. Mood & Urgency ── */}
+      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Mood</span>
+              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{moodValue.label}</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
+              <div
+                className={cn("h-full rounded-full transition-all duration-500", moodValue.barClass)}
+                style={{ width: `${moodValue.percent}%` }}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Urgency</span>
+              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{urgencyValue.label}</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
+              <div
+                className={cn("h-full rounded-full transition-all duration-500", urgencyValue.barClass)}
+                style={{ width: `${urgencyValue.percent}%` }}
+              />
+            </div>
+          </div>
+          {typeof selected.leadScore === "number" && (
+            <div className="flex items-center justify-between pt-1 border-t border-[var(--inbox-intelligence-border)]">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Lead score</span>
+              <span className="text-xs font-semibold text-[var(--inbox-accent)]">{selected.leadScore}</span>
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
-      <ActionsCard
-        actions={selected.actions ?? []}
-        channel={selected.channel}
-        channelLabel={channelLabel(selected.channel)}
-        expanded={actionsExpanded}
-        onExpandedChange={setActionsExpanded}
-        pendingActionId={pendingActionId}
-        actionTypeLabel={actionTypeLabel}
-        actionStatusLabel={actionStatusLabel}
-        actionStatusBadge={actionStatusBadge}
-        onAction={handleSuggestedAction}
-        onConvert={(action) => handleConvert(action)}
-        actionState={actionState}
-      />
+      {/* ── 4. Recommended next move ── */}
+      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Recommended next move</p>
+        {nextRecommendedAction ? (
+          <div className="mt-2">
+            <p className="text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]">{nextRecommendedAction}</p>
+            <InlineTextarea
+              value={nextRecommendedAction}
+              placeholder="Edit recommendation..."
+              className="mt-2 rounded-lg bg-white/6 text-xs text-[var(--inbox-intelligence-text)]"
+              rows={2}
+              onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+            />
+          </div>
+        ) : (
+          <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+            No recommendation available yet.
+          </p>
+        )}
 
-      <BusinessContextCard
-        expanded={businessContextExpanded}
-        onExpandedChange={setBusinessContextExpanded}
-        summaryLabel={businessContextSummary}
-        summaryMeta={businessContextMeta}
-        core={coreSections}
-      />
+        {suggestedActions.length > 0 && (
+          <div className="mt-3 space-y-1.5 border-t border-[var(--inbox-intelligence-border)] pt-3">
+            {suggestedActions.slice(0, 3).map((action) => {
+              const title = typeof action.data?.title === "string" && action.data.title.trim()
+                ? action.data.title
+                : actionTypeLabel(action.type)
+              const isPending = pendingActionId === action.id
+              return (
+                <div key={action.id} className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
+                    <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
+                    <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", actionStatusBadge(action.status))}>
+                      {actionStatusLabel(action.status)}
+                    </span>
+                  </div>
+                  {action.status === "suggested" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleSuggestedAction(action, "approve_and_execute")}
+                      disabled={isPending}
+                      className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+                    >
+                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run"}
+                    </Button>
+                  )}
+                  {action.status === "approved" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleSuggestedAction(action, "execute")}
+                      disabled={isPending}
+                      className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+                    >
+                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
+      </section>
+
+      {/* ── 5. Actions ── */}
+      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
+        <button
+          type="button"
+          onClick={() => setActionsExpanded((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Actions</span>
+          {actionsExpanded ? <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" /> : <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />}
+        </button>
+
+        {actionsExpanded && (
+          <div className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3">
+            {/* Business */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Business</p>
+              <div className="flex flex-wrap gap-1.5">
+                <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
+                <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
+                <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
+              </div>
+            </div>
+
+            {/* Communication */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Communication</p>
+              <div className="flex flex-wrap gap-1.5">
+                <ActionButton label="Internal note" icon={MessageSquare} />
+                <ActionButton label="Attach file" icon={Paperclip} />
+                {(selected.channel === "whatsapp" || selected.contact.telefono) && (
+                  <ActionButton label="Call" icon={PhoneCall} />
+                )}
+              </div>
+            </div>
+
+            {/* Workflow */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
+              <div className="flex flex-wrap gap-1.5">
+                <ActionButton label="Archive" icon={Archive} />
+                {(selected.channel === "web_chat" || selected.channel === "portal") && members.length > 0 && (
+                  <div className="w-full mt-1">
+                    <Select
+                      value={selected.assignedTo || "unassigned"}
+                      onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)}
+                      disabled={assignSaving}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs">
+                        <SelectValue placeholder="Assign to..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {members.map((m) => (
+                          <SelectItem key={m.userId} value={m.userId}>
+                            {m.nombre || m.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {assignSaving && (
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Updating...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
 
-function getStringValue(
-  value: Record<string, unknown> | null | undefined,
-  keys: string[],
-) {
+function ActionButton({ label, icon: Icon, onClick }: { label: string; icon: React.ElementType; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-intelligence-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+        onClick
+          ? "text-[var(--inbox-intelligence-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
+          : "text-[var(--inbox-intelligence-text-secondary)]/50 cursor-default",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  )
+}
+
+function formatContactType(tipo: string) {
+  const map: Record<string, string> = {
+    lead: "Lead",
+    cliente: "Client",
+    proveedor: "Supplier",
+    colega: "Colleague",
+    visitante: "Visitor",
+    contact: "Contact",
+  }
+  return map[tipo] || tipo.replace(/_/g, " ")
+}
+
+function getStringValue(value: Record<string, unknown> | null | undefined, keys: string[]) {
   if (!value) return null
   for (const key of keys) {
     const candidate = value[key]
@@ -308,35 +430,32 @@ function getStringValue(
   return null
 }
 
-function normalizeBriefData(briefData?: Record<string, unknown> | null) {
-  if (!briefData) return []
-
-  return Object.entries(briefData)
-    .filter(([, value]) => value !== null && value !== undefined && `${value}`.trim() !== "")
-    .slice(0, 4)
-    .map(([key, value]) => ({
-      label: formatBriefLabel(key),
-      value: typeof value === "string" || typeof value === "number" ? value : JSON.stringify(value),
-    }))
+function mapSentimentToMood(sentiment?: string | null) {
+  switch (sentiment?.toLowerCase()) {
+    case "positive":
+    case "positivo":
+      return { label: "Positive", percent: 85, barClass: "bg-emerald-500" }
+    case "negative":
+    case "negativo":
+      return { label: "Negative", percent: 30, barClass: "bg-rose-500" }
+    case "neutral":
+      return { label: "Neutral", percent: 55, barClass: "bg-sky-400" }
+    default:
+      return { label: "Unknown", percent: 50, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
+  }
 }
 
-function formatBriefLabel(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
-function getUrgencyPresentation(urgency?: string | null) {
+function mapUrgency(urgency?: string | null) {
   switch (urgency) {
     case "critica":
-      return { label: "Critical", className: "bg-[var(--inbox-urgency-critical-bg)] text-[var(--inbox-urgency-critical-text)]" }
+      return { label: "Critical", percent: 100, barClass: "bg-rose-500" }
     case "alta":
-      return { label: "High", className: "bg-[var(--inbox-urgency-high-bg)] text-[var(--inbox-urgency-high-text)]" }
+      return { label: "High", percent: 75, barClass: "bg-amber-500" }
     case "media":
-      return { label: "Medium", className: "bg-[var(--inbox-urgency-medium-bg)] text-[var(--inbox-urgency-medium-text)]" }
+      return { label: "Medium", percent: 50, barClass: "bg-sky-400" }
     case "baja":
-      return { label: "Low", className: "bg-[var(--inbox-urgency-low-bg)] text-[var(--inbox-urgency-low-text)]" }
+      return { label: "Low", percent: 25, barClass: "bg-emerald-500" }
     default:
-      return null
+      return { label: "Normal", percent: 35, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
   }
 }

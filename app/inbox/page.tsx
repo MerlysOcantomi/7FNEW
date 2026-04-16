@@ -294,26 +294,6 @@ function confidenceLabel(value?: number | null) {
   return `${Math.round(value * 100)}%`
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return null
-  return new Date(value).toLocaleString("en-US", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
-function linesToText(value?: string[] | null) {
-  return Array.isArray(value) ? value.join("\n") : ""
-}
-
-function textToLines(value: string) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
 
 function formatRoleLabel(value: string) {
   return value
@@ -335,9 +315,6 @@ function InboxPageContent() {
   const [replyIsInternal, setReplyIsInternal] = useState(false)
   const [replySending, setReplySending] = useState(false)
   const [replyStatus, setReplyStatus] = useState<string | null>(null)
-  const [handoffExpanded, setHandoffExpanded] = useState(false)
-  const [actionsExpanded, setActionsExpanded] = useState(false)
-  const [businessContextExpanded, setBusinessContextExpanded] = useState(false)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
@@ -482,9 +459,6 @@ function InboxPageContent() {
     setReplyContent("")
     setReplyIsInternal(false)
     setReplyStatus(null)
-    setHandoffExpanded(false)
-    setActionsExpanded(false)
-    setBusinessContextExpanded(false)
     setAutoPopulated(false)
     setFannyDismissed(false)
     setFannyExpanded(false)
@@ -1244,20 +1218,8 @@ function InboxPageContent() {
   const contextPanel = selected && conversations.length > 0 ? (
     <ContextPanel
       selected={selected}
-      handoffExpanded={handoffExpanded}
-      setHandoffExpanded={setHandoffExpanded}
-      actionsExpanded={actionsExpanded}
-      setActionsExpanded={setActionsExpanded}
-      businessContextExpanded={businessContextExpanded}
-      setBusinessContextExpanded={setBusinessContextExpanded}
-      conversationStatusLabel={statusLabel(selected.status)}
-      conversationStatusClassName={statusBadge(selected.status)}
       updateHandoff={updateHandoff}
       handoffState={handoffState}
-      linesToText={linesToText}
-      textToLines={textToLines}
-      confidenceLabel={confidenceLabel}
-      formatDateTime={formatDateTime}
       pendingActionId={pendingActionId}
       handleSuggestedAction={handleSuggestedAction}
       actionTypeLabel={actionTypeLabel}
