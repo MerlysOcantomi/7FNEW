@@ -37,6 +37,8 @@ import {
   CheckCircle,
   Archive,
   Shield,
+  Fingerprint,
+  Briefcase,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -129,12 +131,13 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       subtitle: "",
       icon: Settings,
       items: [
+        { label: "Business Profile", href: "/business-profile", icon: Briefcase },
+        { label: "Communication", href: "/comunicacion", icon: MessageSquarePlus },
+        { label: "Contact Matching", href: "/identidad", icon: Fingerprint },
+        { label: v.member.plural, href: "/usuarios", icon: Users },
+        { label: v.department.plural, href: "/departamentos", icon: Building2 },
         { label: "Improvements", href: "/forte/improvements", icon: Bot, helper: "by Mr. Forte" },
         { label: "AI workspace", href: "/motor", icon: Cpu },
-        { label: v.department.plural, href: "/departamentos", icon: Building2 },
-        { label: v.member.plural, href: "/usuarios", icon: Users },
-        { label: "Identity", href: "/identidad", icon: Settings },
-        { label: "Communication", href: "/comunicacion", icon: MessageSquarePlus },
       ],
       dividerAbove: true,
     },
