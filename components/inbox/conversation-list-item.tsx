@@ -1,16 +1,15 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
-import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft, MessageSquare, Star, Archive, Trash2, MailOpen, MailCheck } from "lucide-react"
+import { MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
   title: string
   subtitle: string
-  preview?: string | null
-  fullMessage?: string | null
+  intent?: string | null
   timeLabel: string
   selected: boolean
   isUnread: boolean
@@ -22,20 +21,13 @@ interface ConversationListItemProps {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
-  tone?: "inbound" | "outbound" | "internal" | "system"
-  // Quick actions
-  onFavorite?: () => void
-  onArchive?: () => void
-  onDelete?: () => void
-  onMarkRead?: () => void
-  isFavorited?: boolean
+  messageCount: number
 }
 
 export function ConversationListItem({
   title,
   subtitle,
-  preview,
-  fullMessage,
+  intent,
   timeLabel,
   selected,
   isUnread,
@@ -47,34 +39,19 @@ export function ConversationListItem({
   urgencyLabel,
   urgencyClassName,
   leadScore,
-  tone,
-  // Quick actions
-  onFavorite,
-  onArchive,
-  onDelete,
-  onMarkRead,
-  isFavorited = false,
+  messageCount,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLButtonElement | null>(null)
-  const [expanded, setExpanded] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
 
   useEffect(() => {
-    if (!selected) {
-      setExpanded(false)
-      return
-    }
+    if (!selected) return
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
-
-  const hasFullMessage = selected && fullMessage && fullMessage !== preview
 
   return (
     <button
       ref={itemRef}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       aria-pressed={selected}
       className={cn(
         "group relative w-full rounded-lg border-b px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
@@ -97,22 +74,7 @@ export function ConversationListItem({
                 {isUnread && (
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--inbox-list-selected)] shadow-sm ring-2 ring-[var(--inbox-list-selected)]/20" aria-hidden="true" />
                 )}
-                
-                {/* Message direction indicator */}
-                {tone && (
-                  <div className="shrink-0">
-                    {tone === "inbound" && (
-                      <ArrowLeft className="h-3 w-3 text-[var(--inbox-accent)]" />
-                    )}
-                    {tone === "outbound" && (
-                      <ArrowRight className="h-3 w-3 text-[var(--inbox-success)]" />
-                    )}
-                    {tone === "internal" && (
-                      <MessageSquare className="h-3 w-3 text-amber-500" />
-                    )}
-                  </div>
-                )}
-                
+
                 <p
                   className={cn(
                     "truncate pr-1 text-[15px] leading-tight",
@@ -125,52 +87,29 @@ export function ConversationListItem({
               </div>
               <p className="truncate text-xs leading-relaxed text-[var(--inbox-list-text-secondary)]">{subtitle}</p>
             </div>
-            <span
-              suppressHydrationWarning
-              className={cn(
-                "shrink-0 whitespace-nowrap pt-1 text-xs font-medium",
-                isUnread ? "text-[var(--inbox-list-text)] font-semibold" : "text-[var(--inbox-list-text-secondary)]",
-              )}
-            >
-              {timeLabel}
-            </span>
-          </div>
-
-          {(preview?.trim() || fullMessage?.trim()) && (
-            <div className="mt-2.5">
-              <p
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <span
+                suppressHydrationWarning
                 className={cn(
-                  "text-sm leading-relaxed",
-                  expanded ? "whitespace-pre-wrap" : "line-clamp-1",
-                  isUnread ? "text-[var(--inbox-list-text-secondary)] font-medium" : "text-[var(--inbox-list-text-secondary)]/75",
+                  "whitespace-nowrap text-xs font-medium",
+                  isUnread ? "text-[var(--inbox-list-text)] font-semibold" : "text-[var(--inbox-list-text-secondary)]",
                 )}
               >
-                {expanded && fullMessage ? fullMessage : preview}
-              </p>
-              
-              {hasFullMessage && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setExpanded(!expanded)
-                  }}
-                  className="mt-1.5 flex items-center gap-1 text-xs text-[var(--inbox-list-selected)] hover:text-[var(--inbox-list-selected)]/80 transition-colors"
-                >
-                  {expanded ? (
-                    <>
-                      <ChevronDown className="h-3 w-3" />
-                      Show less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronRight className="h-3 w-3" />
-                      Read full message
-                    </>
-                  )}
-                </button>
+                {timeLabel}
+              </span>
+              {messageCount > 1 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--inbox-list-background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
+                  <MessageSquare className="h-2.5 w-2.5" />
+                  {messageCount}
+                </span>
               )}
             </div>
+          </div>
+
+          {intent && (
+            <p className="mt-2 line-clamp-1 text-[13px] leading-snug text-[var(--inbox-list-text-secondary)]/80">
+              {intent}
+            </p>
           )}
 
           <ConversationMetaLine
@@ -180,72 +119,8 @@ export function ConversationListItem({
             urgencyClassName={urgencyClassName}
             leadScore={leadScore}
           />
-
         </div>
       </div>
-
-      {/* Quick Actions Overlay */}
-      {isHovered && !selected && (onFavorite || onArchive || onDelete || onMarkRead) && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[var(--inbox-list-background)]/95 backdrop-blur-sm border border-[var(--inbox-border)] rounded-lg shadow-lg px-1 py-1">
-          {onMarkRead && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onMarkRead()
-              }}
-              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)] hover:bg-[var(--inbox-background)] transition-colors"
-              title={isUnread ? "Mark as read" : "Mark as unread"}
-            >
-              {isUnread ? <MailOpen className="h-3.5 w-3.5" /> : <MailCheck className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          {onFavorite && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onFavorite()
-              }}
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                isFavorited 
-                  ? "text-[var(--inbox-lead-color)] hover:text-[var(--inbox-lead-color)]/80" 
-                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-lead-color)]"
-              )}
-              title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-            >
-              <Star className={cn("h-3.5 w-3.5", isFavorited && "fill-current")} />
-            </button>
-          )}
-          {onArchive && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onArchive()
-              }}
-              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-archive-color)] hover:bg-[var(--inbox-background)] transition-colors"
-              title="Archive"
-            >
-              <Archive className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="p-1.5 rounded-md text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-destructive)] hover:bg-[var(--inbox-urgency-critical-bg)] transition-colors"
-              title="Delete"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      )}
     </button>
   )
 }

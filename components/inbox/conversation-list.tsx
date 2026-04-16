@@ -18,8 +18,7 @@ interface ConversationItem {
   channel: string
   title: string
   subtitle: string
-  preview: string | null
-  fullMessage?: string | null
+  intent: string | null
   timeLabel: string
   isUnread: boolean
   statusLabel: string
@@ -28,7 +27,7 @@ interface ConversationItem {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
-  tone?: "system" | "inbound" | "outbound" | "internal"
+  messageCount: number
 }
 
 interface ConversationListProps {
@@ -250,8 +249,7 @@ export function ConversationList({
                   channel={item.channel}
                   title={item.title}
                   subtitle={item.subtitle}
-                  preview={item.preview}
-                  fullMessage={item.fullMessage}
+                  intent={item.intent}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}
@@ -262,13 +260,7 @@ export function ConversationList({
                   urgencyLabel={item.urgencyLabel}
                   urgencyClassName={item.urgencyClassName}
                   leadScore={item.leadScore}
-                  tone={item.tone}
-                  // Quick actions - TODO: Implement real callbacks
-                  onFavorite={() => console.log('Favorite:', item.id)}
-                  onArchive={() => console.log('Archive:', item.id)}
-                  onDelete={() => console.log('Delete:', item.id)}
-                  onMarkRead={() => console.log('Mark read:', item.id)}
-                  isFavorited={false}
+                  messageCount={item.messageCount}
                 />
               ))}
               {hasMore && onLoadMore && (

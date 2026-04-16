@@ -936,40 +936,34 @@ function InboxPageContent() {
         ]
       : members
 
-  // Get all messages from all conversations for the left column
-  const allMessages = conversations.flatMap((conversation) => 
-    (conversation.messages || [])
-      .filter(message => message.content && message.content.trim().length > 0)
-      .map((message) => {
-      const isOutbound = message.direction === "outbound" && !message.isInternal
-      const isInbound = message.direction === "inbound" && !message.isInternal
-      const isInternal = message.isInternal
-      
+  const conversationItems = useMemo(() =>
+    conversations.map((conversation) => {
+      const contactName = conversation.contact.nombre || conversation.contact.email || "Contact"
+      const intent =
+        conversation.classification?.summary ||
+        conversation.summary ||
+        conversation.subject ||
+        null
+
       return {
-        id: `${conversation.id}-${message.id}`,
-        conversationId: conversation.id,
+        id: conversation.id,
         channel: conversation.channel,
-        title: isOutbound 
-          ? "You" 
-          : conversation.contact.nombre || conversation.contact.email || "Contact",
-        subtitle: isInternal 
-          ? `Internal note • ${conversation.contact.nombre || conversation.contact.email || "Unidentified"}`
-          : `${conversation.contact.nombre || conversation.contact.email || "Unidentified contact"}${conversation.contact.empresa ? ` · ${conversation.contact.empresa}` : ""}`,
-        preview: message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content,
-        fullMessage: message.content,
-        timeLabel: formatRelativeDate(message.createdAt ?? new Date().toISOString()),
-        createdAt: message.createdAt ?? new Date().toISOString(),
-        isUnread: conversation.status === "new" && isInbound,
+        title: contactName,
+        subtitle: `${contactName}${conversation.contact.empresa ? ` · ${conversation.contact.empresa}` : ""}`,
+        intent,
+        timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString()),
+        isUnread: conversation.status === "new",
         statusLabel: statusLabel(conversation.status),
         statusClassName: statusBadge(conversation.status),
         channelLabel: channelLabel(conversation.channel),
         urgencyLabel: urgencyLabel(conversation.urgency),
         urgencyClassName: urgencyBadge(conversation.urgency),
         leadScore: conversation.leadScore,
-        tone: (isInternal ? "internal" : isOutbound ? "outbound" : isInbound ? "inbound" : "system") as "internal" | "outbound" | "inbound" | "system",
+        messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
       }
-    })
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    }),
+    [conversations],
+  )
 
   const threadMessages =
     selected?.messages.map((message) => {
@@ -1294,8 +1288,8 @@ function InboxPageContent() {
               <ConversationList
                 loading={loading}
                 errorMessage={listErrorMessage}
-                conversations={allMessages}
-                selectedId={selected ? `${selected.id}-${selected.messages?.[selected.messages.length - 1]?.id || ''}` : null}
+                conversations={conversationItems}
+                selectedId={activeSelectedId}
                 search={search}
                 onSearchChange={setSearch}
                 status={status}
@@ -1307,10 +1301,7 @@ function InboxPageContent() {
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
                 stats={stats}
-                onSelect={(itemId) => {
-                  const msg = allMessages.find(m => m.id === itemId)
-                  if (msg) handleSelectConversation(msg.conversationId)
-                }}
+                onSelect={handleSelectConversation}
                 hasMore={hasMore}
                 loadingMore={loadingMore}
                 activeSearchTerm={debouncedSearch || undefined}
