@@ -289,11 +289,6 @@ function actionStatusLabel(status: string) {
   }[status] ?? status
 }
 
-function confidenceLabel(value?: number | null) {
-  if (typeof value !== "number") return null
-  return `${Math.round(value * 100)}%`
-}
-
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
     case "archived": return { status: "archived" }
@@ -1031,23 +1026,8 @@ function InboxPageContent() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
-  const fannySummary =
-    selected?.handoff?.summary ||
-    selected?.classification?.summary ||
-    selected?.summary ||
-    null
-  const fannyNextAction =
-    selected?.handoff?.nextRecommendedAction ||
-    (selected?.classification?.nextBestAction &&
-    typeof selected.classification.nextBestAction === "object"
-      ? (
-          ["label", "title", "action"]
-            .map((key) => selected.classification?.nextBestAction?.[key])
-            .find((value): value is string => typeof value === "string" && value.trim().length > 0) ?? null
-        )
-      : null)
-  const fannyHasContent = Boolean(suggestedDraft?.content?.trim() || fannySummary || fannyNextAction)
-  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasContent || conversations.length === 0
+  const fannyHasReply = Boolean(suggestedDraft?.content?.trim())
+  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasReply || conversations.length === 0
     ? "hidden"
     : autoPopulated || fannyExpanded
       ? "expanded"
@@ -1331,6 +1311,7 @@ function InboxPageContent() {
                       detailErrorMessage={detailErrorMessage}
                       headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
                       headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+                      channel={selected?.channel || "email"}
                       statusValue={selected?.status || "new"}
                       statusOptions={statusEditOptions}
                       onStatusChange={handleStatusChange}
@@ -1339,12 +1320,8 @@ function InboxPageContent() {
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
                       fannyState={fannyState}
-                      fannySummary={fannySummary}
                       fannySuggestionTitle={suggestedDraft?.title || null}
                       fannySuggestionContent={suggestedDraft?.content || null}
-                      fannyNextRecommendedAction={fannyNextAction}
-                      fannyConfidenceLabel={selected ? confidenceLabel(selected.handoff?.confidence) : null}
-                      fannyDetectedLanguage={selected?.detectedLanguage}
                       fannyAutoPopulated={autoPopulated}
                       onFannyToggleExpanded={() => setFannyExpanded((value) => !value)}
                       onFannyInsertSuggestion={suggestedDraft?.content

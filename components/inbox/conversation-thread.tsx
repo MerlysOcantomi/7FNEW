@@ -32,6 +32,7 @@ interface ConversationThreadProps {
   detailErrorMessage: string | null
   headerTitle: string
   headerSubtitle: string
+  channel: string
   statusValue: string
   statusOptions: StatusOption[]
   onStatusChange: (value: string) => Promise<void>
@@ -39,14 +40,9 @@ interface ConversationThreadProps {
   messages: MessageItem[]
   onBack?: () => void
   onOpenContext?: () => void
-  // Fanny props
   fannyState: FannyAssistState
-  fannySummary?: string | null
   fannySuggestionTitle?: string | null
   fannySuggestionContent?: string | null
-  fannyNextRecommendedAction?: string | null
-  fannyConfidenceLabel?: string | null
-  fannyDetectedLanguage?: string | null
   fannyAutoPopulated?: boolean
   onFannyToggleExpanded: () => void
   onFannyInsertSuggestion?: () => void
@@ -60,6 +56,7 @@ export function ConversationThread({
   detailErrorMessage,
   headerTitle,
   headerSubtitle,
+  channel,
   statusValue,
   statusOptions,
   onStatusChange,
@@ -68,12 +65,8 @@ export function ConversationThread({
   onBack,
   onOpenContext,
   fannyState,
-  fannySummary,
   fannySuggestionTitle,
   fannySuggestionContent,
-  fannyNextRecommendedAction,
-  fannyConfidenceLabel,
-  fannyDetectedLanguage,
   fannyAutoPopulated,
   onFannyToggleExpanded,
   onFannyInsertSuggestion,
@@ -112,16 +105,18 @@ export function ConversationThread({
     )
   }
 
+  const isEmailChannel = channel === "email"
+
   return (
     <>
       {/* Mobile navigation */}
       <div className="xl:hidden shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
         <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="-ml-2 h-7 rounded-[var(--inbox-radius-control)] px-2 text-xs" onClick={onBack}>
+          <Button type="button" variant="ghost" size="sm" className="-ml-2 h-7 rounded-lg px-2 text-xs" onClick={onBack}>
             <ChevronLeft className="h-3.5 w-3.5" />
             Inbox
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-7 rounded-[var(--inbox-radius-control)] text-xs" onClick={onOpenContext}>
+          <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg text-xs" onClick={onOpenContext}>
             <Sparkles className="h-3 w-3" />
             Context
           </Button>
@@ -136,17 +131,29 @@ export function ConversationThread({
         </div>
       </div>
 
-      {/* Fanny header */}
+      {/* Desktop header */}
+      <div className="hidden xl:block shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-[var(--inbox-text)]">{headerTitle}</p>
+            <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
+          </div>
+          <InlineSelect
+            value={statusValue}
+            options={statusOptions}
+            onSave={onStatusChange}
+            badgeClassName={statusBadgeClassName}
+          />
+        </div>
+      </div>
+
+      {/* Fanny reply assistant */}
       {fannyState !== "hidden" && (
         <div className="shrink-0">
           <FannyAssistCard
             state={fannyState}
-            summary={fannySummary}
             suggestionTitle={fannySuggestionTitle}
             suggestionContent={fannySuggestionContent}
-            nextRecommendedAction={fannyNextRecommendedAction}
-            confidenceLabel={fannyConfidenceLabel}
-            detectedLanguage={fannyDetectedLanguage}
             autoPopulated={fannyAutoPopulated}
             onToggleExpanded={onFannyToggleExpanded}
             onInsertSuggestion={onFannyInsertSuggestion}
@@ -156,33 +163,40 @@ export function ConversationThread({
         </div>
       )}
 
-      {/* Desktop status (when no Fanny or collapsed) */}
-      <div className="hidden xl:block shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-sm">
-              <h1 className="truncate font-medium text-[var(--inbox-text)]">{headerTitle}</h1>
-              <span className="shrink-0 text-[var(--inbox-text-secondary)]">•</span>
-              <p className="truncate text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <InlineSelect
-              value={statusValue}
-              options={statusOptions}
-              onSave={onStatusChange}
-              badgeClassName={statusBadgeClassName}
-            />
-          </div>
-        </div>
-      </div>
-
+      {/* Thread */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-5 bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7">
+        <div className={cn(
+          "bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7",
+          isEmailChannel ? "space-y-0" : "space-y-4",
+        )}>
           {messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-[var(--inbox-surface)]/50 p-6">
               <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
             </div>
+          ) : isEmailChannel ? (
+            messages.map((message, index) => (
+              <div key={message.id}>
+                {index > 0 && (
+                  <div className="my-4 flex items-center gap-3 px-1">
+                    <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
+                    <span className="shrink-0 text-[10px] font-medium text-[var(--inbox-text-secondary)]/50">
+                      {message.tone === "outbound" ? "Reply" : "Email"} · {message.timestampLabel}
+                    </span>
+                    <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
+                  </div>
+                )}
+                <MessageBubble
+                  authorLabel={message.authorLabel}
+                  roleLabel={message.roleLabel}
+                  metaLabel={message.metaLabel}
+                  timestampLabel={message.timestampLabel}
+                  content={message.content}
+                  tone={message.tone}
+                  attachments={message.attachments}
+                  emailMeta={message.emailMeta}
+                />
+              </div>
+            ))
           ) : (
             messages.map((message) => (
               <MessageBubble
