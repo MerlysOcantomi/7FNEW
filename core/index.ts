@@ -15,7 +15,7 @@ export type {
   RegistryEntryKind,
 } from "./registry";
 export type {
-  WorkspaceAgentProfile,
+  WorkspaceBusinessProfile,
   WorkspaceServiceCatalogItem,
 } from "./verticals";
 export type { WorkspaceAgentContext } from "./workspace";

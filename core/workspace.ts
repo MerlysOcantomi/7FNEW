@@ -4,7 +4,7 @@ import {
   mergeConfigs,
   getVerticalByKey,
   type VerticalConfig,
-  type WorkspaceAgentProfile,
+  type WorkspaceBusinessProfile,
 } from "@core/verticals"
 import { resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
 
@@ -23,6 +23,7 @@ export interface WorkspaceAgentContext {
     tone: string | null
     workingHours: string | null
   }
+  services: string[]
   attentionRules: string[]
 }
 
@@ -44,7 +45,7 @@ export async function resolveWorkspaceContext(
   const overrides = parseJsonConfig(ws.config)
   const resolved = mergeConfigs(defaults, overrides)
 
-  const profile: WorkspaceAgentProfile = resolved.agentProfile ?? {}
+  const profile: WorkspaceBusinessProfile = resolved.businessProfile ?? {}
 
   return {
     identity: {
@@ -57,6 +58,7 @@ export async function resolveWorkspaceContext(
       tone: profile.tone || null,
       workingHours: profile.workingHours || null,
     },
+    services: profile.services ?? [],
     attentionRules: profile.attentionRules ?? [],
   }
 }
@@ -69,6 +71,7 @@ export function buildWorkspaceContextBlock(ctx: WorkspaceAgentContext): string {
   if (ctx.identity.verticalName) lines.push(`- Vertical: ${ctx.identity.verticalName}`)
   if (ctx.identity.region) lines.push(`- Región: ${ctx.identity.region}`)
   if (ctx.identity.languages.length > 0) lines.push(`- Idiomas: ${ctx.identity.languages.join(", ")}`)
+  if (ctx.services.length > 0) lines.push(`- Servicios: ${ctx.services.slice(0, 15).join(", ")}`)
   if (ctx.identity.tone) lines.push(`- Tono: ${ctx.identity.tone}`)
   if (ctx.identity.workingHours) lines.push(`- Horario: ${ctx.identity.workingHours}`)
   if (ctx.attentionRules.length > 0) {
