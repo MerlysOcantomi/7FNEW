@@ -11,6 +11,7 @@ import {
   Paperclip, PhoneCall,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
 
 export interface ActionItem {
   id: string
@@ -63,12 +64,8 @@ interface ContextPanelProps {
   handoffState: string | null
   handleSuggestedAction: (action: ActionItem, operation: "approve" | "dismiss" | "execute" | "approve_and_execute") => Promise<void>
   pendingActionId: string | null
-  actionTypeLabel: (type: string) => string
-  actionStatusBadge: (status: string) => string
-  actionStatusLabel: (status: string) => string
   handleConvert: (action: "cliente" | "proyecto" | "tarea" | "todo") => Promise<void>
   actionState: string | null
-  channelLabel: (channel: string) => string
   members: Array<{ userId: string; nombre: string | null; email: string }>
   assignSaving: boolean
   onAssign: (value: string) => void
@@ -80,12 +77,8 @@ export function ContextPanel({
   handoffState,
   handleSuggestedAction,
   pendingActionId,
-  actionTypeLabel,
-  actionStatusBadge,
-  actionStatusLabel,
   handleConvert,
   actionState,
-  channelLabel,
   members,
   assignSaving,
   onAssign,

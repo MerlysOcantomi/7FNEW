@@ -161,6 +161,12 @@
   --inbox-chat-background: var(--surface-2);
   --inbox-chat-surface: var(--surface-3);
   --inbox-chat-bubble-outbound: var(--accent-primary);
+  --inbox-chat-bubble-outbound-gradient: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+  --inbox-chat-bubble-outbound-shadow: rgba(110, 64, 240, 0.18);
+  --inbox-chat-bubble-outbound-shadow-hover: rgba(110, 64, 240, 0.22);
+  --inbox-chat-meta-outbound-border: #332455;
+  --inbox-chat-meta-outbound-bg: #2B2144;
+  --inbox-chat-meta-outbound-text: #E8DFFF;
   --inbox-chat-bubble-inbound: var(--surface-3);
   --inbox-chat-text: var(--text-primary-dark);
   --inbox-chat-text-secondary: var(--text-secondary-dark);

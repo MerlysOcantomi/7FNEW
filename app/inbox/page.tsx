@@ -27,6 +27,15 @@ import {
 import { useFetch } from "@/hooks/use-fetch"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
+import {
+  formatRelativeDate,
+  statusBadge,
+  statusLabel,
+  urgencyBadge,
+  urgencyLabel,
+  channelLabel,
+  formatRoleLabel,
+} from "@/lib/inbox-labels"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, Send, Loader2 } from "lucide-react"
@@ -172,123 +181,6 @@ const STATUS_OPTIONS = [
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 const DESKTOP_INBOX_GRID = "xl:grid xl:grid-cols-[minmax(320px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
-function formatRelativeDate(value: string) {
-  const date = new Date(value)
-  const diff = Date.now() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 1) return "Now"
-  if (minutes < 60) return `${minutes} min ago`
-  if (hours < 24) return `${hours} h ago`
-  if (days < 7) return `${days} d ago`
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" })
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "lead_detected":
-      return "status-lead-detected"
-    case "converted":
-      return "status-converted"
-    case "assigned":
-      return "status-assigned"
-    case "awaiting_response":
-      return "status-awaiting-response"
-    case "closed":
-    case "archived":
-      return "status-closed"
-    case "triaged":
-      return "status-triaged"
-    case "new":
-    default:
-      return "status-new"
-  }
-}
-
-function statusLabel(status: string) {
-  return {
-    new: "New",
-    triaged: "Triaged",
-    assigned: "Assigned",
-    awaiting_response: "Awaiting response",
-    lead_detected: "Lead detected",
-    converted: "Converted",
-    closed: "Closed",
-    archived: "Archived",
-  }[status] ?? status
-}
-
-function urgencyBadge(urgency: string) {
-  switch (urgency) {
-    case "critica":
-      return "urgency-critical"
-    case "alta":
-      return "urgency-high"
-    case "media":
-      return "urgency-medium"
-    default:
-      return "urgency-low"
-  }
-}
-
-function urgencyLabel(urgency: string) {
-  return {
-    critica: "Critical",
-    alta: "High",
-    media: "Medium",
-    baja: "Low",
-  }[urgency] ?? urgency
-}
-
-function channelLabel(channel: string) {
-  return {
-    manual: "Manual",
-    web_chat: "Web chat",
-    email: "Email",
-    portal: "Portal",
-    whatsapp: "WhatsApp",
-  }[channel] ?? channel
-}
-
-function actionTypeLabel(type: string) {
-  return {
-    create_client: "Create client",
-    create_project: "Create project",
-    create_task: "Create task",
-    schedule_followup: "Schedule follow-up",
-    assign_operator: "Assign owner",
-    generate_proposal: "Generate proposal",
-  }[type] ?? type
-}
-
-function actionStatusBadge(status: string) {
-  switch (status) {
-    case "approved":
-      return "action-approved"
-    case "executed":
-      return "action-executed"
-    case "dismissed":
-      return "action-dismissed"
-    case "failed":
-      return "action-failed"
-    case "suggested":
-    default:
-      return "action-suggested"
-  }
-}
-
-function actionStatusLabel(status: string) {
-  return {
-    suggested: "Suggested",
-    approved: "Approved",
-    executed: "Executed",
-    dismissed: "Dismissed",
-    failed: "Failed",
-  }[status] ?? status
-}
-
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
     case "archived": return { status: "archived" }
@@ -302,12 +194,6 @@ function mapSidebarFilter(filter: string | null): { status?: string; urgency?: s
   }
 }
 
-function formatRoleLabel(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
 function InboxPageContent() {
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
@@ -317,7 +203,6 @@ function InboxPageContent() {
   const [actionState, setActionState] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
   const [handoffState, setHandoffState] = useState<string | null>(null)
-  const [draftState, setDraftState] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [replyIsInternal, setReplyIsInternal] = useState(false)
   const [replySending, setReplySending] = useState(false)
@@ -351,6 +236,7 @@ function InboxPageContent() {
   const initialSyncDoneRef = useRef(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
+  const replyContentRef = useRef("")
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [extraConversations, setExtraConversations] = useState<ConversationListItem[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
@@ -525,9 +411,11 @@ function InboxPageContent() {
         : detailError
   const selected = activeSelectedId ? (detailData ?? null) : null
 
+  replyContentRef.current = replyContent
+
   useEffect(() => {
     if (!selected?.drafts?.length || !selected?.messages?.length) return
-    if (replyContent.trim()) return
+    if (replyContentRef.current.trim()) return
 
     const lastMsg = selected.messages[selected.messages.length - 1]
     if (lastMsg.direction !== "inbound") return
@@ -549,7 +437,6 @@ function InboxPageContent() {
     activeDraftIdRef.current = draft.id
     setReplyContent(draft.content)
     setAutoPopulated(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
 
   const serverLeads = typeof conversationsMeta?.leads === "number" ? conversationsMeta.leads : null
@@ -557,7 +444,7 @@ function InboxPageContent() {
 
   const stats = useMemo(() => {
     if (conversations.length === 0) {
-      return { total: 0, leads: 0, urgent: 0, unread: 0, reply: 0, waiting: 0, done: 0, archived: 0, spam: 0 }
+      return { total: 0, leads: 0, urgent: 0, unread: 0, reply: 0, waiting: 0, done: 0, archived: 0 }
     }
     
     // Safe counting to avoid hydration mismatches
@@ -575,7 +462,6 @@ function InboxPageContent() {
       waiting: conversations.filter(conv => conv.status === "triaged").length,
       done: conversations.filter(conv => conv.status === "closed").length,
       archived: conversations.filter(conv => conv.status === "archived").length,
-      spam: 0, // TODO: Implement spam detection
     }
   }, [conversations, serverTotal, serverLeads, serverUrgent])
 
@@ -733,7 +619,6 @@ function InboxPageContent() {
 
   async function updateDraft(draftId: string, payload: Record<string, unknown>, successMessage = "Draft updated") {
     if (!selectedId) return
-    setDraftState("Saving draft...")
     try {
       const res = await fetch(`/api/inbox/conversations/${selectedId}/drafts/${draftId}`, {
         method: "PATCH",
@@ -742,11 +627,9 @@ function InboxPageContent() {
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error?.message || "Could not save the draft")
-      setDraftState(successMessage)
       setRefreshKey((value) => value + 1)
       refetchDetail()
     } catch (err) {
-      setDraftState(err instanceof Error ? err.message : "Unknown error")
       throw err
     }
   }
@@ -1239,12 +1122,8 @@ function InboxPageContent() {
       handoffState={handoffState}
       pendingActionId={pendingActionId}
       handleSuggestedAction={handleSuggestedAction}
-      actionTypeLabel={actionTypeLabel}
-      actionStatusBadge={actionStatusBadge}
-      actionStatusLabel={actionStatusLabel}
       handleConvert={handleConvert}
       actionState={actionState}
-      channelLabel={channelLabel}
       members={displayedMembers}
       assignSaving={assignSaving}
       onAssign={handleAssign}

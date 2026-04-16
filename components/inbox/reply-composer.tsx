@@ -110,10 +110,12 @@ export function ReplyComposer({
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("dictate")
   const [assistLoading, setAssistLoading] = useState<AssistAction | null>(null)
   const [assistError, setAssistError] = useState<string | null>(null)
-  const [prevContentRef, setPrevContentRef] = useState<string | null>(null)
+  const [contentBeforeAssist, setContentBeforeAssist] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const composingIntentRef = useRef(false)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onReplyContentChangeRef = useRef(onReplyContentChange)
+  onReplyContentChangeRef.current = onReplyContentChange
 
   const { items: cannedResponses } = useCannedResponses()
   const composerConfig = getComposerConfig({ channel, channelLabel, replyIsInternal, detectedLanguage, subject })
@@ -163,7 +165,7 @@ export function ReplyComposer({
       speech.stop()
     }
     baseTextRef.current = ""
-    setPrevContentRef(null)
+    setContentBeforeAssist(null)
     onSend()
   }
 
@@ -176,7 +178,7 @@ export function ReplyComposer({
     setAssistError(null)
 
     if (action !== "compose_from_intent") {
-      setPrevContentRef(savedContent)
+      setContentBeforeAssist(savedContent)
     }
 
     try {
@@ -194,7 +196,7 @@ export function ReplyComposer({
       if (json.success && json.data?.result) {
         if (json.data.skipped) return
         if (action === "compose_from_intent") {
-          setPrevContentRef(savedContent)
+          setContentBeforeAssist(savedContent)
         }
         onReplyContentChange(json.data.result)
       } else {
@@ -202,14 +204,14 @@ export function ReplyComposer({
         showAssistError(errorMsg)
         if (action === "compose_from_intent") {
           onReplyContentChange(input)
-          setPrevContentRef(null)
+          setContentBeforeAssist(null)
         }
       }
     } catch {
       showAssistError("Connection error — your text was not changed")
       if (action === "compose_from_intent") {
         onReplyContentChange(input)
-        setPrevContentRef(null)
+        setContentBeforeAssist(null)
       }
     } finally {
       setAssistLoading(null)
@@ -222,7 +224,7 @@ export function ReplyComposer({
     const savedContent = replyContent
     setAssistLoading("translate")
     setAssistError(null)
-    setPrevContentRef(savedContent)
+    setContentBeforeAssist(savedContent)
 
     try {
       const res = await fetch("/api/inbox/composer/assist", {
@@ -251,10 +253,9 @@ export function ReplyComposer({
   }
 
   function handleUndoAssist() {
-    if (prevContentRef !== null) {
-      onReplyContentChange(prevContentRef)
-      setPrevContentRef(null)
-    }
+    if (contentBeforeAssist === null) return
+    onReplyContentChange(contentBeforeAssist)
+    setContentBeforeAssist(null)
   }
 
   function focusComposerWithScroll() {
@@ -303,11 +304,11 @@ export function ReplyComposer({
     const finalText = baseTextRef.current + separator + speech.transcript
     baseTextRef.current = finalText
     if (!userInterruptedRef.current) {
-      onReplyContentChange(finalText)
+      onReplyContentChangeRef.current(finalText)
     }
     userInterruptedRef.current = false
     speech.reset()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- event-driven: only fires when listening stops, reads transcript at that moment
   }, [speech.listening])
 
   const [clipPanelOpen, setClipPanelOpen] = useState(false)
@@ -484,7 +485,7 @@ export function ReplyComposer({
                 </div>
               </PopoverContent>
             </Popover>
-            {prevContentRef !== null && (
+            {contentBeforeAssist !== null && (
               <button
                 type="button"
                 onClick={handleUndoAssist}
