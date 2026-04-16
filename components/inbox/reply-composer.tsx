@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import {
   Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp,
-  Mail, MessageSquareText, Languages, X, FileText, Reply, ReplyAll, Forward,
+  Mail, Languages, X, FileText, Forward,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
-  MapPin, Calendar, Link, User, Camera, Video
+  MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
+  Receipt, CreditCard, type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -19,22 +20,9 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
-
-interface ComposerAdvancedItem {
-  label: string
-  hint: string
-  tone?: "default" | "accent"
-}
 
 export interface ComposerAttachment {
   url: string
@@ -322,567 +310,449 @@ export function ReplyComposer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [speech.listening])
 
+  const [clipPanelOpen, setClipPanelOpen] = useState(false)
+
+  const showEmailOptions = !replyIsInternal && channel === "email"
+
   return (
     <div className="shrink-0 border-t border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
       <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)]/80 bg-[var(--inbox-composer-background)] p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Button
+
+        {/* ── Mode selector ── */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5">
+            <button
               type="button"
-              size="sm"
-              variant={!replyIsInternal && emailMode === "reply" ? "accent" : "outline"}
-              onClick={() => { 
-                onReplyModeChange(false); 
-                onEmailModeChange("reply");
-                focusComposerWithScroll();
-              }}
-              className="h-7 rounded-lg text-xs px-2.5"
+              onClick={() => { onReplyModeChange(false); onEmailModeChange("reply"); focusComposerWithScroll(); }}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                !replyIsInternal && emailMode === "reply"
+                  ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+              )}
             >
-              <Reply className="h-3 w-3" />
               Reply
-            </Button>
+            </button>
             {channel === "email" && (
               <>
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  variant={!replyIsInternal && emailMode === "reply_all" ? "accent" : "outline"}
-                  onClick={() => { 
-                    onReplyModeChange(false); 
-                    onEmailModeChange("reply_all");
-                    focusComposerWithScroll();
-                  }}
-                  className="h-7 rounded-lg text-xs px-2.5"
+                  onClick={() => { onReplyModeChange(false); onEmailModeChange("reply_all"); focusComposerWithScroll(); }}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    !replyIsInternal && emailMode === "reply_all"
+                      ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+                      : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+                  )}
                 >
-                  <ReplyAll className="h-3 w-3" />
                   Reply all
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  size="sm"
-                  variant={!replyIsInternal && emailMode === "forward" ? "accent" : "outline"}
-                  onClick={() => { 
-                    onReplyModeChange(false); 
-                    onEmailModeChange("forward");
-                    focusComposerWithScroll();
-                  }}
-                  className="h-7 rounded-lg text-xs px-2.5"
+                  onClick={() => { onReplyModeChange(false); onEmailModeChange("forward"); focusComposerWithScroll(); }}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    !replyIsInternal && emailMode === "forward"
+                      ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+                      : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+                  )}
                 >
-                  <Forward className="h-3 w-3" />
                   Forward
-                </Button>
+                </button>
               </>
             )}
-            <Button
+            <button
               type="button"
-              size="sm"
-              variant={replyIsInternal ? "secondary" : "outline"}
-              onClick={() => {
-                onReplyModeChange(true);
-                focusComposerWithScroll();
-              }}
-              className={cn("h-7 rounded-lg text-xs px-2.5", replyIsInternal && "border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/15 text-[var(--inbox-warning)] hover:bg-[var(--inbox-warning)]/25")}
+              onClick={() => { onReplyModeChange(true); focusComposerWithScroll(); }}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                replyIsInternal
+                  ? "bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)]"
+                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+              )}
             >
               Internal note
-            </Button>
+            </button>
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--surface-3)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
-              {channelLabel}
-            </span>
-            <span className="rounded-full border border-[var(--inbox-chat-border)] bg-[var(--surface-3)] px-2.5 py-1 text-[10px] font-medium text-[var(--inbox-chat-text-secondary)]">
-              {replyIsInternal
-                ? "Internal"
-                : emailMode === "forward"
-                  ? "Forward"
-                  : emailMode === "reply_all"
-                    ? "Reply all"
-                    : "Reply"}
-            </span>
-          </div>
+          <span className="text-[10px] text-[var(--inbox-chat-text-secondary)]">
+            {channelLabel}
+          </span>
         </div>
 
-        {!replyIsInternal && composerConfig.subjectPreview && (
-          <div className="rounded-lg border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1.5">
-            <div className="flex items-center gap-2">
-              <Mail className="h-3 w-3 text-[var(--inbox-text-secondary)]" />
-              <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">Subject:</span>
-              <span className="truncate text-xs font-medium text-[var(--inbox-text)]">{composerConfig.subjectPreview}</span>
+        {/* ── Email options: Subject, CC, BCC, Forward to ── */}
+        {showEmailOptions && (
+          <div className="space-y-1.5 rounded-lg border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-3 py-2">
+            {composerConfig.subjectPreview && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
+                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">Subject</span>
+                <span className="truncate text-xs text-[var(--inbox-text)]">{composerConfig.subjectPreview}</span>
+              </div>
+            )}
+            {emailMode === "forward" && (
+              <div className="flex items-center gap-2">
+                <Forward className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
+                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">To</span>
+                <Input
+                  type="text"
+                  value={emailForwardTo}
+                  onChange={(e) => onEmailForwardToChange(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              className="flex items-center gap-1 text-[10px] font-medium text-[var(--inbox-accent)] hover:text-[var(--inbox-accent)]/80 transition-colors"
+            >
+              {advancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {advancedOpen ? "Hide CC / BCC" : "CC / BCC"}
+            </button>
+            {advancedOpen && (
+              <div className="space-y-1.5 border-t border-[var(--inbox-divider)] pt-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">CC</span>
+                  <Input
+                    type="text"
+                    value={emailCc}
+                    onChange={(e) => onEmailCcChange(e.target.value)}
+                    placeholder="cc@example.com"
+                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">BCC</span>
+                  <Input
+                    type="text"
+                    value={emailBcc}
+                    onChange={(e) => onEmailBccChange(e.target.value)}
+                    placeholder="bcc@example.com"
+                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Fanny reply tools ── */}
+        {!isProcessing && (
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {SMART_TOOLS.map((tool) => (
+              <button
+                key={tool.action}
+                type="button"
+                onClick={() => handleAssist(tool.action)}
+                disabled={!hasText}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-30"
+              >
+                <tool.icon className="h-3 w-3" />
+                {tool.label}
+              </button>
+            ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!hasText}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-30"
+                >
+                  <Languages className="h-3 w-3" />
+                  Translate
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-1" align="start" side="top" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {[
+                    { code: "English", label: "English" },
+                    { code: "Spanish", label: "Español" },
+                    { code: "German", label: "Deutsch" },
+                    { code: "French", label: "Français" },
+                    { code: "Portuguese", label: "Português" },
+                  ].map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => handleTranslate(lang.code)}
+                      className="w-full rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-[var(--inbox-text)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {prevContentRef !== null && (
+              <button
+                type="button"
+                onClick={handleUndoAssist}
+                className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-warning)] hover:bg-[var(--inbox-warning)]/20"
+              >
+                Undo changes
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Textarea ── */}
+        <div className="relative">
+          <Textarea
+            ref={composerTextareaRef}
+            value={replyContent}
+            onChange={(event) => handleTextareaChange(event.target.value)}
+            placeholder={
+              speech.listening && voiceMode === "compose"
+                ? "Describe what you want to say..."
+                : composerConfig.placeholder
+            }
+            rows={3}
+            className={cn(
+              "min-h-[88px] max-h-[240px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-composer-input)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
+              replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
+              speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
+              speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
+              isProcessing && "opacity-60 cursor-not-allowed",
+            )}
+            disabled={isProcessing}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
+            }}
+          />
+          {isProcessing && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--inbox-surface)]/70 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5 rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-4 py-2.5 shadow-[var(--inbox-panel-shadow-sm)]">
+                <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
+                <span className="text-sm font-medium text-[var(--inbox-text)]">
+                  {assistLoading === "compose_from_intent" ? "Composing your reply..." : "Rewriting..."}
+                </span>
+              </div>
+            </div>
+          )}
+          {speech.listening && voiceMode === "compose" && (
+            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/90 px-3 py-2.5 text-sm text-[var(--inbox-voice-compose-text)] backdrop-blur-sm">
+              <Mic className="h-4 w-4 shrink-0 animate-pulse" />
+              <span className="flex-1 truncate font-medium">
+                {speech.transcript || "Listening... describe what you want to say"}
+              </span>
+              <button
+                type="button"
+                onClick={() => speech.stop()}
+                className="shrink-0 rounded-lg bg-[var(--inbox-voice-compose-border)]/80 px-2.5 py-1 text-xs font-medium text-[var(--inbox-voice-compose-text)] transition-colors hover:bg-[var(--inbox-voice-compose-border)]"
+              >
+                Done
+              </button>
+            </div>
+          )}
+          {speech.listening && voiceMode === "dictate" && (
+            <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--inbox-voice-dictate-text)]" />
+              Recording...
+            </div>
+          )}
+        </div>
+
+        {/* ── Attachments ── */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {attachments.map((att) => (
+              <span
+                key={att.url}
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+              >
+                <FileText className="h-3 w-3 shrink-0" />
+                <span className="max-w-[120px] truncate">{att.filename}</span>
+                <span className="text-[9px] text-[var(--inbox-muted)]">
+                  {att.size < 1024 ? `${att.size} B` : att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveAttachment(att.url)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-soft)]/45"
+                  title="Remove"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* ── Bottom bar: clip, snippets, voice, send ── */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setClipPanelOpen((v) => !v)}
+            disabled={attachmentUploading}
+            className={cn(
+              "rounded-lg p-2 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+              clipPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+              attachmentUploading && "opacity-50",
+            )}
+            title="Insert or attach"
+          >
+            {attachmentUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files
+              if (files && files.length > 0) onAttachFiles(Array.from(files))
+              e.target.value = ""
+            }}
+          />
+
+          {cannedResponses.length > 0 && (
+            <Popover open={cannedOpen} onOpenChange={onCannedOpenChange}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-lg p-2 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
+                  title="Snippets"
+                >
+                  <Zap className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
+                <Command>
+                  <CommandInput placeholder="Search responses..." />
+                  <CommandList>
+                    <CommandEmpty>No matches</CommandEmpty>
+                    <CommandGroup>
+                      {cannedResponses.map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={`${item.label} ${item.content}`}
+                          onSelect={() => handleInsertCanned(item)}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{item.label}</p>
+                            <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{item.content}</p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {speech.supported && (
+            <div className="flex items-center rounded-lg border border-[var(--inbox-divider)]">
+              <button
+                type="button"
+                onClick={() => setVoiceMode("dictate")}
+                className={cn(
+                  "rounded-l-lg px-2 py-1.5 text-[10px] font-medium transition-all",
+                  voiceMode === "dictate"
+                    ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
+                    : "text-[var(--inbox-text-secondary)] hover:bg-[var(--surface-3)]",
+                )}
+              >
+                Dictate
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceMode("compose")}
+                className={cn(
+                  "border-l border-[var(--inbox-divider)] px-2 py-1.5 text-[10px] font-medium transition-all",
+                  voiceMode === "compose"
+                    ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
+                    : "text-[var(--inbox-text-secondary)] hover:bg-[var(--surface-3)]",
+                )}
+              >
+                <Sparkles className="mr-0.5 inline h-2.5 w-2.5" />
+                Compose
+              </button>
+              <button
+                type="button"
+                onClick={handleMicToggle}
+                disabled={isProcessing}
+                className={cn(
+                  "rounded-r-lg border-l border-[var(--inbox-divider)] p-1.5 transition-all",
+                  speech.listening && voiceMode === "dictate" && "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]",
+                  speech.listening && voiceMode === "compose" && "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]",
+                  !speech.listening && "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-accent)]",
+                )}
+                title={speech.listening ? "Stop recording" : voiceMode === "compose" ? "Describe your intent" : "Start dictation"}
+              >
+                {speech.listening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          )}
+
+          <span className="ml-auto text-[10px] text-[var(--inbox-text-secondary)] hidden sm:inline">
+            {speech.listening
+              ? voiceMode === "compose" ? "Describe your intent..." : "Dictating..."
+              : "Ctrl+Enter to send"}
+          </span>
+
+          <Button
+            type="button"
+            onClick={handleSend}
+            disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
+            className={cn(
+              "h-8 rounded-lg text-xs px-4",
+              replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
+            )}
+            variant={replyIsInternal ? undefined : "accent"}
+          >
+            {replySending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
+            {replyIsInternal
+              ? "Save note"
+              : emailMode === "forward"
+                ? "Forward"
+                : emailMode === "reply_all"
+                  ? "Reply all"
+                  : composerConfig.sendLabel}
+          </Button>
+        </div>
+
+        {/* ── Clip / Insert panel ── */}
+        {clipPanelOpen && (
+          <div className="rounded-xl border border-[var(--inbox-divider)] bg-[var(--surface-3)] p-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              <ClipCategory title="Attach">
+                <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />
+                <ClipAction label="Image" icon={Image} />
+                <ClipAction label="Document" icon={FileText} />
+                <ClipAction label="Link" icon={Link} />
+              </ClipCategory>
+              <ClipCategory title="From workspace">
+                <ClipAction label="Client files" icon={User} />
+                <ClipAction label="Project files" icon={Briefcase} />
+                <ClipAction label="Billing" icon={Receipt} />
+              </ClipCategory>
+              <ClipCategory title="Show">
+                <ClipAction label="Screenshot" icon={Image} />
+                <ClipAction label="Reference" icon={Link} />
+                <ClipAction label="Landing" icon={Globe} />
+              </ClipCategory>
+              <ClipCategory title="Generate">
+                <ClipAction label="Proposal" icon={Sparkles} />
+                <ClipAction label="Quote" icon={Receipt} />
+                <ClipAction label="Template" icon={LayoutTemplate} />
+              </ClipCategory>
+              <ClipCategory title="Share">
+                <ClipAction label="Contact" icon={User} />
+                <ClipAction label="Location" icon={MapPin} />
+                <ClipAction label="Meeting" icon={Calendar} />
+                <ClipAction label="Payment" icon={CreditCard} />
+              </ClipCategory>
             </div>
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <div className="relative">
-            <Textarea
-              ref={composerTextareaRef}
-              value={replyContent}
-              onChange={(event) => handleTextareaChange(event.target.value)}
-              placeholder={
-                speech.listening && voiceMode === "compose"
-                  ? "Describe what you want to say..."
-                  : composerConfig.placeholder
-              }
-              rows={2}
-              className={cn(
-                "min-h-[72px] max-h-[220px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-composer-input)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
-                replyIsInternal && "border-[var(--inbox-warning)]/40 bg-[var(--inbox-composer-input)] focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
-                speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
-                speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
-                isProcessing && "opacity-60 cursor-not-allowed",
-              )}
-              disabled={isProcessing}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
-              }}
-            />
-            {isProcessing && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--inbox-surface)]/70 backdrop-blur-sm">
-                <div className="flex items-center gap-2.5 rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-4 py-2.5 shadow-[var(--inbox-panel-shadow-sm)]">
-                  <div className="relative flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
-                    <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-[var(--inbox-accent)]/20" />
-                  </div>
-                  <span className="text-sm font-medium text-[var(--inbox-text)]">
-                    {assistLoading === "compose_from_intent" ? "Composing your reply..." : "Rewriting..."}
-                  </span>
-                </div>
-              </div>
-            )}
-            {speech.listening && voiceMode === "compose" && (
-              <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/90 px-3 py-2.5 text-sm text-[var(--inbox-voice-compose-text)] backdrop-blur-sm">
-                <div className="relative flex items-center justify-center">
-                  <Mic className="h-4 w-4 animate-pulse" />
-                  <div className="absolute inset-0 h-4 w-4 animate-ping rounded-full bg-[var(--inbox-voice-compose-text)]/30" />
-                </div>
-                <span className="flex-1 truncate font-medium">
-                  {speech.transcript || "Listening... describe what you want to say"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => speech.stop()}
-                  className="shrink-0 rounded-lg bg-[var(--inbox-voice-compose-border)]/80 px-2.5 py-1 text-xs font-medium text-[var(--inbox-voice-compose-text)] transition-colors hover:bg-[var(--inbox-voice-compose-border)]"
-                >
-                  Done
-                </button>
-              </div>
-            )}
-            {speech.listening && voiceMode === "dictate" && (
-              <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm">
-                <div className="relative flex items-center justify-center">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--inbox-voice-dictate-text)]" />
-                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-[var(--inbox-voice-dictate-text)]/80" />
-                </div>
-                Recording...
-              </div>
-            )}
-          </div>
-
-          {/* ── Smart tools row ── */}
-          {(hasText || prevContentRef !== null) && !isProcessing && (
-            <div className="flex items-center gap-1.5 overflow-x-auto px-0.5">
-              {SMART_TOOLS.map((tool) => (
-                <button
-                  key={tool.action}
-                  type="button"
-                  onClick={() => handleAssist(tool.action)}
-                  disabled={!hasText}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2 py-1 text-xs font-medium text-[var(--inbox-text-secondary)] transition-all duration-150 hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--surface-3)] disabled:hover:text-[var(--inbox-text-secondary)]"
-                >
-                  <tool.icon className="h-3 w-3" />
-                  {tool.label}
-                </button>
-              ))}
-
-              {/* Translate button */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={!hasText}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2 py-1 text-xs font-medium text-[var(--inbox-text-secondary)] transition-all duration-150 hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-40 disabled:hover:border-[var(--inbox-divider)] disabled:hover:bg-[var(--surface-3)] disabled:hover:text-[var(--inbox-text-secondary)]"
-                  >
-                    <Languages className="h-3 w-3" />
-                    Translate
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-40 p-1" align="start" side="top" sideOffset={4}>
-                  <div className="space-y-0.5">
-                    {[
-                      { code: "English", label: "English" },
-                      { code: "Spanish", label: "Español" },
-                      { code: "German", label: "Deutsch" },
-                      { code: "French", label: "Français" },
-                      { code: "Portuguese", label: "Português" },
-                    ].map((lang) => (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        onClick={() => handleTranslate(lang.code)}
-                        className="w-full rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-[var(--inbox-text)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
-                      >
-                        {lang.label}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {prevContentRef !== null && (
-                <button
-                  type="button"
-                  onClick={handleUndoAssist}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 px-2 py-1 text-xs font-medium text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--inbox-warning)]/20"
-                >
-                  Undo changes
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* ── Toolbar row ── */}
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--accent-primary)]/10 bg-[var(--inbox-composer-toolbar)] px-3 py-1.5">
-            {cannedResponses.length > 0 && (
-              <Popover open={cannedOpen} onOpenChange={onCannedOpenChange}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 rounded-md border-[var(--accent-primary)]/12 bg-[var(--surface-3)] text-xs text-[var(--inbox-text)] shadow-none hover:bg-[var(--accent-soft)]/55 px-2.5"
-                    title="Quick responses"
-                  >
-                    <Zap className="h-3 w-3" />
-                    Snippets
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
-                  <Command>
-                    <CommandInput placeholder="Search responses..." />
-                    <CommandList>
-                      <CommandEmpty>No matches</CommandEmpty>
-                      <CommandGroup>
-                        {cannedResponses.map((item) => (
-                          <CommandItem
-                            key={item.id}
-                            value={`${item.label} ${item.content}`}
-                            onSelect={() => handleInsertCanned(item)}
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{item.label}</p>
-                              <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{item.content}</p>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={cn("h-7 rounded-md border-[var(--accent-primary)]/14 bg-[var(--accent-soft)] text-[var(--accent-rich)] text-xs px-2.5 shadow-none hover:bg-[var(--accent-soft)]/85", attachmentUploading && "opacity-60")}
-                  disabled={attachmentUploading}
-                >
-                  {attachmentUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-                  {attachmentUploading ? "Uploading…" : "Attach"}
-                  <ChevronDown className="h-3 w-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuItem 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-2"
-                >
-                  <FileText className="h-4 w-4 text-[var(--inbox-text-secondary)]" />
-                  <div className="flex flex-col">
-                    <span>Upload file</span>
-                    <span className="text-[10px] text-[var(--inbox-muted)]">Documents, images, audio</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <MapPin className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Share location</span>
-                    <span className="text-[10px]">Send current location</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <Camera className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Take photo</span>
-                    <span className="text-[10px]">Camera capture</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <Video className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Record video</span>
-                    <span className="text-[10px]">Video message</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <User className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Share contact</span>
-                    <span className="text-[10px]">Send contact card</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <Calendar className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Schedule meeting</span>
-                    <span className="text-[10px]">Calendar integration</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-[var(--inbox-muted)]" disabled>
-                  <Link className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>Insert link</span>
-                    <span className="text-[10px]">Web link or resource</span>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = e.target.files
-                if (files && files.length > 0) onAttachFiles(Array.from(files))
-                e.target.value = ""
-              }}
-            />
-
-            {/* ── Voice: Dictate / Compose toggle + mic ── */}
-            {speech.supported && (
-              <div className="flex items-center rounded-md border border-[var(--accent-primary)]/10 bg-[var(--surface-3)]">
-                <button
-                  type="button"
-                  onClick={() => setVoiceMode("dictate")}
-                  className={cn(
-                    "rounded-l-md px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
-                    voiceMode === "dictate"
-                      ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
-                      : "text-[var(--inbox-text-secondary)] hover:bg-[var(--accent-soft)]/45",
-                  )}
-                  title="Dictation mode: speech becomes text directly"
-                >
-                  <div className="flex items-center gap-1">
-                    <div className={cn(
-                      "h-1.5 w-1.5 rounded-full transition-colors",
-                      voiceMode === "dictate" && speech.listening ? "bg-[var(--inbox-voice-dictate-text)] animate-pulse" : "bg-[var(--inbox-voice-dictate-text)]/80",
-                      voiceMode !== "dictate" && "bg-[var(--inbox-intelligence-text-secondary)]"
-                    )} />
-                    Dictate
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVoiceMode("compose")}
-                  className={cn(
-                    "border-l border-[var(--inbox-border)] px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
-                    voiceMode === "compose"
-                      ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
-                      : "text-[var(--inbox-text-secondary)] hover:bg-[var(--accent-soft)]/45",
-                  )}
-                  title="Compose mode: describe your intent and AI writes the reply"
-                >
-                  <div className="flex items-center gap-1">
-                    <Sparkles className={cn(
-                      "h-3 w-3 transition-colors",
-                      voiceMode === "compose" ? "text-[var(--inbox-voice-compose-text)]" : "text-[var(--inbox-intelligence-text-secondary)]"
-                    )} />
-                    Compose
-                  </div>
-                </button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleMicToggle}
-                  disabled={isProcessing}
-                  className={cn(
-                    "h-7 rounded-l-none rounded-r-md border-l border-[var(--inbox-border)] px-2.5 py-1.5 transition-all duration-150",
-                    speech.listening && voiceMode === "dictate" && "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)] hover:bg-[var(--inbox-voice-dictate-border)]",
-                    speech.listening && voiceMode === "compose" && "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)] hover:bg-[var(--inbox-voice-compose-border)]",
-                    !speech.listening && "hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                  )}
-                  title={speech.listening ? "Stop recording" : voiceMode === "compose" ? "Describe your intent" : "Start dictation"}
-                >
-                  {speech.listening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-            )}
-
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => setAdvancedOpen((value) => !value)}
-              className="ml-auto h-7 rounded-md text-xs px-2"
-            >
-              <MessageSquareText className="h-3 w-3" />
-              More
-              {advancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </Button>
-          </div>
-
-          {/* ── Attachments ── */}
-          {attachments.length > 0 && (
-            <div className="rounded-lg border border-[var(--accent-primary)]/10 bg-[var(--inbox-composer-toolbar)] p-2">
-              <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">
-                Attachments ({attachments.length})
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {attachments.map((att) => (
-                  <span
-                    key={att.url}
-                    className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
-                  >
-                    <FileText className="h-3 w-3 shrink-0" />
-                    <span className="max-w-[120px] truncate">{att.filename}</span>
-                    <span className="text-[9px] text-[var(--inbox-muted)]">
-                      {att.size < 1024 ? `${att.size} B` : att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveAttachment(att.url)}
-                      className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-soft)]/45"
-                      title="Remove"
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Forward to ── */}
-          {!replyIsInternal && channel === "email" && emailMode === "forward" && (
-            <div className="rounded-lg border border-[var(--accent-primary)]/10 bg-[var(--inbox-composer-toolbar)] px-2.5 py-2">
-              <label className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">
-                Forward to
-              </label>
-              <Input
-                type="text"
-                value={emailForwardTo}
-                onChange={(e) => onEmailForwardToChange(e.target.value)}
-                placeholder="recipient@example.com"
-                className="mt-1 h-7 text-xs"
-              />
-            </div>
-          )}
-
-          {/* ── Advanced options ── */}
-          {advancedOpen && (
-            <div className="rounded-lg border border-[var(--accent-primary)]/10 bg-[var(--inbox-composer-toolbar)] px-2.5 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">
-                  More options
-                </span>
-                <span className="text-[10px] text-[var(--inbox-text-secondary)]">
-                  {speech.listening
-                    ? voiceMode === "compose" ? "Listening..." : "Dictating..."
-                    : "Ctrl+Enter to send"}
-                </span>
-              </div>
-
-              {!replyIsInternal && channel === "email" && (
-                <div className="mt-2 space-y-1.5">
-                  <div>
-                    <label className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">CC</label>
-                    <Input
-                      type="text"
-                      value={emailCc}
-                      onChange={(e) => onEmailCcChange(e.target.value)}
-                      placeholder="cc@example.com"
-                      className="mt-0.5 h-7 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-medium uppercase tracking-wider text-[var(--inbox-muted)]">BCC</label>
-                    <Input
-                      type="text"
-                      value={emailBcc}
-                      onChange={(e) => onEmailBccChange(e.target.value)}
-                      placeholder="bcc@example.com"
-                      className="mt-0.5 h-7 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {composerConfig.advancedItems.length > 0 && (
-                <div className="mt-2 grid gap-1.5 md:grid-cols-2">
-                  {composerConfig.advancedItems.map((item) => (
-                    <div
-                      key={item.label}
-                      className="rounded-md border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1.5 opacity-60"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[11px] font-medium text-[var(--inbox-text)]">{item.label}</p>
-                        <span className="shrink-0 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[8px] font-medium text-[var(--inbox-muted)]">
-                          Planned
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--inbox-text-secondary)]">{item.hint}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Footer: status + send ── */}
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] text-[var(--inbox-text-secondary)] truncate">
-              {speech.listening
-                ? voiceMode === "compose"
-                  ? "Describe your intent..."
-                  : "Dictating..."
-                : "Ctrl+Enter to send"}
-            </span>
-            <Button
-              type="button"
-              onClick={handleSend}
-              disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
-              className={cn(
-                "h-8 min-w-[120px] rounded-md text-xs px-3",
-                replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
-              )}
-              variant={replyIsInternal ? undefined : "accent"}
-            >
-              {replySending ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : emailMode === "forward" && !replyIsInternal ? (
-                <Forward className="h-3 w-3" />
-              ) : (
-                <Send className="h-3 w-3" />
-              )}
-              {replyIsInternal
-                ? "Save note"
-                : emailMode === "forward"
-                  ? "Forward"
-                  : emailMode === "reply_all"
-                    ? "Reply all"
-                    : composerConfig.sendLabel}
-            </Button>
-          </div>
-        </div>
-
+        {/* ── Status / errors ── */}
         {assistError && (
           <div className="flex items-center gap-2 rounded-md border border-[var(--inbox-urgency-critical-bg)] bg-[var(--inbox-urgency-critical-bg)] px-2.5 py-1">
             <p className="flex-1 text-[11px] text-[var(--inbox-urgency-critical-text)]">{assistError}</p>
@@ -903,9 +773,7 @@ export function ReplyComposer({
 
 function getComposerConfig({
   channel,
-  channelLabel,
   replyIsInternal,
-  detectedLanguage,
   subject,
 }: {
   channel: string
@@ -915,57 +783,47 @@ function getComposerConfig({
   subject?: string | null
 }) {
   if (replyIsInternal) {
-    return {
-      placeholder: "Add an internal note...",
-      sendLabel: "Save note",
-      subjectPreview: null,
-      advancedItems: [
-        { label: "Structured note blocks", hint: "Prepare sections for risks, decisions or follow-up without changing the main composer.", tone: "accent" as const },
-        { label: "Saved note templates", hint: "Team note templates can grow from the existing snippets entry point." },
-      ] satisfies ComposerAdvancedItem[],
-    }
+    return { placeholder: "Add an internal note...", sendLabel: "Save note", subjectPreview: null }
   }
 
   switch (channel) {
     case "email":
-      return {
-        placeholder: "Write your reply...",
-        sendLabel: "Send reply",
-        subjectPreview: subject || "No subject available",
-        advancedItems: [
-          { label: "Edit subject", hint: "The current subject is already visible above and can become editable without changing the composer shell." },
-          { label: "Save draft and schedule send", hint: "Future send options can branch from the footer instead of adding more primary buttons." },
-        ] satisfies ComposerAdvancedItem[],
-      }
+      return { placeholder: "Write your reply...", sendLabel: "Send reply", subjectPreview: subject || "No subject available" }
     case "whatsapp":
-      return {
-        placeholder: "Type your message...",
-        sendLabel: "Send message",
-        subjectPreview: null,
-        advancedItems: [
-          { label: "Media attachments", hint: "Images, documents and audio can render in a future attachment tray here." },
-          { label: "Follow-up handoff", hint: "Scheduling or business follow-up should stay in ActionsCard, not overload the composer." },
-        ] satisfies ComposerAdvancedItem[],
-      }
+      return { placeholder: "Type your message...", sendLabel: "Send message", subjectPreview: null }
     case "web_chat":
     case "portal":
-      return {
-        placeholder: "Type your message...",
-        sendLabel: "Send message",
-        subjectPreview: null,
-        advancedItems: [
-          { label: "Quick replies", hint: "Snippets stay available for faster customer responses.", tone: "accent" as const },
-          { label: "Channel-safe send options", hint: "Only options valid for this channel should surface here as capabilities mature." },
-        ] satisfies ComposerAdvancedItem[],
-      }
+      return { placeholder: "Type your message...", sendLabel: "Send message", subjectPreview: null }
     default:
-      return {
-        placeholder: "Write your message...",
-        sendLabel: "Send reply",
-        subjectPreview: null,
-        advancedItems: [
-          { label: "Channel-aware send options", hint: "Additional reply modes can appear here only when the channel supports them.", tone: "accent" as const },
-        ] satisfies ComposerAdvancedItem[],
-      }
+      return { placeholder: "Write your message...", sendLabel: "Send reply", subjectPreview: null }
   }
+}
+
+function ClipCategory({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">{title}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  )
+}
+
+function ClipAction({ label, icon: Icon, onClick }: { label: string; icon: LucideIcon; onClick?: () => void }) {
+  const available = Boolean(onClick)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!available}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+        available
+          ? "text-[var(--inbox-text)] hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
+          : "text-[var(--inbox-text-secondary)]/50 cursor-default",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
+    </button>
+  )
 }
