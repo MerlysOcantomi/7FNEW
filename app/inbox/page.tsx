@@ -352,6 +352,8 @@ function InboxPageContent() {
   const [emailCc, setEmailCc] = useState("")
   const [emailBcc, setEmailBcc] = useState("")
   const [emailForwardTo, setEmailForwardTo] = useState("")
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  const initialSyncDoneRef = useRef(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -384,6 +386,20 @@ function InboxPageContent() {
       .catch(() => null)
   }, [])
 
+  useEffect(() => {
+    if (initialSyncDoneRef.current) return
+    initialSyncDoneRef.current = true
+    fetch("/api/inbox/fetch", { method: "POST" })
+      .then((r) => r.json())
+      .then((json) => {
+        setLastSyncedAt(new Date())
+        if (json.data?.count > 0) {
+          setRefreshKey((v) => v + 1)
+        }
+      })
+      .catch(() => null)
+  }, [])
+
   const PAGE_SIZE = 50
 
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -405,13 +421,15 @@ function InboxPageContent() {
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
   if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
 
+  const LIST_POLL_INTERVAL = 60_000
+
   const {
     data: conversationsData,
     meta: conversationsMeta,
     loading,
     error,
     refetch,
-  } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey })
+  } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey, pollInterval: LIST_POLL_INTERVAL })
 
   const baseConversations = useMemo(
     () => (Array.isArray(conversationsData) ? conversationsData : []),
@@ -1132,8 +1150,8 @@ function InboxPageContent() {
     try {
       const res = await fetch("/api/inbox/fetch", { method: "POST" })
       const json = await res.json()
-      console.log("[inbox] Fetch result:", json)
-      if (json.data?.count > 0 || json.data?.ingested > 0) {
+      setLastSyncedAt(new Date())
+      if (json.data?.count > 0) {
         setRefreshKey((v) => v + 1)
         refetch()
       }
@@ -1289,6 +1307,7 @@ function InboxPageContent() {
                 onLoadMore={loadMore}
                 onFetchEmails={handleFetchEmails}
                 fetchingEmails={fetchingEmails}
+                lastSyncedAt={lastSyncedAt}
                 onCompose={() => setComposeOpen(true)}
               />
             )}

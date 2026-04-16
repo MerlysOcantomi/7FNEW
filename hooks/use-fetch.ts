@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 
 interface FetchOptions {
   refreshKey?: number
+  pollInterval?: number
 }
 
 interface FetchResult<T> {
@@ -20,8 +21,10 @@ export function useFetch<T>(url: string | null, options?: FetchOptions): FetchRe
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const refreshKey = options?.refreshKey
+  const pollInterval = options?.pollInterval
+  const isMountedRef = useRef(true)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!url) {
       setData(null)
       setMeta(null)
@@ -29,10 +32,13 @@ export function useFetch<T>(url: string | null, options?: FetchOptions): FetchRe
       setLoading(false)
       return
     }
-    setLoading(true)
-    setError(null)
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const res = await fetch(url)
+      if (!isMountedRef.current) return
       if (!res.ok) {
         const text = await res.text()
         try {
@@ -44,20 +50,39 @@ export function useFetch<T>(url: string | null, options?: FetchOptions): FetchRe
         }
       }
       const json = await res.json()
+      if (!isMountedRef.current) return
       if (!json.success) throw new Error(json.error?.message || "Error desconocido")
       setData(json.data)
       setMeta(json.meta ?? null)
+      if (!silent) setError(null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Error desconocido")
+      if (isMountedRef.current && !silent) {
+        setError(err instanceof Error ? err.message : "Error desconocido")
+      }
     } finally {
-      setLoading(false)
+      if (isMountedRef.current && !silent) {
+        setLoading(false)
+      }
     }
   }, [url])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   useEffect(() => {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData, refreshKey])
 
-  return { data, meta, loading, error, refetch: fetchData }
+  useEffect(() => {
+    if (!pollInterval || !url) return
+    const id = setInterval(() => fetchData(true), pollInterval)
+    return () => clearInterval(id)
+  }, [pollInterval, url, fetchData])
+
+  const refetch = useCallback(() => fetchData(false), [fetchData])
+
+  return { data, meta, loading, error, refetch }
 }

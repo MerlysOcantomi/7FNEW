@@ -63,6 +63,7 @@ interface ConversationListProps {
   activeSearchTerm?: string
   onFetchEmails?: () => void
   fetchingEmails?: boolean
+  lastSyncedAt?: Date | null
   onCompose?: () => void
 }
 
@@ -89,6 +90,7 @@ export function ConversationList({
   activeSearchTerm,
   onFetchEmails,
   fetchingEmails = false,
+  lastSyncedAt,
   onCompose,
 }: ConversationListProps) {
   const viewLabel =
@@ -120,16 +122,28 @@ export function ConversationList({
               </Button>
             )}
             {onFetchEmails && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)]"
-                onClick={onFetchEmails}
-                disabled={fetchingEmails}
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", fetchingEmails && "animate-spin")} />
-                {fetchingEmails ? "Syncing…" : "Fetch"}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {lastSyncedAt && !fetchingEmails && (
+                  <span className="text-[10px] text-[var(--inbox-list-text-secondary)]/60" title={lastSyncedAt.toLocaleString()}>
+                    {formatSyncAge(lastSyncedAt)}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium transition-colors",
+                    fetchingEmails
+                      ? "text-[var(--inbox-accent)]"
+                      : "text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)] hover:bg-[var(--inbox-list-background)]",
+                  )}
+                  onClick={onFetchEmails}
+                  disabled={fetchingEmails}
+                  title={fetchingEmails ? "Syncing emails..." : "Refresh now"}
+                >
+                  <RefreshCw className={cn("h-3 w-3", fetchingEmails && "animate-spin")} />
+                  {fetchingEmails && <span>Syncing…</span>}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -290,4 +304,13 @@ export function ConversationList({
       </ScrollArea>
     </div>
   )
+}
+
+function formatSyncAge(date: Date): string {
+  const seconds = Math.round((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  return `${hours}h ago`
 }
