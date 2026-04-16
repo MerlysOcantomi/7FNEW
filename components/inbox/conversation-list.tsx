@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Search, Inbox, RefreshCw, PenSquare } from "lucide-react"
+import { Loader2, Search, Inbox, RefreshCw, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -107,19 +107,8 @@ export function ConversationList({
           <div className="flex items-center gap-2">
             {activeSearchTerm && (
               <div className="px-2 py-1 rounded-md bg-[var(--inbox-list-selected-bg)] text-xs text-[var(--inbox-list-selected)] font-medium">
-                "{activeSearchTerm}"
+                &ldquo;{activeSearchTerm}&rdquo;
               </div>
-            )}
-            {onCompose && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)]"
-                onClick={onCompose}
-              >
-                <PenSquare className="h-3.5 w-3.5" />
-                Compose
-              </Button>
             )}
             {onFetchEmails && (
               <div className="flex items-center gap-1.5">
@@ -147,6 +136,17 @@ export function ConversationList({
             )}
           </div>
         </div>
+
+        {onCompose && (
+          <button
+            type="button"
+            onClick={onCompose}
+            className="flex w-full items-center gap-2 rounded-lg bg-[var(--inbox-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[var(--inbox-accent-hover)] active:bg-[var(--inbox-accent)]"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Compose
+          </button>
+        )}
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--inbox-list-text-secondary)]" />
