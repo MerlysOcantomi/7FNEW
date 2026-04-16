@@ -11,7 +11,20 @@ import {
   Paperclip, PhoneCall,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ActionItem } from "@/components/inbox/actions-card"
+
+export interface ActionItem {
+  id: string
+  type: string
+  status: string
+  source?: string | null
+  confidence?: number | null
+  sourceMessageId?: string | null
+  data?: Record<string, unknown> | null
+  resultModule?: string | null
+  resultId?: string | null
+  executionNotes?: string | null
+  errorMessage?: string | null
+}
 
 interface ContextPanelProps {
   selected: {

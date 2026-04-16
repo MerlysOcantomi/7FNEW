@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type InboxFilter } from "@/components/inbox/inbox-sub-navigation"
 import { cn } from "@/lib/utils"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
-import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
+import { type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,7 +29,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Sparkles, X, Send, Loader2 } from "lucide-react"
+import { Sparkles, Send, Loader2 } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
