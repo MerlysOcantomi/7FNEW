@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -36,9 +36,10 @@ import {
   Clock,
   CheckCircle,
   Archive,
-  Shield,
   Fingerprint,
   Briefcase,
+  Zap,
+  Loader,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -67,6 +68,7 @@ type NavItem = {
   helper?: string; 
   badge?: number;
   subitems?: NavItem[];
+  group?: string;
 };
 type NavSection = {
   section: string;
@@ -94,13 +96,13 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
           icon: Inbox, 
           helper: "by Fanny",
           subitems: [
-            { label: "Urgent", href: "/inbox?filter=urgent", icon: Circle },
-            { label: "Leads", href: "/inbox?filter=lead", icon: Star },
-            { label: "Unread", href: "/inbox?filter=unread", icon: Mail },
-            { label: "Needs Reply", href: "/inbox?filter=reply", icon: MessageSquarePlus },
-            { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock },
-            { label: "Done", href: "/inbox?filter=done", icon: CheckCircle },
-            { label: "Archived", href: "/inbox?filter=archived", icon: Archive },
+            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "System" },
+            { label: "New", href: "/inbox?filter=new", icon: Mail, group: "Work" },
+            { label: "In Progress", href: "/inbox?filter=in_progress", icon: Loader, group: "Work" },
+            { label: "Done", href: "/inbox?filter=done", icon: CheckCircle, group: "Work" },
+            { label: "Urgent", href: "/inbox?filter=urgent", icon: Zap, group: "Smart views" },
+            { label: "Needs Reply", href: "/inbox?filter=needs_reply", icon: MessageSquarePlus, group: "Smart views" },
+            { label: "Leads", href: "/inbox?filter=leads", icon: Star, group: "Smart views" },
           ]
         },
         { label: v.client.plural, href: "/clientes", icon: Users },
@@ -167,15 +169,18 @@ function SmartInboxNavLink({
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const currentParams = useSearchParams();
+  const currentFilter = currentParams.get("filter");
+  const hrefFilter = href.includes("?filter=") ? new URL(href, "http://x").searchParams.get("filter") : null;
+  const isActive = pathname === "/inbox" && currentFilter === hrefFilter;
 
   const getIconColor = (label: string) => {
     switch (label) {
       case "Urgent": return "text-[var(--inbox-urgent-color)]";
       case "Leads": return "text-[var(--inbox-lead-color)]";
-      case "Unread": return "text-[var(--inbox-unread-color)]";
+      case "New": return "text-[var(--inbox-unread-color)]";
       case "Needs Reply": return "text-[var(--inbox-accent)]";
-      case "Waiting": return "text-[var(--inbox-waiting-color)]";
+      case "In Progress": return "text-[var(--inbox-waiting-color)]";
       case "Done": return "text-[var(--inbox-done-color)]";
       case "Archived": return "text-[var(--inbox-archive-color)]";
       default: return "text-[var(--app-sidebar-text-muted)]";
@@ -226,14 +231,15 @@ function NavLinkWithSubitems({
   onClick,
 }: NavItem & { collapsed?: boolean; onClick?: () => void }) {
   const pathname = usePathname();
-  const hasActiveSubitem = subitems?.some(subitem => 
-    pathname === subitem.href
-  );
+  const currentParams = useSearchParams();
+  const currentFilter = currentParams.get("filter");
+  const hasActiveSubitem = subitems?.some(subitem => {
+    const subFilter = subitem.href.includes("?filter=") ? new URL(subitem.href, "http://x").searchParams.get("filter") : null;
+    return pathname === "/inbox" && currentFilter === subFilter;
+  });
   const [expanded, setExpanded] = useState(hasActiveSubitem || pathname === href);
-  // Solo debe estar activo si es exactamente la URL del item principal
-  const isActive = href === "/" ? pathname === "/" : pathname === href;
+  const isActive = href === "/" ? pathname === "/" : (pathname === href && !currentFilter);
 
-  // Auto-expand when navigating to subitem
   useEffect(() => {
     if (hasActiveSubitem) {
       setExpanded(true);
@@ -246,16 +252,17 @@ function NavLinkWithSubitems({
 
   return (
     <div>
-      <div
+      <Link
+        href={href}
         className={cn(
-          "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group cursor-pointer",
+          "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group",
           collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
           isActive
             ? "text-white bg-[var(--app-sidebar-surface)] shadow-[0_0_0_1px_var(--app-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
             : "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60"
         )}
         onClick={() => {
-          if (!collapsed) setExpanded(!expanded);
+          if (!collapsed) setExpanded(true);
           if (onClick) onClick();
         }}
       >
@@ -282,35 +289,65 @@ function NavLinkWithSubitems({
                 <span className="text-[10px] text-[var(--app-sidebar-text-muted)] opacity-75">{helper}</span>
               ) : null}
             </span>
-            {!collapsed && typeof badge === "number" && badge > 0 && (
+            {typeof badge === "number" && badge > 0 && (
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--app-accent)] text-[9px] font-bold text-white">
                 {badge > 9 ? "9+" : badge}
               </span>
             )}
-            <ChevronRight
-              size={12}
-              className={cn(
-                "text-[var(--app-sidebar-text-muted)] transition-transform duration-200",
-                expanded ? "rotate-90" : "rotate-0"
-              )}
-            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpanded(!expanded);
+              }}
+              className="shrink-0 p-0.5 rounded hover:bg-white/10"
+            >
+              <ChevronRight
+                size={12}
+                className={cn(
+                  "text-[var(--app-sidebar-text-muted)] transition-transform duration-200",
+                  expanded ? "rotate-90" : "rotate-0"
+                )}
+              />
+            </button>
           </>
         )}
-      </div>
+      </Link>
       {!collapsed && expanded && subitems && (
-        <div className="ml-4 mt-1 space-y-0.5 border-l border-[var(--app-sidebar-border)] pl-3">
-          {subitems.map((subitem) => (
-            <SmartInboxNavLink 
-              key={subitem.href} 
-              {...subitem} 
-              collapsed={false} 
-              onClick={onClick} 
-            />
-          ))}
+        <div className="ml-4 mt-1 border-l border-[var(--app-sidebar-border)] pl-3">
+          {renderGroupedSubitems(subitems, onClick)}
         </div>
       )}
     </div>
   );
+}
+
+function renderGroupedSubitems(subitems: NavItem[], onClick?: () => void) {
+  let lastGroup: string | undefined;
+  const elements: React.ReactNode[] = [];
+
+  for (const subitem of subitems) {
+    if (subitem.group && subitem.group !== lastGroup) {
+      elements.push(
+        <p
+          key={`group-${subitem.group}`}
+          className={cn(
+            "text-[9px] font-semibold uppercase tracking-widest text-[var(--app-sidebar-text-muted)]/60 px-3 pb-0.5",
+            lastGroup !== undefined ? "pt-2.5 mt-1 border-t border-[var(--app-sidebar-border)]" : "pt-1",
+          )}
+        >
+          {subitem.group}
+        </p>
+      );
+      lastGroup = subitem.group;
+    }
+    elements.push(
+      <SmartInboxNavLink key={subitem.href} {...subitem} collapsed={false} onClick={onClick} />
+    );
+  }
+
+  return elements;
 }
 
 // ── NavLink ──────────────────────────────────────────────────────────────────

@@ -382,9 +382,13 @@ export async function listConversations(params: ListConversationsParams) {
   const where: Prisma.ConversationWhereInput = {
     workspaceId,
     ...assignedToFilter,
-    ...(status && status !== "todos" ? { status } : {}),
+    ...(status && status !== "todos"
+      ? { status: status.includes(",") ? { in: status.split(",") } : status }
+      : {}),
     ...(channel && channel !== "todos" ? { channel } : {}),
-    ...(urgency && urgency !== "todos" ? { urgency } : {}),
+    ...(urgency && urgency !== "todos"
+      ? { urgency: urgency.includes(",") ? { in: urgency.split(",") } : urgency }
+      : {}),
     ...(q
       ? {
           OR: [

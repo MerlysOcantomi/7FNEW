@@ -294,6 +294,18 @@ function confidenceLabel(value?: number | null) {
   return `${Math.round(value * 100)}%`
 }
 
+function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
+  switch (filter) {
+    case "archived": return { status: "archived" }
+    case "new": return { status: "new" }
+    case "in_progress": return { status: "assigned,awaiting_response,triaged" }
+    case "done": return { status: "closed,converted" }
+    case "urgent": return { urgency: "alta,critica" }
+    case "needs_reply": return { status: "awaiting_response" }
+    case "leads": return { status: "lead_detected" }
+    default: return {}
+  }
+}
 
 function formatRoleLabel(value: string) {
   return value
@@ -350,6 +362,8 @@ function InboxPageContent() {
 
   const searchParams = useSearchParams()
   const deepLinkId = searchParams.get("id")
+  const sidebarFilter = searchParams.get("filter")
+  const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
   const lastDeepLinkRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -381,7 +395,12 @@ function InboxPageContent() {
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
   if (debouncedSearch) params.set("q", debouncedSearch)
-  if (status !== "all") params.set("status", status)
+  if (filterParams.status) {
+    params.set("status", filterParams.status)
+  } else if (status !== "all") {
+    params.set("status", status)
+  }
+  if (filterParams.urgency) params.set("urgency", filterParams.urgency)
   if (channel !== "all") params.set("channel", channel)
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
   if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
@@ -403,7 +422,7 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
-  const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${refreshKey}`
+  const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
