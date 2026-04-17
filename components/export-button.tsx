@@ -10,9 +10,11 @@ interface ExportButtonProps {
   columns: CSVColumn[]
   filename: string
   className?: string
+  /** Button label (defaults to Spanish for existing usages). */
+  label?: string
 }
 
-export function ExportCSVButton({ data, columns, filename, className }: ExportButtonProps) {
+export function ExportCSVButton({ data, columns, filename, className, label = "Exportar CSV" }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false)
 
   const handleExport = useCallback(() => {
@@ -39,7 +41,7 @@ export function ExportCSVButton({ data, columns, filename, className }: ExportBu
       ) : (
         <FileSpreadsheet className="h-3.5 w-3.5" />
       )}
-      Exportar CSV
+      {label}
     </button>
   )
 }

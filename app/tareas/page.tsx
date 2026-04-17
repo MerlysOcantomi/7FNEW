@@ -151,7 +151,11 @@ export default function TareasPage() {
 
   return (
     <AppShell currentSection="tareas" breadcrumbs={[{ label: "7F" }, { label: "Tasks" }]}>
-      <SectionPage title="Tasks" description="Execution hub — scan, prioritize, and act on work across every project and client.">
+      <SectionPage
+        tone="canvas"
+        title="Tasks"
+        description="Execution hub — scan, prioritize, and act on work across every project and client."
+      >
       <div className="flex flex-col gap-8">
         {/* Toolbar: new task */}
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -163,7 +167,7 @@ export default function TareasPage() {
 
         {/* Stats — urgent first as primary tier */}
         <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-4 ring-1 ring-primary/15">
+          <div className="rounded-xl border border-primary/25 bg-card p-4 shadow-sm ring-1 ring-primary/15">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Needs attention</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{urgentCount}</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">Urgent / high · not done</p>
@@ -182,91 +186,103 @@ export default function TareasPage() {
           </div>
         </div>
 
-        {/* Search + filters */}
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search task, project, or owner..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <ListFilter className="h-3 w-3" />
-                Sort
-              </span>
-              <div className="flex rounded-lg border border-border p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setSortBy("due")}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    sortBy === "due" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Due date
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortBy("priority")}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    sortBy === "priority"
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Priority
-                </button>
+        {/* Search + filters — single tray aligned with KPI surfaces */}
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 shadow-[inset_0_1px_0_rgba(15,23,42,0.04)]">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search task, project, or owner..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ListFilter className="h-3 w-3 shrink-0" />
+                  Sort
+                </span>
+                <div className="flex rounded-lg border border-border bg-muted/50 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("due")}
+                    className={cn(
+                      "min-h-9 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      sortBy === "due"
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Due date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("priority")}
+                    className={cn(
+                      "min-h-9 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      sortBy === "priority"
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Priority
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {STATUS_OPTIONS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setFilterStatus(s)}
-                className={cn(
-                  "whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 sm:text-xs",
-                  filterStatus === s ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {s === "all" ? "All" : displayLabel(s, estadoLabel)}
-              </button>
-            ))}
-            <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger size="sm" className="h-9 w-full min-w-[8.5rem] sm:w-[140px]">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
-                {PRIORITY_OPTIONS.filter((p) => p !== "all").map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {displayLabel(p, prioridadLabel)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterClient} onValueChange={setFilterClient}>
-              <SelectTrigger size="sm" className="h-9 w-full min-w-[8.5rem] sm:w-[160px]">
-                <SelectValue placeholder="Client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c === "All" ? "All clients" : c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setFilterStatus(s)}
+                  className={cn(
+                    "inline-flex h-9 items-center whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors",
+                    filterStatus === s
+                      ? "bg-foreground text-background shadow-sm"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {s === "all" ? "All" : displayLabel(s, estadoLabel)}
+                </button>
+              ))}
+              <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger
+                  size="sm"
+                  className="h-9 w-full min-w-[8.5rem] border-border bg-background shadow-[inset_0_1px_0_rgba(15,23,42,0.04)] sm:w-[140px]"
+                >
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All priorities</SelectItem>
+                  {PRIORITY_OPTIONS.filter((p) => p !== "all").map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {displayLabel(p, prioridadLabel)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterClient} onValueChange={setFilterClient}>
+                <SelectTrigger
+                  size="sm"
+                  className="h-9 w-full min-w-[8.5rem] border-border bg-background shadow-[inset_0_1px_0_rgba(15,23,42,0.04)] sm:w-[160px]"
+                >
+                  <SelectValue placeholder="Client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c === "All" ? "All clients" : c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -274,12 +290,15 @@ export default function TareasPage() {
         <div className={cn("grid gap-4", isXl && selected ? "xl:grid-cols-5" : "xl:grid-cols-1")}>
           <div className={cn("flex flex-col gap-2", isXl && selected ? "xl:col-span-3" : "xl:col-span-full")}>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{loading ? "Loading..." : `${filtered.length} tasks`}</p>
+              <p className="text-xs text-[var(--text-secondary-light)]">
+                {loading ? "Loading..." : `${filtered.length} tasks`}
+              </p>
               <div className="origin-right scale-90 sm:scale-100">
                 <ExportCSVButton
                   data={filtered}
                   columns={TAREA_COLUMNS}
                   filename={`tasks-${new Date().toISOString().slice(0, 10)}`}
+                  label="Export CSV"
                 />
               </div>
             </div>
@@ -310,7 +329,7 @@ export default function TareasPage() {
                     onClick={() => handleRowActivate(task.id)}
                     className={cn(
                       "w-full rounded-xl border bg-card px-4 py-3.5 text-left transition-all hover:shadow-sm",
-                      isSelected ? "border-foreground/30 shadow-sm ring-1 ring-foreground/10" : "border-border",
+                      isSelected ? "border-primary/35 shadow-sm ring-1 ring-primary/15" : "border-border",
                     )}
                   >
                     <div className="flex items-start gap-3">

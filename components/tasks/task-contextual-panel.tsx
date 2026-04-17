@@ -128,7 +128,7 @@ export function TaskContextualPanel({
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Description
             </p>
-            <p className="text-sm leading-relaxed text-foreground/80">
+            <p className="text-sm leading-relaxed text-foreground/90">
               {task.descripcion?.trim() || "No description."}
             </p>
           </div>
