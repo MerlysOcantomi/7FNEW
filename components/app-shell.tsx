@@ -46,11 +46,13 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
+      {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
+      <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
+        {/* max-h-full caps main to the shell height so overflow-y-auto always forms a scrollport when content is taller */}
+        <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
           {/* Scroll lives on main; nested flex-1 + overflow often fails in WebKit. Sticky chrome keeps toolbar + New panel anchored. */}
           <div className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
             <GlobalNewDesktopChrome variant="app">
