@@ -7,6 +7,10 @@ import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/componen
 import { useGlobalSearch } from "@/components/global-search-provider"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { useUser } from "@/hooks/use-user"
+import { cn } from "@/lib/utils"
+import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel"
+import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger"
+import { useGlobalNew } from "@/components/global-new/use-global-new"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -19,6 +23,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
   const router = useRouter()
   const { user, loading } = useUser()
   const { openSearch } = useGlobalSearch()
+  const { desktopOpen } = useGlobalNew()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -46,23 +51,33 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         <MobileSidebarNav />
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Toolbar */}
-          <div className="hidden md:flex items-center justify-end gap-2 px-6 py-2.5 shrink-0 bg-[var(--app-shell-bg)]">
-            <button
-              onClick={openSearch}
-              className="flex items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/6 px-3 py-1.5 cursor-pointer hover:bg-white/10 transition-colors"
+          <GlobalNewDesktopChrome variant="app">
+            <div
+              className={cn(
+                "flex shrink-0 items-center justify-end gap-2 bg-[var(--app-shell-bg)] px-6 py-2.5 transition-colors",
+                desktopOpen ? "border-b border-[var(--border-dark)]" : "border-b border-transparent",
+              )}
             >
-              <Search className="h-3.5 w-3.5 text-[var(--text-secondary-light)]" />
-              <span className="w-32 lg:w-48 text-left text-sm text-[var(--text-secondary-light)]">Search...</span>
-              <kbd className="ml-auto text-[10px] font-mono text-[var(--text-secondary-light)]/60 border border-[var(--border-dark)] rounded px-1 py-0.5">
-                Ctrl+K
-              </kbd>
-            </button>
-            <NotificationsBell />
-          </div>
+              <GlobalNewTriggerDesktop variant="app" />
+              <button
+                type="button"
+                onClick={openSearch}
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/6 px-3 py-1.5 transition-colors hover:bg-white/10"
+              >
+                <Search className="h-3.5 w-3.5 text-[var(--text-secondary-light)]" />
+                <span className="w-32 text-left text-sm text-[var(--text-secondary-light)] lg:w-48">
+                  Search...
+                </span>
+                <kbd className="ml-auto rounded border border-[var(--border-dark)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]/60">
+                  Ctrl+K
+                </kbd>
+              </button>
+              <NotificationsBell />
+            </div>
+          </GlobalNewDesktopChrome>
 
           <div className="flex-1 min-h-0 overflow-hidden px-4 pb-6 md:px-8 md:pb-8">
-            <div className={`mx-auto h-full min-h-0 max-w-6xl ${contentClassName ?? ""}`}>
+            <div className={cn("mx-auto h-full min-h-0 max-w-6xl", contentClassName)}>
               {children}
             </div>
           </div>

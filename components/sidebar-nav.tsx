@@ -46,6 +46,8 @@ import { useGlobalSearch } from "@/components/global-search-provider";
 import { useInboxBadge } from "@/hooks/use-inbox-badge";
 import type { EntityVocabulary } from "@core/personalization";
 import { DEFAULT_VOCABULARY } from "@core/personalization";
+import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigger";
+import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -642,7 +644,7 @@ export function MobileSidebarNav() {
           </div>
           <span className="text-white font-semibold text-sm">7F</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={openSearch}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
@@ -650,6 +652,7 @@ export function MobileSidebarNav() {
           >
             <Search size={20} />
           </button>
+          <GlobalNewTriggerMobile />
           <button
             onClick={() => setOpen(true)}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
@@ -699,6 +702,7 @@ export function MobileSidebarNav() {
           </nav>
         </SheetContent>
       </Sheet>
+      <GlobalNewMobileSheet />
     </>
   );
 }

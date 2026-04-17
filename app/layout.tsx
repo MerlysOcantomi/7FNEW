@@ -6,6 +6,7 @@ import { ToastProvider } from '@/components/toast-provider'
 import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider'
 import { UserProvider } from '@/hooks/use-user'
 import { GlobalSearchProvider } from '@/components/global-search-provider'
+import { GlobalNewProvider } from '@/components/global-new/global-new-provider'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -47,7 +48,9 @@ export default function RootLayout({
             <ToastProvider>
               <KeyboardShortcutsProvider>
                 <GlobalSearchProvider>
-                  {children}
+                  <GlobalNewProvider>
+                    {children}
+                  </GlobalNewProvider>
                 </GlobalSearchProvider>
               </KeyboardShortcutsProvider>
             </ToastProvider>
