@@ -81,11 +81,12 @@ export function ContextShell({
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex min-h-screen flex-col overflow-x-hidden bg-[#F8FAFC] font-sans md:flex-row">
+        {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
+        <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
           <SidebarNav />
           <MobileSidebarNav />
 
-          <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+          <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
             <div className="sticky top-0 z-30">
               <div className="hidden md:block bg-[#F8FAFC]">
                 <ContextShellDesktopToolbar />
@@ -157,7 +158,7 @@ export function ContextShell({
             </div>
             </div>
 
-            <div className="flex-1 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
+            <div className="min-h-0 flex-1 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
               {children(activeTab)}
             </div>
           </main>

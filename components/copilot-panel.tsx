@@ -267,7 +267,7 @@ export function CopilotPanel({ defaultContext = "Overview" }: CopilotPanelProps)
 
         {/* Panel */}
         {!copilotCollapsed && (
-          <aside className="flex flex-col w-[20rem] xl:w-[22rem] 2xl:w-[24rem] border-l border-[#E2E8F0] bg-white h-screen sticky top-0 overflow-hidden">
+          <aside className="flex min-h-0 h-dvh max-h-dvh w-[20rem] shrink-0 flex-col border-l border-[#E2E8F0] bg-white xl:w-[22rem] 2xl:w-[24rem] overflow-hidden">
             <PanelContent
               messages={messages}
               defaultContext={defaultContext}
