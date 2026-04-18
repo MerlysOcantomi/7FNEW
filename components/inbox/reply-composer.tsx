@@ -6,22 +6,12 @@ import {
   Mail, Languages, X, FileText, Forward,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
-  Receipt, CreditCard, RotateCcw, Keyboard, type LucideIcon,
+  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Command,
   CommandInput,
@@ -75,6 +65,14 @@ interface ReplyComposerProps {
   onRemoveAttachment: (url: string) => void
   onSend: () => void
 }
+
+const TRANSLATE_LANGUAGES = [
+  { code: "English", label: "English" },
+  { code: "Spanish", label: "Español" },
+  { code: "German", label: "Deutsch" },
+  { code: "French", label: "Français" },
+  { code: "Portuguese", label: "Português" },
+] as const
 
 const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Sparkles; needsText: boolean }> = [
   { action: "proofread", label: "Proofread", icon: CheckCheck, needsText: true },
@@ -322,6 +320,7 @@ export function ReplyComposer({
   }, [speech.listening])
 
   const [clipPanelOpen, setClipPanelOpen] = useState(false)
+  const [assistPanelOpen, setAssistPanelOpen] = useState(false)
 
   const showEmailOptions = !replyIsInternal && channel === "email"
 
@@ -332,8 +331,6 @@ export function ReplyComposer({
       : emailMode === "reply_all"
         ? "Reply all"
         : composerConfig.sendLabel
-
-  const showAssistMenu = hasText && !isProcessing
 
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-chat-background)] px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
@@ -546,7 +543,10 @@ export function ReplyComposer({
           <div className="flex flex-wrap items-center gap-0.5">
             <button
               type="button"
-              onClick={() => setClipPanelOpen((v) => !v)}
+              onClick={() => {
+                setClipPanelOpen((v) => !v)
+                setAssistPanelOpen(false)
+              }}
               disabled={attachmentUploading}
               className={cn(
                 "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
@@ -603,6 +603,23 @@ export function ReplyComposer({
                   </Command>
                 </PopoverContent>
               </Popover>
+            )}
+
+            {!isProcessing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAssistPanelOpen((v) => !v)
+                  setClipPanelOpen(false)
+                }}
+                className={cn(
+                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                  assistPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                )}
+                title="Improve text — tone, clarity, translate…"
+              >
+                <Wand2 className="h-[18px] w-[18px]" />
+              </button>
             )}
 
             {speech.supported && (
@@ -670,52 +687,6 @@ export function ReplyComposer({
               </button>
             )}
 
-            {showAssistMenu && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--inbox-border)] bg-white/[0.06] text-[var(--inbox-text-secondary)] transition-colors hover:border-[var(--inbox-accent)]/35 hover:bg-[var(--inbox-accent-soft)]/25 hover:text-[var(--inbox-accent)]"
-                    title="Improve text — proofread, tone, translate…"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top" sideOffset={6} className="min-w-[12rem]">
-                  {SMART_TOOLS.map((tool) => (
-                    <DropdownMenuItem
-                      key={tool.action}
-                      className="gap-2 text-sm"
-                      onClick={() => handleAssist(tool.action)}
-                    >
-                      <tool.icon className="h-4 w-4 shrink-0 opacity-80" />
-                      {tool.label}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="gap-2">
-                      <Languages className="h-4 w-4 shrink-0 opacity-80" />
-                      Translate…
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="min-w-[9rem]">
-                      {[
-                        { code: "English", label: "English" },
-                        { code: "Spanish", label: "Español" },
-                        { code: "German", label: "Deutsch" },
-                        { code: "French", label: "Français" },
-                        { code: "Portuguese", label: "Português" },
-                      ].map((lang) => (
-                        <DropdownMenuItem key={lang.code} onClick={() => handleTranslate(lang.code)}>
-                          {lang.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
             <Button
               type="button"
               onClick={handleSend}
@@ -737,6 +708,53 @@ export function ReplyComposer({
             </Button>
           </div>
         </div>
+
+        {/* ── Intelligence panel (same pattern as Clip) ── */}
+        {assistPanelOpen && !isProcessing && (
+          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
+            {!hasText && (
+              <p className="mb-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
+                Write something in the message to use improve and translate tools.
+              </p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ClipCategory title="Improve">
+                {SMART_TOOLS.map((tool) => (
+                  <ClipAction
+                    key={tool.action}
+                    label={tool.label}
+                    icon={tool.icon}
+                    onClick={
+                      hasText
+                        ? () => {
+                            void handleAssist(tool.action)
+                            setAssistPanelOpen(false)
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </ClipCategory>
+              <ClipCategory title="Translate">
+                {TRANSLATE_LANGUAGES.map((lang) => (
+                  <ClipAction
+                    key={lang.code}
+                    label={lang.label}
+                    icon={Languages}
+                    onClick={
+                      hasText
+                        ? () => {
+                            void handleTranslate(lang.code)
+                            setAssistPanelOpen(false)
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </ClipCategory>
+            </div>
+          </div>
+        )}
 
         {/* ── Clip / Insert panel ── */}
         {clipPanelOpen && (
