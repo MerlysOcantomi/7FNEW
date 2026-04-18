@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
   Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp,
-  Mail, Languages, X, FileText, Forward,
+  Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2, type LucideIcon,
@@ -74,8 +74,8 @@ const TRANSLATE_LANGUAGES = [
   { code: "Portuguese", label: "Português" },
 ] as const
 
-const TEXTAREA_MIN_PX = 88
-const TEXTAREA_MAX_PX = 280
+const TEXTAREA_MIN_PX = 72
+const TEXTAREA_MAX_PX = 260
 
 const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Sparkles; needsText: boolean }> = [
   { action: "proofread", label: "Proofread", icon: CheckCheck, needsText: true },
@@ -348,121 +348,66 @@ export function ReplyComposer({
         : composerConfig.sendLabel
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-chat-background)] px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
-      <div className="space-y-1.5 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-border)] bg-[var(--inbox-composer-background)] p-3 shadow-[var(--inbox-shadow-premium)] md:p-4">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)]/80 bg-[var(--inbox-chat-background)] px-4 py-1.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] md:px-6" data-composer="true">
+      <div className="space-y-1 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-border)]/45 bg-[var(--inbox-composer-background)]/80 p-2 shadow-none backdrop-blur-[2px] md:p-2.5">
 
-        {/* ── Mode selector ── */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => { onReplyModeChange(false); onEmailModeChange("reply"); focusComposerWithScroll(); }}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                !replyIsInternal && emailMode === "reply"
-                  ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
-                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
-              )}
-            >
-              Reply
-            </button>
-            {channel === "email" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { onReplyModeChange(false); onEmailModeChange("reply_all"); focusComposerWithScroll(); }}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                    !replyIsInternal && emailMode === "reply_all"
-                      ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
-                      : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
-                  )}
-                >
-                  Reply all
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { onReplyModeChange(false); onEmailModeChange("forward"); focusComposerWithScroll(); }}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                    !replyIsInternal && emailMode === "forward"
-                      ? "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
-                      : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
-                  )}
-                >
-                  Forward
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => { onReplyModeChange(true); focusComposerWithScroll(); }}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                replyIsInternal
-                  ? "bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)]"
-                  : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
-              )}
-            >
-              Internal note
-            </button>
-          </div>
-          <span className="text-[10px] text-[var(--inbox-chat-text-secondary)]">
-            {channelLabel}
-          </span>
-        </div>
-
-        {/* ── Email options: Subject, CC, BCC, Forward to ── */}
+        {/* ── Email metadata (secondary strip — no competir con el hilo) ── */}
         {showEmailOptions && (
-          <div className="space-y-1.5 rounded-lg border border-[var(--inbox-border)] bg-white/[0.05] px-3 py-2">
+          <div className="space-y-1 rounded-md border border-[var(--inbox-border)]/25 bg-white/[0.02] px-2 py-1">
             {composerConfig.subjectPreview && (
-              <div className="flex items-center gap-2">
-                <Mail className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
-                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">Subject</span>
-                <span className="truncate text-xs text-[var(--inbox-text)]">{composerConfig.subjectPreview}</span>
+              <div className="flex min-h-6 items-center gap-1.5">
+                <Mail className="h-2.5 w-2.5 shrink-0 opacity-60 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
+                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-chat-text-secondary)]">
+                  Subject
+                </span>
+                <span className="min-w-0 truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">
+                  {composerConfig.subjectPreview}
+                </span>
               </div>
             )}
             {emailMode === "forward" && (
-              <div className="flex items-center gap-2">
-                <Forward className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
-                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">To</span>
+              <div className="flex min-h-6 items-center gap-1.5">
+                <Forward className="h-2.5 w-2.5 shrink-0 opacity-60 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
+                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-chat-text-secondary)]">
+                  To
+                </span>
                 <Input
                   type="text"
                   value={emailForwardTo}
                   onChange={(e) => onEmailForwardToChange(e.target.value)}
                   placeholder="recipient@example.com"
-                  className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
+                  className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
                 />
               </div>
             )}
             <button
               type="button"
               onClick={() => setAdvancedOpen((v) => !v)}
-              className="flex items-center gap-1 text-[10px] font-medium text-[var(--inbox-accent)] transition-colors hover:text-[var(--inbox-accent)]/80"
+              className="flex w-full items-center gap-0.5 py-0.5 text-[9px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:text-[var(--inbox-accent)]"
             >
-              {advancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {advancedOpen ? <ChevronUp className="h-2.5 w-2.5 shrink-0 opacity-70" /> : <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" />}
               {advancedOpen ? "Hide CC / BCC" : "CC / BCC"}
             </button>
             {advancedOpen && (
-              <div className="space-y-1.5 border-t border-[var(--inbox-divider)] pt-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">CC</span>
+              <div className="space-y-1 border-t border-[var(--inbox-divider)]/50 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-6 shrink-0 text-[9px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
                   <Input
                     type="text"
                     value={emailCc}
                     onChange={(e) => onEmailCcChange(e.target.value)}
                     placeholder="cc@example.com"
-                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
+                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">BCC</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-6 shrink-0 text-[9px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
                   <Input
                     type="text"
                     value={emailBcc}
                     onChange={(e) => onEmailBccChange(e.target.value)}
                     placeholder="bcc@example.com"
-                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
+                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
                   />
                 </div>
               </div>
@@ -484,7 +429,7 @@ export function ReplyComposer({
             rows={2}
             className={cn(
               // field-sizing-content en el Textarea base compite con la altura fijada por JS; fixed respeta useLayoutEffect
-              "[field-sizing:fixed] min-h-[88px] max-h-[280px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-composer-input)] px-3 py-2.5 text-sm text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)] transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/25 shadow-sm md:px-4",
+              "[field-sizing:fixed] min-h-[72px] max-h-[260px] resize-none overflow-y-auto rounded-lg border border-[var(--inbox-border)]/35 bg-[var(--inbox-composer-input)]/85 px-2.5 py-2 text-[13px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/90 transition-colors duration-150 focus-visible:border-[var(--inbox-accent)]/80 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/20 md:px-3",
               replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
               speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
               speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
@@ -495,11 +440,11 @@ export function ReplyComposer({
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
             }}
           />
-          {isProcessing && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--inbox-surface)]/70 backdrop-blur-sm">
-              <div className="flex items-center gap-2.5 rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-4 py-2.5 shadow-[var(--inbox-panel-shadow-sm)]">
+            {isProcessing && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-[var(--inbox-surface)]/60 backdrop-blur-sm">
+              <div className="flex items-center gap-2 rounded-lg border border-[var(--inbox-border)]/50 bg-[var(--inbox-surface)] px-3 py-2 text-sm shadow-sm">
                 <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
-                <span className="text-sm font-medium text-[var(--inbox-text)]">
+                <span className="text-[13px] font-medium text-[var(--inbox-text)]">
                   {assistLoading === "compose_from_intent" ? "Composing your reply..." : "Rewriting..."}
                 </span>
               </div>
@@ -554,9 +499,90 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Merged toolbar: attach, snippets, voice, AI menu, undo, send ── */}
-        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[var(--inbox-border)]/50 pt-1.5">
-          <div className="flex flex-wrap items-center gap-0.5">
+        {/* ── Merged toolbar: modes, attach, snippets, voice, AI, undo, send ── */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[var(--inbox-border)]/30 pt-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-y-1">
+            <div className="flex flex-wrap items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onReplyModeChange(false)
+                  onEmailModeChange("reply")
+                  focusComposerWithScroll()
+                }}
+                className={cn(
+                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                  !replyIsInternal && emailMode === "reply" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                )}
+                title="Reply"
+                aria-label="Reply"
+              >
+                <Reply className="h-[18px] w-[18px]" strokeWidth={2} />
+              </button>
+              {channel === "email" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onReplyModeChange(false)
+                      onEmailModeChange("reply_all")
+                      focusComposerWithScroll()
+                    }}
+                    className={cn(
+                      "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                      !replyIsInternal && emailMode === "reply_all" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                    )}
+                    title="Reply all"
+                    aria-label="Reply all"
+                  >
+                    <ReplyAll className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onReplyModeChange(false)
+                      onEmailModeChange("forward")
+                      focusComposerWithScroll()
+                    }}
+                    className={cn(
+                      "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                      !replyIsInternal && emailMode === "forward" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                    )}
+                    title="Forward"
+                    aria-label="Forward"
+                  >
+                    <Forward className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  onReplyModeChange(true)
+                  focusComposerWithScroll()
+                }}
+                className={cn(
+                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-warning)]/15 hover:text-[var(--inbox-warning)]",
+                  replyIsInternal && "bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)]",
+                )}
+                title="Internal note"
+                aria-label="Internal note"
+              >
+                <StickyNote className="h-[18px] w-[18px]" strokeWidth={2} />
+              </button>
+            </div>
+            <span
+              className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--inbox-divider)] sm:block"
+              aria-hidden="true"
+            />
+            <span className="hidden max-w-[7rem] truncate text-[10px] text-[var(--inbox-chat-text-secondary)] sm:inline md:max-w-[10rem]">
+              {channelLabel}
+            </span>
+            <span
+              className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--inbox-divider)] sm:block"
+              aria-hidden="true"
+            />
+            <div className="flex flex-wrap items-center gap-0.5">
             <button
               type="button"
               onClick={() => {
@@ -688,6 +714,8 @@ export function ReplyComposer({
                 </button>
               </div>
             )}
+            </div>
+
           </div>
 
           <div className="flex items-center gap-1">
@@ -727,7 +755,7 @@ export function ReplyComposer({
 
         {/* ── Intelligence panel (same pattern as Clip) ── */}
         {assistPanelOpen && !isProcessing && (
-          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
+          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2">
             {!hasText && (
               <p className="mb-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
                 Write something in the message to use improve and translate tools.
@@ -774,8 +802,8 @@ export function ReplyComposer({
 
         {/* ── Clip / Insert panel ── */}
         {clipPanelOpen && (
-          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
               <ClipCategory title="Attach">
                 <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />
                 <ClipAction label="Image" icon={Image} />
