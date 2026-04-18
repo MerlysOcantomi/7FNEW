@@ -63,7 +63,9 @@ export function MessageBubble({
         >
           <span className={cn(
             "text-xs font-semibold",
-            tone === "inbound" ? "text-[var(--inbox-accent)]" : "text-[var(--inbox-text)]"
+            tone === "inbound"
+              ? "text-[var(--inbox-accent)]"
+              : "text-[var(--text-primary-light)]",
           )}>{authorLabel}</span>
           <span className="text-xs uppercase tracking-wide font-medium text-[var(--inbox-text-secondary)]">
             {roleLabel}
@@ -74,11 +76,11 @@ export function MessageBubble({
               ? "border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
               : tone === "outbound"
                 ? "border-[var(--inbox-chat-meta-outbound-border)] bg-[var(--inbox-chat-meta-outbound-bg)] text-[var(--inbox-chat-meta-outbound-text)]"
-                : "border-[var(--inbox-divider)] bg-[var(--surface-3)] text-[var(--inbox-text-secondary)]"
+                : "border-[var(--inbox-border)] bg-white/[0.08] text-[var(--inbox-text-secondary)]"
           )}>
             {metaLabel}
           </span>
-          <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--text-secondary-dark)]">{timestampLabel}</span>
+          <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--inbox-text-secondary)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
             <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
               Forwarded
@@ -110,7 +112,7 @@ export function MessageBubble({
             tone === "internal" &&
               "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&
-              "rounded-2xl border-dashed border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)]/60 text-[var(--inbox-chat-text-secondary)]",
+              "rounded-2xl border-dashed border-[var(--inbox-border)] bg-white/[0.04] text-[var(--inbox-text-secondary)]",
           )}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>

@@ -316,8 +316,8 @@ export function ReplyComposer({
   const showEmailOptions = !replyIsInternal && channel === "email"
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-background)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
-      <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-chat-border)]/80 bg-[var(--inbox-composer-background)] p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-chat-background)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-6" data-composer="true">
+      <div className="space-y-2 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-border)] bg-[var(--inbox-composer-background)] p-4 shadow-[var(--inbox-shadow-premium)] md:p-5">
 
         {/* ── Mode selector ── */}
         <div className="flex items-center justify-between gap-2">
@@ -382,7 +382,7 @@ export function ReplyComposer({
 
         {/* ── Email options: Subject, CC, BCC, Forward to ── */}
         {showEmailOptions && (
-          <div className="space-y-1.5 rounded-lg border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-3 py-2">
+          <div className="space-y-1.5 rounded-lg border border-[var(--inbox-border)] bg-white/[0.05] px-3 py-2">
             {composerConfig.subjectPreview && (
               <div className="flex items-center gap-2">
                 <Mail className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
@@ -399,7 +399,7 @@ export function ReplyComposer({
                   value={emailForwardTo}
                   onChange={(e) => onEmailForwardToChange(e.target.value)}
                   placeholder="recipient@example.com"
-                  className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                  className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
                 />
               </div>
             )}
@@ -420,7 +420,7 @@ export function ReplyComposer({
                     value={emailCc}
                     onChange={(e) => onEmailCcChange(e.target.value)}
                     placeholder="cc@example.com"
-                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -430,7 +430,7 @@ export function ReplyComposer({
                     value={emailBcc}
                     onChange={(e) => onEmailBccChange(e.target.value)}
                     placeholder="bcc@example.com"
-                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                    className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
                   />
                 </div>
               </div>
@@ -447,7 +447,7 @@ export function ReplyComposer({
                 type="button"
                 onClick={() => handleAssist(tool.action)}
                 disabled={!hasText}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-30"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-border)] bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/25 hover:text-[var(--inbox-accent)] disabled:opacity-30"
               >
                 <tool.icon className="h-3 w-3" />
                 {tool.label}
@@ -458,7 +458,7 @@ export function ReplyComposer({
                 <button
                   type="button"
                   disabled={!hasText}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/40 hover:text-[var(--inbox-accent)] disabled:opacity-30"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--inbox-border)] bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-all hover:border-[var(--inbox-accent)]/30 hover:bg-[var(--inbox-accent-soft)]/25 hover:text-[var(--inbox-accent)] disabled:opacity-30"
                 >
                   <Languages className="h-3 w-3" />
                   Translate
@@ -510,7 +510,7 @@ export function ReplyComposer({
             }
             rows={3}
             className={cn(
-              "min-h-[88px] max-h-[240px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-chat-border)] bg-[var(--inbox-composer-input)] px-4 py-3 text-sm text-[var(--inbox-chat-text)] placeholder:text-[var(--inbox-chat-text-secondary)] transition-all duration-200 focus-visible:border-[var(--inbox-chat-bubble-outbound)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-chat-bubble-outbound)]/20 shadow-sm",
+              "min-h-[88px] max-h-[240px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-composer-input)] px-4 py-3 text-sm text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)] transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/25 shadow-sm",
               replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
               speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
               speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
@@ -560,7 +560,7 @@ export function ReplyComposer({
             {attachments.map((att) => (
               <span
                 key={att.url}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-divider)] bg-[var(--surface-3)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-border)] bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
               >
                 <FileText className="h-3 w-3 shrink-0" />
                 <span className="max-w-[120px] truncate">{att.filename}</span>
@@ -652,7 +652,7 @@ export function ReplyComposer({
                   "rounded-l-lg px-2 py-1.5 text-[10px] font-medium transition-all",
                   voiceMode === "dictate"
                     ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
-                    : "text-[var(--inbox-text-secondary)] hover:bg-[var(--surface-3)]",
+                    : "text-[var(--inbox-text-secondary)] hover:bg-white/[0.06]",
                 )}
               >
                 Dictate
@@ -664,7 +664,7 @@ export function ReplyComposer({
                   "border-l border-[var(--inbox-divider)] px-2 py-1.5 text-[10px] font-medium transition-all",
                   voiceMode === "compose"
                     ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
-                    : "text-[var(--inbox-text-secondary)] hover:bg-[var(--surface-3)]",
+                    : "text-[var(--inbox-text-secondary)] hover:bg-white/[0.06]",
                 )}
               >
                 <Sparkles className="mr-0.5 inline h-2.5 w-2.5" />
@@ -720,7 +720,7 @@ export function ReplyComposer({
 
         {/* ── Clip / Insert panel ── */}
         {clipPanelOpen && (
-          <div className="rounded-xl border border-[var(--inbox-divider)] bg-[var(--surface-3)] p-3">
+          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
               <ClipCategory title="Attach">
                 <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />

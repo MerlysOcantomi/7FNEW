@@ -56,8 +56,8 @@ export function ConversationListItem({
       className={cn(
         "group relative w-full rounded-lg border-b px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
         selected
-          ? "border-b-[var(--inbox-list-selected)]/20 bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/10"
-          : "border-b-[var(--inbox-list-divider)]/40 bg-[var(--inbox-list-surface)] hover:bg-[var(--inbox-list-surface)]/92",
+          ? "border-b-transparent bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/25"
+          : "border-b border-white/[0.06] bg-transparent hover:bg-white/[0.04]",
       )}
     >
       <span

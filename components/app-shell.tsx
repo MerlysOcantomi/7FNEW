@@ -81,8 +81,8 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
             </GlobalNewDesktopChrome>
           </div>
 
-          <div className="px-4 pb-6 pt-2 md:px-8 md:pb-8">
-            <div className={cn("mx-auto w-full max-w-6xl", contentClassName)}>
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8">
+            <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
               {children}
             </div>
           </div>

@@ -77,6 +77,7 @@ export function ConversationThread({
     return (
       <div className="flex flex-1 items-center justify-center">
         <EmptyState
+          variant="inbox"
           icon={MessageSquare}
           title="Select a conversation"
           description="Choose a thread from the list to review context and reply."
@@ -97,6 +98,7 @@ export function ConversationThread({
     return (
       <div className="flex flex-1 items-center justify-center">
         <EmptyState
+          variant="inbox"
           icon={AlertTriangle}
           title="Could not load conversation"
           description={detailErrorMessage}
@@ -164,13 +166,13 @@ export function ConversationThread({
       )}
 
       {/* Thread */}
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
         <div className={cn(
           "bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7",
           isEmailChannel ? "space-y-0" : "space-y-4",
         )}>
           {messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-[var(--inbox-surface)]/50 p-6">
+            <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-white/[0.04] p-6">
               <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
             </div>
           ) : isEmailChannel ? (

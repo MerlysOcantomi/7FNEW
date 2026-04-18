@@ -1131,13 +1131,13 @@ function InboxPageContent() {
   ) : null
 
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
+      <div className="-mx-4 -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
-              "min-h-0 overflow-hidden rounded-2xl bg-[var(--inbox-list-background)] shadow-lg shadow-black/5 xl:flex xl:h-full xl:flex-col",
+              "min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:flex-col",
             )}
           >
             {showInitialListSkeleton ? (
@@ -1175,15 +1175,15 @@ function InboxPageContent() {
           <div
             className={cn(
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--inbox-chat-surface)] shadow-lg shadow-black/5 xl:flex xl:h-full xl:min-h-0",
+              "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:min-h-0",
             )}
           >
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--inbox-chat-background)]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
               {showInitialListSkeleton || showDetailSkeleton ? (
                 <InboxCenterSkeleton />
               ) : (
                 <>
-                  <div className="min-h-[280px] flex flex-1 flex-col overflow-hidden xl:min-h-[320px]">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <ConversationThread
                       hasSelectedId={Boolean(activeSelectedId)}
                       detailLoading={detailLoading && !selected}
@@ -1274,7 +1274,7 @@ function InboxPageContent() {
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-2xl bg-[var(--inbox-intelligence-background)] shadow-lg shadow-black/5 xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
             {showInitialListSkeleton || showDetailSkeleton ? (
               <InboxContextSkeleton />
             ) : selected ? (
@@ -1317,7 +1317,7 @@ function InboxPageContent() {
               <div className="py-3">
                 {members.length > 0 ? (
                   <select
-                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm text-[var(--inbox-text)]"
                     value={dialogAssignValue}
                     onChange={(e) => setDialogAssignValue(e.target.value)}
                     autoFocus
@@ -1333,7 +1333,7 @@ function InboxPageContent() {
                   <input
                     type="text"
                     placeholder="User ID"
-                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]"
                     value={dialogAssignValue}
                     onChange={(e) => setDialogAssignValue(e.target.value)}
                     autoFocus
@@ -1368,7 +1368,7 @@ function InboxPageContent() {
               </DialogHeader>
               <div className="py-3">
                 <textarea
-                  className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]"
                   rows={3}
                   placeholder="Reason (optional)"
                   value={dialogDismissReason}
@@ -1457,16 +1457,16 @@ function InboxPageContent() {
 
 function InboxPageFallback() {
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1520px]">
-      <div className="-mx-4 -mt-2 flex h-full min-h-0 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
+      <div className="-mx-4 -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
-          <div className="min-h-0 overflow-hidden rounded-2xl bg-[var(--inbox-list-background)] shadow-lg shadow-black/5 xl:h-full">
+          <div className="min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-background)] shadow-[var(--app-shadow-subtle)] xl:h-full">
             <InboxListSkeleton />
           </div>
-          <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--inbox-chat-surface)] shadow-lg shadow-black/5 xl:flex xl:h-full xl:min-h-0">
+          <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:min-h-0">
             <InboxCenterSkeleton />
           </div>
-          <div className="hidden min-h-0 overflow-hidden rounded-2xl bg-[var(--inbox-intelligence-background)] shadow-lg shadow-black/5 xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
             <InboxContextSkeleton />
           </div>
         </div>
@@ -1489,39 +1489,39 @@ function InboxListSkeleton() {
       <div className="space-y-3 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)] px-4 py-4 md:px-5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
-            <Skeleton className="h-4 w-20 bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-3 w-40 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-4 w-20 bg-white/15" />
+            <Skeleton className="h-3 w-40 bg-white/15" />
           </div>
           <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-6 w-14 rounded-full bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-6 w-16 rounded-full bg-white/15" />
+            <Skeleton className="h-6 w-14 rounded-full bg-white/15" />
           </div>
         </div>
-        <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+        <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
         <div className="grid grid-cols-2 gap-2">
-          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
+          <Skeleton className="h-10 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
+          <Skeleton className="h-8 w-full rounded-[var(--inbox-radius-control)] bg-white/15" />
         </div>
       </div>
       <div className="space-y-2 px-3 py-3 md:px-4">
         {Array.from({ length: 7 }).map((_, index) => (
-          <div key={index} className="rounded-[var(--inbox-radius-control)] border border-[var(--inbox-divider)] bg-[var(--inbox-background)]/60 p-3">
+          <div key={index} className="rounded-[var(--inbox-radius-control)] border border-white/10 bg-white/[0.04] p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-4/5 bg-[var(--inbox-divider)]" />
-                <Skeleton className="h-3 w-1/2 bg-[var(--inbox-divider)]" />
+                <Skeleton className="h-4 w-4/5 bg-white/15" />
+                <Skeleton className="h-3 w-1/2 bg-white/15" />
               </div>
-              <Skeleton className="h-3 w-12 bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-3 w-12 bg-white/15" />
             </div>
-            <Skeleton className="mt-3 h-3 w-full bg-[var(--inbox-divider)]" />
+            <Skeleton className="mt-3 h-3 w-full bg-white/15" />
             <div className="mt-3 flex gap-2">
-              <Skeleton className="h-5 w-16 rounded-full bg-[var(--inbox-divider)]" />
-              <Skeleton className="h-5 w-14 rounded-full bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-5 w-16 rounded-full bg-white/15" />
+              <Skeleton className="h-5 w-14 rounded-full bg-white/15" />
             </div>
           </div>
         ))}
@@ -1532,17 +1532,17 @@ function InboxListSkeleton() {
 
 function InboxCenterSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)]/72">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
       <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-4 md:px-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-3 w-20 bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-5 w-2/3 bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-4 w-1/2 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-3 w-20 bg-white/15" />
+            <Skeleton className="h-5 w-2/3 bg-white/15" />
+            <Skeleton className="h-4 w-1/2 bg-white/15" />
           </div>
           <div className="flex gap-2">
-            <Skeleton className="h-9 w-44 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-9 w-28 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-9 w-44 rounded-[var(--inbox-radius-control)] bg-white/15" />
+            <Skeleton className="h-9 w-28 rounded-[var(--inbox-radius-control)] bg-white/15" />
           </div>
         </div>
       </div>
@@ -1551,29 +1551,29 @@ function InboxCenterSkeleton() {
           <div
             key={index}
             className={cn(
-              "max-w-[78%] rounded-[18px] border border-[var(--inbox-divider)] bg-[var(--inbox-surface)] p-4 shadow-sm",
+              "max-w-[78%] rounded-[18px] border border-white/12 bg-white/[0.07] p-4 shadow-sm",
               index % 2 === 1 && "ml-auto",
             )}
           >
-            <Skeleton className="h-3 w-24 bg-[var(--inbox-divider)]" />
-            <Skeleton className="mt-3 h-3 w-full bg-[var(--inbox-divider)]" />
-            <Skeleton className="mt-2 h-3 w-4/5 bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-3 w-24 bg-white/15" />
+            <Skeleton className="mt-3 h-3 w-full bg-white/15" />
+            <Skeleton className="mt-2 h-3 w-4/5 bg-white/15" />
           </div>
         ))}
       </div>
       <div className="shrink-0 border-t border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-4 py-3 md:px-5">
         <div className="rounded-[var(--inbox-radius-panel)] border border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-4 shadow-[var(--inbox-panel-shadow-sm)]">
           <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-16 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-8 w-16 rounded-[var(--inbox-radius-control)] bg-white/15" />
+            <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-white/15" />
           </div>
-          <Skeleton className="mt-4 h-32 w-full rounded-2xl bg-[var(--inbox-divider)]" />
+          <Skeleton className="mt-4 h-32 w-full rounded-2xl bg-white/15" />
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="flex gap-2">
-              <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
-              <Skeleton className="h-8 w-20 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-8 w-24 rounded-[var(--inbox-radius-control)] bg-white/15" />
+              <Skeleton className="h-8 w-20 rounded-[var(--inbox-radius-control)] bg-white/15" />
             </div>
-            <Skeleton className="h-9 w-32 rounded-[var(--inbox-radius-control)] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-9 w-32 rounded-[var(--inbox-radius-control)] bg-white/15" />
           </div>
         </div>
       </div>
@@ -1591,17 +1591,17 @@ function InboxContextSkeleton() {
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Skeleton className="h-8 w-8 rounded-[10px] bg-[var(--inbox-divider)]" />
+              <Skeleton className="h-8 w-8 rounded-[10px] bg-white/15" />
               <div className="space-y-2">
-                <Skeleton className="h-4 w-32 bg-[var(--inbox-divider)]" />
-                <Skeleton className="h-3 w-40 bg-[var(--inbox-divider)]" />
+                <Skeleton className="h-4 w-32 bg-white/15" />
+                <Skeleton className="h-3 w-40 bg-white/15" />
               </div>
             </div>
-            <Skeleton className="h-4 w-4 rounded-full bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-4 w-4 rounded-full bg-white/15" />
           </div>
           <div className="mt-4 grid gap-2">
-            <Skeleton className="h-16 w-full rounded-[10px] bg-[var(--inbox-divider)]" />
-            <Skeleton className="h-12 w-full rounded-[10px] bg-[var(--inbox-divider)]" />
+            <Skeleton className="h-16 w-full rounded-[10px] bg-white/15" />
+            <Skeleton className="h-12 w-full rounded-[10px] bg-white/15" />
           </div>
         </div>
       ))}

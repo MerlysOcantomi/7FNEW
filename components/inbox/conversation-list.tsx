@@ -152,13 +152,13 @@ export function ConversationList({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search conversations..."
-            className="h-9 rounded-lg border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] pl-9 text-sm focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 transition-all"
+            className="h-9 rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] pl-9 text-sm text-[var(--inbox-list-text)] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25 transition-all"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.08] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -171,7 +171,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-divider)] bg-[var(--inbox-list-surface)] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.08] transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -213,25 +213,27 @@ export function ConversationList({
         <div className="space-y-1 px-3 py-3 md:px-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-lg border-b border-b-[var(--inbox-list-divider)]/30 bg-[var(--inbox-list-background)]/80 p-4">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="mt-2 h-3 w-1/2" />
-                <Skeleton className="mt-3 h-3 w-full" />
-                <Skeleton className="mt-2 h-3 w-4/5" />
+              <div key={index} className="rounded-lg border-b border-white/[0.06] bg-white/[0.03] p-4">
+                <Skeleton className="h-4 w-2/3 bg-white/10" />
+                <Skeleton className="mt-2 h-3 w-1/2 bg-white/10" />
+                <Skeleton className="mt-3 h-3 w-full bg-white/10" />
+                <Skeleton className="mt-2 h-3 w-4/5 bg-white/10" />
                 <div className="mt-3 flex gap-2">
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full bg-white/10" />
+                  <Skeleton className="h-5 w-14 rounded-full bg-white/10" />
                 </div>
               </div>
             ))
           ) : errorMessage ? (
             <EmptyState
+              variant="inbox"
               icon={Search}
               title="Inbox unavailable"
               description={errorMessage}
             />
           ) : conversations.length === 0 ? (
             <EmptyState
+              variant="inbox"
               icon={Search}
               title={
                 activeSearchTerm

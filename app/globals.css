@@ -149,17 +149,17 @@
   --inbox-sidebar-accent: var(--accent-primary);
   --inbox-sidebar-border: var(--border-dark);
 
-  --inbox-list-background: var(--surface-1);
-  --inbox-list-surface: var(--surface-2);
-  --inbox-list-border: var(--border-light);
-  --inbox-list-divider: var(--border-light);
-  --inbox-list-text: var(--text-primary-dark);
-  --inbox-list-text-secondary: var(--text-secondary-dark);
+  --inbox-list-background: var(--app-surface-dark);
+  --inbox-list-surface: var(--app-surface-dark-elevated);
+  --inbox-list-border: var(--border-dark);
+  --inbox-list-divider: rgba(255, 255, 255, 0.08);
+  --inbox-list-text: var(--text-primary-light);
+  --inbox-list-text-secondary: var(--text-secondary-light);
   --inbox-list-selected: var(--accent-primary);
-  --inbox-list-selected-bg: var(--surface-selected);
+  --inbox-list-selected-bg: rgba(124, 77, 255, 0.2);
 
-  --inbox-chat-background: var(--surface-2);
-  --inbox-chat-surface: var(--surface-3);
+  --inbox-chat-background: var(--app-surface-dark);
+  --inbox-chat-surface: var(--app-surface-dark-elevated);
   --inbox-chat-bubble-outbound: var(--accent-primary);
   --inbox-chat-bubble-outbound-gradient: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
   --inbox-chat-bubble-outbound-shadow: rgba(110, 64, 240, 0.18);
@@ -167,13 +167,15 @@
   --inbox-chat-meta-outbound-border: #332455;
   --inbox-chat-meta-outbound-bg: #2B2144;
   --inbox-chat-meta-outbound-text: #E8DFFF;
-  --inbox-chat-bubble-inbound: var(--surface-3);
+  --inbox-chat-bubble-inbound: #EDE9F6;
   --inbox-chat-text: var(--text-primary-dark);
   --inbox-chat-text-secondary: var(--text-secondary-dark);
-  --inbox-chat-border: var(--border-light);
-  --inbox-composer-background: var(--surface-3);
-  --inbox-composer-toolbar: var(--surface-4);
-  --inbox-composer-input: #F6F2FD;
+  --inbox-chat-border: rgba(49, 42, 72, 0.35);
+  --inbox-composer-background: var(--app-surface-dark-elevated);
+  --inbox-composer-toolbar: rgba(255, 255, 255, 0.06);
+  --inbox-composer-input: #2d2544;
+  --inbox-composer-input-text: var(--text-primary-light);
+  --inbox-composer-placeholder: var(--text-secondary-light);
 
   --inbox-intelligence-background: var(--app-surface-dark);
   --inbox-intelligence-surface: var(--app-surface-dark-elevated);
@@ -222,22 +224,23 @@
   /* === TOKENS GENÉRICOS INBOX === */
   --inbox-surface: var(--inbox-chat-surface);
   --inbox-surface-elevated: var(--inbox-list-surface);
-  --inbox-text: var(--inbox-chat-text);
-  --inbox-text-secondary: var(--inbox-chat-text-secondary);
-  --inbox-border: var(--inbox-chat-border);
-  --inbox-divider: var(--border-light);
-  --inbox-muted: var(--text-secondary-dark);
+  /* Chrome / shell text on dark columns (thread header, composer chrome, Fanny, etc.) */
+  --inbox-text: var(--text-primary-light);
+  --inbox-text-secondary: var(--text-secondary-light);
+  --inbox-border: rgba(255, 255, 255, 0.1);
+  --inbox-divider: rgba(255, 255, 255, 0.08);
+  --inbox-muted: var(--text-secondary-light);
   
   /* === SISTEMA GEOMETRICO === */
   --inbox-radius-premium: 16px;
   --inbox-radius-card: 12px;
   --inbox-radius-control: 8px;
   --inbox-radius-panel: 16px;
-  --inbox-shadow-premium: 0 20px 60px rgba(36, 28, 58, 0.16);
-  --inbox-shadow-card: 0 10px 24px rgba(36, 28, 58, 0.10);
-  --inbox-shadow-subtle: 0 4px 10px rgba(36, 28, 58, 0.06);
-  --inbox-panel-shadow: var(--inbox-shadow-card);
-  --inbox-panel-shadow-sm: var(--inbox-shadow-subtle);
+  --inbox-shadow-premium: var(--app-shadow-subtle);
+  --inbox-shadow-card: 0 8px 20px rgba(0, 0, 0, 0.18);
+  --inbox-shadow-subtle: var(--app-shadow-subtle);
+  --inbox-panel-shadow: var(--app-shadow-subtle);
+  --inbox-panel-shadow-sm: var(--app-shadow-subtle);
 }
 
 

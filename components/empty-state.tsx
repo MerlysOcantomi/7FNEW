@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface EmptyStateProps {
   icon: LucideIcon
@@ -6,15 +7,49 @@ interface EmptyStateProps {
   description?: string
   actionLabel?: string
   onAction?: () => void
+  className?: string
+  /** Dark-first inbox list / shell surfaces */
+  variant?: "default" | "inbox"
 }
 
-export function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+  className,
+  variant = "default",
+}: EmptyStateProps) {
+  const isInbox = variant === "inbox"
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
-      <Icon className="h-10 w-10 text-muted-foreground/30 mx-auto mb-4" />
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+    <div
+      className={cn(
+        "rounded-xl border border-dashed text-center",
+        isInbox
+          ? "border-[var(--inbox-list-border)] bg-transparent px-4 py-10"
+          : "border-border bg-card p-12",
+        className,
+      )}
+    >
+      <Icon
+        className={cn(
+          "mx-auto mb-4 h-10 w-10",
+          isInbox ? "text-[var(--inbox-list-text-secondary)]/35" : "text-muted-foreground/30",
+        )}
+      />
+      <p className={cn("text-sm font-semibold", isInbox ? "text-[var(--inbox-list-text)]" : "text-foreground")}>
+        {title}
+      </p>
       {description && (
-        <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto leading-relaxed">{description}</p>
+        <p
+          className={cn(
+            "mx-auto mt-1.5 max-w-xs text-xs leading-relaxed",
+            isInbox ? "text-[var(--inbox-list-text-secondary)]" : "text-muted-foreground",
+          )}
+        >
+          {description}
+        </p>
       )}
       {actionLabel && onAction && (
         <button
