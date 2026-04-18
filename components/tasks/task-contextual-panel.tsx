@@ -28,11 +28,11 @@ const PRIORITY_BADGE: Record<string, string> = {
   urgente: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
   alta: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
   media: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
-  baja: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+  baja: "bg-white/12 text-[var(--text-secondary-light)]",
 }
 
 const ESTADO_BADGE =
-  "rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+  "rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary-light)]"
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—"
@@ -48,9 +48,11 @@ function formatDate(value: string | null | undefined): string {
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-sm font-medium text-foreground">{value}</p>
+    <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">
+        {label}
+      </p>
+      <p className="mt-0.5 text-sm font-medium text-[var(--text-primary-light)]">{value}</p>
     </div>
   )
 }
@@ -91,13 +93,13 @@ export function TaskContextualPanel({
 
   return (
     <div className="flex max-h-[min(85vh,880px)] flex-col overflow-hidden xl:max-h-none">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-        <h3 className="text-sm font-semibold text-foreground">Task details</h3>
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-dark)] px-5 py-4">
+        <h3 className="text-sm font-semibold text-[var(--text-primary-light)]">Task details</h3>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary-light)] transition-colors hover:bg-white/10 hover:text-[var(--text-primary-light)]"
             aria-label="Close panel"
           >
             <X className="h-3.5 w-3.5" />
@@ -108,7 +110,7 @@ export function TaskContextualPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-4 p-5">
           <div>
-            <p className="text-base font-semibold text-foreground">{task.titulo}</p>
+            <p className="text-base font-semibold text-[var(--text-primary-light)]">{task.titulo}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", prioClass)}>
                 {displayLabel(task.prioridad ?? "", prioridadLabel)}
@@ -125,15 +127,15 @@ export function TaskContextualPanel({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">
               Description
             </p>
-            <p className="text-sm leading-relaxed text-foreground/90">
+            <p className="text-sm leading-relaxed text-[var(--text-primary-light)]/90">
               {task.descripcion?.trim() || "No description."}
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <div className="flex flex-col gap-2 border-t border-[var(--border-dark)] pt-4">
             <Button asChild className="w-full justify-center gap-2 sm:w-auto sm:justify-start" variant="default">
               <Link href={`/tareas/${task.id}`}>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -143,7 +145,14 @@ export function TaskContextualPanel({
 
             <CanEdit>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={onEdit} disabled={patching}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onEdit}
+                  disabled={patching}
+                  className="border-[var(--border-dark)] text-[var(--text-primary-light)] hover:bg-white/10 hover:text-[var(--text-primary-light)]"
+                >
                   Edit
                 </Button>
                 {canComplete && (
@@ -155,7 +164,7 @@ export function TaskContextualPanel({
                         size="sm"
                         disabled={patching}
                         onClick={() => patchEstado("en_progreso")}
-                        className="gap-1.5"
+                        className="gap-1.5 border-0 bg-white/10 text-[var(--text-primary-light)] hover:bg-white/15"
                       >
                         {patching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                         Start
@@ -168,6 +177,7 @@ export function TaskContextualPanel({
                         size="sm"
                         disabled={patching}
                         onClick={() => patchEstado("completada")}
+                        className="border-0 bg-white/10 text-[var(--text-primary-light)] hover:bg-white/15"
                       >
                         Mark complete
                       </Button>
@@ -178,11 +188,11 @@ export function TaskContextualPanel({
             </CanEdit>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+          <div className="flex flex-wrap gap-2 border-t border-[var(--border-dark)] pt-4">
             {task.proyectoId && (
               <Link
                 href={`/proyectos/${task.proyectoId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary-light)] transition-colors hover:bg-white/10"
               >
                 <FolderKanban className="h-3 w-3" /> Project
               </Link>
@@ -190,7 +200,7 @@ export function TaskContextualPanel({
             {task.clienteId && (
               <Link
                 href={`/clientes/${task.clienteId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary-light)] transition-colors hover:bg-white/10"
               >
                 <Users className="h-3 w-3" /> Client
               </Link>
@@ -198,7 +208,7 @@ export function TaskContextualPanel({
           </div>
 
           <CanDelete>
-            <div className="border-t border-border pt-4">
+            <div className="border-t border-[var(--border-dark)] pt-4">
               <Button
                 type="button"
                 variant="ghost"

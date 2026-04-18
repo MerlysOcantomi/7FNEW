@@ -42,20 +42,31 @@ import { TAREA_COLUMNS } from "@/lib/export/csv"
 const XL_MEDIA = "(min-width: 1280px)"
 const PHONE_MEDIA = "(max-width: 640px)"
 
+/** Elevated surfaces on shell canvas — same token family as inbox intelligence / app surfaces (not light cards). */
+const shellCard =
+  "rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-[var(--app-shadow-subtle)]"
+const shellInset =
+  "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+const shellText = "text-[var(--text-primary-light)]"
+const shellMuted = "text-[var(--text-secondary-light)]"
+/** List row on canvas — same fill family as cards, no extra outer shadow */
+const shellRow =
+  "rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-3.5 text-left transition-all hover:bg-[var(--app-surface-dark-elevated)] hover:shadow-[var(--app-shadow-subtle)]"
+
 /* Status icons — shared status token tints */
 const statusConfig: Record<string, { icon: typeof Circle; colorClass: string }> = {
-  pendiente: { icon: Circle, colorClass: "text-muted-foreground" },
+  pendiente: { icon: Circle, colorClass: "text-[var(--text-secondary-light)]" },
   en_progreso: { icon: Clock, colorClass: "text-[var(--status-info-text)]" },
   revision: { icon: AlertTriangle, colorClass: "text-[var(--status-warning-text)]" },
   completada: { icon: CheckCircle2, colorClass: "text-[var(--status-success-text)]" },
-  cancelada: { icon: Pause, colorClass: "text-muted-foreground" },
+  cancelada: { icon: Pause, colorClass: "text-[var(--text-secondary-light)]" },
 }
 
 const PRIORITY_ROW_BADGE: Record<string, string> = {
   urgente: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
   alta: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
   media: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
-  baja: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+  baja: "bg-white/12 text-[var(--text-secondary-light)]",
 }
 
 const STATUS_OPTIONS = ["all", "pendiente", "en_progreso", "revision", "completada", "cancelada"] as const
@@ -167,53 +178,65 @@ export default function TareasPage() {
 
         {/* Stats — urgent first as primary tier */}
         <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-primary/25 bg-card p-4 shadow-sm ring-1 ring-primary/15">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Needs attention</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{urgentCount}</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">Urgent / high · not done</p>
+          <div
+            className={cn(
+              "rounded-xl border border-primary/35 bg-[var(--app-surface-dark)] p-4 shadow-[var(--app-shadow-subtle)] ring-1 ring-[var(--accent-primary)]/22",
+            )}
+          >
+            <p className={cn("text-xs font-medium uppercase tracking-wider", shellMuted)}>Needs attention</p>
+            <p className={cn("mt-1 text-2xl font-semibold tabular-nums", shellText)}>{urgentCount}</p>
+            <p className={cn("mt-0.5 text-[10px]", shellMuted)}>Urgent / high · not done</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pending</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{pendingCount}</p>
+          <div className={cn(shellCard, "p-4")}>
+            <p className={cn("text-xs font-medium uppercase tracking-wider", shellMuted)}>Pending</p>
+            <p className={cn("mt-1 text-2xl font-semibold tabular-nums", shellText)}>{pendingCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">In progress</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{inProgressCount}</p>
+          <div className={cn(shellCard, "p-4")}>
+            <p className={cn("text-xs font-medium uppercase tracking-wider", shellMuted)}>In progress</p>
+            <p className={cn("mt-1 text-2xl font-semibold tabular-nums", shellText)}>{inProgressCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{allTasks.length}</p>
+          <div className={cn(shellCard, "p-4")}>
+            <p className={cn("text-xs font-medium uppercase tracking-wider", shellMuted)}>Total</p>
+            <p className={cn("mt-1 text-2xl font-semibold tabular-nums", shellText)}>{allTasks.length}</p>
           </div>
         </div>
 
         {/* Search + filters — single tray aligned with KPI surfaces */}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className={cn(shellCard, "p-4")}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 shadow-[inset_0_1px_0_rgba(15,23,42,0.04)]">
-                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className={cn("flex flex-1 items-center gap-2 px-3 py-2", shellInset)}>
+                <Search className={cn("h-4 w-4 shrink-0", shellMuted)} />
                 <input
                   type="text"
                   placeholder="Search task, project, or owner..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                  className={cn(
+                    "w-full bg-transparent text-sm outline-none placeholder:text-[var(--text-secondary-light)]",
+                    shellText,
+                  )}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider",
+                    shellMuted,
+                  )}
+                >
                   <ListFilter className="h-3 w-3 shrink-0" />
                   Sort
                 </span>
-                <div className="flex rounded-lg border border-border bg-muted/50 p-0.5">
+                <div className="flex rounded-lg border border-[var(--border-dark)] bg-black/25 p-0.5">
                   <button
                     type="button"
                     onClick={() => setSortBy("due")}
                     className={cn(
                       "min-h-9 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                       sortBy === "due"
-                        ? "bg-foreground text-background shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "bg-[var(--accent-primary)]/45 text-white shadow-sm"
+                        : cn(shellMuted, "hover:text-[var(--text-primary-light)]"),
                     )}
                   >
                     Due date
@@ -224,8 +247,8 @@ export default function TareasPage() {
                     className={cn(
                       "min-h-9 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                       sortBy === "priority"
-                        ? "bg-foreground text-background shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "bg-[var(--accent-primary)]/45 text-white shadow-sm"
+                        : cn(shellMuted, "hover:text-[var(--text-primary-light)]"),
                     )}
                   >
                     Priority
@@ -234,7 +257,7 @@ export default function TareasPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-dark)] pt-4">
               {STATUS_OPTIONS.map((s) => (
                 <button
                   key={s}
@@ -243,18 +266,26 @@ export default function TareasPage() {
                   className={cn(
                     "inline-flex h-9 items-center whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors",
                     filterStatus === s
-                      ? "bg-foreground text-background shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground",
+                      ? "bg-[var(--accent-primary)]/45 text-white shadow-sm"
+                      : cn(
+                          "bg-white/[0.08] hover:bg-white/[0.12]",
+                          shellMuted,
+                          "hover:text-[var(--text-primary-light)]",
+                        ),
                   )}
                 >
                   {s === "all" ? "All" : displayLabel(s, estadoLabel)}
                 </button>
               ))}
-              <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+              <span className="mx-1 hidden h-6 w-px bg-[var(--border-dark)] sm:block" aria-hidden />
               <Select value={filterPriority} onValueChange={setFilterPriority}>
                 <SelectTrigger
                   size="sm"
-                  className="h-9 w-full min-w-[8.5rem] border-border bg-background shadow-[inset_0_1px_0_rgba(15,23,42,0.04)] sm:w-[140px]"
+                  className={cn(
+                    "h-9 w-full min-w-[8.5rem] border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] sm:w-[140px]",
+                    shellText,
+                    "[&_svg]:text-[var(--text-secondary-light)]",
+                  )}
                 >
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
@@ -270,7 +301,11 @@ export default function TareasPage() {
               <Select value={filterClient} onValueChange={setFilterClient}>
                 <SelectTrigger
                   size="sm"
-                  className="h-9 w-full min-w-[8.5rem] border-border bg-background shadow-[inset_0_1px_0_rgba(15,23,42,0.04)] sm:w-[160px]"
+                  className={cn(
+                    "h-9 w-full min-w-[8.5rem] border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] sm:w-[160px]",
+                    shellText,
+                    "[&_svg]:text-[var(--text-secondary-light)]",
+                  )}
                 >
                   <SelectValue placeholder="Client" />
                 </SelectTrigger>
@@ -299,18 +334,29 @@ export default function TareasPage() {
                   columns={TAREA_COLUMNS}
                   filename={`tasks-${new Date().toISOString().slice(0, 10)}`}
                   label="Export CSV"
+                  className="border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-primary-light)] hover:bg-[var(--app-surface-dark-elevated)]"
                 />
               </div>
             </div>
 
             {loading && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
-                <p className="text-sm font-medium text-foreground">Loading...</p>
+              <div
+                className={cn(
+                  shellCard,
+                  "border-dashed border-[var(--border-dark)] p-12 text-center",
+                )}
+              >
+                <p className={cn("text-sm font-medium", shellText)}>Loading...</p>
               </div>
             )}
 
             {!loading && error && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+              <div
+                className={cn(
+                  shellCard,
+                  "border-dashed border-[var(--border-dark)] p-12 text-center",
+                )}
+              >
                 <p className="text-sm font-medium text-destructive">{error}</p>
               </div>
             )}
@@ -319,7 +365,8 @@ export default function TareasPage() {
               !error &&
               filtered.map((task: any) => {
                 const StatusIcon = statusConfig[task.estado]?.icon || Circle
-                const statusColor = statusConfig[task.estado]?.colorClass || "text-muted-foreground"
+                const statusColor =
+                  statusConfig[task.estado]?.colorClass || "text-[var(--text-secondary-light)]"
                 const isSelected = selectedTask === task.id
                 const prioClass = PRIORITY_ROW_BADGE[task.prioridad] ?? PRIORITY_ROW_BADGE.media
                 return (
@@ -328,20 +375,28 @@ export default function TareasPage() {
                     type="button"
                     onClick={() => handleRowActivate(task.id)}
                     className={cn(
-                      "w-full rounded-xl border bg-card px-4 py-3.5 text-left transition-all hover:shadow-sm",
-                      isSelected ? "border-primary/35 shadow-sm ring-1 ring-primary/15" : "border-border",
+                      "w-full",
+                      shellRow,
+                      isSelected
+                        ? "border-[var(--accent-primary)]/45 shadow-[var(--app-shadow-subtle)] ring-1 ring-[var(--accent-primary)]/25"
+                        : null,
                     )}
                   >
                     <div className="flex items-start gap-3">
                       <StatusIcon className={cn("mt-0.5 h-4 w-4 shrink-0", statusColor)} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-medium text-foreground">{task.titulo}</p>
+                          <p className={cn("text-sm font-medium", shellText)}>{task.titulo}</p>
                           <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", prioClass)}>
                             {displayLabel(task.prioridad ?? "", prioridadLabel)}
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground sm:gap-3 sm:text-xs">
+                        <div
+                          className={cn(
+                            "mt-1 flex flex-wrap items-center gap-2 text-[11px] sm:gap-3 sm:text-xs",
+                            shellMuted,
+                          )}
+                        >
                           <span className="flex items-center gap-1">
                             <FolderKanban className="h-3 w-3 shrink-0" />
                             {task.proyecto?.nombre ?? "—"}
@@ -360,24 +415,31 @@ export default function TareasPage() {
                           </span>
                         </div>
                       </div>
-                      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <ChevronRight className={cn("mt-0.5 h-4 w-4 shrink-0", shellMuted)} />
                     </div>
                   </button>
                 )
               })}
 
             {!loading && !error && filtered.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
-                <CheckSquare className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-                <p className="text-sm font-medium text-foreground">No tasks found</p>
-                <p className="mt-1 text-xs text-muted-foreground">Adjust the filters or try another search term.</p>
+              <div
+                className={cn(
+                  shellCard,
+                  "border-dashed border-[var(--border-dark)] p-12 text-center",
+                )}
+              >
+                <CheckSquare className={cn("mx-auto mb-3 h-8 w-8 opacity-40", shellMuted)} />
+                <p className={cn("text-sm font-medium", shellText)}>No tasks found</p>
+                <p className={cn("mt-1 text-xs", shellMuted)}>
+                  Adjust the filters or try another search term.
+                </p>
               </div>
             )}
           </div>
 
           {isXl && selected && (
             <div className="xl:col-span-2">
-              <div className="overflow-hidden rounded-xl border border-border bg-card xl:sticky xl:top-6">
+              <div className={cn("overflow-hidden xl:sticky xl:top-6", shellCard)}>
                 <TaskContextualPanel
                   task={selected}
                   onTaskUpdated={() => refetch()}
@@ -405,7 +467,7 @@ export default function TareasPage() {
         <SheetContent
           side={isPhone ? "bottom" : "right"}
           className={cn(
-            "flex w-full flex-col overflow-hidden p-0 sm:max-w-md",
+            "flex w-full flex-col overflow-hidden border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-0 sm:max-w-md",
             isPhone && "h-[90dvh] max-h-[90dvh] rounded-t-2xl",
           )}
         >
