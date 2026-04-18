@@ -117,7 +117,7 @@ export function ReplyComposer({
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
   const userInterruptedRef = useRef(false)
-  const [emailDetailsOpen, setEmailDetailsOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("dictate")
   const [assistLoading, setAssistLoading] = useState<AssistAction | null>(null)
   const [assistError, setAssistError] = useState<string | null>(null)
@@ -337,18 +337,7 @@ export function ReplyComposer({
     if (isProcessing) setAssistPanelOpen(false)
   }, [isProcessing])
 
-  const prevEmailModeRef = useRef(emailMode)
-  useEffect(() => {
-    if (emailMode === "forward" && prevEmailModeRef.current !== "forward") {
-      setEmailDetailsOpen(true)
-    }
-    prevEmailModeRef.current = emailMode
-  }, [emailMode])
-
   const showEmailOptions = !replyIsInternal && channel === "email"
-
-  const popoverSurfaceClass =
-    "border-[var(--inbox-border)] bg-[var(--inbox-composer-background)] text-[var(--inbox-text)] shadow-[var(--inbox-panel-shadow-sm)]"
 
   const sendActionLabel = replyIsInternal
     ? "Save note"
@@ -423,41 +412,41 @@ export function ReplyComposer({
           </span>
         </div>
 
-        {/* ── Email options: compact subject row + Details (forward / CC / BCC) ── */}
+        {/* ── Email options: Subject, CC, BCC, Forward to ── */}
         {showEmailOptions && (
-          <div className="rounded-lg border border-[var(--inbox-border)] bg-white/[0.05] px-2 py-1.5">
-            <div className="flex min-h-7 items-center gap-2">
-              <Mail className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
-              <span className="shrink-0 text-[10px] font-medium text-[var(--inbox-muted)]">Subject</span>
-              <span className="min-w-0 flex-1 truncate text-xs text-[var(--inbox-text)]">
-                {composerConfig.subjectPreview ?? "—"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setEmailDetailsOpen((v) => !v)}
-                className="flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-[var(--inbox-accent)] transition-colors hover:text-[var(--inbox-accent)]/80"
-              >
-                {emailDetailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                Details
-              </button>
-            </div>
-            {emailDetailsOpen && (
-              <div className="mt-1.5 space-y-1.5 border-t border-[var(--inbox-divider)] pt-1.5">
-                {emailMode === "forward" && (
-                  <div className="flex items-center gap-2">
-                    <Forward className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
-                    <span className="w-7 shrink-0 text-[10px] font-medium text-[var(--inbox-muted)]">To</span>
-                    <Input
-                      type="text"
-                      value={emailForwardTo}
-                      onChange={(e) => onEmailForwardToChange(e.target.value)}
-                      placeholder="recipient@example.com"
-                      className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
-                    />
-                  </div>
-                )}
+          <div className="space-y-1.5 rounded-lg border border-[var(--inbox-border)] bg-white/[0.05] px-3 py-2">
+            {composerConfig.subjectPreview && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
+                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">Subject</span>
+                <span className="truncate text-xs text-[var(--inbox-text)]">{composerConfig.subjectPreview}</span>
+              </div>
+            )}
+            {emailMode === "forward" && (
+              <div className="flex items-center gap-2">
+                <Forward className="h-3 w-3 shrink-0 text-[var(--inbox-text-secondary)]" />
+                <span className="text-[10px] font-medium text-[var(--inbox-muted)]">To</span>
+                <Input
+                  type="text"
+                  value={emailForwardTo}
+                  onChange={(e) => onEmailForwardToChange(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="h-6 flex-1 border-0 bg-transparent p-0 text-xs text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)] shadow-none focus-visible:ring-0"
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              className="flex items-center gap-1 text-[10px] font-medium text-[var(--inbox-accent)] transition-colors hover:text-[var(--inbox-accent)]/80"
+            >
+              {advancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {advancedOpen ? "Hide CC / BCC" : "CC / BCC"}
+            </button>
+            {advancedOpen && (
+              <div className="space-y-1.5 border-t border-[var(--inbox-divider)] pt-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 shrink-0 text-[10px] font-medium text-[var(--inbox-muted)]">CC</span>
+                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">CC</span>
                   <Input
                     type="text"
                     value={emailCc}
@@ -467,7 +456,7 @@ export function ReplyComposer({
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-7 shrink-0 text-[10px] font-medium text-[var(--inbox-muted)]">BCC</span>
+                  <span className="w-7 text-[10px] font-medium text-[var(--inbox-muted)]">BCC</span>
                   <Input
                     type="text"
                     value={emailBcc}
@@ -568,73 +557,22 @@ export function ReplyComposer({
         {/* ── Merged toolbar: attach, snippets, voice, AI menu, undo, send ── */}
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[var(--inbox-border)]/50 pt-1.5">
           <div className="flex flex-wrap items-center gap-0.5">
-            <Popover
-              open={clipPanelOpen}
-              onOpenChange={(open) => {
-                setClipPanelOpen(open)
-                if (open) setAssistPanelOpen(false)
+            <button
+              type="button"
+              onClick={() => {
+                setClipPanelOpen((v) => !v)
+                setAssistPanelOpen(false)
               }}
+              disabled={attachmentUploading}
+              className={cn(
+                "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                clipPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                attachmentUploading && "opacity-50",
+              )}
+              title="Insert or attach"
             >
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  disabled={attachmentUploading}
-                  className={cn(
-                    "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)] data-[state=open]:bg-[var(--inbox-accent-soft)] data-[state=open]:text-[var(--inbox-accent)]",
-                    attachmentUploading && "opacity-50",
-                  )}
-                  title="Insert or attach"
-                >
-                  {attachmentUploading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Paperclip className="h-[18px] w-[18px]" />}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                side="top"
-                sideOffset={8}
-                className={cn(
-                  "w-[min(calc(100vw-1.5rem),28rem)] max-h-[min(70vh,420px)] overflow-y-auto p-3",
-                  popoverSurfaceClass,
-                )}
-              >
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                  <ClipCategory title="Attach">
-                    <ClipAction
-                      label="File"
-                      icon={FileText}
-                      onClick={() => {
-                        fileInputRef.current?.click()
-                        setClipPanelOpen(false)
-                      }}
-                    />
-                    <ClipAction label="Image" icon={Image} />
-                    <ClipAction label="Document" icon={FileText} />
-                    <ClipAction label="Link" icon={Link} />
-                  </ClipCategory>
-                  <ClipCategory title="From workspace">
-                    <ClipAction label="Client files" icon={User} />
-                    <ClipAction label="Project files" icon={Briefcase} />
-                    <ClipAction label="Billing" icon={Receipt} />
-                  </ClipCategory>
-                  <ClipCategory title="Show">
-                    <ClipAction label="Screenshot" icon={Image} />
-                    <ClipAction label="Reference" icon={Link} />
-                    <ClipAction label="Landing" icon={Globe} />
-                  </ClipCategory>
-                  <ClipCategory title="Generate">
-                    <ClipAction label="Proposal" icon={Sparkles} />
-                    <ClipAction label="Quote" icon={Receipt} />
-                    <ClipAction label="Template" icon={LayoutTemplate} />
-                  </ClipCategory>
-                  <ClipCategory title="Share">
-                    <ClipAction label="Contact" icon={User} />
-                    <ClipAction label="Location" icon={MapPin} />
-                    <ClipAction label="Meeting" icon={Calendar} />
-                    <ClipAction label="Payment" icon={CreditCard} />
-                  </ClipCategory>
-                </div>
-              </PopoverContent>
-            </Popover>
+              {attachmentUploading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Paperclip className="h-[18px] w-[18px]" />}
+            </button>
             <input
               ref={fileInputRef}
               type="file"
@@ -684,76 +622,20 @@ export function ReplyComposer({
             )}
 
             {!isProcessing && (
-              <Popover
-                open={assistPanelOpen}
-                onOpenChange={(open) => {
-                  setAssistPanelOpen(open)
-                  if (open) setClipPanelOpen(false)
+              <button
+                type="button"
+                onClick={() => {
+                  setAssistPanelOpen((v) => !v)
+                  setClipPanelOpen(false)
                 }}
+                className={cn(
+                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
+                  assistPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                )}
+                title="Improve text — tone, clarity, translate…"
               >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)] data-[state=open]:bg-[var(--inbox-accent-soft)] data-[state=open]:text-[var(--inbox-accent)]",
-                    )}
-                    title="Improve text — tone, clarity, translate…"
-                  >
-                    <Wand2 className="h-[18px] w-[18px]" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  side="top"
-                  sideOffset={8}
-                  className={cn(
-                    "w-[min(calc(100vw-1.5rem),22rem)] max-h-[min(70vh,380px)] overflow-y-auto p-3",
-                    popoverSurfaceClass,
-                  )}
-                >
-                  {!hasText && (
-                    <p className="mb-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
-                      Write something in the message to use improve and translate tools.
-                    </p>
-                  )}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <ClipCategory title="Improve">
-                      {SMART_TOOLS.map((tool) => (
-                        <ClipAction
-                          key={tool.action}
-                          label={tool.label}
-                          icon={tool.icon}
-                          onClick={
-                            hasText
-                              ? () => {
-                                  void handleAssist(tool.action)
-                                  setAssistPanelOpen(false)
-                                }
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </ClipCategory>
-                    <ClipCategory title="Translate">
-                      {TRANSLATE_LANGUAGES.map((lang) => (
-                        <ClipAction
-                          key={lang.code}
-                          label={lang.label}
-                          icon={Languages}
-                          onClick={
-                            hasText
-                              ? () => {
-                                  void handleTranslate(lang.code)
-                                  setAssistPanelOpen(false)
-                                }
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </ClipCategory>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                <Wand2 className="h-[18px] w-[18px]" />
+              </button>
             )}
 
             {speech.supported && (
@@ -842,6 +724,88 @@ export function ReplyComposer({
             </Button>
           </div>
         </div>
+
+        {/* ── Intelligence panel (same pattern as Clip) ── */}
+        {assistPanelOpen && !isProcessing && (
+          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
+            {!hasText && (
+              <p className="mb-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
+                Write something in the message to use improve and translate tools.
+              </p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ClipCategory title="Improve">
+                {SMART_TOOLS.map((tool) => (
+                  <ClipAction
+                    key={tool.action}
+                    label={tool.label}
+                    icon={tool.icon}
+                    onClick={
+                      hasText
+                        ? () => {
+                            void handleAssist(tool.action)
+                            setAssistPanelOpen(false)
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </ClipCategory>
+              <ClipCategory title="Translate">
+                {TRANSLATE_LANGUAGES.map((lang) => (
+                  <ClipAction
+                    key={lang.code}
+                    label={lang.label}
+                    icon={Languages}
+                    onClick={
+                      hasText
+                        ? () => {
+                            void handleTranslate(lang.code)
+                            setAssistPanelOpen(false)
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </ClipCategory>
+            </div>
+          </div>
+        )}
+
+        {/* ── Clip / Insert panel ── */}
+        {clipPanelOpen && (
+          <div className="rounded-xl border border-[var(--inbox-border)] bg-white/[0.05] p-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              <ClipCategory title="Attach">
+                <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />
+                <ClipAction label="Image" icon={Image} />
+                <ClipAction label="Document" icon={FileText} />
+                <ClipAction label="Link" icon={Link} />
+              </ClipCategory>
+              <ClipCategory title="From workspace">
+                <ClipAction label="Client files" icon={User} />
+                <ClipAction label="Project files" icon={Briefcase} />
+                <ClipAction label="Billing" icon={Receipt} />
+              </ClipCategory>
+              <ClipCategory title="Show">
+                <ClipAction label="Screenshot" icon={Image} />
+                <ClipAction label="Reference" icon={Link} />
+                <ClipAction label="Landing" icon={Globe} />
+              </ClipCategory>
+              <ClipCategory title="Generate">
+                <ClipAction label="Proposal" icon={Sparkles} />
+                <ClipAction label="Quote" icon={Receipt} />
+                <ClipAction label="Template" icon={LayoutTemplate} />
+              </ClipCategory>
+              <ClipCategory title="Share">
+                <ClipAction label="Contact" icon={User} />
+                <ClipAction label="Location" icon={MapPin} />
+                <ClipAction label="Meeting" icon={Calendar} />
+                <ClipAction label="Payment" icon={CreditCard} />
+              </ClipCategory>
+            </div>
+          </div>
+        )}
 
         {/* ── Status / errors ── */}
         {assistError && (
