@@ -74,8 +74,8 @@ const TRANSLATE_LANGUAGES = [
   { code: "Portuguese", label: "Português" },
 ] as const
 
-const TEXTAREA_MIN_PX = 72
-const TEXTAREA_MAX_PX = 260
+const TEXTAREA_MIN_PX = 52
+const TEXTAREA_MAX_PX = 220
 
 const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Sparkles; needsText: boolean }> = [
   { action: "proofread", label: "Proofread", icon: CheckCheck, needsText: true },
@@ -348,27 +348,27 @@ export function ReplyComposer({
         : composerConfig.sendLabel
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)]/80 bg-[var(--inbox-chat-background)] px-4 py-1.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] md:px-6" data-composer="true">
-      <div className="space-y-1 rounded-[var(--inbox-radius-premium)] border border-[var(--inbox-border)]/45 bg-[var(--inbox-composer-background)]/80 p-2 shadow-none backdrop-blur-[2px] md:p-2.5">
+    <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
+      <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
 
-        {/* ── Email metadata (secondary strip — no competir con el hilo) ── */}
+        {/* ── Email metadata (franja mínima) ── */}
         {showEmailOptions && (
-          <div className="space-y-1 rounded-md border border-[var(--inbox-border)]/25 bg-white/[0.02] px-2 py-1">
+          <div className="space-y-0.5 rounded border border-[var(--inbox-border)]/20 bg-transparent px-1.5 py-0.5">
             {composerConfig.subjectPreview && (
-              <div className="flex min-h-6 items-center gap-1.5">
-                <Mail className="h-2.5 w-2.5 shrink-0 opacity-60 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
-                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-chat-text-secondary)]">
+              <div className="flex min-h-[1.125rem] items-center gap-1">
+                <Mail className="h-2 w-2 shrink-0 opacity-50 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
+                <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wider text-[var(--inbox-chat-text-secondary)]">
                   Subject
                 </span>
-                <span className="min-w-0 truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">
+                <span className="min-w-0 truncate text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
                   {composerConfig.subjectPreview}
                 </span>
               </div>
             )}
             {emailMode === "forward" && (
-              <div className="flex min-h-6 items-center gap-1.5">
-                <Forward className="h-2.5 w-2.5 shrink-0 opacity-60 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
-                <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-chat-text-secondary)]">
+              <div className="flex min-h-[1.125rem] items-center gap-1">
+                <Forward className="h-2 w-2 shrink-0 opacity-50 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
+                <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wider text-[var(--inbox-chat-text-secondary)]">
                   To
                 </span>
                 <Input
@@ -376,38 +376,38 @@ export function ReplyComposer({
                   value={emailForwardTo}
                   onChange={(e) => onEmailForwardToChange(e.target.value)}
                   placeholder="recipient@example.com"
-                  className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
+                  className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                 />
               </div>
             )}
             <button
               type="button"
               onClick={() => setAdvancedOpen((v) => !v)}
-              className="flex w-full items-center gap-0.5 py-0.5 text-[9px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:text-[var(--inbox-accent)]"
+              className="flex w-full items-center gap-0.5 py-px text-[8px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:text-[var(--inbox-accent)]"
             >
-              {advancedOpen ? <ChevronUp className="h-2.5 w-2.5 shrink-0 opacity-70" /> : <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" />}
+              {advancedOpen ? <ChevronUp className="h-2 w-2 shrink-0 opacity-60" /> : <ChevronDown className="h-2 w-2 shrink-0 opacity-60" />}
               {advancedOpen ? "Hide CC / BCC" : "CC / BCC"}
             </button>
             {advancedOpen && (
-              <div className="space-y-1 border-t border-[var(--inbox-divider)]/50 pt-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-6 shrink-0 text-[9px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
+              <div className="space-y-0.5 border-t border-[var(--inbox-divider)]/40 pt-0.5">
+                <div className="flex items-center gap-1">
+                  <span className="w-5 shrink-0 text-[8px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
                   <Input
                     type="text"
                     value={emailCc}
                     onChange={(e) => onEmailCcChange(e.target.value)}
                     placeholder="cc@example.com"
-                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
+                    className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-6 shrink-0 text-[9px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
+                <div className="flex items-center gap-1">
+                  <span className="w-5 shrink-0 text-[8px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
                   <Input
                     type="text"
                     value={emailBcc}
                     onChange={(e) => onEmailBccChange(e.target.value)}
                     placeholder="bcc@example.com"
-                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/70 shadow-none focus-visible:ring-0"
+                    className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>
               </div>
@@ -426,10 +426,9 @@ export function ReplyComposer({
                 ? "Describe what you want to say..."
                 : composerConfig.placeholder
             }
-            rows={2}
+            rows={1}
             className={cn(
-              // field-sizing-content en el Textarea base compite con la altura fijada por JS; fixed respeta useLayoutEffect
-              "[field-sizing:fixed] min-h-[72px] max-h-[260px] resize-none overflow-y-auto rounded-lg border border-[var(--inbox-border)]/35 bg-[var(--inbox-composer-input)]/85 px-2.5 py-2 text-[13px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/90 transition-colors duration-150 focus-visible:border-[var(--inbox-accent)]/80 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/20 md:px-3",
+              "[field-sizing:fixed] min-h-[52px] max-h-[220px] resize-none overflow-y-auto rounded-md border border-[var(--inbox-border)]/28 bg-[var(--inbox-composer-input)]/75 px-2 py-1.5 text-[12px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/85 transition-colors duration-150 focus-visible:border-[var(--inbox-accent)]/70 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/18",
               replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
               speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
               speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
@@ -499,8 +498,8 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Merged toolbar: modes, attach, snippets, voice, AI, undo, send ── */}
-        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[var(--inbox-border)]/30 pt-1">
+        {/* ── Barra de iconos + envío (solo icono a la derecha) ── */}
+        <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
           <div className="flex min-w-0 flex-wrap items-center gap-y-1">
             <div className="flex flex-wrap items-center gap-0.5">
               <button
@@ -718,37 +717,37 @@ export function ReplyComposer({
 
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-0.5">
             {contentBeforeAssist !== null && (
               <button
                 type="button"
                 onClick={handleUndoAssist}
-                className="flex h-8 items-center gap-1 rounded-md border border-[var(--inbox-warning)]/35 bg-[var(--inbox-warning)]/10 px-2 text-[11px] font-medium text-[var(--inbox-warning)] hover:bg-[var(--inbox-warning)]/18"
+                className="rounded-md p-1.5 text-[var(--inbox-warning)] transition-colors hover:bg-[var(--inbox-warning)]/12"
                 title="Undo last AI change"
+                aria-label="Undo last AI change"
               >
-                <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">Undo</span>
+                <RotateCcw className="h-[18px] w-[18px] shrink-0" />
               </button>
             )}
 
             <Button
               type="button"
+              size="icon-sm"
               onClick={handleSend}
               disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
               title={`${sendActionLabel} · Ctrl+Enter or ⌘+Enter`}
               aria-label={sendActionLabel}
               className={cn(
-                "h-8 shrink-0 gap-1.5 px-2.5 text-xs sm:px-3",
+                "shrink-0 rounded-md",
                 replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
               )}
               variant={replyIsInternal ? undefined : "accent"}
             >
               {replySending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Send className="h-3.5 w-3.5 shrink-0" />
+                <Send className="h-4 w-4" strokeWidth={2} />
               )}
-              <span className="hidden sm:inline">{sendActionLabel}</span>
             </Button>
           </div>
         </div>
