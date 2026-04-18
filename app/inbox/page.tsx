@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
-import { type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -212,8 +211,6 @@ function InboxPageContent() {
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
   const [autoPopulated, setAutoPopulated] = useState(false)
-  const [fannyDismissed, setFannyDismissed] = useState(false)
-  const [fannyExpanded, setFannyExpanded] = useState(false)
   const [mobileView, setMobileView] = useState<"list" | "thread">("list")
   const [contextSheetOpen, setContextSheetOpen] = useState(false)
   const [cannedOpen, setCannedOpen] = useState(false)
@@ -378,8 +375,6 @@ function InboxPageContent() {
     setReplyIsInternal(false)
     setReplyStatus(null)
     setAutoPopulated(false)
-    setFannyDismissed(false)
-    setFannyExpanded(false)
     setContextSheetOpen(false)
     setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
@@ -909,14 +904,6 @@ function InboxPageContent() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
-  const fannyHasReply = Boolean(suggestedDraft?.content?.trim())
-  const fannyState: FannyAssistState = !selected || fannyDismissed || !fannyHasReply || conversations.length === 0
-    ? "hidden"
-    : autoPopulated || fannyExpanded
-      ? "expanded"
-      : "compact"
-
-
   const selectedIndex = useMemo(
     () => conversations.findIndex((item) => item.id === activeSelectedId),
     [activeSelectedId, conversations],
@@ -1198,39 +1185,6 @@ function InboxPageContent() {
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
-                      fannyState={fannyState}
-                      fannySuggestionTitle={suggestedDraft?.title || null}
-                      fannySuggestionContent={suggestedDraft?.content || null}
-                      fannyAutoPopulated={autoPopulated}
-                      onFannyToggleExpanded={() => setFannyExpanded((value) => !value)}
-                      onFannyInsertSuggestion={suggestedDraft?.content
-                        ? () => {
-                            setReplyContent(suggestedDraft.content)
-                            setReplyIsInternal(false)
-                            setReplyStatus(null)
-                            setAutoPopulated(true)
-                            setFannyExpanded(true)
-                            activeDraftIdRef.current = suggestedDraft.id
-                            requestComposerFocus(false)
-                          }
-                        : undefined}
-                      onFannyEditSuggestion={suggestedDraft?.content
-                        ? () => {
-                            setReplyContent(suggestedDraft.content)
-                            setReplyIsInternal(false)
-                            setReplyStatus(null)
-                            setFannyExpanded(true)
-                            activeDraftIdRef.current = suggestedDraft.id
-                            updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
-                            requestComposerFocus(false)
-                          }
-                        : undefined}
-                      onFannyDismiss={() => {
-                        setFannyDismissed(true)
-                        if (autoPopulated) {
-                          setAutoPopulated(false)
-                        }
-                      }}
                     />
                   </div>
 
@@ -1266,6 +1220,27 @@ function InboxPageContent() {
                         onAttachFiles={handleAttachFiles}
                         onRemoveAttachment={handleRemoveAttachment}
                         onSend={sendReply}
+                        fannySuggestionTitle={suggestedDraft?.title ?? null}
+                        fannySuggestionContent={suggestedDraft?.content ?? null}
+                        onApplyFannySuggestion={
+                          suggestedDraft?.content
+                            ? (content) => {
+                                const trimmed = content.trim()
+                                const baseline = suggestedDraft.content.trim()
+                                const unchanged = trimmed === baseline
+                                setReplyContent(content)
+                                setReplyIsInternal(false)
+                                setReplyStatus(null)
+                                activeDraftIdRef.current = suggestedDraft.id
+                                if (unchanged) {
+                                  setAutoPopulated(true)
+                                } else {
+                                  updateDraft(suggestedDraft.id, { status: "edited" }).catch(() => null)
+                                }
+                                requestComposerFocus(false)
+                              }
+                            : undefined
+                        }
                       />
                     </>
                   )}

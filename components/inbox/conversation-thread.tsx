@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
-import { FannyAssistCard, type FannyAssistState } from "@/components/inbox/fanny-assist-card"
 import { cn } from "@/lib/utils"
 
 interface StatusOption {
@@ -40,14 +39,6 @@ interface ConversationThreadProps {
   messages: MessageItem[]
   onBack?: () => void
   onOpenContext?: () => void
-  fannyState: FannyAssistState
-  fannySuggestionTitle?: string | null
-  fannySuggestionContent?: string | null
-  fannyAutoPopulated?: boolean
-  onFannyToggleExpanded: () => void
-  onFannyInsertSuggestion?: () => void
-  onFannyEditSuggestion?: () => void
-  onFannyDismiss: () => void
 }
 
 export function ConversationThread({
@@ -64,14 +55,6 @@ export function ConversationThread({
   messages,
   onBack,
   onOpenContext,
-  fannyState,
-  fannySuggestionTitle,
-  fannySuggestionContent,
-  fannyAutoPopulated,
-  onFannyToggleExpanded,
-  onFannyInsertSuggestion,
-  onFannyEditSuggestion,
-  onFannyDismiss,
 }: ConversationThreadProps) {
   if (!hasSelectedId) {
     return (
@@ -148,22 +131,6 @@ export function ConversationThread({
           />
         </div>
       </div>
-
-      {/* Fanny reply assistant */}
-      {fannyState !== "hidden" && (
-        <div className="shrink-0">
-          <FannyAssistCard
-            state={fannyState}
-            suggestionTitle={fannySuggestionTitle}
-            suggestionContent={fannySuggestionContent}
-            autoPopulated={fannyAutoPopulated}
-            onToggleExpanded={onFannyToggleExpanded}
-            onInsertSuggestion={onFannyInsertSuggestion}
-            onEditSuggestion={onFannyEditSuggestion}
-            onDismiss={onFannyDismiss}
-          />
-        </div>
-      )}
 
       {/* Thread */}
       <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
