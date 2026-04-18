@@ -337,6 +337,14 @@ export function ReplyComposer({
     if (isProcessing) setAssistPanelOpen(false)
   }, [isProcessing])
 
+  const prevEmailModeRef = useRef(emailMode)
+  useEffect(() => {
+    if (emailMode === "forward" && prevEmailModeRef.current !== "forward") {
+      setEmailDetailsOpen(true)
+    }
+    prevEmailModeRef.current = emailMode
+  }, [emailMode])
+
   const showEmailOptions = !replyIsInternal && channel === "email"
 
   const popoverSurfaceClass =
@@ -486,7 +494,8 @@ export function ReplyComposer({
             }
             rows={2}
             className={cn(
-              "min-h-[88px] max-h-[280px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-composer-input)] px-3 py-2.5 text-sm text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)] transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/25 shadow-sm md:px-4",
+              // field-sizing-content en el Textarea base compite con la altura fijada por JS; fixed respeta useLayoutEffect
+              "[field-sizing:fixed] min-h-[88px] max-h-[280px] resize-none overflow-y-auto rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-composer-input)] px-3 py-2.5 text-sm text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)] transition-all duration-200 focus-visible:border-[var(--inbox-accent)] focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/25 shadow-sm md:px-4",
               replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
               speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
               speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
