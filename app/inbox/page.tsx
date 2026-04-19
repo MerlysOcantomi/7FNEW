@@ -185,7 +185,7 @@ const STATUS_OPTIONS = [
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 const DESKTOP_INBOX_GRID =
-  "xl:grid xl:grid-cols-[minmax(256px,24%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
+  "xl:grid xl:grid-cols-[minmax(288px,26%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
