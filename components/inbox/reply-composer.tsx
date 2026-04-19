@@ -340,16 +340,20 @@ export function ReplyComposer({
 
   const [clipPanelOpen, setClipPanelOpen] = useState(false)
   const [assistPanelOpen, setAssistPanelOpen] = useState(false)
-  const [fannyPopoverOpen, setFannyPopoverOpen] = useState(false)
+  const [fannyPanelOpen, setFannyPanelOpen] = useState(false)
   const [fannyEditBuffer, setFannyEditBuffer] = useState("")
 
   const hasFannySuggestion = Boolean(onApplyFannySuggestion && fannySuggestionContent?.trim())
 
   useEffect(() => {
-    if (fannyPopoverOpen && typeof fannySuggestionContent === "string") {
+    if (fannyPanelOpen && typeof fannySuggestionContent === "string") {
       setFannyEditBuffer(fannySuggestionContent)
     }
-  }, [fannyPopoverOpen, fannySuggestionContent])
+  }, [fannyPanelOpen, fannySuggestionContent])
+
+  useEffect(() => {
+    if (!hasFannySuggestion) setFannyPanelOpen(false)
+  }, [hasFannySuggestion])
 
   useLayoutEffect(() => {
     const el = composerTextareaRef.current
@@ -360,7 +364,10 @@ export function ReplyComposer({
   }, [replyContent, composerTextareaRef])
 
   useEffect(() => {
-    if (isProcessing) setAssistPanelOpen(false)
+    if (isProcessing) {
+      setAssistPanelOpen(false)
+      setFannyPanelOpen(false)
+    }
   }, [isProcessing])
 
   const showEmailOptions = !replyIsInternal && channel === "email"
@@ -615,6 +622,7 @@ export function ReplyComposer({
               onClick={() => {
                 setClipPanelOpen((v) => !v)
                 setAssistPanelOpen(false)
+                setFannyPanelOpen(false)
               }}
               disabled={attachmentUploading}
               className={cn(
@@ -684,6 +692,7 @@ export function ReplyComposer({
                 onClick={() => {
                   setAssistPanelOpen((v) => !v)
                   setClipPanelOpen(false)
+                  setFannyPanelOpen(false)
                 }}
                 className={cn(SHELL_TOOLBAR_ICON, assistPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
                 title="Improve text — tone, clarity, translate…"
@@ -693,76 +702,19 @@ export function ReplyComposer({
             )}
 
             {hasFannySuggestion && (
-              <Popover
-                open={fannyPopoverOpen}
-                onOpenChange={(open) => {
-                  setFannyPopoverOpen(open)
-                  if (open) {
-                    setClipPanelOpen(false)
-                    setAssistPanelOpen(false)
-                  }
+              <button
+                type="button"
+                onClick={() => {
+                  setFannyPanelOpen((v) => !v)
+                  setClipPanelOpen(false)
+                  setAssistPanelOpen(false)
                 }}
+                className={cn(SHELL_TOOLBAR_ICON, fannyPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
+                title="Fanny suggested reply — apply to compose only (does not send)"
+                aria-label="Fanny suggested reply"
               >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(SHELL_TOOLBAR_ICON, fannyPopoverOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
-                    title="Fanny suggested reply — apply to compose only (does not send)"
-                    aria-label="Fanny suggested reply"
-                  >
-                    <MessageSquareQuote className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  side="top"
-                  sideOffset={8}
-                  className="flex max-h-[min(85vh,480px)] w-[min(calc(100vw-1.5rem),26rem)] flex-col overflow-hidden border-[var(--inbox-border)] bg-[var(--inbox-composer-background)] p-0 text-[var(--inbox-text)] shadow-md"
-                >
-                  <div className="border-b border-[var(--inbox-border)]/40 px-3 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-                      Fanny · suggested reply
-                    </p>
-                    {fannySuggestionTitle?.trim() ? (
-                      <p className="mt-0.5 text-xs text-[var(--inbox-text-secondary)]">{fannySuggestionTitle}</p>
-                    ) : null}
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                    <Textarea
-                      value={fannyEditBuffer}
-                      onChange={(e) => setFannyEditBuffer(e.target.value)}
-                      rows={10}
-                      className="min-h-[160px] max-h-[min(40vh,280px)] w-full resize-y rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-sm text-[var(--inbox-composer-input-text)] [field-sizing:fixed]"
-                      placeholder="Edit suggested reply…"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-[var(--inbox-border)]/40 px-2 py-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-[var(--inbox-text-secondary)]"
-                      onClick={() => setFannyPopoverOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="accent"
-                      disabled={!fannyEditBuffer.trim()}
-                      onClick={() => {
-                        const next = fannyEditBuffer.trim()
-                        if (!next) return
-                        onApplyFannySuggestion?.(next)
-                        setFannyPopoverOpen(false)
-                      }}
-                    >
-                      Use reply
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                <MessageSquareQuote className="h-4 w-4 shrink-0" strokeWidth={2} />
+              </button>
             )}
 
             {speech.supported && (
@@ -899,6 +851,54 @@ export function ReplyComposer({
                   />
                 ))}
               </ClipCategory>
+            </div>
+          </div>
+        )}
+
+        {/* ── Fanny suggested reply (mismo bloque que Assist / Clip) ── */}
+        {fannyPanelOpen && hasFannySuggestion && (
+          <div className="flex max-h-[min(52vh,420px)] flex-col overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="shrink-0 border-b border-[var(--inbox-border)]/40 px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                Fanny · suggested reply
+              </p>
+              {fannySuggestionTitle?.trim() ? (
+                <p className="mt-0.5 text-xs text-[var(--inbox-text-secondary)]">{fannySuggestionTitle}</p>
+              ) : null}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              <Textarea
+                value={fannyEditBuffer}
+                onChange={(e) => setFannyEditBuffer(e.target.value)}
+                rows={8}
+                className="min-h-[140px] max-h-[min(36vh,280px)] w-full resize-y overflow-y-auto rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-sm text-[var(--inbox-composer-input-text)] [field-sizing:fixed]"
+                placeholder="Edit suggested reply…"
+              />
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-[var(--inbox-border)]/40 px-2 py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-[var(--inbox-text-secondary)]"
+                onClick={() => setFannyPanelOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="accent"
+                disabled={!fannyEditBuffer.trim()}
+                onClick={() => {
+                  const next = fannyEditBuffer.trim()
+                  if (!next) return
+                  onApplyFannySuggestion?.(next)
+                  setFannyPanelOpen(false)
+                }}
+              >
+                Use reply
+              </Button>
             </div>
           </div>
         )}
