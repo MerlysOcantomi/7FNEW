@@ -39,7 +39,7 @@ import {
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
-import { getShortIntentFromMetadataRecord, parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
+import { firstShortIntentFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -876,20 +876,10 @@ function InboxPageContent() {
         conversation.contact.email?.trim() ||
         "Contact"
 
-      const lastMessage = conversation.messages?.[0]
-      const rawMeta = lastMessage?.metadata
-      const metaRecord =
-        rawMeta == null
-          ? null
-          : typeof rawMeta === "string"
-            ? parseMessageMetadataRecord(rawMeta)
-            : typeof rawMeta === "object" && !Array.isArray(rawMeta)
-              ? (rawMeta as Record<string, unknown>)
-              : null
-      const shortFromLatestMessage = getShortIntentFromMetadataRecord(metaRecord)
+      const shortFromMessages = firstShortIntentFromRecentMessages(conversation.messages)
 
       const senderIntent =
-        formatSenderIntentPhrase(shortFromLatestMessage) ||
+        formatSenderIntentPhrase(shortFromMessages) ||
         formatSenderIntentPhrase(conversation.classification?.intent?.trim() || null) ||
         formatSenderIntentPhrase(conversation.intent?.trim() || null) ||
         formatSenderIntentPhrase(conversation.subject?.trim() || null) ||

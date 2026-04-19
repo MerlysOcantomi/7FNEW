@@ -418,7 +418,8 @@ export async function listConversations(params: ListConversationsParams) {
         classification: true,
         messages: {
           orderBy: { createdAt: "desc" },
-          take: 1,
+          /** Últimos N mensajes para priorizar shortIntent en la lista sin pedir todo el hilo (p. ej. último = “ok”). */
+          take: 5,
         },
       },
     }),
@@ -1193,7 +1194,7 @@ export function parseConversationJsonFields<T extends Record<string, unknown>>(r
     messages: Array.isArray(record.messages)
       ? record.messages.map((message) => ({
           ...message,
-          metadata: parseJson<Record<string, unknown>>((message as { metadata?: string | null }).metadata),
+          metadata: parseMessageMetadataRecord((message as { metadata?: string | null }).metadata ?? null),
         }))
       : record.messages,
     actions: Array.isArray(record.actions)

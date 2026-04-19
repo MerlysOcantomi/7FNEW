@@ -194,7 +194,7 @@ export function ConversationListItem({
             </div>
           ) : shortIntentLines && shortIntentLines.length > 0 ? (
             <ul className="space-y-1" role="list">
-              {shortIntentLines.map((line, idx) => (
+              {[...shortIntentLines].reverse().map((line, idx) => (
                 <li
                   key={`${idx}-${line.slice(0, 24)}`}
                   className="border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] [overflow-wrap:anywhere]"
