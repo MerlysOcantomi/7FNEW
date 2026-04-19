@@ -380,6 +380,13 @@ export function ReplyComposer({
         ? "Reply all"
         : composerConfig.sendLabel
 
+  /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
+  const composerOverlayOpen =
+    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen
+  const micCapturesChrome = speech.listening
+  const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
+  const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
+
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
       <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
@@ -544,7 +551,10 @@ export function ReplyComposer({
                 }}
                 className={cn(
                   SHELL_TOOLBAR_ICON,
-                  !replyIsInternal && emailMode === "reply" && SHELL_TOOLBAR_ICON_ACTIVE,
+                  showEmailModeChrome &&
+                    !replyIsInternal &&
+                    emailMode === "reply" &&
+                    SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
                 title="Reply"
                 aria-label="Reply"
@@ -562,7 +572,10 @@ export function ReplyComposer({
                     }}
                     className={cn(
                       SHELL_TOOLBAR_ICON,
-                      !replyIsInternal && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
+                      showEmailModeChrome &&
+                        !replyIsInternal &&
+                        emailMode === "reply_all" &&
+                        SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Reply all"
                     aria-label="Reply all"
@@ -578,7 +591,10 @@ export function ReplyComposer({
                     }}
                     className={cn(
                       SHELL_TOOLBAR_ICON,
-                      !replyIsInternal && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
+                      showEmailModeChrome &&
+                        !replyIsInternal &&
+                        emailMode === "forward" &&
+                        SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Forward"
                     aria-label="Forward"
@@ -595,7 +611,7 @@ export function ReplyComposer({
                 }}
                 className={cn(
                   "rounded-[8px] p-1.5 transition-all duration-150",
-                  replyIsInternal
+                  replyIsInternal && showEmailModeChrome
                     ? "relative bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)] shadow-[0_0_0_1px_var(--inbox-warning),0_0_10px_0_rgba(242,198,109,0.2)] hover:bg-[var(--inbox-warning)]/18 before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--inbox-warning)]"
                     : SHELL_TOOLBAR_ICON,
                 )}
@@ -627,7 +643,7 @@ export function ReplyComposer({
               disabled={attachmentUploading}
               className={cn(
                 SHELL_TOOLBAR_ICON,
-                clipPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE,
+                clipPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 attachmentUploading && "opacity-50",
               )}
               title="Insert or attach"
@@ -655,7 +671,10 @@ export function ReplyComposer({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className={cn(SHELL_TOOLBAR_ICON, cannedOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
+                    className={cn(
+                      SHELL_TOOLBAR_ICON,
+                      cannedOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                    )}
                     title="Snippets"
                   >
                     <Zap className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -694,7 +713,10 @@ export function ReplyComposer({
                   setClipPanelOpen(false)
                   setFannyPanelOpen(false)
                 }}
-                className={cn(SHELL_TOOLBAR_ICON, assistPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
+                className={cn(
+                  SHELL_TOOLBAR_ICON,
+                  assistPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                )}
                 title="Improve text — tone, clarity, translate…"
               >
                 <Wand2 className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -709,7 +731,10 @@ export function ReplyComposer({
                   setClipPanelOpen(false)
                   setAssistPanelOpen(false)
                 }}
-                className={cn(SHELL_TOOLBAR_ICON, fannyPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
+                className={cn(
+                  SHELL_TOOLBAR_ICON,
+                  fannyPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                )}
                 title="Fanny suggested reply — apply to compose only (does not send)"
                 aria-label="Fanny suggested reply"
               >
@@ -722,7 +747,10 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={() => setVoiceMode("dictate")}
-                  className={cn(SHELL_TOOLBAR_ICON, voiceMode === "dictate" && SHELL_TOOLBAR_ICON_ACTIVE)}
+                  className={cn(
+                    SHELL_TOOLBAR_ICON,
+                    showVoiceModeChrome && voiceMode === "dictate" && SHELL_TOOLBAR_ICON_ACTIVE,
+                  )}
                   title="Dictate — speech is typed into the message"
                   aria-label="Dictate — speech is typed into the message"
                 >
@@ -731,7 +759,10 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={() => setVoiceMode("compose")}
-                  className={cn(SHELL_TOOLBAR_ICON, voiceMode === "compose" && SHELL_TOOLBAR_ICON_ACTIVE)}
+                  className={cn(
+                    SHELL_TOOLBAR_ICON,
+                    showVoiceModeChrome && voiceMode === "compose" && SHELL_TOOLBAR_ICON_ACTIVE,
+                  )}
                   title="Intent — describe the reply you want (drafted from your words)"
                   aria-label="Intent — describe the reply you want"
                 >
