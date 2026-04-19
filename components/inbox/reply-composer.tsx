@@ -682,7 +682,17 @@ export function ReplyComposer({
             />
 
             {cannedResponses.length > 0 && (
-              <Popover open={cannedOpen} onOpenChange={onCannedOpenChange}>
+              <Popover
+                open={cannedOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setClipPanelOpen(false)
+                    setAssistPanelOpen(false)
+                    setFannyPanelOpen(false)
+                  }
+                  onCannedOpenChange(open)
+                }}
+              >
                 <PopoverTrigger asChild>
                   <button
                     type="button"
@@ -769,7 +779,10 @@ export function ReplyComposer({
                   }}
                   className={cn(
                     SHELL_TOOLBAR_ICON,
-                    showVoiceModeChrome && voiceMode === "dictate" && SHELL_TOOLBAR_ICON_ACTIVE,
+                    showVoiceModeChrome &&
+                      voiceMode === "dictate" &&
+                      !speech.listening &&
+                      SHELL_TOOLBAR_ICON_ACTIVE,
                   )}
                   title="Dictate — speech is typed into the message"
                   aria-label="Dictate — speech is typed into the message"
@@ -781,7 +794,10 @@ export function ReplyComposer({
                   onClick={() => setVoiceMode("compose")}
                   className={cn(
                     SHELL_TOOLBAR_ICON,
-                    showVoiceModeChrome && voiceMode === "compose" && SHELL_TOOLBAR_ICON_ACTIVE,
+                    showVoiceModeChrome &&
+                      voiceMode === "compose" &&
+                      !speech.listening &&
+                      SHELL_TOOLBAR_ICON_ACTIVE,
                   )}
                   title="Intent — describe the reply you want (drafted from your words)"
                   aria-label="Intent — describe the reply you want"

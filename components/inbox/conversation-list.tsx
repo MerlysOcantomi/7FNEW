@@ -12,6 +12,14 @@ import { cn } from "@/lib/utils"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
 
+/** Misma lectura que `SmartInboxNavLink` / ítem Inbox activo en sidebar (surface + borde accent + rail). */
+const INBOX_FILTER_TRIGGER_BASE =
+  "h-8 w-full justify-between gap-1 rounded-[8px] px-2.5 text-xs shadow-none transition-all duration-150 [&_svg]:opacity-50"
+const INBOX_FILTER_TRIGGER_IDLE =
+  "border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]"
+const INBOX_FILTER_TRIGGER_ACTIVE =
+  "relative border-transparent bg-[var(--app-sidebar-surface)] font-medium text-[var(--app-sidebar-text)] shadow-[0_0_0_1px_var(--app-accent),0_0_8px_0_rgba(99,102,241,0.18)] focus-visible:ring-[3px] focus-visible:ring-[var(--app-accent)]/25 before:pointer-events-none before:absolute before:left-0.5 before:top-1/2 before:z-10 before:h-3.5 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--app-accent)]"
+
 interface ConversationItem {
   id: string
   channel: string
@@ -159,7 +167,12 @@ export function ConversationList({
 
         <div className="grid grid-cols-2 gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-full rounded-md border border-[var(--inbox-list-border)] bg-transparent text-xs text-[var(--inbox-list-text-secondary)] shadow-none transition-colors hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]">
+            <SelectTrigger
+              className={cn(
+                INBOX_FILTER_TRIGGER_BASE,
+                status === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+              )}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -172,7 +185,12 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-full rounded-md border border-[var(--inbox-list-border)] bg-transparent text-xs text-[var(--inbox-list-text-secondary)] shadow-none transition-colors hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]">
+            <SelectTrigger
+              className={cn(
+                INBOX_FILTER_TRIGGER_BASE,
+                channel === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+              )}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
