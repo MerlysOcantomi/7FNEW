@@ -1,6 +1,9 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { Badge, badgeVariants } from "@/components/ui/badge"
+import type { VariantProps } from "class-variance-authority"
+
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
 
 interface ConversationMetaLineProps {
   statusLabel: string
@@ -22,18 +25,24 @@ export function ConversationMetaLine({
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {sectorLabel ? (
-        <span className="rounded-full border border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
+        <span className="rounded-lg border border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
           {sectorLabel}
         </span>
       ) : null}
-      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusClassName)}>
+      <Badge
+        variant={statusClassName as BadgeVariant}
+        className="h-auto rounded-lg border-0 px-2 py-0.5 text-[10px] font-semibold shadow-none"
+      >
         {statusLabel}
-      </span>
-      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", urgencyClassName)}>
+      </Badge>
+      <Badge
+        variant={urgencyClassName as BadgeVariant}
+        className="h-auto rounded-lg border-0 px-2 py-0.5 text-[10px] font-medium shadow-none"
+      >
         {urgencyLabel}
-      </span>
+      </Badge>
       {typeof leadScore === "number" && (
-        <span className="rounded-full border border-[var(--accent-rich)]/16 bg-[var(--accent-rich)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-primary-light)] shadow-[0_4px_12px_rgba(91,33,182,0.16)]">
+        <span className="rounded-lg bg-[var(--inbox-list-selected-bg)] px-2 py-0.5 text-[10px] font-medium tabular-nums text-[var(--inbox-list-selected)] shadow-sm">
           Lead {leadScore}
         </span>
       )}
