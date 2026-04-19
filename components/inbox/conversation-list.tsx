@@ -12,13 +12,15 @@ import { cn } from "@/lib/utils"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
 
-/** Misma lectura que `SmartInboxNavLink` / ítem Inbox activo en sidebar (surface + borde accent + rail). */
+/** Base de los dos `<Select>` de filtros (alineado con altura/composer). */
 const INBOX_FILTER_TRIGGER_BASE =
-  "h-8 w-full justify-between gap-1 rounded-[8px] px-2.5 text-xs shadow-none transition-all duration-150 [&_svg]:opacity-50"
+  "h-8 w-full justify-between gap-1 rounded-[8px] px-2.5 text-xs shadow-none transition-all duration-150 outline-none [&_svg]:opacity-50"
+/** “All…” — delineado permanente sin parecer selección del sidebar. */
 const INBOX_FILTER_TRIGGER_IDLE =
-  "border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]"
+  "border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] shadow-[0_0_0_1px_rgba(148,163,184,0.1)] hover:bg-white/[0.03] focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/25 data-[state=open]:bg-white/[0.05] data-[state=open]:shadow-[0_0_0_1px_var(--app-accent)/25]"
+/** Filtro aplicado: mismo chrome que `SHELL_TOOLBAR_ICON_ACTIVE` / ítem activo sidebar. */
 const INBOX_FILTER_TRIGGER_ACTIVE =
-  "relative border-transparent bg-[var(--app-sidebar-surface)] font-medium text-[var(--app-sidebar-text)] shadow-[0_0_0_1px_var(--app-accent),0_0_8px_0_rgba(99,102,241,0.18)] focus-visible:ring-[3px] focus-visible:ring-[var(--app-accent)]/25 before:pointer-events-none before:absolute before:left-0.5 before:top-1/2 before:z-10 before:h-3.5 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--app-accent)]"
+  "relative border-transparent bg-[var(--app-sidebar-surface)] font-medium text-[var(--app-accent)] shadow-[0_0_0_1px_var(--app-accent),0_0_10px_0_rgba(99,102,241,0.22)] before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:h-3.5 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--app-accent)] focus-visible:ring-[3px] focus-visible:ring-[var(--app-accent)]/30 [&_svg]:opacity-70 [&_svg]:text-[var(--app-accent)]"
 
 interface ConversationItem {
   id: string

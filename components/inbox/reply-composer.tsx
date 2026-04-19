@@ -135,6 +135,8 @@ export function ReplyComposer({
   const userInterruptedRef = useRef(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("dictate")
+  /** Solo un grupo (email vs voz) puede llevar el chrome activo de la barra; por defecto gana email (Reply). */
+  const [voiceToolbarFocus, setVoiceToolbarFocus] = useState(false)
   const [assistLoading, setAssistLoading] = useState<AssistAction | null>(null)
   const [assistError, setAssistError] = useState<string | null>(null)
   const [contentBeforeAssist, setContentBeforeAssist] = useState<string | null>(null)
@@ -172,6 +174,7 @@ export function ReplyComposer({
       speech.stop()
       return
     }
+    setVoiceToolbarFocus(true)
     userInterruptedRef.current = false
     composingIntentRef.current = voiceMode === "compose"
     baseTextRef.current = voiceMode === "compose" ? "" : replyContent
@@ -397,6 +400,8 @@ export function ReplyComposer({
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
   const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
+  const emailToolActive = showEmailModeChrome && !replyIsInternal && !voiceToolbarFocus
+  const voiceToolActive = showVoiceModeChrome && voiceToolbarFocus
 
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
@@ -557,16 +562,14 @@ export function ReplyComposer({
                 type="button"
                 onClick={() => {
                   closeComposerOverlays()
+                  setVoiceToolbarFocus(false)
                   onReplyModeChange(false)
                   onEmailModeChange("reply")
                   focusComposerWithScroll()
                 }}
                 className={cn(
                   SHELL_TOOLBAR_ICON,
-                  showEmailModeChrome &&
-                    !replyIsInternal &&
-                    emailMode === "reply" &&
-                    SHELL_TOOLBAR_ICON_ACTIVE,
+                  emailToolActive && emailMode === "reply" && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
                 title="Reply"
                 aria-label="Reply"
@@ -579,16 +582,14 @@ export function ReplyComposer({
                     type="button"
                     onClick={() => {
                       closeComposerOverlays()
+                      setVoiceToolbarFocus(false)
                       onReplyModeChange(false)
                       onEmailModeChange("reply_all")
                       focusComposerWithScroll()
                     }}
                     className={cn(
                       SHELL_TOOLBAR_ICON,
-                      showEmailModeChrome &&
-                        !replyIsInternal &&
-                        emailMode === "reply_all" &&
-                        SHELL_TOOLBAR_ICON_ACTIVE,
+                      emailToolActive && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Reply all"
                     aria-label="Reply all"
@@ -599,16 +600,14 @@ export function ReplyComposer({
                     type="button"
                     onClick={() => {
                       closeComposerOverlays()
+                      setVoiceToolbarFocus(false)
                       onReplyModeChange(false)
                       onEmailModeChange("forward")
                       focusComposerWithScroll()
                     }}
                     className={cn(
                       SHELL_TOOLBAR_ICON,
-                      showEmailModeChrome &&
-                        !replyIsInternal &&
-                        emailMode === "forward" &&
-                        SHELL_TOOLBAR_ICON_ACTIVE,
+                      emailToolActive && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Forward"
                     aria-label="Forward"
@@ -775,14 +774,12 @@ export function ReplyComposer({
                   type="button"
                   onClick={() => {
                     closeComposerOverlays()
+                    setVoiceToolbarFocus(true)
                     setVoiceMode("dictate")
                   }}
                   className={cn(
                     SHELL_TOOLBAR_ICON,
-                    showVoiceModeChrome &&
-                      voiceMode === "dictate" &&
-                      !speech.listening &&
-                      SHELL_TOOLBAR_ICON_ACTIVE,
+                    voiceToolActive && voiceMode === "dictate" && !speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
                   )}
                   title="Dictate — speech is typed into the message"
                   aria-label="Dictate — speech is typed into the message"
