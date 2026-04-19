@@ -324,6 +324,12 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
+  /** Vista “All statuses”: sin cerradas ni archivadas en la lista (siguen disponibles con filtro explícito). */
+  const conversationsForSidebar = useMemo(() => {
+    if (status !== "all") return conversations
+    return conversations.filter((c) => c.status !== "archived" && c.status !== "closed")
+  }, [conversations, status])
+
   const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
@@ -347,16 +353,15 @@ function InboxPageContent() {
       : error
 
   const activeSelectedId = useMemo(() => {
-    if (selectedId && conversations.some((item) => item.id === selectedId)) {
-      return selectedId
-    }
-
     if (deepLinkId && conversations.some((item) => item.id === deepLinkId)) {
       return deepLinkId
     }
+    if (selectedId && conversationsForSidebar.some((item) => item.id === selectedId)) {
+      return selectedId
+    }
 
-    return conversations[0]?.id ?? null
-  }, [conversations, deepLinkId, selectedId])
+    return conversationsForSidebar[0]?.id ?? null
+  }, [conversations, conversationsForSidebar, deepLinkId, selectedId])
 
   useEffect(() => {
     if (deepLinkId && deepLinkId !== lastDeepLinkRef.current) {
@@ -368,13 +373,13 @@ function InboxPageContent() {
       }
     }
 
-    if (!selectedId && conversations.length > 0) {
-      setSelectedId(conversations[0].id)
+    if (!selectedId && conversationsForSidebar.length > 0) {
+      setSelectedId(conversationsForSidebar[0].id)
     }
-    if (selectedId && !conversations.some((item) => item.id === selectedId)) {
-      setSelectedId(conversations[0]?.id ?? null)
+    if (selectedId && !conversationsForSidebar.some((item) => item.id === selectedId)) {
+      setSelectedId(conversationsForSidebar[0]?.id ?? null)
     }
-  }, [conversations, selectedId, deepLinkId])
+  }, [conversationsForSidebar, selectedId, deepLinkId])
 
   useEffect(() => {
     setReplyContent("")
@@ -837,7 +842,7 @@ function InboxPageContent() {
       : members
 
   const conversationItems = useMemo(() =>
-    conversations.map((conversation) => {
+    conversationsForSidebar.map((conversation) => {
       const primaryTitle =
         conversation.contact.nombre?.trim() ||
         conversation.contact.empresa?.trim() ||
@@ -864,6 +869,7 @@ function InboxPageContent() {
         sectorLabel: conversation.classification?.sector?.trim() || null,
         timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
         isUnread: conversation.status === "new",
+        conversationStatus: conversation.status,
         statusLabel: statusLabel(conversation.status, uiLocale),
         statusClassName: statusBadge(conversation.status),
         channelLabel: channelLabel(conversation.channel, uiLocale),
@@ -873,7 +879,7 @@ function InboxPageContent() {
         messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
       }
     }),
-    [conversations, uiLocale],
+    [conversationsForSidebar, uiLocale],
   )
 
   const threadMessages =
@@ -932,8 +938,8 @@ function InboxPageContent() {
     ) ?? null
 
   const selectedIndex = useMemo(
-    () => conversations.findIndex((item) => item.id === activeSelectedId),
-    [activeSelectedId, conversations],
+    () => conversationsForSidebar.findIndex((item) => item.id === activeSelectedId),
+    [activeSelectedId, conversationsForSidebar],
   )
 
   const isMobileInboxViewport = useCallback(() => {
@@ -1040,13 +1046,13 @@ function InboxPageContent() {
   }, [refetch])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
-    if (!activeSelectedId || conversations.length === 0 || selectedIndex < 0) return
+    if (!activeSelectedId || conversationsForSidebar.length === 0 || selectedIndex < 0) return
 
     const nextIndex = selectedIndex + offset
-    if (nextIndex < 0 || nextIndex >= conversations.length) return
+    if (nextIndex < 0 || nextIndex >= conversationsForSidebar.length) return
 
-    setSelectedId(conversations[nextIndex].id)
-  }, [activeSelectedId, conversations, selectedIndex])
+    setSelectedId(conversationsForSidebar[nextIndex].id)
+  }, [activeSelectedId, conversationsForSidebar, selectedIndex])
 
   const handleInboxEscape = useCallback(() => {
     if (contextSheetOpen) {
@@ -1129,7 +1135,7 @@ function InboxPageContent() {
   const showInitialListSkeleton = loading && conversations.length === 0
   const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
 
-  const contextPanel = selected && conversations.length > 0 ? (
+  const contextPanel = selected && conversationsForSidebar.length > 0 ? (
     <ContextPanel
       selected={selected}
       updateHandoff={updateHandoff}

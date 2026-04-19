@@ -15,6 +15,7 @@ interface ConversationListItemProps {
   isUnread: boolean
   onClick: () => void
   channel: string
+  conversationStatus: string
   statusLabel: string
   statusClassName: string
   channelLabel: string
@@ -33,6 +34,7 @@ export function ConversationListItem({
   isUnread,
   onClick,
   channel,
+  conversationStatus,
   statusLabel,
   statusClassName,
   channelLabel,
@@ -119,6 +121,7 @@ export function ConversationListItem({
           </div>
 
           <ConversationMetaLine
+            conversationStatus={conversationStatus}
             sectorLabel={sectorLabel}
             statusLabel={statusLabel}
             statusClassName={statusClassName}

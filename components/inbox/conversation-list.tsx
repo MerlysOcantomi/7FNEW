@@ -20,6 +20,7 @@ interface ConversationItem {
   sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
+  conversationStatus: string
   statusLabel: string
   statusClassName: string
   channelLabel: string
@@ -267,6 +268,7 @@ export function ConversationList({
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}
                   onClick={() => onSelect(item.id)}
+                  conversationStatus={item.conversationStatus}
                   statusLabel={item.statusLabel}
                   statusClassName={item.statusClassName}
                   channelLabel={item.channelLabel}
