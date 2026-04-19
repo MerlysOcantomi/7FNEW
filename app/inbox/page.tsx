@@ -35,6 +35,7 @@ import {
   channelLabel,
   formatRoleLabel,
 } from "@/lib/inbox-labels"
+import { formatMessageSnippet, formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, Send, Loader2 } from "lucide-react"
@@ -76,6 +77,8 @@ interface ConversationListItem {
   }
   classification?: {
     summary?: string | null
+    intent?: string | null
+    sector?: string | null
   } | null
   messages?: Array<{
     id?: string
@@ -178,7 +181,8 @@ const STATUS_OPTIONS = [
   "archived",
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
-const DESKTOP_INBOX_GRID = "xl:grid xl:grid-cols-[minmax(320px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
+const DESKTOP_INBOX_GRID =
+  "xl:grid xl:grid-cols-[minmax(256px,24%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
@@ -822,19 +826,38 @@ function InboxPageContent() {
 
   const conversationItems = useMemo(() =>
     conversations.map((conversation) => {
-      const contactName = conversation.contact.nombre || conversation.contact.email || "Contact"
-      const intent =
-        conversation.classification?.summary ||
-        conversation.summary ||
-        conversation.subject ||
+      const primaryTitle =
+        conversation.contact.nombre?.trim() ||
+        conversation.contact.empresa?.trim() ||
+        conversation.contact.email?.trim() ||
+        "Contact"
+
+      const intentFromModel =
+        conversation.classification?.intent?.trim() || conversation.intent?.trim() || null
+
+      const summaryFallback =
+        conversation.classification?.summary?.trim() || conversation.summary?.trim() || null
+
+      const senderIntent =
+        formatSenderIntentPhrase(intentFromModel) ||
+        formatSenderIntentPhrase(conversation.subject?.trim()) ||
+        formatSenderIntentPhrase(summaryFallback) ||
         null
+
+      const lastInbound = conversation.messages?.[0]
+      const snippet =
+        formatMessageSnippet(lastInbound?.content) ||
+        (conversation.subject?.trim()
+          ? formatMessageSnippet(conversation.subject, 100)
+          : null)
 
       return {
         id: conversation.id,
         channel: conversation.channel,
-        title: contactName,
-        subtitle: `${contactName}${conversation.contact.empresa ? ` · ${conversation.contact.empresa}` : ""}`,
-        intent,
+        title: primaryTitle,
+        senderIntent,
+        snippet,
+        sectorLabel: conversation.classification?.sector?.trim() || null,
         timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString()),
         isUnread: conversation.status === "new",
         statusLabel: statusLabel(conversation.status),

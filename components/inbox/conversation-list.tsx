@@ -16,8 +16,9 @@ interface ConversationItem {
   id: string
   channel: string
   title: string
-  subtitle: string
-  intent: string | null
+  senderIntent?: string | null
+  snippet?: string | null
+  sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
   statusLabel: string
@@ -261,8 +262,9 @@ export function ConversationList({
                   key={item.id}
                   channel={item.channel}
                   title={item.title}
-                  subtitle={item.subtitle}
-                  intent={item.intent}
+                  senderIntent={item.senderIntent}
+                  snippet={item.snippet}
+                  sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}

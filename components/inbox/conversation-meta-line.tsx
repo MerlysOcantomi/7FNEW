@@ -8,6 +8,7 @@ interface ConversationMetaLineProps {
   urgencyLabel: string
   urgencyClassName: string
   leadScore?: number | null
+  sectorLabel?: string | null
 }
 
 export function ConversationMetaLine({
@@ -16,9 +17,15 @@ export function ConversationMetaLine({
   urgencyLabel,
   urgencyClassName,
   leadScore,
+  sectorLabel,
 }: ConversationMetaLineProps) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {sectorLabel ? (
+        <span className="rounded-full border border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
+          {sectorLabel}
+        </span>
+      ) : null}
       <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusClassName)}>
         {statusLabel}
       </span>
