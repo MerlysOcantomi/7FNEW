@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
-import { ChevronRight, Loader2, MessageSquare } from "lucide-react"
+import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
@@ -143,11 +143,24 @@ export function ConversationListItem({
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-                  <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
+                  <div className="flex shrink-0 items-center justify-end gap-1">
+                    {messageCount > 1 ? (
+                      <span
+                        aria-label={`${messageCount} mensajes`}
+                        className={cn(
+                          "min-w-[1ch] text-right text-[10px] font-semibold tabular-nums tracking-tight text-[var(--inbox-list-text-secondary)]",
+                          isUnread && "text-[var(--inbox-list-text)]",
+                        )}
+                      >
+                        {messageCount}
+                      </span>
+                    ) : null}
+                    <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
+                  </div>
                   <span
                     suppressHydrationWarning
                     className={cn(
-                      "whitespace-nowrap text-[11px] font-medium tabular-nums",
+                      "whitespace-nowrap text-[10px] font-medium tabular-nums tracking-tight",
                       isUnread
                         ? "font-semibold text-[var(--inbox-list-text)]"
                         : "text-[var(--inbox-list-text-secondary)]",
@@ -155,12 +168,6 @@ export function ConversationListItem({
                   >
                     {timeLabel}
                   </span>
-                  {messageCount > 1 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--inbox-list-background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
-                      <MessageSquare className="h-2.5 w-2.5" />
-                      {messageCount}
-                    </span>
-                  ) : null}
                 </div>
               </div>
 

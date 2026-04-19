@@ -28,6 +28,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
 import {
   formatRelativeDate,
+  formatRelativeDateCompact,
   statusBadgeDisplay,
   statusLabel,
   statusLabelDisplay,
@@ -886,7 +887,7 @@ function InboxPageContent() {
         title: primaryTitle,
         senderIntent,
         sectorLabel: conversation.classification?.sector?.trim() || null,
-        timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
+        timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
         isUnread: conversation.status === "new",
         conversationStatus: conversation.status,
         statusLabel: statusLabelDisplay(conversation.status, uiLocale),

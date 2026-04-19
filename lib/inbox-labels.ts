@@ -103,6 +103,42 @@ export function formatRelativeDate(value: string, localeRaw?: string | null) {
   return date.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short" })
 }
 
+/** Fecha corta tipo `14.02`; si no es el año en curso, `14.02.25`. */
+function formatDayMonthDots(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0")
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const y = date.getFullYear()
+  const currentYear = new Date().getFullYear()
+  if (y !== currentYear) return `${d}.${m}.${String(y).slice(-2)}`
+  return `${d}.${m}`
+}
+
+/**
+ * Etiqueta de tiempo más corta para la lista del Inbox (menos anchura que `formatRelativeDate`).
+ * Sugerencia: símbolos universales para lo reciente (`5m`, `3h`, `2d`) y `DD.MM` si es más antiguo.
+ */
+export function formatRelativeDateCompact(value: string, localeRaw?: string | null): string {
+  const locale = resolveLocale(localeRaw)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+
+  const diffMs = Date.now() - date.getTime()
+  const minutes = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(diffMs / 86400000)
+
+  if (diffMs < 0) {
+    return formatDayMonthDots(date)
+  }
+
+  if (minutes < 1) return REL_NOW[locale]
+  if (minutes < 60) return `${minutes}m`
+  if (hours < 24) return `${hours}h`
+  if (days < 7) return `${days}d`
+
+  return formatDayMonthDots(date)
+}
+
 export function statusBadge(status: string) {
   switch (status) {
     case "lead_detected":
