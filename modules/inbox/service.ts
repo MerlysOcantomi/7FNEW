@@ -6,6 +6,10 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
+import {
+  MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
+  persistShortIntentForInboundMessage,
+} from "./message-short-intent"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -456,7 +460,7 @@ export async function getConversationById(id: string, workspaceId: string) {
 export async function addMessage(input: AddMessageInput) {
   const metadata = input.metadata ? JSON.stringify(input.metadata) : null
 
-  return db.$transaction(async (tx) => {
+  const message = await db.$transaction(async (tx) => {
     const existing = await tx.conversation.findFirst({
       where: { id: input.conversationId, workspaceId: input.workspaceId },
       select: { id: true, messageCount: true, status: true },
@@ -464,7 +468,7 @@ export async function addMessage(input: AddMessageInput) {
 
     if (!existing) return null
 
-    const message = await tx.message.create({
+    const created = await tx.message.create({
       data: {
         workspaceId: input.workspaceId,
         conversationId: input.conversationId,
@@ -488,15 +492,30 @@ export async function addMessage(input: AddMessageInput) {
     await tx.conversation.update({
       where: { id: input.conversationId },
       data: {
-        lastMessageAt: message.createdAt,
+        lastMessageAt: created.createdAt,
         messageCount: existing.messageCount + 1,
         status: nextStatus,
         closedAt: nextStatus === "closed" || nextStatus === "archived" ? new Date() : null,
       },
     })
 
-    return message
+    return created
   })
+
+  if (
+    message &&
+    (input.direction ?? "outbound") === "inbound" &&
+    !(input.isInternal ?? false) &&
+    message.content.trim().length >= MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH
+  ) {
+    void persistShortIntentForInboundMessage({
+      messageId: message.id,
+      workspaceId: input.workspaceId,
+      content: message.content,
+    }).catch((err) => console.error(`[inbox] shortIntent persist failed msg=${message.id}:`, err))
+  }
+
+  return message
 }
 
 export async function transitionConversation(input: {
