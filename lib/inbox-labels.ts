@@ -129,6 +129,23 @@ export function statusLabel(status: string, localeRaw?: string | null) {
   return STATUS[locale][status] ?? STATUS.en[status] ?? status
 }
 
+/** Etiqueta visible del Inbox: `triaged` no se muestra como tal (el flujo ya está clasificado por IA). */
+export function statusLabelDisplay(status: string, localeRaw?: string | null): string {
+  if (status === "triaged") {
+    const locale = resolveLocale(localeRaw)
+    if (locale === "es") return "Activo"
+    if (locale === "de") return "Aktiv"
+    return "Active"
+  }
+  return statusLabel(status, localeRaw)
+}
+
+/** Variante de badge coherente con la etiqueta de lista (triaged → estilo asignado / neutro). */
+export function statusBadgeDisplay(status: string): string {
+  if (status === "triaged") return statusBadge("assigned")
+  return statusBadge(status)
+}
+
 export function urgencyBadge(urgency: string) {
   switch (urgency) {
     case "critica":

@@ -159,7 +159,7 @@ export function ConversationList({
 
         <div className="grid grid-cols-2 gap-2">
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.08] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-md border border-[var(--inbox-list-border)] bg-transparent text-xs text-[var(--inbox-list-text-secondary)] shadow-none transition-colors hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -172,7 +172,7 @@ export function ConversationList({
           </Select>
 
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] text-xs text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.08] transition-colors">
+            <SelectTrigger className="h-8 w-full rounded-md border border-[var(--inbox-list-border)] bg-transparent text-xs text-[var(--inbox-list-text-secondary)] shadow-none transition-colors hover:bg-white/[0.03] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/20 data-[state=open]:bg-white/[0.04]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

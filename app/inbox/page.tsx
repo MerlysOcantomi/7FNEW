@@ -28,8 +28,9 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
 import {
   formatRelativeDate,
-  statusBadge,
+  statusBadgeDisplay,
   statusLabel,
+  statusLabelDisplay,
   urgencyBadge,
   urgencyLabel,
   channelLabel,
@@ -290,6 +291,10 @@ function InboxPageContent() {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  useEffect(() => {
+    if (status === "triaged") setStatus("all")
+  }, [status])
 
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
@@ -775,12 +780,25 @@ function InboxPageContent() {
     }
   }
 
-  const statusFilterOptions = STATUS_OPTIONS
-    .map((s) => ({ value: s, label: s === "all" ? "All statuses" : statusLabel(s, uiLocale) }))
+  const statusFilterOptions = useMemo(
+    () =>
+      STATUS_OPTIONS.filter((s) => s !== "triaged").map((s) => ({
+        value: s,
+        label: s === "all" ? "All statuses" : statusLabel(s, uiLocale),
+      })),
+    [uiLocale],
+  )
 
-  const statusEditOptions = STATUS_OPTIONS
-    .filter((s) => s !== "all")
-    .map((s) => ({ value: s, label: statusLabel(s, uiLocale) }))
+  const statusEditOptions = useMemo(() => {
+    const base = STATUS_OPTIONS.filter((s) => s !== "all" && s !== "triaged").map((s) => ({
+      value: s,
+      label: statusLabel(s, uiLocale),
+    }))
+    if (selected?.status === "triaged") {
+      return [{ value: "triaged", label: statusLabelDisplay("triaged", uiLocale) }, ...base]
+    }
+    return base
+  }, [selected?.status, uiLocale])
 
   const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
     value: option,
@@ -870,8 +888,8 @@ function InboxPageContent() {
         timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
         isUnread: conversation.status === "new",
         conversationStatus: conversation.status,
-        statusLabel: statusLabel(conversation.status, uiLocale),
-        statusClassName: statusBadge(conversation.status),
+        statusLabel: statusLabelDisplay(conversation.status, uiLocale),
+        statusClassName: statusBadgeDisplay(conversation.status),
         channelLabel: channelLabel(conversation.channel, uiLocale),
         urgencyLabel: urgencyLabel(conversation.urgency, uiLocale),
         urgencyClassName: urgencyBadge(conversation.urgency),
@@ -1214,7 +1232,7 @@ function InboxPageContent() {
                       statusValue={selected?.status || "new"}
                       statusOptions={statusEditOptions}
                       onStatusChange={handleStatusChange}
-                      statusBadgeClassName={statusBadge}
+                      statusBadgeClassName={statusBadgeDisplay}
                       messages={threadMessages}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
