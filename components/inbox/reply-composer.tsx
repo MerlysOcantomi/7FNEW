@@ -81,6 +81,15 @@ const TRANSLATE_LANGUAGES = [
 const TEXTAREA_MIN_PX = 52
 const TEXTAREA_MAX_PX = 220
 
+/** Hover + activo alineados con `sidebar-nav` (NavLink): muted → texto shell */
+const SHELL_TOOLBAR_ICON =
+  "rounded-[8px] p-1.5 text-[var(--app-sidebar-text-muted)] transition-all duration-150 hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]"
+/**
+ * Activo = ítem Inbox en sidebar: 1px exterior + halo (misma sombra compuesta que NavLinkWithSubitems) + pastilla izquierda.
+ */
+const SHELL_TOOLBAR_ICON_ACTIVE =
+  "relative bg-[var(--app-sidebar-surface)] text-[var(--app-accent)] shadow-[0_0_0_1px_var(--app-accent),0_0_10px_0_rgba(99,102,241,0.22)] before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--app-accent)]"
+
 const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Sparkles; needsText: boolean }> = [
   { action: "proofread", label: "Proofread", icon: CheckCheck, needsText: true },
   { action: "shorter", label: "Shorter", icon: AlignLeft, needsText: true },
@@ -527,8 +536,8 @@ export function ReplyComposer({
                   focusComposerWithScroll()
                 }}
                 className={cn(
-                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                  !replyIsInternal && emailMode === "reply" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                  SHELL_TOOLBAR_ICON,
+                  !replyIsInternal && emailMode === "reply" && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
                 title="Reply"
                 aria-label="Reply"
@@ -545,8 +554,8 @@ export function ReplyComposer({
                       focusComposerWithScroll()
                     }}
                     className={cn(
-                      "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                      !replyIsInternal && emailMode === "reply_all" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                      SHELL_TOOLBAR_ICON,
+                      !replyIsInternal && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Reply all"
                     aria-label="Reply all"
@@ -561,13 +570,13 @@ export function ReplyComposer({
                       focusComposerWithScroll()
                     }}
                     className={cn(
-                      "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                      !replyIsInternal && emailMode === "forward" && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                      SHELL_TOOLBAR_ICON,
+                      !replyIsInternal && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
                     title="Forward"
                     aria-label="Forward"
                   >
-                    <Forward className="h-[18px] w-[18px]" strokeWidth={2} />
+                    <Forward className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
                 </>
               )}
@@ -578,8 +587,10 @@ export function ReplyComposer({
                   focusComposerWithScroll()
                 }}
                 className={cn(
-                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-warning)]/15 hover:text-[var(--inbox-warning)]",
-                  replyIsInternal && "bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)]",
+                  "rounded-[8px] p-1.5 transition-all duration-150",
+                  replyIsInternal
+                    ? "relative bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)] shadow-[0_0_0_1px_var(--inbox-warning),0_0_10px_0_rgba(242,198,109,0.2)] hover:bg-[var(--inbox-warning)]/18 before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--inbox-warning)]"
+                    : SHELL_TOOLBAR_ICON,
                 )}
                 title="Internal note"
                 aria-label="Internal note"
@@ -607,8 +618,8 @@ export function ReplyComposer({
               }}
               disabled={attachmentUploading}
               className={cn(
-                "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                clipPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
+                SHELL_TOOLBAR_ICON,
+                clipPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE,
                 attachmentUploading && "opacity-50",
               )}
               title="Insert or attach"
@@ -636,7 +647,7 @@ export function ReplyComposer({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
+                    className={cn(SHELL_TOOLBAR_ICON, cannedOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
                     title="Snippets"
                   >
                     <Zap className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -674,10 +685,7 @@ export function ReplyComposer({
                   setAssistPanelOpen((v) => !v)
                   setClipPanelOpen(false)
                 }}
-                className={cn(
-                  "rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                  assistPanelOpen && "bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]",
-                )}
+                className={cn(SHELL_TOOLBAR_ICON, assistPanelOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
                 title="Improve text — tone, clarity, translate…"
               >
                 <Wand2 className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -698,10 +706,7 @@ export function ReplyComposer({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className={cn(
-                      "rounded-md p-1.5 text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]",
-                      fannyPopoverOpen && "bg-[var(--inbox-accent-soft)]",
-                    )}
+                    className={cn(SHELL_TOOLBAR_ICON, fannyPopoverOpen && SHELL_TOOLBAR_ICON_ACTIVE)}
                     title="Fanny suggested reply — apply to compose only (does not send)"
                     aria-label="Fanny suggested reply"
                   >
@@ -766,10 +771,10 @@ export function ReplyComposer({
                   type="button"
                   onClick={() => setVoiceMode("dictate")}
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded transition-all",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] transition-all duration-150",
                     voiceMode === "dictate"
                       ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
-                      : "text-[var(--inbox-text-secondary)] hover:bg-white/[0.06]",
+                      : "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
                   )}
                   title="Dictate — speech is typed into the message"
                 >
@@ -779,10 +784,10 @@ export function ReplyComposer({
                   type="button"
                   onClick={() => setVoiceMode("compose")}
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded transition-all",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] transition-all duration-150",
                     voiceMode === "compose"
                       ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
-                      : "text-[var(--inbox-text-secondary)] hover:bg-white/[0.06]",
+                      : "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
                   )}
                   title="Intent — describe the reply you want (drafted from your words)"
                 >
@@ -793,10 +798,11 @@ export function ReplyComposer({
                   onClick={handleMicToggle}
                   disabled={isProcessing}
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded border-l border-[var(--inbox-divider)] transition-all",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-l border-[var(--inbox-divider)] transition-all duration-150",
                     speech.listening && voiceMode === "dictate" && "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]",
                     speech.listening && voiceMode === "compose" && "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]",
-                    !speech.listening && "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-accent)]",
+                    !speech.listening &&
+                      "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
                   )}
                   title={
                     speech.listening
@@ -823,7 +829,7 @@ export function ReplyComposer({
               <button
                 type="button"
                 onClick={handleUndoAssist}
-                className="rounded-md p-1.5 text-[var(--inbox-warning)] transition-colors hover:bg-[var(--inbox-warning)]/12"
+                className="rounded-[8px] p-1.5 text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--app-sidebar-surface)]/60"
                 title="Undo last AI change"
                 aria-label="Undo last AI change"
               >
