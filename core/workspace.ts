@@ -63,25 +63,79 @@ export async function resolveWorkspaceContext(
   }
 }
 
-export function buildWorkspaceContextBlock(ctx: WorkspaceAgentContext): string {
+const WS_CTX_LABELS: Record<
+  SupportedLocale,
+  {
+    header: string
+    company: string
+    description: string
+    vertical: string
+    region: string
+    languages: string
+    services: string
+    tone: string
+    hours: string
+    rules: string
+  }
+> = {
+  en: {
+    header: "WORKSPACE (business identity):",
+    company: "Company",
+    description: "Description",
+    vertical: "Vertical",
+    region: "Region",
+    languages: "Languages",
+    services: "Services",
+    tone: "Tone",
+    hours: "Hours",
+    rules: "Attention rules",
+  },
+  es: {
+    header: "WORKSPACE (quién eres como empresa):",
+    company: "Empresa",
+    description: "Descripción",
+    vertical: "Vertical",
+    region: "Región",
+    languages: "Idiomas",
+    services: "Servicios",
+    tone: "Tono",
+    hours: "Horario",
+    rules: "Reglas de atención",
+  },
+  de: {
+    header: "WORKSPACE (Geschäftsprofil):",
+    company: "Unternehmen",
+    description: "Beschreibung",
+    vertical: "Branche",
+    region: "Region",
+    languages: "Sprachen",
+    services: "Leistungen",
+    tone: "Ton",
+    hours: "Öffnungszeiten",
+    rules: "Service-Regeln",
+  },
+}
+
+export function buildWorkspaceContextBlock(ctx: WorkspaceAgentContext, locale: SupportedLocale = "en"): string {
+  const L = WS_CTX_LABELS[locale] ?? WS_CTX_LABELS.en
   const lines: string[] = []
 
-  lines.push(`- Empresa: ${ctx.identity.name}`)
-  if (ctx.identity.description) lines.push(`- Descripción: ${ctx.identity.description}`)
-  if (ctx.identity.verticalName) lines.push(`- Vertical: ${ctx.identity.verticalName}`)
-  if (ctx.identity.region) lines.push(`- Región: ${ctx.identity.region}`)
-  if (ctx.identity.languages.length > 0) lines.push(`- Idiomas: ${ctx.identity.languages.join(", ")}`)
-  if (ctx.services.length > 0) lines.push(`- Servicios: ${ctx.services.slice(0, 15).join(", ")}`)
-  if (ctx.identity.tone) lines.push(`- Tono: ${ctx.identity.tone}`)
-  if (ctx.identity.workingHours) lines.push(`- Horario: ${ctx.identity.workingHours}`)
+  lines.push(`- ${L.company}: ${ctx.identity.name}`)
+  if (ctx.identity.description) lines.push(`- ${L.description}: ${ctx.identity.description}`)
+  if (ctx.identity.verticalName) lines.push(`- ${L.vertical}: ${ctx.identity.verticalName}`)
+  if (ctx.identity.region) lines.push(`- ${L.region}: ${ctx.identity.region}`)
+  if (ctx.identity.languages.length > 0) lines.push(`- ${L.languages}: ${ctx.identity.languages.join(", ")}`)
+  if (ctx.services.length > 0) lines.push(`- ${L.services}: ${ctx.services.slice(0, 15).join(", ")}`)
+  if (ctx.identity.tone) lines.push(`- ${L.tone}: ${ctx.identity.tone}`)
+  if (ctx.identity.workingHours) lines.push(`- ${L.hours}: ${ctx.identity.workingHours}`)
   if (ctx.attentionRules.length > 0) {
-    lines.push(`- Reglas de atención:`)
+    lines.push(`- ${L.rules}:`)
     for (const rule of ctx.attentionRules.slice(0, 10)) {
       lines.push(`  · ${rule}`)
     }
   }
 
-  return `WORKSPACE (quién eres como empresa):\n${lines.join("\n")}`
+  return `${L.header}\n${lines.join("\n")}`
 }
 
 /**

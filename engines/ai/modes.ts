@@ -1,4 +1,15 @@
-export type AIModeName = "skina" | "7f" | "cv" | "correccion" | "general" | "operativo" | "editorial"
+export type AIModeName =
+  | "skina"
+  | "7f"
+  | "cv"
+  | "correccion"
+  | "general"
+  | "operativo"
+  | "editorial"
+  /** Inbox composer assist — neutral English system, follows user prompt (workspace policy) */
+  | "assist_proofread"
+  /** Inbox composer assist — rewrite / translate / compose-from-intent */
+  | "assist_rewrite"
 
 export interface AIMode {
   name: AIModeName
@@ -74,9 +85,7 @@ Respondes en espanol.`,
     label: "Operativo (DeepSeek)",
     temperature: 0.3,
     maxTokens: 2048,
-    systemPrompt: `Eres el motor operativo de 7F, una plataforma de gestion empresarial.
-Respondes con analisis claros, logicos y accionables.
-Usas formato estructurado cuando es util. Responde siempre en espanol.`,
+    systemPrompt: `Follow the user's instructions precisely. Match the language and format required by the task.`,
   },
 
   editorial: {
@@ -88,11 +97,30 @@ Usas formato estructurado cuando es util. Responde siempre en espanol.`,
 Produces texto claro, profesional y bien estructurado.
 Tu tono es directo pero amable. Responde siempre en espanol.`,
   },
+
+  assist_proofread: {
+    name: "assist_proofread",
+    label: "Inbox assist (proofread)",
+    temperature: 0.2,
+    maxTokens: 4096,
+    systemPrompt: `You fix spelling, grammar, and punctuation only when the user asks you to.
+Follow the user's message exactly. Return only the transformed text requested.
+Preserve the language of the source text unless the instructions say otherwise.`,
+  },
+
+  assist_rewrite: {
+    name: "assist_rewrite",
+    label: "Inbox assist (rewrite)",
+    temperature: 0.65,
+    maxTokens: 4096,
+    systemPrompt: `You rewrite or translate text exactly as instructed in the user message.
+Follow format and language rules stated there. Preserve customer-facing language when the task says to.`,
+  },
 }
 
 export function getMode(name: string): AIMode {
   const mode = AI_MODES[name as AIModeName]
-  if (!mode) throw new Error(`Modo de IA no valido: ${name}`)
+  if (!mode) throw new Error(`Invalid AI mode: ${name}`)
   return mode
 }
 

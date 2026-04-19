@@ -29,7 +29,7 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
   if (req) {
     const headerWs = req.headers.get("x-workspace-id")
     if (headerWs) {
-      if (!session) throw new WorkspaceError("UNAUTHORIZED", "No autenticado", 401)
+      if (!session) throw new WorkspaceError("UNAUTHORIZED", "Not signed in", 401)
       const member = await db.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId: session.userId, workspaceId: headerWs } },
       })
@@ -39,7 +39,7 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
   }
 
   if (!session) {
-    throw new WorkspaceError("UNAUTHORIZED", "No autenticado", 401)
+    throw new WorkspaceError("UNAUTHORIZED", "Not signed in", 401)
   }
 
   const cookieStore = await cookies()
@@ -71,7 +71,7 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
     return firstMembership.workspaceId
   }
 
-  throw new WorkspaceError("NO_WORKSPACE", "No tienes workspace asignado", 404)
+  throw new WorkspaceError("NO_WORKSPACE", "No workspace assigned to your account", 404)
 }
 
 export async function getOptionalWorkspaceId(req?: Request): Promise<string | null> {

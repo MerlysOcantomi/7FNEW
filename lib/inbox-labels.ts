@@ -1,15 +1,106 @@
-export function formatRelativeDate(value: string) {
+import { DEFAULT_LOCALE, parseLocale, type SupportedLocale } from "@core/i18n"
+
+function resolveLocale(localeRaw?: string | null): SupportedLocale {
+  return localeRaw ? parseLocale(localeRaw) : DEFAULT_LOCALE
+}
+
+const STATUS: Record<SupportedLocale, Record<string, string>> = {
+  en: {
+    new: "New",
+    triaged: "Triaged",
+    assigned: "Assigned",
+    awaiting_response: "Awaiting response",
+    lead_detected: "Lead detected",
+    converted: "Converted",
+    closed: "Closed",
+    archived: "Archived",
+  },
+  es: {
+    new: "Nuevo",
+    triaged: "Clasificado",
+    assigned: "Asignado",
+    awaiting_response: "Esperando respuesta",
+    lead_detected: "Lead detectado",
+    converted: "Convertido",
+    closed: "Cerrado",
+    archived: "Archivado",
+  },
+  de: {
+    new: "Neu",
+    triaged: "Sortiert",
+    assigned: "Zugewiesen",
+    awaiting_response: "Wartet auf Antwort",
+    lead_detected: "Lead erkannt",
+    converted: "Konvertiert",
+    closed: "Geschlossen",
+    archived: "Archiviert",
+  },
+}
+
+const URGENCY: Record<SupportedLocale, Record<string, string>> = {
+  en: { critica: "Critical", alta: "High", media: "Medium", baja: "Low" },
+  es: { critica: "Crítica", alta: "Alta", media: "Media", baja: "Baja" },
+  de: { critica: "Kritisch", alta: "Hoch", media: "Mittel", baja: "Niedrig" },
+}
+
+const CHANNEL: Record<SupportedLocale, Record<string, string>> = {
+  en: {
+    manual: "Manual",
+    web_chat: "Web chat",
+    email: "Email",
+    portal: "Portal",
+    whatsapp: "WhatsApp",
+  },
+  es: {
+    manual: "Manual",
+    web_chat: "Chat web",
+    email: "Correo",
+    portal: "Portal",
+    whatsapp: "WhatsApp",
+  },
+  de: {
+    manual: "Manuell",
+    web_chat: "Web-Chat",
+    email: "E-Mail",
+    portal: "Portal",
+    whatsapp: "WhatsApp",
+  },
+}
+
+const REL_NOW: Record<SupportedLocale, string> = {
+  en: "Now",
+  es: "Ahora",
+  de: "Jetzt",
+}
+
+function intlLocale(locale: SupportedLocale): string {
+  if (locale === "de") return "de"
+  if (locale === "es") return "es"
+  return "en"
+}
+
+export function formatRelativeDate(value: string, localeRaw?: string | null) {
+  const locale = resolveLocale(localeRaw)
   const date = new Date(value)
   const diff = Date.now() - date.getTime()
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return "Now"
-  if (minutes < 60) return `${minutes} min ago`
-  if (hours < 24) return `${hours} h ago`
-  if (days < 7) return `${days} d ago`
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" })
+  if (minutes < 1) return REL_NOW[locale]
+  if (minutes < 60) {
+    const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" })
+    return rtf.format(-minutes, "minute")
+  }
+  if (hours < 24) {
+    const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" })
+    return rtf.format(-hours, "hour")
+  }
+  if (days < 7) {
+    const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" })
+    return rtf.format(-days, "day")
+  }
+  return date.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short" })
 }
 
 export function statusBadge(status: string) {
@@ -33,19 +124,9 @@ export function statusBadge(status: string) {
   }
 }
 
-export function statusLabel(status: string) {
-  return (
-    {
-      new: "New",
-      triaged: "Triaged",
-      assigned: "Assigned",
-      awaiting_response: "Awaiting response",
-      lead_detected: "Lead detected",
-      converted: "Converted",
-      closed: "Closed",
-      archived: "Archived",
-    } as Record<string, string>
-  )[status] ?? status
+export function statusLabel(status: string, localeRaw?: string | null) {
+  const locale = resolveLocale(localeRaw)
+  return STATUS[locale][status] ?? STATUS.en[status] ?? status
 }
 
 export function urgencyBadge(urgency: string) {
@@ -61,27 +142,14 @@ export function urgencyBadge(urgency: string) {
   }
 }
 
-export function urgencyLabel(urgency: string) {
-  return (
-    {
-      critica: "Critical",
-      alta: "High",
-      media: "Medium",
-      baja: "Low",
-    } as Record<string, string>
-  )[urgency] ?? urgency
+export function urgencyLabel(urgency: string, localeRaw?: string | null) {
+  const locale = resolveLocale(localeRaw)
+  return URGENCY[locale][urgency] ?? URGENCY.en[urgency] ?? urgency
 }
 
-export function channelLabel(channel: string) {
-  return (
-    {
-      manual: "Manual",
-      web_chat: "Web chat",
-      email: "Email",
-      portal: "Portal",
-      whatsapp: "WhatsApp",
-    } as Record<string, string>
-  )[channel] ?? channel
+export function channelLabel(channel: string, localeRaw?: string | null) {
+  const locale = resolveLocale(localeRaw)
+  return CHANNEL[locale][channel] ?? CHANNEL.en[channel] ?? channel
 }
 
 export function actionTypeLabel(type: string) {

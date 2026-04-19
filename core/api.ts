@@ -36,15 +36,15 @@ export function handleError(error: unknown, entity: string) {
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2025") {
-      return errorResponse("NOT_FOUND", `${entity} no encontrado`, 404)
+      return errorResponse("NOT_FOUND", `${entity} not found`, 404)
     }
     if (error.code === "P2002") {
-      return errorResponse("CONFLICT", `${entity} ya existe con esos datos`, 409)
+      return errorResponse("CONFLICT", `${entity} already exists with those values`, 409)
     }
   }
   const detail = error instanceof Error ? error.message : String(error)
   console.error(`[7F] Error in ${entity}: ${detail}`, error)
-  return errorResponse("INTERNAL_ERROR", `Error interno: ${detail}`, 500)
+  return errorResponse("INTERNAL_ERROR", `Internal error: ${detail}`, 500)
 }
 
 export function getPaginationParams(searchParams: URLSearchParams) {

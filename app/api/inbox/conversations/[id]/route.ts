@@ -8,6 +8,7 @@ import {
   transitionConversation,
 } from "@modules/inbox/service"
 import { notifyConversationAssigned } from "@core/notifications/inbox"
+import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -28,7 +29,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const { workspaceId } = await requireWriteAccess(request)
     const { id } = await params
     const existing = await db.conversation.findFirst({ where: { id, workspaceId } })
-    if (!existing) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+    if (!existing) return errorResponse("NOT_FOUND", "Conversation not found", 404)
 
     // Delete ALL related records explicitly to avoid FK constraint errors
     await db.$transaction(async (tx) => {
@@ -53,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { workspaceId } = await requireWriteAccess(request)
     const { id } = await params
     const existing = await db.conversation.findFirst({ where: { id, workspaceId } })
-    if (!existing) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+    if (!existing) return errorResponse("NOT_FOUND", "Conversation not found", 404)
 
     const body = await request.json()
     const allowedFields = [

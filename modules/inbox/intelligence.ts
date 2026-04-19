@@ -1,7 +1,13 @@
 import { askMotorIA } from "@engines/ai"
 import { db } from "@core/db"
-import { resolveWorkspaceContext, buildWorkspaceContextBlock } from "@core/workspace"
+import {
+  resolveWorkspaceContext,
+  buildWorkspaceContextBlock,
+  getWorkspaceWithResolvedConfig,
+} from "@core/workspace"
 import { FANNY_SYSTEM_PROMPT } from "@/agents/fanny/system-prompt"
+import { DEFAULT_LOCALE, type SupportedLocale } from "@core/i18n"
+import { getOperatorUiStrings, operatorLocalePromptName } from "@/lib/inbox-operator-i18n"
 import type {
   ConversationIntelligenceOutput,
   InboxClassification,
@@ -56,6 +62,7 @@ export async function generateConversationIntelligence(input: {
   previousSummary?: string | null
   previousIntent?: string | null
   workspaceContextBlock?: string | null
+  operatorLocale: SupportedLocale
   messages: Array<{
     role: string
     direction: string
@@ -64,108 +71,99 @@ export async function generateConversationIntelligence(input: {
     createdAt?: string
   }>
 }): Promise<ConversationIntelligenceOutput> {
+  const S = getOperatorUiStrings(input.operatorLocale)
+  const opLangName = operatorLocalePromptName(input.operatorLocale)
+
   const transcript = input.messages
     .slice(-12)
     .map((message, index) => {
       const stamp = message.createdAt ? ` (${message.createdAt})` : ""
-      const visibility = message.isInternal ? " [interno]" : ""
+      const visibility = message.isInternal ? " [internal]" : ""
       return `${index + 1}. [${message.direction}/${message.role}]${stamp}${visibility}: ${message.content}`
     })
     .join("\n")
 
   const prompt = `${FANNY_SYSTEM_PROMPT}
 
-Analiza la conversación y responde SOLO con JSON válido.
+OPERATOR_UI_LANGUAGE: ${opLangName}
+All operator-facing string values in the JSON must be written in ${opLangName}.
+The only exception is draft.content: that field must be in the CUSTOMER's language (inbound messages), not ${opLangName}.
+
+Analyze the conversation and respond with ONLY valid JSON.
 ${input.workspaceContextBlock ? `\n${input.workspaceContextBlock}\n` : ""}
-CONVERSACIÓN:
-- ConversationId: ${input.conversationId}
-- Canal: ${input.channel}
-- Estado actual: ${input.status}
-${input.subject ? `- Asunto: ${input.subject}` : ""}
-${input.clienteId ? `- Cliente vinculado: ${input.clienteId}` : ""}
-${input.proyectoId ? `- Proyecto vinculado: ${input.proyectoId}` : ""}
-${input.assignedTo ? `- Responsable actual: ${input.assignedTo}` : ""}
-${input.contact.nombre ? `- Contacto: ${input.contact.nombre}` : ""}
-${input.contact.email ? `- Email: ${input.contact.email}` : ""}
-${input.contact.telefono ? `- Telefono: ${input.contact.telefono}` : ""}
-${input.contact.empresa ? `- Empresa: ${input.contact.empresa}` : ""}
-${input.contact.tipo ? `- Tipo contacto: ${input.contact.tipo}` : ""}
-${input.previousSummary ? `- Resumen previo: ${input.previousSummary}` : ""}
-${input.previousIntent ? `- Intención previa: ${input.previousIntent}` : ""}
+CONVERSATION:
+- conversationId: ${input.conversationId}
+- channel: ${input.channel}
+- currentStatus: ${input.status}
+${input.subject ? `- subject: ${input.subject}` : ""}
+${input.clienteId ? `- linkedClientId: ${input.clienteId}` : ""}
+${input.proyectoId ? `- linkedProjectId: ${input.proyectoId}` : ""}
+${input.assignedTo ? `- assignee: ${input.assignedTo}` : ""}
+${input.contact.nombre ? `- contactName: ${input.contact.nombre}` : ""}
+${input.contact.email ? `- email: ${input.contact.email}` : ""}
+${input.contact.telefono ? `- phone: ${input.contact.telefono}` : ""}
+${input.contact.empresa ? `- company: ${input.contact.empresa}` : ""}
+${input.contact.tipo ? `- contactType: ${input.contact.tipo}` : ""}
+${input.previousSummary ? `- previousSummary: ${input.previousSummary}` : ""}
+${input.previousIntent ? `- previousIntent: ${input.previousIntent}` : ""}
 
-MENSAJES RECIENTES:
-${transcript || "Sin mensajes"}
+RECENT MESSAGES:
+${transcript || "No messages"}
 
-Devuelve:
+Return this JSON shape (field names MUST match exactly):
 {
   "tipo": "lead" | "ticket" | "consulta" | "proyecto" | "factura",
-  "categoria": "categoria operativa",
+  "categoria": "short operational category (${opLangName})",
   "urgencia": "baja" | "media" | "alta" | "critica",
-  "intencion": "frase corta",
-  "resumen": "resumen actualizado de la conversación",
+  "intencion": "short intent phrase (${opLangName})",
+  "resumen": "updated conversation summary (${opLangName})",
   "leadScore": 0,
-  "scoreReasoning": "explicacion breve del score",
+  "scoreReasoning": "brief (${opLangName})",
   "sentiment": "positivo|neutral|negativo|mixto",
-  "sector": "sector detectado o vacio",
+  "sector": "detected sector or empty",
   "confidence": 0.0,
-  "detectedLanguage": "es|en|fr|de|pt|it|other — idioma detectado en los mensajes inbound del cliente",
-  "datosCliente": {
-    "nombre": "string o vacio",
-    "email": "string o vacio",
-    "telefono": "string o vacio",
-    "empresa": "string o vacio"
-  },
-  "datosProyecto": {
-    "nombre": "string o vacio",
-    "descripcion": "string o vacio",
-    "presupuesto": "string o vacio"
-  },
-  "notas": "observaciones importantes",
-  "tags": ["tag1", "tag2"],
-  "facts": ["hecho verificable"],
-  "pendingItems": ["pendiente"],
-  "risks": ["riesgo"],
-  "nextBestAction": {
-    "type": "follow_up | clarify_scope | assign_operator | prepare_quote | wait_human",
-    "description": "siguiente mejor acción"
-  },
+  "detectedLanguage": "es|en|fr|de|pt|it|other — primary language of inbound customer messages",
+  "datosCliente": { "nombre": "", "email": "", "telefono": "", "empresa": "" },
+  "datosProyecto": { "nombre": "", "descripcion": "", "presupuesto": "" },
+  "notas": " (${opLangName})",
+  "tags": [],
+  "facts": [],
+  "pendingItems": [],
+  "risks": [],
+  "nextBestAction": { "type": "follow_up | clarify_scope | assign_operator | prepare_quote | wait_human", "description": " (${opLangName})" },
   "suggestedActions": [
-    {
-      "type": "create_client | create_project | create_task | schedule_followup | assign_operator | generate_proposal",
-      "title": "titulo corto de la accion",
-      "description": "descripcion ejecutiva de por que conviene",
-      "confidence": 0.0
-    }
+    { "type": "create_client | create_project | create_task | schedule_followup | assign_operator | generate_proposal", "title": " (${opLangName})", "description": " (${opLangName})", "confidence": 0.0 }
   ],
   "handoff": {
-    "headline": "titulo corto para operador",
-    "summary": "contexto operativo para handoff",
-    "facts": ["hechos clave"],
-    "decisions": ["decisiones o acuerdos"],
-    "pendingItems": ["pendientes"],
-    "risks": ["riesgos"],
-    "nextRecommendedAction": "proximo paso recomendado",
+    "headline": " (${opLangName})",
+    "summary": " (${opLangName})",
+    "facts": [],
+    "decisions": [],
+    "pendingItems": [],
+    "risks": [],
+    "nextRecommendedAction": " (${opLangName})",
     "confidence": 0.0
   },
   "draft": {
     "shouldCreate": true,
-    "title": "titulo corto del borrador",
-    "content": "respuesta sugerida lista para editar",
+    "title": " (${opLangName})",
+    "content": "ONLY customer language — suggested reply body",
     "tone": "consultivo|amable|directo|profesional",
     "targetChannel": "${input.channel}",
-    "reason": "por que conviene crear este borrador"
+    "reason": " (${opLangName})"
   }
 }
 
-REGLAS:
-- facts, pendingItems, risks y decisions deben ser listas breves y concretas.
-- No inventes datos privados ni afirmes hechos no respaldados por la conversación.
-- suggestedActions debe incluir solo acciones realmente útiles y evitar duplicados conceptuales.
-- Si no corresponde crear borrador, usa draft.shouldCreate=false y deja content vacío.
-- detectedLanguage debe reflejar el idioma predominante en los mensajes inbound del cliente. Si no hay suficiente evidencia, usa "es" por defecto.
-- El handoff debe servir a un operador humano y ser más operativo que el resumen general.
-- Mantén el JSON compacto y válido.`
+RULES:
+- Keep facts, pendingItems, risks, decisions brief and grounded in the thread.
+- Do not invent private data or unsupported claims.
+- suggestedActions: only genuinely useful actions; avoid duplicates.
+- If no draft is appropriate: draft.shouldCreate=false, draft.content empty.
+- detectedLanguage: predominant inbound customer language; if unclear use "en".
+- handoff must be actionable for a human operator.
+- Output compact valid JSON only.`
 
+  // DeepSeek uses NEUTRAL_TASK_SYSTEM_PROMPT (engines/ai/deepseek.ts) — no Spanish-forced layer under this prompt.
   const response = await askMotorIA(prompt, "operativo")
   const parsed = parseJsonResponse<Partial<ConversationIntelligenceOutput>>(response)
 
@@ -174,14 +172,18 @@ REGLAS:
       tipo: parsed.tipo ?? "consulta",
       categoria: parsed.categoria ?? "seguimiento",
       urgencia: parsed.urgencia ?? "media",
-      intencion: parsed.intencion ?? input.previousIntent ?? "Requiere seguimiento",
-      resumen: parsed.resumen ?? input.previousSummary ?? input.messages.at(-1)?.content?.slice(0, 200) ?? "Sin resumen",
+      intencion: parsed.intencion ?? input.previousIntent ?? S.requiresFollowUp,
+      resumen:
+        parsed.resumen ?? input.previousSummary ?? input.messages.at(-1)?.content?.slice(0, 200) ?? S.noSummary,
       leadScore: clampNumber(parsed.leadScore, 0, 100, 40),
-      scoreReasoning: parsed.scoreReasoning ?? "Scoring generado a partir del contexto conversacional actual.",
+      scoreReasoning: parsed.scoreReasoning ?? S.scoringFromContext,
       sentiment: parsed.sentiment ?? "neutral",
       sector: parsed.sector ?? "",
       confidence: clampNumber(parsed.confidence, 0, 1, 0.62),
-      detectedLanguage: typeof parsed.detectedLanguage === "string" && parsed.detectedLanguage.trim() ? parsed.detectedLanguage.trim().toLowerCase() : "es",
+      detectedLanguage:
+        typeof parsed.detectedLanguage === "string" && parsed.detectedLanguage.trim()
+          ? parsed.detectedLanguage.trim().toLowerCase()
+          : "en",
       datosCliente: parsed.datosCliente ?? {},
       datosProyecto: parsed.datosProyecto ?? {},
       notas: parsed.notas ?? "",
@@ -192,7 +194,7 @@ REGLAS:
       nextBestAction: parsed.nextBestAction
         ? {
             type: parsed.nextBestAction.type ?? "wait_human",
-            description: parsed.nextBestAction.description ?? "Revisión humana recomendada.",
+            description: parsed.nextBestAction.description ?? S.humanReviewRecommendedDesc,
           }
         : null,
       suggestedActions: Array.isArray(parsed.suggestedActions)
@@ -210,19 +212,20 @@ REGLAS:
           }))
         : [],
       handoff: {
-        headline: parsed.handoff?.headline ?? "Contexto operativo listo para revisión",
-        summary: parsed.handoff?.summary ?? parsed.resumen ?? input.previousSummary ?? "Sin contexto generado.",
+        headline: parsed.handoff?.headline ?? S.operationalContextReady,
+        summary: parsed.handoff?.summary ?? parsed.resumen ?? input.previousSummary ?? S.noGeneratedContext,
         facts: Array.isArray(parsed.handoff?.facts) ? parsed.handoff.facts : [],
         decisions: Array.isArray(parsed.handoff?.decisions) ? parsed.handoff.decisions : [],
         pendingItems: Array.isArray(parsed.handoff?.pendingItems) ? parsed.handoff.pendingItems : [],
         risks: Array.isArray(parsed.handoff?.risks) ? parsed.handoff.risks : [],
-        nextRecommendedAction: parsed.handoff?.nextRecommendedAction ?? parsed.nextBestAction?.description ?? "Revisión humana.",
+        nextRecommendedAction:
+          parsed.handoff?.nextRecommendedAction ?? parsed.nextBestAction?.description ?? S.humanReviewNext,
         confidence: clampNumber(parsed.handoff?.confidence, 0, 1, 0.62),
       },
       draft: parsed.draft
         ? {
             shouldCreate: Boolean(parsed.draft.shouldCreate),
-            title: parsed.draft.title ?? "Borrador de respuesta",
+            title: parsed.draft.title ?? S.draftReplyTitle,
             content: parsed.draft.content ?? "",
             tone: parsed.draft.tone ?? "profesional",
             targetChannel: parsed.draft.targetChannel ?? input.channel,
@@ -232,20 +235,20 @@ REGLAS:
     }
   }
 
-  const fallbackSummary = input.previousSummary ?? input.messages.at(-1)?.content?.slice(0, 200) ?? "Sin resumen"
+  const fallbackSummary = input.previousSummary ?? input.messages.at(-1)?.content?.slice(0, 200) ?? S.noSummary
 
   return {
     tipo: "consulta",
     categoria: "seguimiento",
     urgencia: "media",
-    intencion: input.previousIntent ?? "Requiere revisión humana",
+    intencion: input.previousIntent ?? S.requiresHumanReview,
     resumen: fallbackSummary,
     leadScore: 35,
-    scoreReasoning: "Fallback aplicado por error de parseo del motor IA.",
+    scoreReasoning: S.scoreReasoningParseFallback,
     sentiment: "neutral",
     sector: "",
     confidence: 0.35,
-    detectedLanguage: "es",
+    detectedLanguage: "en",
     datosCliente: {
       nombre: input.contact.nombre ?? undefined,
       email: input.contact.email ?? undefined,
@@ -253,24 +256,24 @@ REGLAS:
       empresa: input.contact.empresa ?? undefined,
     },
     datosProyecto: {},
-    notas: "Inteligencia conversacional en modo fallback. Requiere revisión manual.",
-    tags: ["revision-manual"],
+    notas: S.fallbackNotes,
+    tags: [S.manualReviewTag],
     facts: [],
     pendingItems: [],
-    risks: ["La respuesta IA no pudo parsearse correctamente."],
+    risks: [S.parseWarningRisk],
     nextBestAction: {
       type: "wait_human",
-      description: "Revisión humana recomendada antes de operar.",
+      description: S.humanReviewRecommendedDesc,
     },
     suggestedActions: [],
     handoff: {
-      headline: "Revisión manual recomendada",
+      headline: S.revisedSummary,
       summary: fallbackSummary,
       facts: [],
       decisions: [],
       pendingItems: [],
-      risks: ["Respuesta IA inválida o incompleta."],
-      nextRecommendedAction: "Un operador debe revisar esta conversación.",
+      risks: [S.parseWarningRisk],
+      nextRecommendedAction: S.humanReviewNext,
       confidence: 0.35,
     },
     draft: null,
@@ -322,27 +325,30 @@ function shouldSuggestAction(input: {
   }
 }
 
-function normalizeSuggestedActions(input: {
-  suggestedActions: Array<{
-    type: string
-    title: string
-    description: string
-    confidence: number
-  }>
-  nextBestAction: { type: string; description: string } | null
-  conversation: {
-    clienteId?: string | null
-    proyectoId?: string | null
-    assignedTo?: string | null
-    channel: string
-  }
-}) {
+function normalizeSuggestedActions(
+  input: {
+    suggestedActions: Array<{
+      type: string
+      title: string
+      description: string
+      confidence: number
+    }>
+    nextBestAction: { type: string; description: string } | null
+    conversation: {
+      clienteId?: string | null
+      proyectoId?: string | null
+      assignedTo?: string | null
+      channel: string
+    }
+  },
+  assignOperatorTitle: string,
+) {
   const raw = [...input.suggestedActions]
 
   if (input.nextBestAction?.type === "assign_operator") {
     raw.push({
       type: "assign_operator",
-      title: "Asignar operador",
+      title: assignOperatorTitle,
       description: input.nextBestAction.description,
       confidence: 0.72,
     })
@@ -406,10 +412,12 @@ export async function runConversationIntelligence(input: {
 
   const latestMessage = conversation.messages.at(-1) ?? null
 
+  const wsResolved = await getWorkspaceWithResolvedConfig(input.workspaceId)
+  const operatorLocale = wsResolved?.locale ?? DEFAULT_LOCALE
+  const S = getOperatorUiStrings(operatorLocale)
+
   const wsContext = await resolveWorkspaceContext(input.workspaceId)
-  const workspaceContextBlock = wsContext
-    ? buildWorkspaceContextBlock(wsContext)
-    : null
+  const workspaceContextBlock = wsContext ? buildWorkspaceContextBlock(wsContext, operatorLocale) : null
 
   const intelligence = await generateConversationIntelligence({
     conversationId: conversation.id,
@@ -429,6 +437,7 @@ export async function runConversationIntelligence(input: {
     previousSummary: conversation.summary ?? conversation.classification?.summary,
     previousIntent: conversation.intent ?? conversation.classification?.intent,
     workspaceContextBlock,
+    operatorLocale,
     messages: conversation.messages.map((message) => ({
       role: message.role,
       direction: message.direction,
@@ -439,16 +448,19 @@ export async function runConversationIntelligence(input: {
   })
 
   const nextStatus = deriveConversationStatus(conversation.status, intelligence.leadScore)
-  const normalizedSuggestedActions = normalizeSuggestedActions({
-    suggestedActions: intelligence.suggestedActions,
-    nextBestAction: intelligence.nextBestAction,
-    conversation: {
-      clienteId: conversation.clienteId,
-      proyectoId: conversation.proyectoId,
-      assignedTo: conversation.assignedTo,
-      channel: conversation.channel,
+  const normalizedSuggestedActions = normalizeSuggestedActions(
+    {
+      suggestedActions: intelligence.suggestedActions,
+      nextBestAction: intelligence.nextBestAction,
+      conversation: {
+        clienteId: conversation.clienteId,
+        proyectoId: conversation.proyectoId,
+        assignedTo: conversation.assignedTo,
+        channel: conversation.channel,
+      },
     },
-  })
+    S.assignOperatorTitle,
+  )
 
   const result = await db.$transaction(async (tx) => {
     const classification = await tx.aIClassification.upsert({
@@ -605,7 +617,7 @@ export async function runConversationIntelligence(input: {
             conversationId: conversation.id,
             type: "ghost_reply",
             status: "draft",
-            title: intelligence.draft.title || "Borrador de respuesta",
+            title: intelligence.draft.title || S.draftReplyTitle,
             content: intelligence.draft.content.trim(),
             tone: intelligence.draft.tone || "profesional",
             targetChannel: intelligence.draft.targetChannel || conversation.channel,

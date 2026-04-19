@@ -2,10 +2,17 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 const DEEPSEEK_MODEL = "deepseek-reasoner"
 const DEEPSEEK_TIMEOUT_MS = 45_000
 
-const DEFAULT_SYSTEM_PROMPT =
-  "Eres el motor operativo de 7F, una plataforma de gestion empresarial. " +
-  "Respondes con analisis claros, logicos y accionables. " +
-  "Usas formato estructurado cuando es util. Responde siempre en español."
+/**
+ * Language-neutral default: output language and format must follow the user message
+ * (no imposed locale). Used for `operativo` / inbox intelligence and other DeepSeek tasks.
+ */
+export const NEUTRAL_TASK_SYSTEM_PROMPT =
+  "You are a precise execution layer for business operations. " +
+  "Follow the user's instructions exactly. " +
+  "Match the response language, format, and constraints specified in the user message. " +
+  "Do not impose a reply language unless the instructions require one."
+
+const DEFAULT_SYSTEM_PROMPT = NEUTRAL_TASK_SYSTEM_PROMPT
 
 export async function askDeepSeek(
   prompt: string,
@@ -13,7 +20,7 @@ export async function askDeepSeek(
 ): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY no configurada en variables de entorno")
+    throw new Error("DEEPSEEK_API_KEY is not set in environment variables")
   }
 
   console.log("[7F Motor IA] DeepSeek request →", prompt.slice(0, 80), "...")
@@ -60,7 +67,7 @@ export async function askDeepSeek(
   const content = json.choices?.[0]?.message?.content?.trim()
 
   if (!content) {
-    throw new Error("DeepSeek devolvio una respuesta vacia")
+    throw new Error("DeepSeek returned an empty response")
   }
 
   console.log("[7F Motor IA] DeepSeek response ✓", content.slice(0, 80), "...")

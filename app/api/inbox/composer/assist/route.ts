@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import { askMotorIA } from "@/lib/ai"
+import { askMotorIA, type AIMode } from "@/lib/ai"
+import { getWorkspaceWithResolvedConfig } from "@core/workspace"
+import { DEFAULT_LOCALE, type SupportedLocale } from "@core/i18n"
+import { operatorLocalePromptName } from "@/lib/inbox-operator-i18n"
 
 const VALID_ACTIONS = [
   "proofread",
@@ -20,56 +23,107 @@ const MAX_TEXT_LENGTH = 8000
 const MIN_TEXT_LENGTH_FOR_REWRITE = 6
 const AI_TIMEOUT_MS = 25_000
 
-function buildPrompt(action: AssistAction, text: string, targetLanguage?: string, detectedLanguage?: string): string {
+function buildPrompt(
+  action: AssistAction,
+  text: string,
+  targetLanguage: string | undefined,
+  detectedLanguage: string | undefined,
+  operatorLocale: SupportedLocale,
+): string {
+  const opUiName = operatorLocalePromptName(operatorLocale)
   const langNote = detectedLanguage
-    ? `The conversation is in ${detectedLanguage.toUpperCase()}.`
+    ? `Customer thread language hint: ${detectedLanguage.toUpperCase()}.`
     : ""
+
+  const operatorContext = `Operator UI language: ${opUiName} (for your orientation only).`
 
   switch (action) {
     case "proofread":
-      return `Fix spelling, grammar, and punctuation in the following text. Keep the same language, tone, and meaning. Return ONLY the corrected text, no explanations.\n\n${langNote}\n\nText:\n${text}`
-
-    case "shorter":
-      return `Make the following text shorter and more concise while keeping the same meaning and tone. Remove filler and redundancy. Return ONLY the shortened text.\n\n${langNote}\n\nText:\n${text}`
-
-    case "clearer":
-      return `Rewrite the following text to be clearer and easier to understand. Keep the same language and intent. Return ONLY the improved text.\n\n${langNote}\n\nText:\n${text}`
-
-    case "professional":
-      return `Rewrite the following text in a more professional and polished tone. Keep the same language and meaning. Return ONLY the rewritten text.\n\n${langNote}\n\nText:\n${text}`
-
-    case "warmer":
-      return `Rewrite the following text in a warmer, friendlier tone while keeping it professional. Keep the same language and meaning. Return ONLY the rewritten text.\n\n${langNote}\n\nText:\n${text}`
-
-    case "direct":
-      return `Rewrite the following text to be more direct and action-oriented. Remove hedging and unnecessary politeness. Keep the same language. Return ONLY the rewritten text.\n\n${langNote}\n\nText:\n${text}`
-
-    case "translate": {
-      const target = targetLanguage || "English"
-      return `Translate the following text to ${target}. Maintain the original tone and intent. Return ONLY the translated text.\n\nText:\n${text}`
-    }
-
-    case "compose_from_intent":
-      return `You are a professional communication assistant helping an operator reply to a customer conversation.
+      return `${operatorContext}
+Fix spelling, grammar, and punctuation in the following text. Keep the same language as the text (customer reply may differ from ${opUiName}). Return ONLY the corrected text, no explanations.
 
 ${langNote}
 
-The operator described what they want to communicate in their own words (possibly informal or as a voice note). Transform this into a well-written, professional reply that the operator can send directly to the customer.
+Text:
+${text}`
 
-Rules:
-- Write in the same language as the operator's intent description${detectedLanguage ? `, or in ${detectedLanguage.toUpperCase()} if the conversation is in that language` : ""}
-- Keep it natural and professional
-- Do not add greetings or signatures unless the intent implies them
-- Return ONLY the ready-to-send reply text
+    case "shorter":
+      return `${operatorContext}
+Make the following text shorter while keeping the same meaning and tone. Keep the same language as the input. Return ONLY the shortened text.
 
-Operator's intent:
+${langNote}
+
+Text:
+${text}`
+
+    case "clearer":
+      return `${operatorContext}
+Rewrite the following text to be clearer. Keep the same language as the input. Return ONLY the improved text.
+
+${langNote}
+
+Text:
+${text}`
+
+    case "professional":
+      return `${operatorContext}
+Rewrite in a more professional tone. Keep the same language as the input. Return ONLY the rewritten text.
+
+${langNote}
+
+Text:
+${text}`
+
+    case "warmer":
+      return `${operatorContext}
+Rewrite in a warmer, friendlier professional tone. Keep the same language as the input. Return ONLY the rewritten text.
+
+${langNote}
+
+Text:
+${text}`
+
+    case "direct":
+      return `${operatorContext}
+Rewrite to be more direct and action-oriented. Keep the same language as the input. Return ONLY the rewritten text.
+
+${langNote}
+
+Text:
+${text}`
+
+    case "translate": {
+      const target = targetLanguage || "English"
+      return `Translate the following text to ${target}. Maintain tone and intent. Return ONLY the translated text.
+
+Text:
+${text}`
+    }
+
+    case "compose_from_intent":
+      return `You help an operator compose a reply to a customer.
+
+${operatorContext}
+${langNote}
+
+The operator wrote what they want to say (voice note / rough notes). Produce a single ready-to-send message for the CUSTOMER.
+
+Rules (order of priority):
+1) The outbound message MUST be in the same language the customer uses in inbound messages — primary reference: ${detectedLanguage ? detectedLanguage.toUpperCase() : "infer from the conversation / thread context"}.
+2) Do not mirror ${opUiName} in the customer message unless the customer actually writes in that language.
+3) Natural, professional, concise. No meta-commentary.
+4) Return ONLY the customer-facing reply text.
+
+Operator intent / notes:
 ${text}`
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await requireWriteAccess(request)
+    const { workspaceId } = await requireWriteAccess(request)
+    const ws = await getWorkspaceWithResolvedConfig(workspaceId)
+    const operatorLocale: SupportedLocale = ws?.locale ?? DEFAULT_LOCALE
 
     const body = await request.json()
     const { action, text, targetLanguage, detectedLanguage } = body as {
@@ -104,8 +158,8 @@ export async function POST(request: NextRequest) {
       return successResponse({ result: trimmedText, action, skipped: true })
     }
 
-    const prompt = buildPrompt(typedAction, trimmedText, targetLanguage, detectedLanguage)
-    const mode = typedAction === "proofread" ? "correccion" : "editorial"
+    const prompt = buildPrompt(typedAction, trimmedText, targetLanguage, detectedLanguage, operatorLocale)
+    const mode: AIMode = typedAction === "proofread" ? "assist_proofread" : "assist_rewrite"
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS)

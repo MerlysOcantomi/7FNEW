@@ -35,6 +35,7 @@ import {
   channelLabel,
   formatRoleLabel,
 } from "@/lib/inbox-labels"
+import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -310,6 +311,7 @@ function InboxPageContent() {
     meta: conversationsMeta,
     loading,
     error,
+    errorCode,
     refetch,
   } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey, pollInterval: LIST_POLL_INTERVAL })
 
@@ -335,8 +337,8 @@ function InboxPageContent() {
   const serverTotal = typeof conversationsMeta?.total === "number" ? conversationsMeta.total : null
   const hasMore = serverTotal !== null && conversations.length < serverTotal
 
-  const isWorkspaceUnavailable = error === "No tienes workspace asignado"
-  const isGenericListFailure = error === "Error interno del servidor"
+  const isWorkspaceUnavailable = errorCode === "NO_WORKSPACE"
+  const isGenericListFailure = errorCode === "INTERNAL_ERROR"
   const listErrorMessage =
     isWorkspaceUnavailable
       ? "Inbox is not available yet for this workspace."
@@ -394,14 +396,24 @@ function InboxPageContent() {
     data: detailData,
     loading: detailLoading,
     error: detailError,
+    errorCode: detailErrorCode,
+    meta: detailMeta,
     refetch: refetchDetail,
   } = useFetch<ConversationDetail>(
     activeSelectedId ? `/api/inbox/conversations/${activeSelectedId}` : null,
     { refreshKey },
   )
 
-  const isDetailWorkspaceUnavailable = detailError === "No tienes workspace asignado"
-  const isGenericDetailFailure = detailError === "Error interno del servidor"
+  const uiLocale: SupportedLocale = parseLocale(
+    (typeof conversationsMeta?.locale === "string" && conversationsMeta.locale)
+      ? conversationsMeta.locale
+      : typeof detailMeta?.locale === "string"
+        ? detailMeta.locale
+        : undefined,
+  )
+
+  const isDetailWorkspaceUnavailable = detailErrorCode === "NO_WORKSPACE"
+  const isGenericDetailFailure = detailErrorCode === "INTERNAL_ERROR"
   const detailErrorMessage =
     isDetailWorkspaceUnavailable
       ? "This conversation is not available until a workspace is active."
@@ -759,15 +771,15 @@ function InboxPageContent() {
   }
 
   const statusFilterOptions = STATUS_OPTIONS
-    .map((s) => ({ value: s, label: s === "all" ? "All statuses" : statusLabel(s) }))
+    .map((s) => ({ value: s, label: s === "all" ? "All statuses" : statusLabel(s, uiLocale) }))
 
   const statusEditOptions = STATUS_OPTIONS
     .filter((s) => s !== "all")
-    .map((s) => ({ value: s, label: statusLabel(s) }))
+    .map((s) => ({ value: s, label: statusLabel(s, uiLocale) }))
 
   const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
     value: option,
-    label: option === "all" ? "All channels" : channelLabel(option),
+    label: option === "all" ? "All channels" : channelLabel(option, uiLocale),
   }))
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
@@ -850,18 +862,18 @@ function InboxPageContent() {
         title: primaryTitle,
         senderIntent,
         sectorLabel: conversation.classification?.sector?.trim() || null,
-        timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString()),
+        timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
         isUnread: conversation.status === "new",
-        statusLabel: statusLabel(conversation.status),
+        statusLabel: statusLabel(conversation.status, uiLocale),
         statusClassName: statusBadge(conversation.status),
-        channelLabel: channelLabel(conversation.channel),
-        urgencyLabel: urgencyLabel(conversation.urgency),
+        channelLabel: channelLabel(conversation.channel, uiLocale),
+        urgencyLabel: urgencyLabel(conversation.urgency, uiLocale),
         urgencyClassName: urgencyBadge(conversation.urgency),
         leadScore: conversation.leadScore,
         messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
       }
     }),
-    [conversations],
+    [conversations, uiLocale],
   )
 
   const threadMessages =
@@ -906,7 +918,7 @@ function InboxPageContent() {
             : selected.contact.nombre || selected.contact.email || "Contact",
         roleLabel: formatRoleLabel(message.role),
         metaLabel: isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System",
-        timestampLabel: formatRelativeDate(message.createdAt),
+        timestampLabel: formatRelativeDate(message.createdAt, uiLocale),
         content: message.content,
         tone,
         attachments: msgAttachments,
@@ -1207,7 +1219,7 @@ function InboxPageContent() {
                     <>
                       <ReplyComposer
                         channel={selected.channel}
-                        channelLabel={channelLabel(selected.channel)}
+                        channelLabel={channelLabel(selected.channel, uiLocale)}
                         subject={selected.subject}
                         detectedLanguage={selected.detectedLanguage}
                         replyContent={replyContent}

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
+import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { listConversations, parseConversationJsonFields } from "@modules/inbox/service"
 
 export async function GET(request: NextRequest) {
@@ -15,16 +16,19 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get("q")?.trim() || undefined
     const assignedTo = searchParams.get("assignedTo") ?? undefined
 
-    const { data, total, leads, urgent } = await listConversations({
-      workspaceId,
-      skip,
-      take: pageSize,
-      status,
-      channel,
-      urgency,
-      q,
-      assignedTo,
-    })
+    const [{ data, total, leads, urgent }, wsResolved] = await Promise.all([
+      listConversations({
+        workspaceId,
+        skip,
+        take: pageSize,
+        status,
+        channel,
+        urgency,
+        q,
+        assignedTo,
+      }),
+      getWorkspaceWithResolvedConfig(workspaceId),
+    ])
 
     return successResponse(
       data.map((record) => parseConversationJsonFields(record)),
@@ -35,6 +39,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
         leads,
         urgent,
+        locale: wsResolved?.locale ?? "en",
       },
     )
   } catch (error) {
