@@ -37,7 +37,7 @@ import {
   formatRoleLabel,
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
-import { filterConsecutiveDuplicateIntents } from "@/lib/inbox/filter-consecutive-intent-duplicates"
+import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1039,7 +1039,7 @@ function InboxPageContent() {
         if (cancelled) return
         const rows = json?.success && Array.isArray(json.data) ? json.data : []
         const lines = rows.map((r) => r.shortIntent).filter(Boolean)
-        const filtered = filterConsecutiveDuplicateIntents(lines)
+        const filtered = pickExpandedIntents(lines)
         loadedShortIntentIdsRef.current.add(expandedConversationId)
         setMessageShortIntentsById((prev) => ({
           ...prev,
