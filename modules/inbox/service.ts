@@ -6,6 +6,7 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
+import { getShortIntentFromMetadataRecord, parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
 import { persistShortIntentForMessage, shouldPersistMessageShortIntent } from "./message-short-intent"
 
 interface ListConversationsParams {
@@ -447,11 +448,9 @@ export async function listMessageShortIntents(conversationId: string, workspaceI
   })
   const result: { id: string; shortIntent: string }[] = []
   for (const row of rows) {
-    const meta = parseJson<Record<string, unknown>>(row.metadata)
-    const si = meta?.shortIntent
-    if (typeof si === "string" && si.trim().length > 0) {
-      result.push({ id: row.id, shortIntent: si.trim() })
-    }
+    const meta = parseMessageMetadataRecord(row.metadata)
+    const si = getShortIntentFromMetadataRecord(meta)
+    if (si) result.push({ id: row.id, shortIntent: si })
   }
   return result
 }

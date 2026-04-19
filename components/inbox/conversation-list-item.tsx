@@ -58,14 +58,15 @@ export function ConversationListItem({
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
 
-  const showIntentBlock =
-    expanded && (intentsLoading || (shortIntentLines != null && shortIntentLines.length > 0))
+  /** `undefined` = aún no cargado; `[]` = cargado sin shortIntent en metadata (o todo filtrado). */
+  const intentPanelVisible =
+    expanded && (intentsLoading || shortIntentLines !== undefined)
 
   return (
     <div
       ref={itemRef}
       className={cn(
-        "group relative w-full rounded-lg border-b px-3 py-2.5 text-left transition-all duration-200",
+        "group relative w-full rounded-lg border-b px-2.5 py-2.5 text-left transition-all duration-200",
         selected
           ? "border-b-transparent bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/25"
           : "border-b border-white/[0.06] bg-transparent hover:bg-white/[0.04]",
@@ -80,7 +81,7 @@ export function ConversationListItem({
         )}
         aria-hidden="true"
       />
-      <div className="flex gap-0.5">
+      <div className="flex items-start gap-1">
         <button
           type="button"
           aria-expanded={expanded}
@@ -90,12 +91,12 @@ export function ConversationListItem({
             onToggleExpand()
           }}
           className={cn(
-            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--inbox-list-text-secondary)] transition-colors",
+            "mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--inbox-list-text-secondary)] transition-colors",
             "hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
           )}
         >
           <ChevronRight
-            className={cn("h-4 w-4 shrink-0 transition-transform duration-200", expanded && "rotate-90")}
+            className={cn("h-3 w-3 shrink-0 transition-transform duration-200", expanded && "rotate-90")}
             aria-hidden="true"
           />
         </button>
@@ -177,8 +178,8 @@ export function ConversationListItem({
         </button>
       </div>
 
-      {showIntentBlock ? (
-        <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 pl-9 pr-1">
+      {intentPanelVisible ? (
+        <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 pl-7 pr-1">
           {intentsLoading ? (
             <div className="flex items-center gap-2 py-0.5 text-[var(--inbox-list-text-secondary)]">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
@@ -195,7 +196,11 @@ export function ConversationListItem({
                 </li>
               ))}
             </ul>
-          ) : null}
+          ) : (
+            <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
+              No hay intents por mensaje guardados.
+            </p>
+          )}
         </div>
       ) : null}
     </div>

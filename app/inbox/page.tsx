@@ -185,7 +185,7 @@ const STATUS_OPTIONS = [
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 const DESKTOP_INBOX_GRID =
-  "xl:grid xl:grid-cols-[minmax(288px,26%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
+  "xl:grid xl:grid-cols-[minmax(288px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
@@ -1016,51 +1016,82 @@ function InboxPageContent() {
   }
 
   const handleToggleConversationExpand = useCallback((id: string) => {
-    setExpandedConversationId((prev) => (prev === id ? null : id))
+    setExpandedConversationId((prev) => {
+      if (prev === id) {
+        setMessageIntentsLoadingId(null)
+        return null
+      }
+      if (!loadedShortIntentIdsRef.current.has(id)) {
+        setMessageIntentsLoadingId(id)
+      }
+      return id
+    })
   }, [])
 
   useEffect(() => {
     setMessageShortIntentsById({})
     loadedShortIntentIdsRef.current.clear()
+    setExpandedConversationId(null)
+    setMessageIntentsLoadingId(null)
   }, [refreshKey])
 
+  /**
+   * Carga intents por mensaje; si viene vacío reintenta una vez tras ~2s (persistencia async de shortIntent).
+   */
   useEffect(() => {
-    if (!expandedConversationId) {
-      setMessageIntentsLoadingId(null)
-      return
-    }
+    if (!expandedConversationId) return
     if (loadedShortIntentIdsRef.current.has(expandedConversationId)) return
 
     let cancelled = false
-    setMessageIntentsLoadingId(expandedConversationId)
-    fetch(`/api/inbox/conversations/${expandedConversationId}/message-intents`)
-      .then((res) => res.json())
-      .then((json: { success?: boolean; data?: Array<{ shortIntent: string }> }) => {
+    const conversationId = expandedConversationId
+
+    async function parseResponse(res: Response): Promise<string[]> {
+      const json = (await res.json()) as {
+        success?: boolean
+        data?: Array<{ shortIntent: string }>
+      }
+      const rows = json?.success && Array.isArray(json.data) ? json.data : []
+      const lines = rows.map((r) => r.shortIntent).filter(Boolean)
+      return pickExpandedIntents(lines)
+    }
+
+    async function run() {
+      try {
+        let res = await fetch(`/api/inbox/conversations/${conversationId}/message-intents`)
+        let filtered = await parseResponse(res)
         if (cancelled) return
-        const rows = json?.success && Array.isArray(json.data) ? json.data : []
-        const lines = rows.map((r) => r.shortIntent).filter(Boolean)
-        const filtered = pickExpandedIntents(lines)
-        loadedShortIntentIdsRef.current.add(expandedConversationId)
+
+        if (filtered.length === 0 && res.ok) {
+          await new Promise((r) => setTimeout(r, 2200))
+          if (cancelled) return
+          res = await fetch(`/api/inbox/conversations/${conversationId}/message-intents`)
+          if (cancelled) return
+          filtered = await parseResponse(res)
+        }
+
+        if (cancelled) return
+        loadedShortIntentIdsRef.current.add(conversationId)
         setMessageShortIntentsById((prev) => ({
           ...prev,
-          [expandedConversationId]: filtered,
+          [conversationId]: filtered,
         }))
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return
-        loadedShortIntentIdsRef.current.add(expandedConversationId)
+        loadedShortIntentIdsRef.current.add(conversationId)
         setMessageShortIntentsById((prev) => ({
           ...prev,
-          [expandedConversationId]: [],
+          [conversationId]: [],
         }))
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setMessageIntentsLoadingId((cur) =>
-            cur === expandedConversationId ? null : cur,
+            cur === conversationId ? null : cur,
           )
         }
-      })
+      }
+    }
+
+    void run()
 
     return () => {
       cancelled = true
