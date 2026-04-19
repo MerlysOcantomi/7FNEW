@@ -870,13 +870,9 @@ function InboxPageContent() {
       const intentFromModel =
         conversation.classification?.intent?.trim() || conversation.intent?.trim() || null
 
-      const summaryFallback =
-        conversation.classification?.summary?.trim() || conversation.summary?.trim() || null
-
       const senderIntent =
         formatSenderIntentPhrase(intentFromModel) ||
         formatSenderIntentPhrase(conversation.subject?.trim()) ||
-        formatSenderIntentPhrase(summaryFallback) ||
         null
 
       return {
