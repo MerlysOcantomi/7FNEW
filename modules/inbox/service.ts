@@ -7,7 +7,11 @@ import {
   transitionConversationStatus,
 } from "./state"
 import { getShortIntentFromMetadataRecord, parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
-import { persistShortIntentForMessage, shouldPersistMessageShortIntent } from "./message-short-intent"
+import {
+  MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
+  persistShortIntentForMessage,
+  shouldPersistMessageShortIntent,
+} from "./message-short-intent"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -517,12 +521,26 @@ export async function addMessage(input: AddMessageInput) {
     return created
   })
 
-  if (message && shouldPersistMessageShortIntent({ content: message.content, role: input.role })) {
-    void persistShortIntentForMessage({
-      messageId: message.id,
-      workspaceId: input.workspaceId,
-      content: message.content,
-    }).catch((err) => console.error(`[inbox] shortIntent persist failed msg=${message.id}:`, err))
+  if (message) {
+    const eligible = shouldPersistMessageShortIntent({ content: message.content, role: input.role })
+    if (eligible) {
+      console.log(`[shortIntent-debug] persist scheduled msg=${message.id}`)
+      void persistShortIntentForMessage({
+        messageId: message.id,
+        workspaceId: input.workspaceId,
+        content: message.content,
+      }).catch((err) => console.error(`[inbox] shortIntent persist failed msg=${message.id}:`, err))
+    } else {
+      const len = message.content.trim().length
+      const roleLower = message.role.trim().toLowerCase()
+      const skipReason =
+        len < MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH
+          ? `not_eligible_short_content len=${len}`
+          : roleLower === "system"
+            ? "not_eligible_system_role"
+            : "not_eligible"
+      console.log(`[shortIntent-debug] persist skipped msg=${message.id} reason=${skipReason}`)
+    }
   }
 
   return message

@@ -6,6 +6,9 @@ import { operatorLocalePromptName } from "@/lib/inbox-operator-i18n"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 
 const MODEL: "operativo" = "operativo"
+/** TEMP diagnóstico — quitar cuando se cierre la investigación de shortIntent */
+const SHORT_INTENT_DEBUG = "[shortIntent-debug]"
+
 /** Mínimo de caracteres en el cuerpo para pedir intent (evita ruido). */
 export const MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH = 8
 const MAX_MESSAGE_CHARS_FOR_PROMPT = 8_000
@@ -99,19 +102,39 @@ ${body}`
   let raw: string
   try {
     raw = await askMotorIA(prompt, MODEL)
+    console.log(
+      `${SHORT_INTENT_DEBUG} askMotorIA ok msg=${input.messageId} rawLen=${raw.length} rawPreview=${JSON.stringify(raw.slice(0, 320))}`,
+    )
   } catch (err) {
-    console.error(`[message-short-intent] askMotorIA failed msg=${input.messageId}:`, err)
+    console.error(`${SHORT_INTENT_DEBUG} askMotorIA failed msg=${input.messageId}`, err)
     return
   }
 
   const parsed = parseIntentJson(raw)
+  const rawShort = parsed?.shortIntent
+  console.log(
+    `${SHORT_INTENT_DEBUG} parseIntentJson msg=${input.messageId} parsedPresent=${parsed != null} rawShortIntent=${rawShort === undefined ? "undefined" : JSON.stringify(rawShort)}`,
+  )
+
   const clipped = formatSenderIntentPhrase(parsed?.shortIntent ?? "", 10)
-  if (!clipped) return
+  console.log(
+    `${SHORT_INTENT_DEBUG} formatSenderIntentPhrase msg=${input.messageId} clipped=${clipped === null ? "null" : JSON.stringify(clipped)}`,
+  )
+  if (!clipped) {
+    console.log(`${SHORT_INTENT_DEBUG} persist exit msg=${input.messageId} reason=empty_after_clip`)
+    return
+  }
 
   const merged = mergeMessageMetadataJson(latest.metadata, { shortIntent: clipped })
 
-  await db.message.update({
-    where: { id: input.messageId },
-    data: { metadata: merged },
-  })
+  try {
+    await db.message.update({
+      where: { id: input.messageId },
+      data: { metadata: merged },
+    })
+    console.log(`${SHORT_INTENT_DEBUG} db.message.update ok msg=${input.messageId}`)
+  } catch (updateErr) {
+    console.error(`${SHORT_INTENT_DEBUG} db.message.update failed msg=${input.messageId}`, updateErr)
+    throw updateErr
+  }
 }
