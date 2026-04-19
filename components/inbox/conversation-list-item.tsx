@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 interface ConversationListItemProps {
   title: string
   senderIntent?: string | null
-  snippet?: string | null
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -28,7 +27,6 @@ interface ConversationListItemProps {
 export function ConversationListItem({
   title,
   senderIntent,
-  snippet,
   sectorLabel,
   timeLabel,
   selected,
@@ -90,13 +88,11 @@ export function ConversationListItem({
                   {title}
                 </p>
                 {senderIntent ? (
-                  <p className="mt-0.5 truncate text-[13px] leading-snug text-[var(--inbox-list-text-secondary)]">
+                  <p
+                    className="mt-0.5 block max-w-full text-[13px] leading-snug text-[var(--inbox-list-text-secondary)] break-words [overflow-wrap:anywhere]"
+                    title={senderIntent}
+                  >
                     {senderIntent}
-                  </p>
-                ) : null}
-                {snippet ? (
-                  <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-[var(--inbox-list-text-secondary)]/75">
-                    {snippet}
                   </p>
                 ) : null}
               </div>

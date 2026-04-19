@@ -35,7 +35,7 @@ import {
   channelLabel,
   formatRoleLabel,
 } from "@/lib/inbox-labels"
-import { formatMessageSnippet, formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
+import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, Send, Loader2 } from "lucide-react"
@@ -844,19 +844,11 @@ function InboxPageContent() {
         formatSenderIntentPhrase(summaryFallback) ||
         null
 
-      const lastInbound = conversation.messages?.[0]
-      const snippet =
-        formatMessageSnippet(lastInbound?.content) ||
-        (conversation.subject?.trim()
-          ? formatMessageSnippet(conversation.subject, 100)
-          : null)
-
       return {
         id: conversation.id,
         channel: conversation.channel,
         title: primaryTitle,
         senderIntent,
-        snippet,
         sectorLabel: conversation.classification?.sector?.trim() || null,
         timeLabel: formatRelativeDate(conversation.lastMessageAt || new Date().toISOString()),
         isUnread: conversation.status === "new",
