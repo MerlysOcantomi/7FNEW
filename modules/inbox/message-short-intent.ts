@@ -10,6 +10,16 @@ const MODEL: "operativo" = "operativo"
 export const MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH = 8
 const MAX_MESSAGE_CHARS_FOR_PROMPT = 8_000
 
+/**
+ * Reglas mínimas de elegibilidad: mensaje con cuerpo suficiente y no puramente de sistema.
+ * (Dirección, interno/externo o customer/team no excluyen — el modelo acota ruido en el prompt.)
+ */
+export function shouldPersistMessageShortIntent(input: { content: string; role: string }): boolean {
+  if (input.content.trim().length < MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH) return false
+  if (input.role.trim().toLowerCase() === "system") return false
+  return true
+}
+
 function parseJson<T>(value: string | null | undefined): T | null {
   if (!value) return null
   try {
@@ -44,10 +54,10 @@ export function mergeMessageMetadataJson(
 }
 
 /**
- * Deriva una frase corta de intención solo para este mensaje (no el resumen de conversación)
+ * Deriva una frase corta de intención comunicativa/operativa para este mensaje (no el resumen de conversación)
  * y la guarda en `metadata.shortIntent`.
  */
-export async function persistShortIntentForInboundMessage(input: {
+export async function persistShortIntentForMessage(input: {
   messageId: string
   workspaceId: string
   content: string
@@ -71,14 +81,17 @@ export async function persistShortIntentForInboundMessage(input: {
 
   const opLangName = operatorLocalePromptName(locale)
 
-  const prompt = `You label ONE inbound customer message with a very short intent phrase for an inbox sidebar.
+  const prompt = `You assign ONE short intent label for ONE message shown in an inbox sidebar (Smart Inbox).
+
+The message may be from a customer or from your team; inbound or outbound; internal coordination or external. Capture real communicative or operational intent — what someone is requesting, notifying, coordinating, or deciding in THIS message — not what the whole thread is about.
 
 Hard rules:
 - Respond with ONLY valid JSON: {"shortIntent":"<phrase>"}
-- shortIntent: at most 10 words, plain language, describing what the customer wants or states IN THIS MESSAGE ONLY.
-- It must NOT be a paragraph, NOT a conversation summary, NOT an internal task/workflow label.
-- Use the same language as the message when possible; otherwise ${opLangName}.
-- If the message has no clear intent (spam/noise), use {"shortIntent":""}.
+- shortIntent: at most 10 words, plain human language, grounded only in THIS message (e.g. requests, approvals, reports, schedules, pricing, updates that matter operationally).
+- Must NOT be a paragraph, NOT a conversation-level summary, NOT pasted boilerplate with no substance.
+- Do NOT reduce the message to a fake "internal task ticket" title unless that label truly reflects what is being communicated.
+- Prefer the message's language when possible; otherwise ${opLangName}.
+- If there is no substantive intent worth surfacing (spam, empty fluff, meaningless noise), use {"shortIntent":""}.
 
 MESSAGE:
 ${body}`

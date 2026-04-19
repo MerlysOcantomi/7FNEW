@@ -6,10 +6,7 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
-import {
-  MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
-  persistShortIntentForInboundMessage,
-} from "./message-short-intent"
+import { persistShortIntentForMessage, shouldPersistMessageShortIntent } from "./message-short-intent"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -502,13 +499,8 @@ export async function addMessage(input: AddMessageInput) {
     return created
   })
 
-  if (
-    message &&
-    (input.direction ?? "outbound") === "inbound" &&
-    !(input.isInternal ?? false) &&
-    message.content.trim().length >= MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH
-  ) {
-    void persistShortIntentForInboundMessage({
+  if (message && shouldPersistMessageShortIntent({ content: message.content, role: input.role })) {
+    void persistShortIntentForMessage({
       messageId: message.id,
       workspaceId: input.workspaceId,
       content: message.content,
