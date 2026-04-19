@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
   Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp,
   Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
@@ -370,6 +370,17 @@ export function ReplyComposer({
     }
   }, [isProcessing])
 
+  const closePanelBlocks = useCallback(() => {
+    setClipPanelOpen(false)
+    setAssistPanelOpen(false)
+    setFannyPanelOpen(false)
+  }, [])
+
+  const closeComposerOverlays = useCallback(() => {
+    closePanelBlocks()
+    onCannedOpenChange(false)
+  }, [closePanelBlocks, onCannedOpenChange])
+
   const showEmailOptions = !replyIsInternal && channel === "email"
 
   const sendActionLabel = replyIsInternal
@@ -545,6 +556,7 @@ export function ReplyComposer({
               <button
                 type="button"
                 onClick={() => {
+                  closeComposerOverlays()
                   onReplyModeChange(false)
                   onEmailModeChange("reply")
                   focusComposerWithScroll()
@@ -566,6 +578,7 @@ export function ReplyComposer({
                   <button
                     type="button"
                     onClick={() => {
+                      closeComposerOverlays()
                       onReplyModeChange(false)
                       onEmailModeChange("reply_all")
                       focusComposerWithScroll()
@@ -585,6 +598,7 @@ export function ReplyComposer({
                   <button
                     type="button"
                     onClick={() => {
+                      closeComposerOverlays()
                       onReplyModeChange(false)
                       onEmailModeChange("forward")
                       focusComposerWithScroll()
@@ -636,9 +650,10 @@ export function ReplyComposer({
             <button
               type="button"
               onClick={() => {
-                setClipPanelOpen((v) => !v)
                 setAssistPanelOpen(false)
                 setFannyPanelOpen(false)
+                onCannedOpenChange(false)
+                setClipPanelOpen((v) => !v)
               }}
               disabled={attachmentUploading}
               className={cn(
@@ -709,9 +724,10 @@ export function ReplyComposer({
               <button
                 type="button"
                 onClick={() => {
-                  setAssistPanelOpen((v) => !v)
                   setClipPanelOpen(false)
                   setFannyPanelOpen(false)
+                  onCannedOpenChange(false)
+                  setAssistPanelOpen((v) => !v)
                 }}
                 className={cn(
                   SHELL_TOOLBAR_ICON,
@@ -727,9 +743,10 @@ export function ReplyComposer({
               <button
                 type="button"
                 onClick={() => {
-                  setFannyPanelOpen((v) => !v)
                   setClipPanelOpen(false)
                   setAssistPanelOpen(false)
+                  onCannedOpenChange(false)
+                  setFannyPanelOpen((v) => !v)
                 }}
                 className={cn(
                   SHELL_TOOLBAR_ICON,
@@ -746,7 +763,10 @@ export function ReplyComposer({
               <>
                 <button
                   type="button"
-                  onClick={() => setVoiceMode("dictate")}
+                  onClick={() => {
+                    closeComposerOverlays()
+                    setVoiceMode("dictate")
+                  }}
                   className={cn(
                     SHELL_TOOLBAR_ICON,
                     showVoiceModeChrome && voiceMode === "dictate" && SHELL_TOOLBAR_ICON_ACTIVE,
@@ -770,7 +790,10 @@ export function ReplyComposer({
                 </button>
                 <button
                   type="button"
-                  onClick={handleMicToggle}
+                  onClick={() => {
+                    closeComposerOverlays()
+                    handleMicToggle()
+                  }}
                   disabled={isProcessing}
                   className={cn(
                     SHELL_TOOLBAR_ICON,
@@ -820,7 +843,10 @@ export function ReplyComposer({
             <Button
               type="button"
               size="icon-sm"
-              onClick={handleSend}
+              onClick={() => {
+                closeComposerOverlays()
+                handleSend()
+              }}
               disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
               title={`${sendActionLabel} · Ctrl+Enter or ⌘+Enter`}
               aria-label={sendActionLabel}
