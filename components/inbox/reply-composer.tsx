@@ -533,7 +533,7 @@ export function ReplyComposer({
                 title="Reply"
                 aria-label="Reply"
               >
-                <Reply className="h-[18px] w-[18px]" strokeWidth={2} />
+                <Reply className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
               {channel === "email" && (
                 <>
@@ -551,7 +551,7 @@ export function ReplyComposer({
                     title="Reply all"
                     aria-label="Reply all"
                   >
-                    <ReplyAll className="h-[18px] w-[18px]" strokeWidth={2} />
+                    <ReplyAll className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
                   <button
                     type="button"
@@ -584,7 +584,7 @@ export function ReplyComposer({
                 title="Internal note"
                 aria-label="Internal note"
               >
-                <StickyNote className="h-[18px] w-[18px]" strokeWidth={2} />
+                <StickyNote className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             </div>
             <span
@@ -613,7 +613,11 @@ export function ReplyComposer({
               )}
               title="Insert or attach"
             >
-              {attachmentUploading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Paperclip className="h-[18px] w-[18px]" />}
+              {attachmentUploading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2} />
+              ) : (
+                <Paperclip className="h-4 w-4 shrink-0" strokeWidth={2} />
+              )}
             </button>
             <input
               ref={fileInputRef}
@@ -635,7 +639,7 @@ export function ReplyComposer({
                     className="rounded-md p-1.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
                     title="Snippets"
                   >
-                    <Zap className="h-[18px] w-[18px]" />
+                    <Zap className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
@@ -676,7 +680,7 @@ export function ReplyComposer({
                 )}
                 title="Improve text — tone, clarity, translate…"
               >
-                <Wand2 className="h-[18px] w-[18px]" />
+                <Wand2 className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             )}
 
@@ -701,7 +705,7 @@ export function ReplyComposer({
                     title="Fanny suggested reply — apply to compose only (does not send)"
                     aria-label="Fanny suggested reply"
                   >
-                    <MessageSquareQuote className="h-[18px] w-[18px]" strokeWidth={2} />
+                    <MessageSquareQuote className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -769,7 +773,7 @@ export function ReplyComposer({
                   )}
                   title="Dictate — speech is typed into the message"
                 >
-                  <Keyboard className="h-3.5 w-3.5" />
+                  <Keyboard className="h-4 w-4 shrink-0" strokeWidth={2} />
                 </button>
                 <button
                   type="button"
@@ -782,7 +786,7 @@ export function ReplyComposer({
                   )}
                   title="Intent — describe the reply you want (drafted from your words)"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sparkles className="h-4 w-4 shrink-0" strokeWidth={2} />
                 </button>
                 <button
                   type="button"
@@ -802,7 +806,11 @@ export function ReplyComposer({
                         : "Start dictation"
                   }
                 >
-                  {speech.listening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                  {speech.listening ? (
+                    <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  ) : (
+                    <Mic className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  )}
                 </button>
               </div>
             )}
@@ -819,7 +827,7 @@ export function ReplyComposer({
                 title="Undo last AI change"
                 aria-label="Undo last AI change"
               >
-                <RotateCcw className="h-[18px] w-[18px] shrink-0" />
+                <RotateCcw className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             )}
 
@@ -837,9 +845,9 @@ export function ReplyComposer({
               variant={replyIsInternal ? undefined : "accent"}
             >
               {replySending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2} />
               ) : (
-                <Send className="h-4 w-4" strokeWidth={2} />
+                <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
               )}
             </Button>
           </div>

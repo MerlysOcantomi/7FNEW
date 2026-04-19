@@ -106,9 +106,9 @@ export function MessageBubble({
           className={cn(
             "rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-sm transition-all duration-300",
             tone === "outbound" &&
-              "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/18 bg-[image:var(--inbox-chat-bubble-outbound-gradient)] text-white shadow-[0_8px_24px_var(--inbox-chat-bubble-outbound-shadow)] hover:shadow-[0_12px_30px_var(--inbox-chat-bubble-outbound-shadow-hover)]",
+              "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/22 bg-[image:var(--inbox-chat-bubble-outbound-gradient)] text-white shadow-[0_6px_18px_var(--inbox-chat-bubble-outbound-shadow)] hover:shadow-[0_9px_22px_var(--inbox-chat-bubble-outbound-shadow-hover)]",
             tone === "inbound" &&
-              "rounded-tl-lg border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-chat-text)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-chat-border)]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]",
+              "rounded-tl-lg border-[var(--inbox-chat-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-chat-text)] shadow-[var(--inbox-shadow-card)] ring-1 ring-[var(--inbox-chat-border)]/25 hover:shadow-[0_6px_18px_rgba(0,0,0,0.07)]",
             tone === "internal" &&
               "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&
