@@ -766,30 +766,22 @@ export function ReplyComposer({
             )}
 
             {speech.supported && (
-              <div className="flex items-center rounded-md border border-[var(--inbox-divider)] p-0.5">
+              <>
                 <button
                   type="button"
                   onClick={() => setVoiceMode("dictate")}
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] transition-all duration-150",
-                    voiceMode === "dictate"
-                      ? "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]"
-                      : "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
-                  )}
+                  className={cn(SHELL_TOOLBAR_ICON, voiceMode === "dictate" && SHELL_TOOLBAR_ICON_ACTIVE)}
                   title="Dictate — speech is typed into the message"
+                  aria-label="Dictate — speech is typed into the message"
                 >
                   <Keyboard className="h-4 w-4 shrink-0" strokeWidth={2} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setVoiceMode("compose")}
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] transition-all duration-150",
-                    voiceMode === "compose"
-                      ? "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]"
-                      : "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
-                  )}
+                  className={cn(SHELL_TOOLBAR_ICON, voiceMode === "compose" && SHELL_TOOLBAR_ICON_ACTIVE)}
                   title="Intent — describe the reply you want (drafted from your words)"
+                  aria-label="Intent — describe the reply you want"
                 >
                   <Sparkles className="h-4 w-4 shrink-0" strokeWidth={2} />
                 </button>
@@ -798,13 +790,18 @@ export function ReplyComposer({
                   onClick={handleMicToggle}
                   disabled={isProcessing}
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-l border-[var(--inbox-divider)] transition-all duration-150",
-                    speech.listening && voiceMode === "dictate" && "bg-[var(--inbox-voice-dictate-bg)] text-[var(--inbox-voice-dictate-text)]",
-                    speech.listening && voiceMode === "compose" && "bg-[var(--inbox-voice-compose-bg)] text-[var(--inbox-voice-compose-text)]",
-                    !speech.listening &&
-                      "text-[var(--app-sidebar-text-muted)] hover:bg-[var(--app-sidebar-surface)]/60 hover:text-[var(--app-sidebar-text)]",
+                    SHELL_TOOLBAR_ICON,
+                    speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
+                    isProcessing && "cursor-not-allowed opacity-50",
                   )}
                   title={
+                    speech.listening
+                      ? "Stop recording"
+                      : voiceMode === "compose"
+                        ? "Speak your intent"
+                        : "Start dictation"
+                  }
+                  aria-label={
                     speech.listening
                       ? "Stop recording"
                       : voiceMode === "compose"
@@ -818,7 +815,7 @@ export function ReplyComposer({
                     <Mic className="h-4 w-4 shrink-0" strokeWidth={2} />
                   )}
                 </button>
-              </div>
+              </>
             )}
             </div>
 
