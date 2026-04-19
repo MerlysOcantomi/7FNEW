@@ -37,6 +37,7 @@ import {
   formatRoleLabel,
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
+import { filterConsecutiveDuplicateIntents } from "@/lib/inbox/filter-consecutive-intent-duplicates"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -204,6 +205,10 @@ function InboxPageContent() {
   const [status, setStatus] = useState("all")
   const [channel, setChannel] = useState("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [expandedConversationId, setExpandedConversationId] = useState<string | null>(null)
+  const [messageShortIntentsById, setMessageShortIntentsById] = useState<Record<string, string[]>>({})
+  const [messageIntentsLoadingId, setMessageIntentsLoadingId] = useState<string | null>(null)
+  const loadedShortIntentIdsRef = useRef<Set<string>>(new Set())
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
@@ -1010,6 +1015,58 @@ function InboxPageContent() {
     setPendingActionInput(null)
   }
 
+  const handleToggleConversationExpand = useCallback((id: string) => {
+    setExpandedConversationId((prev) => (prev === id ? null : id))
+  }, [])
+
+  useEffect(() => {
+    setMessageShortIntentsById({})
+    loadedShortIntentIdsRef.current.clear()
+  }, [refreshKey])
+
+  useEffect(() => {
+    if (!expandedConversationId) {
+      setMessageIntentsLoadingId(null)
+      return
+    }
+    if (loadedShortIntentIdsRef.current.has(expandedConversationId)) return
+
+    let cancelled = false
+    setMessageIntentsLoadingId(expandedConversationId)
+    fetch(`/api/inbox/conversations/${expandedConversationId}/message-intents`)
+      .then((res) => res.json())
+      .then((json: { success?: boolean; data?: Array<{ shortIntent: string }> }) => {
+        if (cancelled) return
+        const rows = json?.success && Array.isArray(json.data) ? json.data : []
+        const lines = rows.map((r) => r.shortIntent).filter(Boolean)
+        const filtered = filterConsecutiveDuplicateIntents(lines)
+        loadedShortIntentIdsRef.current.add(expandedConversationId)
+        setMessageShortIntentsById((prev) => ({
+          ...prev,
+          [expandedConversationId]: filtered,
+        }))
+      })
+      .catch(() => {
+        if (cancelled) return
+        loadedShortIntentIdsRef.current.add(expandedConversationId)
+        setMessageShortIntentsById((prev) => ({
+          ...prev,
+          [expandedConversationId]: [],
+        }))
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setMessageIntentsLoadingId((cur) =>
+            cur === expandedConversationId ? null : cur,
+          )
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [expandedConversationId])
+
   function handleBackToList() {
     setMobileView("list")
     setCannedOpen(false)
@@ -1182,6 +1239,10 @@ function InboxPageContent() {
                 errorMessage={listErrorMessage}
                 conversations={conversationItems}
                 selectedId={activeSelectedId}
+                expandedConversationId={expandedConversationId}
+                onToggleConversationExpand={handleToggleConversationExpand}
+                messageShortIntentsById={messageShortIntentsById}
+                messageIntentsLoadingId={messageIntentsLoadingId}
                 search={search}
                 onSearchChange={setSearch}
                 status={status}

@@ -45,6 +45,10 @@ interface ConversationListProps {
   errorMessage: string | null
   conversations: ConversationItem[]
   selectedId: string | null
+  expandedConversationId: string | null
+  onToggleConversationExpand: (id: string) => void
+  messageShortIntentsById: Record<string, string[]>
+  messageIntentsLoadingId: string | null
   search: string
   onSearchChange: (value: string) => void
   status: string
@@ -81,6 +85,10 @@ export function ConversationList({
   errorMessage,
   conversations,
   selectedId,
+  expandedConversationId,
+  onToggleConversationExpand,
+  messageShortIntentsById,
+  messageIntentsLoadingId,
   search,
   onSearchChange,
   status,
@@ -288,6 +296,10 @@ export function ConversationList({
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}
                   onClick={() => onSelect(item.id)}
+                  expanded={expandedConversationId === item.id}
+                  onToggleExpand={() => onToggleConversationExpand(item.id)}
+                  shortIntentLines={messageShortIntentsById[item.id]}
+                  intentsLoading={messageIntentsLoadingId === item.id}
                   conversationStatus={item.conversationStatus}
                   statusLabel={item.statusLabel}
                   statusClassName={item.statusClassName}

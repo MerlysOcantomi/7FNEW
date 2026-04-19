@@ -438,6 +438,24 @@ export async function listConversationActions(conversationId: string, workspaceI
   })
 }
 
+/** Solo `id` + `shortIntent` desde metadata (sin contenido del mensaje). Orden cronológico. */
+export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
+  const rows = await db.message.findMany({
+    where: { conversationId, workspaceId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, metadata: true },
+  })
+  const result: { id: string; shortIntent: string }[] = []
+  for (const row of rows) {
+    const meta = parseJson<Record<string, unknown>>(row.metadata)
+    const si = meta?.shortIntent
+    if (typeof si === "string" && si.trim().length > 0) {
+      result.push({ id: row.id, shortIntent: si.trim() })
+    }
+  }
+  return result
+}
+
 export async function getConversationById(id: string, workspaceId: string) {
   return db.conversation.findFirst({
     where: { id, workspaceId },
