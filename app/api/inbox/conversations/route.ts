@@ -31,15 +31,28 @@ export async function GET(request: NextRequest) {
     ])
 
     if (process.env.NODE_ENV === "development") {
-      const statuses = [...new Set(data.map((r) => (r as { status?: string }).status).filter(Boolean))]
-      console.log("[inbox:list]", {
+      const rows = data as Array<{ id?: string; status?: string }>
+      const statusSample = [...new Set(rows.map((r) => r.status).filter(Boolean))]
+      console.log("[inbox:audit:list]", {
         workspaceId,
-        query: Object.fromEntries(searchParams.entries()),
+        queryParams: Object.fromEntries(searchParams.entries()),
+        appliedToService: {
+          status,
+          channel,
+          urgency,
+          q,
+          assignedTo,
+          skip,
+          take: pageSize,
+        },
         page,
         pageSize,
-        returnedRows: data.length,
+        returnedRows: rows.length,
         total,
-        statusesSample: statuses.slice(0, 12),
+        leads,
+        urgent,
+        sampleIds: rows.slice(0, 8).map((r) => r.id),
+        sampleStatuses: statusSample.slice(0, 20),
       })
     }
 
@@ -56,6 +69,12 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[inbox:audit:list]", {
+        phase: "catch",
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
     if (
       error &&
       typeof error === "object" &&

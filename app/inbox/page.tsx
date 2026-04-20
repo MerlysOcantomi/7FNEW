@@ -259,6 +259,7 @@ function InboxPageContent() {
 
   const searchParams = useSearchParams()
   const deepLinkId = searchParams.get("id")
+  const deepLinkMessageId = searchParams.get("messageId")
   const sidebarFilter = searchParams.get("filter")
   const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
   const lastDeepLinkRef = useRef<string | null>(null)
@@ -953,37 +954,61 @@ function InboxPageContent() {
 
   const conversationItems = useMemo(() =>
     conversationsForList.map((conversation) => {
-      const primaryTitle =
-        conversation.contact.nombre?.trim() ||
-        conversation.contact.empresa?.trim() ||
-        conversation.contact.email?.trim() ||
-        "Contact"
+      try {
+        const contact = conversation.contact
+        const primaryTitle =
+          contact?.nombre?.trim() ||
+          contact?.empresa?.trim() ||
+          contact?.email?.trim() ||
+          "Contact"
 
-      const shortFromMessages = firstShortIntentFromRecentMessages(conversation.messages)
+        const shortFromMessages = firstShortIntentFromRecentMessages(conversation.messages)
 
-      const senderIntent =
-        formatSenderIntentPhrase(shortFromMessages) ||
-        formatSenderIntentPhrase(conversation.classification?.intent?.trim() || null) ||
-        formatSenderIntentPhrase(conversation.intent?.trim() || null) ||
-        formatSenderIntentPhrase(conversation.subject?.trim() || null) ||
-        null
+        const senderIntent =
+          formatSenderIntentPhrase(shortFromMessages) ||
+          formatSenderIntentPhrase(conversation.classification?.intent?.trim() || null) ||
+          formatSenderIntentPhrase(conversation.intent?.trim() || null) ||
+          formatSenderIntentPhrase(conversation.subject?.trim() || null) ||
+          null
 
-      return {
-        id: conversation.id,
-        channel: conversation.channel,
-        title: primaryTitle,
-        senderIntent,
-        sectorLabel: conversation.classification?.sector?.trim() || null,
-        timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
-        isUnread: conversation.status === "new",
-        conversationStatus: conversation.status,
-        statusLabel: statusLabelDisplay(conversation.status, uiLocale),
-        statusClassName: statusBadgeDisplay(conversation.status),
-        channelLabel: channelLabel(conversation.channel, uiLocale),
-        urgencyLabel: urgencyLabel(conversation.urgency, uiLocale),
-        urgencyClassName: urgencyBadge(conversation.urgency),
-        leadScore: conversation.leadScore,
-        messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+        return {
+          id: conversation.id,
+          channel: conversation.channel,
+          title: primaryTitle,
+          senderIntent,
+          sectorLabel: conversation.classification?.sector?.trim() || null,
+          timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
+          isUnread: conversation.status === "new",
+          conversationStatus: conversation.status,
+          statusLabel: statusLabelDisplay(conversation.status, uiLocale),
+          statusClassName: statusBadgeDisplay(conversation.status),
+          channelLabel: channelLabel(conversation.channel, uiLocale),
+          urgencyLabel: urgencyLabel(conversation.urgency, uiLocale),
+          urgencyClassName: urgencyBadge(conversation.urgency),
+          leadScore: conversation.leadScore,
+          messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[inbox:audit:render] conversationItems row failed", conversation?.id, e)
+        }
+        return {
+          id: conversation.id,
+          channel: conversation.channel,
+          title: "Conversation",
+          senderIntent: null as string | null,
+          sectorLabel: null as string | null,
+          timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
+          isUnread: conversation.status === "new",
+          conversationStatus: conversation.status,
+          statusLabel: statusLabelDisplay(conversation.status, uiLocale),
+          statusClassName: statusBadgeDisplay(conversation.status),
+          channelLabel: channelLabel(conversation.channel, uiLocale),
+          urgencyLabel: urgencyLabel(conversation.urgency, uiLocale),
+          urgencyClassName: urgencyBadge(conversation.urgency),
+          leadScore: conversation.leadScore,
+          messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+        }
       }
     }),
     [conversationsForList, uiLocale],
@@ -1028,7 +1053,7 @@ function InboxPageContent() {
           ? "Internal note"
           : isOutbound
             ? "Team"
-            : selected.contact.nombre || selected.contact.email || "Contact",
+            : selected?.contact?.nombre || selected?.contact?.email || "Contact",
         roleLabel: formatRoleLabel(message.role),
         metaLabel: isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System",
         timestampLabel: formatRelativeDate(message.createdAt, uiLocale),
@@ -1325,6 +1350,88 @@ function InboxPageContent() {
   const showInitialListSkeleton = loading && conversations.length === 0
   const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
 
+  const inboxAuditUiBranch = useMemo(
+    () => ({
+      listColumn: showInitialListSkeleton
+        ? "list-skeleton-initial"
+        : isWorkspaceUnavailable
+          ? "list-inbox-unavailable"
+          : isGenericListFailure
+            ? "list-api-error"
+            : !loading && conversations.length === 0
+              ? "list-empty"
+              : "list-visible",
+      centerColumn: !activeSelectedId
+        ? "center-no-selection"
+        : showDetailSkeleton
+          ? "center-skeleton-detail-load"
+          : detailError
+            ? "center-detail-error"
+            : "center-detail-ready",
+      rightColumn:
+        showInitialListSkeleton || showDetailSkeleton
+          ? "right-skeleton-blocked"
+          : selected
+            ? "right-context"
+            : "right-placeholder",
+    }),
+    [
+      activeSelectedId,
+      detailError,
+      isGenericListFailure,
+      isWorkspaceUnavailable,
+      loading,
+      conversations.length,
+      selected,
+      showDetailSkeleton,
+      showInitialListSkeleton,
+    ],
+  )
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return
+    console.log("[inbox:audit:state]", {
+      loading,
+      listError: listErrorMessage,
+      listErrorCode: errorCode,
+      conversationsLength: conversations.length,
+      conversationsForSidebarLength: conversationsForSidebar.length,
+      conversationsForListLength: conversationsForList.length,
+      statusFilter: status,
+      sidebarFilterParam: sidebarFilter,
+      selectedId,
+      activeSelectedId,
+      deepLinkId,
+      deepLinkMessageId,
+      urlQuery: searchParams.toString(),
+      detailLoading,
+      detailError: detailError ? String(detailError) : null,
+      detailErrorCode,
+      detailErrorMessage,
+      uiBranch: inboxAuditUiBranch,
+    })
+  }, [
+    activeSelectedId,
+    conversationItems.length,
+    conversations.length,
+    conversationsForList.length,
+    conversationsForSidebar.length,
+    deepLinkId,
+    deepLinkMessageId,
+    detailError,
+    detailErrorCode,
+    detailErrorMessage,
+    detailLoading,
+    errorCode,
+    inboxAuditUiBranch,
+    listErrorMessage,
+    loading,
+    searchParams,
+    selectedId,
+    sidebarFilter,
+    status,
+  ])
+
   const contextPanel = selected && conversationsForList.length > 0 ? (
     <ContextPanel
       selected={selected}
@@ -1343,6 +1450,29 @@ function InboxPageContent() {
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
       <div className="-mx-4 -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
+        {process.env.NODE_ENV === "development" ? (
+          <div
+            className="pointer-events-none fixed bottom-2 left-2 z-[100] max-h-[42vh] max-w-[min(100vw-0.75rem,26rem)] overflow-auto rounded-md border border-emerald-500/35 bg-[#0c0c0e]/95 px-2 py-1.5 font-mono text-[10px] leading-snug text-emerald-400 shadow-lg"
+            aria-hidden
+          >
+            <div className="font-semibold text-emerald-300">[inbox audit — dev]</div>
+            <div>c.conversations.length: {conversations.length}</div>
+            <div>visible (list): {conversationItems.length}</div>
+            <div>sidebar filt.: {conversationsForSidebar.length} · effective: {conversationsForList.length}</div>
+            <div>selectedId: {selectedId ?? "null"}</div>
+            <div>activeSelectedId: {activeSelectedId ?? "null"}</div>
+            <div className="truncate text-emerald-500/90" title={listErrorMessage ?? undefined}>
+              listErr: {listErrorMessage ?? "—"}
+            </div>
+            <div className="truncate text-emerald-500/90" title={detailErrorMessage ?? undefined}>
+              detailErr: {detailErrorMessage ?? "—"}
+            </div>
+            <div className="text-[9px] text-emerald-600">
+              ui: list={inboxAuditUiBranch.listColumn} · center={inboxAuditUiBranch.centerColumn} · right=
+              {inboxAuditUiBranch.rightColumn}
+            </div>
+          </div>
+        ) : null}
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
@@ -1402,8 +1532,8 @@ function InboxPageContent() {
                       hasSelectedId={Boolean(activeSelectedId)}
                       detailLoading={detailLoading && !selected}
                       detailErrorMessage={detailErrorMessage}
-                      headerTitle={selected?.subject || selected?.contact.nombre || "Conversation"}
-                      headerSubtitle={`${selected?.contact.nombre || selected?.contact.email || "Unidentified contact"}${selected?.contact.empresa ? ` · ${selected.contact.empresa}` : ""}`}
+                      headerTitle={selected?.subject || selected?.contact?.nombre || "Conversation"}
+                      headerSubtitle={`${selected?.contact?.nombre || selected?.contact?.email || "Unidentified contact"}${selected?.contact?.empresa ? ` · ${selected.contact?.empresa}` : ""}`}
                       channel={selected?.channel || "email"}
                       statusValue={selected?.status || "new"}
                       statusOptions={statusEditOptions}

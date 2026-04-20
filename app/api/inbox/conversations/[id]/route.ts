@@ -13,15 +13,39 @@ import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
+  const { id } = await params
   try {
     const { workspaceId } = await requireReadAccess(_request)
-    const { id } = await params
     const conversation = await getConversationById(id, workspaceId)
-    if (!conversation) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
-    return successResponse(parseConversationJsonFields(conversation))
+    if (!conversation) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[inbox:audit:detail]", {
+          conversationId: id,
+          workspaceId,
+          result: "NOT_FOUND",
+        })
+      }
+      return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
+    }
+    const parsed = parseConversationJsonFields(conversation)
+    if (process.env.NODE_ENV === "development") {
+      const messages = parsed.messages as unknown[] | undefined
+      console.log("[inbox:audit:detail]", {
+        conversationId: id,
+        workspaceId,
+        status: (parsed as { status?: string }).status,
+        messageCount: Array.isArray(messages) ? messages.length : 0,
+        result: "ok",
+      })
+    }
+    return successResponse(parsed)
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[inbox:detail GET error]", error)
+      console.error("[inbox:audit:detail]", {
+        conversationId: id,
+        phase: "catch",
+        message: error instanceof Error ? error.message : String(error),
+      })
     }
     return handleError(error, "Conversation")
   }

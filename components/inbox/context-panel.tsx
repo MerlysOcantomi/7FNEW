@@ -47,10 +47,11 @@ interface ContextPanelProps {
       confidence?: number | null
     } | null
     actions?: ActionItem[]
-    contact: {
+    /** Si falta (datos incompletos), todo el panel usa fallbacks sin romper render. */
+    contact?: {
       nombre?: string | null
-      email: string | null
-      empresa: string | null
+      email?: string | null
+      empresa?: string | null
       telefono?: string | null
       tipo?: string
     }
@@ -86,11 +87,12 @@ export function ContextPanel({
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
 
-  const contactName = selected.contact.nombre || selected.cliente?.nombre || "Unknown contact"
-  const contactType = selected.contact.tipo || "contact"
-  const contactEmail = selected.contact.email || selected.cliente?.email || null
-  const contactPhone = selected.contact.telefono || null
-  const contactCompany = selected.contact.empresa || selected.cliente?.empresa || null
+  const contactName =
+    selected.contact?.nombre || selected.cliente?.nombre || "Unknown contact"
+  const contactType = selected.contact?.tipo || "contact"
+  const contactEmail = selected.contact?.email || selected.cliente?.email || null
+  const contactPhone = selected.contact?.telefono || null
+  const contactCompany = selected.contact?.empresa || selected.cliente?.empresa || null
 
   const summary =
     selected.handoff?.summary ||
@@ -350,7 +352,7 @@ export function ContextPanel({
               <div className="flex flex-wrap gap-1.5">
                 <ActionButton label="Internal note" icon={MessageSquare} />
                 <ActionButton label="Attach file" icon={Paperclip} />
-                {(selected.channel === "whatsapp" || selected.contact.telefono) && (
+                {(selected.channel === "whatsapp" || selected.contact?.telefono) && (
                   <ActionButton label="Call" icon={PhoneCall} />
                 )}
               </div>
