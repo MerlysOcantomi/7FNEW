@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state"
 import { ConversationListItem } from "@/components/inbox/conversation-list-item"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import type { ConversationIntentPreview } from "@/lib/inbox/conversation-intent-preview"
 
 type AssignmentFilter = "all" | "mine" | "unassigned"
 
@@ -38,6 +39,7 @@ interface ConversationItem {
   urgencyClassName: string
   leadScore?: number | null
   messageCount: number
+  intentPreviews?: ConversationIntentPreview[]
 }
 
 interface ConversationListProps {
@@ -47,8 +49,11 @@ interface ConversationListProps {
   selectedId: string | null
   expandedConversationId: string | null
   onToggleConversationExpand: (id: string) => void
-  messageShortIntentsById: Record<string, string[]>
+  /** Previews cargados al expandir cuando la lista no traía intents */
+  fetchedIntentPreviewsById: Record<string, ConversationIntentPreview[]>
   messageIntentsLoadingId: string | null
+  focusedMessageId: string | null
+  onIntentSelect?: (conversationId: string, preview: ConversationIntentPreview) => void
   search: string
   onSearchChange: (value: string) => void
   status: string
@@ -88,8 +93,10 @@ export function ConversationList({
   selectedId,
   expandedConversationId,
   onToggleConversationExpand,
-  messageShortIntentsById,
+  fetchedIntentPreviewsById,
   messageIntentsLoadingId,
+  focusedMessageId,
+  onIntentSelect,
   search,
   onSearchChange,
   status,
@@ -289,6 +296,7 @@ export function ConversationList({
               {conversations.map((item) => (
                 <ConversationListItem
                   key={item.id}
+                  conversationId={item.id}
                   channel={item.channel}
                   title={item.title}
                   senderIntent={item.senderIntent}
@@ -299,8 +307,11 @@ export function ConversationList({
                   onClick={() => onSelect(item.id)}
                   expanded={expandedConversationId === item.id}
                   onToggleExpand={() => onToggleConversationExpand(item.id)}
-                  shortIntentLines={messageShortIntentsById[item.id]}
+                  intentPreviews={item.intentPreviews}
+                  fetchedIntentPreviews={fetchedIntentPreviewsById[item.id]}
                   intentsLoading={messageIntentsLoadingId === item.id}
+                  focusedMessageId={focusedMessageId}
+                  onIntentClick={onIntentSelect}
                   conversationStatus={item.conversationStatus}
                   statusLabel={item.statusLabel}
                   statusClassName={item.statusClassName}

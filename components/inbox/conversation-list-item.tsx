@@ -3,10 +3,12 @@
 import { useEffect, useRef } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
+import type { ConversationIntentPreview, IntentOperationalStatus } from "@/lib/inbox/conversation-intent-preview"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConversationListItemProps {
+  conversationId: string
   title: string
   senderIntent?: string | null
   sectorLabel?: string | null
@@ -16,8 +18,13 @@ interface ConversationListItemProps {
   onClick: () => void
   expanded: boolean
   onToggleExpand: () => void
-  shortIntentLines?: string[]
+  /** Top-3 previews from list API (preferred). */
+  intentPreviews?: ConversationIntentPreview[]
+  /** Fallback when lista no trae previews y el usuario expande — fetch por conversación. */
+  fetchedIntentPreviews?: ConversationIntentPreview[]
   intentsLoading: boolean
+  focusedMessageId: string | null
+  onIntentClick?: (conversationId: string, preview: ConversationIntentPreview) => void
   channel: string
   conversationStatus: string
   statusLabel: string
@@ -29,7 +36,30 @@ interface ConversationListItemProps {
   messageCount: number
 }
 
+function intentStatusAbbr(status: IntentOperationalStatus): string {
+  switch (status) {
+    case "in_progress":
+      return "Progress"
+    case "done":
+      return "Done"
+    default:
+      return "Open"
+  }
+}
+
+function intentStatusBubbleClass(status: IntentOperationalStatus): string {
+  switch (status) {
+    case "done":
+      return "border-emerald-400/35 bg-emerald-500/12 text-emerald-100"
+    case "in_progress":
+      return "border-amber-400/35 bg-amber-500/12 text-amber-50"
+    default:
+      return "border-white/[0.1] bg-white/[0.06] text-[var(--inbox-list-text-secondary)]"
+  }
+}
+
 export function ConversationListItem({
+  conversationId,
   title,
   senderIntent,
   sectorLabel,
@@ -39,8 +69,11 @@ export function ConversationListItem({
   onClick,
   expanded,
   onToggleExpand,
-  shortIntentLines,
+  intentPreviews,
+  fetchedIntentPreviews,
   intentsLoading,
+  focusedMessageId,
+  onIntentClick,
   channel,
   conversationStatus,
   statusLabel,
@@ -58,9 +91,10 @@ export function ConversationListItem({
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
 
-  /** `undefined` = aún no cargado; `[]` = cargado sin shortIntent en metadata (o todo filtrado). */
-  const intentPanelVisible =
-    expanded && (intentsLoading || shortIntentLines !== undefined)
+  const previewsForStrip =
+    intentPreviews && intentPreviews.length > 0 ? intentPreviews : fetchedIntentPreviews ?? []
+
+  const needsFetchRow = expanded && !(intentPreviews && intentPreviews.length > 0)
 
   return (
     <div
@@ -85,7 +119,7 @@ export function ConversationListItem({
         <button
           type="button"
           aria-expanded={expanded}
-          aria-label={expanded ? "Collapse per-message intents" : "Expand per-message intents"}
+          aria-label={expanded ? "Collapse intent details" : "Expand intent details"}
           onClick={(e) => {
             e.stopPropagation()
             onToggleExpand()
@@ -185,30 +219,54 @@ export function ConversationListItem({
         </button>
       </div>
 
-      {intentPanelVisible ? (
-        <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 pl-7 pr-1">
-          {intentsLoading ? (
-            <div className="flex items-center gap-2 py-0.5 text-[var(--inbox-list-text-secondary)]">
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
-              <span className="text-[11px]">Loading intents…</span>
-            </div>
-          ) : shortIntentLines && shortIntentLines.length > 0 ? (
-            <ul className="space-y-1" role="list">
-              {[...shortIntentLines].reverse().map((line, idx) => (
-                <li
-                  key={`${idx}-${line.slice(0, 24)}`}
-                  className="border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] [overflow-wrap:anywhere]"
+      {previewsForStrip.length > 0 && onIntentClick ? (
+        <ul className="mt-1.5 space-y-1 border-t border-white/[0.06] pt-1.5 pl-7 pr-1" role="list">
+          {previewsForStrip.map((p) => {
+            const lineActive = selected && focusedMessageId === p.messageId
+            return (
+              <li key={p.messageId}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onIntentClick(conversationId, p)
+                  }}
+                  className={cn(
+                    "flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                    lineActive
+                      ? "bg-[var(--inbox-list-selected-bg)] ring-1 ring-[var(--inbox-list-selected)]/35"
+                      : "hover:bg-white/[0.05]",
+                  )}
                 >
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
-              No hay intents por mensaje guardados.
-            </p>
-          )}
+                  <span
+                    className={cn(
+                      "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide border",
+                      intentStatusBubbleClass(p.status),
+                    )}
+                  >
+                    {intentStatusAbbr(p.status)}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] [overflow-wrap:anywhere]">
+                    {p.shortIntent}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+
+      {needsFetchRow && intentsLoading ? (
+        <div className="mt-1.5 flex items-center gap-2 border-t border-white/[0.06] py-1.5 pl-7 pr-1 text-[var(--inbox-list-text-secondary)]">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+          <span className="text-[11px]">Loading intents…</span>
         </div>
+      ) : null}
+
+      {needsFetchRow && !intentsLoading && previewsForStrip.length === 0 ? (
+        <p className="mt-1.5 border-t border-white/[0.06] py-1 pl-7 pr-1 text-[11px] text-[var(--inbox-list-text-secondary)]">
+          No hay intents por mensaje guardados.
+        </p>
       ) : null}
     </div>
   )

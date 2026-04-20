@@ -6,7 +6,12 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
-import { getShortIntentFromMetadataRecord, parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
+import type { IntentOperationalStatus } from "@/lib/inbox/parse-message-metadata"
+import {
+  getIntentOperationalStatusFromMetadata,
+  getShortIntentFromMetadataRecord,
+  parseMessageMetadataRecord,
+} from "@/lib/inbox/parse-message-metadata"
 import {
   MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
   persistShortIntentForMessage,
@@ -423,7 +428,7 @@ export async function listConversations(params: ListConversationsParams) {
         messages: {
           orderBy: { createdAt: "desc" },
           /** Últimos N mensajes para priorizar shortIntent en la lista sin pedir todo el hilo (p. ej. último = “ok”). */
-          take: 5,
+          take: 24,
         },
       },
     }),
@@ -451,11 +456,11 @@ export async function listMessageShortIntents(conversationId: string, workspaceI
     orderBy: { createdAt: "asc" },
     select: { id: true, metadata: true },
   })
-  const result: { id: string; shortIntent: string }[] = []
+  const result: { id: string; shortIntent: string; status: IntentOperationalStatus }[] = []
   for (const row of rows) {
     const meta = parseMessageMetadataRecord(row.metadata)
     const si = getShortIntentFromMetadataRecord(meta)
-    if (si) result.push({ id: row.id, shortIntent: si })
+    if (si) result.push({ id: row.id, shortIntent: si, status: getIntentOperationalStatusFromMetadata(meta) })
   }
   return result
 }

@@ -29,6 +29,18 @@ export function getShortIntentFromMetadataRecord(meta: Record<string, unknown> |
 }
 
 /** Lee `shortIntent` desde metadata en bruto (string JSON) o ya parseada en objeto (respuesta lista API). */
+/** Estado operativo opcional en metadata (Smart Inbox). */
+export type IntentOperationalStatus = "open" | "in_progress" | "done"
+
+export function getIntentOperationalStatusFromMetadata(
+  meta: Record<string, unknown> | null | undefined,
+): IntentOperationalStatus {
+  if (!meta) return "open"
+  const raw = meta.intentStatus ?? meta.intent_status ?? meta.messageIntentStatus
+  if (raw === "in_progress" || raw === "done" || raw === "open") return raw
+  return "open"
+}
+
 export function getShortIntentFromMessageMetadata(
   rawMeta: string | Record<string, unknown> | null | undefined,
 ): string | null {

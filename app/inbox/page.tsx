@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
@@ -38,8 +38,14 @@ import {
   formatRoleLabel,
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
-import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
-import { firstShortIntentFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
+import type { ConversationIntentPreview } from "@/lib/inbox/conversation-intent-preview"
+import { pickConversationIntentPreviews } from "@/lib/inbox/conversation-intent-preview"
+import { buildInboxSearchParamsWithMessageFocus } from "@/lib/inbox/inbox-focus-url"
+import type { IntentOperationalStatus } from "@/lib/inbox/parse-message-metadata"
+import {
+  firstShortIntentFromRecentMessages,
+  getShortIntentFromMessageMetadata,
+} from "@/lib/inbox/parse-message-metadata"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -95,6 +101,7 @@ interface ConversationListItem {
     /** Tras `parseConversationJsonFields` en el listado API suele ser objeto; en bruto, string JSON. */
     metadata?: string | Record<string, unknown> | null
   }>
+  intentPreviews?: ConversationIntentPreview[]
 }
 
 interface ConversationDetail extends ConversationListItem {
@@ -212,7 +219,9 @@ function InboxPageContent() {
   const [channel, setChannel] = useState("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedConversationId, setExpandedConversationId] = useState<string | null>(null)
-  const [messageShortIntentsById, setMessageShortIntentsById] = useState<Record<string, string[]>>({})
+  const [fetchedIntentPreviewsById, setFetchedIntentPreviewsById] = useState<
+    Record<string, ConversationIntentPreview[]>
+  >({})
   const [messageIntentsLoadingId, setMessageIntentsLoadingId] = useState<string | null>(null)
   const loadedShortIntentIdsRef = useRef<Set<string>>(new Set())
   const [refreshKey, setRefreshKey] = useState(0)
@@ -256,7 +265,10 @@ function InboxPageContent() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const pendingComposerFocusRef = useRef(false)
+  const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null)
 
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const deepLinkId = searchParams.get("id")
   const sidebarFilter = searchParams.get("filter")
@@ -382,6 +394,10 @@ function InboxPageContent() {
   }, [conversations, conversationsForSidebar, deepLinkId, selectedId])
 
   useEffect(() => {
+    setFocusedMessageId(null)
+  }, [activeSelectedId])
+
+  useEffect(() => {
     if (deepLinkId && deepLinkId !== lastDeepLinkRef.current) {
       lastDeepLinkRef.current = deepLinkId
       if (conversations.some((c) => c.id === deepLinkId)) {
@@ -444,6 +460,17 @@ function InboxPageContent() {
         ? "This conversation could not be loaded right now."
         : detailError
   const selected = activeSelectedId ? (detailData ?? null) : null
+
+  useEffect(() => {
+    if (!focusedMessageId) return
+    if (!selected?.messages?.length) {
+      setFocusedMessageId(null)
+      return
+    }
+    if (!selected.messages.some((m) => m.id === focusedMessageId)) {
+      setFocusedMessageId(null)
+    }
+  }, [focusedMessageId, selected?.messages])
 
   replyContentRef.current = replyContent
 
@@ -919,6 +946,7 @@ function InboxPageContent() {
         urgencyClassName: urgencyBadge(conversation.urgency),
         leadScore: conversation.leadScore,
         messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+        intentPreviews: conversation.intentPreviews ?? [],
       }
     }),
     [conversationsForSidebar, uiLocale],
@@ -973,6 +1001,35 @@ function InboxPageContent() {
         emailMeta: msgEmailMeta,
       }
     }) ?? []
+
+  const messageShortIntentById = useMemo(() => {
+    const acc: Record<string, string> = {}
+    if (!selected?.messages) return acc
+    for (const m of selected.messages) {
+      const si = getShortIntentFromMessageMetadata(m.metadata)
+      if (si) acc[m.id] = si
+    }
+    return acc
+  }, [selected?.messages])
+
+  const focusedMessageDetail = useMemo(() => {
+    if (!focusedMessageId || !selected?.messages) return null
+    const m = selected.messages.find((x) => x.id === focusedMessageId)
+    if (!m) return null
+    const isOutbound = m.direction === "outbound" && !m.isInternal
+    const isInbound = m.direction === "inbound" && !m.isInternal
+    const isInternal = m.isInternal
+    const metaLabel = isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System"
+    return {
+      id: m.id,
+      shortIntent: getShortIntentFromMessageMetadata(m.metadata),
+      content: m.content,
+      direction: m.direction,
+      isInternal: m.isInternal,
+      timestampLabel: formatRelativeDate(m.createdAt, uiLocale),
+      metaLabel,
+    }
+  }, [focusedMessageId, selected?.messages, uiLocale])
 
   const suggestedDraft =
     selected?.drafts?.find(
@@ -1032,11 +1089,53 @@ function InboxPageContent() {
     })
   }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selected])
 
+  const replaceInboxQuery = useCallback(
+    (params: URLSearchParams) => {
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    },
+    [pathname, router],
+  )
+
   function handleSelectConversation(id: string) {
     setSelectedId(id)
+    setFocusedMessageId(null)
     setMobileView("thread")
     setPendingActionInput(null)
+    const q = buildInboxSearchParamsWithMessageFocus(searchParams, { conversationId: id, messageId: null })
+    replaceInboxQuery(q)
   }
+
+  const handleIntentSelect = useCallback(
+    (conversationId: string, preview: ConversationIntentPreview) => {
+      setSelectedId(conversationId)
+      setFocusedMessageId(preview.messageId)
+      setMobileView("thread")
+      setPendingActionInput(null)
+      const q = buildInboxSearchParamsWithMessageFocus(searchParams, {
+        conversationId,
+        messageId: preview.messageId,
+      })
+      replaceInboxQuery(q)
+    },
+    [replaceInboxQuery, searchParams],
+  )
+
+  /** Deep-link: restaurar foco de mensaje desde ?id=&messageId= cuando el detalle ya cargó. */
+  useEffect(() => {
+    const mid = searchParams.get("messageId")
+    const cid = searchParams.get("id")
+    if (!mid?.trim() || !cid?.trim()) return
+    if (!selected?.messages?.length) return
+    if (selected.id !== cid) return
+    const ok = selected.messages.some((m) => m.id === mid)
+    if (ok) {
+      setFocusedMessageId(mid)
+      return
+    }
+    setFocusedMessageId(null)
+    const q = buildInboxSearchParamsWithMessageFocus(searchParams, { messageId: null })
+    replaceInboxQuery(q)
+  }, [replaceInboxQuery, searchParams, selected?.id, selected?.messages])
 
   const handleToggleConversationExpand = useCallback((id: string) => {
     setExpandedConversationId((prev) => {
@@ -1052,7 +1151,7 @@ function InboxPageContent() {
   }, [])
 
   useEffect(() => {
-    setMessageShortIntentsById({})
+    setFetchedIntentPreviewsById({})
     loadedShortIntentIdsRef.current.clear()
     setExpandedConversationId(null)
     setMessageIntentsLoadingId(null)
@@ -1068,14 +1167,20 @@ function InboxPageContent() {
     let cancelled = false
     const conversationId = expandedConversationId
 
-    async function parseResponse(res: Response): Promise<string[]> {
+    async function parseResponse(res: Response): Promise<ConversationIntentPreview[]> {
       const json = (await res.json()) as {
         success?: boolean
-        data?: Array<{ shortIntent: string }>
+        data?: Array<{ id: string; shortIntent: string; status?: string }>
       }
       const rows = json?.success && Array.isArray(json.data) ? json.data : []
-      const lines = rows.map((r) => r.shortIntent).filter(Boolean)
-      return pickExpandedIntents(lines)
+      const mapped = rows
+        .filter((r) => r.shortIntent && r.id)
+        .map((r) => ({
+          messageId: r.id,
+          shortIntent: r.shortIntent,
+          status: (r.status as IntentOperationalStatus | undefined) ?? "open",
+        }))
+      return pickConversationIntentPreviews(mapped)
     }
 
     async function run() {
@@ -1094,14 +1199,14 @@ function InboxPageContent() {
 
         if (cancelled) return
         loadedShortIntentIdsRef.current.add(conversationId)
-        setMessageShortIntentsById((prev) => ({
+        setFetchedIntentPreviewsById((prev) => ({
           ...prev,
           [conversationId]: filtered,
         }))
       } catch {
         if (cancelled) return
         loadedShortIntentIdsRef.current.add(conversationId)
-        setMessageShortIntentsById((prev) => ({
+        setFetchedIntentPreviewsById((prev) => ({
           ...prev,
           [conversationId]: [],
         }))
@@ -1272,6 +1377,9 @@ function InboxPageContent() {
       members={displayedMembers}
       assignSaving={assignSaving}
       onAssign={handleAssign}
+      focusedMessageId={focusedMessageId}
+      onClearMessageFocus={() => setFocusedMessageId(null)}
+      focusedMessageDetail={focusedMessageDetail}
     />
   ) : null
 
@@ -1295,8 +1403,10 @@ function InboxPageContent() {
                 selectedId={activeSelectedId}
                 expandedConversationId={expandedConversationId}
                 onToggleConversationExpand={handleToggleConversationExpand}
-                messageShortIntentsById={messageShortIntentsById}
+                fetchedIntentPreviewsById={fetchedIntentPreviewsById}
                 messageIntentsLoadingId={messageIntentsLoadingId}
+                focusedMessageId={focusedMessageId}
+                onIntentSelect={handleIntentSelect}
                 search={search}
                 onSearchChange={setSearch}
                 status={status}
@@ -1345,6 +1455,9 @@ function InboxPageContent() {
                       onStatusChange={handleStatusChange}
                       statusBadgeClassName={statusBadgeDisplay}
                       messages={threadMessages}
+                      focusedMessageId={focusedMessageId}
+                      onFocusMessage={setFocusedMessageId}
+                      messageShortIntentById={messageShortIntentById}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
                     />

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
+import { buildIntentPreviewsFromListMessages } from "@/lib/inbox/conversation-intent-preview"
 import { listConversations, parseConversationJsonFields } from "@modules/inbox/service"
 
 export async function GET(request: NextRequest) {
@@ -31,7 +32,22 @@ export async function GET(request: NextRequest) {
     ])
 
     return successResponse(
-      data.map((record) => parseConversationJsonFields(record)),
+      data.map((record) => {
+        const parsed = parseConversationJsonFields(record)
+        const msgs = parsed.messages as
+          | Array<{ id: string; metadata?: unknown; createdAt?: Date | string }>
+          | undefined
+        return {
+          ...parsed,
+          intentPreviews: buildIntentPreviewsFromListMessages(
+            msgs?.map((m) => ({
+              id: m.id,
+              metadata: m.metadata as string | Record<string, unknown> | null | undefined,
+              createdAt: m.createdAt,
+            })),
+          ),
+        }
+      }),
       {
         page,
         pageSize,
