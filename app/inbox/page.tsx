@@ -362,6 +362,16 @@ function InboxPageContent() {
     return filtered
   }, [conversations, status])
 
+  /**
+   * Lista única para pintar/seleccionar/navegar: mismo filtro que `conversationsForSidebar`,
+   * pero si ese filtro deja 0 filas y la API sí devolvió datos, degradamos a `conversations`.
+   */
+  const conversationsForList = useMemo(() => {
+    if (conversations.length === 0) return []
+    if (conversationsForSidebar.length > 0) return conversationsForSidebar
+    return conversations
+  }, [conversations, conversationsForSidebar])
+
   const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
@@ -388,12 +398,12 @@ function InboxPageContent() {
     if (deepLinkId && conversations.some((item) => item.id === deepLinkId)) {
       return deepLinkId
     }
-    if (selectedId && conversationsForSidebar.some((item) => item.id === selectedId)) {
+    if (selectedId && conversationsForList.some((item) => item.id === selectedId)) {
       return selectedId
     }
 
-    return conversationsForSidebar[0]?.id ?? conversations[0]?.id ?? null
-  }, [conversations, conversationsForSidebar, deepLinkId, selectedId])
+    return conversationsForList[0]?.id ?? null
+  }, [conversations, conversationsForList, deepLinkId, selectedId])
 
   /** Logs temporales (dev): origen del vacío — API vs filtro vs selección */
   useEffect(() => {
@@ -446,13 +456,13 @@ function InboxPageContent() {
       }
     }
 
-    if (!selectedId && conversationsForSidebar.length > 0) {
-      setSelectedId(conversationsForSidebar[0].id)
+    if (!selectedId && conversationsForList.length > 0) {
+      setSelectedId(conversationsForList[0].id)
     }
-    if (selectedId && !conversationsForSidebar.some((item) => item.id === selectedId)) {
-      setSelectedId(conversationsForSidebar[0]?.id ?? null)
+    if (selectedId && !conversationsForList.some((item) => item.id === selectedId)) {
+      setSelectedId(conversationsForList[0]?.id ?? null)
     }
-  }, [conversationsForSidebar, selectedId, deepLinkId])
+  }, [conversationsForList, selectedId, deepLinkId])
 
   useEffect(() => {
     setReplyContent("")
@@ -942,7 +952,7 @@ function InboxPageContent() {
       : members
 
   const conversationItems = useMemo(() =>
-    conversationsForSidebar.map((conversation) => {
+    conversationsForList.map((conversation) => {
       const primaryTitle =
         conversation.contact.nombre?.trim() ||
         conversation.contact.empresa?.trim() ||
@@ -976,7 +986,7 @@ function InboxPageContent() {
         messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
       }
     }),
-    [conversationsForSidebar, uiLocale],
+    [conversationsForList, uiLocale],
   )
 
   const threadMessages =
@@ -1035,8 +1045,8 @@ function InboxPageContent() {
     ) ?? null
 
   const selectedIndex = useMemo(
-    () => conversationsForSidebar.findIndex((item) => item.id === activeSelectedId),
-    [activeSelectedId, conversationsForSidebar],
+    () => conversationsForList.findIndex((item) => item.id === activeSelectedId),
+    [activeSelectedId, conversationsForList],
   )
 
   const isMobileInboxViewport = useCallback(() => {
@@ -1226,13 +1236,13 @@ function InboxPageContent() {
   }, [refetch])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
-    if (!activeSelectedId || conversationsForSidebar.length === 0 || selectedIndex < 0) return
+    if (!activeSelectedId || conversationsForList.length === 0 || selectedIndex < 0) return
 
     const nextIndex = selectedIndex + offset
-    if (nextIndex < 0 || nextIndex >= conversationsForSidebar.length) return
+    if (nextIndex < 0 || nextIndex >= conversationsForList.length) return
 
-    setSelectedId(conversationsForSidebar[nextIndex].id)
-  }, [activeSelectedId, conversationsForSidebar, selectedIndex])
+    setSelectedId(conversationsForList[nextIndex].id)
+  }, [activeSelectedId, conversationsForList, selectedIndex])
 
   const handleInboxEscape = useCallback(() => {
     if (contextSheetOpen) {
@@ -1315,7 +1325,7 @@ function InboxPageContent() {
   const showInitialListSkeleton = loading && conversations.length === 0
   const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
 
-  const contextPanel = selected && conversationsForSidebar.length > 0 ? (
+  const contextPanel = selected && conversationsForList.length > 0 ? (
     <ContextPanel
       selected={selected}
       updateHandoff={updateHandoff}
