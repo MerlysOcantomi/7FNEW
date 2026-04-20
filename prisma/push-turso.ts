@@ -281,18 +281,6 @@ const tables = [
     "workspaceId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  `CREATE TABLE IF NOT EXISTS "MessageIntent" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "messageId" TEXT NOT NULL,
-    "conversationId" TEXT NOT NULL,
-    "workspaceId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'open',
-    "shortIntent" TEXT,
-    "nextSmartMovementType" TEXT,
-    "nextSmartMovementData" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
   `CREATE TABLE IF NOT EXISTS "ConversationAction" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "conversationId" TEXT NOT NULL,
@@ -549,7 +537,6 @@ const uniqueIndexes = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "AIClassification_conversationId_key" ON "AIClassification"("conversationId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationHandoff_conversationId_key" ON "ConversationHandoff"("conversationId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationRead_conversationId_userId_key" ON "ConversationRead"("conversationId", "userId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "MessageIntent_messageId_key" ON "MessageIntent"("messageId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_externalAccountId_key" ON "ChannelConnection"("workspaceId", "externalAccountId")`,
   `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_channelType_idx" ON "ChannelConnection"("workspaceId", "channelType")`,
   `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_status_idx" ON "ChannelConnection"("workspaceId", "status")`,

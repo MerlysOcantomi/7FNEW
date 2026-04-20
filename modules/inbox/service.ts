@@ -6,9 +6,7 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
-import { buildMessageIntentRowsForApi, type MessageIntentMovementRow } from "@/lib/inbox/next-smart-movement"
-import { parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
-import { getWorkspaceWithResolvedConfig } from "@core/workspace"
+import { getShortIntentFromMetadataRecord, parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
 import {
   MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
   persistShortIntentForMessage,
@@ -425,7 +423,7 @@ export async function listConversations(params: ListConversationsParams) {
         messages: {
           orderBy: { createdAt: "desc" },
           /** Últimos N mensajes para priorizar shortIntent en la lista sin pedir todo el hilo (p. ej. último = “ok”). */
-          take: 24,
+          take: 5,
         },
       },
     }),
@@ -446,124 +444,36 @@ export async function listConversationActions(conversationId: string, workspaceI
   })
 }
 
-/**
- * Fase 5: `MessageIntent` puede no existir en BD hasta migrar. Evita tumbar el inbox entero.
- * Sin tabla o con cliente desfasado, devolvemos [] → derivación usa solo metadata + legacy.
- */
-async function listMessageIntentRowsSafe(
-  conversationId: string,
-  workspaceId: string,
-): Promise<
-  Array<{
-    messageId: string
-    nextSmartMovementType: string | null
-    nextSmartMovementData: string | null
-  }>
-> {
-  try {
-    return await db.messageIntent.findMany({
-      where: { conversationId, workspaceId },
-      select: {
-        messageId: true,
-        nextSmartMovementType: true,
-        nextSmartMovementData: true,
-      },
-    })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.warn("[inbox] MessageIntent lista omitida (compat sin migración):", msg)
-    return []
-  }
-}
-
-/** Short intents desde metadata + `nextSmartMovement` derivado/persistente (orden cronológico). */
+/** Solo `id` + `shortIntent` desde metadata (sin contenido del mensaje). Orden cronológico. */
 export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
-  const [rows, conv, ws, intentRows] = await Promise.all([
-    db.message.findMany({
-      where: { conversationId, workspaceId },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        metadata: true,
-        content: true,
-        direction: true,
-        role: true,
-        isInternal: true,
-      },
-    }),
-    db.conversation.findFirst({
-      where: { id: conversationId, workspaceId },
-      select: { classification: true, urgency: true },
-    }),
-    getWorkspaceWithResolvedConfig(workspaceId),
-    listMessageIntentRowsSafe(conversationId, workspaceId),
-  ])
-
-  const classificationForDerivation = conv?.classification
-    ? {
-        nextBestAction: parseJson<Record<string, unknown>>(
-          (conv.classification as { nextBestAction?: string | null }).nextBestAction,
-        ),
-      }
-    : null
-
-  const messageIntentByMessageId: Record<string, MessageIntentMovementRow> = {}
-  for (const ir of intentRows) {
-    messageIntentByMessageId[ir.messageId] = {
-      nextSmartMovementType: ir.nextSmartMovementType,
-      nextSmartMovementData: ir.nextSmartMovementData,
-    }
-  }
-
-  return buildMessageIntentRowsForApi({
-    messages: rows,
-    classification: classificationForDerivation,
-    workspaceConfig: ws?.resolvedConfig ?? {},
-    messageIntentByMessageId,
-    conversationUrgency: conv?.urgency ?? null,
+  const rows = await db.message.findMany({
+    where: { conversationId, workspaceId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, metadata: true },
   })
+  const result: { id: string; shortIntent: string }[] = []
+  for (const row of rows) {
+    const meta = parseMessageMetadataRecord(row.metadata)
+    const si = getShortIntentFromMetadataRecord(meta)
+    if (si) result.push({ id: row.id, shortIntent: si })
+  }
+  return result
 }
 
 export async function getConversationById(id: string, workspaceId: string) {
-  const sharedInclude = {
-    contact: true,
-    cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
-    proyecto: { select: { id: true, nombre: true, estado: true } },
-    classification: true,
-    handoff: true,
-    drafts: { orderBy: { createdAt: "desc" as const }, take: 10 },
-    actions: { orderBy: { createdAt: "desc" as const } },
-  }
-
-  try {
-    return await db.conversation.findFirst({
-      where: { id, workspaceId },
-      include: {
-        ...sharedInclude,
-        messages: {
-          orderBy: { createdAt: "asc" },
-          include: {
-            messageIntent: {
-              select: {
-                nextSmartMovementType: true,
-                nextSmartMovementData: true,
-              },
-            },
-          },
-        },
-      },
-    })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.warn("[inbox] getConversationById sin include MessageIntent (compat):", msg)
-    return db.conversation.findFirst({
-      where: { id, workspaceId },
-      include: {
-        ...sharedInclude,
-        messages: { orderBy: { createdAt: "asc" } },
-      },
-    })
-  }
+  return db.conversation.findFirst({
+    where: { id, workspaceId },
+    include: {
+      contact: true,
+      cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
+      proyecto: { select: { id: true, nombre: true, estado: true } },
+      classification: true,
+      handoff: true,
+      drafts: { orderBy: { createdAt: "desc" }, take: 10 },
+      messages: { orderBy: { createdAt: "asc" } },
+      actions: { orderBy: { createdAt: "desc" } },
+    },
+  })
 }
 
 export async function addMessage(input: AddMessageInput) {

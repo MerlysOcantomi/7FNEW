@@ -9,7 +9,6 @@ import {
 } from "@modules/inbox/service"
 import { notifyConversationAssigned } from "@core/notifications/inbox"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
-import { getInboxAutomationConfig } from "@/lib/inbox/inbox-automation-config"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -19,12 +18,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const { id } = await params
     const conversation = await getConversationById(id, workspaceId)
     if (!conversation) return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
-    const ws = await getWorkspaceWithResolvedConfig(workspaceId)
-    const payload = parseConversationJsonFields(conversation)
-    return successResponse({
-      ...payload,
-      inboxAutomation: getInboxAutomationConfig(ws?.resolvedConfig ?? {}),
-    })
+    return successResponse(parseConversationJsonFields(conversation))
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[inbox:detail GET error]", error)
@@ -116,12 +110,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }).catch(() => null)
     }
 
-    const wsPatch = await getWorkspaceWithResolvedConfig(workspaceId)
-    const parsedPatch = parseConversationJsonFields(updated)
-    return successResponse({
-      ...parsedPatch,
-      inboxAutomation: getInboxAutomationConfig(wsPatch?.resolvedConfig ?? {}),
-    })
+    return successResponse(parseConversationJsonFields(updated))
   } catch (error) {
     return handleError(error, "Conversation")
   }

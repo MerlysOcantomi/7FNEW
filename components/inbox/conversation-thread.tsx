@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useRef, type ReactNode } from "react"
-import { AlertTriangle, ChevronLeft, Crosshair, Loader2, MessageSquare, Sparkles } from "lucide-react"
+import { AlertTriangle, ChevronLeft, Loader2, MessageSquare, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
@@ -38,10 +37,6 @@ interface ConversationThreadProps {
   onStatusChange: (value: string) => Promise<void>
   statusBadgeClassName: (value: string) => string
   messages: MessageItem[]
-  /** Message-level focus (Smart Inbox) */
-  focusedMessageId?: string | null
-  onFocusMessage?: (messageId: string) => void
-  messageShortIntentById?: Record<string, string>
   onBack?: () => void
   onOpenContext?: () => void
 }
@@ -58,27 +53,9 @@ export function ConversationThread({
   onStatusChange,
   statusBadgeClassName,
   messages,
-  focusedMessageId = null,
-  onFocusMessage,
-  messageShortIntentById = {},
   onBack,
   onOpenContext,
 }: ConversationThreadProps) {
-  const lastScrolledFocusRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!focusedMessageId) {
-      lastScrolledFocusRef.current = null
-      return
-    }
-    if (lastScrolledFocusRef.current === focusedMessageId) return
-    const el = document.querySelector(`[data-message-id="${CSS.escape(focusedMessageId)}"]`)
-    if (el) {
-      el.scrollIntoView({ block: "nearest", behavior: "smooth" })
-      lastScrolledFocusRef.current = focusedMessageId
-    }
-  }, [focusedMessageId, messages])
-
   if (!hasSelectedId) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -114,7 +91,6 @@ export function ConversationThread({
   }
 
   const isEmailChannel = channel === "email"
-  const canFocus = Boolean(onFocusMessage)
 
   return (
     <>
@@ -168,15 +144,7 @@ export function ConversationThread({
             </div>
           ) : isEmailChannel ? (
             messages.map((message, index) => (
-              <div
-                key={message.id}
-                data-message-id={message.id}
-                className={cn(
-                  "rounded-2xl transition-[box-shadow,background-color] duration-200",
-                  focusedMessageId === message.id &&
-                    "bg-[var(--inbox-accent-soft)]/35 ring-1 ring-[var(--inbox-accent)]/45",
-                )}
-              >
+              <div key={message.id}>
                 {index > 0 && (
                   <div className="my-4 flex items-center gap-3 px-1">
                     <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
@@ -186,119 +154,35 @@ export function ConversationThread({
                     <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
                   </div>
                 )}
-                <ThreadMessageChrome
-                  shortIntent={messageShortIntentById[message.id]}
-                  showFocus={canFocus && message.tone === "inbound"}
-                  isFocused={focusedMessageId === message.id}
-                  onFocus={() => onFocusMessage?.(message.id)}
-                  onIntentActivate={() => onFocusMessage?.(message.id)}
-                >
-                  <MessageBubble
-                    authorLabel={message.authorLabel}
-                    roleLabel={message.roleLabel}
-                    metaLabel={message.metaLabel}
-                    timestampLabel={message.timestampLabel}
-                    content={message.content}
-                    tone={message.tone}
-                    attachments={message.attachments}
-                    emailMeta={message.emailMeta}
-                  />
-                </ThreadMessageChrome>
+                <MessageBubble
+                  authorLabel={message.authorLabel}
+                  roleLabel={message.roleLabel}
+                  metaLabel={message.metaLabel}
+                  timestampLabel={message.timestampLabel}
+                  content={message.content}
+                  tone={message.tone}
+                  attachments={message.attachments}
+                  emailMeta={message.emailMeta}
+                />
               </div>
             ))
           ) : (
             messages.map((message) => (
-              <div
+              <MessageBubble
                 key={message.id}
-                data-message-id={message.id}
-                className={cn(
-                  "rounded-2xl transition-[box-shadow,background-color] duration-200",
-                  focusedMessageId === message.id &&
-                    "bg-[var(--inbox-accent-soft)]/35 ring-1 ring-[var(--inbox-accent)]/45",
-                )}
-              >
-                <ThreadMessageChrome
-                  shortIntent={messageShortIntentById[message.id]}
-                  showFocus={canFocus && message.tone === "inbound"}
-                  isFocused={focusedMessageId === message.id}
-                  onFocus={() => onFocusMessage?.(message.id)}
-                  onIntentActivate={() => onFocusMessage?.(message.id)}
-                >
-                  <MessageBubble
-                    authorLabel={message.authorLabel}
-                    roleLabel={message.roleLabel}
-                    metaLabel={message.metaLabel}
-                    timestampLabel={message.timestampLabel}
-                    content={message.content}
-                    tone={message.tone}
-                    attachments={message.attachments}
-                    emailMeta={message.emailMeta}
-                  />
-                </ThreadMessageChrome>
-              </div>
+                authorLabel={message.authorLabel}
+                roleLabel={message.roleLabel}
+                metaLabel={message.metaLabel}
+                timestampLabel={message.timestampLabel}
+                content={message.content}
+                tone={message.tone}
+                attachments={message.attachments}
+                emailMeta={message.emailMeta}
+              />
             ))
           )}
         </div>
       </ScrollArea>
     </>
-  )
-}
-
-function ThreadMessageChrome({
-  children,
-  shortIntent,
-  showFocus,
-  isFocused,
-  onFocus,
-  onIntentActivate,
-}: {
-  children: ReactNode
-  shortIntent?: string
-  showFocus: boolean
-  isFocused: boolean
-  onFocus: () => void
-  onIntentActivate: () => void
-}) {
-  const showIntentRow = Boolean(shortIntent) || showFocus
-
-  if (!showIntentRow) {
-    return <>{children}</>
-  }
-
-  return (
-    <div className="px-0.5 py-1">
-      <div className="mb-1.5 flex flex-wrap items-center justify-end gap-1.5">
-        {shortIntent ? (
-          <button
-            type="button"
-            onClick={onIntentActivate}
-            className={cn(
-              "max-w-[min(100%,420px)] truncate rounded-lg border px-2 py-0.5 text-left text-[10px] font-medium transition-colors",
-              "border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent-soft)]/80",
-              isFocused && "ring-1 ring-[var(--inbox-accent)]/50",
-            )}
-            title="Focus this message for Intelligence Hub"
-          >
-            {shortIntent}
-          </button>
-        ) : null}
-        {showFocus ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "h-6 gap-1 rounded-md px-2 text-[10px]",
-              isFocused && "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent-soft)]/50",
-            )}
-            onClick={onFocus}
-          >
-            <Crosshair className="h-3 w-3" aria-hidden />
-            Focus
-          </Button>
-        ) : null}
-      </div>
-      {children}
-    </div>
   )
 }
