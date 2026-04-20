@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
@@ -374,6 +375,31 @@ function InboxPageContent() {
     if (conversationsForSidebar.length > 0) return conversationsForSidebar
     return conversations
   }, [conversations, conversationsForSidebar])
+
+  /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
+  const inboxTerminalRescueActive = useMemo(() => {
+    if (status !== "all" || conversations.length === 0) return false
+    const activeRows = conversations.filter(
+      (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
+    )
+    return activeRows.length === 0
+  }, [conversations, status])
+
+  /** Temporal (solo dev): distribución real de status en la respuesta de lista cuando la vista es "All". */
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return
+    if (status !== "all") return
+    const counts: Record<string, number> = {}
+    for (const c of conversations) {
+      counts[c.status] = (counts[c.status] ?? 0) + 1
+    }
+    console.log("[inbox:status-distribution]", {
+      total: conversations.length,
+      counts,
+      terminalRescueActive: inboxTerminalRescueActive,
+      sidebarFilterFromUrl: sidebarFilter,
+    })
+  }, [status, conversations, inboxTerminalRescueActive, sidebarFilter])
 
   const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
@@ -1492,7 +1518,27 @@ function InboxPageContent() {
             {showInitialListSkeleton ? (
               <InboxListSkeleton />
             ) : (
-              <ConversationList
+              <>
+                {inboxTerminalRescueActive ? (
+                  <div
+                    className="shrink-0 border-b border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-snug text-[var(--inbox-list-text-secondary)]"
+                    role="status"
+                  >
+                    <span className="text-[var(--inbox-text)]">
+                      All conversations are archived, closed, or in trash — nothing left in the main inbox view.
+                    </span>{" "}
+                    <span>
+                      Showing the full list so you can still open them.{" "}
+                      <Link
+                        className="font-medium text-[var(--app-accent)] underline-offset-2 hover:underline"
+                        href="/inbox?filter=trash"
+                      >
+                        Trash only
+                      </Link>
+                    </span>
+                  </div>
+                ) : null}
+                <ConversationList
                 loading={loading}
                 errorMessage={listErrorMessage}
                 conversations={conversationItems}
@@ -1522,6 +1568,7 @@ function InboxPageContent() {
                 lastSyncedAt={lastSyncedAt}
                 onCompose={() => setComposeOpen(true)}
               />
+              </>
             )}
           </div>
 
