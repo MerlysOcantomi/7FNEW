@@ -1348,7 +1348,7 @@ function InboxPageContent() {
   useKeyboardShortcuts(inboxShortcuts, { scope: "page" })
 
   const showInitialListSkeleton = loading && conversations.length === 0
-  const showDetailSkeleton = Boolean(activeSelectedId) && detailLoading && !selected
+  const detailBodyLoading = Boolean(activeSelectedId) && detailLoading && !selected
 
   const inboxAuditUiBranch = useMemo(
     () => ({
@@ -1363,14 +1363,15 @@ function InboxPageContent() {
               : "list-visible",
       centerColumn: !activeSelectedId
         ? "center-no-selection"
-        : showDetailSkeleton
-          ? "center-skeleton-detail-load"
+        : detailBodyLoading
+          ? "center-thread-inline-load"
           : detailError
             ? "center-detail-error"
             : "center-detail-ready",
-      rightColumn:
-        showInitialListSkeleton || showDetailSkeleton
-          ? "right-skeleton-blocked"
+      rightColumn: showInitialListSkeleton
+        ? "right-skeleton-initial-blocked"
+        : activeSelectedId && !selected
+          ? "right-awaiting-detail"
           : selected
             ? "right-context"
             : "right-placeholder",
@@ -1378,12 +1379,12 @@ function InboxPageContent() {
     [
       activeSelectedId,
       detailError,
+      detailBodyLoading,
       isGenericListFailure,
       isWorkspaceUnavailable,
       loading,
       conversations.length,
       selected,
-      showDetailSkeleton,
       showInitialListSkeleton,
     ],
   )
@@ -1523,7 +1524,7 @@ function InboxPageContent() {
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
-              {showInitialListSkeleton || showDetailSkeleton ? (
+              {showInitialListSkeleton ? (
                 <InboxCenterSkeleton />
               ) : (
                 <>
@@ -1607,7 +1608,7 @@ function InboxPageContent() {
           </div>
 
           <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
-            {showInitialListSkeleton || showDetailSkeleton ? (
+            {showInitialListSkeleton ? (
               <InboxContextSkeleton />
             ) : selected ? (
               <div className="min-h-0 flex-1 overflow-y-auto p-2">{contextPanel}</div>

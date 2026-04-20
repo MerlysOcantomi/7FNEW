@@ -69,27 +69,6 @@ export function ConversationThread({
     )
   }
 
-  if (detailLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--inbox-text-secondary)]" />
-      </div>
-    )
-  }
-
-  if (detailErrorMessage) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <EmptyState
-          variant="inbox"
-          icon={AlertTriangle}
-          title="Could not load conversation"
-          description={detailErrorMessage}
-        />
-      </div>
-    )
-  }
-
   const isEmailChannel = channel === "email"
 
   return (
@@ -138,7 +117,21 @@ export function ConversationThread({
           "bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7",
           isEmailChannel ? "space-y-0" : "space-y-4",
         )}>
-          {messages.length === 0 ? (
+          {detailErrorMessage ? (
+            <div className="flex min-h-[min(280px,50dvh)] flex-col items-center justify-center py-12">
+              <EmptyState
+                variant="inbox"
+                icon={AlertTriangle}
+                title="Could not load conversation"
+                description={detailErrorMessage}
+              />
+            </div>
+          ) : detailLoading ? (
+            <div className="flex min-h-[min(280px,50dvh)] flex-col items-center justify-center gap-3 py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--inbox-text-secondary)]" aria-hidden />
+              <p className="text-xs text-[var(--inbox-text-secondary)]">Loading conversation…</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-white/[0.04] p-6">
               <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
             </div>
