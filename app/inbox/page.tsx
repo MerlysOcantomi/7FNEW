@@ -511,7 +511,13 @@ function InboxPageContent() {
       : isGenericDetailFailure
         ? "This conversation could not be loaded right now."
         : detailError
-  const selected = activeSelectedId ? (detailData ?? null) : null
+  /** Solo usar detalle si coincide con la selección (evita mensajes vacíos / datos de otra conversación durante la carga). */
+  const selected =
+    activeSelectedId &&
+    detailData &&
+    detailData.id === activeSelectedId
+      ? detailData
+      : null
 
   replyContentRef.current = replyContent
 
@@ -1017,7 +1023,7 @@ function InboxPageContent() {
   )
 
   const threadMessages =
-    selected?.messages.map((message) => {
+    selected?.messages?.map((message) => {
       const isOutbound = message.direction === "outbound" && !message.isInternal
       const isInbound = message.direction === "inbound" && !message.isInternal
       const isInternal = message.isInternal
