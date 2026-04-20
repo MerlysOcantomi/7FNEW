@@ -446,6 +446,36 @@ export async function listConversationActions(conversationId: string, workspaceI
   })
 }
 
+/**
+ * Fase 5: `MessageIntent` puede no existir en BD hasta migrar. Evita tumbar el inbox entero.
+ * Sin tabla o con cliente desfasado, devolvemos [] → derivación usa solo metadata + legacy.
+ */
+async function listMessageIntentRowsSafe(
+  conversationId: string,
+  workspaceId: string,
+): Promise<
+  Array<{
+    messageId: string
+    nextSmartMovementType: string | null
+    nextSmartMovementData: string | null
+  }>
+> {
+  try {
+    return await db.messageIntent.findMany({
+      where: { conversationId, workspaceId },
+      select: {
+        messageId: true,
+        nextSmartMovementType: true,
+        nextSmartMovementData: true,
+      },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn("[inbox] MessageIntent lista omitida (compat sin migración):", msg)
+    return []
+  }
+}
+
 /** Short intents desde metadata + `nextSmartMovement` derivado/persistente (orden cronológico). */
 export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
   const [rows, conv, ws, intentRows] = await Promise.all([
@@ -466,14 +496,7 @@ export async function listMessageShortIntents(conversationId: string, workspaceI
       select: { classification: true, urgency: true },
     }),
     getWorkspaceWithResolvedConfig(workspaceId),
-    db.messageIntent.findMany({
-      where: { conversationId, workspaceId },
-      select: {
-        messageId: true,
-        nextSmartMovementType: true,
-        nextSmartMovementData: true,
-      },
-    }),
+    listMessageIntentRowsSafe(conversationId, workspaceId),
   ])
 
   const classificationForDerivation = conv?.classification
@@ -502,29 +525,45 @@ export async function listMessageShortIntents(conversationId: string, workspaceI
 }
 
 export async function getConversationById(id: string, workspaceId: string) {
-  return db.conversation.findFirst({
-    where: { id, workspaceId },
-    include: {
-      contact: true,
-      cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
-      proyecto: { select: { id: true, nombre: true, estado: true } },
-      classification: true,
-      handoff: true,
-      drafts: { orderBy: { createdAt: "desc" }, take: 10 },
-      messages: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          messageIntent: {
-            select: {
-              nextSmartMovementType: true,
-              nextSmartMovementData: true,
+  const sharedInclude = {
+    contact: true,
+    cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
+    proyecto: { select: { id: true, nombre: true, estado: true } },
+    classification: true,
+    handoff: true,
+    drafts: { orderBy: { createdAt: "desc" as const }, take: 10 },
+    actions: { orderBy: { createdAt: "desc" as const } },
+  }
+
+  try {
+    return await db.conversation.findFirst({
+      where: { id, workspaceId },
+      include: {
+        ...sharedInclude,
+        messages: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            messageIntent: {
+              select: {
+                nextSmartMovementType: true,
+                nextSmartMovementData: true,
+              },
             },
           },
         },
       },
-      actions: { orderBy: { createdAt: "desc" } },
-    },
-  })
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn("[inbox] getConversationById sin include MessageIntent (compat):", msg)
+    return db.conversation.findFirst({
+      where: { id, workspaceId },
+      include: {
+        ...sharedInclude,
+        messages: { orderBy: { createdAt: "asc" } },
+      },
+    })
+  }
 }
 
 export async function addMessage(input: AddMessageInput) {
