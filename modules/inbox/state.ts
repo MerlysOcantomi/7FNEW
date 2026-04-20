@@ -10,6 +10,7 @@ export const CONVERSATION_TERMINAL_STATUSES = [
   "converted",
   "closed",
   "archived",
+  "trashed",
 ] as const
 
 export type ConversationActiveStatus = (typeof CONVERSATION_ACTIVE_STATUSES)[number]
@@ -17,14 +18,15 @@ export type ConversationTerminalStatus = (typeof CONVERSATION_TERMINAL_STATUSES)
 export type ConversationStatus = ConversationActiveStatus | ConversationTerminalStatus
 
 const TRANSITIONS: Record<ConversationStatus, ConversationStatus[]> = {
-  new: ["triaged", "assigned", "awaiting_response", "converted", "closed", "archived"],
-  triaged: ["assigned", "awaiting_response", "lead_detected", "converted", "closed", "archived"],
-  assigned: ["awaiting_response", "converted", "closed", "archived"],
-  awaiting_response: ["assigned", "converted", "closed", "archived"],
-  lead_detected: ["assigned", "awaiting_response", "converted", "closed", "archived"],
-  converted: ["assigned", "closed", "archived"],
-  closed: ["assigned", "triaged", "archived"],
-  archived: ["triaged", "closed"],
+  new: ["triaged", "assigned", "awaiting_response", "converted", "closed", "archived", "trashed"],
+  triaged: ["assigned", "awaiting_response", "lead_detected", "converted", "closed", "archived", "trashed"],
+  assigned: ["awaiting_response", "converted", "closed", "archived", "trashed"],
+  awaiting_response: ["assigned", "converted", "closed", "archived", "trashed"],
+  lead_detected: ["assigned", "awaiting_response", "converted", "closed", "archived", "trashed"],
+  converted: ["assigned", "closed", "archived", "trashed"],
+  closed: ["assigned", "triaged", "archived", "trashed"],
+  archived: ["triaged", "closed", "trashed"],
+  trashed: ["triaged"],
 }
 
 export function isReusableConversationStatus(status?: string | null): status is ConversationActiveStatus {
@@ -71,6 +73,7 @@ export function normalizeLegacyInboxStatus(status?: string | null): Conversation
     case "converted":
     case "closed":
     case "archived":
+    case "trashed":
       return status
     default:
       return null
@@ -78,6 +81,6 @@ export function normalizeLegacyInboxStatus(status?: string | null): Conversation
 }
 
 export function getReopenStatusFrom(current: string | null | undefined): ConversationStatus {
-  if (current === "archived" || current === "closed") return "triaged"
+  if (current === "archived" || current === "closed" || current === "trashed") return "triaged"
   return "triaged"
 }

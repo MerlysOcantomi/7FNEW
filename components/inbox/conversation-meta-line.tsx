@@ -64,7 +64,9 @@ export function ConversationMetaLine({
   sectorLabel,
 }: ConversationMetaLineProps) {
   const hideTerminal =
-    conversationStatus === "archived" || conversationStatus === "closed"
+    conversationStatus === "archived" ||
+    conversationStatus === "closed" ||
+    conversationStatus === "trashed"
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -566,12 +566,21 @@ export async function transitionConversation(input: {
       throw new Error(`Transición inválida de ${existing.status} a ${nextStatus}`)
     }
     patch.status = nextStatus
-    patch.closedAt = nextStatus === "closed" || nextStatus === "archived" ? new Date() : null
+    if (nextStatus === "trashed") {
+      patch.trashedAt = new Date()
+      patch.closedAt = null
+    } else if (existing.status === "trashed") {
+      patch.trashedAt = null
+      patch.closedAt = nextStatus === "closed" || nextStatus === "archived" ? new Date() : null
+    } else {
+      patch.closedAt = nextStatus === "closed" || nextStatus === "archived" ? new Date() : null
+      patch.trashedAt = null
+    }
   }
 
   return db.conversation.update({
     where: { id: input.conversationId },
-    data: patch,
+    data: patch as Prisma.ConversationUpdateInput,
     include: {
       contact: true,
       classification: true,

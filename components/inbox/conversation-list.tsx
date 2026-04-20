@@ -68,6 +68,7 @@ interface ConversationListProps {
     waiting: number
     done: number
     archived: number
+    trash: number
   }
   onSelect: (id: string) => void
   hasMore?: boolean

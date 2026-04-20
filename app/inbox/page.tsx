@@ -186,6 +186,7 @@ const STATUS_OPTIONS = [
   "converted",
   "closed",
   "archived",
+  "trashed",
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 const DESKTOP_INBOX_GRID =
@@ -200,6 +201,7 @@ function mapSidebarFilter(filter: string | null): { status?: string; urgency?: s
     case "urgent": return { urgency: "alta,critica" }
     case "needs_reply": return { status: "awaiting_response" }
     case "leads": return { status: "lead_detected" }
+    case "trash": return { status: "trashed" }
     default: return {}
   }
 }
@@ -338,10 +340,12 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
-  /** Vista “All statuses”: sin cerradas ni archivadas en la lista (siguen disponibles con filtro explícito). */
+  /** Vista “All statuses”: sin cerradas, archivadas ni papelera en la lista (siguen disponibles con filtro explícito). */
   const conversationsForSidebar = useMemo(() => {
     if (status !== "all") return conversations
-    return conversations.filter((c) => c.status !== "archived" && c.status !== "closed")
+    return conversations.filter(
+      (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
+    )
   }, [conversations, status])
 
   const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
@@ -474,7 +478,17 @@ function InboxPageContent() {
 
   const stats = useMemo(() => {
     if (conversations.length === 0) {
-      return { total: 0, leads: 0, urgent: 0, unread: 0, reply: 0, waiting: 0, done: 0, archived: 0 }
+      return {
+        total: 0,
+        leads: 0,
+        urgent: 0,
+        unread: 0,
+        reply: 0,
+        waiting: 0,
+        done: 0,
+        archived: 0,
+        trash: 0,
+      }
     }
     
     // Safe counting to avoid hydration mismatches
@@ -492,6 +506,7 @@ function InboxPageContent() {
       waiting: conversations.filter(conv => conv.status === "triaged").length,
       done: conversations.filter(conv => conv.status === "closed").length,
       archived: conversations.filter(conv => conv.status === "archived").length,
+      trash: conversations.filter((conv) => conv.status === "trashed").length,
     }
   }, [conversations, serverTotal, serverLeads, serverUrgent])
 
@@ -799,6 +814,9 @@ function InboxPageContent() {
   )
 
   const statusEditOptions = useMemo(() => {
+    if (selected?.status === "trashed") {
+      return [{ value: "triaged", label: statusLabelDisplay("triaged", uiLocale) }]
+    }
     const base = STATUS_OPTIONS.filter((s) => s !== "all" && s !== "triaged").map((s) => ({
       value: s,
       label: statusLabel(s, uiLocale),

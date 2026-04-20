@@ -40,6 +40,7 @@ import {
   Briefcase,
   Zap,
   Loader,
+  Trash2,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -105,6 +106,7 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
             { label: "Needs Reply", href: "/inbox?filter=needs_reply", icon: MessageSquarePlus, group: "Smart views" },
             { label: "Leads", href: "/inbox?filter=leads", icon: Star, group: "Smart views" },
             { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "System" },
+            { label: "Trash", href: "/inbox?filter=trash", icon: Trash2, group: "System" },
           ]
         },
         { label: v.client.plural, href: "/clientes", icon: Users },
@@ -185,6 +187,7 @@ function SmartInboxNavLink({
       case "In Progress": return "text-[var(--inbox-waiting-color)]";
       case "Done": return "text-[var(--inbox-done-color)]";
       case "Archived": return "text-[var(--inbox-archive-color)]";
+      case "Trash": return "text-[var(--app-sidebar-text-muted)]";
       default: return "text-[var(--app-sidebar-text-muted)]";
     }
   };

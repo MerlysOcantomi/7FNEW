@@ -14,6 +14,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     converted: "Converted",
     closed: "Closed",
     archived: "Archived",
+    trashed: "Trash",
   },
   es: {
     new: "Nuevo",
@@ -24,6 +25,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     converted: "Convertido",
     closed: "Cerrado",
     archived: "Archivado",
+    trashed: "Papelera",
   },
   de: {
     new: "Neu",
@@ -34,6 +36,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     converted: "Konvertiert",
     closed: "Geschlossen",
     archived: "Archiviert",
+    trashed: "Papierkorb",
   },
 }
 
@@ -172,6 +175,12 @@ export function statusLabelDisplay(status: string, localeRaw?: string | null): s
     if (locale === "es") return "Activo"
     if (locale === "de") return "Aktiv"
     return "Active"
+  }
+  if (status === "trashed") {
+    const locale = resolveLocale(localeRaw)
+    if (locale === "es") return "Papelera"
+    if (locale === "de") return "Papierkorb"
+    return "Trash"
   }
   return statusLabel(status, localeRaw)
 }

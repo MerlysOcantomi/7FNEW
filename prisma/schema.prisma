@@ -393,6 +393,7 @@ model Conversation {
   lastMessageAt DateTime @default(now())
   messageCount  Int      @default(0)
   closedAt      DateTime?
+  trashedAt     DateTime?
   connectionId  String?
   workspaceId   String
   createdAt     DateTime @default(now())
