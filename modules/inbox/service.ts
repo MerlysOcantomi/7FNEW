@@ -6,12 +6,9 @@ import {
   getReopenStatusFrom,
   transitionConversationStatus,
 } from "./state"
-import type { IntentOperationalStatus } from "@/lib/inbox/parse-message-metadata"
-import {
-  getIntentOperationalStatusFromMetadata,
-  getShortIntentFromMetadataRecord,
-  parseMessageMetadataRecord,
-} from "@/lib/inbox/parse-message-metadata"
+import { buildMessageIntentRowsForApi, type MessageIntentMovementRow } from "@/lib/inbox/next-smart-movement"
+import { parseMessageMetadataRecord } from "@/lib/inbox/parse-message-metadata"
+import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import {
   MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH,
   persistShortIntentForMessage,
@@ -449,20 +446,59 @@ export async function listConversationActions(conversationId: string, workspaceI
   })
 }
 
-/** Solo `id` + `shortIntent` desde metadata (sin contenido del mensaje). Orden cronológico. */
+/** Short intents desde metadata + `nextSmartMovement` derivado/persistente (orden cronológico). */
 export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
-  const rows = await db.message.findMany({
-    where: { conversationId, workspaceId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, metadata: true },
-  })
-  const result: { id: string; shortIntent: string; status: IntentOperationalStatus }[] = []
-  for (const row of rows) {
-    const meta = parseMessageMetadataRecord(row.metadata)
-    const si = getShortIntentFromMetadataRecord(meta)
-    if (si) result.push({ id: row.id, shortIntent: si, status: getIntentOperationalStatusFromMetadata(meta) })
+  const [rows, conv, ws, intentRows] = await Promise.all([
+    db.message.findMany({
+      where: { conversationId, workspaceId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        metadata: true,
+        content: true,
+        direction: true,
+        role: true,
+        isInternal: true,
+      },
+    }),
+    db.conversation.findFirst({
+      where: { id: conversationId, workspaceId },
+      select: { classification: true, urgency: true },
+    }),
+    getWorkspaceWithResolvedConfig(workspaceId),
+    db.messageIntent.findMany({
+      where: { conversationId, workspaceId },
+      select: {
+        messageId: true,
+        nextSmartMovementType: true,
+        nextSmartMovementData: true,
+      },
+    }),
+  ])
+
+  const classificationForDerivation = conv?.classification
+    ? {
+        nextBestAction: parseJson<Record<string, unknown>>(
+          (conv.classification as { nextBestAction?: string | null }).nextBestAction,
+        ),
+      }
+    : null
+
+  const messageIntentByMessageId: Record<string, MessageIntentMovementRow> = {}
+  for (const ir of intentRows) {
+    messageIntentByMessageId[ir.messageId] = {
+      nextSmartMovementType: ir.nextSmartMovementType,
+      nextSmartMovementData: ir.nextSmartMovementData,
+    }
   }
-  return result
+
+  return buildMessageIntentRowsForApi({
+    messages: rows,
+    classification: classificationForDerivation,
+    workspaceConfig: ws?.resolvedConfig ?? {},
+    messageIntentByMessageId,
+    conversationUrgency: conv?.urgency ?? null,
+  })
 }
 
 export async function getConversationById(id: string, workspaceId: string) {
@@ -475,7 +511,17 @@ export async function getConversationById(id: string, workspaceId: string) {
       classification: true,
       handoff: true,
       drafts: { orderBy: { createdAt: "desc" }, take: 10 },
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          messageIntent: {
+            select: {
+              nextSmartMovementType: true,
+              nextSmartMovementData: true,
+            },
+          },
+        },
+      },
       actions: { orderBy: { createdAt: "desc" } },
     },
   })

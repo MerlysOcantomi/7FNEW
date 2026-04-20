@@ -41,10 +41,15 @@ import { parseLocale, type SupportedLocale } from "@core/i18n"
 import type { ConversationIntentPreview } from "@/lib/inbox/conversation-intent-preview"
 import { pickConversationIntentPreviews } from "@/lib/inbox/conversation-intent-preview"
 import { buildInboxSearchParamsWithMessageFocus } from "@/lib/inbox/inbox-focus-url"
+import { getInboxAutomationConfig, type InboxAutomationConfig } from "@/lib/inbox/inbox-automation-config"
+import type { NextSmartMovement } from "@/lib/inbox/next-smart-movement"
+import { deriveMessageNextSmartMovementFromRawMetadata } from "@/lib/inbox/next-smart-movement"
 import type { IntentOperationalStatus } from "@/lib/inbox/parse-message-metadata"
 import {
   firstShortIntentFromRecentMessages,
+  getIntentOperationalStatusFromMetadata,
   getShortIntentFromMessageMetadata,
+  parseMessageMetadataRecord,
 } from "@/lib/inbox/parse-message-metadata"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
@@ -166,6 +171,7 @@ interface ConversationDetail extends ConversationListItem {
     dismissedAt?: string | null
     createdAt: string
   }>
+  inboxAutomation?: InboxAutomationConfig
   messages: Array<{
     id: string
     role: string
@@ -173,7 +179,11 @@ interface ConversationDetail extends ConversationListItem {
     content: string
     isInternal: boolean
     createdAt: string
-    metadata?: string | null
+    metadata?: string | Record<string, unknown> | null
+    messageIntent?: {
+      nextSmartMovementType: string | null
+      nextSmartMovementData: string | null
+    } | null
   }>
   inboxEntries?: Array<{
     id: string
@@ -1031,6 +1041,48 @@ function InboxPageContent() {
     }
   }, [focusedMessageId, selected?.messages, uiLocale])
 
+  const focusedMessageIntentStatus = useMemo((): IntentOperationalStatus | null => {
+    if (!focusedMessageId || !selected?.messages) return null
+    const m = selected.messages.find((x) => x.id === focusedMessageId)
+    if (!m) return null
+    const meta =
+      m.metadata == null
+        ? null
+        : typeof m.metadata === "string"
+          ? parseMessageMetadataRecord(m.metadata)
+          : typeof m.metadata === "object"
+            ? (m.metadata as Record<string, unknown>)
+            : null
+    return getIntentOperationalStatusFromMetadata(meta)
+  }, [focusedMessageId, selected?.messages])
+
+  const focusedNextSmartMovement = useMemo((): NextSmartMovement | null => {
+    if (!focusedMessageId || !selected?.messages) return null
+    const m = selected.messages.find((x) => x.id === focusedMessageId)
+    if (!m) return null
+    const automation = selected.inboxAutomation ?? getInboxAutomationConfig({})
+    const messageIntent = m.messageIntent
+      ? {
+          nextSmartMovementType: m.messageIntent.nextSmartMovementType ?? null,
+          nextSmartMovementData: m.messageIntent.nextSmartMovementData ?? null,
+        }
+      : null
+    return deriveMessageNextSmartMovementFromRawMetadata({
+      message: {
+        id: m.id,
+        content: m.content,
+        direction: m.direction,
+        role: m.role,
+        isInternal: m.isInternal,
+      },
+      metadata: m.metadata,
+      classification: selected.classification ?? null,
+      workspaceAutomation: automation,
+      messageIntent,
+      conversationUrgency: selected.urgency ?? null,
+    })
+  }, [focusedMessageId, selected?.messages, selected?.classification, selected?.inboxAutomation, selected?.urgency])
+
   const suggestedDraft =
     selected?.drafts?.find(
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
@@ -1380,6 +1432,8 @@ function InboxPageContent() {
       focusedMessageId={focusedMessageId}
       onClearMessageFocus={() => setFocusedMessageId(null)}
       focusedMessageDetail={focusedMessageDetail}
+      messageIntentStatus={focusedMessageIntentStatus}
+      focusedNextSmartMovement={focusedNextSmartMovement}
     />
   ) : null
 

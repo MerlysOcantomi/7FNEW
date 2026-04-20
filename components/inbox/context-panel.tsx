@@ -31,6 +31,7 @@ import {
   filterActionsBySourceMessage,
   intentStatusLabel,
 } from "@/lib/inbox/context-panel-helpers"
+import { nextSmartMovementTypeTitle, type NextSmartMovement } from "@/lib/inbox/next-smart-movement"
 
 export interface ActionItem {
   id: string
@@ -120,6 +121,8 @@ interface ContextPanelProps {
   focusedMessageDetail?: FocusedMessageDetail | null
   /** Operational intent status when available (e.g. MessageIntent) */
   messageIntentStatus?: IntentOperationalStatus | null
+  /** Phase 5 — message-level operational recommendation (additive; legacy next-best-action unchanged). */
+  focusedNextSmartMovement?: NextSmartMovement | null
 }
 
 export function ContextPanel({
@@ -137,6 +140,7 @@ export function ContextPanel({
   onClearMessageFocus,
   focusedMessageDetail = null,
   messageIntentStatus = null,
+  focusedNextSmartMovement = null,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
@@ -370,6 +374,8 @@ export function ContextPanel({
             )}
           </section>
 
+          <SuggestedNextMovementSection movement={focusedNextSmartMovement} />
+
           <RecommendedNextSection
             nextRecommendedAction={nextRecommendedAction}
             attribution="fallback"
@@ -466,6 +472,90 @@ export function ContextPanel({
         </>
       )}
     </div>
+  )
+}
+
+function smartMovementSourceLabel(source: NextSmartMovement["source"]): string {
+  switch (source) {
+    case "message":
+      return "Derived from selected message (heuristic)"
+    case "legacy-mapped":
+      return "Conversation fallback — mapped from legacy next-best-action"
+    case "conversation":
+      return "Conversation-level signal"
+    case "manual":
+      return "Persisted record (metadata or MessageIntent)"
+    default:
+      return source
+  }
+}
+
+function priorityBadgeClass(priority: NextSmartMovement["priority"]): string {
+  switch (priority) {
+    case "high":
+      return "border-rose-500/35 bg-rose-500/10 text-rose-100"
+    case "low":
+      return "border-white/15 bg-white/[0.06] text-[var(--inbox-intelligence-text-secondary)]"
+    default:
+      return "border-sky-500/30 bg-sky-500/10 text-sky-100"
+  }
+}
+
+function SuggestedNextMovementSection({ movement }: { movement: NextSmartMovement | null }) {
+  return (
+    <section className="rounded-xl border border-[var(--inbox-accent)]/20 bg-[var(--inbox-intelligence-surface)] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        Suggested next movement
+      </p>
+      {!movement || movement.type === "no_action_required" ? (
+        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+          No operational movement inferred for this message yet. Recommendations here are heuristic — not autonomous
+          execution.
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--inbox-intelligence-text)]">
+              {nextSmartMovementTypeTitle(movement.type)}
+            </span>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                priorityBadgeClass(movement.priority),
+              )}
+            >
+              {movement.priority} priority
+            </span>
+            <span className="rounded-full border border-white/12 bg-white/[0.05] px-2 py-0.5 text-[9px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
+              {movement.isActionable ? "Actionable" : "Informational"}
+            </span>
+            {movement.requiresApproval ? (
+              <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">
+                Requires approval
+              </span>
+            ) : null}
+          </div>
+          {movement.execution.executor ? (
+            <p className="mt-1 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+              Routed to executor:{" "}
+              <span className="font-semibold text-[var(--inbox-intelligence-text)]">{movement.execution.executor}</span>
+              {!movement.execution.canAutoExecute ? " (auto-run disabled by policy or type)" : ""}
+            </p>
+          ) : (
+            <p className="mt-1 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+              No automated executor routed for this movement type.
+            </p>
+          )}
+          {movement.rationale ? (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">{movement.rationale}</p>
+          ) : null}
+          <p className="mt-2 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">{smartMovementSourceLabel(movement.source)}</p>
+          <p className="mt-1 text-[9px] text-[var(--inbox-intelligence-text-secondary)]/85">
+            Operational layer only — most actions are not executable automatically in this phase.
+          </p>
+        </>
+      )}
+    </section>
   )
 }
 

@@ -61,6 +61,7 @@ model Workspace {
   conversationReads ConversationRead[]
   forteSnapshot  ForteSnapshot?
   channelConnections ChannelConnection[]
+  messageIntents MessageIntent[]
 }
 
 model Cliente {
@@ -412,6 +413,7 @@ model Conversation {
   inboxEntries   InboxEntry[]
 
   reads          ConversationRead[]
+  messageIntents MessageIntent[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, lastMessageAt])
@@ -452,10 +454,38 @@ model Message {
 
   workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversation Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  connection   ChannelConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  connection     ChannelConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  messageIntent  MessageIntent?
 
   @@index([conversationId, createdAt])
   @@index([workspaceId, createdAt])
+}
+
+/**
+ * Message-level operational row — future source of truth for smart movement + intent status.
+ * Transitional: status / shortIntent may still mirror metadata until backfill.
+ */
+model MessageIntent {
+  id                     String   @id @default(cuid())
+  messageId              String   @unique
+  conversationId         String
+  workspaceId            String
+  /** open | in_progress | done */
+  status                 String   @default("open")
+  shortIntent            String?
+  /** Persisted operational movement type (additive; nullable during transition). */
+  nextSmartMovementType  String?
+  /** JSON blob: rationale, title, payload, etc. */
+  nextSmartMovementData  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([workspaceId, conversationId])
 }
 
 model ConversationAction {
