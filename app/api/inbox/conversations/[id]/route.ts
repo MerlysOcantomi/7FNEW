@@ -26,6 +26,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
       inboxAutomation: getInboxAutomationConfig(ws?.resolvedConfig ?? {}),
     })
   } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[inbox:detail GET error]", error)
+    }
     return handleError(error, "Conversation")
   }
 }

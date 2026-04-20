@@ -362,12 +362,26 @@ function InboxPageContent() {
     [baseConversations, extraConversations],
   )
 
-  /** Vista “All statuses”: sin cerradas, archivadas ni papelera en la lista (siguen disponibles con filtro explícito). */
+  /**
+   * Vista “All statuses”: ocultar cerradas/archivadas/papelera en la lista principal.
+   * Rescate: si ese filtro deja 0 filas pero la API sí devolvió conversaciones (p. ej. todas archivadas),
+   * mostrar la lista completa para no vaciar el inbox.
+   */
   const conversationsForSidebar = useMemo(() => {
     if (status !== "all") return conversations
-    return conversations.filter(
+    const filtered = conversations.filter(
       (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
     )
+    if (filtered.length === 0 && conversations.length > 0) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[inbox] sidebar rescue: todas las conversaciones son archived/closed/trashed — mostrando lista completa", {
+          total: conversations.length,
+          statuses: [...new Set(conversations.map((c) => c.status))],
+        })
+      }
+      return conversations
+    }
+    return filtered
   }, [conversations, status])
 
   const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
@@ -400,8 +414,49 @@ function InboxPageContent() {
       return selectedId
     }
 
-    return conversationsForSidebar[0]?.id ?? null
+    return conversationsForSidebar[0]?.id ?? conversations[0]?.id ?? null
   }, [conversations, conversationsForSidebar, deepLinkId, selectedId])
+
+  /** Logs temporales (dev): origen del vacío — API vs filtro vs selección */
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return
+    console.log("[inbox:client]", {
+      listLength: conversations.length,
+      sidebarLength: conversationsForSidebar.length,
+      statusFilter: status,
+      deepLinkId,
+      selectedId,
+      activeSelectedId,
+      assignmentFilter,
+      sidebarFilterParam: sidebarFilter,
+    })
+  }, [
+    conversations.length,
+    conversationsForSidebar.length,
+    status,
+    deepLinkId,
+    selectedId,
+    activeSelectedId,
+    assignmentFilter,
+    sidebarFilter,
+  ])
+
+  /** Quitar ?id= / ?messageId= inválidos cuando la lista ya cargó (evita estado stale). */
+  useEffect(() => {
+    if (loading) return
+    const cid = searchParams.get("id")?.trim()
+    if (!cid) return
+    if (conversations.length === 0) return
+    if (conversations.some((c) => c.id === cid)) return
+    const p = new URLSearchParams(searchParams.toString())
+    p.delete("id")
+    p.delete("messageId")
+    const qs = p.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[inbox] removed stale conversation id from URL", { cid })
+    }
+  }, [loading, conversations, searchParams, pathname, router])
 
   useEffect(() => {
     setFocusedMessageId(null)

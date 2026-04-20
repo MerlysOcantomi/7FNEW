@@ -31,6 +31,19 @@ export async function GET(request: NextRequest) {
       getWorkspaceWithResolvedConfig(workspaceId),
     ])
 
+    if (process.env.NODE_ENV === "development") {
+      const statuses = [...new Set(data.map((r) => (r as { status?: string }).status).filter(Boolean))]
+      console.log("[inbox:list]", {
+        workspaceId,
+        query: Object.fromEntries(searchParams.entries()),
+        page,
+        pageSize,
+        returnedRows: data.length,
+        total,
+        statusesSample: statuses.slice(0, 12),
+      })
+    }
+
     return successResponse(
       data.map((record) => {
         const parsed = parseConversationJsonFields(record)
