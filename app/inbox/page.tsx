@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
@@ -258,6 +258,8 @@ function InboxPageContent() {
   const pendingComposerFocusRef = useRef(false)
 
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const deepLinkId = searchParams.get("id")
   const deepLinkMessageId = searchParams.get("messageId")
   const sidebarFilter = searchParams.get("filter")
