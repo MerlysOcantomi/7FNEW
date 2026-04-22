@@ -12,27 +12,34 @@ import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 
 type Params = { params: Promise<{ id: string }> }
 
+const INBOX_DETAIL_DEBUG =
+  process.env.NODE_ENV === "development" || process.env.INBOX_DEBUG_INBOX_LIST === "1"
+
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params
   try {
-    const { workspaceId } = await requireReadAccess(_request)
+    const { workspaceId, session, workspaceResolveSource } = await requireReadAccess(_request)
     const conversation = await getConversationById(id, workspaceId)
     if (!conversation) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[inbox:audit:detail]", {
+      if (INBOX_DETAIL_DEBUG) {
+        console.warn("[inbox:debug:detail]", {
           conversationId: id,
+          userId: session.userId,
           workspaceId,
+          workspaceResolveSource,
           result: "NOT_FOUND",
         })
       }
       return errorResponse("NOT_FOUND", "Conversación no encontrada", 404)
     }
     const parsed = parseConversationJsonFields(conversation)
-    if (process.env.NODE_ENV === "development") {
+    if (INBOX_DETAIL_DEBUG) {
       const messages = parsed.messages as unknown[] | undefined
-      console.log("[inbox:audit:detail]", {
+      console.log("[inbox:debug:detail]", {
         conversationId: id,
+        userId: session.userId,
         workspaceId,
+        workspaceResolveSource,
         status: (parsed as { status?: string }).status,
         messageCount: Array.isArray(messages) ? messages.length : 0,
         result: "ok",

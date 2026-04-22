@@ -4,6 +4,11 @@ import { db } from "@core/db"
 
 export const WORKSPACE_COOKIE = "wf_workspace"
 
+export type WorkspaceResolveSource =
+  | "x-workspace-id-header"
+  | "wf_workspace_cookie"
+  | "first_membership_fallback"
+
 export class WorkspaceError extends Error {
   status: number
   code: string
@@ -23,7 +28,9 @@ export class WorkspaceError extends Error {
  *   3. First workspace the user belongs to — auto-sets cookie
  * Throws WorkspaceError if no valid workspace can be resolved.
  */
-export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
+export async function resolveRequiredWorkspace(
+  req?: Request,
+): Promise<{ workspaceId: string; source: WorkspaceResolveSource; userId: string }> {
   const session = await getSessionFromCookies()
 
   if (req) {
@@ -34,7 +41,11 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
         where: { userId_workspaceId: { userId: session.userId, workspaceId: headerWs } },
       })
       if (!member) throw new WorkspaceError("FORBIDDEN", "Sin acceso a este workspace", 403)
-      return headerWs
+      return {
+        workspaceId: headerWs,
+        source: "x-workspace-id-header",
+        userId: session.userId,
+      }
     }
   }
 
@@ -49,7 +60,13 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
     const member = await db.workspaceMember.findUnique({
       where: { userId_workspaceId: { userId: session.userId, workspaceId: cookieWs } },
     })
-    if (member) return cookieWs
+    if (member) {
+      return {
+        workspaceId: cookieWs,
+        source: "wf_workspace_cookie",
+        userId: session.userId,
+      }
+    }
   }
 
   const firstMembership = await db.workspaceMember.findFirst({
@@ -68,10 +85,19 @@ export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
         maxAge: 60 * 60 * 24 * 365,
       })
     } catch { /* cookie setting may fail in certain render contexts */ }
-    return firstMembership.workspaceId
+    return {
+      workspaceId: firstMembership.workspaceId,
+      source: "first_membership_fallback",
+      userId: session.userId,
+    }
   }
 
   throw new WorkspaceError("NO_WORKSPACE", "No workspace assigned to your account", 404)
+}
+
+export async function getRequiredWorkspaceId(req?: Request): Promise<string> {
+  const { workspaceId } = await resolveRequiredWorkspace(req)
+  return workspaceId
 }
 
 export async function getOptionalWorkspaceId(req?: Request): Promise<string | null> {

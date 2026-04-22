@@ -1,5 +1,5 @@
 import { getSessionFromCookies, type SessionUser } from "@core/auth/session"
-import { getRequiredWorkspaceId } from "@core/workspace-context"
+import { resolveRequiredWorkspace, type WorkspaceResolveSource } from "@core/workspace-context"
 import { checkMembership } from "@core/workspace"
 
 export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
@@ -30,6 +30,8 @@ export interface WorkspaceAuth {
   session: SessionUser
   workspaceId: string
   wsRole: WorkspaceRole
+  /** Origen de `workspaceId` (cookie, primera membresía, header). */
+  workspaceResolveSource: WorkspaceResolveSource
 }
 
 function isHeaderAllowlisted(req?: Request): boolean {
@@ -56,7 +58,8 @@ export async function requireWorkspaceRole(
   const headerAllowed = isHeaderAllowlisted(req)
   const effectiveReq = headerPresent && !headerAllowed ? undefined : req
 
-  const workspaceId = await getRequiredWorkspaceId(effectiveReq)
+  const { workspaceId, source: workspaceResolveSource } =
+    await resolveRequiredWorkspace(effectiveReq)
 
   const member = await checkMembership(session.userId, workspaceId)
   const wsRole = (member?.role as WorkspaceRole) ?? "VIEWER"
@@ -77,7 +80,7 @@ export async function requireWorkspaceRole(
     )
   }
 
-  return { session, workspaceId, wsRole }
+  return { session, workspaceId, wsRole, workspaceResolveSource }
 }
 
 export const requireReadAccess = (req?: Request) =>
