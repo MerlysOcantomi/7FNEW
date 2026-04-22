@@ -377,6 +377,8 @@ function parseConversationClassification(classification?: {
 
 export async function listConversations(params: ListConversationsParams) {
   const { workspaceId, skip = 0, take = 20, status, channel, urgency, q, assignedTo } = params
+  const statusForWhere =
+    !status || status === "all" || status === "todos" ? undefined : status
 
   const assignedToFilter: Prisma.ConversationWhereInput =
     assignedTo === "unassigned"
@@ -388,8 +390,12 @@ export async function listConversations(params: ListConversationsParams) {
   const where: Prisma.ConversationWhereInput = {
     workspaceId,
     ...assignedToFilter,
-    ...(status && status !== "todos"
-      ? { status: status.includes(",") ? { in: status.split(",") } : status }
+    ...(statusForWhere
+      ? {
+          status: statusForWhere.includes(",")
+            ? { in: statusForWhere.split(",") }
+            : statusForWhere,
+        }
       : {}),
     ...(channel && channel !== "todos" ? { channel } : {}),
     ...(urgency && urgency !== "todos"

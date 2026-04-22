@@ -311,12 +311,24 @@ function InboxPageContent() {
     if (status === "triaged") setStatus("all")
   }, [status])
 
+  /** Desplegable "All statuses" gana frente a `?filter=` en la URL (no forzar status desde sidebar en la API). */
+  const handleListStatusFilterChange = useCallback(
+    (value: string) => {
+      setStatus(value)
+      if (value === "all") {
+        const p = new URLSearchParams(searchParams.toString())
+        p.delete("filter")
+        const qs = p.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      }
+    },
+    [router, pathname, searchParams],
+  )
+
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
   if (debouncedSearch) params.set("q", debouncedSearch)
-  if (filterParams.status) {
-    params.set("status", filterParams.status)
-  } else if (status !== "all") {
+  if (status !== "all") {
     params.set("status", status)
   }
   if (filterParams.urgency) params.set("urgency", filterParams.urgency)
@@ -1551,7 +1563,7 @@ function InboxPageContent() {
                 onSearchChange={setSearch}
                 status={status}
                 statusOptions={statusFilterOptions}
-                onStatusChange={setStatus}
+                onStatusChange={handleListStatusFilterChange}
                 channel={channel}
                 channelOptions={channelSelectOptions}
                 onChannelChange={setChannel}
