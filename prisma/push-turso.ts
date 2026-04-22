@@ -603,6 +603,7 @@ async function main() {
     `ALTER TABLE "InboxEntry" ADD COLUMN "workspaceId" TEXT`,
     `ALTER TABLE "Notification" ADD COLUMN "workspaceId" TEXT`,
     `ALTER TABLE "Conversation" ADD COLUMN "connectionId" TEXT`,
+    `ALTER TABLE "Conversation" ADD COLUMN "trashedAt" DATETIME`,
     `ALTER TABLE "Message" ADD COLUMN "connectionId" TEXT`,
   ]
 
