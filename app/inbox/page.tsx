@@ -226,6 +226,7 @@ function InboxPageContent() {
   const [replyStatus, setReplyStatus] = useState<string | null>(null)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
   const [assignSaving, setAssignSaving] = useState(false)
   const [autoPopulated, setAutoPopulated] = useState(false)
@@ -272,6 +273,9 @@ function InboxPageContent() {
       .then((r) => r.json())
       .then((json) => {
         if (json.authenticated && json.user?.userId) setCurrentUserId(json.user.userId)
+        if (json.authenticated && typeof json.user?.email === "string") {
+          setCurrentUserEmail(json.user.email)
+        }
       })
       .catch(() => null)
   }, [])
@@ -990,8 +994,9 @@ function InboxPageContent() {
           ...members,
           {
             userId: selected.assignedTo,
-            nombre: `${selected.assignedTo} (unknown)`,
-            email: selected.assignedTo,
+            nombre: "Unknown assignee",
+            /** `assignedTo` es userId, no email — no mostrarlo como correo. */
+            email: "",
             avatar: null,
             role: "unknown",
           },
@@ -1618,6 +1623,7 @@ function InboxPageContent() {
                       <ReplyComposer
                         channel={selected.channel}
                         channelLabel={channelLabel(selected.channel, uiLocale)}
+                        signedInEmail={currentUserEmail}
                         subject={selected.subject}
                         detectedLanguage={selected.detectedLanguage}
                         replyContent={replyContent}
@@ -1808,7 +1814,7 @@ function InboxPageContent() {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">To</label>
               <Input
-                placeholder="recipient@example.com"
+                placeholder="Recipient email"
                 type="email"
                 value={composeTo}
                 onChange={(e) => setComposeTo(e.target.value)}

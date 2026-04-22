@@ -40,6 +40,8 @@ type AssistAction = "proofread" | "shorter" | "clearer" | "professional" | "warm
 interface ReplyComposerProps {
   channel: string
   channelLabel: string
+  /** Sesión actual (Google, etc.) — no confundir con la dirección "From" del canal SMTP. */
+  signedInEmail?: string | null
   subject?: string | null
   detectedLanguage?: string | null
   replyContent: string
@@ -102,6 +104,7 @@ const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Spa
 export function ReplyComposer({
   channel,
   channelLabel,
+  signedInEmail,
   subject,
   detectedLanguage,
   replyContent,
@@ -406,6 +409,14 @@ export function ReplyComposer({
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
       <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
+        {channel === "email" && signedInEmail?.trim() ? (
+          <p className="px-1.5 pb-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+            Signed in as{" "}
+            <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
+              {signedInEmail}
+            </span>
+          </p>
+        ) : null}
 
         {/* ── Email metadata (franja mínima) ── */}
         {showEmailOptions && (
@@ -431,7 +442,7 @@ export function ReplyComposer({
                   type="text"
                   value={emailForwardTo}
                   onChange={(e) => onEmailForwardToChange(e.target.value)}
-                  placeholder="recipient@example.com"
+                  placeholder="Recipient email"
                   className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                 />
               </div>
@@ -452,7 +463,7 @@ export function ReplyComposer({
                     type="text"
                     value={emailCc}
                     onChange={(e) => onEmailCcChange(e.target.value)}
-                    placeholder="cc@example.com"
+                    placeholder="CC (optional)"
                     className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>
@@ -462,7 +473,7 @@ export function ReplyComposer({
                     type="text"
                     value={emailBcc}
                     onChange={(e) => onEmailBccChange(e.target.value)}
-                    placeholder="bcc@example.com"
+                    placeholder="BCC (optional)"
                     className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>

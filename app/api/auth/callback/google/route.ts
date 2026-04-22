@@ -2,7 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@core/auth/google"
 import { createSession, buildSessionCookie } from "@/lib/auth/session"
 import { db } from "@/lib/db"
-import { ensureUserHasDefaultWorkspace } from "@/lib/workspace"
+import { checkMembership, ensureUserHasDefaultWorkspace } from "@/lib/workspace"
+
+/** Default invite-only when unset (preserves existing deployments). Self-serve only when `AUTH_INVITE_ONLY=false`. */
+function isAuthInviteOnly(): boolean {
+  const v = process.env.AUTH_INVITE_ONLY?.trim().toLowerCase()
+  if (v === "false") return false
+  return true
+}
+
+/** Platform `User.role` for new self-serve signups (middleware RBAC). */
+function defaultSelfServeUserRole(): string {
+  const r = process.env.AUTH_DEFAULT_USER_ROLE?.trim().toLowerCase()
+  if (r && ["admin", "editor", "viewer"].includes(r)) return r
+  return "viewer"
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,42 +36,62 @@ export async function GET(request: NextRequest) {
 
     console.log("[7F Auth] Google user:", googleUser.email)
 
-    const allowedEmail = await db.allowedEmail.findUnique({
-      where: { email: googleUser.email.toLowerCase() },
-    })
+    const inviteOnly = isAuthInviteOnly()
+    const emailLower = googleUser.email.toLowerCase()
 
-    if (!allowedEmail) {
-      console.warn("[7F Auth] Access denied for:", googleUser.email)
-      return NextResponse.redirect(new URL("/login?error=not_allowed", request.url))
+    let allowedEmail: { role: string } | null = null
+    if (inviteOnly) {
+      allowedEmail = await db.allowedEmail.findUnique({
+        where: { email: emailLower },
+      })
+      if (!allowedEmail) {
+        console.warn("[7F Auth] Access denied (invite-only, not on allowlist):", googleUser.email)
+        return NextResponse.redirect(new URL("/login?error=not_allowed", request.url))
+      }
     }
 
     let user = await db.user.findUnique({
-      where: { email: googleUser.email.toLowerCase() },
+      where: { email: emailLower },
     })
 
     if (user) {
+      const updateData: {
+        nombre: string
+        avatar: string
+        lastLogin: Date
+        role?: string
+      } = {
+        nombre: googleUser.name,
+        avatar: googleUser.picture,
+        lastLogin: new Date(),
+      }
+      if (inviteOnly && allowedEmail) {
+        updateData.role = allowedEmail.role
+      }
       user = await db.user.update({
         where: { id: user.id },
-        data: {
-          nombre: googleUser.name,
-          avatar: googleUser.picture,
-          role: allowedEmail.role,
-          lastLogin: new Date(),
-        },
+        data: updateData,
       })
     } else {
+      const role =
+        inviteOnly && allowedEmail ? allowedEmail.role : defaultSelfServeUserRole()
       user = await db.user.create({
         data: {
-          email: googleUser.email.toLowerCase(),
+          email: emailLower,
           nombre: googleUser.name,
           avatar: googleUser.picture,
-          role: allowedEmail.role,
+          role,
           lastLogin: new Date(),
         },
       })
     }
 
-    const activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
+    let activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
+    const preferredWorkspaceId = process.env.AUTH_PREFERRED_WORKSPACE_ID?.trim()
+    if (preferredWorkspaceId) {
+      const preferredMember = await checkMembership(user.id, preferredWorkspaceId)
+      if (preferredMember) activeWorkspaceId = preferredWorkspaceId
+    }
     console.log("[7F Auth] Session created for:", user.email, "role:", user.role, "workspace:", activeWorkspaceId)
 
     const token = await createSession({

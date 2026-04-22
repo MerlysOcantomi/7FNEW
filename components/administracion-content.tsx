@@ -466,6 +466,15 @@ export function AdministracionContent({
                     You need admin or owner access to change settings.
                   </p>
                 )}
+                {isAdmin && (
+                  <p className="text-xs text-[#475569] mt-2">
+                    <Link href="/administracion/canales" className="font-medium text-[#1D4ED8] hover:underline">
+                      Email channels
+                    </Link>
+                    {" "}
+                    — IMAP/SMTP inboxes for this workspace.
+                  </p>
+                )}
               </div>
               <button
                 onClick={handleSave}
