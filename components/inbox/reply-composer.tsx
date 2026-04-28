@@ -412,6 +412,12 @@ export function ReplyComposer({
         ? "Reply all"
         : composerConfig.sendLabel
 
+  /** Phase 2 fix: el badge de mensaje seleccionado refleja el modo activo del composer (reply vs forward). */
+  const replyTargetActionLabel =
+    !replyIsInternal && emailMode === "forward"
+      ? "Forwarding selected message"
+      : "Replying to selected message"
+
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
     clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen
@@ -511,7 +517,7 @@ export function ReplyComposer({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--inbox-accent)]">
-                  Replying to selected message
+                  {replyTargetActionLabel}
                 </span>
                 {replyTarget.timestampLabel ? (
                   <span
