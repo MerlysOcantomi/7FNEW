@@ -451,17 +451,23 @@ export async function listConversationActions(conversationId: string, workspaceI
 }
 
 /** Solo `id` + `shortIntent` desde metadata (sin contenido del mensaje). Orden cronológico. */
+/**
+ * Devuelve el `shortIntent` por mensaje + su `direction`. NO filtra por dirección a propósito:
+ * el frontend decide qué subset mostrar (p. ej. solo `inbound` en el panel "actionable intents"
+ * y, en el futuro, `outbound` en una sección "Waiting on them"). Mantener ambas direcciones aquí
+ * preserva la data sin coste y deja la UI tomar la decisión sin tocar backend de nuevo.
+ */
 export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
   const rows = await db.message.findMany({
     where: { conversationId, workspaceId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, metadata: true },
+    select: { id: true, direction: true, metadata: true },
   })
-  const result: { id: string; shortIntent: string }[] = []
+  const result: { id: string; direction: string; shortIntent: string }[] = []
   for (const row of rows) {
     const meta = parseMessageMetadataRecord(row.metadata)
     const si = getShortIntentFromMetadataRecord(meta)
-    if (si) result.push({ id: row.id, shortIntent: si })
+    if (si) result.push({ id: row.id, direction: row.direction, shortIntent: si })
   }
   return result
 }

@@ -1334,15 +1334,20 @@ function InboxPageContent() {
      * Devuelve `[{messageId, text}]`. `pickExpandedIntents` filtra/dedupa por TEXTO (last-wins),
      * así que para cada texto resultante mapeamos al ÚLTIMO `id` con ese `shortIntent` en el orden
      * cronológico recibido — preservando la semántica dedup-last-wins en el plano de mensajes.
+     *
+     * Phase 3 fix: el panel "actionable intents" del listado solo expone intents de mensajes
+     * INBOUND. Outbound siguen visibles y seleccionables en el hilo central; aquí no compiten
+     * como "lo que requiere acción". El backend ya devuelve `direction` por fila, sin borrar data.
      */
     async function parseResponse(
       res: Response,
     ): Promise<Array<{ messageId: string; text: string }>> {
       const json = (await res.json()) as {
         success?: boolean
-        data?: Array<{ id: string; shortIntent: string }>
+        data?: Array<{ id: string; direction?: string; shortIntent: string }>
       }
-      const rows = json?.success && Array.isArray(json.data) ? json.data : []
+      const rawRows = json?.success && Array.isArray(json.data) ? json.data : []
+      const rows = rawRows.filter((r) => r.direction === "inbound")
       const lines = rows.map((r) => r.shortIntent).filter(Boolean)
       const filteredTexts = pickExpandedIntents(lines)
       const result: Array<{ messageId: string; text: string }> = []
