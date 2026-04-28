@@ -68,6 +68,12 @@ interface ConvertConversationInput {
   }
   actionRecordId?: string | null
   executionNotes?: string | null
+  /**
+   * Phase 3: cuando el operador convierte desde un mensaje específico (panel right en message-mode),
+   * preferimos el contenido de ESE mensaje como anchor del `sourceText` (en vez del primer inbound).
+   * Si no llega, fallback al comportamiento previo. Sin schema change.
+   */
+  sourceMessageId?: string | null
 }
 
 interface ConversationConversionResult {
@@ -970,8 +976,18 @@ export async function convertConversationToRecords(
     [...conversation.messages].reverse().find((message) => message.direction === "inbound" && !message.isInternal)
     ?? null
 
+  /**
+   * Phase 3: si llega `sourceMessageId` y pertenece a esta conversación, lo preferimos como anchor
+   * del `sourceText`. Mantiene fallbacks previos para no romper conversiones a nivel conversación.
+   */
+  const scopedMessage =
+    input.sourceMessageId
+      ? conversation.messages.find((m) => m.id === input.sourceMessageId) ?? null
+      : null
+
   const sourceText =
     pickFirstString(
+      scopedMessage?.content,
       firstInboundMessage?.content,
       latestInboundMessage?.content,
     )

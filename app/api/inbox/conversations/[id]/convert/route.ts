@@ -11,11 +11,15 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { workspaceId, session } = await requireWriteAccess(request)
     const { id } = await params
     const body = await request.json()
-    const { action } = body
+    const { action, sourceMessageId } = body
 
     if (!["cliente", "proyecto", "tarea", "todo"].includes(action)) {
       return errorResponse("VALIDATION_ERROR", "Acción inválida")
     }
+
+    /** Phase 3: opcional — solo se acepta si llega como string no vacío. El service valida pertenencia. */
+    const scopedMessageId =
+      typeof sourceMessageId === "string" && sourceMessageId.trim() ? sourceMessageId.trim() : null
 
     const results = await convertConversationToRecords({
       workspaceId,
@@ -26,6 +30,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         userName: session.nombre ?? session.email,
         userEmail: session.email,
       },
+      sourceMessageId: scopedMessageId,
     })
 
     if (results.created.cliente && results.ids.clienteId) {

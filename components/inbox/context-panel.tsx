@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { InlineTextarea } from "@/components/inline-edit"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Users, ChevronDown, ChevronUp, Loader2,
-  Mail, Phone, Building2, Globe, ArrowRight,
+  Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
   Paperclip, PhoneCall,
 } from "lucide-react"
@@ -25,6 +25,14 @@ export interface ActionItem {
   resultId?: string | null
   executionNotes?: string | null
   errorMessage?: string | null
+}
+
+/** Phase 3: información compacta del mensaje seleccionado para el modo message-aware del panel. */
+export interface SelectedMessageInfo {
+  messageId: string
+  authorLabel: string
+  timestampLabel?: string | null
+  snippet?: string | null
 }
 
 interface ContextPanelProps {
@@ -70,6 +78,13 @@ interface ContextPanelProps {
   members: Array<{ userId: string; nombre: string | null; email: string }>
   assignSaving: boolean
   onAssign: (value: string) => void
+  /**
+   * Phase 3: cuando llegan ambos, el panel pasa a "message mode": cambia el header,
+   * muestra una tarjeta compacta del mensaje y prioriza/etiqueta las acciones cuyo
+   * `sourceMessageId === selectedMessageId`.
+   */
+  selectedMessageId?: string | null
+  selectedMessageInfo?: SelectedMessageInfo | null
 }
 
 export function ContextPanel({
@@ -83,9 +98,12 @@ export function ContextPanel({
   members,
   assignSaving,
   onAssign,
+  selectedMessageId = null,
+  selectedMessageInfo = null,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
+  const isMessageMode = Boolean(selectedMessageId && selectedMessageInfo)
 
   const contactName =
     selected.contact?.nombre || selected.cliente?.nombre || "Unknown contact"
@@ -110,6 +128,29 @@ export function ContextPanel({
 
   const suggestedActions = (selected.actions ?? []).filter((a) => a.status === "suggested" || a.status === "approved")
 
+  /**
+   * Phase 3: en message-mode, las acciones cuyo `sourceMessageId === selectedMessageId` saltan al
+   * principio del listado y reciben un badge "For selected message". El resto se mantiene visible
+   * (no se filtra) para no esconder trabajo a nivel conversación.
+   */
+  const orderedSuggestedActions = useMemo(() => {
+    if (!isMessageMode || !selectedMessageId) return suggestedActions
+    const scoped: ActionItem[] = []
+    const rest: ActionItem[] = []
+    for (const a of suggestedActions) {
+      if (a.sourceMessageId && a.sourceMessageId === selectedMessageId) scoped.push(a)
+      else rest.push(a)
+    }
+    return [...scoped, ...rest]
+  }, [isMessageMode, selectedMessageId, suggestedActions])
+
+  const messageScopedActionCount = useMemo(() => {
+    if (!isMessageMode || !selectedMessageId) return 0
+    return suggestedActions.filter(
+      (a) => a.sourceMessageId && a.sourceMessageId === selectedMessageId,
+    ).length
+  }, [isMessageMode, selectedMessageId, suggestedActions])
+
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
 
@@ -118,11 +159,49 @@ export function ContextPanel({
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
           <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
         </div>
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Intelligence Hub</h2>
-          <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">AI-powered insights</p>
+          <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
+            {isMessageMode ? "About this message" : "About this conversation"}
+          </p>
         </div>
       </div>
+
+      {/* ── Phase 3 · Selected message card (solo en message-mode) ── */}
+      {isMessageMode && selectedMessageInfo ? (
+        <section
+          className="rounded-xl border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/45 px-3 py-2"
+          aria-label="Selected message context"
+        >
+          <div className="flex items-center gap-1.5">
+            <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+              Selected message
+            </span>
+            {selectedMessageInfo.timestampLabel ? (
+              <span
+                suppressHydrationWarning
+                className="text-[9px] tabular-nums text-[var(--inbox-intelligence-text-secondary)]"
+              >
+                · {selectedMessageInfo.timestampLabel}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
+              {selectedMessageInfo.authorLabel}
+            </span>
+            {selectedMessageInfo.snippet ? (
+              <span
+                className="min-w-0 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
+                title={selectedMessageInfo.snippet}
+              >
+                {selectedMessageInfo.snippet}
+              </span>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {/* ── 1. Contact ── */}
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
@@ -275,18 +354,41 @@ export function ContextPanel({
           </p>
         )}
 
-        {suggestedActions.length > 0 && (
+        {orderedSuggestedActions.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-[var(--inbox-intelligence-border)] pt-3">
-            {suggestedActions.slice(0, 3).map((action) => {
+            {isMessageMode && messageScopedActionCount > 0 ? (
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-accent)]">
+                Actions based on selected message
+              </p>
+            ) : null}
+            {orderedSuggestedActions.slice(0, 3).map((action) => {
               const title = typeof action.data?.title === "string" && action.data.title.trim()
                 ? action.data.title
                 : actionTypeLabel(action.type)
               const isPending = pendingActionId === action.id
+              const isMessageScoped = Boolean(
+                isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
+              )
               return (
-                <div key={action.id} className="flex items-center justify-between gap-2">
+                <div
+                  key={action.id}
+                  className={cn(
+                    "flex items-center justify-between gap-2 rounded-md transition-colors",
+                    isMessageScoped &&
+                      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)]/40 px-1.5 py-0.5",
+                  )}
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
                     <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
+                    {isMessageScoped ? (
+                      <span
+                        className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+                        title="This action is anchored to the selected message"
+                      >
+                        For selected
+                      </span>
+                    ) : null}
                     <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", actionStatusBadge(action.status))}>
                       {actionStatusLabel(action.status)}
                     </span>

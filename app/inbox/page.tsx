@@ -681,10 +681,19 @@ function InboxPageContent() {
 
     setActionState("Processing...")
     try {
+      /**
+       * Phase 3: si hay un mensaje seleccionado válido en el detalle, pasamos `sourceMessageId`
+       * para que el service prefiera ese mensaje como anchor del `sourceText`. Sin selección,
+       * comportamiento previo (primer inbound).
+       */
+      const scopedMessageId = effectiveSelectedMessageId ?? null
       const res = await fetch(`/api/inbox/conversations/${selectedId}/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(scopedMessageId ? { sourceMessageId: scopedMessageId } : {}),
+        }),
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error?.message || "Action failed")
@@ -1686,6 +1695,8 @@ function InboxPageContent() {
       members={displayedMembers}
       assignSaving={assignSaving}
       onAssign={handleAssign}
+      selectedMessageId={effectiveSelectedMessageId}
+      selectedMessageInfo={replyTarget}
     />
   ) : null
 
