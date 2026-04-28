@@ -6,6 +6,12 @@ import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+/** Cada intent expandido conserva su `messageId` original para poder seleccionar el Message en el hilo. */
+export interface ShortIntentEntry {
+  messageId: string
+  text: string
+}
+
 interface ConversationListItemProps {
   title: string
   senderIntent?: string | null
@@ -16,8 +22,10 @@ interface ConversationListItemProps {
   onClick: () => void
   expanded: boolean
   onToggleExpand: () => void
-  shortIntentLines?: string[]
+  intents?: ShortIntentEntry[]
   intentsLoading: boolean
+  /** Disparado al hacer clic en un intent expandido — el padre debe seleccionar el Message correspondiente. */
+  onIntentSelect?: (messageId: string) => void
   channel: string
   conversationStatus: string
   statusLabel: string
@@ -39,8 +47,9 @@ export function ConversationListItem({
   onClick,
   expanded,
   onToggleExpand,
-  shortIntentLines,
+  intents,
   intentsLoading,
+  onIntentSelect,
   channel,
   conversationStatus,
   statusLabel,
@@ -60,7 +69,7 @@ export function ConversationListItem({
 
   /** `undefined` = aún no cargado; `[]` = cargado sin shortIntent en metadata (o todo filtrado). */
   const intentPanelVisible =
-    expanded && (intentsLoading || shortIntentLines !== undefined)
+    expanded && (intentsLoading || intents !== undefined)
 
   return (
     <div
@@ -192,14 +201,26 @@ export function ConversationListItem({
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
               <span className="text-[11px]">Loading intents…</span>
             </div>
-          ) : shortIntentLines && shortIntentLines.length > 0 ? (
+          ) : intents && intents.length > 0 ? (
             <ul className="space-y-1" role="list">
-              {[...shortIntentLines].reverse().map((line, idx) => (
-                <li
-                  key={`${idx}-${line.slice(0, 24)}`}
-                  className="border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] [overflow-wrap:anywhere]"
-                >
-                  {line}
+              {[...intents].reverse().map((intent, idx) => (
+                <li key={`${intent.messageId}-${idx}`}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onIntentSelect?.(intent.messageId)
+                    }}
+                    title={intent.text}
+                    aria-label={`Open message: ${intent.text}`}
+                    className={cn(
+                      "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
+                      "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                    )}
+                  >
+                    {intent.text}
+                  </button>
                 </li>
               ))}
             </ul>

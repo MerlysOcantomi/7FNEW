@@ -213,9 +213,15 @@ function InboxPageContent() {
   const [channel, setChannel] = useState("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedConversationId, setExpandedConversationId] = useState<string | null>(null)
-  const [messageShortIntentsById, setMessageShortIntentsById] = useState<Record<string, string[]>>({})
+  const [messageShortIntentsById, setMessageShortIntentsById] = useState<
+    Record<string, Array<{ messageId: string; text: string }>>
+  >({})
   const [messageIntentsLoadingId, setMessageIntentsLoadingId] = useState<string | null>(null)
   const loadedShortIntentIdsRef = useRef<Set<string>>(new Set())
+  /** Mensaje seleccionado dentro del hilo activo (Phase 1: per-message selection plumbing). */
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  /** Marca el último `?messageId=` que aplicamos a `selectedMessageId` para no re-aplicar en bucle. */
+  const lastAppliedMessageIdRef = useRef<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
@@ -517,6 +523,9 @@ function InboxPageContent() {
     setContextSheetOpen(false)
     setCannedOpen(false)
     lastAutoPopulatedDraftRef.current = null
+    /** Reset de selección por-mensaje al cambiar de conversación. El siguiente effect re-aplica `?messageId=` si sigue siendo válido. */
+    setSelectedMessageId(null)
+    lastAppliedMessageIdRef.current = null
     if (!activeSelectedId) {
       setMobileView("list")
     }
@@ -560,6 +569,36 @@ function InboxPageContent() {
     detailData.id === activeSelectedId
       ? detailData
       : null
+
+  /**
+   * URL → state: aplica `?messageId=` cuando llega el detalle, una sola vez por valor de URL,
+   * y solo si pertenece al hilo cargado (evita resaltar un mensaje fantasma).
+   */
+  useEffect(() => {
+    if (!selected) return
+    if (!deepLinkMessageId) {
+      lastAppliedMessageIdRef.current = null
+      return
+    }
+    if (lastAppliedMessageIdRef.current === deepLinkMessageId) return
+    if (!selected.messages?.some((m) => m.id === deepLinkMessageId)) return
+    lastAppliedMessageIdRef.current = deepLinkMessageId
+    setSelectedMessageId(deepLinkMessageId)
+  }, [selected, deepLinkMessageId])
+
+  /**
+   * state → URL: mantiene `?messageId=` sincronizado con `selectedMessageId`.
+   * Es idempotente: si la URL ya tiene el mismo valor, no hace nada.
+   */
+  useEffect(() => {
+    const current = searchParams.get("messageId")
+    if ((selectedMessageId ?? null) === (current ?? null)) return
+    const params = new URLSearchParams(searchParams.toString())
+    if (selectedMessageId) params.set("messageId", selectedMessageId)
+    else params.delete("messageId")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [selectedMessageId, searchParams, pathname, router])
 
   replyContentRef.current = replyContent
 
@@ -1179,6 +1218,33 @@ function InboxPageContent() {
     setPendingActionInput(null)
   }
 
+  /**
+   * Click en un intent expandido (columna izquierda):
+   * - Misma conversación → solo `setSelectedMessageId(messageId)`; el effect URL-sync lo escribe en `?messageId=`.
+   * - Otra conversación → escribimos `?id=...&messageId=...` atómicamente. El deep-link effect existente
+   *   carga la conversación y el effect URL→state aplica el `messageId` cuando llega el detalle.
+   */
+  const handleSelectIntent = useCallback(
+    (conversationId: string, messageId: string) => {
+      if (conversationId === activeSelectedId) {
+        setSelectedMessageId(messageId)
+        setMobileView("thread")
+        return
+      }
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("id", conversationId)
+      params.set("messageId", messageId)
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+      setMobileView("thread")
+    },
+    [activeSelectedId, pathname, router, searchParams],
+  )
+
+  /** Click directo en una burbuja del hilo central. */
+  const handleSelectMessageInThread = useCallback((messageId: string) => {
+    setSelectedMessageId((prev) => (prev === messageId ? prev : messageId))
+  }, [])
+
   const handleToggleConversationExpand = useCallback((id: string) => {
     setExpandedConversationId((prev) => {
       if (prev === id) {
@@ -1209,14 +1275,30 @@ function InboxPageContent() {
     let cancelled = false
     const conversationId = expandedConversationId
 
-    async function parseResponse(res: Response): Promise<string[]> {
+    /**
+     * Devuelve `[{messageId, text}]`. `pickExpandedIntents` filtra/dedupa por TEXTO (last-wins),
+     * así que para cada texto resultante mapeamos al ÚLTIMO `id` con ese `shortIntent` en el orden
+     * cronológico recibido — preservando la semántica dedup-last-wins en el plano de mensajes.
+     */
+    async function parseResponse(
+      res: Response,
+    ): Promise<Array<{ messageId: string; text: string }>> {
       const json = (await res.json()) as {
         success?: boolean
-        data?: Array<{ shortIntent: string }>
+        data?: Array<{ id: string; shortIntent: string }>
       }
       const rows = json?.success && Array.isArray(json.data) ? json.data : []
       const lines = rows.map((r) => r.shortIntent).filter(Boolean)
-      return pickExpandedIntents(lines)
+      const filteredTexts = pickExpandedIntents(lines)
+      const result: Array<{ messageId: string; text: string }> = []
+      for (const text of filteredTexts) {
+        let lastId: string | null = null
+        for (const row of rows) {
+          if (row.shortIntent === text && row.id) lastId = row.id
+        }
+        if (lastId) result.push({ messageId: lastId, text })
+      }
+      return result
     }
 
     async function run() {
@@ -1326,10 +1408,16 @@ function InboxPageContent() {
       return
     }
 
+    /** Esc primero limpia la selección por-mensaje (efecto URL-sync remueve `?messageId=`). */
+    if (selectedMessageId) {
+      setSelectedMessageId(null)
+      return
+    }
+
     if (activeSelectedId && mobileView === "thread" && isMobileInboxViewport()) {
       handleBackToList()
     }
-  }, [activeSelectedId, contextSheetOpen, isMobileInboxViewport, mobileView])
+  }, [activeSelectedId, contextSheetOpen, isMobileInboxViewport, mobileView, selectedMessageId])
 
   const inboxShortcuts = useMemo(
     () => [
@@ -1594,6 +1682,7 @@ function InboxPageContent() {
                 onToggleConversationExpand={handleToggleConversationExpand}
                 messageShortIntentsById={messageShortIntentsById}
                 messageIntentsLoadingId={messageIntentsLoadingId}
+                onIntentSelect={handleSelectIntent}
                 search={search}
                 onSearchChange={setSearch}
                 status={status}
@@ -1643,6 +1732,8 @@ function InboxPageContent() {
                       onStatusChange={handleStatusChange}
                       statusBadgeClassName={statusBadgeDisplay}
                       messages={threadMessages}
+                      selectedMessageId={selectedMessageId}
+                      onSelectMessage={handleSelectMessageInThread}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
                     />

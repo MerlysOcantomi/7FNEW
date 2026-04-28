@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
-import { ConversationListItem } from "@/components/inbox/conversation-list-item"
+import { ConversationListItem, type ShortIntentEntry } from "@/components/inbox/conversation-list-item"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
@@ -47,8 +47,10 @@ interface ConversationListProps {
   selectedId: string | null
   expandedConversationId: string | null
   onToggleConversationExpand: (id: string) => void
-  messageShortIntentsById: Record<string, string[]>
+  messageShortIntentsById: Record<string, ShortIntentEntry[]>
   messageIntentsLoadingId: string | null
+  /** Click en un intent expandido (panel de la izquierda) → seleccionar conversación + mensaje. */
+  onIntentSelect?: (conversationId: string, messageId: string) => void
   search: string
   onSearchChange: (value: string) => void
   status: string
@@ -90,6 +92,7 @@ export function ConversationList({
   onToggleConversationExpand,
   messageShortIntentsById,
   messageIntentsLoadingId,
+  onIntentSelect,
   search,
   onSearchChange,
   status,
@@ -299,8 +302,13 @@ export function ConversationList({
                   onClick={() => onSelect(item.id)}
                   expanded={expandedConversationId === item.id}
                   onToggleExpand={() => onToggleConversationExpand(item.id)}
-                  shortIntentLines={messageShortIntentsById[item.id]}
+                  intents={messageShortIntentsById[item.id]}
                   intentsLoading={messageIntentsLoadingId === item.id}
+                  onIntentSelect={
+                    onIntentSelect
+                      ? (messageId) => onIntentSelect(item.id, messageId)
+                      : undefined
+                  }
                   conversationStatus={item.conversationStatus}
                   statusLabel={item.statusLabel}
                   statusClassName={item.statusClassName}

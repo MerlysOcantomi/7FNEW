@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import { AlertTriangle, ChevronLeft, Loader2, MessageSquare, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -37,6 +38,10 @@ interface ConversationThreadProps {
   onStatusChange: (value: string) => Promise<void>
   statusBadgeClassName: (value: string) => string
   messages: MessageItem[]
+  /** Mensaje activo (para resaltar y centrar el scroll). */
+  selectedMessageId?: string | null
+  /** Callback al hacer clic en una burbuja del hilo. */
+  onSelectMessage?: (messageId: string) => void
   onBack?: () => void
   onOpenContext?: () => void
 }
@@ -53,9 +58,33 @@ export function ConversationThread({
   onStatusChange,
   statusBadgeClassName,
   messages,
+  selectedMessageId = null,
+  onSelectMessage,
   onBack,
   onOpenContext,
 }: ConversationThreadProps) {
+  /**
+   * Mapa estable de refs por messageId para hacer scrollIntoView cuando cambia la selección.
+   * Se rellena con callback refs en el JSX más abajo.
+   */
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  useEffect(() => {
+    if (!selectedMessageId) return
+    const node = messageRefs.current.get(selectedMessageId)
+    if (!node) return
+    /** rAF asegura que el layout esté listo (especialmente al cambiar de conversación). */
+    const id = requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [selectedMessageId, messages])
+
+  const setMessageRef = (messageId: string) => (node: HTMLDivElement | null) => {
+    if (node) messageRefs.current.set(messageId, node)
+    else messageRefs.current.delete(messageId)
+  }
+
   if (!hasSelectedId) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -137,7 +166,7 @@ export function ConversationThread({
             </div>
           ) : isEmailChannel ? (
             messages.map((message, index) => (
-              <div key={message.id}>
+              <div key={message.id} ref={setMessageRef(message.id)}>
                 {index > 0 && (
                   <div className="my-4 flex items-center gap-3 px-1">
                     <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
@@ -148,6 +177,7 @@ export function ConversationThread({
                   </div>
                 )}
                 <MessageBubble
+                  id={message.id}
                   authorLabel={message.authorLabel}
                   roleLabel={message.roleLabel}
                   metaLabel={message.metaLabel}
@@ -156,22 +186,28 @@ export function ConversationThread({
                   tone={message.tone}
                   attachments={message.attachments}
                   emailMeta={message.emailMeta}
+                  selected={selectedMessageId === message.id}
+                  onSelect={onSelectMessage ? () => onSelectMessage(message.id) : undefined}
                 />
               </div>
             ))
           ) : (
             messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                authorLabel={message.authorLabel}
-                roleLabel={message.roleLabel}
-                metaLabel={message.metaLabel}
-                timestampLabel={message.timestampLabel}
-                content={message.content}
-                tone={message.tone}
-                attachments={message.attachments}
-                emailMeta={message.emailMeta}
-              />
+              <div key={message.id} ref={setMessageRef(message.id)}>
+                <MessageBubble
+                  id={message.id}
+                  authorLabel={message.authorLabel}
+                  roleLabel={message.roleLabel}
+                  metaLabel={message.metaLabel}
+                  timestampLabel={message.timestampLabel}
+                  content={message.content}
+                  tone={message.tone}
+                  attachments={message.attachments}
+                  emailMeta={message.emailMeta}
+                  selected={selectedMessageId === message.id}
+                  onSelect={onSelectMessage ? () => onSelectMessage(message.id) : undefined}
+                />
+              </div>
             ))
           )}
         </div>

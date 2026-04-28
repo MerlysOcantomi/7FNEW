@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { cn } from "@/lib/utils"
 import { FileText, Download } from "lucide-react"
 
@@ -20,6 +21,8 @@ export interface MessageEmailMeta {
 }
 
 interface MessageBubbleProps {
+  /** ID del Message original — opcional para no romper consumidores existentes; necesario para anclar/seleccionar. */
+  id?: string
   authorLabel: string
   roleLabel: string
   metaLabel: string
@@ -28,9 +31,14 @@ interface MessageBubbleProps {
   tone: MessageTone
   attachments?: MessageAttachment[]
   emailMeta?: MessageEmailMeta
+  /** Marca visual de "mensaje activo" (ring + tinte). Solo afecta estilos. */
+  selected?: boolean
+  /** Callback opcional al hacer clic en la burbuja (no se dispara si el usuario está seleccionando texto). */
+  onSelect?: () => void
 }
 
 export function MessageBubble({
+  id,
   authorLabel,
   roleLabel,
   metaLabel,
@@ -39,15 +47,48 @@ export function MessageBubble({
   tone,
   attachments,
   emailMeta,
+  selected = false,
+  onSelect,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
+  const interactive = Boolean(onSelect)
+
+  /**
+   * Click en la burbuja → onSelect, pero solo si el usuario NO está seleccionando texto
+   * (evita "robar" la selección de texto natural en el contenido).
+   */
+  function handleClick() {
+    if (!onSelect) return
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection()
+      if (sel && sel.toString().length > 0) return
+    }
+    onSelect()
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!onSelect) return
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      onSelect()
+    }
+  }
 
   return (
     <div
+      id={id ? `msg-${id}` : undefined}
+      data-message-id={id}
+      data-selected={selected ? "true" : undefined}
+      role={interactive ? "group" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={interactive ? handleClick : undefined}
+      onKeyDown={interactive ? handleKeyDown : undefined}
+      aria-pressed={interactive ? selected : undefined}
       className={cn(
-        "flex",
+        "flex scroll-mt-24",
         isSystem ? "justify-center" : isRightAligned ? "justify-end" : "justify-start",
+        interactive && "cursor-pointer focus:outline-none",
       )}
     >
       <div className={cn("max-w-[96%] sm:max-w-[82%] md:max-w-[78%]", isRightAligned && "items-end")}>
@@ -113,6 +154,8 @@ export function MessageBubble({
               "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&
               "rounded-2xl border-dashed border-[var(--inbox-border)] bg-white/[0.04] text-[var(--inbox-text-secondary)]",
+            selected &&
+              "ring-2 ring-[var(--inbox-accent)]/60 ring-offset-2 ring-offset-[var(--inbox-chat-background)] shadow-[0_0_0_1px_var(--inbox-accent),0_8px_24px_rgba(99,102,241,0.18)]",
           )}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>
