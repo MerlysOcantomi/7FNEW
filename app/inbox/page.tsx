@@ -606,14 +606,25 @@ function InboxPageContent() {
     if (!selected?.drafts?.length || !selected?.messages?.length) return
     if (replyContentRef.current.trim()) return
 
-    const lastMsg = selected.messages[selected.messages.length - 1]
-    if (lastMsg.direction !== "inbound") return
+    /**
+     * Anchor de auto-populate:
+     *  - Si hay `selectedMessageId` válido → usamos ESE messageId (Phase 2: respuesta scoped al mensaje activo).
+     *  - Si no, fallback al comportamiento previo: solo auto-populate cuando el ÚLTIMO mensaje sea inbound.
+     */
+    let anchorMessageId: string | null = null
+    if (selectedMessageId && selected.messages.some((m) => m.id === selectedMessageId)) {
+      anchorMessageId = selectedMessageId
+    } else {
+      const lastMsg = selected.messages[selected.messages.length - 1]
+      if (lastMsg.direction === "inbound") anchorMessageId = lastMsg.id
+    }
+    if (!anchorMessageId) return
 
     const draft = selected.drafts.find(
       (d) =>
         d.type === "ghost_reply" &&
         ["draft", "edited"].includes(d.status) &&
-        d.sourceMessageId === lastMsg.id &&
+        d.sourceMessageId === anchorMessageId &&
         d.content?.trim(),
     )
     if (!draft) return
@@ -626,7 +637,7 @@ function InboxPageContent() {
     activeDraftIdRef.current = draft.id
     setReplyContent(draft.content)
     setAutoPopulated(true)
-  }, [selected])
+  }, [selected, selectedMessageId])
 
   const serverLeads = typeof conversationsMeta?.leads === "number" ? conversationsMeta.leads : null
   const serverUrgent = typeof conversationsMeta?.urgent === "number" ? conversationsMeta.urgent : null
@@ -851,6 +862,8 @@ function InboxPageContent() {
           isInternal: replyIsInternal,
           role: "operator",
           mode: replyIsInternal ? "reply" : emailMode,
+          /** Phase 2: ata la respuesta al mensaje real (seleccionado o último inbound). */
+          ...(effectiveSourceMessageId ? { sourceMessageId: effectiveSourceMessageId } : {}),
           ...(replyAttachments.length > 0 ? { attachments: replyAttachments } : {}),
           ...(!replyIsInternal && emailCc.trim() ? { cc: parseEmailList(emailCc) } : {}),
           ...(!replyIsInternal && emailBcc.trim() ? { bcc: parseEmailList(emailBcc) } : {}),
@@ -1158,6 +1171,48 @@ function InboxPageContent() {
     selected?.drafts?.find(
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
+
+  /** Último mensaje inbound (anchor por defecto si no hay selección por-mensaje). */
+  const lastInboundMessageId = useMemo(() => {
+    if (!selected?.messages?.length) return null
+    for (let i = selected.messages.length - 1; i >= 0; i--) {
+      const m = selected.messages[i]
+      if (m.direction === "inbound") return m.id
+    }
+    return null
+  }, [selected])
+
+  /**
+   * `selectedMessageId` validado contra el detalle activo. Si no pertenece a la conversación
+   * actualmente cargada, lo ignoramos (evita enviar un `sourceMessageId` inválido por race
+   * entre el cambio de conversación y la llegada del nuevo detalle).
+   */
+  const effectiveSelectedMessageId = useMemo(() => {
+    if (!selectedMessageId || !selected?.messages?.length) return null
+    return selected.messages.some((m) => m.id === selectedMessageId) ? selectedMessageId : null
+  }, [selectedMessageId, selected])
+
+  /** Prioridad: mensaje seleccionado válido → último inbound → null. */
+  const effectiveSourceMessageId = effectiveSelectedMessageId ?? lastInboundMessageId
+
+  /** Vista compacta del target de la respuesta para el composer (autor + snippet + hora). */
+  const replyTarget = useMemo(() => {
+    if (!effectiveSelectedMessageId) return null
+    const msg = threadMessages.find((m) => m.id === effectiveSelectedMessageId)
+    if (!msg) return null
+    const collapsed = msg.content?.trim().replace(/\s+/g, " ") ?? ""
+    const snippet = collapsed.length > 120 ? `${collapsed.slice(0, 120)}…` : collapsed
+    return {
+      messageId: effectiveSelectedMessageId,
+      authorLabel: msg.authorLabel,
+      timestampLabel: msg.timestampLabel,
+      snippet: snippet || null,
+    }
+  }, [effectiveSelectedMessageId, threadMessages])
+
+  const handleClearReplyTarget = useCallback(() => {
+    setSelectedMessageId(null)
+  }, [])
 
   const selectedIndex = useMemo(
     () => conversationsForList.findIndex((item) => item.id === activeSelectedId),
@@ -1772,6 +1827,8 @@ function InboxPageContent() {
                         onAttachFiles={handleAttachFiles}
                         onRemoveAttachment={handleRemoveAttachment}
                         onSend={sendReply}
+                        replyTarget={replyTarget}
+                        onClearReplyTarget={handleClearReplyTarget}
                         fannySuggestionTitle={suggestedDraft?.title ?? null}
                         fannySuggestionContent={suggestedDraft?.content ?? null}
                         onApplyFannySuggestion={

@@ -6,7 +6,8 @@ import {
   Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
-  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote, type LucideIcon,
+  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote, CornerUpLeft,
+  type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,14 @@ export interface ComposerAttachment {
   filename: string
   contentType: string
   size: number
+}
+
+/** Phase 2: información compacta del mensaje al que se está respondiendo (badge sobre el composer). */
+export interface ReplyTargetInfo {
+  messageId: string
+  authorLabel: string
+  timestampLabel?: string | null
+  snippet?: string | null
 }
 
 export type EmailSendMode = "reply" | "reply_all" | "forward"
@@ -66,6 +75,10 @@ interface ReplyComposerProps {
   onAttachFiles: (files: File[]) => void
   onRemoveAttachment: (url: string) => void
   onSend: () => void
+  /** Phase 2: cuando está presente, la respuesta se asocia a este mensaje (sourceMessageId). */
+  replyTarget?: ReplyTargetInfo | null
+  /** Limpia la selección por-mensaje desde el composer (badge X / "Reply to whole conversation"). */
+  onClearReplyTarget?: () => void
   /** Fanny suggested reply — panel desde la barra; solo vuelca texto al compositor (no envía). */
   fannySuggestionTitle?: string | null
   fannySuggestionContent?: string | null
@@ -129,6 +142,8 @@ export function ReplyComposer({
   onAttachFiles,
   onRemoveAttachment,
   onSend,
+  replyTarget,
+  onClearReplyTarget,
   fannySuggestionTitle,
   fannySuggestionContent,
   onApplyFannySuggestion,
@@ -481,6 +496,59 @@ export function ReplyComposer({
             )}
           </div>
         )}
+
+        {/* ── Reply target badge (Phase 2) ── */}
+        {replyTarget ? (
+          <div
+            className="flex items-start gap-1.5 rounded-md border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/60 px-2 py-1 text-[var(--inbox-text)]"
+            role="status"
+            aria-live="polite"
+          >
+            <CornerUpLeft
+              className="mt-0.5 h-3 w-3 shrink-0 text-[var(--inbox-accent)]"
+              aria-hidden="true"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--inbox-accent)]">
+                  Replying to selected message
+                </span>
+                {replyTarget.timestampLabel ? (
+                  <span
+                    suppressHydrationWarning
+                    className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
+                  >
+                    · {replyTarget.timestampLabel}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex min-w-0 items-baseline gap-1.5">
+                <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
+                  {replyTarget.authorLabel}
+                </span>
+                {replyTarget.snippet ? (
+                  <span
+                    className="min-w-0 truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
+                    title={replyTarget.snippet}
+                  >
+                    {replyTarget.snippet}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            {onClearReplyTarget ? (
+              <button
+                type="button"
+                onClick={onClearReplyTarget}
+                className="ml-1 shrink-0 rounded p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+                title="Reply to whole conversation"
+                aria-label="Clear selected message — reply to whole conversation"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* ── Textarea ── */}
         <div className="relative">
