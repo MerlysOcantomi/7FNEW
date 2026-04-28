@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { FileText, Download } from "lucide-react"
+import { ChevronDown, ChevronUp, Download, FileText, Mail } from "lucide-react"
 
 type MessageTone = "inbound" | "outbound" | "internal" | "system"
 
@@ -35,6 +36,19 @@ interface MessageBubbleProps {
   selected?: boolean
   /** Callback opcional al hacer clic en la burbuja (no se dispara si el usuario está seleccionando texto). */
   onSelect?: () => void
+  /**
+   * Phase 2.5: cuando es `true`, expone el toggle "View full email" para mostrar un detail card
+   * inline con From/To/Subject/Date completo. Solo se renderiza el toggle para tonos `inbound`/`outbound`.
+   */
+  expandable?: boolean
+  /** Texto "From" para el detail card expandido (puede incluir nombre y email). */
+  fromLabel?: string | null
+  /** Lista compacta de destinatarios (To) — string ya unida; se omite la fila si no llega. */
+  recipientsLabel?: string | null
+  /** Subject del email (se omite la fila si no llega). */
+  subject?: string | null
+  /** Fecha completa formateada (`Apr 28, 2026 7:23 PM`). Si no llega, fallback a `timestampLabel`. */
+  timestampFull?: string | null
 }
 
 export function MessageBubble({
@@ -49,10 +63,31 @@ export function MessageBubble({
   emailMeta,
   selected = false,
   onSelect,
+  expandable = false,
+  fromLabel,
+  recipientsLabel,
+  subject,
+  timestampFull,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
   const interactive = Boolean(onSelect)
+  /**
+   * Estado local de expansión "ver email completo". Se mantiene entre re-renders aunque el mensaje
+   * deje de estar `selected`, por eso el toggle sigue visible mientras `expanded` para permitir colapsar.
+   */
+  const [expanded, setExpanded] = useState(false)
+  const supportsExpand = expandable && (tone === "inbound" || tone === "outbound")
+  const showExpandToggle = supportsExpand && (selected || expanded)
+  const ccList = emailMeta?.cc?.filter(Boolean) ?? []
+  const bccList = emailMeta?.bcc?.filter(Boolean) ?? []
+  const toList = emailMeta?.to?.filter(Boolean) ?? []
+  const recipientsLineFromMeta = toList.length > 0 ? toList.join(", ") : null
+  const effectiveRecipients = recipientsLabel ?? recipientsLineFromMeta
+  const effectiveTimestampFull = timestampFull ?? timestampLabel
+  const hasAnyEmailHeader = Boolean(
+    fromLabel || effectiveRecipients || subject || effectiveTimestampFull,
+  )
 
   /**
    * Click en la burbuja → onSelect, pero solo si el usuario NO está seleccionando texto
@@ -158,6 +193,97 @@ export function MessageBubble({
               "ring-2 ring-[var(--inbox-accent)]/60 ring-offset-2 ring-offset-[var(--inbox-chat-background)] shadow-[0_0_0_1px_var(--inbox-accent),0_8px_24px_rgba(99,102,241,0.18)]",
           )}
         >
+          {expanded && hasAnyEmailHeader ? (
+            <div
+              className={cn(
+                "mb-3 rounded-lg border px-3 py-2 text-xs leading-snug",
+                tone === "outbound"
+                  ? "border-white/15 bg-white/[0.08] text-white/90"
+                  : "border-[var(--inbox-border)] bg-white/[0.04] text-[var(--inbox-text)]",
+              )}
+            >
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Mail
+                  className={cn(
+                    "h-3 w-3 shrink-0",
+                    tone === "outbound" ? "text-white/80" : "text-[var(--inbox-accent)]",
+                  )}
+                  aria-hidden="true"
+                />
+                <span
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-widest",
+                    tone === "outbound" ? "text-white/80" : "text-[var(--inbox-accent)]",
+                  )}
+                >
+                  Email details
+                </span>
+              </div>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                {fromLabel ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      From
+                    </dt>
+                    <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{fromLabel}</dd>
+                  </>
+                ) : null}
+                {effectiveRecipients ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      To
+                    </dt>
+                    <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
+                      {effectiveRecipients}
+                    </dd>
+                  </>
+                ) : null}
+                {ccList.length > 0 ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      CC
+                    </dt>
+                    <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
+                      {ccList.join(", ")}
+                    </dd>
+                  </>
+                ) : null}
+                {bccList.length > 0 ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      BCC
+                    </dt>
+                    <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
+                      {bccList.join(", ")}
+                    </dd>
+                  </>
+                ) : null}
+                {subject ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      Subject
+                    </dt>
+                    <dd className="min-w-0 break-words [overflow-wrap:anywhere] font-medium">
+                      {subject}
+                    </dd>
+                  </>
+                ) : null}
+                {effectiveTimestampFull ? (
+                  <>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                      Date
+                    </dt>
+                    <dd
+                      suppressHydrationWarning
+                      className="min-w-0 tabular-nums opacity-90"
+                    >
+                      {effectiveTimestampFull}
+                    </dd>
+                  </>
+                ) : null}
+              </dl>
+            </div>
+          ) : null}
           <p className="whitespace-pre-wrap break-words">{content}</p>
           {attachments && attachments.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5 border-t border-current/10 pt-2">
@@ -188,6 +314,33 @@ export function MessageBubble({
               ))}
             </div>
           )}
+          {showExpandToggle ? (
+            <div className="mt-2 flex justify-end border-t border-current/10 pt-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setExpanded((v) => !v)
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40",
+                  tone === "outbound"
+                    ? "text-white/85 hover:bg-white/10 hover:text-white"
+                    : "text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent-soft)]",
+                )}
+                aria-expanded={expanded}
+                aria-label={expanded ? "Hide email details" : "View full email"}
+              >
+                {expanded ? (
+                  <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
+                )}
+                {expanded ? "Hide details" : "View full email"}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

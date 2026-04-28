@@ -24,6 +24,11 @@ interface MessageItem {
   tone: "inbound" | "outbound" | "internal" | "system"
   attachments?: MessageAttachment[]
   emailMeta?: MessageEmailMeta
+  /** Phase 2.5: cabeceras opcionales para el detail card "View full email". */
+  fromLabel?: string | null
+  recipientsLabel?: string | null
+  subject?: string | null
+  timestampFull?: string | null
 }
 
 interface ConversationThreadProps {
@@ -188,6 +193,11 @@ export function ConversationThread({
                   emailMeta={message.emailMeta}
                   selected={selectedMessageId === message.id}
                   onSelect={onSelectMessage ? () => onSelectMessage(message.id) : undefined}
+                  expandable
+                  fromLabel={message.fromLabel}
+                  recipientsLabel={message.recipientsLabel}
+                  subject={message.subject}
+                  timestampFull={message.timestampFull}
                 />
               </div>
             ))

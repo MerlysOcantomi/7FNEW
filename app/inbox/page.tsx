@@ -1132,6 +1132,7 @@ function InboxPageContent() {
 
       let msgAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> | undefined
       let msgEmailMeta: { cc?: string[]; bcc?: string[]; to?: string[]; mode?: "reply" | "reply_all" | "forward" } | undefined
+      let msgFromAddress: string | null = null
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
@@ -1147,16 +1148,53 @@ function InboxPageContent() {
               mode: parsed.mode || undefined,
             }
           }
+          if (typeof parsed?.fromAddress === "string" && parsed.fromAddress.trim()) {
+            msgFromAddress = parsed.fromAddress.trim()
+          }
         }
       } catch { /* ignore parse errors */ }
 
+      const authorLabel = isInternal
+        ? "Internal note"
+        : isOutbound
+          ? "Team"
+          : selected?.contact?.nombre || selected?.contact?.email || "Contact"
+
+      /**
+       * Phase 2.5: cabecera "email-style" derivada con safety-first — cualquier campo ausente
+       * se omite en el render del detail card; nunca asumimos estructura completa.
+       */
+      const contactNombre = selected?.contact?.nombre?.trim() || null
+      const contactEmail = selected?.contact?.email?.trim() || null
+      let fromLabel: string | null = null
+      if (isInbound) {
+        if (contactNombre && contactEmail) fromLabel = `${contactNombre} <${contactEmail}>`
+        else fromLabel = contactNombre || contactEmail || authorLabel
+      } else if (isOutbound) {
+        fromLabel = msgFromAddress ? `${authorLabel} <${msgFromAddress}>` : authorLabel
+      }
+
+      let recipientsLabel: string | null = null
+      const metaToList = msgEmailMeta?.to?.filter(Boolean) ?? []
+      if (metaToList.length > 0) {
+        recipientsLabel = metaToList.join(", ")
+      } else if (isOutbound && contactEmail) {
+        recipientsLabel = contactEmail
+      }
+
+      const subject = selected?.subject?.trim() || null
+
+      let timestampFull: string | null = null
+      try {
+        const d = new Date(message.createdAt)
+        if (!Number.isNaN(d.getTime())) {
+          timestampFull = d.toLocaleString(uiLocale, { dateStyle: "long", timeStyle: "short" })
+        }
+      } catch { /* ignore date parse errors */ }
+
       return {
         id: message.id,
-        authorLabel: isInternal
-          ? "Internal note"
-          : isOutbound
-            ? "Team"
-            : selected?.contact?.nombre || selected?.contact?.email || "Contact",
+        authorLabel,
         roleLabel: formatRoleLabel(message.role),
         metaLabel: isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System",
         timestampLabel: formatRelativeDate(message.createdAt, uiLocale),
@@ -1164,6 +1202,10 @@ function InboxPageContent() {
         tone,
         attachments: msgAttachments,
         emailMeta: msgEmailMeta,
+        fromLabel,
+        recipientsLabel,
+        subject,
+        timestampFull,
       }
     }) ?? []
 
