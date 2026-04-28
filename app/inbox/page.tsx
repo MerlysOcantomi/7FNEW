@@ -1536,6 +1536,36 @@ function InboxPageContent() {
               <InboxListSkeleton />
             ) : (
               <>
+                {/**
+                 * IMPORTANTE: el estado "inbox vacío" debe verse VISUALMENTE distinto al estado
+                 * "fallo de carga". Antes, un INTERNAL_ERROR (p. ej. drift de schema entre Prisma
+                 * y Turso, ver fix de `Conversation.trashedAt`) dejaba la lista en blanco y el
+                 * operador interpretaba que no había mensajes. Este banner rojo persistente lo
+                 * hace explícito y ofrece reintento sin recargar la página.
+                 */}
+                {isGenericListFailure ? (
+                  <div
+                    className="shrink-0 border-b border-rose-500/35 bg-rose-500/[0.10] px-4 py-2.5 text-xs leading-snug text-[var(--inbox-list-text-secondary)]"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    <div className="font-semibold text-rose-300">
+                      Inbox could not load conversations
+                    </div>
+                    <div className="mt-0.5 text-[var(--inbox-text)]">
+                      The conversations API returned an error. This is not an empty inbox — your
+                      data is intact. Try again, and if the problem persists check server logs for
+                      a Prisma or schema-drift error.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => refetch()}
+                      className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-200 hover:bg-rose-500/20"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : null}
                 {inboxTerminalRescueActive ? (
                   <div
                     className="shrink-0 border-b border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-snug text-[var(--inbox-list-text-secondary)]"
