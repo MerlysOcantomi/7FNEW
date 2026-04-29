@@ -143,11 +143,24 @@ function buildPrompt(input: {
 OPERATOR_UI_LANGUAGE: ${input.operatorLocaleName}
 Answer in ${input.operatorLocaleName} unless the question explicitly requests another language.
 
-You are answering an operator's question about an inbox conversation. Use ONLY the CONTEXT below.
+You are answering an operator's question while they are working on an inbox conversation.
 ${scopeLine}
 
-Rules:
-- If the answer is not directly supported by the CONTEXT, say so plainly. Do not invent facts.
+Knowledge sources (read carefully):
+- The CONTEXT below is the source of truth for anything specific to THIS conversation,
+  customer, message, project, history, or operational state. Never invent facts about
+  these — if the CONTEXT doesn't say it, you don't know it for THIS case.
+- For general knowledge — definitions, concepts, vocabulary, business or domain terms,
+  language meaning, common practices — you MAY answer using your general knowledge.
+  Do NOT refuse to define a term just because it isn't mentioned in CONTEXT.
+- For mixed questions ("what does X mean here?", "is this normal?"), give the general
+  meaning first, then apply it to whatever the CONTEXT actually says about it. If the
+  CONTEXT doesn't mention it, state that ONLY for the conversation-specific part — not
+  for the general definition.
+- When you mix general knowledge with conversation context, separate them clearly
+  (e.g. "In general, … In this conversation, …").
+
+Output rules:
 - Keep the answer focused and operationally useful (typically 1–4 sentences). Bullets allowed for short lists.
 - Do not include preambles like "Sure" or "Of course".
 - Do not act on the operator's behalf and do not promise to send anything.
