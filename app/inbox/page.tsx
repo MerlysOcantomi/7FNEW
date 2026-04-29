@@ -1368,6 +1368,18 @@ function InboxPageContent() {
   }, [suggestedDraftForPanel])
 
   /**
+   * Ask Fanny: inserta el answer recibido del panel en el composer. NO está atado a ningún draft
+   * persistido (no hay schema). Limpiamos la ref de draft activo para no marcar como "edited" un
+   * draft que en realidad no inspiró este texto.
+   */
+  const handleInsertReply = useCallback((text: string) => {
+    if (typeof text !== "string" || text.trim().length === 0) return
+    activeDraftIdRef.current = null
+    setReplyContent(text)
+    setAutoPopulated(true)
+  }, [])
+
+  /**
    * Phase 4: handlers conversation-level reusan `handleStatusChange` (sin nuevos endpoints, sin schema).
    * Disparan archive/close/trash sobre la conversación completa; el chip se autodeshabilita si ya
    * está en ese status. Funciones inline (sin useCallback) para que cierren sobre el `handleStatusChange`
@@ -1820,6 +1832,7 @@ function InboxPageContent() {
       selectedMessageInfo={replyTarget}
       hasSuggestedDraft={Boolean(suggestedDraftForPanel)}
       onUseSuggestedDraft={handleUseSuggestedDraft}
+      onInsertReply={handleInsertReply}
     />
   ) : null
 

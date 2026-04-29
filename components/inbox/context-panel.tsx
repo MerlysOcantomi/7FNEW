@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { InlineTextarea } from "@/components/inline-edit"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +9,7 @@ import {
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
   Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2, Sparkles,
+  Send, Copy, Check, CornerDownLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -113,6 +114,11 @@ interface ContextPanelProps {
    */
   hasSuggestedDraft?: boolean
   onUseSuggestedDraft?: () => void
+  /**
+   * Ask Fanny: callback opcional que el panel invoca cuando el operador pulsa "Insert into reply"
+   * sobre la respuesta. El page.tsx llena el composer; sin este callback el botón se oculta.
+   */
+  onInsertReply?: (text: string) => void
 }
 
 export function ContextPanel({
@@ -130,6 +136,7 @@ export function ContextPanel({
   selectedMessageInfo = null,
   hasSuggestedDraft = false,
   onUseSuggestedDraft,
+  onInsertReply,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
@@ -195,6 +202,92 @@ export function ContextPanel({
       (a) => a.sourceMessageId && a.sourceMessageId === selectedMessageId,
     ).length
   }, [isMessageMode, selectedMessageId, suggestedActions])
+
+  /**
+   * Ask Fanny — interaction is single-shot (one question → one answer). State is intentionally
+   * local: no persistence, no chat history. We reset it whenever the conversation or selected
+   * message changes so the operator never sees a stale answer attached to a different scope.
+   */
+  const askScopeKey = `${selected.id}::${selectedMessageId ?? "conv"}`
+  const [askQuestion, setAskQuestion] = useState("")
+  const [askAnswer, setAskAnswer] = useState<string | null>(null)
+  const [askError, setAskError] = useState<string | null>(null)
+  const [askLoading, setAskLoading] = useState(false)
+  const [askCopied, setAskCopied] = useState(false)
+
+  useEffect(() => {
+    setAskQuestion("")
+    setAskAnswer(null)
+    setAskError(null)
+    setAskLoading(false)
+    setAskCopied(false)
+  }, [askScopeKey])
+
+  const handleAskSubmit = async () => {
+    const question = askQuestion.trim()
+    if (!question || askLoading) return
+    setAskLoading(true)
+    setAskError(null)
+    setAskAnswer(null)
+    setAskCopied(false)
+    try {
+      const res = await fetch(`/api/inbox/conversations/${selected.id}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          messageId: isMessageMode ? selectedMessageId : null,
+          mode: isMessageMode ? "message" : "conversation",
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.success) {
+        const msg =
+          (json && typeof json.error?.message === "string" && json.error.message)
+          || "Could not get an answer. Please try again."
+        setAskError(msg)
+      } else {
+        const answer = typeof json.data?.answer === "string" ? json.data.answer.trim() : ""
+        if (!answer) {
+          setAskError("Empty answer received.")
+        } else {
+          setAskAnswer(answer)
+        }
+      }
+    } catch {
+      setAskError("Network error. Please try again.")
+    } finally {
+      setAskLoading(false)
+    }
+  }
+
+  const handleAskKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    /** Cmd/Ctrl + Enter envía. Enter solo deja salto de línea para preguntas largas. */
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault()
+      void handleAskSubmit()
+    }
+  }
+
+  const handleAskCopy = async () => {
+    if (!askAnswer) return
+    try {
+      await navigator.clipboard.writeText(askAnswer)
+      setAskCopied(true)
+      setTimeout(() => setAskCopied(false), 1500)
+    } catch {
+      /** Silencioso: no todos los navegadores/contextos permiten clipboard. */
+    }
+  }
+
+  const handleAskInsertReply = () => {
+    if (!askAnswer || !onInsertReply) return
+    onInsertReply(askAnswer)
+  }
+
+  const askPlaceholder = isMessageMode
+    ? "Ask Fanny about this message..."
+    : "Ask Fanny about this conversation..."
 
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
@@ -560,6 +653,107 @@ export function ContextPanel({
           </div>
         )}
         {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
+      </section>
+
+      {/*
+        ── Ask Fanny ──
+        Single-shot Q&A grounded in the current conversation. Aparece SIEMPRE (no depende de
+        message-mode) porque es útil tanto para preguntas sobre un mensaje como sobre el thread
+        completo. El placeholder y el payload (`mode` + `messageId`) cambian según haya selección.
+        Sin chat history, sin schema. Estado local que se resetea al cambiar de scope.
+      */}
+      <section
+        className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+        aria-label="Ask Fanny"
+      >
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Ask Fanny
+          </p>
+        </div>
+
+        <div className="mt-2">
+          <textarea
+            value={askQuestion}
+            onChange={(e) => setAskQuestion(e.target.value)}
+            onKeyDown={handleAskKeyDown}
+            placeholder={askPlaceholder}
+            rows={2}
+            disabled={askLoading}
+            className="w-full resize-none rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-2 py-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)]/50 focus:outline-none disabled:opacity-60"
+          />
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="text-[9px] text-[var(--inbox-intelligence-text-secondary)]/80">
+              ⌘/Ctrl + Enter to send
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleAskSubmit}
+              disabled={askLoading || askQuestion.trim().length === 0}
+              className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+            >
+              {askLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <>
+                  <Send className="mr-1 h-3 w-3" /> Ask
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {askError ? (
+          <p
+            role="alert"
+            className="mt-2 text-[10px] leading-snug text-rose-400"
+          >
+            {askError}
+          </p>
+        ) : null}
+
+        {askAnswer ? (
+          <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent-soft)]/35 p-2">
+            <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--inbox-intelligence-text)]">
+              {askAnswer}
+            </p>
+            <div className="flex items-center justify-end gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleAskCopy}
+                className="h-6 rounded-md px-2 text-[10px]"
+                aria-label="Copy answer"
+              >
+                {askCopied ? (
+                  <>
+                    <Check className="mr-1 h-3 w-3" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1 h-3 w-3" /> Copy
+                  </>
+                )}
+              </Button>
+              {onInsertReply ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleAskInsertReply}
+                  className="h-6 rounded-md px-2 text-[10px]"
+                  aria-label="Insert answer into reply composer"
+                >
+                  <CornerDownLeft className="mr-1 h-3 w-3" /> Insert into reply
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {/*
