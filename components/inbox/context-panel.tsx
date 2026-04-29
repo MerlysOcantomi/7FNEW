@@ -8,7 +8,7 @@ import {
   Users, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
-  Paperclip, PhoneCall,
+  Paperclip, PhoneCall, AlertTriangle, ListChecks,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -48,11 +48,22 @@ interface ContextPanelProps {
       intent?: string | null
       nextBestAction?: Record<string, unknown> | null
     } | null
+    /**
+     * Phase A: ahora consumimos también `headline`, `facts`, `decisions`, `pendingItems`,
+     * `risks`, `confidence` y `sourceMessageId`. Todo es opcional y se renderiza con guards
+     * para no romper si el endpoint los omite o llegan en formatos inesperados.
+     */
     handoff?: {
       status: string
       summary?: string | null
       nextRecommendedAction?: string | null
       confidence?: number | null
+      headline?: string | null
+      facts?: string[] | null
+      decisions?: string[] | null
+      pendingItems?: string[] | null
+      risks?: string[] | null
+      sourceMessageId?: string | null
     } | null
     actions?: ActionItem[]
     /** Si falta (datos incompletos), todo el panel usa fallbacks sin romper render. */
@@ -122,6 +133,21 @@ export function ContextPanel({
     selected.handoff?.nextRecommendedAction ||
     getStringValue(selected.classification?.nextBestAction, ["description", "label", "title", "action"]) ||
     null
+
+  /**
+   * Phase A: handoff signals adicionales. Todo está protegido por `safeStringList` y type guards
+   * para tolerar nulls, strings sueltos o JSON sin estructurar.
+   */
+  const handoffHeadline =
+    typeof selected.handoff?.headline === "string" ? selected.handoff.headline.trim() : ""
+  const handoffConfidencePct =
+    typeof selected.handoff?.confidence === "number" && Number.isFinite(selected.handoff.confidence)
+      ? Math.round(Math.max(0, Math.min(1, selected.handoff.confidence)) * 100)
+      : null
+  const handoffFacts = safeStringList(selected.handoff?.facts).slice(0, 4)
+  const handoffDecisions = safeStringList(selected.handoff?.decisions).slice(0, 4)
+  const handoffPendingItems = safeStringList(selected.handoff?.pendingItems).slice(0, 6)
+  const handoffRisks = safeStringList(selected.handoff?.risks).slice(0, 6)
 
   const moodValue = mapSentimentToMood(selected.sentiment)
   const urgencyValue = mapUrgency(selected.urgency)
@@ -281,6 +307,24 @@ export function ContextPanel({
 
       {/* ── 2. Summary ── */}
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+        {/* Phase A: AI headline + confidence pill — solo si vienen del handoff. */}
+        {handoffHeadline ? (
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold leading-snug text-[var(--inbox-intelligence-text)]">
+              {handoffHeadline}
+            </p>
+            {handoffConfidencePct !== null ? (
+              <span
+                className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+                title="AI confidence in this read"
+                aria-label={`AI confidence ${handoffConfidencePct}%`}
+              >
+                {handoffConfidencePct}%
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Summary</p>
         {summary ? (
           <InlineTextarea
@@ -295,6 +339,45 @@ export function ContextPanel({
             No summary available yet.
           </p>
         )}
+
+        {/* Phase A: Facts / Decisions compactos. Se ocultan si están vacíos. */}
+        {(handoffFacts.length > 0 || handoffDecisions.length > 0) && (
+          <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
+            {handoffFacts.length > 0 && (
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
+                <ul className="mt-1 space-y-0.5">
+                  {handoffFacts.map((fact, idx) => (
+                    <li
+                      key={idx}
+                      className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+                    >
+                      <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                      <span>{fact}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {handoffDecisions.length > 0 && (
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
+                <ul className="mt-1 space-y-0.5">
+                  {handoffDecisions.map((decision, idx) => (
+                    <li
+                      key={idx}
+                      className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+                    >
+                      <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                      <span>{decision}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
       </section>
 
@@ -425,6 +508,58 @@ export function ContextPanel({
         {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
       </section>
 
+      {/* ── Phase A · 4.5 Still needed (handoff.pendingItems) ── */}
+      {handoffPendingItems.length > 0 && (
+        <section
+          className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+          aria-label="Pending items needed to move forward"
+        >
+          <div className="flex items-center gap-1.5">
+            <ListChecks className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+              Still needed
+            </p>
+          </div>
+          <ul className="mt-1.5 space-y-1">
+            {handoffPendingItems.map((item, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── Phase A · 4.6 Watch out (handoff.risks) — subtle warning, not error ── */}
+      {handoffRisks.length > 0 && (
+        <section
+          className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
+          aria-label="Risks to watch in this conversation"
+        >
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/90">
+              Watch out
+            </p>
+          </div>
+          <ul className="mt-1.5 space-y-1">
+            {handoffRisks.map((risk, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70" />
+                <span>{risk}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ── 5. Actions ── */}
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
         <button
@@ -538,6 +673,23 @@ function getStringValue(value: Record<string, unknown> | null | undefined, keys:
     if (typeof candidate === "string" && candidate.trim()) return candidate
   }
   return null
+}
+
+/**
+ * Phase A: lectura defensiva de listas de strings provenientes del handoff (facts, decisions,
+ * pendingItems, risks). El backend ya normaliza, pero si llegara `null`, un string suelto, o
+ * cualquier otro shape inesperado, devolvemos `[]` para que la UI simplemente no renderice nada.
+ */
+function safeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const item of value) {
+    if (typeof item === "string") {
+      const trimmed = item.trim()
+      if (trimmed) out.push(trimmed)
+    }
+  }
+  return out
 }
 
 function mapSentimentToMood(sentiment?: string | null) {
