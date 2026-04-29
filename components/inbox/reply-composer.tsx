@@ -39,6 +39,17 @@ export interface ReplyTargetInfo {
   authorLabel: string
   timestampLabel?: string | null
   snippet?: string | null
+  /**
+   * Phase B: signals derivados client-side en `app/inbox/page.tsx`. El composer NO los renderiza,
+   * pero el shape se comparte con `SelectedMessageInfo` del ContextPanel para evitar split de tipos.
+   * Mantener todos opcionales para no romper callers existentes.
+   */
+  shortIntent?: string | null
+  direction?: string | null
+  hasAttachments?: boolean
+  hasLinks?: boolean
+  isInbound?: boolean
+  isOutbound?: boolean
 }
 
 /** Phase 4: agrupa los handlers conversation-level que se renderizan como strip "Conversation actions". */

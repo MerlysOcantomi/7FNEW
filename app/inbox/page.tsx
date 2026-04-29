@@ -1246,20 +1246,68 @@ function InboxPageContent() {
   /** Prioridad: mensaje seleccionado válido → último inbound → null. */
   const effectiveSourceMessageId = effectiveSelectedMessageId ?? lastInboundMessageId
 
-  /** Vista compacta del target de la respuesta para el composer (autor + snippet + hora). */
+  /**
+   * Vista compacta del target de la respuesta. Phase B: además del autor/snippet/hora, derivamos
+   * signals client-side (shortIntent, direction booleana, has attachments, has link) que el panel
+   * usa para "What this message means". Sin AI extra, sin endpoints nuevos.
+   */
   const replyTarget = useMemo(() => {
     if (!effectiveSelectedMessageId) return null
     const msg = threadMessages.find((m) => m.id === effectiveSelectedMessageId)
     if (!msg) return null
     const collapsed = msg.content?.trim().replace(/\s+/g, " ") ?? ""
     const snippet = collapsed.length > 120 ? `${collapsed.slice(0, 120)}…` : collapsed
+
+    /** Raw message for direction + metadata.shortIntent fallback. */
+    const rawMsg = selected?.messages?.find((m) => m.id === effectiveSelectedMessageId) ?? null
+
+    /** Defensive read of metadata.shortIntent — metadata may be string, object, null or malformed. */
+    let metaShortIntent: string | null = null
+    try {
+      if (rawMsg?.metadata) {
+        const parsed = typeof rawMsg.metadata === "string" ? JSON.parse(rawMsg.metadata) : rawMsg.metadata
+        const candidate = (parsed as { shortIntent?: unknown } | null | undefined)?.shortIntent
+        if (typeof candidate === "string" && candidate.trim()) {
+          metaShortIntent = candidate.trim()
+        }
+      }
+    } catch {
+      /* metadata corrupto: cae al fallback del map */
+    }
+
+    /** Fallback: usar el map ya cargado (mismo dato que pinta el left column). */
+    let mappedShortIntent: string | null = null
+    if (!metaShortIntent && selectedId) {
+      const arr = messageShortIntentsById[selectedId]
+      if (Array.isArray(arr)) {
+        const hit = arr.find((entry) => entry.messageId === effectiveSelectedMessageId)
+        if (hit?.text) mappedShortIntent = hit.text.trim() || null
+      }
+    }
+
+    const shortIntent = metaShortIntent ?? mappedShortIntent ?? null
+
+    const direction = typeof rawMsg?.direction === "string" ? rawMsg.direction : null
+    const isInternal = Boolean(rawMsg?.isInternal)
+    const isInbound = !isInternal && direction === "inbound"
+    const isOutbound = !isInternal && direction === "outbound"
+
+    const hasAttachments = Array.isArray(msg.attachments) && msg.attachments.length > 0
+    const hasLinks = typeof msg.content === "string" && /https?:\/\//i.test(msg.content)
+
     return {
       messageId: effectiveSelectedMessageId,
       authorLabel: msg.authorLabel,
       timestampLabel: msg.timestampLabel,
       snippet: snippet || null,
+      shortIntent,
+      direction,
+      isInbound,
+      isOutbound,
+      hasAttachments,
+      hasLinks,
     }
-  }, [effectiveSelectedMessageId, threadMessages])
+  }, [effectiveSelectedMessageId, threadMessages, selected, selectedId, messageShortIntentsById])
 
   /**
    * Phase 4: anchor "por defecto" cuando NO hay selección por-mensaje. Refleja `lastInboundMessageId`
