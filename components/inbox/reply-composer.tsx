@@ -7,6 +7,7 @@ import {
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote, CornerUpLeft,
+  Archive, CheckCircle2, Trash2,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -38,6 +39,15 @@ export interface ReplyTargetInfo {
   authorLabel: string
   timestampLabel?: string | null
   snippet?: string | null
+}
+
+/** Phase 4: agrupa los handlers conversation-level que se renderizan como strip "Conversation actions". */
+export interface ConversationActionsApi {
+  onArchive?: () => void
+  onClose?: () => void
+  onTrash?: () => void
+  /** Status actual de la conversación; deshabilita el botón equivalente. */
+  currentStatus?: string | null
 }
 
 export type EmailSendMode = "reply" | "reply_all" | "forward"
@@ -79,6 +89,14 @@ interface ReplyComposerProps {
   replyTarget?: ReplyTargetInfo | null
   /** Limpia la selección por-mensaje desde el composer (badge X / "Reply to whole conversation"). */
   onClearReplyTarget?: () => void
+  /**
+   * Phase 4: cuando NO hay `replyTarget`, este preview describe el "último mensaje relevante" que
+   * recibirá la acción message-level (sourceMessageId del envío). Se muestra como badge sutil
+   * "Replying to latest message" — no es clearable porque representa el comportamiento por defecto.
+   */
+  latestActionAnchor?: ReplyTargetInfo | null
+  /** Phase 4: handlers conversation-level para el strip "Conversation actions" sobre el composer. */
+  conversationActions?: ConversationActionsApi
   /** Fanny suggested reply — panel desde la barra; solo vuelca texto al compositor (no envía). */
   fannySuggestionTitle?: string | null
   fannySuggestionContent?: string | null
@@ -144,6 +162,8 @@ export function ReplyComposer({
   onSend,
   replyTarget,
   onClearReplyTarget,
+  latestActionAnchor,
+  conversationActions,
   fannySuggestionTitle,
   fannySuggestionContent,
   onApplyFannySuggestion,
@@ -412,11 +432,29 @@ export function ReplyComposer({
         ? "Reply all"
         : composerConfig.sendLabel
 
-  /** Phase 2 fix: el badge de mensaje seleccionado refleja el modo activo del composer (reply vs forward). */
-  const replyTargetActionLabel =
-    !replyIsInternal && emailMode === "forward"
-      ? "Forwarding selected message"
-      : "Replying to selected message"
+  /**
+   * Phase 4: el badge de scope cubre los dos modos:
+   *  - `selected` (Phase 2): hay `replyTarget` → estilo accent + clear X.
+   *  - `latest` (default): no hay `replyTarget` pero sí `latestActionAnchor` → estilo sutil sin X.
+   * El verbo cambia según el modo del composer (forward vs reply/internal).
+   */
+  const activeAnchor: ReplyTargetInfo | null = replyTarget ?? latestActionAnchor ?? null
+  const anchorScope: "selected" | "latest" | null = replyTarget
+    ? "selected"
+    : latestActionAnchor
+      ? "latest"
+      : null
+  const isForwardMode = !replyIsInternal && emailMode === "forward"
+  const anchorVerb = isForwardMode ? "Forwarding" : "Replying to"
+  const anchorScopeWord = anchorScope === "selected" ? "selected" : "latest"
+  const replyTargetActionLabel = `${anchorVerb} ${anchorScopeWord} message`
+
+  /** Phase 4: handlers conversation-level (Archive / Close / Move to Trash). */
+  const archiveHandler = conversationActions?.onArchive
+  const closeHandler = conversationActions?.onClose
+  const trashHandler = conversationActions?.onTrash
+  const currentConversationStatus = conversationActions?.currentStatus ?? null
+  const hasConversationActions = Boolean(archiveHandler || closeHandler || trashHandler)
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
@@ -503,46 +541,109 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Reply target badge (Phase 2) ── */}
-        {replyTarget ? (
+        {/* ── Phase 4 · Conversation actions strip (Archive / Close / Trash) ── */}
+        {hasConversationActions ? (
           <div
-            className="flex items-start gap-1.5 rounded-md border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/60 px-2 py-1 text-[var(--inbox-text)]"
+            className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--inbox-border)]/40 bg-white/[0.02] px-2 py-1"
+            role="group"
+            aria-label="Conversation actions"
+          >
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-text-secondary)]">
+              Conversation actions
+            </span>
+            <span className="mx-0.5 h-3 w-px bg-[var(--inbox-divider)]" aria-hidden="true" />
+            <ConversationActionChip
+              icon={Archive}
+              label="Archive"
+              onClick={archiveHandler}
+              activeStatus={currentConversationStatus}
+              targetStatus="archived"
+              activeLabel="Archived"
+            />
+            <ConversationActionChip
+              icon={CheckCircle2}
+              label="Close"
+              onClick={closeHandler}
+              activeStatus={currentConversationStatus}
+              targetStatus="closed"
+              activeLabel="Closed"
+            />
+            <ConversationActionChip
+              icon={Trash2}
+              label="Move to Trash"
+              onClick={trashHandler}
+              activeStatus={currentConversationStatus}
+              targetStatus="trashed"
+              activeLabel="In Trash"
+              tone="danger"
+            />
+          </div>
+        ) : null}
+
+        {/* ── Reply target badge (Phase 2 + Phase 4 scope-aware) ── */}
+        {activeAnchor ? (
+          <div
+            className={cn(
+              "flex items-start gap-1.5 rounded-md px-2 py-1 text-[var(--inbox-text)]",
+              anchorScope === "selected"
+                ? "border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/60"
+                : "border border-dashed border-[var(--inbox-border)]/45 bg-white/[0.02]",
+            )}
             role="status"
             aria-live="polite"
           >
             <CornerUpLeft
-              className="mt-0.5 h-3 w-3 shrink-0 text-[var(--inbox-accent)]"
+              className={cn(
+                "mt-0.5 h-3 w-3 shrink-0",
+                anchorScope === "selected"
+                  ? "text-[var(--inbox-accent)]"
+                  : "text-[var(--inbox-text-secondary)]",
+              )}
               aria-hidden="true"
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--inbox-accent)]">
+                <span
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider",
+                    anchorScope === "selected"
+                      ? "text-[var(--inbox-accent)]"
+                      : "text-[var(--inbox-text-secondary)]",
+                  )}
+                >
                   {replyTargetActionLabel}
                 </span>
-                {replyTarget.timestampLabel ? (
+                {activeAnchor.timestampLabel ? (
                   <span
                     suppressHydrationWarning
                     className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
                   >
-                    · {replyTarget.timestampLabel}
+                    · {activeAnchor.timestampLabel}
                   </span>
                 ) : null}
               </div>
               <div className="flex min-w-0 items-baseline gap-1.5">
-                <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
-                  {replyTarget.authorLabel}
+                <span
+                  className={cn(
+                    "shrink-0 truncate text-[10px] font-semibold",
+                    anchorScope === "selected"
+                      ? "text-[var(--inbox-text)]"
+                      : "text-[var(--inbox-text)]/85",
+                  )}
+                >
+                  {activeAnchor.authorLabel}
                 </span>
-                {replyTarget.snippet ? (
+                {activeAnchor.snippet ? (
                   <span
                     className="min-w-0 truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
-                    title={replyTarget.snippet}
+                    title={activeAnchor.snippet}
                   >
-                    {replyTarget.snippet}
+                    {activeAnchor.snippet}
                   </span>
                 ) : null}
               </div>
             </div>
-            {onClearReplyTarget ? (
+            {anchorScope === "selected" && onClearReplyTarget ? (
               <button
                 type="button"
                 onClick={onClearReplyTarget}
@@ -1146,6 +1247,55 @@ function ClipCategory({ title, children }: { title: string; children: React.Reac
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">{title}</p>
       <div className="space-y-0.5">{children}</div>
     </div>
+  )
+}
+
+/**
+ * Phase 4: chip compacto para Archive / Close / Move to Trash en el strip "Conversation actions".
+ * Se deshabilita visualmente cuando la conversación ya está en `targetStatus` para evitar transiciones
+ * idempotentes (el server las admitiría, pero el UX queda más claro).
+ */
+function ConversationActionChip({
+  icon: Icon,
+  label,
+  activeLabel,
+  onClick,
+  activeStatus,
+  targetStatus,
+  tone = "neutral",
+}: {
+  icon: LucideIcon
+  label: string
+  activeLabel?: string
+  onClick?: () => void
+  activeStatus?: string | null
+  targetStatus: string
+  tone?: "neutral" | "danger"
+}) {
+  const isActive = activeStatus === targetStatus
+  const disabled = !onClick || isActive
+  const toneClass =
+    tone === "danger"
+      ? "hover:bg-[var(--inbox-urgency-critical-bg)] hover:text-[var(--inbox-urgency-critical-text)]"
+      : "hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={isActive ? `Already ${activeLabel || label}` : `${label} (whole conversation)`}
+      aria-label={isActive ? `${label} (already applied)` : `${label} — affects the whole conversation`}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md border border-[var(--inbox-border)]/35 px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)] transition-colors",
+        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/30",
+        disabled
+          ? "cursor-not-allowed opacity-50"
+          : toneClass,
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {isActive && activeLabel ? activeLabel : label}
+    </button>
   )
 }
 

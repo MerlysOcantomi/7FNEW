@@ -1261,9 +1261,49 @@ function InboxPageContent() {
     }
   }, [effectiveSelectedMessageId, threadMessages])
 
+  /**
+   * Phase 4: anchor "por defecto" cuando NO hay selección por-mensaje. Refleja `lastInboundMessageId`
+   * que es el mismo fallback que usa `effectiveSourceMessageId` para el envío. Sirve como preview en
+   * el composer ("Replying to latest message") para que el usuario nunca tenga ambigüedad sobre qué
+   * mensaje recibirá la acción.
+   */
+  const latestActionAnchor = useMemo(() => {
+    if (effectiveSelectedMessageId) return null
+    if (!lastInboundMessageId) return null
+    const msg = threadMessages.find((m) => m.id === lastInboundMessageId)
+    if (!msg) return null
+    const collapsed = msg.content?.trim().replace(/\s+/g, " ") ?? ""
+    const snippet = collapsed.length > 120 ? `${collapsed.slice(0, 120)}…` : collapsed
+    return {
+      messageId: lastInboundMessageId,
+      authorLabel: msg.authorLabel,
+      timestampLabel: msg.timestampLabel,
+      snippet: snippet || null,
+    }
+  }, [effectiveSelectedMessageId, lastInboundMessageId, threadMessages])
+
   const handleClearReplyTarget = useCallback(() => {
     setSelectedMessageId(null)
   }, [])
+
+  /**
+   * Phase 4: handlers conversation-level reusan `handleStatusChange` (sin nuevos endpoints, sin schema).
+   * Disparan archive/close/trash sobre la conversación completa; el chip se autodeshabilita si ya
+   * está en ese status. Funciones inline (sin useCallback) para que cierren sobre el `handleStatusChange`
+   * actual del render — re-crear en cada render es barato y evita capturas obsoletas.
+   */
+  const handleArchiveConversation = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("archived").catch(() => null)
+  }
+  const handleCloseConversation = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("closed").catch(() => null)
+  }
+  const handleTrashConversation = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("trashed").catch(() => null)
+  }
 
   const selectedIndex = useMemo(
     () => conversationsForList.findIndex((item) => item.id === activeSelectedId),
@@ -1887,6 +1927,13 @@ function InboxPageContent() {
                         onSend={sendReply}
                         replyTarget={replyTarget}
                         onClearReplyTarget={handleClearReplyTarget}
+                        latestActionAnchor={latestActionAnchor}
+                        conversationActions={{
+                          onArchive: handleArchiveConversation,
+                          onClose: handleCloseConversation,
+                          onTrash: handleTrashConversation,
+                          currentStatus: selected.status,
+                        }}
                         fannySuggestionTitle={suggestedDraft?.title ?? null}
                         fannySuggestionContent={suggestedDraft?.content ?? null}
                         onApplyFannySuggestion={
