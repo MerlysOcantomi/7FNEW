@@ -8,7 +8,7 @@ import {
   Users, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
-  Paperclip, PhoneCall, AlertTriangle, ListChecks,
+  Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -27,12 +27,22 @@ export interface ActionItem {
   errorMessage?: string | null
 }
 
-/** Phase 3: información compacta del mensaje seleccionado para el modo message-aware del panel. */
+/**
+ * Phase 3: información compacta del mensaje seleccionado para el modo message-aware del panel.
+ * Phase B: ahora puede traer signals derivados client-side (shortIntent, direction, attachments,
+ * links). Todos opcionales — si vienen, el panel los muestra; si no, cae al render previo.
+ */
 export interface SelectedMessageInfo {
   messageId: string
   authorLabel: string
   timestampLabel?: string | null
   snippet?: string | null
+  shortIntent?: string | null
+  direction?: "inbound" | "outbound" | "internal" | "system" | string | null
+  hasAttachments?: boolean
+  hasLinks?: boolean
+  isInbound?: boolean
+  isOutbound?: boolean
 }
 
 interface ContextPanelProps {
@@ -193,16 +203,22 @@ export function ContextPanel({
         </div>
       </div>
 
-      {/* ── Phase 3 · Selected message card (solo en message-mode) ── */}
+      {/*
+        ── Phase 3 + Phase B · "What this message means" (solo en message-mode) ──
+        La card pasa de ser un eco del bubble a una lectura interpretativa:
+        - prioriza shortIntent del mensaje (metadata o map ya cargado en cliente)
+        - cae al snippet original solo cuando no hay intent disponible
+        - chips compactos con direction + has attachments + has link
+      */}
       {isMessageMode && selectedMessageInfo ? (
         <section
           className="rounded-xl border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/45 px-3 py-2"
-          aria-label="Selected message context"
+          aria-label="Interpretation of the selected message"
         >
           <div className="flex items-center gap-1.5">
             <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-              Selected message
+              What this message means
             </span>
             {selectedMessageInfo.timestampLabel ? (
               <span
@@ -213,19 +229,45 @@ export function ContextPanel({
               </span>
             ) : null}
           </div>
-          <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
-              {selectedMessageInfo.authorLabel}
-            </span>
-            {selectedMessageInfo.snippet ? (
-              <span
-                className="min-w-0 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
-                title={selectedMessageInfo.snippet}
-              >
-                {selectedMessageInfo.snippet}
-              </span>
-            ) : null}
+
+          {/* Author siempre visible para mantener contexto. */}
+          <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
+            {selectedMessageInfo.authorLabel}
           </div>
+
+          {/* Lectura prominente del intent si llega. Fallback: snippet original (sin duplicar todo el bubble). */}
+          {selectedMessageInfo.shortIntent ? (
+            <p
+              className="mt-1 text-[12px] font-medium leading-snug text-[var(--inbox-intelligence-text)]"
+              title={selectedMessageInfo.shortIntent}
+            >
+              {selectedMessageInfo.shortIntent}
+            </p>
+          ) : selectedMessageInfo.snippet ? (
+            <p
+              className="mt-1 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
+              title={selectedMessageInfo.snippet}
+            >
+              {selectedMessageInfo.snippet}
+            </p>
+          ) : null}
+
+          {/* Lightweight chips: dirección + signals binarios. Solo se montan los que aplican. */}
+          {(selectedMessageInfo.direction
+            || selectedMessageInfo.hasAttachments
+            || selectedMessageInfo.hasLinks) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              {selectedMessageInfo.direction ? (
+                <SignalChip label={directionChipLabel(selectedMessageInfo)} />
+              ) : null}
+              {selectedMessageInfo.hasAttachments ? (
+                <SignalChip label="Has attachments" icon={Paperclip} />
+              ) : null}
+              {selectedMessageInfo.hasLinks ? (
+                <SignalChip label="Has link" icon={Link2} />
+              ) : null}
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -420,17 +462,20 @@ export function ContextPanel({
       {/* ── 4. Recommended next move ── */}
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Recommended next move</p>
+        {/*
+          Antes mostrábamos el texto dos veces: una como <p> de lectura y otra como `value` del
+          InlineTextarea (que ya pinta el value como texto y permite click-to-edit). Lo unificamos
+          igual que la sección Summary: una sola fuente de verdad, editable inline, con el peso
+          visual de la recomendación principal.
+        */}
         {nextRecommendedAction ? (
-          <div className="mt-2">
-            <p className="text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]">{nextRecommendedAction}</p>
-            <InlineTextarea
-              value={nextRecommendedAction}
-              placeholder="Edit recommendation..."
-              className="mt-2 rounded-lg bg-white/6 text-xs text-[var(--inbox-intelligence-text)]"
-              rows={2}
-              onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-            />
-          </div>
+          <InlineTextarea
+            value={nextRecommendedAction}
+            placeholder="Edit recommendation..."
+            className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
+            rows={2}
+            onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+          />
         ) : (
           <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
             No recommendation available yet.
@@ -633,6 +678,37 @@ export function ContextPanel({
       </section>
     </div>
   )
+}
+
+/**
+ * Phase B: chip compacto neutro usado dentro de la card "What this message means". El icono
+ * es opcional para que el chip de dirección sea solo texto y los binarios (attachments/link)
+ * lleven afordancia visual.
+ */
+function SignalChip({ label, icon: Icon }: { label: string; icon?: React.ElementType }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-intelligence-border)] bg-white/6 px-1.5 py-0.5 text-[9px] font-medium text-[var(--inbox-intelligence-text-secondary)]"
+    >
+      {Icon ? <Icon className="h-2.5 w-2.5" aria-hidden="true" /> : null}
+      {label}
+    </span>
+  )
+}
+
+/**
+ * Phase B: deriva el label del chip de dirección priorizando los booleans específicos. Los
+ * booleans son más fiables que el string de dirección (que puede llegar como cualquier valor).
+ */
+function directionChipLabel(info: SelectedMessageInfo): string {
+  if (info.isInbound) return "Inbound"
+  if (info.isOutbound) return "Outbound"
+  const dir = typeof info.direction === "string" ? info.direction.toLowerCase() : ""
+  if (dir === "inbound") return "Inbound"
+  if (dir === "outbound") return "Outbound"
+  if (dir === "internal") return "Internal"
+  if (dir === "system") return "System"
+  return dir ? dir.charAt(0).toUpperCase() + dir.slice(1) : "Message"
 }
 
 function ActionButton({ label, icon: Icon, onClick }: { label: string; icon: React.ElementType; onClick?: () => void }) {
