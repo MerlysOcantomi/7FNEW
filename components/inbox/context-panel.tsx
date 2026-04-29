@@ -8,7 +8,7 @@ import {
   Users, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
-  Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2,
+  Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2, Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -106,6 +106,13 @@ interface ContextPanelProps {
    */
   selectedMessageId?: string | null
   selectedMessageInfo?: SelectedMessageInfo | null
+  /**
+   * Phase C: visibilidad y aplicación del draft sugerido desde el Smart actions block.
+   * Si `hasSuggestedDraft` es true, mostramos el botón "Reply with AI draft" que invoca
+   * `onUseSuggestedDraft` (el page.tsx ya elige el draft correcto, scoped al mensaje).
+   */
+  hasSuggestedDraft?: boolean
+  onUseSuggestedDraft?: () => void
 }
 
 export function ContextPanel({
@@ -121,6 +128,8 @@ export function ContextPanel({
   onAssign,
   selectedMessageId = null,
   selectedMessageInfo = null,
+  hasSuggestedDraft = false,
+  onUseSuggestedDraft,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
@@ -459,9 +468,9 @@ export function ContextPanel({
         </div>
       </section>
 
-      {/* ── 4. Recommended next move ── */}
+      {/* ── 4. Next move ── */}
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Recommended next move</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Next move</p>
         {/*
           Antes mostrábamos el texto dos veces: una como <p> de lectura y otra como `value` del
           InlineTextarea (que ya pinta el value como texto y permite click-to-edit). Lo unificamos
@@ -553,6 +562,37 @@ export function ContextPanel({
         {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
       </section>
 
+      {/*
+        ── Phase C · Smart actions (solo en message-mode) ──
+        Bloque visible con SOLO acciones reales wired:
+        - Reply with AI draft → solo si el page.tsx detecta un draft sugerido
+        - Create task / client / project → reusan handleConvert (ya envía sourceMessageId)
+        Follow-up (recordatorios, calendario) queda postergado a una fase futura.
+        Cuando este bloque se monta, ocultamos abajo la sección "Actions" para no duplicar.
+      */}
+      {isMessageMode && (
+        <section
+          className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+          aria-label="Smart actions for the selected message"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Smart actions
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {hasSuggestedDraft && onUseSuggestedDraft ? (
+              <ActionButton
+                label="Reply with AI draft"
+                icon={Sparkles}
+                onClick={onUseSuggestedDraft}
+              />
+            ) : null}
+            <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
+            <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
+            <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
+          </div>
+        </section>
+      )}
+
       {/* ── Phase A · 4.5 Still needed (handoff.pendingItems) ── */}
       {handoffPendingItems.length > 0 && (
         <section
@@ -605,7 +645,14 @@ export function ContextPanel({
         </section>
       )}
 
-      {/* ── 5. Actions ── */}
+      {/*
+        ── 5. Actions ──
+        Phase C: en message-mode lo OCULTAMOS. El bloque "Smart actions" arriba ya elevó las
+        acciones reales (Create task/client/project + Reply with AI draft) y los placeholders
+        (Internal note, Attach file, Call, Archive) o duplican o no están wired. Para volver a
+        ver Assign/etc a nivel conversación basta con limpiar la selección de mensaje (Esc).
+      */}
+      {!isMessageMode && (
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
         <button
           type="button"
@@ -676,6 +723,7 @@ export function ContextPanel({
           </div>
         )}
       </section>
+      )}
     </div>
   )
 }

@@ -1335,6 +1335,39 @@ function InboxPageContent() {
   }, [])
 
   /**
+   * Phase C: draft sugerido elegido para el panel. Prefiere el draft anclado al mensaje
+   * actualmente seleccionado (`sourceMessageId === effectiveSelectedMessageId`); si no hay,
+   * cae al primer draft válido. Sin AI extra, sin endpoints — usa lo que ya cargó el detail.
+   */
+  const suggestedDraftForPanel = useMemo(() => {
+    const drafts = selected?.drafts
+    if (!Array.isArray(drafts) || drafts.length === 0) return null
+    const valid = drafts.filter(
+      (d) =>
+        ["draft", "edited", "approved"].includes(d.status)
+        && typeof d.content === "string"
+        && d.content.trim().length > 0,
+    )
+    if (valid.length === 0) return null
+    if (effectiveSelectedMessageId) {
+      const scoped = valid.find((d) => d.sourceMessageId === effectiveSelectedMessageId)
+      if (scoped) return scoped
+    }
+    return valid[0]
+  }, [selected, effectiveSelectedMessageId])
+
+  /**
+   * Phase C: aplica el draft sugerido al composer. Mismo patrón que el autopopulate (ref + flag),
+   * pero disparado manualmente desde el botón "Reply with AI draft" del Smart actions block.
+   */
+  const handleUseSuggestedDraft = useCallback(() => {
+    if (!suggestedDraftForPanel) return
+    activeDraftIdRef.current = suggestedDraftForPanel.id
+    setReplyContent(suggestedDraftForPanel.content)
+    setAutoPopulated(true)
+  }, [suggestedDraftForPanel])
+
+  /**
    * Phase 4: handlers conversation-level reusan `handleStatusChange` (sin nuevos endpoints, sin schema).
    * Disparan archive/close/trash sobre la conversación completa; el chip se autodeshabilita si ya
    * está en ese status. Funciones inline (sin useCallback) para que cierren sobre el `handleStatusChange`
@@ -1785,6 +1818,8 @@ function InboxPageContent() {
       onAssign={handleAssign}
       selectedMessageId={effectiveSelectedMessageId}
       selectedMessageInfo={replyTarget}
+      hasSuggestedDraft={Boolean(suggestedDraftForPanel)}
+      onUseSuggestedDraft={handleUseSuggestedDraft}
     />
   ) : null
 
