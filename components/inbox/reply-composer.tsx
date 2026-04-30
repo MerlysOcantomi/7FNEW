@@ -1230,12 +1230,12 @@ export function ReplyComposer({
 
         {/* ── Clip / Insert panel (tabbed by category) ── */}
         {clipPanelOpen && (
-          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2.5">
-            {/* Category tabs */}
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            {/* Category tabs — dark header */}
             <div
               role="tablist"
               aria-label="Insert toolbox categories"
-              className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/30 pb-1.5"
+              className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/35 bg-black/35 px-2 pt-1.5"
             >
               {clipCategoryTabs.map((tab) => {
                 const isActive = activeClipCategory === tab.id
@@ -1259,9 +1259,9 @@ export function ReplyComposer({
                       setActiveClipCategory(next.id)
                     }}
                     className={cn(
-                      "rounded-t-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                      "rounded-t-md px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
                       isActive
-                        ? "border-b-2 border-[var(--inbox-accent)] -mb-[1.5px] text-[var(--inbox-accent)]"
+                        ? "border-b-2 border-[var(--inbox-accent)] -mb-[1px] text-[var(--inbox-accent)]"
                         : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
                     )}
                   >
@@ -1276,7 +1276,7 @@ export function ReplyComposer({
               role="tabpanel"
               id={`clip-panel-${activeClipCategory}`}
               aria-labelledby={`clip-tab-${activeClipCategory}`}
-              className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 sm:grid-cols-3 lg:grid-cols-4"
+              className="flex flex-wrap gap-1.5 p-2.5"
             >
               {activeClipCategory === "attach" && (
                 <>
@@ -1315,10 +1315,10 @@ export function ReplyComposer({
                         type="button"
                         title="Insert a link into the reply"
                         aria-label="Insert a link into the reply"
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
+                        className="inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)] sm:flex-none"
                       >
                         <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        <span className="min-w-0 break-words text-left leading-tight">Link</span>
+                        <span className="text-left">Link</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -1611,14 +1611,14 @@ function ClipAction({
       title={title ?? label}
       aria-label={title ?? label}
       className={cn(
-        "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+        "inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:flex-none",
         available
           ? "text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
           : "cursor-not-allowed text-[var(--inbox-text-secondary)]/80 opacity-75",
       )}
     >
-      <Icon className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 break-words text-left leading-tight">{label}</span>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="text-left">{label}</span>
     </button>
   )
 }
