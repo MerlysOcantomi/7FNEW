@@ -36,7 +36,7 @@ export function FannyAssistCard({
     <div className="shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/96 px-5 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/92 md:px-6">
       <div className={cn(
         "rounded-xl border shadow-sm",
-        "border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent-soft)]/30",
+        "border-[var(--inbox-accent)]/30 bg-white/[0.05]",
       )}>
         {!isExpanded && (
           <div className="flex items-center gap-3 px-3.5 py-2">
@@ -49,7 +49,7 @@ export function FannyAssistCard({
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
                   Fanny
                 </span>
-                <span className="rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]">
+                <span className="rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]">
                   Reply ready
                 </span>
                 {autoPopulated && (

@@ -597,7 +597,7 @@ export function ReplyComposer({
             className={cn(
               "flex items-start gap-1.5 rounded-md px-2 py-1 text-[var(--inbox-text)]",
               anchorScope === "selected"
-                ? "border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/60"
+                ? "border border-[var(--inbox-accent)]/35 border-l-2 border-l-[var(--inbox-accent)] bg-[var(--inbox-accent)]/12"
                 : "border border-dashed border-[var(--inbox-border)]/45 bg-white/[0.02]",
             )}
             role="status"
@@ -741,7 +741,7 @@ export function ReplyComposer({
                 <button
                   type="button"
                   onClick={() => onRemoveAttachment(att.url)}
-                  className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-soft)]/45"
+                  className="ml-0.5 rounded-full p-0.5 text-[var(--inbox-text-secondary)] hover:bg-white/[0.08] hover:text-[var(--inbox-text)]"
                   title="Remove"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -1172,8 +1172,8 @@ export function ReplyComposer({
 
         {/* ── Clip / Insert panel ── */}
         {clipPanelOpen && (
-          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2.5">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-3 xl:grid-cols-5">
               <ClipCategory title="Attach">
                 <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />
                 <ClipAction label="Image" icon={Image} />
@@ -1181,25 +1181,25 @@ export function ReplyComposer({
                 <ClipAction label="Link" icon={Link} />
               </ClipCategory>
               <ClipCategory title="From workspace">
-                <ClipAction label="Client files" icon={User} />
-                <ClipAction label="Project files" icon={Briefcase} />
-                <ClipAction label="Billing" icon={Receipt} />
+                <ClipAction label="Client" icon={User} title="Insert client info from workspace" />
+                <ClipAction label="Project" icon={Briefcase} title="Insert project info from workspace" />
+                <ClipAction label="Billing" icon={Receipt} title="Insert billing info from workspace" />
               </ClipCategory>
               <ClipCategory title="Show">
                 <ClipAction label="Screenshot" icon={Image} />
                 <ClipAction label="Reference" icon={Link} />
-                <ClipAction label="Landing" icon={Globe} />
+                <ClipAction label="Landing" icon={Globe} title="Landing page" />
               </ClipCategory>
               <ClipCategory title="Generate">
                 <ClipAction label="Proposal" icon={Sparkles} />
                 <ClipAction label="Quote" icon={Receipt} />
                 <ClipAction label="Template" icon={LayoutTemplate} />
               </ClipCategory>
-              <ClipCategory title="Share">
+              <ClipCategory title="Share / Schedule">
                 <ClipAction label="Contact" icon={User} />
                 <ClipAction label="Location" icon={MapPin} />
                 <ClipAction label="Meeting" icon={Calendar} />
-                <ClipAction label="Payment" icon={CreditCard} />
+                <ClipAction label="Payment" icon={CreditCard} title="Payment link" />
               </ClipCategory>
             </div>
           </div>
@@ -1310,21 +1310,33 @@ function ConversationActionChip({
   )
 }
 
-function ClipAction({ label, icon: Icon, onClick }: { label: string; icon: LucideIcon; onClick?: () => void }) {
+function ClipAction({
+  label,
+  icon: Icon,
+  onClick,
+  title,
+}: {
+  label: string
+  icon: LucideIcon
+  onClick?: () => void
+  title?: string
+}) {
   const available = Boolean(onClick)
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={!available}
+      title={title ?? label}
+      aria-label={title ?? label}
       className={cn(
         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
         available
-          ? "text-[var(--inbox-text)] hover:bg-[var(--inbox-accent-soft)] hover:text-[var(--inbox-accent)]"
-          : "text-[var(--inbox-text-secondary)]/50 cursor-default",
+          ? "text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
+          : "text-[var(--inbox-text-secondary)]/65 cursor-not-allowed opacity-70",
       )}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </button>
   )

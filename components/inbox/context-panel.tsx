@@ -323,7 +323,7 @@ export function ContextPanel({
       */}
       {isMessageMode && selectedMessageInfo ? (
         <section
-          className="rounded-xl border-l-2 border-[var(--inbox-accent)] bg-[var(--inbox-accent-soft)]/45 px-3 py-2"
+          className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2"
           aria-label="Interpretation of the selected message"
         >
           <div className="flex items-center gap-1.5">
@@ -614,7 +614,7 @@ export function ContextPanel({
                   className={cn(
                     "flex items-center justify-between gap-2 rounded-md transition-colors",
                     isMessageScoped &&
-                      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)]/40 px-1.5 py-0.5",
+                      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5",
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-2">
@@ -622,7 +622,7 @@ export function ContextPanel({
                     <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
                     {isMessageScoped ? (
                       <span
-                        className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+                        className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
                         title="This action is anchored to the selected message"
                       >
                         For selected
@@ -725,7 +725,7 @@ export function ContextPanel({
         ) : null}
 
         {askAnswer ? (
-          <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent-soft)]/35 p-2">
+          <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2">
             <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--inbox-intelligence-text)]">
               {askAnswer}
             </p>
