@@ -144,7 +144,7 @@ export function FannyAssistCard({
                   size="sm"
                   variant="outline"
                   onClick={onEditSuggestion}
-                  className="rounded-lg"
+                  className="rounded-lg border-[var(--inbox-border)] bg-transparent text-[var(--inbox-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
                 >
                   <PenSquare className="h-3.5 w-3.5" />
                   Edit

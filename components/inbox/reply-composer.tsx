@@ -1147,7 +1147,7 @@ export function ReplyComposer({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-[var(--inbox-text-secondary)]"
+                className="text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-text)]"
                 onClick={() => setFannyPanelOpen(false)}
               >
                 Cancel

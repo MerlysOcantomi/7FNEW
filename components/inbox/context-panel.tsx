@@ -14,6 +14,15 @@ import {
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
 
+/**
+ * Contrast fix: el variant `ghost` de shadcn aplica `text-foreground` (token global, casi negro
+ * en light theme). Sobre las superficies oscuras del Inbox queda ilegible. Esta constante se
+ * compone DESPUÉS del variant para que tailwind-merge sobrescriba color y hover con tokens
+ * legibles del inbox. Disabled queda muted pero no invisible.
+ */
+const INBOX_GHOST_BUTTON =
+  "text-[var(--inbox-intelligence-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)] focus-visible:text-[var(--inbox-intelligence-text)] disabled:text-[var(--inbox-intelligence-text-secondary)]/60"
+
 export interface ActionItem {
   id: string
   type: string
@@ -630,7 +639,7 @@ export function ContextPanel({
                       variant="ghost"
                       onClick={() => handleSuggestedAction(action, "approve_and_execute")}
                       disabled={isPending}
-                      className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+                      className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
                     >
                       {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run"}
                     </Button>
@@ -642,7 +651,7 @@ export function ContextPanel({
                       variant="ghost"
                       onClick={() => handleSuggestedAction(action, "execute")}
                       disabled={isPending}
-                      className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+                      className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
                     >
                       {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
                     </Button>
@@ -690,7 +699,7 @@ export function ContextPanel({
             <Button
               type="button"
               size="sm"
-              variant="ghost"
+              variant="accent"
               onClick={handleAskSubmit}
               disabled={askLoading || askQuestion.trim().length === 0}
               className="h-6 shrink-0 rounded-md px-2 text-[10px]"
@@ -726,7 +735,7 @@ export function ContextPanel({
                 size="sm"
                 variant="ghost"
                 onClick={handleAskCopy}
-                className="h-6 rounded-md px-2 text-[10px]"
+                className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
                 aria-label="Copy answer"
               >
                 {askCopied ? (
@@ -745,7 +754,7 @@ export function ContextPanel({
                   size="sm"
                   variant="ghost"
                   onClick={handleAskInsertReply}
-                  className="h-6 rounded-md px-2 text-[10px]"
+                  className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
                   aria-label="Insert answer into reply composer"
                 >
                   <CornerDownLeft className="mr-1 h-3 w-3" /> Insert into reply

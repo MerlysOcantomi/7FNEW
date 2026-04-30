@@ -110,11 +110,23 @@ export function ConversationThread({
       {/* Mobile navigation */}
       <div className="xl:hidden shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
         <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="-ml-2 h-7 rounded-lg px-2 text-xs" onClick={onBack}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-7 rounded-lg px-2 text-xs text-[var(--inbox-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
+            onClick={onBack}
+          >
             <ChevronLeft className="h-3.5 w-3.5" />
             Inbox
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg text-xs" onClick={onOpenContext}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-lg border-[var(--inbox-border)] bg-transparent text-xs text-[var(--inbox-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
+            onClick={onOpenContext}
+          >
             <Sparkles className="h-3 w-3" />
             Context
           </Button>

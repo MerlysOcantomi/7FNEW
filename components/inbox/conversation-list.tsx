@@ -327,7 +327,7 @@ export function ConversationList({
                     variant="outline"
                     onClick={onLoadMore}
                     disabled={loadingMore}
-                    className="w-full rounded-[var(--inbox-radius-control)]"
+                    className="w-full rounded-[var(--inbox-radius-control)] border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)] disabled:text-[var(--inbox-list-text-secondary)]/60"
                   >
                     {loadingMore ? (
                       <>
