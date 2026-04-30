@@ -201,6 +201,49 @@ export function ReplyComposer({
   const hasText = replyContent.trim().length > 0
   const isProcessing = assistLoading !== null
 
+  /**
+   * Phase 1 toolbox: el mismo `<input type="file">` se reutiliza para File / Image / Document
+   * mutando su `accept` antes de abrirlo. Evita duplicar inputs ocultos y mantiene el pipeline
+   * existente (`onAttachFiles` → `/api/inbox/attachments/upload`).
+   */
+  function openFilePicker(accept: string) {
+    if (!fileInputRef.current) return
+    fileInputRef.current.accept = accept
+    fileInputRef.current.click()
+    setClipPanelOpen(false)
+  }
+
+  /** Phase 1 toolbox: Link insert es puramente client-side; no toca backend. */
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState("")
+  const [linkLabel, setLinkLabel] = useState("")
+
+  function insertLinkAtCursor() {
+    const trimmedUrl = linkUrl.trim()
+    if (!trimmedUrl) return
+    const trimmedLabel = linkLabel.trim()
+    const snippet = trimmedLabel ? `[${trimmedLabel}](${trimmedUrl})` : trimmedUrl
+    const textarea = composerTextareaRef.current
+    const current = replyContent ?? ""
+    if (!textarea) {
+      onReplyContentChange(current ? `${current}\n${snippet}` : snippet)
+    } else {
+      const start = textarea.selectionStart ?? current.length
+      const end = textarea.selectionEnd ?? current.length
+      const next = current.slice(0, start) + snippet + current.slice(end)
+      onReplyContentChange(next)
+      requestAnimationFrame(() => {
+        const caret = start + snippet.length
+        textarea.focus()
+        textarea.setSelectionRange(caret, caret)
+      })
+    }
+    setLinkUrl("")
+    setLinkLabel("")
+    setLinkPopoverOpen(false)
+    setClipPanelOpen(false)
+  }
+
   function showAssistError(msg: string) {
     setAssistError(msg)
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
@@ -1175,31 +1218,189 @@ export function ReplyComposer({
           <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2.5">
             <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-3 xl:grid-cols-5">
               <ClipCategory title="Attach">
-                <ClipAction label="File" icon={FileText} onClick={() => { fileInputRef.current?.click(); setClipPanelOpen(false); }} />
-                <ClipAction label="Image" icon={Image} />
-                <ClipAction label="Document" icon={FileText} />
-                <ClipAction label="Link" icon={Link} />
+                <ClipAction
+                  label="File"
+                  icon={FileText}
+                  title="Attach any allowed file"
+                  onClick={() => openFilePicker("")}
+                />
+                <ClipAction
+                  label="Image"
+                  icon={Image}
+                  title="Attach an image (JPG, PNG, GIF, WebP)"
+                  onClick={() => openFilePicker("image/*")}
+                />
+                <ClipAction
+                  label="Document"
+                  icon={FileText}
+                  title="Attach a document (PDF, Word, Excel, CSV, TXT)"
+                  onClick={() =>
+                    openFilePicker(".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx")
+                  }
+                />
+                <Popover
+                  open={linkPopoverOpen}
+                  onOpenChange={(open) => {
+                    setLinkPopoverOpen(open)
+                    if (!open) {
+                      setLinkUrl("")
+                      setLinkLabel("")
+                    }
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      title="Insert a link into the reply"
+                      aria-label="Insert a link into the reply"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
+                    >
+                      <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 break-words text-left leading-tight">Link</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={6}
+                    className="w-72 space-y-2 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-3 text-[var(--inbox-text)]"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
+                        URL
+                      </label>
+                      <Input
+                        type="url"
+                        value={linkUrl}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                        placeholder="https://example.com"
+                        className="h-8 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            insertLinkAtCursor()
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
+                        Label (optional)
+                      </label>
+                      <Input
+                        type="text"
+                        value={linkLabel}
+                        onChange={(e) => setLinkLabel(e.target.value)}
+                        placeholder="Click here"
+                        className="h-8 text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            insertLinkAtCursor()
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setLinkPopoverOpen(false)}
+                        className="h-7 px-2 text-[11px] text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="accent"
+                        onClick={insertLinkAtCursor}
+                        disabled={linkUrl.trim().length === 0}
+                        className="h-7 px-3 text-[11px]"
+                      >
+                        Insert
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </ClipCategory>
+
               <ClipCategory title="From workspace">
-                <ClipAction label="Client" icon={User} title="Insert client info from workspace" />
-                <ClipAction label="Project" icon={Briefcase} title="Insert project info from workspace" />
-                <ClipAction label="Billing" icon={Receipt} title="Insert billing info from workspace" />
+                <ClipAction
+                  label="Client"
+                  icon={User}
+                  title="Coming later: insert client info into reply"
+                />
+                <ClipAction
+                  label="Project"
+                  icon={Briefcase}
+                  title="Coming later: insert project info into reply"
+                />
+                <ClipAction
+                  label="Billing"
+                  icon={Receipt}
+                  title="Coming later: insert billing info into reply"
+                />
               </ClipCategory>
+
               <ClipCategory title="Show">
-                <ClipAction label="Screenshot" icon={Image} />
-                <ClipAction label="Reference" icon={Link} />
-                <ClipAction label="Landing" icon={Globe} title="Landing page" />
+                <ClipAction
+                  label="Screen"
+                  icon={Image}
+                  title="Coming later: attach or insert a screenshot"
+                />
+                <ClipAction
+                  label="Ref"
+                  icon={Link}
+                  title="Coming later: insert a saved reference"
+                />
+                <ClipAction
+                  label="Landing"
+                  icon={Globe}
+                  title="Coming later: share a landing page"
+                />
               </ClipCategory>
+
               <ClipCategory title="Generate">
-                <ClipAction label="Proposal" icon={Sparkles} />
-                <ClipAction label="Quote" icon={Receipt} />
-                <ClipAction label="Template" icon={LayoutTemplate} />
+                <ClipAction
+                  label="Proposal"
+                  icon={Sparkles}
+                  title="Coming later: generate a proposal draft"
+                />
+                <ClipAction
+                  label="Quote"
+                  icon={Receipt}
+                  title="Coming later: generate a quote"
+                />
+                <ClipAction
+                  label="Template"
+                  icon={LayoutTemplate}
+                  title="Use canned responses from the template button above"
+                />
               </ClipCategory>
+
               <ClipCategory title="Share / Schedule">
-                <ClipAction label="Contact" icon={User} />
-                <ClipAction label="Location" icon={MapPin} />
-                <ClipAction label="Meeting" icon={Calendar} />
-                <ClipAction label="Payment" icon={CreditCard} title="Payment link" />
+                <ClipAction
+                  label="Contact"
+                  icon={User}
+                  title="Coming later: share a contact card"
+                />
+                <ClipAction
+                  label="Location"
+                  icon={MapPin}
+                  title="Coming later: share a location"
+                />
+                <ClipAction
+                  label="Meeting"
+                  icon={Calendar}
+                  title="Coming later: schedule or share a meeting link"
+                />
+                <ClipAction
+                  label="Payment"
+                  icon={CreditCard}
+                  title="Coming later: share a payment link"
+                />
               </ClipCategory>
             </div>
           </div>
@@ -1310,6 +1511,15 @@ function ConversationActionChip({
   )
 }
 
+/**
+ * Phase 1 toolbox: ClipAction admite labels que envuelven a 2 líneas (sin truncate)
+ * para evitar "Scre…", "Prop…", "Cont…" cuando la columna es estrecha.
+ *
+ * Estados:
+ *  - enabled (con `onClick`): texto normal del inbox, hover purple translucent.
+ *  - disabled (sin `onClick`): opacidad reducida pero **legible** (~75%) sobre dark surface,
+ *    `cursor-not-allowed`, y `title` explica la promesa futura.
+ */
 function ClipAction({
   label,
   icon: Icon,
@@ -1330,14 +1540,14 @@ function ClipAction({
       title={title ?? label}
       aria-label={title ?? label}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+        "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
         available
           ? "text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
-          : "text-[var(--inbox-text-secondary)]/65 cursor-not-allowed opacity-70",
+          : "cursor-not-allowed text-[var(--inbox-text-secondary)]/80 opacity-75",
       )}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="truncate">{label}</span>
+      <Icon className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 break-words text-left leading-tight">{label}</span>
     </button>
   )
 }
