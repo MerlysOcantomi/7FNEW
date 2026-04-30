@@ -148,8 +148,13 @@ export function MessageBubble({
           </span>
           <span className={cn(
             "rounded-lg border px-2.5 py-0.5 text-xs leading-relaxed font-medium",
-            tone === "inbound" 
-              ? "border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]"
+            /**
+             * Dark theme inbound badge: el accent-soft (#E9E2FF) era un bloque casi blanco que
+             * rompía la estética del bubble dark. Lo cambiamos a un chip purple translúcido que
+             * mantiene la identidad accent (inbound = purple) sin el parche light-on-dark.
+             */
+            tone === "inbound"
+              ? "border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
               : tone === "outbound"
                 ? "border-[var(--inbox-chat-meta-outbound-border)] bg-[var(--inbox-chat-meta-outbound-bg)] text-[var(--inbox-chat-meta-outbound-text)]"
                 : "border-[var(--inbox-border)] bg-white/[0.08] text-[var(--inbox-text-secondary)]"
@@ -158,12 +163,12 @@ export function MessageBubble({
           </span>
           <span suppressHydrationWarning className="text-xs whitespace-nowrap text-[var(--inbox-text-secondary)]">{timestampLabel}</span>
           {emailMeta?.mode === "forward" && (
-            <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
+            <span className="rounded-lg border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)]">
               Forwarded
             </span>
           )}
           {emailMeta?.mode === "reply_all" && (
-            <span className="rounded-lg bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)] border border-[var(--inbox-accent)]/30">
+            <span className="rounded-lg border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-xs font-semibold text-[var(--inbox-accent)]">
               Reply all
             </span>
           )}
