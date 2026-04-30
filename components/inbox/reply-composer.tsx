@@ -218,6 +218,21 @@ export function ReplyComposer({
   const [linkUrl, setLinkUrl] = useState("")
   const [linkLabel, setLinkLabel] = useState("")
 
+  /**
+   * Toolbox layout v2: en lugar de mostrar todas las categorías en columnas estrechas
+   * (que hacía wrap roto en "Scree/n", "Propo/sal", etc.), las categorías son tabs y
+   * solo se renderizan las acciones de la activa. Default: "attach".
+   */
+  type ClipCategoryId = "attach" | "workspace" | "show" | "generate" | "share"
+  const [activeClipCategory, setActiveClipCategory] = useState<ClipCategoryId>("attach")
+  const clipCategoryTabs: Array<{ id: ClipCategoryId; label: string }> = [
+    { id: "attach", label: "Attach" },
+    { id: "workspace", label: "From workspace" },
+    { id: "show", label: "Show" },
+    { id: "generate", label: "Generate" },
+    { id: "share", label: "Share / Schedule" },
+  ]
+
   function insertLinkAtCursor() {
     const trimmedUrl = linkUrl.trim()
     if (!trimmedUrl) return
@@ -1213,195 +1228,251 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Clip / Insert panel ── */}
+        {/* ── Clip / Insert panel (tabbed by category) ── */}
         {clipPanelOpen && (
           <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2.5">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-3 xl:grid-cols-5">
-              <ClipCategory title="Attach">
-                <ClipAction
-                  label="File"
-                  icon={FileText}
-                  title="Attach any allowed file"
-                  onClick={() => openFilePicker("")}
-                />
-                <ClipAction
-                  label="Image"
-                  icon={Image}
-                  title="Attach an image (JPG, PNG, GIF, WebP)"
-                  onClick={() => openFilePicker("image/*")}
-                />
-                <ClipAction
-                  label="Document"
-                  icon={FileText}
-                  title="Attach a document (PDF, Word, Excel, CSV, TXT)"
-                  onClick={() =>
-                    openFilePicker(".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx")
-                  }
-                />
-                <Popover
-                  open={linkPopoverOpen}
-                  onOpenChange={(open) => {
-                    setLinkPopoverOpen(open)
-                    if (!open) {
-                      setLinkUrl("")
-                      setLinkLabel("")
-                    }
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      title="Insert a link into the reply"
-                      aria-label="Insert a link into the reply"
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
-                    >
-                      <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="min-w-0 break-words text-left leading-tight">Link</span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    sideOffset={6}
-                    className="w-72 space-y-2 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-3 text-[var(--inbox-text)]"
+            {/* Category tabs */}
+            <div
+              role="tablist"
+              aria-label="Insert toolbox categories"
+              className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/30 pb-1.5"
+            >
+              {clipCategoryTabs.map((tab) => {
+                const isActive = activeClipCategory === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    id={`clip-tab-${tab.id}`}
+                    aria-selected={isActive}
+                    aria-controls={`clip-panel-${tab.id}`}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => setActiveClipCategory(tab.id)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return
+                      event.preventDefault()
+                      const idx = clipCategoryTabs.findIndex((t) => t.id === activeClipCategory)
+                      const delta = event.key === "ArrowRight" ? 1 : -1
+                      const next =
+                        clipCategoryTabs[(idx + delta + clipCategoryTabs.length) % clipCategoryTabs.length]
+                      setActiveClipCategory(next.id)
+                    }}
+                    className={cn(
+                      "rounded-t-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                      isActive
+                        ? "border-b-2 border-[var(--inbox-accent)] -mb-[1.5px] text-[var(--inbox-accent)]"
+                        : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+                    )}
                   >
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
-                        URL
-                      </label>
-                      <Input
-                        type="url"
-                        value={linkUrl}
-                        onChange={(e) => setLinkUrl(e.target.value)}
-                        placeholder="https://example.com"
-                        className="h-8 text-xs"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            insertLinkAtCursor()
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
-                        Label (optional)
-                      </label>
-                      <Input
-                        type="text"
-                        value={linkLabel}
-                        onChange={(e) => setLinkLabel(e.target.value)}
-                        placeholder="Click here"
-                        className="h-8 text-xs"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            insertLinkAtCursor()
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Active category content */}
+            <div
+              role="tabpanel"
+              id={`clip-panel-${activeClipCategory}`}
+              aria-labelledby={`clip-tab-${activeClipCategory}`}
+              className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 sm:grid-cols-3 lg:grid-cols-4"
+            >
+              {activeClipCategory === "attach" && (
+                <>
+                  <ClipAction
+                    label="File"
+                    icon={FileText}
+                    title="Attach any allowed file"
+                    onClick={() => openFilePicker("")}
+                  />
+                  <ClipAction
+                    label="Image"
+                    icon={Image}
+                    title="Attach an image (JPG, PNG, GIF, WebP)"
+                    onClick={() => openFilePicker("image/*")}
+                  />
+                  <ClipAction
+                    label="Document"
+                    icon={FileText}
+                    title="Attach a document (PDF, Word, Excel, CSV, TXT)"
+                    onClick={() =>
+                      openFilePicker(".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx")
+                    }
+                  />
+                  <Popover
+                    open={linkPopoverOpen}
+                    onOpenChange={(open) => {
+                      setLinkPopoverOpen(open)
+                      if (!open) {
+                        setLinkUrl("")
+                        setLinkLabel("")
+                      }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
                         type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setLinkPopoverOpen(false)}
-                        className="h-7 px-2 text-[11px] text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
+                        title="Insert a link into the reply"
+                        aria-label="Insert a link into the reply"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
                       >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="accent"
-                        onClick={insertLinkAtCursor}
-                        disabled={linkUrl.trim().length === 0}
-                        className="h-7 px-3 text-[11px]"
-                      >
-                        Insert
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </ClipCategory>
+                        <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 break-words text-left leading-tight">Link</span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      sideOffset={6}
+                      className="w-72 space-y-2 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-3 text-[var(--inbox-text)]"
+                    >
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
+                          URL
+                        </label>
+                        <Input
+                          type="url"
+                          value={linkUrl}
+                          onChange={(e) => setLinkUrl(e.target.value)}
+                          placeholder="https://example.com"
+                          className="h-8 text-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              insertLinkAtCursor()
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
+                          Label (optional)
+                        </label>
+                        <Input
+                          type="text"
+                          value={linkLabel}
+                          onChange={(e) => setLinkLabel(e.target.value)}
+                          placeholder="Click here"
+                          className="h-8 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              insertLinkAtCursor()
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setLinkPopoverOpen(false)}
+                          className="h-7 px-2 text-[11px] text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="accent"
+                          onClick={insertLinkAtCursor}
+                          disabled={linkUrl.trim().length === 0}
+                          className="h-7 px-3 text-[11px]"
+                        >
+                          Insert
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </>
+              )}
 
-              <ClipCategory title="From workspace">
-                <ClipAction
-                  label="Client"
-                  icon={User}
-                  title="Coming later: insert client info into reply"
-                />
-                <ClipAction
-                  label="Project"
-                  icon={Briefcase}
-                  title="Coming later: insert project info into reply"
-                />
-                <ClipAction
-                  label="Billing"
-                  icon={Receipt}
-                  title="Coming later: insert billing info into reply"
-                />
-              </ClipCategory>
+              {activeClipCategory === "workspace" && (
+                <>
+                  <ClipAction
+                    label="Client"
+                    icon={User}
+                    title="Coming later: insert client info into reply"
+                  />
+                  <ClipAction
+                    label="Project"
+                    icon={Briefcase}
+                    title="Coming later: insert project info into reply"
+                  />
+                  <ClipAction
+                    label="Billing"
+                    icon={Receipt}
+                    title="Coming later: insert billing info into reply"
+                  />
+                </>
+              )}
 
-              <ClipCategory title="Show">
-                <ClipAction
-                  label="Screen"
-                  icon={Image}
-                  title="Coming later: attach or insert a screenshot"
-                />
-                <ClipAction
-                  label="Ref"
-                  icon={Link}
-                  title="Coming later: insert a saved reference"
-                />
-                <ClipAction
-                  label="Landing"
-                  icon={Globe}
-                  title="Coming later: share a landing page"
-                />
-              </ClipCategory>
+              {activeClipCategory === "show" && (
+                <>
+                  <ClipAction
+                    label="Screen"
+                    icon={Image}
+                    title="Coming later: attach or insert a screenshot"
+                  />
+                  <ClipAction
+                    label="Reference"
+                    icon={Link}
+                    title="Coming later: insert a saved reference"
+                  />
+                  <ClipAction
+                    label="Landing"
+                    icon={Globe}
+                    title="Coming later: share a landing page"
+                  />
+                </>
+              )}
 
-              <ClipCategory title="Generate">
-                <ClipAction
-                  label="Proposal"
-                  icon={Sparkles}
-                  title="Coming later: generate a proposal draft"
-                />
-                <ClipAction
-                  label="Quote"
-                  icon={Receipt}
-                  title="Coming later: generate a quote"
-                />
-                <ClipAction
-                  label="Template"
-                  icon={LayoutTemplate}
-                  title="Use canned responses from the template button above"
-                />
-              </ClipCategory>
+              {activeClipCategory === "generate" && (
+                <>
+                  <ClipAction
+                    label="Proposal"
+                    icon={Sparkles}
+                    title="Coming later: generate a proposal draft"
+                  />
+                  <ClipAction
+                    label="Quote"
+                    icon={Receipt}
+                    title="Coming later: generate a quote"
+                  />
+                  <ClipAction
+                    label="Template"
+                    icon={LayoutTemplate}
+                    title="Use canned responses from the template button above"
+                  />
+                </>
+              )}
 
-              <ClipCategory title="Share / Schedule">
-                <ClipAction
-                  label="Contact"
-                  icon={User}
-                  title="Coming later: share a contact card"
-                />
-                <ClipAction
-                  label="Location"
-                  icon={MapPin}
-                  title="Coming later: share a location"
-                />
-                <ClipAction
-                  label="Meeting"
-                  icon={Calendar}
-                  title="Coming later: schedule or share a meeting link"
-                />
-                <ClipAction
-                  label="Payment"
-                  icon={CreditCard}
-                  title="Coming later: share a payment link"
-                />
-              </ClipCategory>
+              {activeClipCategory === "share" && (
+                <>
+                  <ClipAction
+                    label="Contact"
+                    icon={User}
+                    title="Coming later: share a contact card"
+                  />
+                  <ClipAction
+                    label="Location"
+                    icon={MapPin}
+                    title="Coming later: share a location"
+                  />
+                  <ClipAction
+                    label="Meeting"
+                    icon={Calendar}
+                    title="Coming later: schedule or share a meeting link"
+                  />
+                  <ClipAction
+                    label="Payment"
+                    icon={CreditCard}
+                    title="Coming later: share a payment link"
+                  />
+                </>
+              )}
             </div>
           </div>
         )}
