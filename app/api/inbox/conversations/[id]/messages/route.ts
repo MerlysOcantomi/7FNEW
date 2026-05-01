@@ -81,6 +81,23 @@ async function sendOutboundAsync(input: OutboundAsyncInput) {
   let emailError: string | undefined
   let resendId: string | undefined
 
+  /**
+   * Open-tracking is enabled by default; workspaces may opt-out via
+   * `workspace.config.email.openTracking.enabled = false`. Per-message overrides will land in
+   * Phase 3 (manual confirmation) — for Phase 2 the pixel ships on every outbound email reply.
+   */
+  const openTrackingEnabled = (() => {
+    const raw = conv.workspace.config
+    if (!raw) return true
+    try {
+      const parsed = JSON.parse(raw) as { email?: { openTracking?: { enabled?: boolean } } }
+      const enabled = parsed?.email?.openTracking?.enabled
+      return enabled !== false
+    } catch {
+      return true
+    }
+  })()
+
   try {
     const result = await sendOutboundEmail({
       workspaceName: conv.workspace.nombre,
@@ -90,6 +107,11 @@ async function sendOutboundAsync(input: OutboundAsyncInput) {
       workspaceConfig: conv.workspace.config,
       mode: sendMode,
       connectionSender,
+      tracking: {
+        enabled: openTrackingEnabled,
+        messageId,
+        workspaceId,
+      },
       ...(input.parsedAttachments.length > 0 ? { attachments: input.parsedAttachments } : {}),
       ...(input.parsedCc.length > 0 ? { cc: input.parsedCc } : {}),
       ...(input.parsedBcc.length > 0 ? { bcc: input.parsedBcc } : {}),

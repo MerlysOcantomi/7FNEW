@@ -1166,6 +1166,12 @@ function InboxPageContent() {
       let msgAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> | undefined
       let msgEmailMeta: { cc?: string[]; bcc?: string[]; to?: string[]; mode?: "reply" | "reply_all" | "forward" } | undefined
       let msgFromAddress: string | null = null
+      /** Phase 2 open tracking — derived from Message.metadata only; no schema/joins required. */
+      let msgEmailStatus: string | null = null
+      let msgOpenedAt: string | null = null
+      let msgLastOpenedAt: string | null = null
+      let msgOpenProxy = false
+      let msgOpenSuspect = false
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
@@ -1184,6 +1190,11 @@ function InboxPageContent() {
           if (typeof parsed?.fromAddress === "string" && parsed.fromAddress.trim()) {
             msgFromAddress = parsed.fromAddress.trim()
           }
+          if (typeof parsed?.emailStatus === "string") msgEmailStatus = parsed.emailStatus
+          if (typeof parsed?.openedAt === "string") msgOpenedAt = parsed.openedAt
+          if (typeof parsed?.lastOpenedAt === "string") msgLastOpenedAt = parsed.lastOpenedAt
+          if (parsed?.openProxy === true) msgOpenProxy = true
+          if (parsed?.openSuspect === true) msgOpenSuspect = true
         }
       } catch { /* ignore parse errors */ }
 
@@ -1225,6 +1236,27 @@ function InboxPageContent() {
         }
       } catch { /* ignore date parse errors */ }
 
+      /**
+       * Outbound meta label honest-by-design:
+       *  - "Send failed"        emailStatus=failed
+       *  - "Opened · {time}"    openedAt set, no proxy/suspect heuristics fired
+       *  - "Possibly opened"    openedAt set + proxy or suspect flag (Gmail/Apple/Outlook prefetch)
+       *  - "Sent"               default outbound — anything else
+       * We deliberately avoid the word "Read" because pixel tracking can't prove the human read it.
+       */
+      let outboundLabel = "Sent"
+      if (isOutbound) {
+        if (msgEmailStatus === "failed") {
+          outboundLabel = "Send failed"
+        } else if (msgOpenedAt) {
+          const opened = msgLastOpenedAt ?? msgOpenedAt
+          const when = formatRelativeDate(opened, uiLocale)
+          outboundLabel = msgOpenProxy || msgOpenSuspect
+            ? `Possibly opened · ${when}`
+            : `Opened · ${when}`
+        }
+      }
+
       return {
         id: message.id,
         authorLabel,
@@ -1232,7 +1264,7 @@ function InboxPageContent() {
         metaLabel: isInternal
           ? "Internal note · Not sent to customer"
           : isOutbound
-            ? "Outbound"
+            ? outboundLabel
             : isInbound
               ? "Inbound"
               : "System",

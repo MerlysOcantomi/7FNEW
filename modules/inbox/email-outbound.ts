@@ -3,6 +3,7 @@ import { sendEmailSmtp, type SmtpConnectionConfig } from "./email-smtp"
 import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
 import { logActivity } from "@core/activity"
 import { getTranslations, resolveLocaleFromConfig } from "@core/i18n"
+import { buildOpenPixelUrl } from "@core/inbox-tracking"
 
 export interface OutboundAttachment {
   filename: string
@@ -37,6 +38,16 @@ export interface SendOutboundEmailInput {
   mode?: EmailSendMode
   /** Per-connection sender override. Takes priority over env vars. */
   connectionSender?: ConnectionSender | null
+  /**
+   * Open-tracking knobs. The caller decides whether the pixel should be embedded based on
+   * workspace settings + per-message overrides. We only embed when both ids are present and
+   * `enabled !== false`. The route is `/api/inbox/track/open/{token}.png`.
+   */
+  tracking?: {
+    enabled?: boolean
+    messageId?: string
+    workspaceId?: string
+  }
 }
 
 function ensureRePrefix(subject: string): string {
@@ -157,7 +168,20 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
   const footerText = t.email.outbound.footer(displayName)
   const bodyText = `${input.messageContent}\n\n---\n${footerText}`
   const footerEscaped = escapeHtml(footerText)
-  const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>`
+
+  /**
+   * Open-tracking pixel: only injected for outbound replies when the caller explicitly opts-in
+   * AND we successfully signed a token (which requires AUTH_SECRET + a public base URL). In any
+   * other case we skip — a missing pixel is preferable to a broken `<img>` in the email body.
+   */
+  const pixelUrl = input.tracking?.enabled && input.tracking.messageId && input.tracking.workspaceId
+    ? buildOpenPixelUrl(input.tracking.messageId, input.tracking.workspaceId)
+    : null
+  const trackingPixelHtml = pixelUrl
+    ? `<img src="${pixelUrl}" alt="" width="1" height="1" style="display:block;border:0;width:1px;height:1px;max-height:1px;max-width:1px;overflow:hidden;opacity:0" />`
+    : ""
+
+  const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>${trackingPixelHtml}`
 
   const recipients = resolveRecipients(input)
   const cs = input.connectionSender
