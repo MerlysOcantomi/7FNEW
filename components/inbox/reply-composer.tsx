@@ -7,7 +7,7 @@ import {
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote, CornerUpLeft,
-  Archive, CheckCircle2, Trash2,
+  Archive, CheckCircle2, Trash2, MoreHorizontal,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -217,6 +217,12 @@ export function ReplyComposer({
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkLabel, setLinkLabel] = useState("")
+
+  /**
+   * Conversation-level "More" menu (Archive / Close / Move to Trash). Antes era un strip ancho
+   * sobre el composer; ahora vive como icono en la toolbar para liberar espacio vertical.
+   */
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   /**
    * Toolbox layout v2: en lugar de mostrar todas las categorías en columnas estrechas
@@ -609,45 +615,6 @@ export function ReplyComposer({
             )}
           </div>
         )}
-
-        {/* ── Phase 4 · Conversation actions strip (Archive / Close / Trash) ── */}
-        {hasConversationActions ? (
-          <div
-            className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--inbox-border)]/40 bg-white/[0.02] px-2 py-1"
-            role="group"
-            aria-label="Conversation actions"
-          >
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-text-secondary)]">
-              Conversation actions
-            </span>
-            <span className="mx-0.5 h-3 w-px bg-[var(--inbox-divider)]" aria-hidden="true" />
-            <ConversationActionChip
-              icon={Archive}
-              label="Archive"
-              onClick={archiveHandler}
-              activeStatus={currentConversationStatus}
-              targetStatus="archived"
-              activeLabel="Archived"
-            />
-            <ConversationActionChip
-              icon={CheckCircle2}
-              label="Close"
-              onClick={closeHandler}
-              activeStatus={currentConversationStatus}
-              targetStatus="closed"
-              activeLabel="Closed"
-            />
-            <ConversationActionChip
-              icon={Trash2}
-              label="Move to Trash"
-              onClick={trashHandler}
-              activeStatus={currentConversationStatus}
-              targetStatus="trashed"
-              activeLabel="In Trash"
-              tone="danger"
-            />
-          </div>
-        ) : null}
 
         {/* ── Reply target badge (Phase 2 + Phase 4 scope-aware) ── */}
         {activeAnchor ? (
@@ -1091,6 +1058,59 @@ export function ReplyComposer({
                 </button>
               </>
             )}
+
+            {hasConversationActions ? (
+              <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      SHELL_TOOLBAR_ICON,
+                      moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                    )}
+                    title="Conversation actions"
+                    aria-label="Conversation actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  side="top"
+                  sideOffset={8}
+                  className="w-60 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-1 text-[var(--inbox-text)]"
+                >
+                  <p className="px-2 pb-1 pt-0.5 text-[10px] uppercase tracking-wider text-[var(--inbox-muted)]">
+                    Currently affects the whole conversation
+                  </p>
+                  <MoreMenuItem
+                    icon={Archive}
+                    label="Archive"
+                    activeLabel="Archived"
+                    onClick={archiveHandler}
+                    isCurrent={currentConversationStatus === "archived"}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                  <MoreMenuItem
+                    icon={CheckCircle2}
+                    label="Close"
+                    activeLabel="Closed"
+                    onClick={closeHandler}
+                    isCurrent={currentConversationStatus === "closed"}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                  <MoreMenuItem
+                    icon={Trash2}
+                    label="Move to Trash"
+                    activeLabel="In Trash"
+                    onClick={trashHandler}
+                    isCurrent={currentConversationStatus === "trashed"}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                    tone="danger"
+                  />
+                </PopoverContent>
+              </Popover>
+            ) : null}
             </div>
 
           </div>
@@ -1534,50 +1554,62 @@ function ClipCategory({ title, children }: { title: string; children: React.Reac
 }
 
 /**
- * Phase 4: chip compacto para Archive / Close / Move to Trash en el strip "Conversation actions".
- * Se deshabilita visualmente cuando la conversación ya está en `targetStatus` para evitar transiciones
- * idempotentes (el server las admitiría, pero el UX queda más claro).
+ * Item del menú "More" (Archive / Close / Move to Trash) en la toolbar del composer.
+ * Reemplaza al antiguo `ConversationActionChip` del strip ancho.
+ *
+ * Comportamiento:
+ *  - Sin handler → disabled.
+ *  - `isCurrent` (la conversación ya está en ese estado) → disabled con `activeLabel`.
+ *  - `tone="danger"` aplica color de urgencia para Trash.
+ *  - `onAfterClick` cierra el popover tras disparar el handler.
  */
-function ConversationActionChip({
+function MoreMenuItem({
   icon: Icon,
   label,
   activeLabel,
   onClick,
-  activeStatus,
-  targetStatus,
+  isCurrent,
   tone = "neutral",
+  onAfterClick,
 }: {
   icon: LucideIcon
   label: string
   activeLabel?: string
   onClick?: () => void
-  activeStatus?: string | null
-  targetStatus: string
+  isCurrent?: boolean
   tone?: "neutral" | "danger"
+  onAfterClick?: () => void
 }) {
-  const isActive = activeStatus === targetStatus
-  const disabled = !onClick || isActive
-  const toneClass =
+  const disabled = !onClick || Boolean(isCurrent)
+  const toneText = tone === "danger" ? "text-[var(--inbox-urgency-critical-text)]" : "text-[var(--inbox-text)]"
+  const toneHover =
     tone === "danger"
       ? "hover:bg-[var(--inbox-urgency-critical-bg)] hover:text-[var(--inbox-urgency-critical-text)]"
-      : "hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
+      : "hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={isActive ? `Already ${activeLabel || label}` : `${label} (whole conversation)`}
-      aria-label={isActive ? `${label} (already applied)` : `${label} — affects the whole conversation`}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md border border-[var(--inbox-border)]/35 px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)] transition-colors",
-        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/30",
+      onClick={
         disabled
-          ? "cursor-not-allowed opacity-50"
-          : toneClass,
+          ? undefined
+          : () => {
+              onClick?.()
+              onAfterClick?.()
+            }
+      }
+      disabled={disabled}
+      title={isCurrent ? `Already ${activeLabel || label}` : `${label} (whole conversation)`}
+      aria-label={isCurrent ? `${label} (already applied)` : `${label} — affects the whole conversation`}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+        disabled
+          ? "cursor-not-allowed text-[var(--inbox-text-secondary)]/70 opacity-70"
+          : cn(toneText, toneHover),
       )}
     >
-      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-      {isActive && activeLabel ? activeLabel : label}
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="flex-1 text-left">{isCurrent && activeLabel ? activeLabel : label}</span>
     </button>
   )
 }
