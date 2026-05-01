@@ -318,15 +318,18 @@ export function ReplyComposer({
     onCannedOpenChange(false)
   }
 
-  function handleMicToggle() {
-    if (speech.listening) {
-      speech.stop()
-      return
-    }
+  /**
+   * Inicia el reconocimiento de voz con un modo específico (sin depender del state). Usado por
+   * el tab "Voice" del AI panel — antes solo cambiaba el modo y exigía pulsar luego el Mic
+   * standalone del toolbar; ese Mic se removió, así que ahora el tab arranca el speech directo.
+   */
+  function startVoice(mode: VoiceMode) {
+    if (speech.listening) speech.stop()
+    setVoiceMode(mode)
     setVoiceToolbarFocus(true)
     userInterruptedRef.current = false
-    composingIntentRef.current = voiceMode === "compose"
-    baseTextRef.current = voiceMode === "compose" ? "" : replyContent
+    composingIntentRef.current = mode === "compose"
+    baseTextRef.current = mode === "compose" ? "" : replyContent
     speech.start()
   }
 
@@ -559,9 +562,7 @@ export function ReplyComposer({
     clipPanelOpen || assistPanelOpen || moreMenuOpen || actingOnPanelOpen
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
-  const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
   const emailToolActive = showEmailModeChrome && !replyIsInternal && !voiceToolbarFocus
-  const voiceToolActive = showVoiceModeChrome && voiceToolbarFocus
 
   /**
    * Assist tabs: dinámicos según capacidades disponibles. El icono `Wand2` siempre es visible y
@@ -783,10 +784,16 @@ export function ReplyComposer({
             </div>
           )}
           {speech.listening && voiceMode === "dictate" && (
-            <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => speech.stop()}
+              className="absolute bottom-3 right-14 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm transition-colors hover:bg-[var(--inbox-voice-dictate-bg)]"
+              title="Stop dictation"
+              aria-label="Stop dictation"
+            >
               <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--inbox-voice-dictate-text)]" />
-              Recording...
-            </div>
+              Recording — click to stop
+            </button>
           )}
         </div>
 
@@ -985,40 +992,21 @@ export function ReplyComposer({
               </button>
             )}
 
-            {speech.supported && (
+            {/*
+             * El Mic standalone vivía aquí. Se removió porque "Talk to Fanny" cumple ese rol a
+             * nivel Inbox (preguntar/instruir) y el dictado del composer ahora se inicia desde
+             * el tab Voice del AI panel (Wand2). Mientras está grabando, el indicador inline en
+             * el textarea es clickable para parar.
+             */}
+            {speech.listening && (
               <button
                 type="button"
-                onClick={() => {
-                  closeComposerOverlays()
-                  handleMicToggle()
-                }}
-                disabled={isProcessing}
-                className={cn(
-                  SHELL_TOOLBAR_ICON,
-                  speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
-                  isProcessing && "cursor-not-allowed opacity-50",
-                  !speech.listening && voiceToolActive && SHELL_TOOLBAR_ICON_ACTIVE,
-                )}
-                title={
-                  speech.listening
-                    ? "Stop recording"
-                    : voiceMode === "compose"
-                      ? "Speak your intent — drafts a reply from what you say"
-                      : "Start dictation — speech is typed into the message"
-                }
-                aria-label={
-                  speech.listening
-                    ? "Stop recording"
-                    : voiceMode === "compose"
-                      ? "Speak your intent"
-                      : "Start dictation"
-                }
+                onClick={() => speech.stop()}
+                className={cn(SHELL_TOOLBAR_ICON, SHELL_TOOLBAR_ICON_ACTIVE)}
+                title="Stop recording"
+                aria-label="Stop recording"
               >
-                {speech.listening ? (
-                  <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
-                ) : (
-                  <Mic className="h-4 w-4 shrink-0" strokeWidth={2} />
-                )}
+                <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             )}
 
@@ -1238,21 +1226,19 @@ export function ReplyComposer({
                   <ClipAction
                     label="Dictate"
                     icon={Keyboard}
-                    title="Dictation mode — speech is typed into the message"
+                    title="Dictation — speech is typed into the message"
                     onClick={() => {
-                      setVoiceMode("dictate")
                       setAssistPanelOpen(false)
-                      setVoiceToolbarFocus(true)
+                      startVoice("dictate")
                     }}
                   />
                   <ClipAction
                     label="Speak intent"
                     icon={Sparkles}
-                    title="Intent mode — describe the reply you want, drafted from your words"
+                    title="Intent — describe the reply you want; Fanny drafts it from your words"
                     onClick={() => {
-                      setVoiceMode("compose")
                       setAssistPanelOpen(false)
-                      setVoiceToolbarFocus(true)
+                      startVoice("compose")
                     }}
                   />
                 </>

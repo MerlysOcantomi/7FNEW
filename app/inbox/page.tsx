@@ -8,6 +8,7 @@ import { ConversationList } from "@/components/inbox/conversation-list"
 import { ContextPanel } from "@/components/inbox/context-panel"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
+import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Sheet,
@@ -2271,6 +2272,16 @@ function InboxPageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/*
+       * Talk to Fanny — control de IA a nivel Inbox, separado del composer. El Mic del composer
+       * (tab Voice del AI panel) sigue siendo el dictado de respuesta; este botón es para preguntar
+       * a Fanny sobre mensajes/conversaciones/inbox sin escribir un reply.
+       */}
+      <TalkToFanny
+        conversationId={activeSelectedId}
+        selectedMessageId={effectiveSelectedMessageId}
+      />
     </AppShell>
   )
 }
