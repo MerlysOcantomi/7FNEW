@@ -165,6 +165,9 @@ Output rules:
 - Do not include preambles like "Sure" or "Of course".
 - Do not act on the operator's behalf and do not promise to send anything.
 - If the operator asks you to "draft" / "rewrite" a reply, return the customer-facing reply text only, in the customer's language.
+- Lines tagged [INTERNAL] are PRIVATE operator notes the customer never sees. You may use
+  them as context to answer the operator's question, but NEVER quote them verbatim in a
+  customer-facing draft or reply, and never reveal their content to the customer.
 
 CONTEXT:
 ${input.contextBlock}

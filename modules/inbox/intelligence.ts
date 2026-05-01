@@ -161,6 +161,10 @@ RULES:
 - If no draft is appropriate: draft.shouldCreate=false, draft.content empty.
 - detectedLanguage: predominant inbound customer language; if unclear use "en".
 - handoff must be actionable for a human operator.
+- Lines tagged [internal] are PRIVATE operator notes the customer never sees. Use them as
+  context to enrich facts, pendingItems, risks, decisions, and nextBestAction/handoff. NEVER
+  copy their text into draft.content (the customer reads draft.content) and never quote them
+  to the customer.
 - Output compact valid JSON only.`
 
   // DeepSeek uses NEUTRAL_TASK_SYSTEM_PROMPT (engines/ai/deepseek.ts) — no Spanish-forced layer under this prompt.

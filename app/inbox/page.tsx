@@ -1228,7 +1228,13 @@ function InboxPageContent() {
         id: message.id,
         authorLabel,
         roleLabel: formatRoleLabel(message.role),
-        metaLabel: isInternal ? "Internal note" : isOutbound ? "Outbound" : isInbound ? "Inbound" : "System",
+        metaLabel: isInternal
+          ? "Internal note · Not sent to customer"
+          : isOutbound
+            ? "Outbound"
+            : isInbound
+              ? "Inbound"
+              : "System",
         timestampLabel: formatRelativeDate(message.createdAt, uiLocale),
         content: message.content,
         tone,

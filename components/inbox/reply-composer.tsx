@@ -582,6 +582,16 @@ export function ReplyComposer({
           </p>
         ) : null}
 
+        {/* ── Internal note banner (privacy reminder) ── */}
+        {replyIsInternal && (
+          <div className="flex items-center gap-1.5 rounded border border-[var(--inbox-warning)]/35 bg-[var(--inbox-warning)]/10 px-2 py-1">
+            <StickyNote className="h-3 w-3 shrink-0 text-[var(--inbox-warning)]" aria-hidden />
+            <span className="text-[10px] font-medium leading-tight text-[var(--inbox-warning)]">
+              Internal note — private to your team. Not sent to the customer.
+            </span>
+          </div>
+        )}
+
         {/* ── Email metadata (franja mínima) ── */}
         {showEmailOptions && (
           <div className="space-y-0.5 rounded border border-[var(--inbox-border)]/20 bg-transparent px-1.5 py-0.5">
@@ -819,7 +829,7 @@ export function ReplyComposer({
               <button
                 type="button"
                 onClick={() => {
-                  onReplyModeChange(true)
+                  onReplyModeChange(!replyIsInternal)
                   focusComposerWithScroll()
                 }}
                 className={cn(
@@ -828,8 +838,9 @@ export function ReplyComposer({
                     ? "relative bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)] shadow-[0_0_0_1px_var(--inbox-warning),0_0_10px_0_rgba(242,198,109,0.2)] hover:bg-[var(--inbox-warning)]/18 before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--inbox-warning)]"
                     : SHELL_TOOLBAR_ICON,
                 )}
-                title="Internal note"
-                aria-label="Internal note"
+                title={replyIsInternal ? "Switch back to reply" : "Internal note"}
+                aria-label={replyIsInternal ? "Switch back to reply" : "Internal note"}
+                aria-pressed={replyIsInternal}
               >
                 <StickyNote className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
