@@ -61,6 +61,21 @@ interface ConversationListProps {
   onChannelChange: (value: string) => void
   assignmentFilter: AssignmentFilter
   onAssignmentFilterChange: (value: AssignmentFilter) => void
+  /**
+   * Work / intent filter — orthogonal to conversation status. "open" hides conversations whose
+   * latest inbound message is marked done in `Message.metadata.intentStatus`; "done" only shows
+   * those. Storage is shared with the More menu's "Mark as done" so we never split state across
+   * two systems.
+   */
+  intentStatusFilter?: "all" | "open" | "done"
+  onIntentStatusFilterChange?: (value: "all" | "open" | "done") => void
+  /**
+   * Sender / remitente filter. Options are derived from the loaded list to keep this MVP. When
+   * `senderOptions` is empty we hide the select instead of showing an empty dropdown.
+   */
+  senderFilter?: string
+  senderOptions?: Array<{ value: string; label: string }>
+  onSenderFilterChange?: (value: string) => void
   stats: {
     total: number
     leads: number
@@ -101,6 +116,11 @@ export function ConversationList({
   channel,
   channelOptions,
   onChannelChange,
+  intentStatusFilter = "all",
+  onIntentStatusFilterChange,
+  senderFilter = "all",
+  senderOptions = [],
+  onSenderFilterChange,
   assignmentFilter,
   onAssignmentFilterChange,
   stats,
@@ -216,6 +236,58 @@ export function ConversationList({
             </SelectContent>
           </Select>
         </div>
+
+        {/*
+         * Second row — Work / intent status (left) + Sender (right).
+         * The sender select is hidden when the loaded list yields no distinct contacts to keep
+         * the bar compact; the Work select always renders so operators can flip Open/Done.
+         */}
+        {(onIntentStatusFilterChange || (onSenderFilterChange && senderOptions.length > 0)) && (
+          <div className="grid grid-cols-2 gap-2">
+            {onIntentStatusFilterChange ? (
+              <Select value={intentStatusFilter} onValueChange={(v) => onIntentStatusFilterChange(v as "all" | "open" | "done")}>
+                <SelectTrigger
+                  className={cn(
+                    INBOX_FILTER_TRIGGER_BASE,
+                    intentStatusFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                  )}
+                  aria-label="Work filter"
+                  title="Work / intent filter"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Work: All</SelectItem>
+                  <SelectItem value="open">Work: Open</SelectItem>
+                  <SelectItem value="done">Work: Done</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : <span aria-hidden />}
+
+            {onSenderFilterChange && senderOptions.length > 0 ? (
+              <Select value={senderFilter} onValueChange={onSenderFilterChange}>
+                <SelectTrigger
+                  className={cn(
+                    INBOX_FILTER_TRIGGER_BASE,
+                    senderFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                  )}
+                  aria-label="Sender filter"
+                  title="Filter by sender / remitente"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All senders</SelectItem>
+                  {senderOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : <span aria-hidden />}
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-1">
           {([

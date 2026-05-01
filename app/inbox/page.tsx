@@ -198,6 +198,59 @@ const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsa
 const DESKTOP_INBOX_GRID =
   "xl:grid xl:grid-cols-[minmax(288px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
 
+/**
+ * Infer the intent status of a conversation as a whole, based on the most recent inbound
+ * (non-internal) message's `metadata.intentStatus`. Returns "done" when explicitly marked,
+ * "open" otherwise (including "no metadata" / "no inbound" — the default before any operator
+ * action is open work).
+ *
+ * The helper is shared by the Work filter and could be reused server-side later. We read
+ * messages defensively because the list endpoint returns `messages` newest-first (top 5).
+ */
+interface IntentStatusMessage {
+  direction?: string | null
+  isInternal?: boolean | null
+  metadata?: string | Record<string, unknown> | null
+  createdAt?: string | Date | null
+}
+
+function inferConversationIntentStatus(
+  conversation: { messages?: ReadonlyArray<IntentStatusMessage> | null },
+): "open" | "done" {
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : []
+  if (messages.length === 0) return "open"
+
+  /** The list endpoint returns messages ordered by createdAt desc, so the first inbound match
+   *  is also the latest one. We tolerate either ordering by tie-breaking on createdAt when
+   *  available — defensive in case some caller passes ascending arrays. */
+  let candidate: IntentStatusMessage | null = null
+  let candidateTs = -Infinity
+  for (const m of messages) {
+    if (m.direction !== "inbound") continue
+    if (m.isInternal === true) continue
+    const ts = m.createdAt ? new Date(m.createdAt as string | Date).getTime() : 0
+    if (ts > candidateTs) {
+      candidate = m
+      candidateTs = ts
+    }
+  }
+  if (!candidate) return "open"
+
+  /** metadata can arrive either pre-parsed (Record) or raw (string) — `parseConversationJsonFields`
+   *  decides per call site. We accept both shapes so the helper is reusable. */
+  const meta = candidate.metadata
+  if (meta && typeof meta === "object") {
+    return (meta as { intentStatus?: unknown }).intentStatus === "done" ? "done" : "open"
+  }
+  if (typeof meta !== "string" || meta.length === 0) return "open"
+  try {
+    const parsed = JSON.parse(meta) as { intentStatus?: unknown } | null
+    return parsed && parsed.intentStatus === "done" ? "done" : "open"
+  } catch {
+    return "open"
+  }
+}
+
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
     case "archived": return { status: "archived" }
@@ -245,6 +298,21 @@ function InboxPageContent() {
   const [replySending, setReplySending] = useState(false)
   const [replyStatus, setReplyStatus] = useState<string | null>(null)
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all")
+  /**
+   * Work / intent filter (Phase 4 — companion of scope-aware More actions). Reads
+   * Message.metadata.intentStatus persisted by the "Mark as done" action; we don't store any
+   * second source of truth. Filtering runs client-side on the loaded page (the list endpoint
+   * already returns the most recent messages per conversation, which is enough to evaluate
+   * the latest inbound's intent status). A future phase can move this server-side without
+   * changing the UI contract.
+   */
+  const [intentStatusFilter, setIntentStatusFilter] = useState<"all" | "open" | "done">("all")
+  /**
+   * Sender / remitente filter. Value is `"all"` or `contact.id`. Options are derived from the
+   * loaded list — when the loaded page has no contacts (empty inbox), the select is hidden
+   * by the ConversationList component to keep the bar uncrowded.
+   */
+  const [senderFilter, setSenderFilter] = useState<string>("all")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
@@ -417,6 +485,50 @@ function InboxPageContent() {
     if (conversationsForSidebar.length > 0) return conversationsForSidebar
     return conversations
   }, [conversations, conversationsForSidebar])
+
+  /**
+   * Sender options for the Sender / remitente filter — derived from the *currently loaded*
+   * list (no extra fetch). We dedupe by `contact.id` and prefer name → email → "Unknown" for
+   * the visible label. Hidden when the list yields none, so the filter bar stays compact.
+   */
+  const senderOptions = useMemo(() => {
+    const seen = new Map<string, { value: string; label: string; sortKey: string }>()
+    for (const c of conversations) {
+      const contact = (c as { contact?: { id?: string | null; nombre?: string | null; email?: string | null } | null }).contact
+      const id = contact?.id ? String(contact.id) : null
+      if (!id) continue
+      if (seen.has(id)) continue
+      const name = typeof contact?.nombre === "string" && contact.nombre.trim() ? contact.nombre.trim() : null
+      const email = typeof contact?.email === "string" && contact.email.trim() ? contact.email.trim() : null
+      const label = name ?? email ?? "Unknown sender"
+      seen.set(id, { value: id, label, sortKey: label.toLowerCase() })
+    }
+    return [...seen.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ value, label }) => ({ value, label }))
+  }, [conversations])
+
+  /**
+   * Apply the client-side Work + Sender filters on top of the existing server-side filters.
+   * Both are intentionally client-side: the Work filter depends on `Message.metadata.intentStatus`
+   * (a JSON sub-field that SQLite cannot index efficiently), and Sender filtering is trivially
+   * cheap on the loaded page. A future phase can lift either to the server without breaking
+   * this UI contract.
+   */
+  const conversationsAfterUserFilters = useMemo(() => {
+    if (intentStatusFilter === "all" && senderFilter === "all") return conversationsForList
+
+    return conversationsForList.filter((c) => {
+      if (senderFilter !== "all") {
+        const contactId = (c as { contact?: { id?: string | null } | null }).contact?.id ?? null
+        if (contactId !== senderFilter) return false
+      }
+      if (intentStatusFilter !== "all") {
+        const status = inferConversationIntentStatus(c)
+        if (intentStatusFilter === "done" && status !== "done") return false
+        if (intentStatusFilter === "open" && status === "done") return false
+      }
+      return true
+    })
+  }, [conversationsForList, intentStatusFilter, senderFilter])
 
   /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
   const inboxTerminalRescueActive = useMemo(() => {
@@ -1175,7 +1287,7 @@ function InboxPageContent() {
       : members
 
   const conversationItems = useMemo(() =>
-    conversationsForList.map((conversation) => {
+    conversationsAfterUserFilters.map((conversation) => {
       try {
         const contact = conversation.contact
         const primaryTitle =
@@ -1233,7 +1345,7 @@ function InboxPageContent() {
         }
       }
     }),
-    [conversationsForList, uiLocale],
+    [conversationsAfterUserFilters, uiLocale],
   )
 
   const threadMessages =
@@ -1714,9 +1826,15 @@ function InboxPageContent() {
     }
   }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout])
 
+  /**
+   * `selectedIndex` and `navigateConversation` work over the *visible* list (after Work +
+   * Sender filters) so j/k key navigation only walks through items the operator can actually
+   * see. Auto-selection on load still uses the wider `conversationsForList` so applying a
+   * filter never silently drops the open conversation.
+   */
   const selectedIndex = useMemo(
-    () => conversationsForList.findIndex((item) => item.id === activeSelectedId),
-    [activeSelectedId, conversationsForList],
+    () => conversationsAfterUserFilters.findIndex((item) => item.id === activeSelectedId),
+    [activeSelectedId, conversationsAfterUserFilters],
   )
 
   const isMobileInboxViewport = useCallback(() => {
@@ -1954,13 +2072,13 @@ function InboxPageContent() {
   }, [refetch])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
-    if (!activeSelectedId || conversationsForList.length === 0 || selectedIndex < 0) return
+    if (!activeSelectedId || conversationsAfterUserFilters.length === 0 || selectedIndex < 0) return
 
     const nextIndex = selectedIndex + offset
-    if (nextIndex < 0 || nextIndex >= conversationsForList.length) return
+    if (nextIndex < 0 || nextIndex >= conversationsAfterUserFilters.length) return
 
-    setSelectedId(conversationsForList[nextIndex].id)
-  }, [activeSelectedId, conversationsForList, selectedIndex])
+    setSelectedId(conversationsAfterUserFilters[nextIndex].id)
+  }, [activeSelectedId, conversationsAfterUserFilters, selectedIndex])
 
   const handleInboxEscape = useCallback(() => {
     if (contextSheetOpen) {
@@ -2261,6 +2379,11 @@ function InboxPageContent() {
                 onChannelChange={setChannel}
                 assignmentFilter={assignmentFilter}
                 onAssignmentFilterChange={setAssignmentFilter}
+                intentStatusFilter={intentStatusFilter}
+                onIntentStatusFilterChange={setIntentStatusFilter}
+                senderFilter={senderFilter}
+                senderOptions={senderOptions}
+                onSenderFilterChange={setSenderFilter}
                 stats={stats}
                 onSelect={handleSelectConversation}
                 hasMore={hasMore}
