@@ -587,14 +587,35 @@ export function ReplyComposer({
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
       <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
-        {channel === "email" && signedInEmail?.trim() ? (
-          <p className="px-1.5 pb-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-            Signed in as{" "}
-            <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
-              {signedInEmail}
-            </span>
-          </p>
-        ) : null}
+        {/*
+         * Composer header: signed-in account (when present) on the left, dynamic channel badge
+         * on the right. The badge replaces the channelLabel that used to live inside the toolbar
+         * row, freeing horizontal space and keeping channel info contextual rather than as a
+         * tool. Always rendered when we have at least one piece of metadata (account or channel).
+         */}
+        {(signedInEmail?.trim() || channel) && (
+          <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
+            {signedInEmail?.trim() ? (
+              <p className="min-w-0 truncate text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                Signed in as{" "}
+                <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
+                  {signedInEmail}
+                </span>
+              </p>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            {channel ? (
+              <span
+                className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+                title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+              >
+                {formatChannelBadge(channel, channelLabel)}
+              </span>
+            ) : null}
+          </div>
+        )}
 
         {/* ── Internal note banner (privacy reminder) ── */}
         {replyIsInternal && (
@@ -670,7 +691,7 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Textarea ── */}
+        {/* ── Textarea + inline Send (chat-style) ── */}
         <div className="relative">
           <Textarea
             ref={composerTextareaRef}
@@ -683,7 +704,9 @@ export function ReplyComposer({
             }
             rows={1}
             className={cn(
-              "[field-sizing:fixed] min-h-[52px] max-h-[220px] resize-none overflow-y-auto rounded-md border border-[var(--inbox-border)]/28 bg-[var(--inbox-composer-input)]/75 px-2 py-1.5 text-[12px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/85 transition-colors duration-150 focus-visible:border-[var(--inbox-accent)]/70 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/18",
+              /* `pr-12` reserva espacio a la derecha para el botón Send (`+ Undo` apilado a su izquierda); */
+              /* el textarea sigue creciendo verticalmente sin chocar con el botón. */
+              "[field-sizing:fixed] min-h-[52px] max-h-[220px] resize-none overflow-y-auto rounded-md border border-[var(--inbox-border)]/28 bg-[var(--inbox-composer-input)]/75 px-2 py-1.5 pr-12 text-[12px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/85 transition-colors duration-150 focus-visible:border-[var(--inbox-accent)]/70 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/18",
               replyIsInternal && "border-[var(--inbox-warning)]/40 focus-visible:border-[var(--inbox-warning)] focus-visible:ring-[var(--inbox-warning)]/20",
               speech.listening && voiceMode === "dictate" && "border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/50 ring-2 ring-[var(--inbox-voice-dictate-border)]/30",
               speech.listening && voiceMode === "compose" && "border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/50 ring-2 ring-[var(--inbox-voice-compose-border)]/30",
@@ -694,6 +717,46 @@ export function ReplyComposer({
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
             }}
           />
+          {/*
+           * Inline Send (chat-style): pegado al borde inferior derecho del textarea, similar al
+           * patrón ChatGPT/WhatsApp. El botón Undo (cuando hay AI change reciente) se apila a su
+           * izquierda. Conserva todos los estados — disabled/loading/internal — del botón antiguo.
+           */}
+          <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-end gap-1">
+            {contentBeforeAssist !== null && (
+              <button
+                type="button"
+                onClick={handleUndoAssist}
+                className="pointer-events-auto rounded-[8px] p-1.5 text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--app-sidebar-surface)]/60"
+                title="Undo last AI change"
+                aria-label="Undo last AI change"
+              >
+                <RotateCcw className="h-4 w-4 shrink-0" strokeWidth={2} />
+              </button>
+            )}
+            <Button
+              type="button"
+              size="icon-sm"
+              onClick={() => {
+                closeComposerOverlays()
+                handleSend()
+              }}
+              disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
+              title={`${sendActionLabel} · Ctrl+Enter or ⌘+Enter`}
+              aria-label={sendActionLabel}
+              className={cn(
+                "pointer-events-auto shrink-0 rounded-md shadow-sm",
+                replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
+              )}
+              variant={replyIsInternal ? undefined : "accent"}
+            >
+              {replySending ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2} />
+              ) : (
+                <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
+              )}
+            </Button>
+          </div>
             {isProcessing && (
             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-[var(--inbox-surface)]/60 backdrop-blur-sm">
               <div className="flex items-center gap-2 rounded-lg border border-[var(--inbox-border)]/50 bg-[var(--inbox-surface)] px-3 py-2 text-sm shadow-sm">
@@ -753,8 +816,8 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Barra de iconos + envío (solo icono a la derecha) ── */}
-        <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
+        {/* ── Barra de iconos (solo tools — Send vive ahora dentro del textarea) ── */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
           <div className="flex min-w-0 flex-wrap items-center gap-y-1">
             {/* Acting on — first toolbar control, drives scope used by the rest of the toolbar */}
             <button
@@ -858,13 +921,6 @@ export function ReplyComposer({
                 <StickyNote className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             </div>
-            <span
-              className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--inbox-divider)] sm:block"
-              aria-hidden="true"
-            />
-            <span className="hidden max-w-[7rem] truncate text-[10px] text-[var(--inbox-chat-text-secondary)] sm:inline md:max-w-[10rem]">
-              {channelLabel}
-            </span>
             <span
               className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--inbox-divider)] sm:block"
               aria-hidden="true"
@@ -988,43 +1044,6 @@ export function ReplyComposer({
             ) : null}
             </div>
 
-          </div>
-
-          <div className="flex shrink-0 items-center gap-0.5">
-            {contentBeforeAssist !== null && (
-              <button
-                type="button"
-                onClick={handleUndoAssist}
-                className="rounded-[8px] p-1.5 text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--app-sidebar-surface)]/60"
-                title="Undo last AI change"
-                aria-label="Undo last AI change"
-              >
-                <RotateCcw className="h-4 w-4 shrink-0" strokeWidth={2} />
-              </button>
-            )}
-
-            <Button
-              type="button"
-              size="icon-sm"
-              onClick={() => {
-                closeComposerOverlays()
-                handleSend()
-              }}
-              disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
-              title={`${sendActionLabel} · Ctrl+Enter or ⌘+Enter`}
-              aria-label={sendActionLabel}
-              className={cn(
-                "shrink-0 rounded-md",
-                replyIsInternal && "bg-[var(--inbox-warning)] text-white hover:bg-[var(--inbox-warning)]/90",
-              )}
-              variant={replyIsInternal ? undefined : "accent"}
-            >
-              {replySending ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2} />
-              ) : (
-                <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
-              )}
-            </Button>
           </div>
         </div>
 
@@ -1676,6 +1695,39 @@ export function ReplyComposer({
       </div>
     </div>
   )
+}
+
+/**
+ * Formatea el canal de la conversación para el badge del header del composer. Prioriza un map
+ * curado para los canales conocidos (consistencia tipográfica: "Web chat", no "Web_chat"), cae
+ * al `channelLabel` que envía el parent, y como último recurso capitaliza el slug crudo.
+ */
+function formatChannelBadge(channel: string, channelLabel: string): string {
+  const normalized = (channel || "").trim().toLowerCase()
+  const map: Record<string, string> = {
+    email: "Email",
+    whatsapp: "WhatsApp",
+    web_chat: "Web chat",
+    web: "Web chat",
+    webchat: "Web chat",
+    portal: "Portal",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    messenger: "Messenger",
+    sms: "SMS",
+    voice: "Voice",
+    telegram: "Telegram",
+  }
+  if (map[normalized]) return map[normalized]
+  const fromLabel = channelLabel?.trim()
+  if (fromLabel) return fromLabel
+  if (!normalized) return "Channel"
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 function getComposerConfig({
