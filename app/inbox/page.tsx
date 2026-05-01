@@ -5,7 +5,11 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
-import { ContextPanel, type SelectedMessageInfo } from "@/components/inbox/context-panel"
+import {
+  ContextPanel,
+  type SelectedMessageInfo,
+  type CreateCalendarEventInput,
+} from "@/components/inbox/context-panel"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
@@ -706,6 +710,73 @@ function InboxPageContent() {
       trash: conversations.filter((conv) => conv.status === "trashed").length,
     }
   }, [conversations, serverTotal, serverLeads, serverUrgent])
+
+  /**
+   * Phase 2 — confirm-and-create internal Evento from a Smart Inbox `create_event` action.
+   *
+   * Reuses the existing approve+execute pipeline so we don't proliferate inbox-specific
+   * endpoints. The override payload is sent under `event` so `executeConversationAction`
+   * can merge it on top of the persisted EventHint.
+   *
+   * Resolves on success / rejects with a human-readable message that the dialog displays
+   * inline. We also refetch the conversation detail so the executed action's status badge
+   * updates and the Smart action CTA hides itself via the `isCreateEventActionExecuted`
+   * guard.
+   */
+  const handleCreateCalendarEvent = useCallback(
+    async (actionId: string, payload: CreateCalendarEventInput) => {
+      if (!selectedId) {
+        throw new Error("No conversation selected")
+      }
+
+      setPendingActionId(actionId)
+      setActionState("Creating event…")
+
+      try {
+        const approveRes = await fetch(
+          `/api/inbox/conversations/${selectedId}/actions/${actionId}/approve`,
+          { method: "POST" },
+        )
+        const approveJson = await approveRes.json()
+        /**
+         * The approve route refuses to re-approve `executed`/`failed` actions. For an action
+         * that is already executed (idempotent re-click), we still want to surface the
+         * existing event — `executeConversationAction` short-circuits in that case — so we
+         * skip the approve guard's error and fall through to execute.
+         */
+        if (!approveJson.success) {
+          const reason: string = approveJson.error?.message ?? ""
+          const looksLikeAlreadyAdvanced = /no puede aprobarse/i.test(reason)
+          if (!looksLikeAlreadyAdvanced) {
+            throw new Error(reason || "Could not approve calendar action")
+          }
+        }
+
+        const execRes = await fetch(
+          `/api/inbox/conversations/${selectedId}/actions/${actionId}/execute`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ event: payload }),
+          },
+        )
+        const execJson = await execRes.json()
+        if (!execJson.success) {
+          throw new Error(execJson.error?.message || "Could not create event")
+        }
+
+        const alreadyExecuted = (execJson.data?.results as { alreadyExecuted?: boolean } | undefined)
+          ?.alreadyExecuted === true
+        setActionState(alreadyExecuted ? "Event already created" : "Event created")
+        setRefreshKey((value) => value + 1)
+        refetch()
+        refetchDetail()
+      } finally {
+        setPendingActionId(null)
+      }
+    },
+    [selectedId, refetch, refetchDetail],
+  )
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
@@ -1953,6 +2024,7 @@ function InboxPageContent() {
       hasSuggestedDraft={Boolean(suggestedDraftForPanel)}
       onUseSuggestedDraft={handleUseSuggestedDraft}
       onInsertReply={handleInsertReply}
+      onCreateCalendarEvent={handleCreateCalendarEvent}
     />
   ) : null
 

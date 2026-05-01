@@ -152,6 +152,17 @@ interface ContextPanelProps {
    * sobre la respuesta. El page.tsx llena el composer; sin este callback el botón se oculta.
    */
   onInsertReply?: (text: string) => void
+  /**
+   * Phase 2 — invoked when the operator confirms the calendar preview. The page is responsible
+   * for calling the action approve+execute pipeline against `selectedMessageInfo.eventHint.actionId`
+   * with the `{ event: payload }` override. Resolving = success (panel closes the dialog and
+   * triggers a refetch); rejecting surfaces the error message inside the dialog.
+   * If omitted, the dialog renders in preview-only mode (submit disabled).
+   */
+  onCreateCalendarEvent?: (
+    actionId: string,
+    payload: CreateCalendarEventInput,
+  ) => Promise<void>
 }
 
 export function ContextPanel({
@@ -170,10 +181,12 @@ export function ContextPanel({
   hasSuggestedDraft = false,
   onUseSuggestedDraft,
   onInsertReply,
+  onCreateCalendarEvent,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
-  /** Phase 1 calendar preview dialog. Local state — Phase 2 will replace the no-op submit. */
+  /** Phase 1 preview / Phase 2 confirm. Local state owns the dialog lifecycle; the page owns
+   *  the network call via `onCreateCalendarEvent` and the post-success refetch. */
   const [calendarPreviewOpen, setCalendarPreviewOpen] = useState(false)
   const isMessageMode = Boolean(selectedMessageId && selectedMessageInfo)
 
@@ -816,12 +829,15 @@ export function ContextPanel({
               />
             ) : null}
             {/*
-              Phase 1: Add to calendar appears only when the AI persisted a `create_event`
-              action anchored to the selected inbound message. Click opens a local preview;
-              creation is intentionally a no-op until Phase 2.
+              Phase 1+2: Add to calendar appears only when the AI persisted a `create_event`
+              action anchored to the selected inbound message AND that action has not yet been
+              executed. Once executed, the resultId is on the action so re-clicking would just
+              short-circuit through the idempotent backend path; we hide the CTA instead and
+              let the existing actions list show the executed status badge.
             */}
             {selectedMessageInfo?.eventHint
-              && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay) ? (
+              && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
+              && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions) ? (
               <ActionButton
                 label="Add to calendar"
                 icon={CalendarPlus}
@@ -836,14 +852,28 @@ export function ContextPanel({
       )}
 
       {/*
-        Phase 1 calendar preview dialog — pre-fills fields from the structured EventHint
-        produced by Fanny. The submit button is intentionally disabled and labelled "Create
-        event coming next" so we don't accidentally create Eventos in this phase.
+        Phase 2 calendar preview/confirm dialog — pre-fills fields from the structured
+        EventHint produced by Fanny. When `onCreateCalendarEvent` is provided AND we have a
+        backing actionId, submit is enabled and creates a real Evento. When the action is
+        missing or already executed, the dialog falls back to preview-only.
       */}
       {calendarPreviewOpen && selectedMessageInfo?.eventHint ? (
         <CalendarEventPreviewDialog
           hint={selectedMessageInfo.eventHint}
           onClose={() => setCalendarPreviewOpen(false)}
+          onCreate={
+            onCreateCalendarEvent && selectedMessageInfo.eventHint.actionId
+              ? async (payload) => {
+                  await onCreateCalendarEvent(
+                    selectedMessageInfo.eventHint!.actionId!,
+                    payload,
+                  )
+                  /** Close on success — the page refetches actions, so re-opening the
+                   *  panel would just hide the now-executed CTA anyway. */
+                  setCalendarPreviewOpen(false)
+                }
+              : undefined
+          }
         />
       ) : null}
 
@@ -1058,6 +1088,22 @@ function getStringValue(value: Record<string, unknown> | null | undefined, keys:
  * pendingItems, risks). El backend ya normaliza, pero si llegara `null`, un string suelto, o
  * cualquier otro shape inesperado, devolvemos `[]` para que la UI simplemente no renderice nada.
  */
+/**
+ * Tells whether the operator should still see the "Add to calendar" CTA. We hide it once the
+ * matching `create_event` ConversationAction is in `executed` status (Evento already created),
+ * to avoid implying the creation is still pending. Other states (suggested/approved/failed)
+ * keep the CTA visible so the operator can confirm or retry.
+ */
+function isCreateEventActionExecuted(
+  info: SelectedMessageInfo | null,
+  actions: ActionItem[] | undefined,
+): boolean {
+  if (!info?.eventHint?.actionId) return false
+  const actionId = info.eventHint.actionId
+  const match = (actions ?? []).find((a) => a.id === actionId)
+  return match?.status === "executed"
+}
+
 function safeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   const out: string[] = []
@@ -1101,9 +1147,24 @@ function mapUrgency(urgency?: string | null) {
 }
 
 /**
- * Phase 1 calendar preview dialog. Renders an editable form pre-filled from the AI-extracted
- * EventHint. The submit button is disabled and labelled "Create event coming next" because
- * Evento creation is intentionally out of scope for Phase 1; nothing here calls the backend.
+ * Editable form payload built by the dialog and handed back to the page when the operator
+ * confirms creation. ISO strings are produced by combining date + time inputs in the user's
+ * local timezone (the browser does the conversion for us via `new Date(...)`).
+ */
+export interface CreateCalendarEventInput {
+  title: string
+  startISO: string
+  endISO: string | null
+  allDay: boolean
+  location: string | null
+  description: string | null
+}
+
+/**
+ * Phase 2 calendar preview dialog. Renders an editable form pre-filled from the AI-extracted
+ * EventHint and, when the parent provides `onCreate`, lets the operator confirm creation.
+ * If `onCreate` is omitted the submit button stays disabled (preview-only fallback) so the
+ * dialog also works for messages where no backing ConversationAction exists.
  *
  * The component is self-contained (no portal/Radix Dialog) to avoid pulling new deps; it
  * renders an absolutely-positioned overlay over the panel and traps Esc to close.
@@ -1111,9 +1172,13 @@ function mapUrgency(urgency?: string | null) {
 function CalendarEventPreviewDialog({
   hint,
   onClose,
+  onCreate,
 }: {
   hint: SelectedEventHint
   onClose: () => void
+  /** When provided, submit is enabled and calls this with the operator-confirmed payload.
+   *  Returning a rejected promise surfaces the error inside the dialog without closing it. */
+  onCreate?: (payload: CreateCalendarEventInput) => Promise<void>
 }) {
   const initial = useMemo(() => splitEventHint(hint), [hint])
   const [title, setTitle] = useState(initial.title)
@@ -1123,24 +1188,57 @@ function CalendarEventPreviewDialog({
   const [allDay, setAllDay] = useState(initial.allDay)
   const [location, setLocation] = useState(initial.location)
   const [description, setDescription] = useState(initial.description)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  /** Esc to dismiss; matches the rest of the inbox keyboard model. */
+  /** Esc to dismiss; matches the rest of the inbox keyboard model. Disabled while submitting
+   *  so a stray keypress can't kill an in-flight POST mid-network. */
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !submitting) {
         event.preventDefault()
         onClose()
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
+  }, [onClose, submitting])
 
-  const missingDate = !date.trim()
   const missingTitle = !title.trim()
+  /** allDay events still need a date; we only relax the time requirement. */
+  const missingDate = !date.trim()
+  /** When NOT all-day we also need a real time component to build a valid startISO. */
+  const missingTime = !allDay && !time.trim()
   const missingFields: string[] = []
   if (missingTitle) missingFields.push("Title")
   if (missingDate) missingFields.push("Date")
+  if (missingTime) missingFields.push("Time")
+  const isValid = missingFields.length === 0
+  const canSubmit = Boolean(onCreate) && isValid && !submitting
+
+  async function handleCreate() {
+    if (!onCreate || !isValid || submitting) return
+    setSubmitError(null)
+    setSubmitting(true)
+    try {
+      const payload = buildCreateEventInput({
+        title: title.trim(),
+        date: date.trim(),
+        time: allDay ? "" : time.trim(),
+        durationMinutes: allDay ? null : Number.parseInt(duration, 10),
+        allDay,
+        location: location.trim() || null,
+        description: description.trim() || null,
+      })
+      await onCreate(payload)
+      /** Parent decides whether to close on success — we don't auto-close here so the
+       *  parent can show a "saved" state momentarily if it wants. */
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Could not create event")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div
@@ -1156,17 +1254,20 @@ function CalendarEventPreviewDialog({
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-              Add to calendar — preview
+              Add to calendar
             </p>
             <p className="mt-0.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-              Review the details extracted from this message. No event is created yet.
+              {onCreate
+                ? "Review the details extracted from this message before creating the event."
+                : "Preview only — calendar action is missing."}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             aria-label="Close"
-            className="rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/10 hover:text-[var(--inbox-intelligence-text)]"
+            className="rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/10 hover:text-[var(--inbox-intelligence-text)] disabled:opacity-50"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -1259,28 +1360,90 @@ function CalendarEventPreviewDialog({
           </p>
         ) : null}
 
+        {!onCreate ? (
+          <p className="mt-2 text-[11px] text-amber-400/80" role="status">
+            Calendar action is missing. Please refresh and try again.
+          </p>
+        ) : null}
+
+        {submitError ? (
+          <p className="mt-2 text-[11px] text-rose-400" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+
         <footer className="mt-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="text-[11px] font-medium text-[var(--inbox-intelligence-text-secondary)] hover:text-[var(--inbox-intelligence-text)]"
+            disabled={submitting}
+            className="text-[11px] font-medium text-[var(--inbox-intelligence-text-secondary)] hover:text-[var(--inbox-intelligence-text)] disabled:opacity-50"
           >
-            Close
+            Cancel
           </button>
-          {/* Phase 1: creation is intentionally disabled — Phase 2 will wire this to /api/calendario. */}
           <button
             type="button"
-            disabled
-            title="Phase 2 will create the event from this preview."
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-intelligence-border)] bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-[var(--inbox-intelligence-text-secondary)] opacity-70"
+            onClick={handleCreate}
+            disabled={!canSubmit}
+            title={
+              !onCreate
+                ? "Calendar action is missing. Please refresh and try again."
+                : !isValid
+                  ? `Missing: ${missingFields.join(", ")}`
+                  : submitting
+                    ? "Creating event…"
+                    : "Create the event in the internal 7F calendar"
+            }
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors",
+              canSubmit
+                ? "border border-[var(--inbox-accent)] bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent)]/25"
+                : "border border-[var(--inbox-intelligence-border)] bg-black/35 text-[var(--inbox-intelligence-text-secondary)] opacity-70",
+            )}
           >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Create event coming next
+            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
+            {submitting ? "Creating…" : "Create event"}
           </button>
         </footer>
       </div>
     </div>
   )
+}
+
+/**
+ * Build the API-bound CreateCalendarEventInput from the dialog's form fields. We rely on
+ * the browser to interpret `YYYY-MM-DDTHH:mm` in the user's local timezone, then re-emit
+ * as ISO so the backend stores a consistent UTC instant. For all-day events we anchor at
+ * local midnight; durationMinutes is honored only for timed events.
+ */
+function buildCreateEventInput(input: {
+  title: string
+  date: string
+  time: string
+  durationMinutes: number | null
+  allDay: boolean
+  location: string | null
+  description: string | null
+}): CreateCalendarEventInput {
+  const dateForStart = input.allDay ? `${input.date}T00:00` : `${input.date}T${input.time}`
+  const start = new Date(dateForStart)
+  if (Number.isNaN(start.getTime())) {
+    throw new Error("Invalid date or time")
+  }
+
+  let end: Date | null = null
+  if (!input.allDay && input.durationMinutes && input.durationMinutes > 0) {
+    end = new Date(start.getTime() + input.durationMinutes * 60_000)
+  }
+
+  return {
+    title: input.title,
+    startISO: start.toISOString(),
+    endISO: end ? end.toISOString() : null,
+    allDay: input.allDay,
+    location: input.location,
+    description: input.description,
+  }
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

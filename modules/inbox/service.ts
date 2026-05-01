@@ -12,6 +12,8 @@ import {
   persistShortIntentForMessage,
   shouldPersistMessageShortIntent,
 } from "./message-short-intent"
+import * as calendarioService from "@modules/calendario/service"
+import { createEventoSchema } from "@modules/calendario/validation"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -834,6 +836,25 @@ export async function executeConversationAction(input: {
 
   if (!action) return null
 
+  /**
+   * Idempotency for `create_event`: re-clicking after a successful run must NOT create a
+   * duplicate Evento. If the action is already executed and points at a real evento in the
+   * `calendario` module, we resolve and return that record verbatim instead of bailing on
+   * the "must be approved" guard below.
+   */
+  if (
+    action.type === "create_event"
+    && action.status === "executed"
+    && action.resultId
+    && action.resultModule === "calendario"
+  ) {
+    const existingEvento = await calendarioService.getById(action.resultId, input.workspaceId)
+    return {
+      action,
+      results: { evento: existingEvento, alreadyExecuted: true as const },
+    }
+  }
+
   if (action.status !== "approved") {
     throw new Error("La acción debe estar aprobada antes de ejecutarse")
   }
@@ -935,6 +956,20 @@ export async function executeConversationAction(input: {
       }
     }
 
+    if (action.type === "create_event") {
+      const result = await executeCreateEventAction({
+        workspaceId: input.workspaceId,
+        conversationId: input.conversationId,
+        action,
+        executedBy: input.executedBy,
+        payload: input.payload,
+      })
+      return {
+        action: await db.conversationAction.findFirst({ where: { id: action.id } }),
+        results: result,
+      }
+    }
+
     throw new Error("Tipo de acción no soportado")
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error ejecutando acción"
@@ -949,6 +984,146 @@ export async function executeConversationAction(input: {
     }).catch(() => null)
     throw error
   }
+}
+
+/**
+ * Phase 2 — Internal calendar event creation from a `create_event` ConversationAction.
+ *
+ * Reads the EventHint persisted in `action.data` (with backward-compat for both shapes:
+ * `data = eventHint` and `data = { data: eventHint, ...meta }`), merges optional editable
+ * overrides from the operator's preview dialog (`payload.event`), validates against the
+ * calendar module's Zod schema, and creates a local Evento via the existing service.
+ *
+ * Inheritance: clienteId/proyectoId are pulled from the conversation when available so the
+ * calendar item lands in the right context. Location has no dedicated column on Evento, so
+ * we prefix it inside `descripcion` ("Location: …") and append a "Created from Smart Inbox"
+ * footer for traceability.
+ *
+ * The action is updated atomically alongside Evento creation so the UI sees a consistent
+ * state (executed + resultId). Failure cases bubble the validation error up to the caller
+ * so the dialog can show it without putting the action into "failed".
+ */
+async function executeCreateEventAction(input: {
+  workspaceId: string
+  conversationId: string
+  action: { id: string; data: string | null; sourceMessageId?: string | null }
+  executedBy: {
+    userId: string
+    userName?: string | null
+    userEmail?: string | null
+  }
+  payload?: Record<string, unknown>
+}) {
+  /** Conversation context for clienteId/proyectoId inheritance. */
+  const conversation = await db.conversation.findFirst({
+    where: { id: input.conversationId, workspaceId: input.workspaceId },
+    select: { id: true, clienteId: true, proyectoId: true, channel: true },
+  })
+  if (!conversation) {
+    throw new Error("Conversación no encontrada")
+  }
+
+  /** Defensive parse of action.data — Phase 1 wrapped EventHint inside `.data`; older shapes
+   *  may have stored it flat. We try both transparently. */
+  const stored = parseStoredActionData(input.action.data)
+  const baseHint = (stored && typeof stored === "object"
+    ? (stored.data && typeof stored.data === "object" ? stored.data : stored)
+    : {}) as Record<string, unknown>
+
+  const overrides = (input.payload?.event && typeof input.payload.event === "object"
+    ? input.payload.event
+    : {}) as Record<string, unknown>
+
+  const merged: Record<string, unknown> = { ...baseHint, ...overrides }
+
+  const title = pickTrimmedString(merged.title)
+  if (!title) {
+    throw new Error("El título del evento es requerido")
+  }
+
+  const allDay = merged.allDay === true
+
+  /** Normalize startISO. We accept "YYYY-MM-DDTHH:mm:ss" without Z; Date() interprets it as
+   *  local time, which matches what Fanny was told to produce. We always re-emit as ISO. */
+  const startISO = normalizeIsoDateString(merged.startISO)
+  if (!startISO) {
+    throw new Error("La fecha de inicio del evento es requerida")
+  }
+
+  const endISORaw = normalizeIsoDateString(merged.endISO)
+  /** Reject endISO before startISO — guards against clocks/timezone mishaps in overrides. */
+  const endISO = endISORaw && endISORaw > startISO ? endISORaw : null
+
+  const location = pickTrimmedString(merged.location)
+  /** Description preference: explicit override → purpose → empty. */
+  const descriptionInput =
+    pickTrimmedString(overrides.description)
+    ?? pickTrimmedString(merged.description)
+    ?? pickTrimmedString(merged.purpose)
+    ?? null
+
+  const descriptionParts: string[] = []
+  if (location) descriptionParts.push(`Location: ${location}`)
+  if (descriptionInput) descriptionParts.push(descriptionInput)
+  descriptionParts.push("— Created from Smart Inbox")
+  if (input.action.sourceMessageId) {
+    descriptionParts.push(`Source message: ${input.action.sourceMessageId}`)
+  }
+  const descripcion = descriptionParts.join("\n\n") || null
+
+  const eventoInput = createEventoSchema.parse({
+    titulo: title,
+    descripcion,
+    tipo: "reunion" as const,
+    fechaInicio: startISO,
+    fechaFin: endISO,
+    todoElDia: allDay,
+    clienteId: conversation.clienteId ?? null,
+    proyectoId: conversation.proyectoId ?? null,
+  })
+
+  const evento = await calendarioService.create(eventoInput, input.workspaceId)
+
+  await db.conversationAction.update({
+    where: { id: input.action.id },
+    data: {
+      status: "executed",
+      resultId: evento.id,
+      resultModule: "calendario",
+      executionNotes: `Evento creado: ${evento.id}`,
+      reviewedBy: input.executedBy.userId,
+      reviewedAt: new Date(),
+      errorMessage: null,
+    },
+  })
+
+  return { evento, alreadyExecuted: false as const }
+}
+
+function parseStoredActionData(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+function pickTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeIsoDateString(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  /** Sanity guard against unrealistic dates — same window the prompt sanitizer uses. */
+  const yr = parsed.getUTCFullYear()
+  if (yr < 1970 || yr > new Date().getUTCFullYear() + 5) return null
+  return parsed.toISOString()
 }
 
 export async function convertConversationToRecords(
