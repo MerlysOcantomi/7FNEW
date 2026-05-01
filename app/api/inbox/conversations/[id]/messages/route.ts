@@ -20,6 +20,8 @@ interface OutboundAsyncInput {
   parsedBcc: string[]
   parsedTo: string[]
   enrichedMetadata: unknown
+  /** Phase 3: per-message receipt confirmation toggle. */
+  requestConfirmation: boolean
 }
 
 async function sendOutboundAsync(input: OutboundAsyncInput) {
@@ -109,6 +111,7 @@ async function sendOutboundAsync(input: OutboundAsyncInput) {
       connectionSender,
       tracking: {
         enabled: openTrackingEnabled,
+        askConfirm: input.requestConfirmation,
         messageId,
         workspaceId,
       },
@@ -171,7 +174,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       bcc = null,
       to = null,
       mode = "reply",
+      requestConfirmation = false,
     } = body
+    /**
+     * Receipt confirmation is opt-in per outbound email message. Internal notes never trigger
+     * outbound delivery, so the flag is meaningless there; we still strip it defensively.
+     */
+    const askConfirmRequest = direction === "outbound" && !isInternal && requestConfirmation === true
 
     const parsedAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> =
       Array.isArray(attachments) ? attachments.filter((a: unknown) => a && typeof a === "object" && "url" in (a as Record<string, unknown>)) : []
@@ -192,6 +201,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (parsedBcc.length > 0) emailFields.bcc = parsedBcc
     if (parsedTo.length > 0) emailFields.to = parsedTo
     if (sendMode !== "reply") emailFields.mode = sendMode
+    if (askConfirmRequest) emailFields.confirmRequested = true
     const enrichedMetadata = Object.keys(emailFields).length > 0
       ? { ...metaBase, ...emailFields }
       : metadata
@@ -257,6 +267,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         parsedBcc,
         parsedTo,
         enrichedMetadata,
+        requestConfirmation: askConfirmRequest,
       }).catch((err) => {
         console.error(`[email-outbound] Background send failed conv=${id} msg=${message.id}:`, err)
       })

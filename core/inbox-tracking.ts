@@ -140,3 +140,20 @@ export function buildOpenPixelUrl(messageId: string, workspaceId: string): strin
   })
   return `${base}/api/inbox/track/open/${token}.png`
 }
+
+/**
+ * Build the manual receipt-confirmation URL. Same signing scheme as the pixel but with
+ * `kind: "confirm"`, so the two endpoints can never accept each other's tokens. Returns null
+ * when no base URL is configured (caller skips the link).
+ */
+export function buildConfirmReceiptUrl(messageId: string, workspaceId: string): string | null {
+  const base = getAppBaseUrl()
+  if (!base) return null
+  const token = signTrackingToken({
+    m: messageId,
+    w: workspaceId,
+    k: "confirm",
+    t: Date.now(),
+  })
+  return `${base}/api/inbox/track/confirm/${token}`
+}

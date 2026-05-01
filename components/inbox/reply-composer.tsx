@@ -7,7 +7,7 @@ import {
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2,
-  Archive, CheckCircle2, Trash2, MoreHorizontal, Target, Layers,
+  Archive, CheckCircle2, Trash2, MoreHorizontal, Target, Layers, MailCheck,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -112,6 +112,13 @@ interface ReplyComposerProps {
   onActingOnScopeChange?: (scope: "latest" | "selected" | "all") => void
   /** Indica si hay un mensaje seleccionado disponible para usar el scope "selected". */
   hasSelectedMessage?: boolean
+  /**
+   * Phase 3 receipt confirmation toggle. The composer is presentational here: state is owned
+   * by the parent inbox page (so the flag persists across re-renders and resets cleanly after
+   * send). Email channel only — non-email channels render the action disabled with a tooltip.
+   */
+  requestConfirmation?: boolean
+  onRequestConfirmationChange?: (next: boolean) => void
 }
 
 const TRANSLATE_LANGUAGES = [
@@ -181,6 +188,8 @@ export function ReplyComposer({
   actingOnScope = "latest",
   onActingOnScopeChange,
   hasSelectedMessage = false,
+  requestConfirmation = false,
+  onRequestConfirmationChange,
 }: ReplyComposerProps) {
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
@@ -514,6 +523,16 @@ export function ReplyComposer({
     }
   }, [assistPanelOpen, activeAssistTab, fannySuggestionContent])
 
+  /**
+   * Receipt confirmation is email-only. If the active channel is anything else (WhatsApp, web
+   * chat, …) we clear the flag silently so we don't carry it over from a previous conversation.
+   */
+  useEffect(() => {
+    if (channel !== "email" && requestConfirmation && onRequestConfirmationChange) {
+      onRequestConfirmationChange(false)
+    }
+  }, [channel, requestConfirmation, onRequestConfirmationChange])
+
   useLayoutEffect(() => {
     const el = composerTextareaRef.current
     if (!el) return
@@ -606,15 +625,31 @@ export function ReplyComposer({
             ) : (
               <span aria-hidden="true" />
             )}
-            {channel ? (
-              <span
-                className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
-                title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
-                aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
-              >
-                {formatChannelBadge(channel, channelLabel)}
-              </span>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {/* Phase 3: confirmation-requested pill. Email-only; click clears the request. */}
+              {channel === "email" && requestConfirmation && (
+                <button
+                  type="button"
+                  onClick={() => onRequestConfirmationChange?.(false)}
+                  title="Confirmation requested — click to remove"
+                  aria-label="Confirmation requested. Click to remove."
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/20"
+                >
+                  <MailCheck className="h-3 w-3" aria-hidden />
+                  Confirmation requested
+                  <X className="h-2.5 w-2.5 opacity-70" aria-hidden />
+                </button>
+              )}
+              {channel ? (
+                <span
+                  className="inline-flex items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
+                  title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                  aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                >
+                  {formatChannelBadge(channel, channelLabel)}
+                </span>
+              ) : null}
+            </div>
           </div>
         )}
 
@@ -1470,6 +1505,27 @@ export function ReplyComposer({
 
               {activeClipCategory === "share" && (
                 <>
+                  {/* Phase 3: opt-in receipt confirmation. Email channel only — non-email
+                      channels are disabled with an explanatory tooltip. The active state
+                      reflects the parent flag so the pill in the header stays in sync. */}
+                  <ClipAction
+                    label={requestConfirmation ? "Confirmation requested" : "Confirm received"}
+                    icon={MailCheck}
+                    onClick={
+                      channel === "email" && onRequestConfirmationChange
+                        ? () => onRequestConfirmationChange(!requestConfirmation)
+                        : undefined
+                    }
+                    active={requestConfirmation}
+                    disabled={channel !== "email"}
+                    title={
+                      channel === "email"
+                        ? requestConfirmation
+                          ? "Customer will see a 'Confirm you received this' link. Click to disable."
+                          : "Add a 'Confirm you received this' link to this email."
+                        : "Email only. Other channels use native read receipts when available."
+                    }
+                  />
                   <ClipAction
                     label="Contact"
                     icon={User}
@@ -1819,25 +1875,38 @@ function ClipAction({
   icon: Icon,
   onClick,
   title,
+  active = false,
+  disabled,
 }: {
   label: string
   icon: LucideIcon
   onClick?: () => void
   title?: string
+  /** Toggle visual state; when true the row is highlighted as the accent surface. */
+  active?: boolean
+  /**
+   * Optional explicit disabled override. When omitted, the button is disabled iff `onClick`
+   * is missing (legacy "coming later" pattern). Pass `false` to keep enabled even without an
+   * onClick, or `true` to force-disable a wired action (e.g. wrong channel).
+   */
+  disabled?: boolean
 }) {
-  const available = Boolean(onClick)
+  const available = disabled === undefined ? Boolean(onClick) : !disabled
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={available ? onClick : undefined}
       disabled={!available}
       title={title ?? label}
       aria-label={title ?? label}
+      aria-pressed={active}
       className={cn(
         "inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:flex-none",
-        available
-          ? "text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
-          : "cursor-not-allowed text-[var(--inbox-text-secondary)]/80 opacity-75",
+        active
+          ? "bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] ring-1 ring-[var(--inbox-accent)]/40 hover:bg-[var(--inbox-accent)]/20"
+          : available
+            ? "text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
+            : "cursor-not-allowed text-[var(--inbox-text-secondary)]/80 opacity-75",
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

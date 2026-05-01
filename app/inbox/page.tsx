@@ -264,6 +264,12 @@ function InboxPageContent() {
   const [emailCc, setEmailCc] = useState("")
   const [emailBcc, setEmailBcc] = useState("")
   const [emailForwardTo, setEmailForwardTo] = useState("")
+  /**
+   * Phase 3: per-message receipt confirmation toggle. Lives in the page so it survives
+   * composer re-renders (e.g. textarea grows, attachments change) and is cleared after each
+   * send and on conversation switches just like CC/BCC/forward fields.
+   */
+  const [requestConfirmation, setRequestConfirmation] = useState(false)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const initialSyncDoneRef = useRef(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
@@ -532,6 +538,7 @@ function InboxPageContent() {
     setAutoPopulated(false)
     setContextSheetOpen(false)
     setCannedOpen(false)
+    setRequestConfirmation(false)
     lastAutoPopulatedDraftRef.current = null
     /** Reset de selección por-mensaje al cambiar de conversación. El siguiente effect re-aplica `?messageId=` si sigue siendo válido. */
     setSelectedMessageId(null)
@@ -901,6 +908,8 @@ function InboxPageContent() {
           ...(!replyIsInternal && emailCc.trim() ? { cc: parseEmailList(emailCc) } : {}),
           ...(!replyIsInternal && emailBcc.trim() ? { bcc: parseEmailList(emailBcc) } : {}),
           ...(!replyIsInternal && emailMode === "forward" && emailForwardTo.trim() ? { to: parseEmailList(emailForwardTo) } : {}),
+          /** Phase 3 receipt confirmation. Server ignores the flag for internal notes / non-email channels defensively. */
+          ...(!replyIsInternal && requestConfirmation ? { requestConfirmation: true } : {}),
         }),
       })
       const json = await res.json()
@@ -919,6 +928,7 @@ function InboxPageContent() {
       setEmailCc("")
       setEmailBcc("")
       setEmailForwardTo("")
+      setRequestConfirmation(false)
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
@@ -1172,6 +1182,8 @@ function InboxPageContent() {
       let msgLastOpenedAt: string | null = null
       let msgOpenProxy = false
       let msgOpenSuspect = false
+      /** Phase 3 manual confirmation — only ever set when the customer clicked the CTA. */
+      let msgConfirmedReadAt: string | null = null
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
@@ -1195,6 +1207,7 @@ function InboxPageContent() {
           if (typeof parsed?.lastOpenedAt === "string") msgLastOpenedAt = parsed.lastOpenedAt
           if (parsed?.openProxy === true) msgOpenProxy = true
           if (parsed?.openSuspect === true) msgOpenSuspect = true
+          if (typeof parsed?.confirmedReadAt === "string") msgConfirmedReadAt = parsed.confirmedReadAt
         }
       } catch { /* ignore parse errors */ }
 
@@ -1237,17 +1250,22 @@ function InboxPageContent() {
       } catch { /* ignore date parse errors */ }
 
       /**
-       * Outbound meta label honest-by-design:
-       *  - "Send failed"        emailStatus=failed
-       *  - "Opened · {time}"    openedAt set, no proxy/suspect heuristics fired
-       *  - "Possibly opened"    openedAt set + proxy or suspect flag (Gmail/Apple/Outlook prefetch)
-       *  - "Sent"               default outbound — anything else
+       * Outbound meta label honest-by-design (priority order):
+       *  - "Send failed"            emailStatus=failed
+       *  - "Confirmed received"     customer explicitly clicked the confirmation CTA — strongest
+       *                             signal we have, overrides pixel-based heuristics.
+       *  - "Opened · {time}"        openedAt set, no proxy/suspect heuristics fired
+       *  - "Possibly opened"        openedAt set + proxy or suspect flag (prefetch / image proxy)
+       *  - "Sent"                   default outbound — anything else
        * We deliberately avoid the word "Read" because pixel tracking can't prove the human read it.
        */
       let outboundLabel = "Sent"
       if (isOutbound) {
         if (msgEmailStatus === "failed") {
           outboundLabel = "Send failed"
+        } else if (msgConfirmedReadAt) {
+          const when = formatRelativeDate(msgConfirmedReadAt, uiLocale)
+          outboundLabel = `Confirmed received · ${when}`
         } else if (msgOpenedAt) {
           const opened = msgLastOpenedAt ?? msgOpenedAt
           const when = formatRelativeDate(opened, uiLocale)
@@ -2092,6 +2110,8 @@ function InboxPageContent() {
                         actingOnScope={actingOnScope}
                         onActingOnScopeChange={setActingOnScope}
                         hasSelectedMessage={Boolean(effectiveSelectedMessageId)}
+                        requestConfirmation={requestConfirmation}
+                        onRequestConfirmationChange={setRequestConfirmation}
                         conversationActions={{
                           onArchive: handleArchiveConversation,
                           onClose: handleCloseConversation,

@@ -3,7 +3,7 @@ import { sendEmailSmtp, type SmtpConnectionConfig } from "./email-smtp"
 import { escapeHtml, wrapEmailHtml, resolveAckEmailConfig } from "@core/email-templates"
 import { logActivity } from "@core/activity"
 import { getTranslations, resolveLocaleFromConfig } from "@core/i18n"
-import { buildOpenPixelUrl } from "@core/inbox-tracking"
+import { buildOpenPixelUrl, buildConfirmReceiptUrl } from "@core/inbox-tracking"
 
 export interface OutboundAttachment {
   filename: string
@@ -42,9 +42,14 @@ export interface SendOutboundEmailInput {
    * Open-tracking knobs. The caller decides whether the pixel should be embedded based on
    * workspace settings + per-message overrides. We only embed when both ids are present and
    * `enabled !== false`. The route is `/api/inbox/track/open/{token}.png`.
+   *
+   * `askConfirm` is the per-message receipt-confirmation toggle (Phase 3). When true and ids
+   * are available, we add a visible "Confirm you received this" link near the footer that
+   * points to `/api/inbox/track/confirm/{token}`.
    */
   tracking?: {
     enabled?: boolean
+    askConfirm?: boolean
     messageId?: string
     workspaceId?: string
   }
@@ -181,7 +186,19 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
     ? `<img src="${pixelUrl}" alt="" width="1" height="1" style="display:block;border:0;width:1px;height:1px;max-height:1px;max-width:1px;overflow:hidden;opacity:0" />`
     : ""
 
-  const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div><hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>${trackingPixelHtml}`
+  /**
+   * Receipt-confirmation CTA: opt-in per message, never on by default. We only render the link
+   * when the caller asked for it AND we could sign a confirm-kind token. The endpoint is
+   * idempotent so the customer can click multiple times without side effects.
+   */
+  const confirmUrl = input.tracking?.askConfirm && input.tracking.messageId && input.tracking.workspaceId
+    ? buildConfirmReceiptUrl(input.tracking.messageId, input.tracking.workspaceId)
+    : null
+  const confirmHtml = confirmUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td><a href="${confirmUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#4f46e5;color:#ffffff;text-decoration:none;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;">Confirm you received this</a></td></tr><tr><td style="padding-top:6px;font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#94a3b8;">A single click is enough — no further action needed.</td></tr></table>`
+    : ""
+
+  const bodyHtml = `<div style="font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5;">${escapeHtml(input.messageContent).split("\n").join("<br>")}</div>${confirmHtml}<hr style="margin: 1.5em 0; border: none; border-top: 1px solid #e2e8f0;" /><p style="font-family: system-ui, sans-serif; font-size: 12px; color: #64748b;">${footerEscaped}</p>${trackingPixelHtml}`
 
   const recipients = resolveRecipients(input)
   const cs = input.connectionSender
