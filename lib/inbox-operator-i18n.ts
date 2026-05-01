@@ -21,6 +21,7 @@ export type OperatorUiStrings = {
   assignOperatorTitle: string
   draftReplyTitle: string
   revisedSummary: string
+  addToCalendarTitle: string
 }
 
 const EN: OperatorUiStrings = {
@@ -39,6 +40,7 @@ const EN: OperatorUiStrings = {
   assignOperatorTitle: "Assign operator",
   draftReplyTitle: "Draft reply",
   revisedSummary: "Recommended manual review",
+  addToCalendarTitle: "Add to calendar",
 }
 
 const ES: OperatorUiStrings = {
@@ -57,6 +59,7 @@ const ES: OperatorUiStrings = {
   assignOperatorTitle: "Asignar operador",
   draftReplyTitle: "Borrador de respuesta",
   revisedSummary: "Revisión manual recomendada",
+  addToCalendarTitle: "Añadir al calendario",
 }
 
 const DE: OperatorUiStrings = {
@@ -75,6 +78,7 @@ const DE: OperatorUiStrings = {
   assignOperatorTitle: "Bearbeiter zuweisen",
   draftReplyTitle: "Antwortentwurf",
   revisedSummary: "Manuelle Prüfung empfohlen",
+  addToCalendarTitle: "Zum Kalender hinzufügen",
 }
 
 const MAP: Record<SupportedLocale, OperatorUiStrings> = { en: EN, es: ES, de: DE }

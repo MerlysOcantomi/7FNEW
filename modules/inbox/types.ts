@@ -43,11 +43,24 @@ export interface ConversationIntelligenceOutput {
     description: string
   } | null
   suggestedActions: Array<{
-    type: "create_client" | "create_project" | "create_task" | "schedule_followup" | "assign_operator" | "generate_proposal"
+    type: "create_client" | "create_project" | "create_task" | "schedule_followup" | "assign_operator" | "generate_proposal" | "create_event"
     title: string
     description: string
     confidence: number
+    /**
+     * Phase 1 calendar suggestions. For `create_event` actions this carries the structured
+     * EventHint extracted from the latest inbound message; ignored for other action types.
+     * Persisted as JSON inside ConversationAction.data.
+     */
+    data?: Record<string, unknown>
   }>
+  /**
+   * Phase 1 — calendar event detection. Populated when the latest inbound, non-internal message
+   * mentions a clear meeting/visit/deadline/appointment with date+time (or just date as allDay).
+   * Null for vague text. Resolution of relative dates ("tomorrow at 8") relies on the `nowISO` +
+   * timezone hint passed into the prompt.
+   */
+  eventHint: EventHint | null
   handoff: {
     headline: string
     summary: string
@@ -79,12 +92,32 @@ export type FannyActionType =
   | "schedule_followup"
   | "assign_operator"
   | "generate_proposal"
+  | "create_event"
 
 export interface FannySuggestedAction {
   type: FannyActionType
   title: string
   description: string
   confidence: number
+  /** Optional structured payload — used by `create_event` to ferry EventHint data. */
+  data?: Record<string, unknown>
+}
+
+/**
+ * Structured calendar hint extracted from a single message. Always tied to a `sourceMessageId`
+ * (the inbound message that triggered the detection). The composer never produces these — they
+ * are output of the inbox intelligence pipeline only. When `startISO` is null the hint is too
+ * weak to surface a Smart action; consumers MUST treat it as missing data.
+ */
+export interface EventHint {
+  title: string
+  startISO: string | null
+  endISO?: string | null
+  allDay?: boolean
+  location?: string | null
+  purpose?: string | null
+  sourceMessageId?: string | null
+  confidence?: number
 }
 
 export interface FannySuggestedReply {

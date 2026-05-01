@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
-import { ContextPanel } from "@/components/inbox/context-panel"
+import { ContextPanel, type SelectedMessageInfo } from "@/components/inbox/context-panel"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
@@ -1377,6 +1377,42 @@ function InboxPageContent() {
     const hasAttachments = Array.isArray(msg.attachments) && msg.attachments.length > 0
     const hasLinks = typeof msg.content === "string" && /https?:\/\//i.test(msg.content)
 
+    /**
+     * Phase 1 calendar hint — only surface when the AI persisted a `create_event` action
+     * anchored to THIS message AND the message itself is inbound non-internal. We refuse to
+     * derive an EventHint for outbound or internal messages, even if a stale action somehow
+     * exists, to keep the rule "Add to calendar = inbound only" honest.
+     */
+    let eventHint: SelectedMessageInfo["eventHint"] = null
+    if (isInbound) {
+      const candidate = (selected?.actions ?? []).find((action) =>
+        action.type === "create_event"
+        && action.status !== "dismissed"
+        && action.status !== "failed"
+        && action.sourceMessageId === effectiveSelectedMessageId,
+      )
+      const rawData = candidate?.data
+      const innerData = (rawData as { data?: Record<string, unknown> } | null | undefined)?.data
+      const hint = (innerData && typeof innerData === "object" ? innerData : rawData) as Record<string, unknown> | null | undefined
+      if (hint && typeof hint === "object") {
+        const startISO = typeof hint.startISO === "string" && hint.startISO.trim() ? hint.startISO : null
+        const allDay = hint.allDay === true
+        if (startISO || allDay) {
+          eventHint = {
+            title: typeof hint.title === "string" ? hint.title : "",
+            startISO,
+            endISO: typeof hint.endISO === "string" && hint.endISO.trim() ? hint.endISO : null,
+            allDay,
+            location: typeof hint.location === "string" && hint.location.trim() ? hint.location : null,
+            purpose: typeof hint.purpose === "string" && hint.purpose.trim() ? hint.purpose : null,
+            sourceMessageId: typeof hint.sourceMessageId === "string" ? hint.sourceMessageId : effectiveSelectedMessageId,
+            confidence: typeof hint.confidence === "number" ? hint.confidence : null,
+            actionId: candidate?.id ?? null,
+          }
+        }
+      }
+    }
+
     return {
       messageId: effectiveSelectedMessageId,
       authorLabel: msg.authorLabel,
@@ -1388,6 +1424,7 @@ function InboxPageContent() {
       isOutbound,
       hasAttachments,
       hasLinks,
+      eventHint,
     }
   }, [actingOnScope, effectiveSelectedMessageId, threadMessages, selected, selectedId, messageShortIntentsById])
 

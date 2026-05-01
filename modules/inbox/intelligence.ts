@@ -10,12 +10,13 @@ import { DEFAULT_LOCALE, type SupportedLocale } from "@core/i18n"
 import { getOperatorUiStrings, operatorLocalePromptName } from "@/lib/inbox-operator-i18n"
 import type {
   ConversationIntelligenceOutput,
+  EventHint,
   InboxClassification,
 } from "./types"
 import { transitionConversationStatus } from "./state"
 
-const PIPELINE_VERSION = "4"
-const PROMPT_VERSION = "fanny-v1.1"
+const PIPELINE_VERSION = "5"
+const PROMPT_VERSION = "fanny-v1.2"
 const MODEL_NAME = "operativo"
 const ACTION_SOURCE = "ai"
 const ALLOWED_ACTION_TYPES = new Set([
@@ -25,7 +26,14 @@ const ALLOWED_ACTION_TYPES = new Set([
   "schedule_followup",
   "assign_operator",
   "generate_proposal",
+  "create_event",
 ])
+/**
+ * Floor to surface Add to calendar in the right panel. Below this confidence we still persist
+ * the eventHint on the action data (operators can debug it) but the panel will hide the CTA so
+ * we don't badger the user with weak detections (e.g. "next week sometime").
+ */
+const EVENT_HINT_MIN_CONFIDENCE = 0.55
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {
   if (typeof value !== "number" || Number.isNaN(value)) return fallback
@@ -41,6 +49,87 @@ function parseJsonResponse<T>(response: string): T | null {
     return JSON.parse(cleaned) as T
   } catch {
     return null
+  }
+}
+
+/**
+ * Resolve a sane workspace timezone hint. We never pull from the host (server might be UTC); we
+ * read `Workspace.config.locale.timeZone` if present, else fall back to UTC. The model uses this
+ * to anchor relative phrases like "tomorrow at 8".
+ */
+function pickWorkspaceTimezone(config: unknown): string {
+  if (!config || typeof config !== "object") return "UTC"
+  const cfg = config as Record<string, unknown>
+  const direct = typeof cfg.timeZone === "string" ? cfg.timeZone.trim() : ""
+  if (direct) return direct
+  const localeBlock = cfg.locale
+  if (localeBlock && typeof localeBlock === "object") {
+    const tz = (localeBlock as Record<string, unknown>).timeZone
+    if (typeof tz === "string" && tz.trim()) return tz.trim()
+  }
+  return "UTC"
+}
+
+/**
+ * Validate and sanitize the model's eventHint output. Returns null when:
+ *   - hint is missing/non-object
+ *   - title is empty/non-string
+ *   - both startISO is invalid AND allDay is false (we accept date-only when allDay=true)
+ * We never trust dates earlier than 1970 or further than 5y in the future to avoid garbage like
+ * "0001-01-01" leaking into the UI.
+ */
+function sanitizeEventHint(input: unknown, fallbackSourceMessageId: string | null): EventHint | null {
+  if (!input || typeof input !== "object") return null
+  const raw = input as Record<string, unknown>
+
+  const title = typeof raw.title === "string" ? raw.title.trim() : ""
+  if (!title) return null
+
+  const allDay = raw.allDay === true
+  const startRaw = typeof raw.startISO === "string" ? raw.startISO.trim() : ""
+  const endRaw = typeof raw.endISO === "string" ? raw.endISO.trim() : ""
+
+  let startISO: string | null = null
+  if (startRaw) {
+    const parsed = new Date(startRaw)
+    if (!Number.isNaN(parsed.getTime())) {
+      const yr = parsed.getUTCFullYear()
+      if (yr >= 1970 && yr <= new Date().getUTCFullYear() + 5) {
+        startISO = parsed.toISOString()
+      }
+    }
+  }
+
+  /** All-day events are valid even without a time component, but we still need a valid date. */
+  if (!startISO && !allDay) return null
+
+  let endISO: string | null = null
+  if (endRaw) {
+    const parsedEnd = new Date(endRaw)
+    if (!Number.isNaN(parsedEnd.getTime())) {
+      endISO = parsedEnd.toISOString()
+      if (startISO && endISO < startISO) endISO = null
+    }
+  }
+
+  const location = typeof raw.location === "string" && raw.location.trim() ? raw.location.trim() : null
+  const purpose = typeof raw.purpose === "string" && raw.purpose.trim() ? raw.purpose.trim() : null
+  const confidence = clampNumber(raw.confidence, 0, 1, 0.6)
+
+  const sourceMessageId =
+    typeof raw.sourceMessageId === "string" && raw.sourceMessageId.trim()
+      ? raw.sourceMessageId.trim()
+      : fallbackSourceMessageId
+
+  return {
+    title: title.slice(0, 200),
+    startISO,
+    endISO,
+    allDay,
+    location: location?.slice(0, 200) ?? null,
+    purpose: purpose?.slice(0, 500) ?? null,
+    sourceMessageId,
+    confidence,
   }
 }
 
@@ -63,7 +152,15 @@ export async function generateConversationIntelligence(input: {
   previousIntent?: string | null
   workspaceContextBlock?: string | null
   operatorLocale: SupportedLocale
+  /**
+   * Phase 1 calendar detection — both deterministic anchors. `nowISO` lets the model resolve
+   * "tomorrow at 8" without guessing a date; `workspaceTimeZone` is the IANA tz the workspace
+   * runs in. Optional so existing callers don't break — defaults are computed locally.
+   */
+  nowISO?: string
+  workspaceTimeZone?: string
   messages: Array<{
+    id?: string
     role: string
     direction: string
     content: string
@@ -74,12 +171,25 @@ export async function generateConversationIntelligence(input: {
   const S = getOperatorUiStrings(input.operatorLocale)
   const opLangName = operatorLocalePromptName(input.operatorLocale)
 
+  const nowISO = input.nowISO ?? new Date().toISOString()
+  const tz = input.workspaceTimeZone ?? "UTC"
+
+  /**
+   * Latest inbound non-internal message — used as the deterministic anchor for eventHint.
+   * The model is told to hang the hint off this id; we never let it invent ids on its own.
+   */
+  const latestInboundMessage = [...input.messages]
+    .reverse()
+    .find((m) => m.direction === "inbound" && !m.isInternal)
+  const latestInboundId = latestInboundMessage?.id ?? null
+
   const transcript = input.messages
     .slice(-12)
     .map((message, index) => {
       const stamp = message.createdAt ? ` (${message.createdAt})` : ""
       const visibility = message.isInternal ? " [internal]" : ""
-      return `${index + 1}. [${message.direction}/${message.role}]${stamp}${visibility}: ${message.content}`
+      const idTag = message.id ? ` <id:${message.id}>` : ""
+      return `${index + 1}. [${message.direction}/${message.role}]${idTag}${stamp}${visibility}: ${message.content}`
     })
     .join("\n")
 
@@ -95,6 +205,9 @@ CONVERSATION:
 - conversationId: ${input.conversationId}
 - channel: ${input.channel}
 - currentStatus: ${input.status}
+- nowISO: ${nowISO}
+- workspaceTimeZone: ${tz}
+${latestInboundId ? `- latestInboundMessageId: ${latestInboundId}` : ""}
 ${input.subject ? `- subject: ${input.subject}` : ""}
 ${input.clienteId ? `- linkedClientId: ${input.clienteId}` : ""}
 ${input.proyectoId ? `- linkedProjectId: ${input.proyectoId}` : ""}
@@ -107,7 +220,7 @@ ${input.contact.tipo ? `- contactType: ${input.contact.tipo}` : ""}
 ${input.previousSummary ? `- previousSummary: ${input.previousSummary}` : ""}
 ${input.previousIntent ? `- previousIntent: ${input.previousIntent}` : ""}
 
-RECENT MESSAGES:
+RECENT MESSAGES (each line is prefixed with its <id:...> when available):
 ${transcript || "No messages"}
 
 Return this JSON shape (field names MUST match exactly):
@@ -134,6 +247,16 @@ Return this JSON shape (field names MUST match exactly):
   "suggestedActions": [
     { "type": "create_client | create_project | create_task | schedule_followup | assign_operator | generate_proposal", "title": " (${opLangName})", "description": " (${opLangName})", "confidence": 0.0 }
   ],
+  "eventHint": {
+    "title": "concise human-readable title (${opLangName})",
+    "startISO": "ISO 8601 datetime resolved against nowISO + workspaceTimeZone (e.g. 2026-05-02T08:00:00). Empty string if only date is known and allDay=true.",
+    "endISO": "optional ISO 8601 datetime if explicitly mentioned, otherwise empty",
+    "allDay": false,
+    "location": "place name or address as written, otherwise empty",
+    "purpose": "short reason / topic of the event (${opLangName}), otherwise empty",
+    "sourceMessageId": "id of the inbound message that triggered this hint",
+    "confidence": 0.0
+  },
   "handoff": {
     "headline": " (${opLangName})",
     "summary": " (${opLangName})",
@@ -165,6 +288,19 @@ RULES:
   context to enrich facts, pendingItems, risks, decisions, and nextBestAction/handoff. NEVER
   copy their text into draft.content (the customer reads draft.content) and never quote them
   to the customer.
+- eventHint:
+  * Set eventHint to null UNLESS the latest INBOUND non-internal message clearly mentions a
+    meeting, visit, deadline, appointment, delivery, or scheduled event WITH a real date or
+    date+time (relative phrases like "tomorrow", "next Monday", "in 2 days" count when nowISO
+    is known).
+  * Resolve relative dates against nowISO interpreted in workspaceTimeZone. Output startISO
+    as ISO 8601 in that local timezone WITHOUT a "Z" suffix when possible (e.g.
+    "2026-05-02T08:00:00"); the system will normalize it.
+  * If only a date is given (no time) → startISO can be the date midnight local and allDay=true.
+  * sourceMessageId MUST equal the <id:...> of the inbound message that contains the event.
+  * Internal lines ([internal]) MUST NEVER trigger an eventHint.
+  * Do NOT invent dates the customer did not state. Vague phrases like "soon", "next week
+    sometime" are NOT enough — return eventHint=null.
 - Output compact valid JSON only.`
 
   // DeepSeek uses NEUTRAL_TASK_SYSTEM_PROMPT (engines/ai/deepseek.ts) — no Spanish-forced layer under this prompt.
@@ -213,8 +349,13 @@ RULES:
             title: action.title,
             description: action.description,
             confidence: clampNumber(action.confidence, 0, 1, 0.6),
+            ...(action.data && typeof action.data === "object" ? { data: action.data } : {}),
           }))
         : [],
+      eventHint: sanitizeEventHint(
+        (parsed as { eventHint?: unknown }).eventHint,
+        latestInboundId,
+      ),
       handoff: {
         headline: parsed.handoff?.headline ?? S.operationalContextReady,
         summary: parsed.handoff?.summary ?? parsed.resumen ?? input.previousSummary ?? S.noGeneratedContext,
@@ -270,6 +411,7 @@ RULES:
       description: S.humanReviewRecommendedDesc,
     },
     suggestedActions: [],
+    eventHint: null,
     handoff: {
       headline: S.revisedSummary,
       summary: fallbackSummary,
@@ -329,6 +471,14 @@ function shouldSuggestAction(input: {
   }
 }
 
+type NormalizedSuggestedAction = {
+  type: string
+  title: string
+  description: string
+  confidence: number
+  data?: Record<string, unknown>
+}
+
 function normalizeSuggestedActions(
   input: {
     suggestedActions: Array<{
@@ -336,8 +486,13 @@ function normalizeSuggestedActions(
       title: string
       description: string
       confidence: number
+      data?: Record<string, unknown>
     }>
     nextBestAction: { type: string; description: string } | null
+    /** Phase 1: structured calendar hint synthesized into a `create_event` action when usable. */
+    eventHint: EventHint | null
+    /** Latest INBOUND non-internal message id — required to anchor the create_event action. */
+    latestInboundMessageId: string | null
     conversation: {
       clienteId?: string | null
       proyectoId?: string | null
@@ -346,8 +501,9 @@ function normalizeSuggestedActions(
     }
   },
   assignOperatorTitle: string,
+  addToCalendarTitle: string,
 ) {
-  const raw = [...input.suggestedActions]
+  const raw: NormalizedSuggestedAction[] = [...input.suggestedActions]
 
   if (input.nextBestAction?.type === "assign_operator") {
     raw.push({
@@ -358,7 +514,29 @@ function normalizeSuggestedActions(
     })
   }
 
-  const normalized = new Map<string, { type: string; title: string; description: string; confidence: number }>()
+  /**
+   * Synthesize a `create_event` action from the structured eventHint when it is anchored to a
+   * real inbound message AND its confidence is at or above the floor (avoids surfacing weak
+   * detections like "next week sometime" as a Smart action). We carry the full hint inside
+   * `data` so the panel can pre-fill the preview form without re-querying the model. We do NOT
+   * trust a hint without a sourceMessageId (avoids dangling actions); the model is told to set
+   * this id, but we also fall back to the latest inbound message id if it omitted it.
+   */
+  if (input.eventHint) {
+    const confidence = input.eventHint.confidence ?? 0.6
+    const sourceMessageId = input.eventHint.sourceMessageId ?? input.latestInboundMessageId
+    if (sourceMessageId && confidence >= EVENT_HINT_MIN_CONFIDENCE) {
+      raw.push({
+        type: "create_event",
+        title: addToCalendarTitle,
+        description: input.eventHint.purpose ?? input.eventHint.title,
+        confidence,
+        data: { ...input.eventHint, sourceMessageId },
+      })
+    }
+  }
+
+  const normalized = new Map<string, NormalizedSuggestedAction>()
   for (const action of raw) {
     if (!ALLOWED_ACTION_TYPES.has(action.type)) continue
     if (!shouldSuggestAction({ type: action.type, conversation: input.conversation })) continue
@@ -423,6 +601,10 @@ export async function runConversationIntelligence(input: {
   const wsContext = await resolveWorkspaceContext(input.workspaceId)
   const workspaceContextBlock = wsContext ? buildWorkspaceContextBlock(wsContext, operatorLocale) : null
 
+  /** Phase 1 calendar prompt anchors. We resolve tz once here so the prompt is deterministic. */
+  const workspaceTimeZone = pickWorkspaceTimezone(wsResolved?.config ?? null)
+  const nowISO = new Date().toISOString()
+
   const intelligence = await generateConversationIntelligence({
     conversationId: conversation.id,
     channel: conversation.channel,
@@ -442,7 +624,10 @@ export async function runConversationIntelligence(input: {
     previousIntent: conversation.intent ?? conversation.classification?.intent,
     workspaceContextBlock,
     operatorLocale,
+    nowISO,
+    workspaceTimeZone,
     messages: conversation.messages.map((message) => ({
+      id: message.id,
       role: message.role,
       direction: message.direction,
       content: message.content,
@@ -451,11 +636,21 @@ export async function runConversationIntelligence(input: {
     })),
   })
 
+  /**
+   * Latest INBOUND non-internal message anchors `create_event` actions. Outbound/internal
+   * messages can never produce a calendar suggestion in Phase 1 (per safety rule).
+   */
+  const latestInboundMessage = [...conversation.messages]
+    .reverse()
+    .find((m) => m.direction === "inbound" && !m.isInternal)
+
   const nextStatus = deriveConversationStatus(conversation.status, intelligence.leadScore)
   const normalizedSuggestedActions = normalizeSuggestedActions(
     {
       suggestedActions: intelligence.suggestedActions,
       nextBestAction: intelligence.nextBestAction,
+      eventHint: intelligence.eventHint,
+      latestInboundMessageId: latestInboundMessage?.id ?? null,
       conversation: {
         clienteId: conversation.clienteId,
         proyectoId: conversation.proyectoId,
@@ -464,6 +659,7 @@ export async function runConversationIntelligence(input: {
       },
     },
     S.assignOperatorTitle,
+    S.addToCalendarTitle,
   )
 
   const result = await db.$transaction(async (tx) => {
@@ -644,6 +840,15 @@ export async function runConversationIntelligence(input: {
         && item.source === ACTION_SOURCE
       )
 
+      /**
+       * `create_event` actions are anchored to the inbound message that mentions the event,
+       * not to the conversation's latest message (which is often the operator's own reply).
+       * For every other action type we keep the legacy behavior (anchor to latest message).
+       */
+      const anchorMessageId = action.type === "create_event"
+        ? (latestInboundMessage?.id ?? null)
+        : (latestMessage?.id ?? null)
+
       if (
         latestActionOfType?.sourceMessageId
         && latestMessage?.id
@@ -657,11 +862,19 @@ export async function runConversationIntelligence(input: {
         continue
       }
 
-      const payload = {
+      /**
+       * For `create_event`, the structured EventHint is the meaningful payload; we merge it
+       * into `data` so the panel can pre-fill the preview without re-running the model. For
+       * every other action type the payload stays the same lightweight shape.
+       */
+      const payload: Record<string, unknown> = {
         title: action.title,
         description: action.description,
         pipelineVersion: PIPELINE_VERSION,
         trigger: input.trigger,
+      }
+      if (action.data && typeof action.data === "object") {
+        payload.data = action.data
       }
 
       if (latestActionOfType?.status === "suggested") {
@@ -671,7 +884,7 @@ export async function runConversationIntelligence(input: {
             source: ACTION_SOURCE,
             status: "suggested",
             confidence: action.confidence,
-            sourceMessageId: latestMessage?.id ?? latestActionOfType.sourceMessageId,
+            sourceMessageId: anchorMessageId ?? latestActionOfType.sourceMessageId,
             data: stringifyJson(payload),
             dismissedAt: null,
             errorMessage: null,
@@ -686,7 +899,7 @@ export async function runConversationIntelligence(input: {
             status: "suggested",
             source: ACTION_SOURCE,
             confidence: action.confidence,
-            sourceMessageId: latestMessage?.id ?? null,
+            sourceMessageId: anchorMessageId,
             data: stringifyJson(payload),
           },
         })

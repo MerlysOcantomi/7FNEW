@@ -9,7 +9,7 @@ import {
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
   User, FolderKanban, CheckSquare, Archive, MessageSquare,
   Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2, Sparkles,
-  Send, Copy, Check, CornerDownLeft,
+  Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -53,6 +53,30 @@ export interface SelectedMessageInfo {
   hasLinks?: boolean
   isInbound?: boolean
   isOutbound?: boolean
+  /**
+   * Phase 1 calendar event detection. Populated only when the AI persisted a `create_event`
+   * ConversationAction whose `sourceMessageId` matches the selected message AND the message is
+   * inbound non-internal. Null otherwise. The panel uses this to show the Add to calendar CTA
+   * inside Smart actions.
+   */
+  eventHint?: SelectedEventHint | null
+}
+
+/**
+ * Lightweight, UI-focused projection of the persisted EventHint. We deliberately keep this
+ * separate from the inbox types module to avoid pulling server types into a client component.
+ */
+export interface SelectedEventHint {
+  title: string
+  startISO: string | null
+  endISO?: string | null
+  allDay?: boolean
+  location?: string | null
+  purpose?: string | null
+  sourceMessageId?: string | null
+  confidence?: number | null
+  /** Optional id of the underlying ConversationAction (Phase 2 will use it to call /execute). */
+  actionId?: string | null
 }
 
 interface ContextPanelProps {
@@ -149,6 +173,8 @@ export function ContextPanel({
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
+  /** Phase 1 calendar preview dialog. Local state — Phase 2 will replace the no-op submit. */
+  const [calendarPreviewOpen, setCalendarPreviewOpen] = useState(false)
   const isMessageMode = Boolean(selectedMessageId && selectedMessageInfo)
 
   const contactName =
@@ -789,12 +815,37 @@ export function ContextPanel({
                 onClick={onUseSuggestedDraft}
               />
             ) : null}
+            {/*
+              Phase 1: Add to calendar appears only when the AI persisted a `create_event`
+              action anchored to the selected inbound message. Click opens a local preview;
+              creation is intentionally a no-op until Phase 2.
+            */}
+            {selectedMessageInfo?.eventHint
+              && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay) ? (
+              <ActionButton
+                label="Add to calendar"
+                icon={CalendarPlus}
+                onClick={() => setCalendarPreviewOpen(true)}
+              />
+            ) : null}
             <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
             <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
             <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
           </div>
         </section>
       )}
+
+      {/*
+        Phase 1 calendar preview dialog — pre-fills fields from the structured EventHint
+        produced by Fanny. The submit button is intentionally disabled and labelled "Create
+        event coming next" so we don't accidentally create Eventos in this phase.
+      */}
+      {calendarPreviewOpen && selectedMessageInfo?.eventHint ? (
+        <CalendarEventPreviewDialog
+          hint={selectedMessageInfo.eventHint}
+          onClose={() => setCalendarPreviewOpen(false)}
+        />
+      ) : null}
 
       {/* ── Phase A · 4.5 Still needed (handoff.pendingItems) ── */}
       {handoffPendingItems.length > 0 && (
@@ -1046,5 +1097,255 @@ function mapUrgency(urgency?: string | null) {
       return { label: "Low", percent: 25, barClass: "bg-emerald-500" }
     default:
       return { label: "Normal", percent: 35, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
+  }
+}
+
+/**
+ * Phase 1 calendar preview dialog. Renders an editable form pre-filled from the AI-extracted
+ * EventHint. The submit button is disabled and labelled "Create event coming next" because
+ * Evento creation is intentionally out of scope for Phase 1; nothing here calls the backend.
+ *
+ * The component is self-contained (no portal/Radix Dialog) to avoid pulling new deps; it
+ * renders an absolutely-positioned overlay over the panel and traps Esc to close.
+ */
+function CalendarEventPreviewDialog({
+  hint,
+  onClose,
+}: {
+  hint: SelectedEventHint
+  onClose: () => void
+}) {
+  const initial = useMemo(() => splitEventHint(hint), [hint])
+  const [title, setTitle] = useState(initial.title)
+  const [date, setDate] = useState(initial.date)
+  const [time, setTime] = useState(initial.time)
+  const [duration, setDuration] = useState(initial.duration)
+  const [allDay, setAllDay] = useState(initial.allDay)
+  const [location, setLocation] = useState(initial.location)
+  const [description, setDescription] = useState(initial.description)
+
+  /** Esc to dismiss; matches the rest of the inbox keyboard model. */
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  const missingDate = !date.trim()
+  const missingTitle = !title.trim()
+  const missingFields: string[] = []
+  if (missingTitle) missingFields.push("Title")
+  if (missingDate) missingFields.push("Date")
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add to calendar — preview"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4 py-6"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div className="w-full max-w-md rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-surface)] p-4 shadow-lg">
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+              Add to calendar — preview
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
+              Review the details extracted from this message. No event is created yet.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/10 hover:text-[var(--inbox-intelligence-text)]"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </header>
+
+        <div className="mt-3 grid grid-cols-1 gap-2.5">
+          <Field label="Title">
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
+              placeholder="Meeting title"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Date">
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] focus:border-[var(--inbox-accent)] focus:outline-none"
+              />
+            </Field>
+            <Field label="Time">
+              <input
+                type="time"
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
+                disabled={allDay}
+                className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] focus:border-[var(--inbox-accent)] focus:outline-none disabled:opacity-50"
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Duration">
+              <select
+                value={duration}
+                onChange={(event) => setDuration(event.target.value)}
+                disabled={allDay}
+                className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] focus:border-[var(--inbox-accent)] focus:outline-none disabled:opacity-50"
+              >
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+                <option value="180">3 hours</option>
+              </select>
+            </Field>
+            <Field label="All day">
+              <label className="inline-flex h-[30px] items-center gap-2 rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 text-xs text-[var(--inbox-intelligence-text)]">
+                <input
+                  type="checkbox"
+                  checked={allDay}
+                  onChange={(event) => setAllDay(event.target.checked)}
+                  className="h-3 w-3 accent-[var(--inbox-accent)]"
+                />
+                Mark as all-day
+              </label>
+            </Field>
+          </div>
+
+          <Field label="Location">
+            <input
+              type="text"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
+              placeholder="Address, room, or video link"
+            />
+          </Field>
+
+          <Field label="Description">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
+              placeholder="What is this event about?"
+            />
+          </Field>
+        </div>
+
+        {missingFields.length > 0 ? (
+          <p className="mt-2 text-[11px] text-amber-400/80" role="status">
+            Missing: {missingFields.join(", ")}
+          </p>
+        ) : null}
+
+        <footer className="mt-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[11px] font-medium text-[var(--inbox-intelligence-text-secondary)] hover:text-[var(--inbox-intelligence-text)]"
+          >
+            Close
+          </button>
+          {/* Phase 1: creation is intentionally disabled — Phase 2 will wire this to /api/calendario. */}
+          <button
+            type="button"
+            disabled
+            title="Phase 2 will create the event from this preview."
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-intelligence-border)] bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-[var(--inbox-intelligence-text-secondary)] opacity-70"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" />
+            Create event coming next
+          </button>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+/**
+ * Project the AI-derived EventHint into the form's local string fields. We split startISO into
+ * a date + time pair (HTML `<input type="date|time">` need separate strings) and pick a default
+ * duration from endISO when present. All paths default to safe empty strings; the form never
+ * crashes on a malformed hint.
+ */
+function splitEventHint(hint: SelectedEventHint): {
+  title: string
+  date: string
+  time: string
+  duration: string
+  allDay: boolean
+  location: string
+  description: string
+} {
+  const allDay = hint.allDay === true
+  let date = ""
+  let time = ""
+  if (hint.startISO) {
+    const d = new Date(hint.startISO)
+    if (!Number.isNaN(d.getTime())) {
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, "0")
+      const dd = String(d.getDate()).padStart(2, "0")
+      date = `${yyyy}-${mm}-${dd}`
+      if (!allDay) {
+        const hh = String(d.getHours()).padStart(2, "0")
+        const mi = String(d.getMinutes()).padStart(2, "0")
+        time = `${hh}:${mi}`
+      }
+    }
+  }
+
+  let duration = "60"
+  if (hint.startISO && hint.endISO) {
+    const start = new Date(hint.startISO)
+    const end = new Date(hint.endISO)
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      const minutes = Math.round((end.getTime() - start.getTime()) / 60000)
+      if (minutes >= 15 && minutes <= 24 * 60) {
+        duration = String(minutes)
+      }
+    }
+  }
+
+  return {
+    title: hint.title?.trim() ?? "",
+    date,
+    time,
+    duration,
+    allDay,
+    location: hint.location?.trim() ?? "",
+    description: hint.purpose?.trim() ?? "",
   }
 }
