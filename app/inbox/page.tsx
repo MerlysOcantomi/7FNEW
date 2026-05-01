@@ -1418,6 +1418,31 @@ function InboxPageContent() {
   const askMode: "message" | "conversation" = askAnchorMessageId ? "message" : "conversation"
 
   /**
+   * Compute the message id the More panel's message-level actions should target. Mirrors the
+   * Acting on rules but drops the "all" case (handled by the conversation panel instead). We
+   * also reach into Message.metadata.intentStatus so the button can render disabled when the
+   * target is already done — no extra fetch.
+   */
+  const moreActionsTargetMessageId: string | null = (() => {
+    if (actingOnScope === "all") return null
+    if (actingOnScope === "selected") return effectiveSelectedMessageId
+    return lastInboundMessageId
+  })()
+
+  const moreActionsTargetIntentStatus: "done" | "open" | null = useMemo(() => {
+    if (!moreActionsTargetMessageId) return null
+    const raw = selected?.messages?.find((m) => m.id === moreActionsTargetMessageId) ?? null
+    if (!raw?.metadata) return null
+    try {
+      const parsed = typeof raw.metadata === "string" ? JSON.parse(raw.metadata) : raw.metadata
+      const value = (parsed as { intentStatus?: unknown } | null | undefined)?.intentStatus
+      return value === "done" || value === "open" ? value : null
+    } catch {
+      return null
+    }
+  }, [moreActionsTargetMessageId, selected])
+
+  /**
    * Vista compacta del target de la respuesta. Phase B: además del autor/snippet/hora, derivamos
    * signals client-side (shortIntent, direction booleana, has attachments, has link) que el panel
    * usa para "What this message means". Sin AI extra, sin endpoints nuevos.
@@ -1608,6 +1633,86 @@ function InboxPageContent() {
     if (!activeSelectedId) return
     void handleStatusChange("trashed").catch(() => null)
   }
+  /**
+   * Mark the conversation as resolved (Done) — distinct from "Close". The status flag stays in
+   * Conversation.status; transitions are validated by `transitionConversation`. The thread
+   * remains visible and the operator can move it to closed/archived later.
+   */
+  const handleMarkConversationResolved = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("resolved").catch(() => null)
+  }
+
+  /**
+   * Mark a single message intent as done/open (toggle). Storage lives in
+   * Message.metadata.intentStatus (no schema change). The page resolves which message id is
+   * affected by mapping `actingOnScope` to either `effectiveSelectedMessageId` or
+   * `lastInboundMessageId` before calling this handler.
+   *
+   * On success we trigger a detail refetch so the More button immediately reflects the new
+   * state ("Marked as done" disabled). The list left-column will pick up the metadata in the
+   * next phase that filters pending intents.
+   */
+  const handleMarkMessageDone = useCallback(
+    async (messageId: string, nextStatus: "done" | "open" = "done") => {
+      if (!activeSelectedId) return
+      try {
+        const res = await fetch(
+          `/api/inbox/conversations/${activeSelectedId}/messages/${messageId}/intent-status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: nextStatus }),
+          },
+        )
+        const json = await res.json()
+        if (!json.success) throw new Error(json.error?.message || "Could not update message status")
+        setRefreshKey((value) => value + 1)
+        refetchDetail()
+      } catch (err) {
+        setActionState(err instanceof Error ? err.message : "Could not mark as done")
+      }
+    },
+    [activeSelectedId, refetchDetail],
+  )
+
+  /**
+   * Quick-add an internal note about the scoped message. We just flip the composer into
+   * internal mode and ensure the existing `effectiveSourceMessageId` resolves to the right
+   * message; the operator types the note as usual and Send/Save persists it via the regular
+   * messages endpoint with `isInternal: true` and `sourceMessageId` set.
+   *
+   *  - "selected": scope already resolves selectedMessageId → effectiveSourceMessageId.
+   *  - "latest"  : effectiveSourceMessageId falls back to lastInboundMessageId.
+   * Both already work without further plumbing, so this handler only owns the UX bits
+   * (toggle internal mode + focus the textarea).
+   */
+  const handleAddInternalNoteAbout = useCallback(() => {
+    setReplyIsInternal(true)
+    /** Defer focus to next frame so the toggle has rendered the privacy banner first. */
+    requestAnimationFrame(() => {
+      composerTextareaRef.current?.focus()
+    })
+  }, [])
+
+  /**
+   * The More panel's message-level actions object. Computed *after* the handlers it references
+   * so JS hoisting rules don't bite (useCallback closures are not hoisted). When the scope is
+   * "selected" without a real selection, we report `unavailable` so the composer hides the
+   * panel instead of running on a stale target.
+   */
+  const messageActionsForComposer = useMemo(() => {
+    if (actingOnScope === "all") return undefined
+    if (!moreActionsTargetMessageId) return { unavailable: true as const }
+    return {
+      onMarkDone: () => {
+        const next: "done" | "open" = moreActionsTargetIntentStatus === "done" ? "open" : "done"
+        void handleMarkMessageDone(moreActionsTargetMessageId, next)
+      },
+      onAddInternalNote: handleAddInternalNoteAbout,
+      intentStatus: moreActionsTargetIntentStatus,
+    }
+  }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout])
 
   const selectedIndex = useMemo(
     () => conversationsForList.findIndex((item) => item.id === activeSelectedId),
@@ -2247,8 +2352,10 @@ function InboxPageContent() {
                           onArchive: handleArchiveConversation,
                           onClose: handleCloseConversation,
                           onTrash: handleTrashConversation,
+                          onMarkResolved: handleMarkConversationResolved,
                           currentStatus: selected.status,
                         }}
+                        messageActions={messageActionsForComposer}
                         fannySuggestionTitle={suggestedDraft?.title ?? null}
                         fannySuggestionContent={suggestedDraft?.content ?? null}
                         onApplyFannySuggestion={

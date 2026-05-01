@@ -49,8 +49,33 @@ export interface ConversationActionsApi {
   onArchive?: () => void
   onClose?: () => void
   onTrash?: () => void
+  /**
+   * Mark conversation as resolved. Distinct from `onClose`: resolved means the work is done
+   * but the thread stays active for follow-ups. The button is hidden when omitted; auto-disabled
+   * when `currentStatus === "resolved"`.
+   */
+  onMarkResolved?: () => void
   /** Status actual de la conversación; deshabilita el botón equivalente. */
   currentStatus?: string | null
+}
+
+/**
+ * Scope-aware message-level actions for the More menu when Acting on is "latest" or "selected".
+ * The page resolves which message id applies (latest inbound vs selected) before calling the
+ * handler — the composer never decides scope on its own here.
+ */
+export interface MessageActionsApi {
+  /** Toggle the message intent done/open. The composer receives the *current* intentStatus
+   *  to render an "is current" / disabled state without an extra fetch. */
+  onMarkDone?: () => void
+  /** Quick-add an internal note about the scoped message (latest/selected). The composer
+   *  delegates to the parent because the parent owns composer state (replyIsInternal, focus). */
+  onAddInternalNote?: () => void
+  /** Current intentStatus of the scoped message ("done" | "open" | undefined). */
+  intentStatus?: "done" | "open" | null
+  /** True when no usable message id can be resolved for the current scope (e.g. empty thread).
+   *  When true, the composer hides the message-level actions panel entirely. */
+  unavailable?: boolean
 }
 
 export type EmailSendMode = "reply" | "reply_all" | "forward"
@@ -100,6 +125,12 @@ interface ReplyComposerProps {
   latestActionAnchor?: ReplyTargetInfo | null
   /** Phase 4: handlers conversation-level para el strip "Conversation actions" sobre el composer. */
   conversationActions?: ConversationActionsApi
+  /**
+   * Scope-aware message-level actions surfaced inside the More panel when Acting on is set
+   * to "latest" or "selected". Optional — when omitted the More panel only shows the
+   * conversation-level actions (legacy behaviour).
+   */
+  messageActions?: MessageActionsApi
   /** Fanny suggested reply — panel desde la barra; solo vuelca texto al compositor (no envía). */
   fannySuggestionTitle?: string | null
   fannySuggestionContent?: string | null
@@ -182,6 +213,7 @@ export function ReplyComposer({
   onClearReplyTarget,
   latestActionAnchor,
   conversationActions,
+  messageActions,
   fannySuggestionTitle,
   fannySuggestionContent,
   onApplyFannySuggestion,
@@ -573,8 +605,29 @@ export function ReplyComposer({
   const archiveHandler = conversationActions?.onArchive
   const closeHandler = conversationActions?.onClose
   const trashHandler = conversationActions?.onTrash
+  const markResolvedHandler = conversationActions?.onMarkResolved
   const currentConversationStatus = conversationActions?.currentStatus ?? null
-  const hasConversationActions = Boolean(archiveHandler || closeHandler || trashHandler)
+  const hasConversationActions = Boolean(archiveHandler || closeHandler || trashHandler || markResolvedHandler)
+
+  /**
+   * Scope-aware More panel — drives which actions render inside it.
+   * - "all"  → conversation-level (Mark resolved + Archive / Close / Trash). Always available
+   *            when at least one conversation handler is wired.
+   * - "latest"/"selected" → message-level (Mark done + Add internal note about message). Only
+   *            renders when the parent passes `messageActions` and reports the scope is usable.
+   *            For "selected" we additionally require `hasSelectedMessage` so the panel matches
+   *            the "Acting on" pill rules (a disabled scope must not silently fall through to
+   *            message actions).
+   */
+  const moreMessageActionsAvailable = Boolean(
+    messageActions
+    && !messageActions.unavailable
+    && (messageActions.onMarkDone || messageActions.onAddInternalNote)
+    && (actingOnScope !== "selected" || hasSelectedMessage),
+  )
+  const showMoreMessagePanel = actingOnScope !== "all" && moreMessageActionsAvailable
+  const showMoreConversationPanel = actingOnScope === "all" && hasConversationActions
+  const morePanelHasContent = showMoreMessagePanel || showMoreConversationPanel
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
@@ -1045,12 +1098,13 @@ export function ReplyComposer({
               </button>
             )}
 
-            {hasConversationActions ? (
+            {morePanelHasContent ? (
               <button
                 type="button"
                 onClick={() => {
                   setClipPanelOpen(false)
                   setAssistPanelOpen(false)
+                  setActingOnPanelOpen(false)
                   onCannedOpenChange(false)
                   setMoreMenuOpen((v) => !v)
                 }}
@@ -1058,8 +1112,20 @@ export function ReplyComposer({
                   SHELL_TOOLBAR_ICON,
                   moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title="Conversation actions"
-                aria-label="Conversation actions"
+                title={
+                  actingOnScope === "all"
+                    ? "Conversation actions"
+                    : actingOnScope === "selected"
+                      ? "Selected message actions"
+                      : "Latest message actions"
+                }
+                aria-label={
+                  actingOnScope === "all"
+                    ? "Conversation actions"
+                    : actingOnScope === "selected"
+                      ? "Selected message actions"
+                      : "Latest message actions"
+                }
                 aria-expanded={moreMenuOpen}
               >
                 <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -1677,20 +1743,34 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── More actions panel (Archive / Close / Move to Trash) ── */}
-        {moreMenuOpen && hasConversationActions && (
+        {/*
+          Scope-aware More actions panel.
+          - actingOnScope === "all"        → Conversation actions (Mark resolved + Archive / Close / Trash).
+          - actingOnScope === "selected"   → Selected message actions (Mark done, Add internal note).
+          - actingOnScope === "latest"     → Latest message actions (same shape, different scope).
+          The panel is hidden if there's nothing to render under the current scope.
+        */}
+        {moreMenuOpen && showMoreConversationPanel && (
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            {/* Dark header — same visual language as Attach toolbox tab bar */}
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                More actions
+                Conversation actions
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Currently affects the whole conversation
+                Affects the whole conversation.
               </p>
             </div>
-            {/* Body — flex-wrap row so it mirrors the Attach tabpanel */}
             <div className="flex flex-wrap gap-1.5 p-2.5">
+              {markResolvedHandler ? (
+                <MoreMenuItem
+                  icon={CheckCheck}
+                  label="Mark as resolved"
+                  activeLabel="Resolved"
+                  onClick={markResolvedHandler}
+                  isCurrent={currentConversationStatus === "resolved"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
               <MoreMenuItem
                 icon={Archive}
                 label="Archive"
@@ -1716,6 +1796,47 @@ export function ReplyComposer({
                 onAfterClick={() => setMoreMenuOpen(false)}
                 tone="danger"
               />
+            </div>
+          </div>
+        )}
+
+        {moreMenuOpen && showMoreMessagePanel && messageActions && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                {actingOnScope === "selected" ? "Selected message actions" : "Message actions"}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                {actingOnScope === "selected"
+                  ? "Affects the selected message."
+                  : "Affects the latest relevant message."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              {messageActions.onMarkDone ? (
+                <MoreMenuItem
+                  icon={CheckCircle2}
+                  label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
+                  activeLabel="Marked as done"
+                  onClick={messageActions.onMarkDone}
+                  isCurrent={messageActions.intentStatus === "done"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
+              {messageActions.onAddInternalNote ? (
+                <MoreMenuItem
+                  icon={StickyNote}
+                  label={actingOnScope === "selected" ? "Add internal note about selected" : "Add internal note about latest"}
+                  onClick={messageActions.onAddInternalNote}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
+              {/*
+                Trash latest/selected message: not exposed because message-level trash is not
+                implemented in this codebase. Showing a permanent disabled stub would only add
+                noise; the conversation-level Trash under "Acting on: All" remains the supported
+                way to remove content.
+              */}
             </div>
           </div>
         )}

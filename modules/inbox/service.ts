@@ -566,6 +566,58 @@ export async function addMessage(input: AddMessageInput) {
   return message
 }
 
+/**
+ * Mark a single Message as having its actionable intent done/open. Stored as a small key in
+ * `Message.metadata.intentStatus` so we don't need a schema change. The state is intentionally
+ * decoupled from `Conversation.status` — a single message can be "done" without closing the
+ * thread, which matches the operator mental model in the More menu.
+ *
+ * The merge is defensive: corrupted JSON is replaced (we never silently drop unknown fields
+ * we can read). On status transitions we also stamp `intentStatusAt` for forensics.
+ */
+export async function setMessageIntentStatus(input: {
+  workspaceId: string
+  conversationId: string
+  messageId: string
+  status: "done" | "open"
+}): Promise<{ id: string; metadata: Record<string, unknown> } | null> {
+  const message = await db.message.findFirst({
+    where: { id: input.messageId, conversationId: input.conversationId, workspaceId: input.workspaceId },
+    select: { id: true, metadata: true },
+  })
+  if (!message) return null
+
+  let parsed: Record<string, unknown> = {}
+  if (typeof message.metadata === "string" && message.metadata.length > 0) {
+    try {
+      const candidate = JSON.parse(message.metadata)
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        parsed = candidate as Record<string, unknown>
+      }
+    } catch {
+      /** Corrupted JSON — start fresh; we own these keys and never lose customer content. */
+    }
+  }
+
+  /** Avoid no-op writes (idempotency for the More button). */
+  if (parsed.intentStatus === input.status) {
+    return { id: message.id, metadata: parsed }
+  }
+
+  const next: Record<string, unknown> = {
+    ...parsed,
+    intentStatus: input.status,
+    intentStatusAt: new Date().toISOString(),
+  }
+
+  await db.message.update({
+    where: { id: input.messageId },
+    data: { metadata: JSON.stringify(next) },
+  })
+
+  return { id: input.messageId, metadata: next }
+}
+
 export async function transitionConversation(input: {
   workspaceId: string
   conversationId: string

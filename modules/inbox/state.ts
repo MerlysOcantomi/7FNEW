@@ -4,6 +4,13 @@ export const CONVERSATION_ACTIVE_STATUSES = [
   "assigned",
   "awaiting_response",
   "lead_detected",
+  /**
+   * "resolved" means the operator finished the work but the conversation is intentionally
+   * NOT closed — the customer might still send follow-ups, the team may want to revisit,
+   * and we keep it visible. It's an active state, distinct from "closed". Storing it on
+   * `Conversation.status` (already a free-form String column) avoids any schema migration.
+   */
+  "resolved",
 ] as const
 
 export const CONVERSATION_TERMINAL_STATUSES = [
@@ -18,11 +25,13 @@ export type ConversationTerminalStatus = (typeof CONVERSATION_TERMINAL_STATUSES)
 export type ConversationStatus = ConversationActiveStatus | ConversationTerminalStatus
 
 const TRANSITIONS: Record<ConversationStatus, ConversationStatus[]> = {
-  new: ["triaged", "assigned", "awaiting_response", "converted", "closed", "archived", "trashed"],
-  triaged: ["assigned", "awaiting_response", "lead_detected", "converted", "closed", "archived", "trashed"],
-  assigned: ["awaiting_response", "converted", "closed", "archived", "trashed"],
-  awaiting_response: ["assigned", "converted", "closed", "archived", "trashed"],
-  lead_detected: ["assigned", "awaiting_response", "converted", "closed", "archived", "trashed"],
+  new: ["triaged", "assigned", "awaiting_response", "resolved", "converted", "closed", "archived", "trashed"],
+  triaged: ["assigned", "awaiting_response", "lead_detected", "resolved", "converted", "closed", "archived", "trashed"],
+  assigned: ["awaiting_response", "resolved", "converted", "closed", "archived", "trashed"],
+  awaiting_response: ["assigned", "resolved", "converted", "closed", "archived", "trashed"],
+  lead_detected: ["assigned", "awaiting_response", "resolved", "converted", "closed", "archived", "trashed"],
+  /** From resolved you can reopen by reassigning, escalate to closed/archived, or move to trash. */
+  resolved: ["assigned", "awaiting_response", "triaged", "converted", "closed", "archived", "trashed"],
   converted: ["assigned", "closed", "archived", "trashed"],
   closed: ["assigned", "triaged", "archived", "trashed"],
   archived: ["triaged", "closed", "trashed"],
@@ -70,6 +79,7 @@ export function normalizeLegacyInboxStatus(status?: string | null): Conversation
     case "assigned":
     case "awaiting_response":
     case "lead_detected":
+    case "resolved":
     case "converted":
     case "closed":
     case "archived":
