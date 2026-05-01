@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
-  Send, Loader2, Mic, MicOff, Zap, Paperclip, ChevronDown, ChevronUp,
+  Send, Loader2, Mic, MicOff, Paperclip, ChevronDown, ChevronUp,
   Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
-  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote,
+  Receipt, CreditCard, RotateCcw, Keyboard, Wand2,
   Archive, CheckCircle2, Trash2, MoreHorizontal, Target, Layers,
   type LucideIcon,
 } from "lucide-react"
@@ -14,14 +14,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
@@ -260,14 +252,13 @@ export function ReplyComposer({
 
   /**
    * Assist panel layout: mismo patrón que el toolbox (tabs en barra negra + contenido de la activa).
-   * Antes mostraba "Improve" + "Translate" en grid 2 columnas; ahora son tabs.
+   * Consolida bajo el icono Wand2 todas las herramientas AI/text que antes vivían como iconos
+   * separados en la toolbar (Snippets, Fanny suggestion, Dictate, Intent compose). El Mic y el
+   * Attach quedan fuera (alta frecuencia + semántica distinta).
    */
-  type AssistTabId = "improve" | "translate"
+  type AssistTabId = "improve" | "translate" | "templates" | "suggestions" | "voice"
   const [activeAssistTab, setActiveAssistTab] = useState<AssistTabId>("improve")
-  const assistTabs: Array<{ id: AssistTabId; label: string }> = [
-    { id: "improve", label: "Improve" },
-    { id: "translate", label: "Translate" },
-  ]
+  const [templateQuery, setTemplateQuery] = useState("")
 
   /**
    * Toolbox layout v2: en lugar de mostrar todas las categorías en columnas estrechas
@@ -501,20 +492,24 @@ export function ReplyComposer({
 
   const [clipPanelOpen, setClipPanelOpen] = useState(false)
   const [assistPanelOpen, setAssistPanelOpen] = useState(false)
-  const [fannyPanelOpen, setFannyPanelOpen] = useState(false)
   const [fannyEditBuffer, setFannyEditBuffer] = useState("")
 
   const hasFannySuggestion = Boolean(onApplyFannySuggestion && fannySuggestionContent?.trim())
 
+  /**
+   * Seed the Fanny edit buffer when the operator switches to the "suggestions" tab inside the
+   * AI panel. Antes existía un panel separado controlado por `fannyPanelOpen`; tras consolidar
+   * todo bajo Wand2, el activeAssistTab gobierna cuándo refrescar el draft editable.
+   */
   useEffect(() => {
-    if (fannyPanelOpen && typeof fannySuggestionContent === "string") {
+    if (
+      assistPanelOpen
+      && activeAssistTab === "suggestions"
+      && typeof fannySuggestionContent === "string"
+    ) {
       setFannyEditBuffer(fannySuggestionContent)
     }
-  }, [fannyPanelOpen, fannySuggestionContent])
-
-  useEffect(() => {
-    if (!hasFannySuggestion) setFannyPanelOpen(false)
-  }, [hasFannySuggestion])
+  }, [assistPanelOpen, activeAssistTab, fannySuggestionContent])
 
   useLayoutEffect(() => {
     const el = composerTextareaRef.current
@@ -527,14 +522,12 @@ export function ReplyComposer({
   useEffect(() => {
     if (isProcessing) {
       setAssistPanelOpen(false)
-      setFannyPanelOpen(false)
     }
   }, [isProcessing])
 
   const closePanelBlocks = useCallback(() => {
     setClipPanelOpen(false)
     setAssistPanelOpen(false)
-    setFannyPanelOpen(false)
     setMoreMenuOpen(false)
     setActingOnPanelOpen(false)
   }, [])
@@ -563,12 +556,33 @@ export function ReplyComposer({
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
-    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen || moreMenuOpen || actingOnPanelOpen
+    clipPanelOpen || assistPanelOpen || moreMenuOpen || actingOnPanelOpen
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
   const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
   const emailToolActive = showEmailModeChrome && !replyIsInternal && !voiceToolbarFocus
   const voiceToolActive = showVoiceModeChrome && voiceToolbarFocus
+
+  /**
+   * Assist tabs: dinámicos según capacidades disponibles. El icono `Wand2` siempre es visible y
+   * abre este panel — los tabs internos se adaptan al estado (no hay snippets si el workspace
+   * no tiene canned responses, no hay Fanny tab si no hay sugerencia, no hay Voice tab si el
+   * navegador no soporta speech recognition).
+   */
+  const assistTabs: Array<{ id: AssistTabId; label: string }> = [
+    { id: "improve", label: "Improve" },
+    { id: "translate", label: "Translate" },
+    ...(cannedResponses.length > 0 ? [{ id: "templates" as const, label: "Templates" }] : []),
+    ...(hasFannySuggestion ? [{ id: "suggestions" as const, label: "Fanny" }] : []),
+    ...(speech.supported ? [{ id: "voice" as const, label: "Voice" }] : []),
+  ]
+  /** Si el tab activo deja de existir (p. ej. Fanny pierde sugerencia), volvemos a "improve". */
+  useEffect(() => {
+    if (!assistTabs.some((t) => t.id === activeAssistTab)) {
+      setActiveAssistTab("improve")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- assistTabs is derived; only re-check when its inputs flip
+  }, [cannedResponses.length, hasFannySuggestion, speech.supported])
 
   return (
     <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
@@ -748,7 +762,6 @@ export function ReplyComposer({
               onClick={() => {
                 setClipPanelOpen(false)
                 setAssistPanelOpen(false)
-                setFannyPanelOpen(false)
                 setMoreMenuOpen(false)
                 onCannedOpenChange(false)
                 setActingOnPanelOpen((v) => !v)
@@ -861,7 +874,6 @@ export function ReplyComposer({
               type="button"
               onClick={() => {
                 setAssistPanelOpen(false)
-                setFannyPanelOpen(false)
                 onCannedOpenChange(false)
                 setClipPanelOpen((v) => !v)
               }}
@@ -891,61 +903,17 @@ export function ReplyComposer({
               }}
             />
 
-            {cannedResponses.length > 0 && (
-              <Popover
-                open={cannedOpen}
-                onOpenChange={(open) => {
-                  if (open) {
-                    setClipPanelOpen(false)
-                    setAssistPanelOpen(false)
-                    setFannyPanelOpen(false)
-                  }
-                  onCannedOpenChange(open)
-                }}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      SHELL_TOOLBAR_ICON,
-                      cannedOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
-                    )}
-                    title="Snippets"
-                  >
-                    <Zap className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
-                  <Command>
-                    <CommandInput placeholder="Search responses..." />
-                    <CommandList>
-                      <CommandEmpty>No matches</CommandEmpty>
-                      <CommandGroup>
-                        {cannedResponses.map((item) => (
-                          <CommandItem
-                            key={item.id}
-                            value={`${item.label} ${item.content}`}
-                            onSelect={() => handleInsertCanned(item)}
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{item.label}</p>
-                              <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{item.content}</p>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-
+            {/*
+             * AI / text tools — un solo icono Wand2 abre el panel consolidado con tabs:
+             * Improve, Translate, Templates (canned), Fanny (sugerencia), Voice (dictate / intent).
+             * Antes había varios iconos separados (Zap snippets, MessageSquareQuote Fanny, Keyboard dictate, Sparkles intent)
+             * que hacían wrap la toolbar al añadir "Acting on".
+             */}
             {!isProcessing && (
               <button
                 type="button"
                 onClick={() => {
                   setClipPanelOpen(false)
-                  setFannyPanelOpen(false)
                   onCannedOpenChange(false)
                   setAssistPanelOpen((v) => !v)
                 }}
@@ -953,99 +921,49 @@ export function ReplyComposer({
                   SHELL_TOOLBAR_ICON,
                   assistPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title="Improve text — tone, clarity, translate…"
+                title="AI tools — improve, translate, templates, suggestions, voice"
+                aria-label="AI tools"
+                aria-expanded={assistPanelOpen}
               >
                 <Wand2 className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
             )}
 
-            {hasFannySuggestion && (
+            {speech.supported && (
               <button
                 type="button"
                 onClick={() => {
-                  setClipPanelOpen(false)
-                  setAssistPanelOpen(false)
-                  onCannedOpenChange(false)
-                  setFannyPanelOpen((v) => !v)
+                  closeComposerOverlays()
+                  handleMicToggle()
                 }}
+                disabled={isProcessing}
                 className={cn(
                   SHELL_TOOLBAR_ICON,
-                  fannyPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                  speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
+                  isProcessing && "cursor-not-allowed opacity-50",
+                  !speech.listening && voiceToolActive && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title="Fanny suggested reply — apply to compose only (does not send)"
-                aria-label="Fanny suggested reply"
+                title={
+                  speech.listening
+                    ? "Stop recording"
+                    : voiceMode === "compose"
+                      ? "Speak your intent — drafts a reply from what you say"
+                      : "Start dictation — speech is typed into the message"
+                }
+                aria-label={
+                  speech.listening
+                    ? "Stop recording"
+                    : voiceMode === "compose"
+                      ? "Speak your intent"
+                      : "Start dictation"
+                }
               >
-                <MessageSquareQuote className="h-4 w-4 shrink-0" strokeWidth={2} />
+                {speech.listening ? (
+                  <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
+                ) : (
+                  <Mic className="h-4 w-4 shrink-0" strokeWidth={2} />
+                )}
               </button>
-            )}
-
-            {speech.supported && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeComposerOverlays()
-                    setVoiceToolbarFocus(true)
-                    setVoiceMode("dictate")
-                  }}
-                  className={cn(
-                    SHELL_TOOLBAR_ICON,
-                    voiceToolActive && voiceMode === "dictate" && !speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
-                  )}
-                  title="Dictate — speech is typed into the message"
-                  aria-label="Dictate — speech is typed into the message"
-                >
-                  <Keyboard className="h-4 w-4 shrink-0" strokeWidth={2} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVoiceMode("compose")}
-                  className={cn(
-                    SHELL_TOOLBAR_ICON,
-                    showVoiceModeChrome &&
-                      voiceMode === "compose" &&
-                      !speech.listening &&
-                      SHELL_TOOLBAR_ICON_ACTIVE,
-                  )}
-                  title="Intent — describe the reply you want (drafted from your words)"
-                  aria-label="Intent — describe the reply you want"
-                >
-                  <Sparkles className="h-4 w-4 shrink-0" strokeWidth={2} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeComposerOverlays()
-                    handleMicToggle()
-                  }}
-                  disabled={isProcessing}
-                  className={cn(
-                    SHELL_TOOLBAR_ICON,
-                    speech.listening && SHELL_TOOLBAR_ICON_ACTIVE,
-                    isProcessing && "cursor-not-allowed opacity-50",
-                  )}
-                  title={
-                    speech.listening
-                      ? "Stop recording"
-                      : voiceMode === "compose"
-                        ? "Speak your intent"
-                        : "Start dictation"
-                  }
-                  aria-label={
-                    speech.listening
-                      ? "Stop recording"
-                      : voiceMode === "compose"
-                        ? "Speak your intent"
-                        : "Start dictation"
-                  }
-                >
-                  {speech.listening ? (
-                    <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  ) : (
-                    <Mic className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  )}
-                </button>
-              </>
             )}
 
             {hasConversationActions ? (
@@ -1054,7 +972,6 @@ export function ReplyComposer({
                 onClick={() => {
                   setClipPanelOpen(false)
                   setAssistPanelOpen(false)
-                  setFannyPanelOpen(false)
                   onCannedOpenChange(false)
                   setMoreMenuOpen((v) => !v)
                 }}
@@ -1153,8 +1070,8 @@ export function ReplyComposer({
               })}
             </div>
 
-            {/* Helper hint when textarea is empty — applies to both tabs */}
-            {!hasText && (
+            {/* Helper hint when textarea is empty — only relevant to Improve/Translate */}
+            {!hasText && (activeAssistTab === "improve" || activeAssistTab === "translate") && (
               <p className="px-3 pt-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
                 Write something in the message to use improve and translate tools.
               </p>
@@ -1165,7 +1082,11 @@ export function ReplyComposer({
               role="tabpanel"
               id={`assist-panel-${activeAssistTab}`}
               aria-labelledby={`assist-tab-${activeAssistTab}`}
-              className="flex flex-wrap gap-1.5 p-2.5"
+              className={cn(
+                activeAssistTab === "templates" || activeAssistTab === "suggestions"
+                  ? "flex flex-col gap-1.5 p-2.5"
+                  : "flex flex-wrap gap-1.5 p-2.5",
+              )}
             >
               {activeAssistTab === "improve" &&
                 SMART_TOOLS.map((tool) => (
@@ -1199,54 +1120,124 @@ export function ReplyComposer({
                     }
                   />
                 ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Fanny suggested reply (mismo bloque que Assist / Clip) ── */}
-        {fannyPanelOpen && hasFannySuggestion && (
-          <div className="flex max-h-[min(52vh,420px)] flex-col overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            <div className="shrink-0 border-b border-[var(--inbox-border)]/40 px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-                Fanny · suggested reply
-              </p>
-              {fannySuggestionTitle?.trim() ? (
-                <p className="mt-0.5 text-xs text-[var(--inbox-text-secondary)]">{fannySuggestionTitle}</p>
-              ) : null}
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
-              <Textarea
-                value={fannyEditBuffer}
-                onChange={(e) => setFannyEditBuffer(e.target.value)}
-                rows={8}
-                className="min-h-[140px] max-h-[min(36vh,280px)] w-full resize-y overflow-y-auto rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-sm text-[var(--inbox-composer-input-text)] [field-sizing:fixed]"
-                placeholder="Edit suggested reply…"
-              />
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-[var(--inbox-border)]/40 px-2 py-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-text)]"
-                onClick={() => setFannyPanelOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="accent"
-                disabled={!fannyEditBuffer.trim()}
-                onClick={() => {
-                  const next = fannyEditBuffer.trim()
-                  if (!next) return
-                  onApplyFannySuggestion?.(next)
-                  setFannyPanelOpen(false)
-                }}
-              >
-                Use reply
-              </Button>
+              {activeAssistTab === "templates" && (
+                <>
+                  <Input
+                    type="text"
+                    placeholder="Search templates..."
+                    value={templateQuery}
+                    onChange={(e) => setTemplateQuery(e.target.value)}
+                    className="h-7 border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)]/60 px-2 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 focus-visible:ring-0"
+                  />
+                  <div className="flex max-h-48 flex-col gap-1 overflow-y-auto pr-1">
+                    {(() => {
+                      const q = templateQuery.trim().toLowerCase()
+                      const filtered = q
+                        ? cannedResponses.filter(
+                            (r) =>
+                              r.label.toLowerCase().includes(q) ||
+                              r.content.toLowerCase().includes(q),
+                          )
+                        : cannedResponses
+                      if (filtered.length === 0) {
+                        return (
+                          <p className="px-1 py-2 text-[11px] text-[var(--inbox-text-secondary)]">
+                            No matches.
+                          </p>
+                        )
+                      }
+                      return filtered.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            handleInsertCanned(item)
+                            setAssistPanelOpen(false)
+                            setTemplateQuery("")
+                          }}
+                          className="rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:border-[var(--inbox-border)]/40 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+                        >
+                          <p className="truncate text-[11px] font-medium text-[var(--inbox-text)]">
+                            {item.label}
+                          </p>
+                          <p className="truncate text-[10px] text-[var(--inbox-text-secondary)]">
+                            {item.content}
+                          </p>
+                        </button>
+                      ))
+                    })()}
+                  </div>
+                </>
+              )}
+              {activeAssistTab === "suggestions" && hasFannySuggestion && (
+                <>
+                  {fannySuggestionTitle?.trim() ? (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                      Fanny · {fannySuggestionTitle}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                      Fanny · suggested reply
+                    </p>
+                  )}
+                  <Textarea
+                    value={fannyEditBuffer}
+                    onChange={(e) => setFannyEditBuffer(e.target.value)}
+                    rows={6}
+                    className="min-h-[120px] max-h-[min(32vh,240px)] w-full resize-y overflow-y-auto rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-sm text-[var(--inbox-composer-input-text)] [field-sizing:fixed]"
+                    placeholder="Edit suggested reply…"
+                  />
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-text)]"
+                      onClick={() => setAssistPanelOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="accent"
+                      disabled={!fannyEditBuffer.trim()}
+                      onClick={() => {
+                        const next = fannyEditBuffer.trim()
+                        if (!next) return
+                        onApplyFannySuggestion?.(next)
+                        setAssistPanelOpen(false)
+                      }}
+                    >
+                      Use reply
+                    </Button>
+                  </div>
+                </>
+              )}
+              {activeAssistTab === "voice" && speech.supported && (
+                <>
+                  <ClipAction
+                    label="Dictate"
+                    icon={Keyboard}
+                    title="Dictation mode — speech is typed into the message"
+                    onClick={() => {
+                      setVoiceMode("dictate")
+                      setAssistPanelOpen(false)
+                      setVoiceToolbarFocus(true)
+                    }}
+                  />
+                  <ClipAction
+                    label="Speak intent"
+                    icon={Sparkles}
+                    title="Intent mode — describe the reply you want, drafted from your words"
+                    onClick={() => {
+                      setVoiceMode("compose")
+                      setAssistPanelOpen(false)
+                      setVoiceToolbarFocus(true)
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         )}
