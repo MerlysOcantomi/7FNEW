@@ -222,6 +222,15 @@ function InboxPageContent() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   /** Marca el último `?messageId=` que aplicamos a `selectedMessageId` para no re-aplicar en bucle. */
   const lastAppliedMessageIdRef = useRef<string | null>(null)
+  /**
+   * Acting on scope: controla qué mensaje/contexto usan los tools del composer.
+   *  - "latest": último mensaje relevante (default)
+   *  - "selected": mensaje actualmente seleccionado (requiere selectedMessageId)
+   *  - "all": toda la conversación
+   * Se mantiene **ortogonal** a `selectedMessageId` para no perder el highlight.
+   */
+  type ActingOnScope = "latest" | "selected" | "all"
+  const [actingOnScope, setActingOnScope] = useState<ActingOnScope>("latest")
   const [refreshKey, setRefreshKey] = useState(0)
   const [actionState, setActionState] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
@@ -599,6 +608,20 @@ function InboxPageContent() {
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [selectedMessageId, searchParams, pathname, router])
+
+  /**
+   * Acting on auto-tracking:
+   *  - Si el usuario tiene scope "latest" y selecciona un mensaje → cambiamos a "selected" (UX intuitiva).
+   *  - Si el usuario tiene scope "selected" y se queda sin mensaje seleccionado → fallback a "latest".
+   *  - "all" siempre permanece manual hasta que el usuario lo cambie de nuevo.
+   */
+  useEffect(() => {
+    if (selectedMessageId && actingOnScope === "latest") {
+      setActingOnScope("selected")
+    } else if (!selectedMessageId && actingOnScope === "selected") {
+      setActingOnScope("latest")
+    }
+  }, [selectedMessageId, actingOnScope])
 
   replyContentRef.current = replyContent
 
@@ -1252,6 +1275,8 @@ function InboxPageContent() {
    * usa para "What this message means". Sin AI extra, sin endpoints nuevos.
    */
   const replyTarget = useMemo(() => {
+    /** Acting on gate: solo poblar replyTarget cuando el scope es "selected". */
+    if (actingOnScope !== "selected") return null
     if (!effectiveSelectedMessageId) return null
     const msg = threadMessages.find((m) => m.id === effectiveSelectedMessageId)
     if (!msg) return null
@@ -1307,7 +1332,7 @@ function InboxPageContent() {
       hasAttachments,
       hasLinks,
     }
-  }, [effectiveSelectedMessageId, threadMessages, selected, selectedId, messageShortIntentsById])
+  }, [actingOnScope, effectiveSelectedMessageId, threadMessages, selected, selectedId, messageShortIntentsById])
 
   /**
    * Phase 4: anchor "por defecto" cuando NO hay selección por-mensaje. Refleja `lastInboundMessageId`
@@ -1316,7 +1341,8 @@ function InboxPageContent() {
    * mensaje recibirá la acción.
    */
   const latestActionAnchor = useMemo(() => {
-    if (effectiveSelectedMessageId) return null
+    /** Acting on gate: solo mostrar latest cuando el scope es "latest". */
+    if (actingOnScope !== "latest") return null
     if (!lastInboundMessageId) return null
     const msg = threadMessages.find((m) => m.id === lastInboundMessageId)
     if (!msg) return null
@@ -1328,7 +1354,7 @@ function InboxPageContent() {
       timestampLabel: msg.timestampLabel,
       snippet: snippet || null,
     }
-  }, [effectiveSelectedMessageId, lastInboundMessageId, threadMessages])
+  }, [actingOnScope, lastInboundMessageId, threadMessages])
 
   const handleClearReplyTarget = useCallback(() => {
     setSelectedMessageId(null)
@@ -2024,6 +2050,9 @@ function InboxPageContent() {
                         replyTarget={replyTarget}
                         onClearReplyTarget={handleClearReplyTarget}
                         latestActionAnchor={latestActionAnchor}
+                        actingOnScope={actingOnScope}
+                        onActingOnScopeChange={setActingOnScope}
+                        hasSelectedMessage={Boolean(effectiveSelectedMessageId)}
                         conversationActions={{
                           onArchive: handleArchiveConversation,
                           onClose: handleCloseConversation,

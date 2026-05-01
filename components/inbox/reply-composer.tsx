@@ -6,8 +6,8 @@ import {
   Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
-  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote, CornerUpLeft,
-  Archive, CheckCircle2, Trash2, MoreHorizontal,
+  Receipt, CreditCard, RotateCcw, Keyboard, Wand2, MessageSquareQuote,
+  Archive, CheckCircle2, Trash2, MoreHorizontal, Target, Layers,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -112,6 +112,14 @@ interface ReplyComposerProps {
   fannySuggestionTitle?: string | null
   fannySuggestionContent?: string | null
   onApplyFannySuggestion?: (content: string) => void
+  /**
+   * Acting on scope (controla qué mensaje/contexto usan los tools del composer).
+   * Ortogonal a `selectedMessageId`: el highlight no se pierde al cambiar scope.
+   */
+  actingOnScope?: "latest" | "selected" | "all"
+  onActingOnScopeChange?: (scope: "latest" | "selected" | "all") => void
+  /** Indica si hay un mensaje seleccionado disponible para usar el scope "selected". */
+  hasSelectedMessage?: boolean
 }
 
 const TRANSLATE_LANGUAGES = [
@@ -178,6 +186,9 @@ export function ReplyComposer({
   fannySuggestionTitle,
   fannySuggestionContent,
   onApplyFannySuggestion,
+  actingOnScope = "latest",
+  onActingOnScopeChange,
+  hasSelectedMessage = false,
 }: ReplyComposerProps) {
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
@@ -223,6 +234,29 @@ export function ReplyComposer({
    * sobre el composer; ahora vive como icono en la toolbar para liberar espacio vertical.
    */
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+
+  /** Acting on panel: scope picker (Latest / Selected / All). */
+  const [actingOnPanelOpen, setActingOnPanelOpen] = useState(false)
+  const actingOnScopeMeta: Record<"latest" | "selected" | "all", { label: string; icon: LucideIcon; description: string }> = {
+    latest: {
+      label: "Latest",
+      icon: Reply,
+      description: "Use the most recent relevant message.",
+    },
+    selected: {
+      label: "Selected",
+      icon: Target,
+      description: hasSelectedMessage
+        ? "Use the message you selected in the thread."
+        : "Select a message in the thread first.",
+    },
+    all: {
+      label: "All",
+      icon: Layers,
+      description: "Use the whole conversation as context.",
+    },
+  }
+  const currentActingOnLabel = actingOnScopeMeta[actingOnScope].label
 
   /**
    * Assist panel layout: mismo patrón que el toolbox (tabs en barra negra + contenido de la activa).
@@ -502,6 +536,7 @@ export function ReplyComposer({
     setAssistPanelOpen(false)
     setFannyPanelOpen(false)
     setMoreMenuOpen(false)
+    setActingOnPanelOpen(false)
   }, [])
 
   const closeComposerOverlays = useCallback(() => {
@@ -519,23 +554,6 @@ export function ReplyComposer({
         ? "Reply all"
         : composerConfig.sendLabel
 
-  /**
-   * Phase 4: el badge de scope cubre los dos modos:
-   *  - `selected` (Phase 2): hay `replyTarget` → estilo accent + clear X.
-   *  - `latest` (default): no hay `replyTarget` pero sí `latestActionAnchor` → estilo sutil sin X.
-   * El verbo cambia según el modo del composer (forward vs reply/internal).
-   */
-  const activeAnchor: ReplyTargetInfo | null = replyTarget ?? latestActionAnchor ?? null
-  const anchorScope: "selected" | "latest" | null = replyTarget
-    ? "selected"
-    : latestActionAnchor
-      ? "latest"
-      : null
-  const isForwardMode = !replyIsInternal && emailMode === "forward"
-  const anchorVerb = isForwardMode ? "Forwarding" : "Replying to"
-  const anchorScopeWord = anchorScope === "selected" ? "selected" : "latest"
-  const replyTargetActionLabel = `${anchorVerb} ${anchorScopeWord} message`
-
   /** Phase 4: handlers conversation-level (Archive / Close / Move to Trash). */
   const archiveHandler = conversationActions?.onArchive
   const closeHandler = conversationActions?.onClose
@@ -545,7 +563,7 @@ export function ReplyComposer({
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
-    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen || moreMenuOpen
+    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen || moreMenuOpen || actingOnPanelOpen
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
   const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
@@ -627,83 +645,6 @@ export function ReplyComposer({
             )}
           </div>
         )}
-
-        {/* ── Reply target badge (Phase 2 + Phase 4 scope-aware) ── */}
-        {activeAnchor ? (
-          <div
-            className={cn(
-              "flex items-start gap-1.5 rounded-md px-2 py-1 text-[var(--inbox-text)]",
-              anchorScope === "selected"
-                ? "border border-[var(--inbox-accent)]/35 border-l-2 border-l-[var(--inbox-accent)] bg-[var(--inbox-accent)]/12"
-                : "border border-dashed border-[var(--inbox-border)]/45 bg-white/[0.02]",
-            )}
-            role="status"
-            aria-live="polite"
-          >
-            <CornerUpLeft
-              className={cn(
-                "mt-0.5 h-3 w-3 shrink-0",
-                anchorScope === "selected"
-                  ? "text-[var(--inbox-accent)]"
-                  : "text-[var(--inbox-text-secondary)]",
-              )}
-              aria-hidden="true"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider",
-                    anchorScope === "selected"
-                      ? "text-[var(--inbox-accent)]"
-                      : "text-[var(--inbox-text-secondary)]",
-                  )}
-                >
-                  {replyTargetActionLabel}
-                </span>
-                {activeAnchor.timestampLabel ? (
-                  <span
-                    suppressHydrationWarning
-                    className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
-                  >
-                    · {activeAnchor.timestampLabel}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex min-w-0 items-baseline gap-1.5">
-                <span
-                  className={cn(
-                    "shrink-0 truncate text-[10px] font-semibold",
-                    anchorScope === "selected"
-                      ? "text-[var(--inbox-text)]"
-                      : "text-[var(--inbox-text)]/85",
-                  )}
-                >
-                  {activeAnchor.authorLabel}
-                </span>
-                {activeAnchor.snippet ? (
-                  <span
-                    className="min-w-0 truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
-                    title={activeAnchor.snippet}
-                  >
-                    {activeAnchor.snippet}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            {anchorScope === "selected" && onClearReplyTarget ? (
-              <button
-                type="button"
-                onClick={onClearReplyTarget}
-                className="ml-1 shrink-0 rounded p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
-                title="Reply to whole conversation"
-                aria-label="Clear selected message — reply to whole conversation"
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            ) : null}
-          </div>
-        ) : null}
 
         {/* ── Textarea ── */}
         <div className="relative">
@@ -791,6 +732,31 @@ export function ReplyComposer({
         {/* ── Barra de iconos + envío (solo icono a la derecha) ── */}
         <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
           <div className="flex min-w-0 flex-wrap items-center gap-y-1">
+            {/* Acting on — first toolbar control, drives scope used by the rest of the toolbar */}
+            <button
+              type="button"
+              onClick={() => {
+                setClipPanelOpen(false)
+                setAssistPanelOpen(false)
+                setFannyPanelOpen(false)
+                setMoreMenuOpen(false)
+                onCannedOpenChange(false)
+                setActingOnPanelOpen((v) => !v)
+              }}
+              className={cn(
+                "mr-1 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                actingOnPanelOpen
+                  ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
+                  : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
+              )}
+              title={`Acting on: ${currentActingOnLabel} — controls scope used by toolbar`}
+              aria-label={`Acting on: ${currentActingOnLabel}`}
+              aria-expanded={actingOnPanelOpen}
+            >
+              <Target className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="text-[10px]">Acting on:</span>
+              <span className="text-[10px] font-semibold">{currentActingOnLabel}</span>
+            </button>
             <div className="flex flex-wrap items-center gap-0.5">
               <button
                 type="button"
@@ -1519,6 +1485,131 @@ export function ReplyComposer({
                   />
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Acting on scope panel ── */}
+        {actingOnPanelOpen && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            {/* Dark header — same visual language as Attach toolbox tab bar */}
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                Acting on
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                Choose which message context the toolbar uses.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1 p-2.5">
+              {(["latest", "selected", "all"] as const).map((scope) => {
+                const meta = actingOnScopeMeta[scope]
+                const isActive = actingOnScope === scope
+                const isDisabled = scope === "selected" && !hasSelectedMessage
+                return (
+                  <button
+                    key={scope}
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={
+                      isDisabled
+                        ? undefined
+                        : () => {
+                            onActingOnScopeChange?.(scope)
+                            setActingOnPanelOpen(false)
+                          }
+                    }
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                      isActive
+                        ? "border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 text-[var(--inbox-text)]"
+                        : isDisabled
+                          ? "cursor-not-allowed border-[var(--inbox-border)]/30 bg-transparent text-[var(--inbox-text-secondary)]/65 opacity-75"
+                          : "border-[var(--inbox-border)]/30 bg-transparent text-[var(--inbox-text)] hover:border-[var(--inbox-accent)]/30 hover:bg-white/[0.06]",
+                    )}
+                    title={isDisabled ? meta.description : `Use ${meta.label.toLowerCase()} scope`}
+                    aria-pressed={isActive}
+                  >
+                    <meta.icon
+                      className={cn(
+                        "mt-0.5 h-3.5 w-3.5 shrink-0",
+                        isActive && "text-[var(--inbox-accent)]",
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block text-[12px] font-medium leading-tight",
+                          isActive && "text-[var(--inbox-accent)]",
+                        )}
+                      >
+                        {meta.label}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] leading-snug text-[var(--inbox-text-secondary)]">
+                        {meta.description}
+                      </span>
+                      {/* Inline preview when this scope is active and an anchor exists */}
+                      {isActive && scope === "selected" && replyTarget ? (
+                        <span className="mt-1 block">
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
+                              {replyTarget.authorLabel}
+                            </span>
+                            {replyTarget.timestampLabel ? (
+                              <span
+                                suppressHydrationWarning
+                                className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
+                              >
+                                · {replyTarget.timestampLabel}
+                              </span>
+                            ) : null}
+                          </span>
+                          {replyTarget.snippet ? (
+                            <span
+                              className="mt-0.5 block truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
+                              title={replyTarget.snippet}
+                            >
+                              {replyTarget.snippet}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      {isActive && scope === "latest" && latestActionAnchor ? (
+                        <span className="mt-1 block">
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
+                              {latestActionAnchor.authorLabel}
+                            </span>
+                            {latestActionAnchor.timestampLabel ? (
+                              <span
+                                suppressHydrationWarning
+                                className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
+                              >
+                                · {latestActionAnchor.timestampLabel}
+                              </span>
+                            ) : null}
+                          </span>
+                          {latestActionAnchor.snippet ? (
+                            <span
+                              className="mt-0.5 block truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
+                              title={latestActionAnchor.snippet}
+                            >
+                              {latestActionAnchor.snippet}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                    </span>
+                    {isActive && (
+                      <span className="mt-0.5 shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
+                        Active
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
