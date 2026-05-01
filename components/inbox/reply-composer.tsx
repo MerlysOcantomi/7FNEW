@@ -225,6 +225,17 @@ export function ReplyComposer({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   /**
+   * Assist panel layout: mismo patrón que el toolbox (tabs en barra negra + contenido de la activa).
+   * Antes mostraba "Improve" + "Translate" en grid 2 columnas; ahora son tabs.
+   */
+  type AssistTabId = "improve" | "translate"
+  const [activeAssistTab, setActiveAssistTab] = useState<AssistTabId>("improve")
+  const assistTabs: Array<{ id: AssistTabId; label: string }> = [
+    { id: "improve", label: "Improve" },
+    { id: "translate", label: "Translate" },
+  ]
+
+  /**
    * Toolbox layout v2: en lugar de mostrar todas las categorías en columnas estrechas
    * (que hacía wrap roto en "Scree/n", "Propo/sal", etc.), las categorías son tabs y
    * solo se renderizan las acciones de la activa. Default: "attach".
@@ -490,6 +501,7 @@ export function ReplyComposer({
     setClipPanelOpen(false)
     setAssistPanelOpen(false)
     setFannyPanelOpen(false)
+    setMoreMenuOpen(false)
   }, [])
 
   const closeComposerOverlays = useCallback(() => {
@@ -533,7 +545,7 @@ export function ReplyComposer({
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
-    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen
+    clipPanelOpen || assistPanelOpen || fannyPanelOpen || cannedOpen || moreMenuOpen
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
   const showVoiceModeChrome = !composerOverlayOpen && !speech.listening
@@ -1060,56 +1072,25 @@ export function ReplyComposer({
             )}
 
             {hasConversationActions ? (
-              <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      SHELL_TOOLBAR_ICON,
-                      moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
-                    )}
-                    title="Conversation actions"
-                    aria-label="Conversation actions"
-                  >
-                    <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  side="top"
-                  sideOffset={8}
-                  className="w-60 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-1 text-[var(--inbox-text)]"
-                >
-                  <p className="px-2 pb-1 pt-0.5 text-[10px] uppercase tracking-wider text-[var(--inbox-muted)]">
-                    Currently affects the whole conversation
-                  </p>
-                  <MoreMenuItem
-                    icon={Archive}
-                    label="Archive"
-                    activeLabel="Archived"
-                    onClick={archiveHandler}
-                    isCurrent={currentConversationStatus === "archived"}
-                    onAfterClick={() => setMoreMenuOpen(false)}
-                  />
-                  <MoreMenuItem
-                    icon={CheckCircle2}
-                    label="Close"
-                    activeLabel="Closed"
-                    onClick={closeHandler}
-                    isCurrent={currentConversationStatus === "closed"}
-                    onAfterClick={() => setMoreMenuOpen(false)}
-                  />
-                  <MoreMenuItem
-                    icon={Trash2}
-                    label="Move to Trash"
-                    activeLabel="In Trash"
-                    onClick={trashHandler}
-                    isCurrent={currentConversationStatus === "trashed"}
-                    onAfterClick={() => setMoreMenuOpen(false)}
-                    tone="danger"
-                  />
-                </PopoverContent>
-              </Popover>
+              <button
+                type="button"
+                onClick={() => {
+                  setClipPanelOpen(false)
+                  setAssistPanelOpen(false)
+                  setFannyPanelOpen(false)
+                  onCannedOpenChange(false)
+                  setMoreMenuOpen((v) => !v)
+                }}
+                className={cn(
+                  SHELL_TOOLBAR_ICON,
+                  moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                )}
+                title="Conversation actions"
+                aria-label="Conversation actions"
+                aria-expanded={moreMenuOpen}
+              >
+                <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
+              </button>
             ) : null}
             </div>
 
@@ -1153,17 +1134,64 @@ export function ReplyComposer({
           </div>
         </div>
 
-        {/* ── Intelligence panel (same pattern as Clip) ── */}
+        {/* ── Intelligence panel (tabbed: Improve / Translate) ── */}
         {assistPanelOpen && !isProcessing && (
-          <div className="rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02] p-2">
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            {/* Dark tab bar — matches Attach toolbox */}
+            <div
+              role="tablist"
+              aria-label="Improve text categories"
+              className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/35 bg-black/35 px-2 pt-1.5"
+            >
+              {assistTabs.map((tab) => {
+                const isActive = activeAssistTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    id={`assist-tab-${tab.id}`}
+                    aria-selected={isActive}
+                    aria-controls={`assist-panel-${tab.id}`}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => setActiveAssistTab(tab.id)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return
+                      event.preventDefault()
+                      const idx = assistTabs.findIndex((t) => t.id === activeAssistTab)
+                      const delta = event.key === "ArrowRight" ? 1 : -1
+                      const next = assistTabs[(idx + delta + assistTabs.length) % assistTabs.length]
+                      setActiveAssistTab(next.id)
+                    }}
+                    className={cn(
+                      "rounded-t-md px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                      isActive
+                        ? "border-b-2 border-[var(--inbox-accent)] -mb-[1px] text-[var(--inbox-accent)]"
+                        : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Helper hint when textarea is empty — applies to both tabs */}
             {!hasText && (
-              <p className="mb-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
+              <p className="px-3 pt-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
                 Write something in the message to use improve and translate tools.
               </p>
             )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ClipCategory title="Improve">
-                {SMART_TOOLS.map((tool) => (
+
+            {/* Active tab content */}
+            <div
+              role="tabpanel"
+              id={`assist-panel-${activeAssistTab}`}
+              aria-labelledby={`assist-tab-${activeAssistTab}`}
+              className="flex flex-wrap gap-1.5 p-2.5"
+            >
+              {activeAssistTab === "improve" &&
+                SMART_TOOLS.map((tool) => (
                   <ClipAction
                     key={tool.action}
                     label={tool.label}
@@ -1178,9 +1206,8 @@ export function ReplyComposer({
                     }
                   />
                 ))}
-              </ClipCategory>
-              <ClipCategory title="Translate">
-                {TRANSLATE_LANGUAGES.map((lang) => (
+              {activeAssistTab === "translate" &&
+                TRANSLATE_LANGUAGES.map((lang) => (
                   <ClipAction
                     key={lang.code}
                     label={lang.label}
@@ -1195,7 +1222,6 @@ export function ReplyComposer({
                     }
                   />
                 ))}
-              </ClipCategory>
             </div>
           </div>
         )}
@@ -1497,6 +1523,49 @@ export function ReplyComposer({
           </div>
         )}
 
+        {/* ── More actions panel (Archive / Close / Move to Trash) ── */}
+        {moreMenuOpen && hasConversationActions && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            {/* Dark header — same visual language as Attach toolbox tab bar */}
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                More actions
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                Currently affects the whole conversation
+              </p>
+            </div>
+            {/* Body — flex-wrap row so it mirrors the Attach tabpanel */}
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              <MoreMenuItem
+                icon={Archive}
+                label="Archive"
+                activeLabel="Archived"
+                onClick={archiveHandler}
+                isCurrent={currentConversationStatus === "archived"}
+                onAfterClick={() => setMoreMenuOpen(false)}
+              />
+              <MoreMenuItem
+                icon={CheckCircle2}
+                label="Close"
+                activeLabel="Closed"
+                onClick={closeHandler}
+                isCurrent={currentConversationStatus === "closed"}
+                onAfterClick={() => setMoreMenuOpen(false)}
+              />
+              <MoreMenuItem
+                icon={Trash2}
+                label="Move to Trash"
+                activeLabel="In Trash"
+                onClick={trashHandler}
+                isCurrent={currentConversationStatus === "trashed"}
+                onAfterClick={() => setMoreMenuOpen(false)}
+                tone="danger"
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── Status / errors ── */}
         {assistError && (
           <div className="flex items-center gap-2 rounded-md border border-[var(--inbox-urgency-critical-bg)] bg-[var(--inbox-urgency-critical-bg)] px-2.5 py-1">
@@ -1542,15 +1611,6 @@ function getComposerConfig({
     default:
       return { placeholder: "Write your message...", sendLabel: "Send reply", subjectPreview: null }
   }
-}
-
-function ClipCategory({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">{title}</p>
-      <div className="space-y-0.5">{children}</div>
-    </div>
-  )
 }
 
 /**
@@ -1601,7 +1661,7 @@ function MoreMenuItem({
       title={isCurrent ? `Already ${activeLabel || label}` : `${label} (whole conversation)`}
       aria-label={isCurrent ? `${label} (already applied)` : `${label} — affects the whole conversation`}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+        "inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:flex-none",
         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
         disabled
           ? "cursor-not-allowed text-[var(--inbox-text-secondary)]/70 opacity-70"
@@ -1609,7 +1669,7 @@ function MoreMenuItem({
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="flex-1 text-left">{isCurrent && activeLabel ? activeLabel : label}</span>
+      <span className="text-left">{isCurrent && activeLabel ? activeLabel : label}</span>
     </button>
   )
 }
