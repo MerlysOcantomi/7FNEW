@@ -163,6 +163,17 @@ interface ContextPanelProps {
     actionId: string,
     payload: CreateCalendarEventInput,
   ) => Promise<void>
+  /**
+   * Acting on integration — when provided, Ask Fanny uses these instead of deriving its own
+   * scope from `selectedMessageId`. The page calculates them from `actingOnScope`:
+   *   - "selected" → anchor=selected (or null if none), mode=message
+   *   - "latest"   → anchor=selected ?? lastInbound, mode=message
+   *   - "all"      → anchor=null, mode=conversation
+   * If both are omitted the panel preserves its legacy behaviour (selected ⇒ message,
+   * otherwise conversation), so existing callers don't need to change.
+   */
+  askMode?: "message" | "conversation"
+  askAnchorMessageId?: string | null
 }
 
 export function ContextPanel({
@@ -182,6 +193,8 @@ export function ContextPanel({
   onUseSuggestedDraft,
   onInsertReply,
   onCreateCalendarEvent,
+  askMode,
+  askAnchorMessageId,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   const [actionsExpanded, setActionsExpanded] = useState(false)
@@ -256,7 +269,12 @@ export function ContextPanel({
    * local: no persistence, no chat history. We reset it whenever the conversation or selected
    * message changes so the operator never sees a stale answer attached to a different scope.
    */
-  const askScopeKey = `${selected.id}::${selectedMessageId ?? "conv"}`
+  /**
+   * Reset the in-panel Q&A whenever the *effective* scope changes. We bake askMode and
+   * askAnchorMessageId into the key so toggling Acting on between Latest / Selected / All
+   * doesn't leave a stale answer attached to a different scope.
+   */
+  const askScopeKey = `${selected.id}::${askMode ?? (selectedMessageId ? "message" : "conv")}::${askAnchorMessageId ?? selectedMessageId ?? "none"}`
   const [askQuestion, setAskQuestion] = useState("")
   const [askAnswer, setAskAnswer] = useState<string | null>(null)
   const [askError, setAskError] = useState<string | null>(null)
@@ -279,13 +297,26 @@ export function ContextPanel({
     setAskAnswer(null)
     setAskCopied(false)
     try {
+      /**
+       * Acting on takes priority when the parent provides explicit askMode/askAnchorMessageId.
+       * That lets the page anchor "Latest" at the lastInbound (without changing the highlighted
+       * message in the thread) and force conversation mode for "All" even if a message is
+       * selected. We fall back to the legacy isMessageMode rule otherwise.
+       */
+      const resolvedMode: "message" | "conversation" =
+        askMode ?? (isMessageMode ? "message" : "conversation")
+      const resolvedMessageId =
+        askAnchorMessageId !== undefined
+          ? (resolvedMode === "message" ? askAnchorMessageId : null)
+          : (isMessageMode ? selectedMessageId : null)
+
       const res = await fetch(`/api/inbox/conversations/${selected.id}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          messageId: isMessageMode ? selectedMessageId : null,
-          mode: isMessageMode ? "message" : "conversation",
+          messageId: resolvedMessageId,
+          mode: resolvedMode,
         }),
       })
       const json = await res.json().catch(() => ({}))

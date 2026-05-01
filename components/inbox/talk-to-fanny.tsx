@@ -23,6 +23,14 @@ import { cn } from "@/lib/utils"
 interface TalkToFannyProps {
   conversationId: string | null
   selectedMessageId: string | null
+  /**
+   * Acting on integration — when supplied by the inbox page, scope is driven by the operator's
+   * composer choice (Latest / Selected / All) instead of being auto-derived from selection.
+   * If omitted, falls back to the legacy auto-derived behaviour for backward compatibility.
+   */
+  actingOnScope?: "latest" | "selected" | "all"
+  /** Latest inbound message id, used to anchor "Latest" scope without changing thread highlight. */
+  latestInboundMessageId?: string | null
   /** Override className for outer fixed wrapper (positioning). Defaults to bottom-right floating. */
   className?: string
 }
@@ -44,7 +52,22 @@ const SCOPE_META: Record<Scope, { label: string; description: string }> = {
   },
 }
 
-export function TalkToFanny({ conversationId, selectedMessageId, className }: TalkToFannyProps) {
+const ACTING_ON_LABEL: Record<"latest" | "selected" | "all", { label: string; description: string }> = {
+  latest: {
+    label: "Latest message",
+    description: "Fanny answers about the most recent relevant message.",
+  },
+  selected: {
+    label: "Selected message",
+    description: "Fanny answers about the message you have selected.",
+  },
+  all: {
+    label: "Whole conversation",
+    description: "Fanny answers about the entire open conversation.",
+  },
+}
+
+export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId = null, className }: TalkToFannyProps) {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState<string | null>(null)
@@ -52,13 +75,35 @@ export function TalkToFanny({ conversationId, selectedMessageId, className }: Ta
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
-  /** Scope se deriva automáticamente del estado del Inbox. */
-  const scope: Scope = selectedMessageId
-    ? "message"
-    : conversationId
+  /**
+   * Scope resolution:
+   *  - Driven by `actingOnScope` when the parent provides one (composer is the source of truth).
+   *      "selected" → message scope anchored at selectedMessageId (or conversation if missing).
+   *      "latest"   → message scope anchored at selected ?? latestInbound (or conversation).
+   *      "all"      → conversation scope; never sends a messageId.
+   *  - Falls back to legacy auto-derive when no actingOnScope is provided.
+   */
+  const anchorMessageId: string | null = (() => {
+    if (!conversationId) return null
+    if (!actingOnScope) return selectedMessageId
+    if (actingOnScope === "all") return null
+    if (actingOnScope === "selected") return selectedMessageId
+    return selectedMessageId ?? latestInboundMessageId
+  })()
+
+  const scope: Scope = !conversationId
+    ? "inbox"
+    : actingOnScope === "all"
       ? "conversation"
-      : "inbox"
-  const scopeMeta = SCOPE_META[scope]
+      : anchorMessageId
+        ? "message"
+        : "conversation"
+
+  const scopeMeta: { label: string; description: string } = (() => {
+    if (scope === "inbox") return SCOPE_META.inbox
+    if (actingOnScope) return ACTING_ON_LABEL[actingOnScope]
+    return SCOPE_META[scope]
+  })()
   const hasConversation = Boolean(conversationId)
 
   const reset = useCallback(() => {
@@ -98,7 +143,8 @@ export function TalkToFanny({ conversationId, selectedMessageId, className }: Ta
         body: JSON.stringify({
           question: question.trim(),
           mode: scope === "message" ? "message" : "conversation",
-          ...(selectedMessageId ? { messageId: selectedMessageId } : {}),
+          /** Anchor follows Acting on (composer) when present; otherwise legacy auto-derive. */
+          ...(anchorMessageId ? { messageId: anchorMessageId } : {}),
         }),
       })
       const json = await res.json()

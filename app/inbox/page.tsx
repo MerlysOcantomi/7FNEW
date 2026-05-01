@@ -784,11 +784,16 @@ function InboxPageContent() {
     setActionState("Processing...")
     try {
       /**
-       * Phase 3: si hay un mensaje seleccionado válido en el detalle, pasamos `sourceMessageId`
-       * para que el service prefiera ese mensaje como anchor del `sourceText`. Sin selección,
-       * comportamiento previo (primer inbound).
+       * Acting on integration:
+       * - "all"     → omit sourceMessageId so the backend uses conversation-level behaviour
+       *               (its existing "first inbound" fallback). The operator explicitly opted
+       *               into whole-conversation context, so we do NOT bias by selection.
+       * - "selected"→ pass the operator's selected message as anchor.
+       * - "latest"  → also pass selected if any (covers the auto-track case where selecting
+       *               a message bumped scope to "selected"); otherwise omit and let the
+       *               service fall back to first inbound, same as before.
        */
-      const scopedMessageId = effectiveSelectedMessageId ?? null
+      const scopedMessageId = actingOnScope === "all" ? null : (effectiveSelectedMessageId ?? null)
       const res = await fetch(`/api/inbox/conversations/${selectedId}/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1396,6 +1401,21 @@ function InboxPageContent() {
 
   /** Prioridad: mensaje seleccionado válido → último inbound → null. */
   const effectiveSourceMessageId = effectiveSelectedMessageId ?? lastInboundMessageId
+
+  /**
+   * Ask Fanny / Talk to Fanny — anchor + mode derived from `actingOnScope`.
+   *  - "selected" → message mode anchored at the operator's selection (when present).
+   *  - "latest"   → message mode anchored at the latest inbound (typed-down auto-track keeps
+   *                 selectedMessageId in sync, so we still prefer it when present).
+   *  - "all"      → conversation mode, no anchor (Fanny weighs the recent message itself).
+   * If there's no usable anchor (empty thread, etc.) we degrade to conversation mode.
+   */
+  const askAnchorMessageId: string | null = (() => {
+    if (actingOnScope === "all") return null
+    if (actingOnScope === "selected") return effectiveSelectedMessageId
+    return effectiveSelectedMessageId ?? lastInboundMessageId
+  })()
+  const askMode: "message" | "conversation" = askAnchorMessageId ? "message" : "conversation"
 
   /**
    * Vista compacta del target de la respuesta. Phase B: además del autor/snippet/hora, derivamos
@@ -2025,6 +2045,8 @@ function InboxPageContent() {
       onUseSuggestedDraft={handleUseSuggestedDraft}
       onInsertReply={handleInsertReply}
       onCreateCalendarEvent={handleCreateCalendarEvent}
+      askMode={askMode}
+      askAnchorMessageId={askAnchorMessageId}
     />
   ) : null
 
@@ -2442,6 +2464,8 @@ function InboxPageContent() {
       <TalkToFanny
         conversationId={activeSelectedId}
         selectedMessageId={effectiveSelectedMessageId}
+        actingOnScope={actingOnScope}
+        latestInboundMessageId={lastInboundMessageId}
       />
     </AppShell>
   )
