@@ -288,6 +288,11 @@ RULES:
   context to enrich facts, pendingItems, risks, decisions, and nextBestAction/handoff. NEVER
   copy their text into draft.content (the customer reads draft.content) and never quote them
   to the customer.
+- draft.content rules for [internal] facts: you MAY let those facts shape the wording, but
+  (a) do NOT attribute them to the customer ("as you mentioned…", "you said…") if the
+  customer never wrote them, (b) do NOT include phrases like "according to the internal
+  note", "as per the internal note", or any reference revealing that internal notes exist,
+  and (c) prefer paraphrasing the fact or turning it into a question to the customer.
 - eventHint:
   * Set eventHint to null UNLESS the latest INBOUND non-internal message clearly mentions a
     meeting, visit, deadline, appointment, delivery, or scheduled event WITH a real date or
