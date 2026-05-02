@@ -90,13 +90,24 @@ export async function POST(request: NextRequest, { params }: Params) {
       return errorResponse("VALIDATION_ERROR", "password es requerido")
     }
 
-    console.log(`${TAG} POST workspace=${id} email=${email} skip=${skipValidation}`)
-    console.log(`${TAG} Raw body keys: ${Object.keys(body).join(", ")}`)
-    console.log(`${TAG} User-provided: imapHost=${JSON.stringify(imapHost)} imapPort=${JSON.stringify(imapPort)} smtpHost=${JSON.stringify(smtpHost)} smtpPort=${JSON.stringify(smtpPort)}`)
+    /**
+     * Sanitized body diagnostics. Logs a key list (no values), plus the email + length of
+     * password (NOT the password itself). The previous version stringified the entire body
+     * which included the password — a real ops leak. `resolveConfig` is the canonical
+     * place that normalizes the email; we still log the raw vs normalized so anything that
+     * diverges (e.g. mixed-case user input) is visible in the trace.
+     */
+    const normalizedEmail = email.trim().toLowerCase()
+    console.log(
+      `${TAG} POST workspace=${id} keys=[${Object.keys(body).join(",")}] email=${normalizedEmail} emailRaw=${email !== normalizedEmail ? "differs" : "matches"} pwLen=${password.length} skipValidation=${skipValidation}`,
+    )
+    console.log(
+      `${TAG} User-provided overrides: imapHost=${JSON.stringify(imapHost)} imapPort=${JSON.stringify(imapPort)} imapSecure=${JSON.stringify(imapSecure)} smtpHost=${JSON.stringify(smtpHost)} smtpPort=${JSON.stringify(smtpPort)} smtpSecure=${JSON.stringify(smtpSecure)}`,
+    )
 
     step = "check-duplicate"
     const existing = await db.channelConnection.findFirst({
-      where: { workspaceId: id, externalAccountId: email.toLowerCase() },
+      where: { workspaceId: id, externalAccountId: normalizedEmail },
     })
     if (existing) {
       return errorResponse("CONFLICT", "Ya existe una conexión con ese email en este workspace", 409)
@@ -113,23 +124,40 @@ export async function POST(request: NextRequest, { params }: Params) {
       smtpPort,
       smtpSecure,
     })
-    console.log(`${TAG} Final config: imap=${resolved.imapHost}:${resolved.imapPort} smtp=${resolved.smtpHost}:${resolved.smtpPort}`)
+    console.log(
+      `${TAG} Final config: imap=${resolved.imapHost}:${resolved.imapPort} secure=${resolved.imapSecure} smtp=${resolved.smtpHost}:${resolved.smtpPort} secure=${resolved.smtpSecure} user=${resolved.email}`,
+    )
+
+    /**
+     * `resolvedSettings` is echoed back to the UI both on success and on validation failure
+     * so the operator can see exactly what was tried. We deliberately include `imapSecure`,
+     * `smtpSecure`, and `username` (= the email used as auth.user) — the previous version
+     * only echoed hosts/ports, which made "535 5.7.8 authentication failed" feel like a
+     * black box.
+     */
+    const settingsForResponse = {
+      imapHost: resolved.imapHost,
+      imapPort: resolved.imapPort,
+      imapSecure: resolved.imapSecure,
+      smtpHost: resolved.smtpHost,
+      smtpPort: resolved.smtpPort,
+      smtpSecure: resolved.smtpSecure,
+      username: resolved.email,
+      email: resolved.email,
+    }
 
     if (!skipValidation) {
       step = "validate-imap-smtp"
       try {
         const validation = await validateImapSmtp(resolved)
         if (!validation.ok) {
-          console.log(`${TAG} Validation failed imap=${validation.imap.ok} smtp=${validation.smtp.ok}`)
+          console.log(
+            `${TAG} Validation failed imap=${validation.imap.ok} smtp=${validation.smtp.ok} imap_err="${validation.imap.error ?? ""}" smtp_err="${validation.smtp.error ?? ""}"`,
+          )
           return successResponse({
             connected: false,
             validation,
-            resolvedSettings: {
-              imapHost: resolved.imapHost,
-              imapPort: resolved.imapPort,
-              smtpHost: resolved.smtpHost,
-              smtpPort: resolved.smtpPort,
-            },
+            resolvedSettings: settingsForResponse,
           })
         }
       } catch (valErr) {
@@ -170,17 +198,17 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     step = "db-create"
-    console.log(`${TAG} Creating connection for ${email} in workspace ${id}`)
+    console.log(`${TAG} Creating connection for ${normalizedEmail} in workspace ${id}`)
     const connection = await db.channelConnection.create({
       data: {
         workspaceId: id,
         channelType: "email",
         provider: "imap_smtp",
-        name: name || email,
+        name: name || normalizedEmail,
         config,
         credentials: encryptedCredentials,
         status: "active",
-        externalAccountId: email.toLowerCase(),
+        externalAccountId: normalizedEmail,
         isDefault: setAsDefault,
       },
       select: {
@@ -195,8 +223,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     })
 
-    console.log(`${TAG} Created connection=${connection.id} for ${email}`)
-    return successResponse({ connected: true, connection })
+    console.log(`${TAG} Created connection=${connection.id} for ${normalizedEmail}`)
+    return successResponse({ connected: true, connection, resolvedSettings: settingsForResponse })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error(`${TAG} Failed at step="${step}" error="${msg}"`, error)

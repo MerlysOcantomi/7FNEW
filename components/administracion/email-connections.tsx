@@ -66,6 +66,13 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
     validation?: { ok: boolean; imap: ValidationDetail; smtp: ValidationDetail }
     resolvedSettings?: Record<string, unknown>
     error?: string
+    /**
+     * Set when we detected leading/trailing whitespace in the typed password before the
+     * request. Surfaced as a hint inside the error panel so the operator can fix the source
+     * (paste from a password manager, accidental newline). We never auto-trim — passwords
+     * are user secrets and their semantics belong to the operator.
+     */
+    passwordHadEdgeWhitespace?: boolean
   } | null>(null)
 
   const resetForm = useCallback(() => {
@@ -81,11 +88,24 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
     setResult(null)
 
     try {
+      /**
+       * Normalize email + password before sending. Email goes through `.trim().toLowerCase()`
+       * because IMAP/SMTP servers (Titan included) match credentials case-insensitively but
+       * reject leading/trailing whitespace silently — a frequent root cause of "535 5.7.8
+       * authentication failed" when the operator pastes from a password manager.
+       *
+       * Password is NOT auto-trimmed (a legitimate password may end with a space and the
+       * server cares about it), but we surface a UI warning if we detect whitespace at the
+       * boundaries so the operator can fix the source instead of guessing.
+       */
+      const normalizedEmail = form.email.trim().toLowerCase()
+      const passwordHadEdgeWhitespace = form.password !== form.password.trim()
+
       const body: Record<string, unknown> = {
-        name: form.name || form.email,
-        email: form.email,
+        name: form.name.trim() || normalizedEmail,
+        email: normalizedEmail,
         password: form.password,
-        fromName: form.fromName || undefined,
+        fromName: form.fromName.trim() || undefined,
         setAsDefault: form.setAsDefault,
       }
       if (form.imapHost.trim()) body.imapHost = form.imapHost.trim()
@@ -93,7 +113,14 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
       if (form.smtpHost.trim()) body.smtpHost = form.smtpHost.trim()
       if (form.smtpPort.trim()) body.smtpPort = Number(form.smtpPort.trim())
 
-      console.log("[email-connections] submit payload", JSON.stringify(body, null, 2))
+      /**
+       * Sanitized client-side log: keys + non-secret payload. The previous version dumped
+       * the full body (including the password!) to the browser console — a real leak
+       * because anyone with devtools open could read the password. Don't log secrets.
+       */
+      console.log(
+        `[email-connections] submit keys=${Object.keys(body).join(",")} email=${normalizedEmail} pwLen=${form.password.length} pwEdgeWs=${passwordHadEdgeWhitespace}`,
+      )
 
       const res = await fetch(`/api/workspaces/${workspaceId}/connections`, {
         method: "POST",
@@ -104,7 +131,7 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
       const json = await res.json()
 
       if (!res.ok) {
-        setResult({ error: json.error?.message || "Error al conectar" })
+        setResult({ error: json.error?.message || "Error al conectar", passwordHadEdgeWhitespace })
         setStep("error")
         return
       }
@@ -115,7 +142,12 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
         setStep("success")
         setRefreshKey((k) => k + 1)
       } else {
-        setResult({ connected: false, validation: data.validation, resolvedSettings: data.resolvedSettings })
+        setResult({
+          connected: false,
+          validation: data.validation,
+          resolvedSettings: data.resolvedSettings,
+          passwordHadEdgeWhitespace,
+        })
         setStep("error")
         if (!showAdvanced) setShowAdvanced(true)
       }
@@ -124,6 +156,10 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
       setStep("error")
     }
   }, [form, workspaceId, showAdvanced])
+
+  /** Detect password whitespace live so the hint is visible in the form too. */
+  const passwordHasEdgeWhitespace =
+    form.password.length > 0 && form.password !== form.password.trim()
 
   const handleTestExisting = useCallback(async (connId: string) => {
     setTestingId(connId)
@@ -304,6 +340,12 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {passwordHasEdgeWhitespace && (
+                <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                  La contraseña tiene espacios al inicio o al final — probable causa de un fallo de autenticación. Revísala antes de continuar.
+                </p>
+              )}
             </div>
 
             <button
@@ -375,8 +417,15 @@ export function EmailConnectionsManager({ workspaceId }: Props) {
               )}
               {result.resolvedSettings && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Configuración usada: IMAP {String(result.resolvedSettings.imapHost)}:{String(result.resolvedSettings.imapPort)}, SMTP {String(result.resolvedSettings.smtpHost)}:{String(result.resolvedSettings.smtpPort)}.
+                  Configuración usada: IMAP {String(result.resolvedSettings.imapHost)}:{String(result.resolvedSettings.imapPort)} secure={String(result.resolvedSettings.imapSecure ?? true)}, SMTP {String(result.resolvedSettings.smtpHost)}:{String(result.resolvedSettings.smtpPort)} secure={String(result.resolvedSettings.smtpSecure ?? true)}.
+                  Usuario: {String(result.resolvedSettings.username ?? result.resolvedSettings.email ?? "")}.
                   Si estos hosts no son correctos, ajústalos en configuración avanzada.
+                </p>
+              )}
+              {result.passwordHadEdgeWhitespace && (
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                  La contraseña enviada incluía espacios al inicio o al final. Revísala (frecuente al pegar desde gestores) y vuelve a intentar.
                 </p>
               )}
             </div>
