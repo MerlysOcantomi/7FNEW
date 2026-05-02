@@ -610,14 +610,18 @@ export function ReplyComposer({
   const hasConversationActions = Boolean(archiveHandler || closeHandler || trashHandler || markResolvedHandler)
 
   /**
-   * Scope-aware More panel — drives which actions render inside it.
-   * - "all"  → conversation-level (Mark resolved + Archive / Close / Trash). Always available
-   *            when at least one conversation handler is wired.
-   * - "latest"/"selected" → message-level (Mark done + Add internal note about message). Only
-   *            renders when the parent passes `messageActions` and reports the scope is usable.
-   *            For "selected" we additionally require `hasSelectedMessage` so the panel matches
-   *            the "Acting on" pill rules (a disabled scope must not silently fall through to
-   *            message actions).
+   * More panel composition — both groups are *additive*, not mutually exclusive:
+   *  - Conversation actions (Mark resolved + Archive / Close / Trash) always render when at
+   *    least one handler is wired, regardless of Acting on scope. Closing/archiving/trashing
+   *    a thread is a conversation-level decision the operator should never have to "leave"
+   *    a message scope to perform.
+   *  - Message actions (Mark done + Add internal note) render *additionally* when scope is
+   *    Latest or Selected and the parent reports the scope is usable. For "selected" we still
+   *    require `hasSelectedMessage`; otherwise the message section silently disappears so the
+   *    panel doesn't dangle a button with no target.
+   *
+   * The panel order is "Message → Conversation" so the most scope-relevant actions are at
+   * the top under Latest/Selected, while Conversation actions remain a stable footer.
    */
   const moreMessageActionsAvailable = Boolean(
     messageActions
@@ -626,7 +630,7 @@ export function ReplyComposer({
     && (actingOnScope !== "selected" || hasSelectedMessage),
   )
   const showMoreMessagePanel = actingOnScope !== "all" && moreMessageActionsAvailable
-  const showMoreConversationPanel = actingOnScope === "all" && hasConversationActions
+  const showMoreConversationPanel = hasConversationActions
   const morePanelHasContent = showMoreMessagePanel || showMoreConversationPanel
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
@@ -1112,20 +1116,8 @@ export function ReplyComposer({
                   SHELL_TOOLBAR_ICON,
                   moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title={
-                  actingOnScope === "all"
-                    ? "Conversation actions"
-                    : actingOnScope === "selected"
-                      ? "Selected message actions"
-                      : "Latest message actions"
-                }
-                aria-label={
-                  actingOnScope === "all"
-                    ? "Conversation actions"
-                    : actingOnScope === "selected"
-                      ? "Selected message actions"
-                      : "Latest message actions"
-                }
+                title="More actions"
+                aria-label="More actions"
                 aria-expanded={moreMenuOpen}
               >
                 <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -1744,12 +1736,54 @@ export function ReplyComposer({
         )}
 
         {/*
-          Scope-aware More actions panel.
-          - actingOnScope === "all"        → Conversation actions (Mark resolved + Archive / Close / Trash).
-          - actingOnScope === "selected"   → Selected message actions (Mark done, Add internal note).
-          - actingOnScope === "latest"     → Latest message actions (same shape, different scope).
-          The panel is hidden if there's nothing to render under the current scope.
+          Scope-aware More actions panel — additive layout:
+          - Conversation actions (Mark resolved + Archive / Close / Trash) always render when
+            the conversation handlers are wired. The operator must always be able to
+            archive/close/trash a thread, regardless of the current Acting on scope.
+          - Message actions (Mark done + Add internal note) render *additionally* on top when
+            scope is Latest or Selected and the parent reports the scope is usable.
         */}
+        {moreMenuOpen && showMoreMessagePanel && messageActions && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                {actingOnScope === "selected" ? "Selected message actions" : "Message actions"}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                {actingOnScope === "selected"
+                  ? "Affects the selected message."
+                  : "Affects the latest relevant message."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              {messageActions.onMarkDone ? (
+                <MoreMenuItem
+                  icon={CheckCircle2}
+                  label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
+                  activeLabel="Marked as done"
+                  onClick={messageActions.onMarkDone}
+                  isCurrent={messageActions.intentStatus === "done"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
+              {messageActions.onAddInternalNote ? (
+                <MoreMenuItem
+                  icon={StickyNote}
+                  label={actingOnScope === "selected" ? "Add internal note about selected" : "Add internal note about latest"}
+                  onClick={messageActions.onAddInternalNote}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
+              {/*
+                Trash latest/selected message: not exposed because message-level trash is not
+                implemented in this codebase. Showing a permanent disabled stub would only add
+                noise; the conversation-level Trash below remains the supported way to remove
+                content even while the operator is in a Latest/Selected scope.
+              */}
+            </div>
+          </div>
+        )}
+
         {moreMenuOpen && showMoreConversationPanel && (
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
@@ -1796,47 +1830,6 @@ export function ReplyComposer({
                 onAfterClick={() => setMoreMenuOpen(false)}
                 tone="danger"
               />
-            </div>
-          </div>
-        )}
-
-        {moreMenuOpen && showMoreMessagePanel && messageActions && (
-          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
-              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                {actingOnScope === "selected" ? "Selected message actions" : "Message actions"}
-              </p>
-              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                {actingOnScope === "selected"
-                  ? "Affects the selected message."
-                  : "Affects the latest relevant message."}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-1.5 p-2.5">
-              {messageActions.onMarkDone ? (
-                <MoreMenuItem
-                  icon={CheckCircle2}
-                  label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
-                  activeLabel="Marked as done"
-                  onClick={messageActions.onMarkDone}
-                  isCurrent={messageActions.intentStatus === "done"}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                />
-              ) : null}
-              {messageActions.onAddInternalNote ? (
-                <MoreMenuItem
-                  icon={StickyNote}
-                  label={actingOnScope === "selected" ? "Add internal note about selected" : "Add internal note about latest"}
-                  onClick={messageActions.onAddInternalNote}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                />
-              ) : null}
-              {/*
-                Trash latest/selected message: not exposed because message-level trash is not
-                implemented in this codebase. Showing a permanent disabled stub would only add
-                noise; the conversation-level Trash under "Acting on: All" remains the supported
-                way to remove content.
-              */}
             </div>
           </div>
         )}
