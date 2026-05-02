@@ -114,7 +114,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     step = "resolve-config"
-    const resolved = resolveConfig({
+    const resolved = await resolveConfig({
       email,
       password,
       imapHost,

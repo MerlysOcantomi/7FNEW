@@ -43,7 +43,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
       return errorResponse("INTERNAL_ERROR", "No se pudieron descifrar las credenciales", 500)
     }
 
-    const resolved = resolveConfig({
+    const resolved = await resolveConfig({
       email: creds.email,
       password: creds.password,
       imapHost: cfg.imapHost || undefined,

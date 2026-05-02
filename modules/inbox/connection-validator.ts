@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import { Resolver } from "dns/promises"
 
 export interface ImapSmtpConfig {
   email: string
@@ -35,17 +36,83 @@ const KNOWN_PROVIDERS: Record<string, ProviderDefaults> = {
 }
 
 /**
- * Try to detect IMAP/SMTP settings from the email domain.
- * Falls back to generic imap.domain / smtp.domain with standard ports.
+ * MX hostname → provider mapping. Used when the email's bare domain isn't a known mail
+ * provider (e.g. a custom domain like `skina.digital`). The DNS MX record reveals which
+ * provider actually hosts the mailbox, so an MX of `mx1.hostinger.com` gives us Hostinger
+ * even though the email is `inbox@skina.digital`.
+ *
+ * Patterns are evaluated against each MX `exchange` hostname (lowercased, trailing dot
+ * stripped). The first matching pattern wins. Order does not matter — a domain only ever
+ * matches one provider in practice.
+ */
+const MX_PROVIDER_PATTERNS: Array<{ test: (mx: string) => boolean; key: string }> = [
+  { test: (mx) => mx.endsWith(".hostinger.com") || mx === "hostinger.com", key: "hostinger.com" },
+  { test: (mx) => mx.endsWith(".titan.email") || mx === "titan.email", key: "titan.email" },
+  { test: (mx) => mx.endsWith(".mail.protection.outlook.com") || mx.endsWith(".outlook.com"), key: "outlook.com" },
+  { test: (mx) => mx.endsWith(".google.com") || mx.endsWith(".googlemail.com") || mx === "aspmx.l.google.com", key: "gmail.com" },
+  { test: (mx) => mx.endsWith(".yahoodns.net") || mx.endsWith(".yahoo.com"), key: "yahoo.com" },
+]
+
+const MX_LOOKUP_TIMEOUT_MS = 4_000
+
+/**
+ * Resolve MX records for a domain with a short timeout and a fallback to public DNS
+ * resolvers. Some serverless / firewalled environments either have a broken default
+ * resolver or no system DNS at all (we hit `ECONNREFUSED` locally testing this), so we
+ * race the system resolver against Cloudflare + Google. Returns lowercased exchange
+ * hostnames sorted by priority ascending.
+ *
+ * Never throws — on any failure returns an empty array so the caller can fall back to the
+ * generic `imap.${domain}` heuristic without crashing the connection flow.
+ */
+async function safeResolveMx(domain: string): Promise<string[]> {
+  const tryResolver = async (servers?: string[]): Promise<string[]> => {
+    const resolver = new Resolver()
+    if (servers) resolver.setServers(servers)
+    const records = await Promise.race([
+      resolver.resolveMx(domain),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("MX lookup timeout")), MX_LOOKUP_TIMEOUT_MS),
+      ),
+    ])
+    return records
+      .slice()
+      .sort((a, b) => a.priority - b.priority)
+      .map((r) => r.exchange.toLowerCase().replace(/\.$/, ""))
+  }
+
+  for (const servers of [undefined, ["1.1.1.1", "8.8.8.8"]] as Array<string[] | undefined>) {
+    try {
+      const result = await tryResolver(servers)
+      if (result.length > 0) return result
+    } catch {
+      /* try next resolver */
+    }
+  }
+  return []
+}
+
+/**
+ * Sync detection by bare domain name. Returns `null` instead of falling back so the async
+ * `resolveAutodetect` can decide whether to do an MX lookup or use the generic heuristic.
+ */
+function autodetectByDomain(domain: string): ProviderDefaults | null {
+  for (const [suffix, defaults] of Object.entries(KNOWN_PROVIDERS)) {
+    if (domain === suffix || domain.endsWith(`.${suffix}`)) return defaults
+  }
+  return null
+}
+
+/**
+ * Try to detect IMAP/SMTP settings from the email domain (sync). Falls back to generic
+ * imap.domain / smtp.domain with standard ports. Kept for code paths that cannot await
+ * (e.g. a hypothetical client preview); server-side flows should prefer
+ * `autodetectSettingsAsync` which adds MX-based autodiscovery.
  */
 export function autodetectSettings(email: string): ProviderDefaults {
   const domain = email.split("@")[1]?.toLowerCase() ?? ""
-
-  for (const [suffix, defaults] of Object.entries(KNOWN_PROVIDERS)) {
-    if (domain === suffix || domain.endsWith(`.${suffix}`)) {
-      return defaults
-    }
-  }
+  const direct = autodetectByDomain(domain)
+  if (direct) return direct
 
   return {
     imapHost: `imap.${domain}`,
@@ -53,6 +120,50 @@ export function autodetectSettings(email: string): ProviderDefaults {
     smtpHost: `smtp.${domain}`,
     smtpPort: 465,
     secure: true,
+  }
+}
+
+/**
+ * Server-side autodiscovery with three layers, in order of precedence:
+ *  1. Direct match against KNOWN_PROVIDERS (fast, no I/O).
+ *  2. MX lookup → match each exchange hostname against MX_PROVIDER_PATTERNS, then look up
+ *     the matched provider in KNOWN_PROVIDERS. This is what unlocks "custom domain on
+ *     Hostinger / Titan / Google Workspace / Office365" — the email is `you@yourdomain.com`
+ *     but the actual mailbox lives on the provider's servers.
+ *  3. Generic `imap.${domain}` / `smtp.${domain}` heuristic (last resort).
+ *
+ * Always returns a `ProviderDefaults`; the second return value is purely informational
+ * (`"direct" | "mx:<provider>" | "generic"`) for diagnostic logging.
+ */
+export async function autodetectSettingsAsync(
+  email: string,
+): Promise<{ defaults: ProviderDefaults; via: string }> {
+  const domain = email.split("@")[1]?.toLowerCase() ?? ""
+
+  const direct = autodetectByDomain(domain)
+  if (direct) return { defaults: direct, via: "direct" }
+
+  const mxRecords = await safeResolveMx(domain)
+  for (const mx of mxRecords) {
+    for (const pattern of MX_PROVIDER_PATTERNS) {
+      if (pattern.test(mx)) {
+        const providerDefaults = KNOWN_PROVIDERS[pattern.key]
+        if (providerDefaults) {
+          return { defaults: providerDefaults, via: `mx:${pattern.key}` }
+        }
+      }
+    }
+  }
+
+  return {
+    defaults: {
+      imapHost: `imap.${domain}`,
+      imapPort: 993,
+      smtpHost: `smtp.${domain}`,
+      smtpPort: 465,
+      secure: true,
+    },
+    via: "generic",
   }
 }
 
@@ -69,15 +180,24 @@ export function autodetectSettings(email: string): ProviderDefaults {
  *    whitespace). We do log a warning when we detect it so ops can spot the issue.
  *  - Hosts are `.trim()`ed (already were).
  */
-export function resolveConfig(input: ImapSmtpConfig): Required<ImapSmtpConfig> {
+export async function resolveConfig(input: ImapSmtpConfig): Promise<Required<ImapSmtpConfig>> {
   const rawEmail = typeof input.email === "string" ? input.email : ""
   const normalizedEmail = rawEmail.trim().toLowerCase()
-  const detected = autodetectSettings(normalizedEmail)
 
   const userImapHost = input.imapHost?.trim() || ""
   const userSmtpHost = input.smtpHost?.trim() || ""
   const userImapPort = typeof input.imapPort === "number" && input.imapPort > 0 ? input.imapPort : 0
   const userSmtpPort = typeof input.smtpPort === "number" && input.smtpPort > 0 ? input.smtpPort : 0
+
+  /**
+   * Skip the MX lookup entirely when the operator has provided BOTH host overrides — they
+   * already know what they want, so paying for DNS round-trips would just slow them down.
+   * If only one host is provided we still resolve the other side via autodiscovery.
+   */
+  const needsAutodetect = !userImapHost || !userSmtpHost
+  const { defaults: detected, via: detectedVia } = needsAutodetect
+    ? await autodetectSettingsAsync(normalizedEmail)
+    : { defaults: autodetectSettings(normalizedEmail), via: "skip" }
 
   const resolved = {
     email: normalizedEmail,
@@ -90,12 +210,11 @@ export function resolveConfig(input: ImapSmtpConfig): Required<ImapSmtpConfig> {
     smtpSecure: input.smtpSecure ?? detected.secure,
   }
 
-  const usedAutodetect = !userImapHost || !userSmtpHost
   const emailNormalized = rawEmail !== normalizedEmail
   const passwordHasEdgeWs = typeof input.password === "string" && input.password !== input.password.trim()
 
   console.log(
-    `[connection-validator] resolveConfig: email=${normalizedEmail} emailNormalized=${emailNormalized} pwLen=${input.password?.length ?? 0} pwEdgeWs=${passwordHasEdgeWs} userInput=[imap=${userImapHost || "(none)"}:${userImapPort || "(none)"} smtp=${userSmtpHost || "(none)"}:${userSmtpPort || "(none)"}] autodetect=${usedAutodetect ? "yes" : "no"} → final=[imap=${resolved.imapHost}:${resolved.imapPort} secure=${resolved.imapSecure} smtp=${resolved.smtpHost}:${resolved.smtpPort} secure=${resolved.smtpSecure}]`,
+    `[connection-validator] resolveConfig: email=${normalizedEmail} emailNormalized=${emailNormalized} pwLen=${input.password?.length ?? 0} pwEdgeWs=${passwordHasEdgeWs} autodetectVia=${detectedVia} userInput=[imap=${userImapHost || "(none)"}:${userImapPort || "(none)"} smtp=${userSmtpHost || "(none)"}:${userSmtpPort || "(none)"}] → final=[imap=${resolved.imapHost}:${resolved.imapPort} secure=${resolved.imapSecure} smtp=${resolved.smtpHost}:${resolved.smtpPort} secure=${resolved.smtpSecure}]`,
   )
   if (passwordHasEdgeWs) {
     console.warn(
