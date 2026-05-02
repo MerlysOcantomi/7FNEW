@@ -5,6 +5,8 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
+import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
+import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
   ContextPanel,
   type SelectedMessageInfo,
@@ -423,7 +425,27 @@ function InboxPageContent() {
   const deepLinkMessageId = searchParams.get("messageId")
   const sidebarFilter = searchParams.get("filter")
   const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
+  /**
+   * Phase 2 — `?filter=todo` repurposes the left column as the operational To-do view.
+   * `isTodoMode` short-circuits a few flow effects (auto-select-first conversation, sidebar
+   * rescue banner) so the conversation list state doesn't fight with the To-do list state.
+   * The conversations fetch keeps running so deep-link clicks from a To-do still resolve the
+   * source conversation in the right pane.
+   */
+  const isTodoMode = sidebarFilter === "todo"
   const lastDeepLinkRef = useRef<string | null>(null)
+
+  /**
+   * To-do list state. Held locally instead of via `useFetch` because we need optimistic
+   * mutations (mark done / dismiss) and a simple `refresh` trigger. Filter is fixed to
+   * `open,waiting` for the MVP — Phase 5 will surface "All / Today / Overdue" sub-tabs.
+   */
+  const [todos, setTodos] = useState<ClientInboxTodo[]>([])
+  const [todosLoading, setTodosLoading] = useState(false)
+  const [todosError, setTodosError] = useState<string | null>(null)
+  const [todosRefreshKey, setTodosRefreshKey] = useState(0)
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
+  const [busyTodoId, setBusyTodoId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -718,13 +740,20 @@ function InboxPageContent() {
       }
     }
 
+    /**
+     * Skip the conversation-driven auto-select while in To-do mode: selection is driven by the
+     * todo list there, and snapping to the first conversation in the loaded list would fight the
+     * operator's todo click. The deep-link branch above still resolves `?id=` set by todo clicks.
+     */
+    if (isTodoMode) return
+
     if (!selectedId && conversationsForList.length > 0) {
       setSelectedId(conversationsForList[0].id)
     }
     if (selectedId && !conversationsForList.some((item) => item.id === selectedId)) {
       setSelectedId(conversationsForList[0]?.id ?? null)
     }
-  }, [conversationsForList, selectedId, deepLinkId])
+  }, [conversationsForList, selectedId, deepLinkId, isTodoMode, conversations])
 
   useEffect(() => {
     setReplyContent("")
@@ -1364,6 +1393,30 @@ function InboxPageContent() {
           },
         ]
       : members
+
+  /**
+   * Lookup map for the To-do view — `<InboxTodoList>` resolves contact + channel labels for each
+   * todo's source conversation. Built off the same loaded conversations so we get full benefit of
+   * the existing fetch and don't double-query. When a todo references a conversation that's not
+   * in the loaded list (rare; archived/closed/trashed) the lookup returns undefined and the row
+   * gracefully degrades to "Linked to a conversation" via the source icon tooltip.
+   */
+  const contactsByConversationId = useMemo(() => {
+    const map: Record<string, { label: string | null; channelLabel: string | null }> = {}
+    for (const conversation of conversations) {
+      const contact = conversation.contact
+      const label =
+        contact?.nombre?.trim()
+        || contact?.empresa?.trim()
+        || contact?.email?.trim()
+        || null
+      map[conversation.id] = {
+        label,
+        channelLabel: channelLabel(conversation.channel, uiLocale),
+      }
+    }
+    return map
+  }, [conversations, uiLocale])
 
   const conversationItems = useMemo(() =>
     conversationsAfterUserFilters.map((conversation) => {
@@ -2076,6 +2129,158 @@ function InboxPageContent() {
   }
 
   /**
+   * Load To-dos when the operator switches to the To-do view. We use `status=open,waiting` (the
+   * MVP slice — neither `done` nor `dismissed` are surfaced) and bail early in non-todo mode to
+   * avoid an unnecessary request. `todosRefreshKey` is a manual bump after mutations or when the
+   * user clicks the refresh icon; we don't poll because the list is short-lived per session.
+   */
+  useEffect(() => {
+    if (!isTodoMode) {
+      /** Reset todo selection when leaving the view so we don't reanchor on stale data. */
+      setSelectedTodoId(null)
+      return
+    }
+
+    let cancelled = false
+    setTodosLoading(true)
+    setTodosError(null)
+
+    fetch("/api/inbox/todos?status=open,waiting", { credentials: "same-origin" })
+      .then(async (response) => {
+        const json = await response.json().catch(() => ({}))
+        if (cancelled) return
+        if (!response.ok || !json?.success) {
+          const message =
+            (json && typeof json.error === "string" && json.error)
+            || "Could not load To-dos."
+          setTodosError(message)
+          setTodos([])
+          return
+        }
+        const data = Array.isArray(json.data) ? (json.data as ClientInboxTodo[]) : []
+        setTodos(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : "Could not load To-dos."
+        setTodosError(message)
+        setTodos([])
+      })
+      .finally(() => {
+        if (!cancelled) setTodosLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isTodoMode, todosRefreshKey])
+
+  const handleRefreshTodos = useCallback(() => {
+    setTodosRefreshKey((k) => k + 1)
+  }, [])
+
+  /**
+   * Click on a To-do row.
+   *  - Linked to a conversation → push `?id=<conversationId>[&messageId=<sourceMessageId>]` so
+   *    the existing deep-link effect resolves the right pane. We KEEP `?filter=todo` so the
+   *    operator can return to the queue after dealing with one item.
+   *  - No conversation → just highlight the row. Phase 3 will add a detail pane for these.
+   * The optimistic `setSelectedId` keeps the UI snappy even if the source conversation isn't
+   * in the loaded conversations list (e.g. archived); the right pane fetches `/api/inbox/
+   * conversations/[id]` directly so it renders regardless of the list state.
+   */
+  const handleSelectTodo = useCallback(
+    (todo: ClientInboxTodo) => {
+      setSelectedTodoId(todo.id)
+      if (!todo.conversationId) return
+
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("id", todo.conversationId)
+      if (todo.sourceMessageId) {
+        params.set("messageId", todo.sourceMessageId)
+      } else {
+        params.delete("messageId")
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+      setSelectedId(todo.conversationId)
+      setMobileView("thread")
+    },
+    [pathname, router, searchParams],
+  )
+
+  /**
+   * Toggle done ↔ open. We optimistically update `todos` so the checkbox flips immediately;
+   * on failure we revert. Items moved to `done` stay visible until the next refresh — the
+   * operator may want to "undo" without scrolling away.
+   */
+  const handleToggleTodoDone = useCallback(
+    async (todo: ClientInboxTodo) => {
+      const nextStatus: ClientInboxTodo["status"] = todo.status === "done" ? "open" : "done"
+      const previous = todos
+      setBusyTodoId(todo.id)
+      setTodos((items) =>
+        items.map((item) => (item.id === todo.id ? { ...item, status: nextStatus } : item)),
+      )
+
+      try {
+        const response = await fetch(`/api/inbox/todos/${todo.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ status: nextStatus }),
+        })
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok || !json?.success) {
+          throw new Error(typeof json?.error === "string" ? json.error : "Update failed")
+        }
+        if (json.data && typeof json.data === "object") {
+          const updated = json.data as ClientInboxTodo
+          setTodos((items) => items.map((item) => (item.id === updated.id ? updated : item)))
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[inbox:todo] toggle done failed", err)
+        }
+        setTodos(previous)
+      } finally {
+        setBusyTodoId(null)
+      }
+    },
+    [todos],
+  )
+
+  /**
+   * Dismiss removes the To-do from the local list immediately. The backend keeps the record
+   * (status=dismissed) so it can be audited or undismissed via API later. No UI restore in MVP
+   * — the operator can re-create from the source signal in Phase 3.
+   */
+  const handleDismissTodo = useCallback(async (todo: ClientInboxTodo) => {
+    setBusyTodoId(todo.id)
+    const previous = todos
+    setTodos((items) => items.filter((item) => item.id !== todo.id))
+
+    try {
+      const response = await fetch(`/api/inbox/todos/${todo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ status: "dismissed" }),
+      })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok || !json?.success) {
+        throw new Error(typeof json?.error === "string" ? json.error : "Dismiss failed")
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[inbox:todo] dismiss failed", err)
+      }
+      setTodos(previous)
+    } finally {
+      setBusyTodoId(null)
+    }
+  }, [todos])
+
+  /**
    * Click en un intent expandido (columna izquierda):
    * - Misma conversación → solo `setSelectedMessageId(messageId)`; el effect URL-sync lo escribe en `?messageId=`.
    * - Otra conversación → escribimos `?id=...&messageId=...` atómicamente. El deep-link effect existente
@@ -2552,7 +2757,7 @@ function InboxPageContent() {
                     </button>
                   </div>
                 ) : null}
-                {inboxTerminalRescueActive ? (
+                {inboxTerminalRescueActive && !isTodoMode ? (
                   <div
                     className="shrink-0 border-b border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-snug text-[var(--inbox-list-text-secondary)]"
                     role="status"
@@ -2571,42 +2776,57 @@ function InboxPageContent() {
                     </span>
                   </div>
                 ) : null}
-                <ConversationList
-                loading={loading}
-                errorMessage={listErrorMessage}
-                conversations={conversationItems}
-                selectedId={activeSelectedId}
-                expandedConversationId={expandedConversationId}
-                onToggleConversationExpand={handleToggleConversationExpand}
-                messageShortIntentsById={messageShortIntentsById}
-                messageIntentsLoadingId={messageIntentsLoadingId}
-                onIntentSelect={handleSelectIntent}
-                search={search}
-                onSearchChange={setSearch}
-                status={status}
-                statusOptions={statusFilterOptions}
-                onStatusChange={handleListStatusFilterChange}
-                channel={channel}
-                channelOptions={channelSelectOptions}
-                onChannelChange={setChannel}
-                assignmentFilter={assignmentFilter}
-                onAssignmentFilterChange={setAssignmentFilter}
-                intentStatusFilter={intentStatusFilter}
-                onIntentStatusFilterChange={setIntentStatusFilter}
-                senderFilter={senderFilter}
-                senderOptions={senderOptions}
-                onSenderFilterChange={setSenderFilter}
-                stats={stats}
-                onSelect={handleSelectConversation}
-                hasMore={hasMore}
-                loadingMore={loadingMore}
-                activeSearchTerm={debouncedSearch || undefined}
-                onLoadMore={loadMore}
-                onFetchEmails={handleFetchEmails}
-                fetchingEmails={fetchingEmails}
-                lastSyncedAt={lastSyncedAt}
-                onCompose={() => setComposeOpen(true)}
-              />
+                {isTodoMode ? (
+                  <InboxTodoList
+                    todos={todos}
+                    loading={todosLoading}
+                    errorMessage={todosError}
+                    selectedId={selectedTodoId}
+                    contactsByConversationId={contactsByConversationId}
+                    busyTodoId={busyTodoId}
+                    onSelect={handleSelectTodo}
+                    onToggleDone={handleToggleTodoDone}
+                    onDismiss={handleDismissTodo}
+                    onRefresh={handleRefreshTodos}
+                  />
+                ) : (
+                  <ConversationList
+                    loading={loading}
+                    errorMessage={listErrorMessage}
+                    conversations={conversationItems}
+                    selectedId={activeSelectedId}
+                    expandedConversationId={expandedConversationId}
+                    onToggleConversationExpand={handleToggleConversationExpand}
+                    messageShortIntentsById={messageShortIntentsById}
+                    messageIntentsLoadingId={messageIntentsLoadingId}
+                    onIntentSelect={handleSelectIntent}
+                    search={search}
+                    onSearchChange={setSearch}
+                    status={status}
+                    statusOptions={statusFilterOptions}
+                    onStatusChange={handleListStatusFilterChange}
+                    channel={channel}
+                    channelOptions={channelSelectOptions}
+                    onChannelChange={setChannel}
+                    assignmentFilter={assignmentFilter}
+                    onAssignmentFilterChange={setAssignmentFilter}
+                    intentStatusFilter={intentStatusFilter}
+                    onIntentStatusFilterChange={setIntentStatusFilter}
+                    senderFilter={senderFilter}
+                    senderOptions={senderOptions}
+                    onSenderFilterChange={setSenderFilter}
+                    stats={stats}
+                    onSelect={handleSelectConversation}
+                    hasMore={hasMore}
+                    loadingMore={loadingMore}
+                    activeSearchTerm={debouncedSearch || undefined}
+                    onLoadMore={loadMore}
+                    onFetchEmails={handleFetchEmails}
+                    fetchingEmails={fetchingEmails}
+                    lastSyncedAt={lastSyncedAt}
+                    onCompose={() => setComposeOpen(true)}
+                  />
+                )}
               </>
             )}
           </div>
