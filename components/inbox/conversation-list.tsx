@@ -83,6 +83,27 @@ interface ConversationListProps {
   senderFilter?: string
   senderOptions?: Array<{ value: string; label: string }>
   onSenderFilterChange?: (value: string) => void
+  /**
+   * Primary work filter chips on the top row. Mirrors the sidebar `?filter=` URL — the
+   * chips are a shortcut surface inside the list itself so the operator can jump between
+   * the most common work states (All / Needs action / Waiting / Done) without leaving
+   * the panel. Single source of truth: the value comes from the URL `?filter=` in the
+   * page-level shell, the change handler routes back to the URL. We do NOT keep a
+   * second local state here so the chips and the sidebar can never disagree.
+   *
+   * Allowed values:
+   *  - "all"          → no filter (default Inbox view, equivalent to `?filter=` empty)
+   *  - "needs_action" → `?filter=needs_action`
+   *  - "waiting"      → `?filter=waiting`
+   *  - "done"         → `?filter=done`
+   *
+   * When the operator is on a sidebar entry that doesn't map to any of these (e.g.
+   * Archived, Trash, Opportunities, To-do), no chip is highlighted — the sidebar
+   * already shows where they are. Clicking a chip from that state navigates back to
+   * one of the primary work views.
+   */
+  primaryWorkFilter?: "all" | "needs_action" | "waiting" | "done" | "other"
+  onPrimaryWorkFilterChange?: (value: "all" | "needs_action" | "waiting" | "done") => void
   stats: {
     total: number
     leads: number
@@ -128,6 +149,8 @@ export function ConversationList({
   senderFilter = "all",
   senderOptions = [],
   onSenderFilterChange,
+  primaryWorkFilter = "all",
+  onPrimaryWorkFilterChange,
   assignmentFilter,
   onAssignmentFilterChange,
   stats,
@@ -142,14 +165,20 @@ export function ConversationList({
   onCompose,
 }: ConversationListProps) {
   /**
-   * Operational refactor: Sender + Assignment filters moved behind a collapsible "Advanced
-   * filters" toggle. Channel moved out of a heavy `<Select>` into a compact horizontal chip
-   * strip. Default closed so the bar feels lighter; auto-opens whenever a non-default value
-   * is active so the operator can see what's filtered without guessing why their list looks
-   * different.
+   * Operational refactor (round 2): the primary row is now four work chips
+   * (All / Needs action / Waiting / Done) tied to the sidebar `?filter=` URL. The
+   * heavier `<Select>` controls — Status (with technical states like `lead_detected`,
+   * `awaiting_response`, `triaged`) and Work intent (per-message done/open) — moved
+   * to Advanced filters because they are power-user surfaces, not daily controls.
+   *
+   * Advanced is closed by default and auto-opens whenever any of its inputs holds a
+   * non-default value, so the operator never has a "why is my list filtered?" moment.
    */
   const advancedHasActiveFilter =
-    senderFilter !== "all" || assignmentFilter !== "all"
+    senderFilter !== "all" ||
+    assignmentFilter !== "all" ||
+    status !== "all" ||
+    intentStatusFilter !== "all"
   const [advancedOpen, setAdvancedOpen] = useState(advancedHasActiveFilter)
   const viewLabel =
     assignmentFilter === "mine"
@@ -217,49 +246,47 @@ export function ConversationList({
         </div>
 
         {/*
-         * Primary row — Status + Work intent. These two are kept as `<Select>` because they
-         * have many states and live alongside the chip strip below. Channel is intentionally
-         * NOT in this row anymore; it has its own chip strip to feel lighter.
+         * Primary row — work chips (All / Needs action / Waiting / Done). These map 1:1
+         * to the sidebar Work group entries via the shared `?filter=` URL param, so the
+         * chips and the sidebar are always in sync. When the operator is on a sidebar
+         * entry that isn't one of these (e.g. Trash, Archived, Opportunities, To-do),
+         * no chip is highlighted — the sidebar already shows where they are.
+         *
+         * Heavier filters (Status with all transition states, Work intent per-message)
+         * moved to Advanced filters below.
          */}
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger
-              className={cn(
-                INBOX_FILTER_TRIGGER_BASE,
-                status === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+        {onPrimaryWorkFilterChange ? (
+          <div
+            role="group"
+            aria-label="Work filter"
+            className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+          >
+            {([
+              { value: "all", label: "All" },
+              { value: "needs_action", label: "Needs action" },
+              { value: "waiting", label: "Waiting" },
+              { value: "done", label: "Done" },
+            ] as const).map((option) => {
+              const isActive = primaryWorkFilter === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onPrimaryWorkFilterChange(option.value)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors",
+                    isActive
+                      ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
+                      : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+                  )}
+                >
                   {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {onIntentStatusFilterChange ? (
-            <Select value={intentStatusFilter} onValueChange={(v) => onIntentStatusFilterChange(v as "all" | "open" | "done")}>
-              <SelectTrigger
-                className={cn(
-                  INBOX_FILTER_TRIGGER_BASE,
-                  intentStatusFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
-                )}
-                aria-label="Work filter"
-                title="Work / intent filter"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Work: All</SelectItem>
-                <SelectItem value="open">Work: Open</SelectItem>
-                <SelectItem value="done">Work: Done</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : <span aria-hidden />}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         {/*
          * Channel chips — replaces the heavy `<Select>` so channel switching stays one click
@@ -290,10 +317,15 @@ export function ConversationList({
         </div>
 
         {/*
-         * Advanced filters (Sender + Assignment) — collapsed by default to reduce visual
-         * weight at the top. Auto-expands when a non-default value is set so operators see
-         * exactly what's filtering. We keep the wiring/state in place rather than deleting
-         * because removing the underlying logic is risky for bigger workspaces.
+         * Advanced filters — collapsed by default. Holds the power-user controls that
+         * don't fit the daily work chips: Status (with all transition states like
+         * `lead_detected`, `awaiting_response`, `triaged`), Work intent (per-message
+         * done/open via `Message.metadata.intentStatus`), Sender, and Assignment.
+         *
+         * Auto-expands whenever any of its inputs holds a non-default value so operators
+         * always see the reason their list looks filtered. The wiring is preserved (no
+         * functional removals) so power workflows that depended on the old top-row
+         * Status/Work selects continue to work — they just live one extra click away.
          */}
         <div className="rounded-lg border border-[var(--inbox-list-border)]/50 bg-white/[0.02]">
             <button
@@ -319,6 +351,60 @@ export function ConversationList({
             </button>
             {advancedOpen && (
               <div className="space-y-2 border-t border-[var(--inbox-list-border)]/50 px-2.5 pb-2.5 pt-2">
+                {/**
+                 * Status — all conversation states. Demoted from the primary row because
+                 * the four work chips above cover the daily flow (All / Needs action /
+                 * Waiting / Done). This select stays for power use cases like jumping to
+                 * `lead_detected`, `awaiting_response`, `triaged`, etc.
+                 */}
+                <Select value={status} onValueChange={onStatusChange}>
+                  <SelectTrigger
+                    className={cn(
+                      INBOX_FILTER_TRIGGER_BASE,
+                      status === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                    )}
+                    aria-label="Status filter"
+                    title="Conversation status"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/**
+                 * Work intent — per-message `Message.metadata.intentStatus`. Different
+                 * from the Done chip above (which is conversation-level). Power filter,
+                 * lives here so the daily chips stay focused.
+                 */}
+                {onIntentStatusFilterChange ? (
+                  <Select
+                    value={intentStatusFilter}
+                    onValueChange={(v) => onIntentStatusFilterChange(v as "all" | "open" | "done")}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        INBOX_FILTER_TRIGGER_BASE,
+                        intentStatusFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                      )}
+                      aria-label="Work intent filter"
+                      title="Per-message work / intent filter"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Work intent: All</SelectItem>
+                      <SelectItem value="open">Work intent: Open</SelectItem>
+                      <SelectItem value="done">Work intent: Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : null}
+
                 {onSenderFilterChange && senderOptions.length > 0 ? (
                   <Select value={senderFilter} onValueChange={onSenderFilterChange}>
                     <SelectTrigger

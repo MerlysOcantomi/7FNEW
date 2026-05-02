@@ -492,6 +492,39 @@ function InboxPageContent() {
   const lastDeepLinkRef = useRef<string | null>(null)
 
   /**
+   * Primary work filter (chip strip on top of ConversationList) — derived from the URL
+   * `?filter=` so the chips and the sidebar Work group are always the same source of
+   * truth. Anything outside the four daily values (Inbox, Trash, Archived, Opportunities,
+   * To-do, Scheduled, Closed, etc.) maps to "other" so no chip is highlighted; the
+   * sidebar already shows the operator where they are.
+   */
+  type PrimaryWorkFilter = "all" | "needs_action" | "waiting" | "done" | "other"
+  const primaryWorkFilter: PrimaryWorkFilter = useMemo(() => {
+    if (!sidebarFilter || sidebarFilter === "inbox") return "all"
+    if (sidebarFilter === "needs_action") return "needs_action"
+    if (sidebarFilter === "waiting") return "waiting"
+    if (sidebarFilter === "done") return "done"
+    return "other"
+  }, [sidebarFilter])
+
+  /**
+   * Chip click → URL change. Preserve all other search params (e.g. `?id=`, `?messageId=`)
+   * so deep links survive a chip click. Using `router.replace` keeps the back button
+   * sane: chip changes are not separate history entries, the operator can still go
+   * back to where they came from.
+   */
+  const handlePrimaryWorkFilterChange = useCallback(
+    (value: "all" | "needs_action" | "waiting" | "done") => {
+      const next = new URLSearchParams(searchParams.toString())
+      if (value === "all") next.delete("filter")
+      else next.set("filter", value)
+      const qs = next.toString()
+      router.replace(qs.length > 0 ? `${pathname}?${qs}` : pathname)
+    },
+    [router, pathname, searchParams],
+  )
+
+  /**
    * To-do list state. Held locally instead of via `useFetch` because we need optimistic
    * mutations (mark done / dismiss) and a simple `refresh` trigger. Filter is fixed to
    * `open,waiting` for the MVP — Phase 5 will surface "All / Today / Overdue" sub-tabs.
@@ -3217,6 +3250,8 @@ function InboxPageContent() {
                     senderFilter={senderFilter}
                     senderOptions={senderOptions}
                     onSenderFilterChange={setSenderFilter}
+                    primaryWorkFilter={primaryWorkFilter}
+                    onPrimaryWorkFilterChange={handlePrimaryWorkFilterChange}
                     stats={stats}
                     onSelect={handleSelectConversation}
                     hasMore={hasMore}
