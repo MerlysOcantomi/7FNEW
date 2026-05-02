@@ -280,6 +280,58 @@ async function matchConversationByContact(
 }
 
 // ---------------------------------------------------------------------------
+// Workspace-scoped duplicate detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Look up an existing inbound message in the *same workspace* whose `metadata` JSON
+ * contains either the source-specific id (`sourceId`, e.g. `imap:<connId>:<uid>` or the
+ * Resend email id) or the RFC `Message-ID` header. Workspace scoping is critical: without
+ * it, two tenants receiving the same email (CC'd customer mail, identical Cron-style
+ * notifications routed to multiple support inboxes, the same operator running two
+ * separate workspaces with overlapping providers) would dedup against each other and the
+ * second tenant would silently lose the message — and the early return would also expose
+ * a `conversationId` from another tenant, breaking isolation.
+ *
+ * Returns null when no duplicate exists in this workspace OR when neither identifier was
+ * provided (callers fall through to normal ingestion in that case).
+ *
+ * Both lookups use `metadata: { contains: ... }` because the persisted `metadata` is a
+ * JSON string and the values we're matching are unique enough (UIDs, RFC ids) that
+ * collisions on substring inside the JSON would be astronomically rare. Adding
+ * `workspaceId` to the where clause also lets the query planner use the workspace index
+ * before scanning metadata blobs — a side benefit.
+ */
+async function findWorkspaceScopedDuplicate(args: {
+  workspaceId: string
+  sourceId?: string | null
+  messageId?: string | null
+}): Promise<{ id: string; conversationId: string; matchedBy: "sourceId" | "messageId" } | null> {
+  const { workspaceId, sourceId, messageId } = args
+
+  if (sourceId) {
+    const hit = await db.message.findFirst({
+      where: { workspaceId, direction: "inbound", metadata: { contains: sourceId } },
+      select: { id: true, conversationId: true },
+    })
+    if (hit) return { id: hit.id, conversationId: hit.conversationId, matchedBy: "sourceId" }
+  }
+
+  if (messageId) {
+    const normalizedMsgId = normalizeMessageId(messageId)
+    if (normalizedMsgId) {
+      const hit = await db.message.findFirst({
+        where: { workspaceId, direction: "inbound", metadata: { contains: normalizedMsgId } },
+        select: { id: true, conversationId: true },
+      })
+      if (hit) return { id: hit.id, conversationId: hit.conversationId, matchedBy: "messageId" }
+    }
+  }
+
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Backfill connectionId helper
 // ---------------------------------------------------------------------------
 
@@ -303,48 +355,24 @@ async function backfillConnectionId(conversationId: string, connectionId: string
 export async function ingestInboundEmail(input: IngestInboundEmailInput): Promise<InboundEmailResult> {
   const tag = `[inbound:${input.source}]`
 
-  // ---- Dedup by sourceId (e.g. resendEmailId, IMAP UID key) ----
-  if (input.sourceId) {
-    const duplicate = await db.message.findFirst({
-      where: { direction: "inbound", metadata: { contains: input.sourceId } },
-      select: { id: true, conversationId: true },
-    })
-    if (duplicate) {
-      console.log(`${tag} Dedup hit sourceId=${input.sourceId} existing_msg=${duplicate.id}`)
-      return {
-        conversationId: duplicate.conversationId,
-        messageId: duplicate.id,
-        contactId: "",
-        isNewConversation: false,
-        matchedBy: "in-reply-to",
-        alreadyProcessed: true,
-      }
-    }
-  }
-
-  // ---- Dedup by RFC Message-ID ----
-  if (input.messageId) {
-    const normalizedMsgId = normalizeMessageId(input.messageId)
-    if (normalizedMsgId) {
-      const duplicate = await db.message.findFirst({
-        where: { direction: "inbound", metadata: { contains: normalizedMsgId } },
-        select: { id: true, conversationId: true },
-      })
-      if (duplicate) {
-        console.log(`${tag} Dedup hit messageId=${normalizedMsgId} existing_msg=${duplicate.id}`)
-        return {
-          conversationId: duplicate.conversationId,
-          messageId: duplicate.id,
-          contactId: "",
-          isNewConversation: false,
-          matchedBy: "in-reply-to",
-          alreadyProcessed: true,
-        }
-      }
-    }
-  }
-
   if (!input.from) throw new Error(`Inbound email from ${input.source} has no 'from' field`)
+
+  /**
+   * Dedup is intentionally deferred until *after* workspace + contact resolution. The
+   * legacy implementation ran two global `metadata: { contains: ... }` queries up here,
+   * which created a multi-tenant safety hole: two workspaces receiving the same email
+   * (e.g. a customer CC'ing two of your support inboxes) would dedup against each other,
+   * silently dropping the second copy and — worse — leaking the first workspace's
+   * `conversationId` back to the second through the alreadyProcessed return value.
+   *
+   * Moving the check below the resolution chain has two consequences:
+   *  - Workspace id is guaranteed defined when we dedup (we never short-circuit on a
+   *    nullable filter that Prisma would treat as "unscoped").
+   *  - For a true duplicate we now do an extra contact upsert before returning. That
+   *    contact upsert is semantically correct (we genuinely *did* see the contact again,
+   *    so bumping `lastSeenAt` reflects reality) and the cost — one row update — is
+   *    negligible compared to the correctness gain.
+   */
 
   const senderEmail = extractEmailAddress(input.from)
   const senderName = extractDisplayName(input.from)
@@ -418,6 +446,31 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
         data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
       })
       contactId = contact.id
+    }
+  }
+
+  /**
+   * Workspace-scoped dedup. At this point `workspaceId` is guaranteed defined (the
+   * resolution chain above either set it or threw). Returning the *real* `contactId` —
+   * not the empty-string placeholder the legacy implementation used — keeps the contract
+   * of `InboundEmailResult` honest for downstream consumers (logActivity, audit trails).
+   */
+  const existingDuplicate = await findWorkspaceScopedDuplicate({
+    workspaceId,
+    sourceId: input.sourceId,
+    messageId: input.messageId,
+  })
+  if (existingDuplicate) {
+    console.log(
+      `${tag} Dedup hit workspace=${workspaceId} matched_by=${existingDuplicate.matchedBy} existing_msg=${existingDuplicate.id} sourceId=${input.sourceId ?? "(none)"} messageId=${input.messageId ?? "(none)"}`,
+    )
+    return {
+      conversationId: existingDuplicate.conversationId,
+      messageId: existingDuplicate.id,
+      contactId,
+      isNewConversation: false,
+      matchedBy: "in-reply-to",
+      alreadyProcessed: true,
     }
   }
 
