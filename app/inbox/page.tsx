@@ -189,6 +189,7 @@ const STATUS_OPTIONS = [
   "assigned",
   "awaiting_response",
   "lead_detected",
+  "resolved",
   "converted",
   "closed",
   "archived",
@@ -426,8 +427,18 @@ function InboxPageContent() {
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
   if (debouncedSearch) params.set("q", debouncedSearch)
+  /**
+   * Status precedence: the explicit top filter wins over the sidebar URL filter. If the
+   * operator leaves the dropdown on "all" we fall through to whatever the sidebar declares
+   * (`?filter=archived` → status=archived, `?filter=trash` → status=trashed, etc.). This is
+   * what makes sidebar entries actually filter the list — before this they only set the URL
+   * but the query never picked up `filterParams.status`, so e.g. clicking "Archived" looked
+   * decorative.
+   */
   if (status !== "all") {
     params.set("status", status)
+  } else if (filterParams.status) {
+    params.set("status", filterParams.status)
   }
   if (filterParams.urgency) params.set("urgency", filterParams.urgency)
   if (channel !== "all") params.set("channel", channel)
@@ -458,9 +469,15 @@ function InboxPageContent() {
    * Vista “All statuses”: ocultar cerradas/archivadas/papelera en la lista principal.
    * Rescate: si ese filtro deja 0 filas pero la API sí devolvió conversaciones (p. ej. todas archivadas),
    * mostrar la lista completa para no vaciar el inbox.
+   *
+   * Excepción: si la sidebar está pidiendo explícitamente un status (?filter=archived|trash|...),
+   * ya hicimos pasar ese status al backend, así que confiamos en lo que devolvió y no aplicamos
+   * el strip cliente — si no, el operador haría click en "Trash" y vería 0 filas porque
+   * estaríamos re-ocultando justo lo que la API acaba de filtrar.
    */
   const conversationsForSidebar = useMemo(() => {
     if (status !== "all") return conversations
+    if (filterParams.status) return conversations
     const filtered = conversations.filter(
       (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
     )
@@ -474,7 +491,7 @@ function InboxPageContent() {
       return conversations
     }
     return filtered
-  }, [conversations, status])
+  }, [conversations, status, filterParams.status])
 
   /**
    * Lista única para pintar/seleccionar/navegar: mismo filtro que `conversationsForSidebar`,

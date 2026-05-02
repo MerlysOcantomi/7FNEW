@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Users, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
-  User, FolderKanban, CheckSquare, Archive, MessageSquare,
+  User, FolderKanban, CheckSquare, MessageSquare,
   Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2, Sparkles,
   Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
 } from "lucide-react"
@@ -964,8 +964,10 @@ export function ContextPanel({
         ── 5. Actions ──
         Phase C: en message-mode lo OCULTAMOS. El bloque "Smart actions" arriba ya elevó las
         acciones reales (Create task/client/project + Reply with AI draft) y los placeholders
-        (Internal note, Attach file, Call, Archive) o duplican o no están wired. Para volver a
-        ver Assign/etc a nivel conversación basta con limpiar la selección de mensaje (Esc).
+        de Communication (Internal note, Attach file, Call) duplican o no están wired —
+        esos quedan pendientes de cableado. El placeholder "Archive" se quitó porque la
+        acción real vive en More del composer (scope-aware). Para volver a ver Assign/etc
+        a nivel conversación basta con limpiar la selección de mensaje (Esc).
       */}
       {!isMessageMode && (
       <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
@@ -1002,12 +1004,16 @@ export function ContextPanel({
               </div>
             </div>
 
-            {/* Workflow */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
-              <div className="flex flex-wrap gap-1.5">
-                <ActionButton label="Archive" icon={Archive} />
-                {(selected.channel === "web_chat" || selected.channel === "portal") && members.length > 0 && (
+            {/*
+              Workflow: only the assign Select is real here (chat/portal channels with members).
+              The "Archive" placeholder was removed because Archive/Close/Move to Trash live in
+              More on the composer with scope semantics. We render the whole subsection only
+              when the assign control will actually appear, so we don't show an empty header.
+            */}
+            {(selected.channel === "web_chat" || selected.channel === "portal") && members.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
+                <div className="flex flex-wrap gap-1.5">
                   <div className="w-full mt-1">
                     <Select
                       value={selected.assignedTo || "unassigned"}
@@ -1032,9 +1038,9 @@ export function ContextPanel({
                       </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </section>

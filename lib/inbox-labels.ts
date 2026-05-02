@@ -11,6 +11,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     assigned: "Assigned",
     awaiting_response: "Awaiting response",
     lead_detected: "Lead detected",
+    resolved: "Resolved",
     converted: "Converted",
     closed: "Closed",
     archived: "Archived",
@@ -22,6 +23,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     assigned: "Asignado",
     awaiting_response: "Esperando respuesta",
     lead_detected: "Lead detectado",
+    resolved: "Resuelto",
     converted: "Convertido",
     closed: "Cerrado",
     archived: "Archivado",
@@ -33,6 +35,7 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     assigned: "Zugewiesen",
     awaiting_response: "Wartet auf Antwort",
     lead_detected: "Lead erkannt",
+    resolved: "Erledigt",
     converted: "Konvertiert",
     closed: "Geschlossen",
     archived: "Archiviert",
@@ -152,6 +155,13 @@ export function statusBadge(status: string) {
       return "status-assigned"
     case "awaiting_response":
       return "status-awaiting-response"
+    /**
+     * `resolved` reuses the success palette ("work is done" feel) but its label is distinct
+     * from `lead_detected`, so the two won't collide visually in normal flows. Keeping a
+     * dedicated variant lets us recolor independently later without churning the badge map.
+     */
+    case "resolved":
+      return "status-resolved"
     case "closed":
     case "archived":
       return "status-closed"

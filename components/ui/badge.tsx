@@ -23,6 +23,7 @@ const badgeVariants = cva(
         'status-assigned': 'border-transparent bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]',
         'status-awaiting-response': 'border-transparent bg-[var(--status-notice-bg)] text-[var(--status-notice-text)]',
         'status-lead-detected': 'border-transparent bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+        'status-resolved': 'border-transparent bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
         'status-converted': 'border-transparent bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
         'status-closed': 'border-transparent bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]',
         // Urgency Variants
