@@ -1810,6 +1810,47 @@ function InboxPageContent() {
   }
 
   /**
+   * Reversible state handlers — each one undoes a terminal/done state by transitioning the
+   * conversation back to a legal active status. The targets honor the existing TRANSITIONS
+   * table in modules/inbox/state.ts (no new schema, no new endpoint, validated server-side):
+   *  - Restore from Trash → "triaged" (only legal exit from trashed; matches getReopenStatusFrom).
+   *  - Unarchive          → "triaged" (consistent with restore-from-trash; neutral active).
+   *  - Reopen (from closed) → "triaged" (closed → awaiting_response is NOT in the transition
+   *                           table, so we pick the closest neutral: triaged. The conversation
+   *                           is re-classified by the AI on next inbound, which is the same
+   *                           path getReopenStatusFrom takes).
+   *  - Mark as needs action → "awaiting_response" (resolved → awaiting_response is allowed and
+   *                           semantically matches "needs my attention").
+   *
+   * The page does no client-side validation: `transitionConversation` in the service rejects
+   * invalid moves (returns null) and the PATCH endpoint surfaces the error. We swallow the
+   * promise here just like the existing forward handlers do.
+   */
+  const handleRestoreConversationFromTrash = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("triaged").catch(() => null)
+  }
+  const handleUnarchiveConversation = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("triaged").catch(() => null)
+  }
+  const handleReopenConversation = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("triaged").catch(() => null)
+  }
+  /**
+   * Inverse of "Mark as resolved" at the conversation level. We deliberately do NOT touch any
+   * Message.metadata.intentStatus here — the message-level "Mark as needs action" lives in
+   * the More panel's Message actions group and reuses the existing toggle handler. Splitting
+   * the two flips keeps the operator in control: they can resolve the conversation while
+   * leaving individual message intents alone, and vice versa.
+   */
+  const handleMarkConversationNeedsAction = () => {
+    if (!activeSelectedId) return
+    void handleStatusChange("awaiting_response").catch(() => null)
+  }
+
+  /**
    * Mark a single message intent as done/open (toggle). Storage lives in
    * Message.metadata.intentStatus (no schema change). The page resolves which message id is
    * affected by mapping `actingOnScope` to either `effectiveSelectedMessageId` or
@@ -2577,6 +2618,10 @@ function InboxPageContent() {
                           onClose: handleCloseConversation,
                           onTrash: handleTrashConversation,
                           onMarkResolved: handleMarkConversationResolved,
+                          onRestoreFromTrash: handleRestoreConversationFromTrash,
+                          onUnarchive: handleUnarchiveConversation,
+                          onReopen: handleReopenConversation,
+                          onMarkNeedsAction: handleMarkConversationNeedsAction,
                           currentStatus: selected.status,
                         }}
                         messageActions={messageActionsForComposer}

@@ -7,7 +7,8 @@ import {
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2,
-  Archive, CheckCircle2, Trash2, MoreHorizontal, Target, Layers, MailCheck,
+  Archive, ArchiveRestore, CheckCircle2, Trash2, MoreHorizontal,
+  MailOpen, AlertCircle, Target, Layers, MailCheck,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -55,6 +56,21 @@ export interface ConversationActionsApi {
    * when `currentStatus === "resolved"`.
    */
   onMarkResolved?: () => void
+  /**
+   * Reverse-state handlers: each one is shown *in place of* the matching forward action when
+   * the conversation is currently in that terminal/done state. Keeping them on the same
+   * `ConversationActionsApi` (instead of a sibling object) lets the composer just look at
+   * `currentStatus` and pick the right pair without extra plumbing.
+   *  - onRestoreFromTrash → flips `trashed` back to an active status.
+   *  - onUnarchive       → flips `archived` back to active.
+   *  - onReopen          → flips `closed` back to active.
+   *  - onMarkNeedsAction → flips `resolved` back to active (the inverse of onMarkResolved).
+   * Each is optional so callers that don't wire reversibility yet keep working.
+   */
+  onRestoreFromTrash?: () => void
+  onUnarchive?: () => void
+  onReopen?: () => void
+  onMarkNeedsAction?: () => void
   /** Status actual de la conversación; deshabilita el botón equivalente. */
   currentStatus?: string | null
 }
@@ -613,8 +629,26 @@ export function ReplyComposer({
   const closeHandler = conversationActions?.onClose
   const trashHandler = conversationActions?.onTrash
   const markResolvedHandler = conversationActions?.onMarkResolved
+  /**
+   * Reverse handlers — each one is paired with its forward counterpart and rendered in place
+   * when `currentStatus` matches. Reading them as locals keeps the JSX further down compact
+   * and lets us include them in the `hasConversationActions` gate.
+   */
+  const restoreFromTrashHandler = conversationActions?.onRestoreFromTrash
+  const unarchiveHandler = conversationActions?.onUnarchive
+  const reopenHandler = conversationActions?.onReopen
+  const markNeedsActionHandler = conversationActions?.onMarkNeedsAction
   const currentConversationStatus = conversationActions?.currentStatus ?? null
-  const hasConversationActions = Boolean(archiveHandler || closeHandler || trashHandler || markResolvedHandler)
+  const hasConversationActions = Boolean(
+    archiveHandler
+    || closeHandler
+    || trashHandler
+    || markResolvedHandler
+    || restoreFromTrashHandler
+    || unarchiveHandler
+    || reopenHandler
+    || markNeedsActionHandler,
+  )
 
   /**
    * More panel composition — both groups are *additive*, not mutually exclusive:
@@ -1764,14 +1798,29 @@ export function ReplyComposer({
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
               {messageActions.onMarkDone ? (
-                <MoreMenuItem
-                  icon={CheckCircle2}
-                  label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
-                  activeLabel="Marked as done"
-                  onClick={messageActions.onMarkDone}
-                  isCurrent={messageActions.intentStatus === "done"}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                />
+                /**
+                 * Reversibility: when the scoped message is already done, swap the label to
+                 * "Mark as needs action". The handler is the same toggle the page provides
+                 * (it inverts intentStatus internally), so the user gets a one-click flip back
+                 * to open work without leaving the More panel.
+                 */
+                messageActions.intentStatus === "done" ? (
+                  <MoreMenuItem
+                    icon={AlertCircle}
+                    label={actingOnScope === "selected" ? "Mark selected as needs action" : "Mark latest as needs action"}
+                    onClick={messageActions.onMarkDone}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                ) : (
+                  <MoreMenuItem
+                    icon={CheckCircle2}
+                    label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
+                    activeLabel="Marked as done"
+                    onClick={messageActions.onMarkDone}
+                    isCurrent={false}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                )
               ) : null}
               {messageActions.onAddInternalNote ? (
                 <MoreMenuItem
@@ -1814,41 +1863,85 @@ export function ReplyComposer({
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
+              {/*
+                Per-button swap: when the conversation is already in a terminal/done state we
+                render the *reverse* action in place of the matching forward one. The other
+                three actions stay as-is so the operator can still e.g. Archive a conversation
+                that is currently resolved. Reverse handlers are optional — when missing we
+                fall back to the legacy disabled-when-current behavior so partial wiring
+                never breaks the panel.
+              */}
               {markResolvedHandler ? (
+                currentConversationStatus === "resolved" && markNeedsActionHandler ? (
+                  <MoreMenuItem
+                    icon={AlertCircle}
+                    label="Mark as needs action"
+                    onClick={markNeedsActionHandler}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                ) : (
+                  <MoreMenuItem
+                    icon={CheckCheck}
+                    label="Mark as resolved"
+                    activeLabel="Resolved"
+                    onClick={markResolvedHandler}
+                    isCurrent={currentConversationStatus === "resolved"}
+                    onAfterClick={() => setMoreMenuOpen(false)}
+                  />
+                )
+              ) : null}
+              {currentConversationStatus === "archived" && unarchiveHandler ? (
                 <MoreMenuItem
-                  icon={CheckCheck}
-                  label="Mark as resolved"
-                  activeLabel="Resolved"
-                  onClick={markResolvedHandler}
-                  isCurrent={currentConversationStatus === "resolved"}
+                  icon={ArchiveRestore}
+                  label="Unarchive"
+                  onClick={unarchiveHandler}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
-              ) : null}
-              <MoreMenuItem
-                icon={Archive}
-                label="Archive"
-                activeLabel="Archived"
-                onClick={archiveHandler}
-                isCurrent={currentConversationStatus === "archived"}
-                onAfterClick={() => setMoreMenuOpen(false)}
-              />
-              <MoreMenuItem
-                icon={CheckCircle2}
-                label="Close"
-                activeLabel="Closed"
-                onClick={closeHandler}
-                isCurrent={currentConversationStatus === "closed"}
-                onAfterClick={() => setMoreMenuOpen(false)}
-              />
-              <MoreMenuItem
-                icon={Trash2}
-                label="Move to Trash"
-                activeLabel="In Trash"
-                onClick={trashHandler}
-                isCurrent={currentConversationStatus === "trashed"}
-                onAfterClick={() => setMoreMenuOpen(false)}
-                tone="danger"
-              />
+              ) : (
+                <MoreMenuItem
+                  icon={Archive}
+                  label="Archive"
+                  activeLabel="Archived"
+                  onClick={archiveHandler}
+                  isCurrent={currentConversationStatus === "archived"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              )}
+              {currentConversationStatus === "closed" && reopenHandler ? (
+                <MoreMenuItem
+                  icon={MailOpen}
+                  label="Reopen"
+                  onClick={reopenHandler}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : (
+                <MoreMenuItem
+                  icon={CheckCircle2}
+                  label="Close"
+                  activeLabel="Closed"
+                  onClick={closeHandler}
+                  isCurrent={currentConversationStatus === "closed"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              )}
+              {currentConversationStatus === "trashed" && restoreFromTrashHandler ? (
+                <MoreMenuItem
+                  icon={RotateCcw}
+                  label="Restore to Inbox"
+                  onClick={restoreFromTrashHandler}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : (
+                <MoreMenuItem
+                  icon={Trash2}
+                  label="Move to Trash"
+                  activeLabel="In Trash"
+                  onClick={trashHandler}
+                  isCurrent={currentConversationStatus === "trashed"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                  tone="danger"
+                />
+              )}
             </div>
           </div>
         )}
