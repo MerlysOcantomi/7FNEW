@@ -414,6 +414,33 @@ function InboxPageContent() {
    */
   const [requestConfirmation, setRequestConfirmation] = useState(false)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  /**
+   * Structured fetch feedback. Replaces the previous "silent toast" behaviour where a
+   * `NO_CONNECTION` error or a stale IMAP cursor was indistinguishable from a successful
+   * "0 new" sync. Levels:
+   *  - "success" → ingested ≥ 1, banner auto-clears.
+   *  - "info"    → ingested = 0 (no new email). Sticky-on-empty so the operator knows the
+   *                request did run; auto-clears after a short delay.
+   *  - "warning" → connection inactive / push-only provider / cursor reset. Sticky until the
+   *                operator dismisses it or runs another fetch.
+   *  - "error"   → no connection, transport error, IMAP error count > 0. Sticky.
+   */
+  type FetchFeedbackLevel = "success" | "info" | "warning" | "error"
+  interface FetchFeedback {
+    level: FetchFeedbackLevel
+    message: string
+    detail?: string | null
+    /** Hint shown when ingested>0 but the operator is in a filter that hides new mail. */
+    visibilityHint?: string | null
+  }
+  const [fetchFeedback, setFetchFeedback] = useState<FetchFeedback | null>(null)
+  /** Auto-clear successful / info feedback after ~5s; sticky levels survive. */
+  useEffect(() => {
+    if (!fetchFeedback) return
+    if (fetchFeedback.level !== "success" && fetchFeedback.level !== "info") return
+    const tid = setTimeout(() => setFetchFeedback(null), 5000)
+    return () => clearTimeout(tid)
+  }, [fetchFeedback])
   const initialSyncDoneRef = useRef(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
@@ -2678,22 +2705,125 @@ function InboxPageContent() {
     }
   }, [composeTo, composeSubject, composeBody, refetch])
 
+  /**
+   * Pulls the latest emails from the workspace's email connection and surfaces a diagnostic
+   * banner so the operator can see *what happened* — the previous handler silently swallowed
+   * every failure (NO_CONNECTION, CONNECTION_INACTIVE, IMAP errors) and produced an
+   * indistinguishable green "Synced ✓" for both "synced 0 new" and "no connection at all".
+   *
+   * Branches:
+   *  - HTTP error or `success === false`: parse `error.{code,message}` → set sticky banner
+   *    with the code-specific UX. NO_CONNECTION / CONNECTION_INACTIVE / PROVIDER_NOT_FETCHABLE
+   *    each carry their own remediation hint.
+   *  - HTTP 200 + `data.ok`: read `{ ingested, fetched, skipped, errors[], cursorReset,
+   *    connection }`. ingested>0 → success banner + refetch. Errors > 0 → error banner with
+   *    the first error string (rest collapsed into "and N more"). cursorReset → warning.
+   *  - When the user is currently inside a non-Inbox filter (`?filter=todo`, archived, trash,
+   *    closed), surface a small visibilityHint so they know the new mail landed in Inbox.
+   */
   const handleFetchEmails = useCallback(async () => {
     setFetchingEmails(true)
     try {
       const res = await fetch("/api/inbox/fetch", { method: "POST" })
-      const json = await res.json()
+      const json = await res.json().catch(() => null) as
+        | {
+            success?: boolean
+            data?: {
+              ok?: boolean
+              count?: number
+              fetched?: number
+              ingested?: number
+              skipped?: number
+              errors?: string[]
+              cursorReset?: boolean
+              connection?: { connectionId?: string; provider?: string; status?: string; email?: string | null }
+            }
+            error?: { code?: string; message?: string }
+          }
+        | null
+
       setLastSyncedAt(new Date())
-      if (json.data?.count > 0) {
+
+      const filterHint =
+        sidebarFilter && sidebarFilter !== "inbox"
+          ? `Estás en la vista "${sidebarFilter}" — los emails nuevos aparecen en "Smart Inbox → Inbox".`
+          : null
+
+      if (!res.ok || !json?.success) {
+        const code = json?.error?.code ?? "FETCH_ERROR"
+        const message = json?.error?.message ?? "No se pudo sincronizar el email."
+        if (code === "NO_CONNECTION") {
+          setFetchFeedback({
+            level: "error",
+            message: "No hay conexión de email configurada.",
+            detail: "Configura una en Administración → Canales para empezar a recibir mensajes.",
+          })
+        } else if (code === "CONNECTION_INACTIVE") {
+          setFetchFeedback({
+            level: "error",
+            message: "La conexión de email está inactiva.",
+            detail: message,
+          })
+        } else if (code === "PROVIDER_NOT_FETCHABLE") {
+          setFetchFeedback({
+            level: "warning",
+            message: "Esta conexión no requiere fetch manual.",
+            detail: message,
+          })
+        } else {
+          setFetchFeedback({
+            level: "error",
+            message: "No se pudo sincronizar el email.",
+            detail: message,
+          })
+        }
+        return
+      }
+
+      const data = json.data ?? {}
+      const ingested = typeof data.ingested === "number" ? data.ingested : data.count ?? 0
+      const skipped = typeof data.skipped === "number" ? data.skipped : 0
+      const errs = Array.isArray(data.errors) ? data.errors : []
+
+      if (ingested > 0) {
         setRefreshKey((v) => v + 1)
         refetch()
+        setFetchFeedback({
+          level: "success",
+          message: ingested === 1 ? "1 email nuevo recibido." : `${ingested} emails nuevos recibidos.`,
+          detail: skipped > 0 ? `${skipped} ya conocidos / propios — omitidos.` : null,
+          visibilityHint: filterHint,
+        })
+      } else if (errs.length > 0) {
+        setFetchFeedback({
+          level: "error",
+          message: errs.length === 1 ? "Error durante el sync IMAP." : `${errs.length} errores durante el sync IMAP.`,
+          detail: errs[0] + (errs.length > 1 ? ` … y ${errs.length - 1} más.` : ""),
+        })
+      } else if (data.cursorReset) {
+        setFetchFeedback({
+          level: "warning",
+          message: "Cursor IMAP reiniciado.",
+          detail: "El servidor reportó un cambio de uidValidity o un cursor inconsistente. El próximo sync recuperará mensajes recientes.",
+        })
+      } else {
+        setFetchFeedback({
+          level: "info",
+          message: "Sin emails nuevos.",
+          detail: skipped > 0 ? `${skipped} mensajes revisados (todos ya conocidos).` : null,
+        })
       }
     } catch (err) {
       console.error("[inbox] Fetch failed:", err)
+      setFetchFeedback({
+        level: "error",
+        message: "No se pudo contactar al servidor.",
+        detail: err instanceof Error ? err.message : null,
+      })
     } finally {
       setFetchingEmails(false)
     }
-  }, [refetch])
+  }, [refetch, sidebarFilter])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
     if (!activeSelectedId || conversationsAfterUserFilters.length === 0 || selectedIndex < 0) return
@@ -2962,6 +3092,47 @@ function InboxPageContent() {
                       className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-200 hover:bg-rose-500/20"
                     >
                       Retry
+                    </button>
+                  </div>
+                ) : null}
+                {fetchFeedback ? (
+                  /**
+                   * Fetch diagnostic banner — replaces the silent toast pattern. Sticky for
+                   * error/warning levels (operator must dismiss or run another fetch); auto-
+                   * clears for success/info via the useEffect timer. Always visible regardless
+                   * of `isTodoMode` so the operator sees diagnostics even from the To-do view.
+                   */
+                  <div
+                    className={cn(
+                      "flex shrink-0 items-start gap-2 border-b px-4 py-2.5 text-xs leading-snug",
+                      fetchFeedback.level === "success" && "border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-100",
+                      fetchFeedback.level === "info" && "border-[var(--inbox-border)]/40 bg-white/[0.03] text-[var(--inbox-list-text-secondary)]",
+                      fetchFeedback.level === "warning" && "border-amber-500/25 bg-amber-500/[0.08] text-amber-100",
+                      fetchFeedback.level === "error" && "border-rose-500/30 bg-rose-500/[0.08] text-rose-100",
+                    )}
+                    role="status"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{fetchFeedback.message}</div>
+                      {fetchFeedback.detail ? (
+                        <div className="mt-0.5 opacity-85">{fetchFeedback.detail}</div>
+                      ) : null}
+                      {fetchFeedback.visibilityHint ? (
+                        <div className="mt-0.5 opacity-85">
+                          {fetchFeedback.visibilityHint}{" "}
+                          <Link className="font-medium underline-offset-2 hover:underline" href="/inbox?filter=inbox">
+                            Ir al Inbox
+                          </Link>
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Dismiss fetch feedback"
+                      onClick={() => setFetchFeedback(null)}
+                      className="shrink-0 rounded-md p-0.5 opacity-70 transition-opacity hover:opacity-100"
+                    >
+                      <X className="h-3 w-3" aria-hidden="true" />
                     </button>
                   </div>
                 ) : null}

@@ -23,6 +23,15 @@ export interface SyncResult {
   ingested: number
   skipped: number
   errors: string[]
+  /**
+   * True when the sync had to reset the local UID cursor. Two triggers:
+   *  - mailbox `uidValidity` changed (server moved/recreated the INBOX) → standard reset.
+   *  - persisted `lastUid` is greater than the mailbox's current `uidNext - 1` (cursor is
+   *    ahead of reality, can happen if INBOX shrinks dramatically or after a bad migration).
+   * Either way we log it and the API surface exposes the flag so the operator knows why
+   * a "fetch" returned older messages.
+   */
+  cursorReset?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -112,8 +121,32 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
         syncState.uidValidity !== currentUidValidity
 
       if (uidValidityChanged) {
-        console.log(`[imap-sync] UID validity changed for ${connectionId}, resetting cursor`)
+        console.warn(
+          `[imap-sync] uidValidity changed conn=${connectionId} prev=${syncState.uidValidity} now=${currentUidValidity} — resetting cursor`,
+        )
         syncState.lastUid = undefined
+        result.cursorReset = true
+      }
+
+      /**
+       * Safety net for "cursor ahead of mailbox": if the persisted `lastUid` is greater than
+       * the mailbox's `uidNext - 1` (i.e. greater than the highest possible UID the server
+       * will issue), the search query `${lastUid + 1}:*` will return nothing and the inbox
+       * stays silent forever. This can happen if the INBOX is recreated on the server side
+       * without uidValidity changing, or after a bad migration. We detect it explicitly,
+       * log a warning, and reset the cursor so the next sync can recover.
+       */
+      const mailboxUidNext = typeof mailbox.uidNext === "number" ? mailbox.uidNext : null
+      if (
+        typeof syncState.lastUid === "number" &&
+        mailboxUidNext !== null &&
+        syncState.lastUid >= mailboxUidNext
+      ) {
+        console.warn(
+          `[imap-sync] cursor ahead of mailbox conn=${connectionId} lastUid=${syncState.lastUid} uidNext=${mailboxUidNext} — resetting cursor for safe recovery`,
+        )
+        syncState.lastUid = undefined
+        result.cursorReset = true
       }
 
       let searchQuery: string
@@ -122,6 +155,10 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
       } else {
         searchQuery = "*"
       }
+
+      console.log(
+        `[imap-sync] mailbox open conn=${connectionId} uidValidity=${currentUidValidity} uidNext=${mailboxUidNext ?? "?"} exists=${mailbox.exists ?? "?"} cursor=${syncState.lastUid ?? "(none)"} query=${searchQuery}`,
+      )
 
       let highestUid = syncState.lastUid ?? 0
       let count = 0
@@ -139,8 +176,17 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
         count++
         result.fetched++
 
+        /**
+         * IMAP `${lastUid + 1}:*` returns at minimum one message even if no message matches
+         * (the spec returns the highest-UID message in that case). Defensive guard: if the
+         * server hands us a UID at or below our cursor, we drop it so we don't re-ingest
+         * what we already saw.
+         */
         if (syncState.lastUid && msg.uid <= syncState.lastUid) {
           result.skipped++
+          console.log(
+            `[imap-sync] msg uid=${msg.uid} outcome=skipped reason=cursor-overlap cursor=${syncState.lastUid}`,
+          )
           continue
         }
 
@@ -148,6 +194,9 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
           const envelope = msg.envelope
           if (!envelope?.from?.[0]) {
             result.skipped++
+            console.log(
+              `[imap-sync] msg uid=${msg.uid} outcome=skipped reason=missing-envelope-from`,
+            )
             continue
           }
 
@@ -168,13 +217,20 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
           const subject = envelope.subject ?? null
           const receivedAt = envelope.date ? new Date(envelope.date) : new Date()
 
-          // Skip emails sent FROM this account (outbound we sent ourselves)
+          /**
+           * Skip emails sent FROM this account (outbound we sent ourselves bouncing back via
+           * INBOX). We still advance the cursor so they don't keep getting refetched on every
+           * subsequent sync.
+           */
           const selfEmail = extractEmailAddress(connection.externalAccountId || creds.email)
           const senderEmail = extractEmailAddress(from)
           if (senderEmail === selfEmail) {
             result.skipped++
+            console.log(
+              `[imap-sync] msg uid=${msg.uid} from=${senderEmail} subject="${(subject ?? "").slice(0, 60)}" outcome=skipped reason=self-sent`,
+            )
             const numericUid = Number(msg.uid)
-        if (numericUid > highestUid) highestUid = numericUid
+            if (numericUid > highestUid) highestUid = numericUid
             continue
           }
 
@@ -222,13 +278,21 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
 
           if (ingested.alreadyProcessed) {
             result.skipped++
+            console.log(
+              `[imap-sync] msg uid=${msg.uid} from=${senderEmail} subject="${(subject ?? "").slice(0, 60)}" outcome=skipped reason=duplicate sourceId=${sourceId}`,
+            )
           } else {
             result.ingested++
+            console.log(
+              `[imap-sync] msg uid=${msg.uid} from=${senderEmail} subject="${(subject ?? "").slice(0, 60)}" outcome=ingested conv=${ingested.conversationId} matched_by=${ingested.matchedBy} new=${ingested.isNewConversation}`,
+            )
           }
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err)
           result.errors.push(`UID ${msg.uid}: ${errMsg}`)
-          console.error(`[imap-sync] Error processing UID ${msg.uid} for ${connectionId}: ${errMsg}`)
+          console.error(
+            `[imap-sync] msg uid=${msg.uid} outcome=error conn=${connectionId} reason="${errMsg}"`,
+          )
         }
 
         const numericUid = Number(msg.uid)
