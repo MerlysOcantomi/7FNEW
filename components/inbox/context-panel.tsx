@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Users, ChevronDown, ChevronUp, Loader2,
-  Mail, Phone, Building2, Globe, ArrowRight, CornerUpLeft,
-  User, FolderKanban, CheckSquare, MessageSquare,
-  Paperclip, PhoneCall, AlertTriangle, ListChecks, Link2, Sparkles,
+  Mail, Phone, Building2, ArrowRight, CornerUpLeft,
+  User, FolderKanban, CheckSquare,
+  Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
   Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -197,10 +198,23 @@ export function ContextPanel({
   askAnchorMessageId,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
-  const [actionsExpanded, setActionsExpanded] = useState(false)
+  /**
+   * Message-mode only: secondary "Conversation context" block (summary + facts + decisions)
+   * is collapsed by default so the operator's eyes go to message-level insight first. We keep
+   * the collapsible state local because it's purely presentational and reset is implicit when
+   * the panel re-renders for a new message.
+   */
+  const [contextDetailsOpen, setContextDetailsOpen] = useState(false)
   /** Phase 1 preview / Phase 2 confirm. Local state owns the dialog lifecycle; the page owns
    *  the network call via `onCreateCalendarEvent` and the post-success refetch. */
   const [calendarPreviewOpen, setCalendarPreviewOpen] = useState(false)
+  /**
+   * Message mode requires both an effective (non-trashed) selected message id AND the matching
+   * info payload from the page. The page already nullifies `effectiveSelectedMessageId` when
+   * the selected bubble is soft-trashed, and `replyTarget` (the source of `selectedMessageInfo`)
+   * is gated by `actingOnScope === "selected"` — so trashed selection AND "Acting on: All"
+   * both fall back to conversation mode automatically without any extra logic here.
+   */
   const isMessageMode = Boolean(selectedMessageId && selectedMessageInfo)
 
   const contactName =
@@ -368,525 +382,738 @@ export function ContextPanel({
     ? "Ask Fanny about this message..."
     : "Ask Fanny about this conversation..."
 
-  return (
-    <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
+  /**
+   * Shared "atoms" — small JSX fragments used by both message and conversation orderings. We
+   * declare them up front so the two mode branches below stay focused on hierarchy/order
+   * rather than duplicating layout. Each one is gated internally so it renders nothing when
+   * its data is empty (no fabricated content per spec rule "show clean empty states").
+   */
 
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
-          <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
+  const headerSection = (
+    <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
+        <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
+      </div>
+      <div className="min-w-0">
+        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Intelligence Hub</h2>
+        <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
+          {isMessageMode ? "Message insight" : "Conversation overview"}
+        </p>
+      </div>
+    </div>
+  )
+
+  /** Always-visible contact card. Initial = avatar + name + small chip line. Expand reveals
+   *  email/phone/company/cliente/proyecto links. Per spec "Always visible at the top". */
+  const contactSection = (
+    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
+          <span className="text-sm font-bold">{contactName.charAt(0).toUpperCase()}</span>
         </div>
-        <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Intelligence Hub</h2>
-          <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
-            {isMessageMode ? "About this message" : "About this conversation"}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
+          <div className="mt-0.5 flex items-center gap-2">
+            <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
+              {formatContactType(contactType)}
+            </span>
+            {selected.detectedLanguage && (
+              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
+                {selected.detectedLanguage.toUpperCase()}
+              </span>
+            )}
+            <span className="text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+              {channelLabel(selected.channel)}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setContactExpanded((v) => !v)}
+          className="shrink-0 rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] hover:bg-white/8"
+          aria-expanded={contactExpanded}
+          aria-label={contactExpanded ? "Collapse contact details" : "Expand contact details"}
+        >
+          {contactExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+
+      {contactExpanded && (
+        <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
+          {contactEmail && (
+            <div className="flex items-center gap-2 text-xs">
+              <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+              <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
+            </div>
+          )}
+          {contactPhone && (
+            <div className="flex items-center gap-2 text-xs">
+              <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+              <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
+            </div>
+          )}
+          {contactCompany && (
+            <div className="flex items-center gap-2 text-xs">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+              <span className="text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
+            </div>
+          )}
+          {selected.cliente && (
+            <div className="flex items-center gap-2 text-xs">
+              <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+              <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                {selected.cliente.nombre}
+              </a>
+            </div>
+          )}
+          {selected.proyecto && (
+            <div className="flex items-center gap-2 text-xs">
+              <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+              <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                {selected.proyecto.nombre}
+              </a>
+              {selected.proyecto.estado && (
+                <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+                  {selected.proyecto.estado}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+
+  /** Message-mode only: short interpretation of the *selected* bubble. Renders nothing when
+   *  not in message mode (the caller branches between this and `summarySection`). */
+  const whatThisMeansSection = isMessageMode && selectedMessageInfo ? (
+    <section
+      className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2"
+      aria-label="What this message means"
+    >
+      <div className="flex items-center gap-1.5">
+        <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+          What this message means
+        </span>
+        {selectedMessageInfo.timestampLabel ? (
+          <span
+            suppressHydrationWarning
+            className="text-[9px] tabular-nums text-[var(--inbox-intelligence-text-secondary)]"
+          >
+            · {selectedMessageInfo.timestampLabel}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
+        {selectedMessageInfo.authorLabel}
+      </div>
+      {selectedMessageInfo.shortIntent ? (
+        <p
+          className="mt-1 text-[12px] font-medium leading-snug text-[var(--inbox-intelligence-text)]"
+          title={selectedMessageInfo.shortIntent}
+        >
+          {selectedMessageInfo.shortIntent}
+        </p>
+      ) : selectedMessageInfo.snippet ? (
+        <p
+          className="mt-1 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
+          title={selectedMessageInfo.snippet}
+        >
+          {selectedMessageInfo.snippet}
+        </p>
+      ) : (
+        <p className="mt-1 text-[11px] italic leading-snug text-[var(--inbox-intelligence-text-secondary)]">
+          No interpretation available for this message yet.
+        </p>
+      )}
+      {(selectedMessageInfo.direction
+        || selectedMessageInfo.hasAttachments
+        || selectedMessageInfo.hasLinks) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {selectedMessageInfo.direction ? (
+            <SignalChip label={directionChipLabel(selectedMessageInfo)} />
+          ) : null}
+          {selectedMessageInfo.hasAttachments ? (
+            <SignalChip label="Has attachments" icon={Paperclip} />
+          ) : null}
+          {selectedMessageInfo.hasLinks ? (
+            <SignalChip label="Has link" icon={Link2} />
+          ) : null}
+        </div>
+      )}
+    </section>
+  ) : null
+
+  /**
+   * Conversation summary block — used as the conversation-mode "what does this mean" answer
+   * AND as the body of the collapsible "Conversation context" panel in message mode. We keep
+   * the AI headline + confidence pill here since they describe the whole thread, not a single
+   * message. Facts/Decisions are intentionally NOT mixed into this block: the spec calls them
+   * out as separate questions ("what facts? / what decisions?") so they live in their own
+   * sub-sections rendered after the summary in conversation mode and inside the collapsible
+   * in message mode.
+   */
+  const summaryBlock = (
+    <>
+      {handoffHeadline ? (
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold leading-snug text-[var(--inbox-intelligence-text)]">
+            {handoffHeadline}
           </p>
+          {handoffConfidencePct !== null ? (
+            <span
+              className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+              title="AI confidence in this read"
+              aria-label={`AI confidence ${handoffConfidencePct}%`}
+            >
+              {handoffConfidencePct}%
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {isMessageMode ? "Conversation summary" : "Summary"}
+      </p>
+      {summary ? (
+        <InlineTextarea
+          value={summary}
+          placeholder="Add summary..."
+          className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
+          rows={2}
+          onSave={(value) => updateHandoff({ summary: value })}
+        />
+      ) : (
+        <p className="mt-1.5 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+          No summary available yet.
+        </p>
+      )}
+      {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
+    </>
+  )
+
+  /**
+   * Facts + Decisions block. In conversation mode this renders right after the summary as its
+   * own "answer" card. In message mode it lives inside the collapsible "Conversation context"
+   * panel. Renders nothing when both lists are empty.
+   */
+  const factsAndDecisionsBlock = (handoffFacts.length > 0 || handoffDecisions.length > 0) ? (
+    <div className="space-y-2">
+      {handoffFacts.length > 0 && (
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
+          <ul className="mt-1 space-y-0.5">
+            {handoffFacts.map((fact, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                <span>{fact}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {handoffDecisions.length > 0 && (
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
+          <ul className="mt-1 space-y-0.5">
+            {handoffDecisions.map((decision, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                <span>{decision}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  ) : null
+
+  /** Signal bars: mood + urgency + lead score. The lead score row only renders when present. */
+  const signalsSection = (
+    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Mood</span>
+            <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{moodValue.label}</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
+            <div
+              className={cn("h-full rounded-full transition-all duration-500", moodValue.barClass)}
+              style={{ width: `${moodValue.percent}%` }}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Urgency</span>
+            <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{urgencyValue.label}</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
+            <div
+              className={cn("h-full rounded-full transition-all duration-500", urgencyValue.barClass)}
+              style={{ width: `${urgencyValue.percent}%` }}
+            />
+          </div>
+        </div>
+        {typeof selected.leadScore === "number" && (
+          <div className="flex items-center justify-between pt-1 border-t border-[var(--inbox-intelligence-border)]">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Lead score</span>
+            <span className="text-xs font-semibold text-[var(--inbox-accent)]">{selected.leadScore}</span>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+
+  /** Recommended next move — single CTA-style card with editable text + ranked actions list. */
+  const nextMoveSection = (
+    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {isMessageMode ? "Recommended next action" : "Recommended next move"}
+      </p>
+      {nextRecommendedAction ? (
+        <InlineTextarea
+          value={nextRecommendedAction}
+          placeholder="Edit recommendation..."
+          className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
+          rows={2}
+          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+        />
+      ) : (
+        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+          No recommendation available yet.
+        </p>
+      )}
+
+      {orderedSuggestedActions.length > 0 && (
+        <div className="mt-3 space-y-1.5 border-t border-[var(--inbox-intelligence-border)] pt-3">
+          {isMessageMode && messageScopedActionCount > 0 ? (
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-accent)]">
+              Actions based on selected message
+            </p>
+          ) : null}
+          {orderedSuggestedActions.slice(0, 3).map((action) => {
+            const title = typeof action.data?.title === "string" && action.data.title.trim()
+              ? action.data.title
+              : actionTypeLabel(action.type)
+            const isPending = pendingActionId === action.id
+            const isMessageScoped = Boolean(
+              isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
+            )
+            return (
+              <div
+                key={action.id}
+                className={cn(
+                  "flex items-center justify-between gap-2 rounded-md transition-colors",
+                  isMessageScoped &&
+                    "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5",
+                )}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
+                  <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
+                  {isMessageScoped ? (
+                    <span
+                      className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+                      title="This action is anchored to the selected message"
+                    >
+                      For selected
+                    </span>
+                  ) : null}
+                  <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", actionStatusBadge(action.status))}>
+                    {actionStatusLabel(action.status)}
+                  </span>
+                </div>
+                {action.status === "suggested" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleSuggestedAction(action, "approve_and_execute")}
+                    disabled={isPending}
+                    className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
+                  >
+                    {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run"}
+                  </Button>
+                )}
+                {action.status === "approved" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleSuggestedAction(action, "execute")}
+                    disabled={isPending}
+                    className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
+                  >
+                    {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
+    </section>
+  )
+
+  /**
+   * Smart actions block. Now lives in BOTH modes (was message-mode only). Add to calendar is
+   * gated to message mode because it's anchored to a specific inbound EventHint; the rest of
+   * the actions (Reply with AI draft, Create task/client/project) work either way — handleConvert
+   * sends sourceMessageId only when one is available so the backend does the right thing.
+   * Hidden when there is genuinely nothing to do (no draft and no convert handlers makes the
+   * grid look empty otherwise — but we always have the three convert CTAs, so the section
+   * always renders at least one row).
+   */
+  const smartActionsSection = (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Smart actions"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        Smart actions
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {hasSuggestedDraft && onUseSuggestedDraft ? (
+          <ActionButton
+            label="Reply with AI draft"
+            icon={Sparkles}
+            onClick={onUseSuggestedDraft}
+          />
+        ) : null}
+        {/*
+          Add to calendar appears only in message mode, when the AI persisted a `create_event`
+          action anchored to the selected inbound message AND that action has not yet been
+          executed. Once executed the actions list shows the executed status badge instead.
+        */}
+        {isMessageMode
+          && selectedMessageInfo?.eventHint
+          && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
+          && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions) ? (
+          <ActionButton
+            label="Add to calendar"
+            icon={CalendarPlus}
+            onClick={() => setCalendarPreviewOpen(true)}
+          />
+        ) : null}
+        <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
+        <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
+        <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
+      </div>
+    </section>
+  )
+
+  /** Pending items — "what's missing to act?" Hidden when empty (no fabricated noise). */
+  const stillNeededSection = handoffPendingItems.length > 0 ? (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Pending items needed to move forward"
+    >
+      <div className="flex items-center gap-1.5">
+        <ListChecks className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Still needed
+        </p>
+      </div>
+      <ul className="mt-1.5 space-y-1">
+        {handoffPendingItems.map((item, idx) => (
+          <li
+            key={idx}
+            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+          >
+            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null
+
+  /** Risks — "what to watch?" Hidden when empty so we don't show an empty warning card. */
+  const watchOutSection = handoffRisks.length > 0 ? (
+    <section
+      className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
+      aria-label="Risks to watch in this conversation"
+    >
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/90">
+          Watch out
+        </p>
+      </div>
+      <ul className="mt-1.5 space-y-1">
+        {handoffRisks.map((risk, idx) => (
+          <li
+            key={idx}
+            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+          >
+            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70" />
+            <span>{risk}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null
+
+  /**
+   * Workflow (assign select). Only rendered when the channel supports it (web_chat | portal)
+   * AND the workspace has assignable members. We always show this in conversation mode; in
+   * message mode the operator first cares about the message itself, so we skip it there to
+   * avoid noise (clear selection with Esc to reach it).
+   */
+  const showWorkflow = !isMessageMode
+    && (selected.channel === "web_chat" || selected.channel === "portal")
+    && members.length > 0
+
+  const workflowSection = showWorkflow ? (
+    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
+      <div className="mt-2">
+        <Select
+          value={selected.assignedTo || "unassigned"}
+          onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)}
+          disabled={assignSaving}
+        >
+          <SelectTrigger className="h-7 w-full text-xs">
+            <SelectValue placeholder="Assign to..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {members.map((m) => (
+              <SelectItem key={m.userId} value={m.userId}>
+                {m.nombre || m.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {assignSaving && (
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+            <Loader2 className="h-3 w-3 animate-spin" /> Updating...
+          </div>
+        )}
+      </div>
+    </section>
+  ) : null
+
+  /** Ask Fanny — single-shot Q&A. Aparece SIEMPRE; el placeholder y el payload (mode + messageId)
+   *  cambian según haya selección. Estado local; reset al cambiar de scope (askScopeKey effect). */
+  const askFannySection = (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Ask Fanny"
+    >
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Ask Fanny
+        </p>
+      </div>
+
+      <div className="mt-2">
+        <textarea
+          value={askQuestion}
+          onChange={(e) => setAskQuestion(e.target.value)}
+          onKeyDown={handleAskKeyDown}
+          placeholder={askPlaceholder}
+          rows={2}
+          disabled={askLoading}
+          className="w-full resize-none rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-2 py-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)]/50 focus:outline-none disabled:opacity-60"
+        />
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="text-[9px] text-[var(--inbox-intelligence-text-secondary)]/80">
+            ⌘/Ctrl + Enter to send
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="accent"
+            onClick={handleAskSubmit}
+            disabled={askLoading || askQuestion.trim().length === 0}
+            className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+          >
+            {askLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <>
+                <Send className="mr-1 h-3 w-3" /> Ask
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/*
-        ── Phase 3 + Phase B · "What this message means" (solo en message-mode) ──
-        La card pasa de ser un eco del bubble a una lectura interpretativa:
-        - prioriza shortIntent del mensaje (metadata o map ya cargado en cliente)
-        - cae al snippet original solo cuando no hay intent disponible
-        - chips compactos con direction + has attachments + has link
-      */}
-      {isMessageMode && selectedMessageInfo ? (
-        <section
-          className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2"
-          aria-label="Interpretation of the selected message"
+      {askError ? (
+        <p
+          role="alert"
+          className="mt-2 text-[10px] leading-snug text-rose-400"
         >
-          <div className="flex items-center gap-1.5">
-            <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-              What this message means
-            </span>
-            {selectedMessageInfo.timestampLabel ? (
-              <span
-                suppressHydrationWarning
-                className="text-[9px] tabular-nums text-[var(--inbox-intelligence-text-secondary)]"
-              >
-                · {selectedMessageInfo.timestampLabel}
-              </span>
-            ) : null}
-          </div>
-
-          {/* Author siempre visible para mantener contexto. */}
-          <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
-            {selectedMessageInfo.authorLabel}
-          </div>
-
-          {/* Lectura prominente del intent si llega. Fallback: snippet original (sin duplicar todo el bubble). */}
-          {selectedMessageInfo.shortIntent ? (
-            <p
-              className="mt-1 text-[12px] font-medium leading-snug text-[var(--inbox-intelligence-text)]"
-              title={selectedMessageInfo.shortIntent}
-            >
-              {selectedMessageInfo.shortIntent}
-            </p>
-          ) : selectedMessageInfo.snippet ? (
-            <p
-              className="mt-1 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
-              title={selectedMessageInfo.snippet}
-            >
-              {selectedMessageInfo.snippet}
-            </p>
-          ) : null}
-
-          {/* Lightweight chips: dirección + signals binarios. Solo se montan los que aplican. */}
-          {(selectedMessageInfo.direction
-            || selectedMessageInfo.hasAttachments
-            || selectedMessageInfo.hasLinks) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1">
-              {selectedMessageInfo.direction ? (
-                <SignalChip label={directionChipLabel(selectedMessageInfo)} />
-              ) : null}
-              {selectedMessageInfo.hasAttachments ? (
-                <SignalChip label="Has attachments" icon={Paperclip} />
-              ) : null}
-              {selectedMessageInfo.hasLinks ? (
-                <SignalChip label="Has link" icon={Link2} />
-              ) : null}
-            </div>
-          )}
-        </section>
+          {askError}
+        </p>
       ) : null}
 
-      {/* ── 1. Contact ── */}
-      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
-            <span className="text-sm font-bold">{contactName.charAt(0).toUpperCase()}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
-                {formatContactType(contactType)}
-              </span>
-              {selected.detectedLanguage && (
-                <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
-                  {selected.detectedLanguage.toUpperCase()}
-                </span>
-              )}
-              <span className="text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
-                {channelLabel(selected.channel)}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setContactExpanded((v) => !v)}
-            className="shrink-0 rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] hover:bg-white/8"
-          >
-            {contactExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-
-        {contactExpanded && (
-          <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
-            {contactEmail && (
-              <div className="flex items-center gap-2 text-xs">
-                <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
-              </div>
-            )}
-            {contactPhone && (
-              <div className="flex items-center gap-2 text-xs">
-                <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
-              </div>
-            )}
-            {contactCompany && (
-              <div className="flex items-center gap-2 text-xs">
-                <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                <span className="text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
-              </div>
-            )}
-            {selected.cliente && (
-              <div className="flex items-center gap-2 text-xs">
-                <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-                <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
-                  {selected.cliente.nombre}
-                </a>
-              </div>
-            )}
-            {selected.proyecto && (
-              <div className="flex items-center gap-2 text-xs">
-                <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-                <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
-                  {selected.proyecto.nombre}
-                </a>
-                {selected.proyecto.estado && (
-                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
-                    {selected.proyecto.estado}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── 2. Summary ── */}
-      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-        {/* Phase A: AI headline + confidence pill — solo si vienen del handoff. */}
-        {handoffHeadline ? (
-          <div className="mb-2 flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold leading-snug text-[var(--inbox-intelligence-text)]">
-              {handoffHeadline}
-            </p>
-            {handoffConfidencePct !== null ? (
-              <span
-                className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-                title="AI confidence in this read"
-                aria-label={`AI confidence ${handoffConfidencePct}%`}
-              >
-                {handoffConfidencePct}%
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Summary</p>
-        {summary ? (
-          <InlineTextarea
-            value={summary}
-            placeholder="Add summary..."
-            className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
-            rows={2}
-            onSave={(value) => updateHandoff({ summary: value })}
-          />
-        ) : (
-          <p className="mt-1.5 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-            No summary available yet.
+      {askAnswer ? (
+        <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2">
+          <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--inbox-intelligence-text)]">
+            {askAnswer}
           </p>
-        )}
-
-        {/* Phase A: Facts / Decisions compactos. Se ocultan si están vacíos. */}
-        {(handoffFacts.length > 0 || handoffDecisions.length > 0) && (
-          <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
-            {handoffFacts.length > 0 && (
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
-                <ul className="mt-1 space-y-0.5">
-                  {handoffFacts.map((fact, idx) => (
-                    <li
-                      key={idx}
-                      className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
-                    >
-                      <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
-                      <span>{fact}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {handoffDecisions.length > 0 && (
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
-                <ul className="mt-1 space-y-0.5">
-                  {handoffDecisions.map((decision, idx) => (
-                    <li
-                      key={idx}
-                      className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
-                    >
-                      <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
-                      <span>{decision}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
-      </section>
-
-      {/* ── 3. Mood & Urgency ── */}
-      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Mood</span>
-              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{moodValue.label}</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", moodValue.barClass)}
-                style={{ width: `${moodValue.percent}%` }}
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Urgency</span>
-              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{urgencyValue.label}</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", urgencyValue.barClass)}
-                style={{ width: `${urgencyValue.percent}%` }}
-              />
-            </div>
-          </div>
-          {typeof selected.leadScore === "number" && (
-            <div className="flex items-center justify-between pt-1 border-t border-[var(--inbox-intelligence-border)]">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Lead score</span>
-              <span className="text-xs font-semibold text-[var(--inbox-accent)]">{selected.leadScore}</span>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── 4. Next move ── */}
-      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Next move</p>
-        {/*
-          Antes mostrábamos el texto dos veces: una como <p> de lectura y otra como `value` del
-          InlineTextarea (que ya pinta el value como texto y permite click-to-edit). Lo unificamos
-          igual que la sección Summary: una sola fuente de verdad, editable inline, con el peso
-          visual de la recomendación principal.
-        */}
-        {nextRecommendedAction ? (
-          <InlineTextarea
-            value={nextRecommendedAction}
-            placeholder="Edit recommendation..."
-            className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
-            rows={2}
-            onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-          />
-        ) : (
-          <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-            No recommendation available yet.
-          </p>
-        )}
-
-        {orderedSuggestedActions.length > 0 && (
-          <div className="mt-3 space-y-1.5 border-t border-[var(--inbox-intelligence-border)] pt-3">
-            {isMessageMode && messageScopedActionCount > 0 ? (
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-accent)]">
-                Actions based on selected message
-              </p>
-            ) : null}
-            {orderedSuggestedActions.slice(0, 3).map((action) => {
-              const title = typeof action.data?.title === "string" && action.data.title.trim()
-                ? action.data.title
-                : actionTypeLabel(action.type)
-              const isPending = pendingActionId === action.id
-              const isMessageScoped = Boolean(
-                isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
-              )
-              return (
-                <div
-                  key={action.id}
-                  className={cn(
-                    "flex items-center justify-between gap-2 rounded-md transition-colors",
-                    isMessageScoped &&
-                      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5",
-                  )}
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
-                    <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
-                    {isMessageScoped ? (
-                      <span
-                        className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-                        title="This action is anchored to the selected message"
-                      >
-                        For selected
-                      </span>
-                    ) : null}
-                    <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", actionStatusBadge(action.status))}>
-                      {actionStatusLabel(action.status)}
-                    </span>
-                  </div>
-                  {action.status === "suggested" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSuggestedAction(action, "approve_and_execute")}
-                      disabled={isPending}
-                      className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                    >
-                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run"}
-                    </Button>
-                  )}
-                  {action.status === "approved" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSuggestedAction(action, "execute")}
-                      disabled={isPending}
-                      className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                    >
-                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
-                    </Button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-        {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
-      </section>
-
-      {/*
-        ── Ask Fanny ──
-        Single-shot Q&A grounded in the current conversation. Aparece SIEMPRE (no depende de
-        message-mode) porque es útil tanto para preguntas sobre un mensaje como sobre el thread
-        completo. El placeholder y el payload (`mode` + `messageId`) cambian según haya selección.
-        Sin chat history, sin schema. Estado local que se resetea al cambiar de scope.
-      */}
-      <section
-        className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-        aria-label="Ask Fanny"
-      >
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Ask Fanny
-          </p>
-        </div>
-
-        <div className="mt-2">
-          <textarea
-            value={askQuestion}
-            onChange={(e) => setAskQuestion(e.target.value)}
-            onKeyDown={handleAskKeyDown}
-            placeholder={askPlaceholder}
-            rows={2}
-            disabled={askLoading}
-            className="w-full resize-none rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-2 py-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)]/50 focus:outline-none disabled:opacity-60"
-          />
-          <div className="mt-1.5 flex items-center justify-between gap-2">
-            <span className="text-[9px] text-[var(--inbox-intelligence-text-secondary)]/80">
-              ⌘/Ctrl + Enter to send
-            </span>
+          <div className="flex items-center justify-end gap-1">
             <Button
               type="button"
               size="sm"
-              variant="accent"
-              onClick={handleAskSubmit}
-              disabled={askLoading || askQuestion.trim().length === 0}
-              className="h-6 shrink-0 rounded-md px-2 text-[10px]"
+              variant="ghost"
+              onClick={handleAskCopy}
+              className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
+              aria-label="Copy answer"
             >
-              {askLoading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
+              {askCopied ? (
+                <>
+                  <Check className="mr-1 h-3 w-3" /> Copied
+                </>
               ) : (
                 <>
-                  <Send className="mr-1 h-3 w-3" /> Ask
+                  <Copy className="mr-1 h-3 w-3" /> Copy
                 </>
               )}
             </Button>
-          </div>
-        </div>
-
-        {askError ? (
-          <p
-            role="alert"
-            className="mt-2 text-[10px] leading-snug text-rose-400"
-          >
-            {askError}
-          </p>
-        ) : null}
-
-        {askAnswer ? (
-          <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2">
-            <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--inbox-intelligence-text)]">
-              {askAnswer}
-            </p>
-            <div className="flex items-center justify-end gap-1">
+            {onInsertReply ? (
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={handleAskCopy}
+                onClick={handleAskInsertReply}
                 className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                aria-label="Copy answer"
+                aria-label="Insert answer into reply composer"
               >
-                {askCopied ? (
-                  <>
-                    <Check className="mr-1 h-3 w-3" /> Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-1 h-3 w-3" /> Copy
-                  </>
-                )}
+                <CornerDownLeft className="mr-1 h-3 w-3" /> Insert into reply
               </Button>
-              {onInsertReply ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleAskInsertReply}
-                  className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                  aria-label="Insert answer into reply composer"
-                >
-                  <CornerDownLeft className="mr-1 h-3 w-3" /> Insert into reply
-                </Button>
-              ) : null}
-            </div>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+        </div>
+      ) : null}
+    </section>
+  )
 
+  return (
+    <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
-        ── Phase C · Smart actions (solo en message-mode) ──
-        Bloque visible con SOLO acciones reales wired:
-        - Reply with AI draft → solo si el page.tsx detecta un draft sugerido
-        - Create task / client / project → reusan handleConvert (ya envía sourceMessageId)
-        Follow-up (recordatorios, calendario) queda postergado a una fase futura.
-        Cuando este bloque se monta, ocultamos abajo la sección "Actions" para no duplicar.
+        ── Section ordering ──
+        Two distinct top-down sequences depending on mode. Each "atom" above is gated on its
+        own data, so empty cards never render — that's how we honor the spec rule "If no AI
+        data exists: show clean empty states, do NOT fabricate content".
+
+        Message mode  → message insight first, conversation context as a collapsible at the end.
+        Conversation  → summary + facts/decisions up front, no message-specific cards.
+
+        Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
+        receives `selectedMessageInfo: null` and the message-mode branch falls back to the
+        conversation branch automatically. No extra logic needed here.
       */}
-      {isMessageMode && (
-        <section
-          className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-          aria-label="Smart actions for the selected message"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Smart actions
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {hasSuggestedDraft && onUseSuggestedDraft ? (
-              <ActionButton
-                label="Reply with AI draft"
-                icon={Sparkles}
-                onClick={onUseSuggestedDraft}
-              />
-            ) : null}
-            {/*
-              Phase 1+2: Add to calendar appears only when the AI persisted a `create_event`
-              action anchored to the selected inbound message AND that action has not yet been
-              executed. Once executed, the resultId is on the action so re-clicking would just
-              short-circuit through the idempotent backend path; we hide the CTA instead and
-              let the existing actions list show the executed status badge.
-            */}
-            {selectedMessageInfo?.eventHint
-              && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
-              && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions) ? (
-              <ActionButton
-                label="Add to calendar"
-                icon={CalendarPlus}
-                onClick={() => setCalendarPreviewOpen(true)}
-              />
-            ) : null}
-            <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
-            <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
-            <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
-          </div>
-        </section>
+      {headerSection}
+
+      {isMessageMode ? (
+        <>
+          {/* 1. Contact (always at top) */}
+          {contactSection}
+          {/* 2. What this message means */}
+          {whatThisMeansSection}
+          {/* 3. Signal bars (mood / urgency / lead) */}
+          {signalsSection}
+          {/* 4. Recommended next action (single strongest CTA) */}
+          {nextMoveSection}
+          {/* 5. Smart actions */}
+          {smartActionsSection}
+          {/* 6. Still needed */}
+          {stillNeededSection}
+          {/* 7. Watch out */}
+          {watchOutSection}
+          {/*
+            8. Conversation context — collapsible, contains Summary + Facts + Decisions of the
+            full thread. Hidden by default in message mode so the operator's eyes go to message
+            insight first; one click reveals the bigger picture without leaving the panel.
+            Rendered only when there's something to show.
+          */}
+          {(summary || handoffFacts.length > 0 || handoffDecisions.length > 0 || handoffHeadline) ? (
+            <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
+              <button
+                type="button"
+                onClick={() => setContextDetailsOpen((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+                aria-expanded={contextDetailsOpen}
+                aria-controls="context-panel-conversation-context"
+              >
+                <span className="flex items-center gap-1.5">
+                  <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+                    Conversation context
+                  </span>
+                </span>
+                {contextDetailsOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+                )}
+              </button>
+              {contextDetailsOpen ? (
+                <div
+                  id="context-panel-conversation-context"
+                  className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
+                >
+                  {summaryBlock}
+                  {factsAndDecisionsBlock ? (
+                    <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+                      {factsAndDecisionsBlock}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {/* 9. Ask Fanny */}
+          {askFannySection}
+        </>
+      ) : (
+        <>
+          {/* 1. Contact (always at top) */}
+          {contactSection}
+          {/* 2. Conversation summary (replaces "What this message means") */}
+          <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+            {summaryBlock}
+          </section>
+          {/* 3. Signal bars */}
+          {signalsSection}
+          {/* 4. Recommended next move */}
+          {nextMoveSection}
+          {/* 5. Smart actions */}
+          {smartActionsSection}
+          {/* 6. Still needed */}
+          {stillNeededSection}
+          {/* 7. Watch out */}
+          {watchOutSection}
+          {/* 8. Facts / Decisions — separate section, only when we have content */}
+          {factsAndDecisionsBlock ? (
+            <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+              {factsAndDecisionsBlock}
+            </section>
+          ) : null}
+          {/* Workflow (assign) — only when channel + members allow it */}
+          {workflowSection}
+          {/* 9. Ask Fanny */}
+          {askFannySection}
+        </>
       )}
 
       {/*
         Phase 2 calendar preview/confirm dialog — pre-fills fields from the structured
-        EventHint produced by Fanny. When `onCreateCalendarEvent` is provided AND we have a
-        backing actionId, submit is enabled and creates a real Evento. When the action is
-        missing or already executed, the dialog falls back to preview-only.
+        EventHint produced by Fanny. Mounted at the panel root so it can overlay everything
+        regardless of which mode branch is active.
       */}
       {calendarPreviewOpen && selectedMessageInfo?.eventHint ? (
         <CalendarEventPreviewDialog
@@ -899,152 +1126,12 @@ export function ContextPanel({
                     selectedMessageInfo.eventHint!.actionId!,
                     payload,
                   )
-                  /** Close on success — the page refetches actions, so re-opening the
-                   *  panel would just hide the now-executed CTA anyway. */
                   setCalendarPreviewOpen(false)
                 }
               : undefined
           }
         />
       ) : null}
-
-      {/* ── Phase A · 4.5 Still needed (handoff.pendingItems) ── */}
-      {handoffPendingItems.length > 0 && (
-        <section
-          className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-          aria-label="Pending items needed to move forward"
-        >
-          <div className="flex items-center gap-1.5">
-            <ListChecks className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-              Still needed
-            </p>
-          </div>
-          <ul className="mt-1.5 space-y-1">
-            {handoffPendingItems.map((item, idx) => (
-              <li
-                key={idx}
-                className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-              >
-                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ── Phase A · 4.6 Watch out (handoff.risks) — subtle warning, not error ── */}
-      {handoffRisks.length > 0 && (
-        <section
-          className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
-          aria-label="Risks to watch in this conversation"
-        >
-          <div className="flex items-center gap-1.5">
-            <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/90">
-              Watch out
-            </p>
-          </div>
-          <ul className="mt-1.5 space-y-1">
-            {handoffRisks.map((risk, idx) => (
-              <li
-                key={idx}
-                className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-              >
-                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70" />
-                <span>{risk}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/*
-        ── 5. Actions ──
-        Phase C: en message-mode lo OCULTAMOS. El bloque "Smart actions" arriba ya elevó las
-        acciones reales (Create task/client/project + Reply with AI draft) y los placeholders
-        de Communication (Internal note, Attach file, Call) duplican o no están wired —
-        esos quedan pendientes de cableado. El placeholder "Archive" se quitó porque la
-        acción real vive en More del composer (scope-aware). Para volver a ver Assign/etc
-        a nivel conversación basta con limpiar la selección de mensaje (Esc).
-      */}
-      {!isMessageMode && (
-      <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
-        <button
-          type="button"
-          onClick={() => setActionsExpanded((v) => !v)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
-        >
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Actions</span>
-          {actionsExpanded ? <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" /> : <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />}
-        </button>
-
-        {actionsExpanded && (
-          <div className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3">
-            {/* Business */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Business</p>
-              <div className="flex flex-wrap gap-1.5">
-                <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
-                <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
-                <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
-              </div>
-            </div>
-
-            {/* Communication */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Communication</p>
-              <div className="flex flex-wrap gap-1.5">
-                <ActionButton label="Internal note" icon={MessageSquare} />
-                <ActionButton label="Attach file" icon={Paperclip} />
-                {(selected.channel === "whatsapp" || selected.contact?.telefono) && (
-                  <ActionButton label="Call" icon={PhoneCall} />
-                )}
-              </div>
-            </div>
-
-            {/*
-              Workflow: only the assign Select is real here (chat/portal channels with members).
-              The "Archive" placeholder was removed because Archive/Close/Move to Trash live in
-              More on the composer with scope semantics. We render the whole subsection only
-              when the assign control will actually appear, so we don't show an empty header.
-            */}
-            {(selected.channel === "web_chat" || selected.channel === "portal") && members.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[9px] font-medium uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <div className="w-full mt-1">
-                    <Select
-                      value={selected.assignedTo || "unassigned"}
-                      onValueChange={(value) => onAssign(value === "unassigned" ? "" : value)}
-                      disabled={assignSaving}
-                    >
-                      <SelectTrigger className="h-7 w-full text-xs">
-                        <SelectValue placeholder="Assign to..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {members.map((m) => (
-                          <SelectItem key={m.userId} value={m.userId}>
-                            {m.nombre || m.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {assignSaving && (
-                      <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Updating...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-      )}
     </div>
   )
 }
