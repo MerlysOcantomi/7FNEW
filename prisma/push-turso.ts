@@ -524,6 +524,33 @@ const tables = [
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "ChannelConnection_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS "InboxTodo" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "workspaceId" TEXT NOT NULL,
+    "conversationId" TEXT,
+    "sourceMessageId" TEXT,
+    "sourceActionId" TEXT,
+    "sourceNoteId" TEXT,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "priority" TEXT NOT NULL DEFAULT 'normal',
+    "assigneeType" TEXT NOT NULL DEFAULT 'me',
+    "assigneeId" TEXT,
+    "dueAt" DATETIME,
+    "remindAt" DATETIME,
+    "createdBy" TEXT NOT NULL,
+    "createdSource" TEXT NOT NULL DEFAULT 'operator',
+    "completedAt" DATETIME,
+    "completedBy" TEXT,
+    "dismissedAt" DATETIME,
+    "dismissedReason" TEXT,
+    "metadata" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "InboxTodo_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "InboxTodo_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+  )`,
 ]
 
 const uniqueIndexes = [
@@ -540,6 +567,11 @@ const uniqueIndexes = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_externalAccountId_key" ON "ChannelConnection"("workspaceId", "externalAccountId")`,
   `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_channelType_idx" ON "ChannelConnection"("workspaceId", "channelType")`,
   `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_status_idx" ON "ChannelConnection"("workspaceId", "status")`,
+  `CREATE INDEX IF NOT EXISTS "InboxTodo_workspaceId_status_dueAt_idx" ON "InboxTodo"("workspaceId", "status", "dueAt")`,
+  `CREATE INDEX IF NOT EXISTS "InboxTodo_workspaceId_assigneeId_status_idx" ON "InboxTodo"("workspaceId", "assigneeId", "status")`,
+  `CREATE INDEX IF NOT EXISTS "InboxTodo_conversationId_status_idx" ON "InboxTodo"("conversationId", "status")`,
+  `CREATE INDEX IF NOT EXISTS "InboxTodo_sourceActionId_idx" ON "InboxTodo"("sourceActionId")`,
+  `CREATE INDEX IF NOT EXISTS "InboxTodo_sourceMessageId_idx" ON "InboxTodo"("sourceMessageId")`,
 ]
 
 async function main() {

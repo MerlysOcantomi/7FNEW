@@ -61,6 +61,7 @@ model Workspace {
   conversationReads ConversationRead[]
   forteSnapshot  ForteSnapshot?
   channelConnections ChannelConnection[]
+  inboxTodos     InboxTodo[]
 }
 
 model Cliente {
@@ -410,6 +411,7 @@ model Conversation {
   handoff        ConversationHandoff?
   drafts         ConversationDraft[]
   inboxEntries   InboxEntry[]
+  todos          InboxTodo[]
 
   reads          ConversationRead[]
 
@@ -486,6 +488,68 @@ model ConversationAction {
   @@index([workspaceId, status])
   @@index([workspaceId, source])
   @@index([workspaceId, sourceMessageId])
+}
+
+/**
+ * InboxTodo — operator-facing work queue.
+ *
+ * Distinct from ConversationAction (system-executable AI suggestions: create_event, create_task,
+ * etc.) and from Tarea (project-scoped task model). InboxTodo represents concrete units of human
+ * work surfaced from the Smart Inbox — "Reply to this client", "Send invoice", "Follow up
+ * tomorrow". Free-form `title`, reversible `status`, optional `dueAt`, per-operator `assigneeId`.
+ *
+ * - `conversationId` is nullable so a To-do can exist without a conversation (manual capture or
+ *   automation). When set, it scopes the To-do back to its source thread.
+ * - `sourceMessageId`, `sourceActionId`, `sourceNoteId` are all nullable because a To-do may be
+ *   created manually (no source) or from any of three signals: a message, a ConversationAction
+ *   the operator promoted to a human task, or an internal note. We do NOT FK-constrain these so
+ *   that deleting/restoring source records doesn't cascade to the To-do (audit trail stays).
+ * - Status flow: open ↔ done | dismissed | waiting. All transitions are reversible — re-opening
+ *   to `open` clears completedAt/completedBy and dismissedAt/dismissedReason in the service.
+ * - `metadata` is a free JSON string for forward-compat (external links, custom flags). Parsed
+ *   safely via parseJson<T>() in the service layer.
+ */
+model InboxTodo {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  conversationId  String?
+  sourceMessageId String?
+  sourceActionId  String?
+  sourceNoteId    String?
+
+  title           String
+  description     String?
+
+  status          String   @default("open")
+  priority        String   @default("normal")
+
+  assigneeType    String   @default("me")
+  assigneeId      String?
+
+  dueAt           DateTime?
+  remindAt        DateTime?
+
+  createdBy       String
+  createdSource   String   @default("operator")
+
+  completedAt     DateTime?
+  completedBy     String?
+  dismissedAt     DateTime?
+  dismissedReason String?
+
+  metadata        String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, dueAt])
+  @@index([workspaceId, assigneeId, status])
+  @@index([conversationId, status])
+  @@index([sourceActionId])
+  @@index([sourceMessageId])
 }
 
 model AIClassification {
