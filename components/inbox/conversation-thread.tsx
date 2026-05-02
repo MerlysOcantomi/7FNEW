@@ -29,6 +29,8 @@ interface MessageItem {
   recipientsLabel?: string | null
   subject?: string | null
   timestampFull?: string | null
+  /** Soft-trash flag — when true the bubble renders a placeholder + Restore CTA instead of body. */
+  trashed?: boolean
 }
 
 interface ConversationThreadProps {
@@ -47,6 +49,8 @@ interface ConversationThreadProps {
   selectedMessageId?: string | null
   /** Callback al hacer clic en una burbuja del hilo. */
   onSelectMessage?: (messageId: string) => void
+  /** Callback al pulsar Restore dentro de un bubble soft-trasheado. */
+  onRestoreMessage?: (messageId: string) => void
   onBack?: () => void
   onOpenContext?: () => void
 }
@@ -65,6 +69,7 @@ export function ConversationThread({
   messages,
   selectedMessageId = null,
   onSelectMessage,
+  onRestoreMessage,
   onBack,
   onOpenContext,
 }: ConversationThreadProps) {
@@ -210,6 +215,8 @@ export function ConversationThread({
                   recipientsLabel={message.recipientsLabel}
                   subject={message.subject}
                   timestampFull={message.timestampFull}
+                  trashed={message.trashed}
+                  onRestore={message.trashed && onRestoreMessage ? () => onRestoreMessage(message.id) : undefined}
                 />
               </div>
             ))
@@ -228,6 +235,8 @@ export function ConversationThread({
                   emailMeta={message.emailMeta}
                   selected={selectedMessageId === message.id}
                   onSelect={onSelectMessage ? () => onSelectMessage(message.id) : undefined}
+                  trashed={message.trashed}
+                  onRestore={message.trashed && onRestoreMessage ? () => onRestoreMessage(message.id) : undefined}
                 />
               </div>
             ))

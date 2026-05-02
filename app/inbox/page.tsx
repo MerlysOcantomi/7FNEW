@@ -215,6 +215,34 @@ interface IntentStatusMessage {
   createdAt?: string | Date | null
 }
 
+/**
+ * Best-effort metadata parser for client-side reads. Returns an object form regardless of
+ * whether the source already pre-parsed it or left it as a JSON string. We never throw — a
+ * corrupted blob is treated as "no metadata", which keeps the UI in a safe default state.
+ */
+function readMessageMetadata(
+  raw: string | Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!raw) return null
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>
+  if (typeof raw !== "string" || raw.length === 0) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
+/** True when a message has been soft-trashed via Message.metadata.trashedAt. */
+function isMessageTrashed(meta: string | Record<string, unknown> | null | undefined): boolean {
+  const parsed = readMessageMetadata(meta)
+  if (!parsed) return false
+  return typeof parsed.trashedAt === "string" && parsed.trashedAt.length > 0
+}
+
 function inferConversationIntentStatus(
   conversation: { messages?: ReadonlyArray<IntentStatusMessage> | null },
 ): "open" | "done" {
@@ -223,12 +251,15 @@ function inferConversationIntentStatus(
 
   /** The list endpoint returns messages ordered by createdAt desc, so the first inbound match
    *  is also the latest one. We tolerate either ordering by tie-breaking on createdAt when
-   *  available — defensive in case some caller passes ascending arrays. */
+   *  available — defensive in case some caller passes ascending arrays. Trashed messages are
+   *  skipped: they're invisible to Fanny and the operator's mental model treats them as if
+   *  they were never sent. */
   let candidate: IntentStatusMessage | null = null
   let candidateTs = -Infinity
   for (const m of messages) {
     if (m.direction !== "inbound") continue
     if (m.isInternal === true) continue
+    if (isMessageTrashed(m.metadata)) continue
     const ts = m.createdAt ? new Date(m.createdAt as string | Date).getTime() : 0
     if (ts > candidateTs) {
       candidate = m
@@ -237,19 +268,9 @@ function inferConversationIntentStatus(
   }
   if (!candidate) return "open"
 
-  /** metadata can arrive either pre-parsed (Record) or raw (string) — `parseConversationJsonFields`
-   *  decides per call site. We accept both shapes so the helper is reusable. */
-  const meta = candidate.metadata
-  if (meta && typeof meta === "object") {
-    return (meta as { intentStatus?: unknown }).intentStatus === "done" ? "done" : "open"
-  }
-  if (typeof meta !== "string" || meta.length === 0) return "open"
-  try {
-    const parsed = JSON.parse(meta) as { intentStatus?: unknown } | null
-    return parsed && parsed.intentStatus === "done" ? "done" : "open"
-  } catch {
-    return "open"
-  }
+  const parsed = readMessageMetadata(candidate.metadata)
+  if (!parsed) return "open"
+  return parsed.intentStatus === "done" ? "done" : "open"
 }
 
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
@@ -1389,6 +1410,8 @@ function InboxPageContent() {
       let msgOpenSuspect = false
       /** Phase 3 manual confirmation — only ever set when the customer clicked the CTA. */
       let msgConfirmedReadAt: string | null = null
+      /** Soft-trash flag (Message.metadata.trashedAt). Drives the placeholder bubble + Restore. */
+      let msgTrashed = false
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
@@ -1413,6 +1436,7 @@ function InboxPageContent() {
           if (parsed?.openProxy === true) msgOpenProxy = true
           if (parsed?.openSuspect === true) msgOpenSuspect = true
           if (typeof parsed?.confirmedReadAt === "string") msgConfirmedReadAt = parsed.confirmedReadAt
+          if (typeof parsed?.trashedAt === "string" && parsed.trashedAt.length > 0) msgTrashed = true
         }
       } catch { /* ignore parse errors */ }
 
@@ -1500,6 +1524,7 @@ function InboxPageContent() {
         recipientsLabel,
         subject,
         timestampFull,
+        trashed: msgTrashed,
       }
     }) ?? []
 
@@ -1508,12 +1533,18 @@ function InboxPageContent() {
       (draft) => ["draft", "edited", "approved"].includes(draft.status) && draft.content?.trim(),
     ) ?? null
 
-  /** Último mensaje inbound (anchor por defecto si no hay selección por-mensaje). */
+  /**
+   * Último mensaje inbound (anchor por defecto si no hay selección por-mensaje). Se saltan
+   * los mensajes soft-trasheados — el operador los hizo invisibles y no queremos que el
+   * "Reply to latest" / "Mark latest as done" caiga sobre un placeholder.
+   */
   const lastInboundMessageId = useMemo(() => {
     if (!selected?.messages?.length) return null
     for (let i = selected.messages.length - 1; i >= 0; i--) {
       const m = selected.messages[i]
-      if (m.direction === "inbound") return m.id
+      if (m.direction !== "inbound") continue
+      if (isMessageTrashed(m.metadata)) continue
+      return m.id
     }
     return null
   }, [selected])
@@ -1521,11 +1552,17 @@ function InboxPageContent() {
   /**
    * `selectedMessageId` validado contra el detalle activo. Si no pertenece a la conversación
    * actualmente cargada, lo ignoramos (evita enviar un `sourceMessageId` inválido por race
-   * entre el cambio de conversación y la llegada del nuevo detalle).
+   * entre el cambio de conversación y la llegada del nuevo detalle). Además, si el mensaje
+   * existe pero está soft-trasheado, lo descartamos como anchor de envío — el bubble ya
+   * muestra placeholder y el composer no debe apuntar a algo oculto. La selección visual la
+   * limpia un effect aparte para mantener el estado y el efecto separados.
    */
   const effectiveSelectedMessageId = useMemo(() => {
     if (!selectedMessageId || !selected?.messages?.length) return null
-    return selected.messages.some((m) => m.id === selectedMessageId) ? selectedMessageId : null
+    const msg = selected.messages.find((m) => m.id === selectedMessageId)
+    if (!msg) return null
+    if (isMessageTrashed(msg.metadata)) return null
+    return selectedMessageId
   }, [selectedMessageId, selected])
 
   /** Prioridad: mensaje seleccionado válido → último inbound → null. */
@@ -1825,6 +1862,49 @@ function InboxPageContent() {
   }, [])
 
   /**
+   * Soft-trash / restore a single message. Storage lives in `Message.metadata.trashedAt`
+   * (plus optional `trashedBy`/`trashReason`) — no schema change. The endpoint is idempotent,
+   * so repeating the same call is safe. After the write we refetch the detail so the bubble
+   * flips to placeholder (or back to its content) and the More panel re-evaluates targets
+   * (lastInboundMessageId skips trashed entries).
+   *
+   * Restore can be triggered both from the bubble's inline CTA and (in theory) from the More
+   * panel; in practice the More panel only ever targets non-trashed messages, so the
+   * inline path is the canonical restore UX.
+   */
+  const handleTrashMessage = useCallback(
+    async (messageId: string, trashed: boolean) => {
+      if (!activeSelectedId) return
+      try {
+        const res = await fetch(
+          `/api/inbox/conversations/${activeSelectedId}/messages/${messageId}/trash`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trashed }),
+          },
+        )
+        const json = await res.json()
+        if (!json.success) {
+          throw new Error(json.error?.message || "Could not update message trash state")
+        }
+        /** When trashing the message that's currently selected, drop the visual selection so
+         *  the composer doesn't keep the placeholder highlighted. effectiveSelectedMessageId
+         *  already returns null in this case, but the raw selection state would still ring
+         *  the bubble — clearing it here keeps state and effect in lockstep. */
+        if (trashed && selectedMessageId === messageId) {
+          setSelectedMessageId(null)
+        }
+        setRefreshKey((value) => value + 1)
+        refetchDetail()
+      } catch (err) {
+        setActionState(err instanceof Error ? err.message : "Could not move to trash")
+      }
+    },
+    [activeSelectedId, refetchDetail, selectedMessageId],
+  )
+
+  /**
    * The More panel's message-level actions object. Computed *after* the handlers it references
    * so JS hoisting rules don't bite (useCallback closures are not hoisted). When the scope is
    * "selected" without a real selection, we report `unavailable` so the composer hides the
@@ -1839,9 +1919,12 @@ function InboxPageContent() {
         void handleMarkMessageDone(moreActionsTargetMessageId, next)
       },
       onAddInternalNote: handleAddInternalNoteAbout,
+      onTrashMessage: () => {
+        void handleTrashMessage(moreActionsTargetMessageId, true)
+      },
       intentStatus: moreActionsTargetIntentStatus,
     }
-  }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout])
+  }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout, handleTrashMessage])
 
   /**
    * `selectedIndex` and `navigateConversation` work over the *visible* list (after Work +
@@ -2442,6 +2525,7 @@ function InboxPageContent() {
                       messages={threadMessages}
                       selectedMessageId={selectedMessageId}
                       onSelectMessage={handleSelectMessageInThread}
+                      onRestoreMessage={(messageId) => handleTrashMessage(messageId, false)}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
                     />

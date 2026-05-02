@@ -73,6 +73,13 @@ export interface MessageActionsApi {
   onAddInternalNote?: () => void
   /** Current intentStatus of the scoped message ("done" | "open" | undefined). */
   intentStatus?: "done" | "open" | null
+  /**
+   * Soft-trash the scoped message (sets `Message.metadata.trashedAt`). The page resolves which
+   * messageId is affected based on Acting on scope and ensures the target is always a
+   * non-trashed message — Restore lives inline inside the bubble itself, not in this panel.
+   * Optional — if the parent doesn't pass it, the entry simply isn't rendered.
+   */
+  onTrashMessage?: () => void
   /** True when no usable message id can be resolved for the current scope (e.g. empty thread).
    *  When true, the composer hides the message-level actions panel entirely. */
   unavailable?: boolean
@@ -626,7 +633,7 @@ export function ReplyComposer({
   const moreMessageActionsAvailable = Boolean(
     messageActions
     && !messageActions.unavailable
-    && (messageActions.onMarkDone || messageActions.onAddInternalNote)
+    && (messageActions.onMarkDone || messageActions.onAddInternalNote || messageActions.onTrashMessage)
     && (actingOnScope !== "selected" || hasSelectedMessage),
   )
   const showMoreMessagePanel = actingOnScope !== "all" && moreMessageActionsAvailable
@@ -1774,12 +1781,24 @@ export function ReplyComposer({
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
               ) : null}
-              {/*
-                Trash latest/selected message: not exposed because message-level trash is not
-                implemented in this codebase. Showing a permanent disabled stub would only add
-                noise; the conversation-level Trash below remains the supported way to remove
-                content even while the operator is in a Latest/Selected scope.
-              */}
+              {messageActions.onTrashMessage ? (
+                /**
+                 * Soft-trash for a single message. The "selected" / "latest" target the More
+                 * panel applies to is always a non-trashed message (the page derivations skip
+                 * trashed entries on purpose, so the operator never trashes a placeholder),
+                 * which means this entry is Trash-only — Restore lives inline on the bubble
+                 * itself via its dedicated Restore CTA. Distinct from the conversation-level
+                 * Move to Trash below: this only hides one bubble inside the thread; the
+                 * conversation stays visible in the inbox.
+                 */
+                <MoreMenuItem
+                  icon={Trash2}
+                  label={actingOnScope === "selected" ? "Trash selected message" : "Trash latest message"}
+                  onClick={messageActions.onTrashMessage}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                  tone="danger"
+                />
+              ) : null}
             </div>
           </div>
         )}

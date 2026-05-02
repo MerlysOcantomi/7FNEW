@@ -21,6 +21,38 @@ interface ConversationMessageLite {
   direction: string
   content: string
   isInternal: boolean
+  /**
+   * Raw `Message.metadata` from Prisma. Pre- or post-parsed depending on the caller —
+   * `parseConversationJsonFields` may have already turned it into an object, but defensive
+   * code paths still see the raw JSON string. We normalize per-call below.
+   */
+  metadata?: string | Record<string, unknown> | null
+}
+
+/**
+ * Returns true iff the message is in soft-trash (Message.metadata.trashedAt set). Trashed
+ * messages must be invisible to Fanny: never quoted in the transcript, never used as the
+ * SELECTED_MESSAGE anchor, and never part of any heuristic. We treat them as if they were
+ * never sent — this matches the operator's mental model when they trashed it.
+ */
+function isMessageTrashed(message: ConversationMessageLite): boolean {
+  const raw = message.metadata
+  if (!raw) return false
+  let parsed: Record<string, unknown> | null = null
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    parsed = raw as Record<string, unknown>
+  } else if (typeof raw === "string" && raw.length > 0) {
+    try {
+      const candidate = JSON.parse(raw)
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        parsed = candidate as Record<string, unknown>
+      }
+    } catch {
+      return false
+    }
+  }
+  if (!parsed) return false
+  return typeof parsed.trashedAt === "string" && parsed.trashedAt.length > 0
 }
 
 interface ConversationContactLite {
@@ -100,9 +132,17 @@ function buildContextBlock(input: {
     if (risks) lines.push(`RISKS:\n${risks}`)
   }
 
+  /**
+   * Trashed messages are stripped before any prompt logic runs. The operator soft-deleted them
+   * and Fanny must treat them as nonexistent — neither as anchor nor as transcript line. Done
+   * once here so SELECTED_MESSAGE, the recent slice, and any future heuristic share the same
+   * visibility model.
+   */
+  const visibleMessages = input.conversation.messages.filter((m) => !isMessageTrashed(m))
+
   /** Selected message (if message mode) — always quoted in full for grounding precision. */
   const selected = input.selectedMessageId
-    ? input.conversation.messages.find((m) => m.id === input.selectedMessageId) ?? null
+    ? visibleMessages.find((m) => m.id === input.selectedMessageId) ?? null
     : null
 
   if (input.mode === "message" && selected) {
@@ -114,7 +154,7 @@ function buildContextBlock(input: {
   }
 
   /** Last N messages for context. The selected one stays in the list with a marker. */
-  const recent = input.conversation.messages.slice(-MAX_RECENT_MESSAGES)
+  const recent = visibleMessages.slice(-MAX_RECENT_MESSAGES)
   const transcript = recent
     .map((m, i) => {
       const visibility = m.isInternal ? " [INTERNAL]" : ""
@@ -237,11 +277,17 @@ export async function POST(request: NextRequest, { params }: Params) {
       messages: ConversationMessageLite[]
     }
 
-    /** If the operator claims a messageId in `message` mode but it doesn't belong, we degrade to conversation mode. */
-    const messageIdBelongs =
+    /**
+     * If the operator claims a messageId in `message` mode but it doesn't belong (or it's been
+     * soft-trashed), we degrade to conversation mode. Trashed messages never serve as anchors —
+     * Fanny would otherwise be told to ground its answer in a message the operator chose to
+     * hide.
+     */
+    const targetMessage =
       messageId && Array.isArray(parsed.messages)
-        ? parsed.messages.some((m) => m.id === messageId)
-        : false
+        ? parsed.messages.find((m) => m.id === messageId) ?? null
+        : null
+    const messageIdBelongs = Boolean(targetMessage) && !isMessageTrashed(targetMessage!)
     const effectiveMode: "message" | "conversation" = messageIdBelongs ? mode : "conversation"
     const effectiveMessageId = messageIdBelongs ? messageId : null
 

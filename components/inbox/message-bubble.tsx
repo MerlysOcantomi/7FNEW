@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { ChevronDown, ChevronUp, Download, FileText, Mail } from "lucide-react"
+import { ChevronDown, ChevronUp, Download, FileText, Mail, RotateCcw, Trash2 } from "lucide-react"
 
 type MessageTone = "inbound" | "outbound" | "internal" | "system"
 
@@ -49,6 +49,15 @@ interface MessageBubbleProps {
   subject?: string | null
   /** Fecha completa formateada (`Apr 28, 2026 7:23 PM`). Si no llega, fallback a `timestampLabel`. */
   timestampFull?: string | null
+  /**
+   * Soft-trashed flag — when true the bubble swaps its body for a muted dashed placeholder
+   * ("Message moved to trash") and exposes a Restore CTA. Content/attachments/email details
+   * are deliberately not rendered: the operator hid them on purpose. Layout (alignment, author
+   * chip, timestamp) is preserved so the thread shape doesn't reflow.
+   */
+  trashed?: boolean
+  /** Click handler for the inline Restore CTA inside the trashed placeholder. */
+  onRestore?: () => void
 }
 
 export function MessageBubble({
@@ -68,6 +77,8 @@ export function MessageBubble({
   recipientsLabel,
   subject,
   timestampFull,
+  trashed = false,
+  onRestore,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
@@ -174,7 +185,7 @@ export function MessageBubble({
           )}
         </div>
 
-        {emailMeta?.cc && emailMeta.cc.length > 0 && (
+        {emailMeta?.cc && emailMeta.cc.length > 0 && !trashed && (
           <p className={cn(
             "mb-1 px-1 text-[10px] text-[var(--inbox-text-secondary)]/70",
             isRightAligned ? "text-right" : "text-left",
@@ -183,6 +194,44 @@ export function MessageBubble({
           </p>
         )}
 
+        {trashed ? (
+          /**
+           * Soft-trash placeholder — same outer slot as the real bubble, but body content,
+           * attachments, and email-detail card are all suppressed. The wording is deliberately
+           * neutral; the Restore CTA is the only affordance, and clicking it bubbles up to the
+           * page handler that flips Message.metadata.trashedAt back off.
+           */
+          <div
+            className={cn(
+              "rounded-2xl border border-dashed px-5 py-3 text-xs italic shadow-none transition-colors",
+              "border-[var(--inbox-border)]/55 bg-white/[0.03] text-[var(--inbox-text-secondary)]",
+              "flex items-center justify-between gap-3",
+            )}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
+              <span>Message moved to trash</span>
+            </span>
+            {onRestore ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRestore()
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                  "text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent)]/10",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40",
+                )}
+                aria-label="Restore message"
+              >
+                <RotateCcw className="h-3 w-3 shrink-0" aria-hidden="true" />
+                Restore
+              </button>
+            ) : null}
+          </div>
+        ) : (
         <div
           className={cn(
             "rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-sm transition-all duration-300",
@@ -355,6 +404,7 @@ export function MessageBubble({
             </div>
           ) : null}
         </div>
+        )}
       </div>
     </div>
   )

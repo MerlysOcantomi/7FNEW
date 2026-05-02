@@ -597,7 +597,25 @@ export async function runConversationIntelligence(input: {
 
   if (!conversation) return null
 
-  const latestMessage = conversation.messages.at(-1) ?? null
+  /**
+   * Soft-trashed messages must be invisible to the intelligence pipeline. They live in
+   * `Message.metadata.trashedAt` (set by the More menu's "Trash this message" action) and the
+   * operator's intent is that Fanny never quotes, summarizes, or anchors decisions on them.
+   * We strip them once here so every downstream derivation (latestMessage, transcript,
+   * latestInboundMessage, action anchoring) shares the same visibility model.
+   */
+  const visibleMessages = conversation.messages.filter((message) => {
+    if (typeof message.metadata !== "string" || message.metadata.length === 0) return true
+    try {
+      const parsed = JSON.parse(message.metadata) as { trashedAt?: unknown } | null
+      return !(parsed && typeof parsed.trashedAt === "string" && parsed.trashedAt.length > 0)
+    } catch {
+      /** Corrupted metadata can't claim a trash flag, so we keep the message visible. */
+      return true
+    }
+  })
+
+  const latestMessage = visibleMessages.at(-1) ?? null
 
   const wsResolved = await getWorkspaceWithResolvedConfig(input.workspaceId)
   const operatorLocale = wsResolved?.locale ?? DEFAULT_LOCALE
@@ -631,7 +649,7 @@ export async function runConversationIntelligence(input: {
     operatorLocale,
     nowISO,
     workspaceTimeZone,
-    messages: conversation.messages.map((message) => ({
+    messages: visibleMessages.map((message) => ({
       id: message.id,
       role: message.role,
       direction: message.direction,
@@ -642,10 +660,11 @@ export async function runConversationIntelligence(input: {
   })
 
   /**
-   * Latest INBOUND non-internal message anchors `create_event` actions. Outbound/internal
-   * messages can never produce a calendar suggestion in Phase 1 (per safety rule).
+   * Latest INBOUND non-internal, non-trashed message anchors `create_event` actions. Outbound,
+   * internal, and trashed messages can never produce a calendar suggestion (the trash filter
+   * already happened above; this just documents the contract for future readers).
    */
-  const latestInboundMessage = [...conversation.messages]
+  const latestInboundMessage = [...visibleMessages]
     .reverse()
     .find((m) => m.direction === "inbound" && !m.isInternal)
 

@@ -618,6 +618,77 @@ export async function setMessageIntentStatus(input: {
   return { id: input.messageId, metadata: next }
 }
 
+/**
+ * Soft-trash a single Message (MVP, no schema migration). State lives in
+ * `Message.metadata.trashedAt | trashedBy | trashReason`. Reversible via the same function with
+ * `trashed: false` — restoring clears all three keys so we don't leak stale "who deleted this"
+ * info if the message gets trashed again later by someone else.
+ *
+ * Idempotency: if the requested state already matches the stored one, we skip the write and
+ * return the parsed metadata. The merge is defensive about corrupted JSON exactly like
+ * `setMessageIntentStatus` because we own these keys and never want to lose customer content.
+ *
+ * Distinct from conversation-level Trash (`Conversation.trashedAt`): this only hides one bubble
+ * inside a thread; the conversation stays visible in the inbox list. Callers that consume the
+ * conversation transcript (intelligence, Ask Fanny, latest-inbound anchors) must filter trashed
+ * messages out — see app/api/inbox/conversations/[id]/ask/route.ts and intelligence.ts.
+ */
+export async function setMessageTrashState(input: {
+  workspaceId: string
+  conversationId: string
+  messageId: string
+  trashed: boolean
+  reason?: string | null
+  actorUserId?: string | null
+}): Promise<{ id: string; metadata: Record<string, unknown> } | null> {
+  const message = await db.message.findFirst({
+    where: { id: input.messageId, conversationId: input.conversationId, workspaceId: input.workspaceId },
+    select: { id: true, metadata: true },
+  })
+  if (!message) return null
+
+  let parsed: Record<string, unknown> = {}
+  if (typeof message.metadata === "string" && message.metadata.length > 0) {
+    try {
+      const candidate = JSON.parse(message.metadata)
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        parsed = candidate as Record<string, unknown>
+      }
+    } catch {
+      /** Corrupted JSON — start fresh; we own these keys and never lose customer content. */
+    }
+  }
+
+  const isCurrentlyTrashed = typeof parsed.trashedAt === "string" && parsed.trashedAt.length > 0
+  if (isCurrentlyTrashed === input.trashed) {
+    /** Idempotent: the requested state already matches what's stored. */
+    return { id: message.id, metadata: parsed }
+  }
+
+  const next: Record<string, unknown> = { ...parsed }
+  if (input.trashed) {
+    next.trashedAt = new Date().toISOString()
+    if (input.actorUserId) next.trashedBy = input.actorUserId
+    if (typeof input.reason === "string" && input.reason.trim().length > 0) {
+      next.trashReason = input.reason.trim().slice(0, 280)
+    } else {
+      delete next.trashReason
+    }
+  } else {
+    /** Restore: clear all trash-related keys so we don't keep stale forensic data around. */
+    delete next.trashedAt
+    delete next.trashedBy
+    delete next.trashReason
+  }
+
+  await db.message.update({
+    where: { id: input.messageId },
+    data: { metadata: JSON.stringify(next) },
+  })
+
+  return { id: input.messageId, metadata: next }
+}
+
 export async function transitionConversation(input: {
   workspaceId: string
   conversationId: string
