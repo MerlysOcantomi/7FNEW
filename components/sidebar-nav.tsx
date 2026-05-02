@@ -32,15 +32,15 @@ import {
   Search,
   Circle,
   Star,
-  Mail,
   Clock,
   CheckCircle,
+  CheckCircle2,
   Archive,
   Fingerprint,
   Briefcase,
-  Zap,
-  Loader,
   Trash2,
+  ListTodo,
+  CalendarClock,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -93,20 +93,40 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       section: "Main",
       subtitle: "",
       items: [
-        { 
-          label: v.inbox.singular, 
-          href: "/inbox", 
-          icon: Inbox, 
+        {
+          /**
+           * Smart Inbox parent — operational reorganization. Subitems are grouped by
+           * intent (Work / Smart views / Storage) so the sidebar reads as a workflow,
+           * not a folder list. URL `?filter=` values are mapped server-side via
+           * `mapSidebarFilter` in app/inbox/page.tsx; legacy values (`new`,
+           * `in_progress`, `urgent`, `needs_reply`, `leads`) are preserved as aliases
+           * so external bookmarks keep working.
+           *
+           * - "Inbox" subitem (no group) duplicates the parent click target on purpose:
+           *   gives operators an explicit "go back to default view" affordance even
+           *   when they've drilled into a sub-filter.
+           * - To-do is a placeholder for the future action queue. It routes to /inbox
+           *   with `?filter=todo` which currently maps to {} (no extra status filter)
+           *   so the active state highlights while the list shows the default Inbox.
+           *   When the To-do engine ships, only mapSidebarFilter needs to change.
+           * - Scheduled is similarly placeholder — backed by EventHint detection later.
+           * - Storage is intentionally last (terminal/done/discarded states).
+           */
+          label: "Smart Inbox",
+          href: "/inbox",
+          icon: Inbox,
           helper: "by Fanny",
           subitems: [
-            { label: "New", href: "/inbox?filter=new", icon: Mail, group: "Work" },
-            { label: "In Progress", href: "/inbox?filter=in_progress", icon: Loader, group: "Work" },
+            { label: "Inbox", href: "/inbox", icon: Inbox },
+            { label: "To-do", href: "/inbox?filter=todo", icon: ListTodo, group: "Work" },
+            { label: "Needs action", href: "/inbox?filter=needs_action", icon: MessageSquarePlus, group: "Work" },
+            { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock, group: "Work" },
             { label: "Done", href: "/inbox?filter=done", icon: CheckCircle, group: "Work" },
-            { label: "Urgent", href: "/inbox?filter=urgent", icon: Zap, group: "Smart views" },
-            { label: "Needs Reply", href: "/inbox?filter=needs_reply", icon: MessageSquarePlus, group: "Smart views" },
-            { label: "Leads", href: "/inbox?filter=leads", icon: Star, group: "Smart views" },
-            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "System" },
-            { label: "Trash", href: "/inbox?filter=trash", icon: Trash2, group: "System" },
+            { label: "Scheduled", href: "/inbox?filter=scheduled", icon: CalendarClock, group: "Smart views" },
+            { label: "Opportunities", href: "/inbox?filter=opportunities", icon: Star, group: "Smart views" },
+            { label: "Closed", href: "/inbox?filter=closed", icon: CheckCircle2, group: "Storage" },
+            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "Storage" },
+            { label: "Trash", href: "/inbox?filter=trash", icon: Trash2, group: "Storage" },
           ]
         },
         { label: v.client.plural, href: "/clientes", icon: Users },
@@ -180,12 +200,20 @@ function SmartInboxNavLink({
 
   const getIconColor = (label: string) => {
     switch (label) {
-      case "Urgent": return "text-[var(--inbox-urgent-color)]";
-      case "Leads": return "text-[var(--inbox-lead-color)]";
-      case "New": return "text-[var(--inbox-unread-color)]";
-      case "Needs Reply": return "text-[var(--inbox-accent)]";
-      case "In Progress": return "text-[var(--inbox-waiting-color)]";
+      /**
+       * Inbox + Work group — accent-tinted icons signal "active operational lanes".
+       * To-do uses the same accent because it's the future home of the action queue.
+       */
+      case "Inbox": return "text-[var(--inbox-accent)]";
+      case "To-do": return "text-[var(--inbox-accent)]";
+      case "Needs action": return "text-[var(--inbox-accent)]";
+      case "Waiting": return "text-[var(--inbox-waiting-color)]";
       case "Done": return "text-[var(--inbox-done-color)]";
+      /** Smart views — pre-existing semantic colors. */
+      case "Scheduled": return "text-[var(--inbox-accent)]";
+      case "Opportunities": return "text-[var(--inbox-lead-color)]";
+      /** Storage — muted because they're not where daily work happens. */
+      case "Closed": return "text-[var(--inbox-done-color)]";
       case "Archived": return "text-[var(--inbox-archive-color)]";
       case "Trash": return "text-[var(--app-sidebar-text-muted)]";
       default: return "text-[var(--app-sidebar-text-muted)]";
@@ -214,8 +242,8 @@ function SmartInboxNavLink({
           strokeWidth={1.75}
           className={cn(
             getIconColor(label),
-            label === "Urgent" && "fill-current",
-            label === "Leads" && "fill-current"
+            /** Opportunities (formerly Leads) keeps the filled star for emphasis. */
+            label === "Opportunities" && "fill-current",
           )}
         />
       </span>

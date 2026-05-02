@@ -271,16 +271,59 @@ function inferConversationIntentStatus(
   return parsed.intentStatus === "done" ? "done" : "open"
 }
 
+/**
+ * Map sidebar `?filter=` URL values to the API query shape (`status` + `urgency`). The new
+ * operational sidebar (Smart Inbox / Work / Smart views / Storage) drives the labels below;
+ * legacy keys (`new`, `in_progress`, `urgent`, `needs_reply`, `leads`) are kept as aliases
+ * so existing bookmarks, notifications, and links don't 404 silently. Unknown filters fall
+ * through to `{}` (default Inbox view) which is also what `todo` and `scheduled` use today —
+ * those are placeholder nav entries for future engines (To-do queue, Scheduled-by-EventHint).
+ */
 function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
   switch (filter) {
+    /** ─ Storage ─ */
     case "archived": return { status: "archived" }
+    case "closed": return { status: "closed" }
+    case "trash": return { status: "trashed" }
+    /** ─ Work ─ */
+    /**
+     * "Needs action" = conversations where someone on our side has to do something next.
+     * `new` (untouched), `assigned` (operator owns it), `triaged` (AI classified, waiting
+     * for human), `lead_detected` (qualified opportunity that needs follow-up). We
+     * intentionally exclude `awaiting_response` here because that's "we replied, waiting on
+     * them" — surfaced in the Waiting bucket instead.
+     */
+    case "needs_action": return { status: "new,assigned,triaged,lead_detected" }
+    /** "Waiting" = we're waiting on the customer / external party to respond. */
+    case "waiting": return { status: "awaiting_response" }
+    /**
+     * "Done" = work that's finished from the operator's perspective. Includes the new
+     * `resolved` (work done, conversation stays active for follow-ups), `closed` (terminal),
+     * and `converted` (turned into Cliente / Proyecto / Tarea). Storage's "Closed" sub-link
+     * narrows this further to just `closed` for archival browsing.
+     */
+    case "done": return { status: "resolved,closed,converted" }
+    /**
+     * "To-do" is a placeholder for the future action queue. Routes to /inbox so the active
+     * highlight works; `{}` returned here means no extra status filter is applied — the
+     * page falls back to the default Inbox view. Replacing this single arm is all that's
+     * needed when the To-do engine ships.
+     */
+    case "todo": return {}
+    /** ─ Smart views ─ */
+    case "opportunities": return { status: "lead_detected" }
+    /**
+     * "Scheduled" placeholder — will eventually filter by Message.metadata EventHint or by
+     * ConversationAction.type === "create_event". Returning `{}` keeps the active highlight
+     * working without breaking the list.
+     */
+    case "scheduled": return {}
+    /** ─ Legacy aliases (preserve external bookmarks) ─ */
     case "new": return { status: "new" }
     case "in_progress": return { status: "assigned,awaiting_response,triaged" }
-    case "done": return { status: "closed,converted" }
     case "urgent": return { urgency: "alta,critica" }
     case "needs_reply": return { status: "awaiting_response" }
     case "leads": return { status: "lead_detected" }
-    case "trash": return { status: "trashed" }
     default: return {}
   }
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { Loader2, Search, Inbox, RefreshCw, Plus } from "lucide-react"
+import { useState } from "react"
+import { Loader2, Search, RefreshCw, Plus, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -140,6 +141,16 @@ export function ConversationList({
   lastSyncedAt,
   onCompose,
 }: ConversationListProps) {
+  /**
+   * Operational refactor: Sender + Assignment filters moved behind a collapsible "Advanced
+   * filters" toggle. Channel moved out of a heavy `<Select>` into a compact horizontal chip
+   * strip. Default closed so the bar feels lighter; auto-opens whenever a non-default value
+   * is active so the operator can see what's filtered without guessing why their list looks
+   * different.
+   */
+  const advancedHasActiveFilter =
+    senderFilter !== "all" || assignmentFilter !== "all"
+  const [advancedOpen, setAdvancedOpen] = useState(advancedHasActiveFilter)
   const viewLabel =
     assignmentFilter === "mine"
       ? "My conversations"
@@ -205,6 +216,11 @@ export function ConversationList({
           />
         </div>
 
+        {/*
+         * Primary row — Status + Work intent. These two are kept as `<Select>` because they
+         * have many states and live alongside the chip strip below. Channel is intentionally
+         * NOT in this row anymore; it has its own chip strip to feel lighter.
+         */}
         <div className="grid grid-cols-2 gap-2">
           <Select value={status} onValueChange={onStatusChange}>
             <SelectTrigger
@@ -224,99 +240,133 @@ export function ConversationList({
             </SelectContent>
           </Select>
 
-          <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger
-              className={cn(
-                INBOX_FILTER_TRIGGER_BASE,
-                channel === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {channelOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {onIntentStatusFilterChange ? (
+            <Select value={intentStatusFilter} onValueChange={(v) => onIntentStatusFilterChange(v as "all" | "open" | "done")}>
+              <SelectTrigger
+                className={cn(
+                  INBOX_FILTER_TRIGGER_BASE,
+                  intentStatusFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                )}
+                aria-label="Work filter"
+                title="Work / intent filter"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Work: All</SelectItem>
+                <SelectItem value="open">Work: Open</SelectItem>
+                <SelectItem value="done">Work: Done</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : <span aria-hidden />}
         </div>
 
         {/*
-         * Second row — Work / intent status (left) + Sender (right).
-         * The sender select is hidden when the loaded list yields no distinct contacts to keep
-         * the bar compact; the Work select always renders so operators can flip Open/Done.
+         * Channel chips — replaces the heavy `<Select>` so channel switching stays one click
+         * and visually obvious. Horizontally scrollable on narrow screens (overflow-x-auto)
+         * so we can add Instagram / Telegram later without breaking the layout.
          */}
-        {(onIntentStatusFilterChange || (onSenderFilterChange && senderOptions.length > 0)) && (
-          <div className="grid grid-cols-2 gap-2">
-            {onIntentStatusFilterChange ? (
-              <Select value={intentStatusFilter} onValueChange={(v) => onIntentStatusFilterChange(v as "all" | "open" | "done")}>
-                <SelectTrigger
-                  className={cn(
-                    INBOX_FILTER_TRIGGER_BASE,
-                    intentStatusFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
-                  )}
-                  aria-label="Work filter"
-                  title="Work / intent filter"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Work: All</SelectItem>
-                  <SelectItem value="open">Work: Open</SelectItem>
-                  <SelectItem value="done">Work: Done</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : <span aria-hidden />}
+        <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          {channelOptions.map((option) => {
+            const isActive = channel === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onChannelChange(option.value)}
+                className={cn(
+                  "shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                  isActive
+                    ? "border-transparent bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
+                    : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+                )}
+                aria-pressed={isActive}
+                title={`Channel: ${option.label}`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
 
-            {onSenderFilterChange && senderOptions.length > 0 ? (
-              <Select value={senderFilter} onValueChange={onSenderFilterChange}>
-                <SelectTrigger
-                  className={cn(
-                    INBOX_FILTER_TRIGGER_BASE,
-                    senderFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
-                  )}
-                  aria-label="Sender filter"
-                  title="Filter by sender / remitente"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All senders</SelectItem>
-                  {senderOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : <span aria-hidden />}
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-1">
-          {([
-            { value: "all", label: "All" },
-            { value: "mine", label: "Mine" },
-            { value: "unassigned", label: "Unassigned" },
-          ] as const).map((option) => (
-            <Button
-              key={option.value}
+        {/*
+         * Advanced filters (Sender + Assignment) — collapsed by default to reduce visual
+         * weight at the top. Auto-expands when a non-default value is set so operators see
+         * exactly what's filtering. We keep the wiring/state in place rather than deleting
+         * because removing the underlying logic is risky for bigger workspaces.
+         */}
+        <div className="rounded-lg border border-[var(--inbox-list-border)]/50 bg-white/[0.02]">
+            <button
               type="button"
-              size="sm"
-              variant={assignmentFilter === option.value ? "secondary" : "ghost"}
-              className={cn(
-                "h-7 w-full text-xs rounded-lg transition-all",
-                assignmentFilter === option.value
-                  ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
-                  : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:shadow-sm",
-              )}
-              onClick={() => onAssignmentFilterChange(option.value)}
+              onClick={() => setAdvancedOpen((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-[11px] font-medium text-[var(--inbox-list-text-secondary)] hover:text-[var(--inbox-list-text)]"
+              aria-expanded={advancedOpen}
             >
-              {option.label}
-            </Button>
-          ))}
+              <span className="flex items-center gap-1.5">
+                <SlidersHorizontal className="h-3 w-3" />
+                Advanced filters
+                {advancedHasActiveFilter && (
+                  <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold text-[var(--inbox-accent)]">
+                    on
+                  </span>
+                )}
+              </span>
+              {advancedOpen ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+            {advancedOpen && (
+              <div className="space-y-2 border-t border-[var(--inbox-list-border)]/50 px-2.5 pb-2.5 pt-2">
+                {onSenderFilterChange && senderOptions.length > 0 ? (
+                  <Select value={senderFilter} onValueChange={onSenderFilterChange}>
+                    <SelectTrigger
+                      className={cn(
+                        INBOX_FILTER_TRIGGER_BASE,
+                        senderFilter === "all" ? INBOX_FILTER_TRIGGER_IDLE : INBOX_FILTER_TRIGGER_ACTIVE,
+                      )}
+                      aria-label="Sender filter"
+                      title="Filter by sender / remitente"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All senders</SelectItem>
+                      {senderOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+
+                <div className="grid grid-cols-3 gap-1">
+                  {([
+                    { value: "all", label: "All" },
+                    { value: "mine", label: "Mine" },
+                    { value: "unassigned", label: "Unassigned" },
+                  ] as const).map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={assignmentFilter === option.value ? "secondary" : "ghost"}
+                      className={cn(
+                        "h-7 w-full text-xs rounded-lg transition-all",
+                        assignmentFilter === option.value
+                          ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
+                          : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:shadow-sm",
+                      )}
+                      onClick={() => onAssignmentFilterChange(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
       </div>
 
