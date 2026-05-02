@@ -8,7 +8,7 @@ import {
   MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
   Receipt, CreditCard, RotateCcw, Keyboard, Wand2,
   Archive, ArchiveRestore, CheckCircle2, Trash2, MoreHorizontal,
-  MailOpen, AlertCircle, Target, Layers, MailCheck,
+  MailOpen, AlertCircle, Target, Layers, MailCheck, ListPlus,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -96,6 +96,13 @@ export interface MessageActionsApi {
    * Optional — if the parent doesn't pass it, the entry simply isn't rendered.
    */
   onTrashMessage?: () => void
+  /**
+   * Phase 3 To-do capture — turn the scoped message (latest or selected) into an `InboxTodo`.
+   * The page derives `title`/`description`/`priority` from the resolved message before the
+   * `POST /api/inbox/todos` call, so the composer just owns the click. Optional — when omitted
+   * the entry is hidden so partial wiring (e.g. legacy callers) keeps working.
+   */
+  onAddToTodo?: () => void
   /** True when no usable message id can be resolved for the current scope (e.g. empty thread).
    *  When true, the composer hides the message-level actions panel entirely. */
   unavailable?: boolean
@@ -667,7 +674,7 @@ export function ReplyComposer({
   const moreMessageActionsAvailable = Boolean(
     messageActions
     && !messageActions.unavailable
-    && (messageActions.onMarkDone || messageActions.onAddInternalNote || messageActions.onTrashMessage)
+    && (messageActions.onMarkDone || messageActions.onAddInternalNote || messageActions.onTrashMessage || messageActions.onAddToTodo)
     && (actingOnScope !== "selected" || hasSelectedMessage),
   )
   const showMoreMessagePanel = actingOnScope !== "all" && moreMessageActionsAvailable
@@ -1827,6 +1834,21 @@ export function ReplyComposer({
                   icon={StickyNote}
                   label={actingOnScope === "selected" ? "Add internal note about selected" : "Add internal note about latest"}
                   onClick={messageActions.onAddInternalNote}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : null}
+              {messageActions.onAddToTodo ? (
+                /**
+                 * Phase 3: capture the scoped message as an `InboxTodo`. The page derives the
+                 * title (preferring shortIntent), the description excerpt, and the priority
+                 * (escalated to `high`/`urgent` only when the conversation already carries
+                 * matching urgency). Clicking *does not* mark the message done — explicit
+                 * Done lives one button up so the operator decides when work is closed.
+                 */
+                <MoreMenuItem
+                  icon={ListPlus}
+                  label={actingOnScope === "selected" ? "Add selected message to To-do" : "Add latest message to To-do"}
+                  onClick={messageActions.onAddToTodo}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
               ) : null}

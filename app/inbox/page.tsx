@@ -47,9 +47,15 @@ import {
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
+import {
+  createTodoOnServer,
+  detectInternalNoteTodo,
+  priorityFromUrgency,
+  truncateForTitle,
+} from "@/lib/inbox/client-todos"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Sparkles, Send, Loader2 } from "lucide-react"
+import { Sparkles, Send, Loader2, ListPlus, X } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
@@ -446,6 +452,32 @@ function InboxPageContent() {
   const [todosRefreshKey, setTodosRefreshKey] = useState(0)
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
   const [busyTodoId, setBusyTodoId] = useState<string | null>(null)
+  /**
+   * Phase 3 To-do capture — transient state used by the three capture surfaces:
+   *  - `creatingTodoFromMessage`: lock guard against double-click on the More menu entries.
+   *  - `internalNoteTodoSuggestion`: holds the candidate To-do parsed from a just-saved internal
+   *    note when its content matches `TODO:` / `To-do:` / `Pendiente:`. The banner clears on
+   *    accept, dismiss, conversation switch, or the next internal note. Storing it as a small
+   *    object (rather than booleans) keeps the banner stateless re-render-wise.
+   */
+  const [creatingTodoFromMessage, setCreatingTodoFromMessage] = useState(false)
+  const [internalNoteTodoSuggestion, setInternalNoteTodoSuggestion] = useState<
+    | {
+        conversationId: string
+        noteMessageId: string | null
+        title: string
+      }
+    | null
+  >(null)
+  const [internalNoteTodoBusy, setInternalNoteTodoBusy] = useState(false)
+  /** Generic transient banner for "✓ To-do created" feedback after capture from any surface. */
+  const [todoCaptureFeedback, setTodoCaptureFeedback] = useState<string | null>(null)
+  /** Auto-clear the feedback after ~3.5s so it doesn't linger across the operator's eye. */
+  useEffect(() => {
+    if (!todoCaptureFeedback) return
+    const tid = setTimeout(() => setTodoCaptureFeedback(null), 3500)
+    return () => clearTimeout(tid)
+  }, [todoCaptureFeedback])
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -1214,6 +1246,29 @@ function InboxPageContent() {
       if (draftIdToMark) {
         updateDraft(draftIdToMark, { status: "sent" }).catch(() => null)
         activeDraftIdRef.current = null
+      }
+
+      /**
+       * Phase 3 — internal note TODO suggestion. Only triggers when the just-saved message
+       * was an internal note AND its body starts with `TODO:` / `To-do:` / `Pendiente:`.
+       * We don't auto-create the To-do silently: instead we surface a small banner above the
+       * composer with a "Create To-do" CTA so the operator can opt in. Storing the noteMessageId
+       * (when the API returns it) lets us pass `sourceNoteId` for traceability; if the response
+       * doesn't include an id we still proceed but only attach `conversationId`.
+       */
+      if (replyIsInternal && activeSelectedId) {
+        const todoTitle = detectInternalNoteTodo(replyContent.trim())
+        if (todoTitle) {
+          const noteMessageId =
+            (typeof json?.data?.id === "string" && json.data.id) ||
+            (typeof json?.message?.id === "string" && json.message.id) ||
+            null
+          setInternalNoteTodoSuggestion({
+            conversationId: activeSelectedId,
+            noteMessageId,
+            title: truncateForTitle(todoTitle, 200),
+          })
+        }
       }
 
       setReplyContent("")
@@ -2047,6 +2102,155 @@ function InboxPageContent() {
    * "selected" without a real selection, we report `unavailable` so the composer hides the
    * panel instead of running on a stale target.
    */
+  /**
+   * Phase 3 — convert a Smart Hub `Still needed` pending item into an `InboxTodo`.
+   * Used by `ContextPanel.onCreateTodoFromPendingItem`. The panel passes the raw text
+   * (already trimmed) and the optional `sourceMessageId` (only set when in message mode).
+   * Returns boolean to let the panel toggle its session "converted" state.
+   *
+   * Notes:
+   *  - `createdSource = "ai_pending_item"` so the persistence trail makes the origin obvious
+   *    in the To-do view (UI uses this to render the "AI" provenance chip via metadata).
+   *  - Conversation id is required (the AI signal only exists inside a conversation).
+   *  - Priority defaults to `normal` regardless of conversation urgency: the operator already
+   *    decided this item is worth tracking, so we don't add urgency noise on top.
+   *  - When the operator is currently inside the To-do view (`isTodoMode`), bump the refresh
+   *    key so the new item appears immediately. Otherwise just show a brief feedback toast.
+   */
+  const handleCreateTodoFromPendingItem = useCallback(
+    async (input: { text: string; sourceMessageId: string | null }): Promise<boolean> => {
+      if (!activeSelectedId || !input.text.trim()) return false
+      const result = await createTodoOnServer({
+        title: truncateForTitle(input.text, 200),
+        conversationId: activeSelectedId,
+        sourceMessageId: input.sourceMessageId,
+        createdSource: "ai_pending_item",
+        priority: "normal",
+        assigneeType: "me",
+        metadata: { origin: "smart_hub_pending_item" },
+      })
+      if (!result.success) {
+        setActionState(result.error || "Could not convert pending item to To-do")
+        return false
+      }
+      setTodoCaptureFeedback("To-do created from pending item")
+      if (isTodoMode) setTodosRefreshKey((k) => k + 1)
+      return true
+    },
+    [activeSelectedId, isTodoMode],
+  )
+
+  /**
+   * Phase 3 — capture the scoped (latest or selected) message as an `InboxTodo`. The composer
+   * delegates here via `messageActions.onAddToTodo`; we own the whole derivation:
+   *  - title: prefer the message's `metadata.shortIntent` when present, otherwise truncate the
+   *    cleaned message body to ≤120 chars at a word boundary.
+   *  - description: short excerpt of the message body (best-effort, may be null for empty
+   *    bodies — attachments-only messages still get a useful title).
+   *  - priority: derived from conversation urgency via `priorityFromUrgency`. We only escalate
+   *    when the conversation already carries `alta`/`critica`; medium/low map to `normal`/`low`.
+   *  - We deliberately do *not* mark the message done — Done lives one entry up so the
+   *    operator decides explicitly when to close the loop.
+   *  - Hard guard against double-click via `creatingTodoFromMessage` lock.
+   */
+  const handleAddMessageToTodo = useCallback(async () => {
+    if (!activeSelectedId || !moreActionsTargetMessageId || creatingTodoFromMessage) return
+    const targetId = moreActionsTargetMessageId
+    const rawMsg = selected?.messages?.find((m) => m.id === targetId) ?? null
+    if (!rawMsg) {
+      setActionState("Could not resolve message for To-do")
+      return
+    }
+
+    /** Mirror the defensive metadata read from `replyTarget`: tolerate string/object/null. */
+    let metaShortIntent: string | null = null
+    try {
+      if (rawMsg.metadata) {
+        const parsed = typeof rawMsg.metadata === "string" ? JSON.parse(rawMsg.metadata) : rawMsg.metadata
+        const candidate = (parsed as { shortIntent?: unknown } | null | undefined)?.shortIntent
+        if (typeof candidate === "string" && candidate.trim()) metaShortIntent = candidate.trim()
+      }
+    } catch {
+      /* malformed metadata — fall back to body */
+    }
+
+    const cleanedBody = (rawMsg.content || "").replace(/\s+/g, " ").trim()
+    const title = metaShortIntent || truncateForTitle(cleanedBody || "Message follow-up", 120)
+    const description = cleanedBody && cleanedBody !== title ? truncateForTitle(cleanedBody, 280) : null
+
+    setCreatingTodoFromMessage(true)
+    const result = await createTodoOnServer({
+      title,
+      description,
+      conversationId: activeSelectedId,
+      sourceMessageId: targetId,
+      createdSource: "operator_message",
+      priority: priorityFromUrgency(selected?.urgency),
+      assigneeType: "me",
+      metadata: {
+        origin: actingOnScope === "selected" ? "operator_selected_message" : "operator_latest_message",
+      },
+    })
+    setCreatingTodoFromMessage(false)
+    if (!result.success) {
+      setActionState(result.error || "Could not create To-do from message")
+      return
+    }
+    setTodoCaptureFeedback(actingOnScope === "selected" ? "To-do created from selected message" : "To-do created from latest message")
+    if (isTodoMode) setTodosRefreshKey((k) => k + 1)
+  }, [activeSelectedId, moreActionsTargetMessageId, selected, actingOnScope, isTodoMode, creatingTodoFromMessage])
+
+  /**
+   * Phase 3 — accept the internal-note TODO suggestion. Reads the captured title + note id
+   * (set inside `sendReply` when the just-saved internal note matched the prefix detector),
+   * POSTs the To-do, and clears the banner. The internal note message itself stays untouched
+   * — we never auto-mark it done or alter its content.
+   *
+   * `createdSource = "internal_note"` makes the To-do view's provenance chip explicit. We
+   * only attach `sourceNoteId` when the messages POST response surfaced an id; otherwise we
+   * fall back to `conversationId` only.
+   */
+  const handleAcceptInternalNoteTodo = useCallback(async () => {
+    if (!internalNoteTodoSuggestion || internalNoteTodoBusy) return
+    setInternalNoteTodoBusy(true)
+    const result = await createTodoOnServer({
+      title: internalNoteTodoSuggestion.title,
+      conversationId: internalNoteTodoSuggestion.conversationId,
+      sourceNoteId: internalNoteTodoSuggestion.noteMessageId,
+      createdSource: "internal_note",
+      priority: "normal",
+      assigneeType: "me",
+      metadata: { origin: "internal_note_prefix" },
+    })
+    setInternalNoteTodoBusy(false)
+    if (!result.success) {
+      setActionState(result.error || "Could not create To-do from internal note")
+      return
+    }
+    setTodoCaptureFeedback("To-do created from internal note")
+    setInternalNoteTodoSuggestion(null)
+    if (isTodoMode) setTodosRefreshKey((k) => k + 1)
+  }, [internalNoteTodoSuggestion, internalNoteTodoBusy, isTodoMode])
+
+  const handleDismissInternalNoteTodo = useCallback(() => {
+    setInternalNoteTodoSuggestion(null)
+  }, [])
+
+  /**
+   * Drop a stale suggestion when the operator switches conversations. The banner is gated by
+   * `conversationId === activeSelectedId` at render time too, but resetting state explicitly
+   * keeps the lifecycle predictable (no banner re-appearing if you come back to the same
+   * conversation later).
+   */
+  useEffect(() => {
+    if (
+      internalNoteTodoSuggestion &&
+      internalNoteTodoSuggestion.conversationId !== activeSelectedId
+    ) {
+      setInternalNoteTodoSuggestion(null)
+    }
+  }, [activeSelectedId, internalNoteTodoSuggestion])
+
   const messageActionsForComposer = useMemo(() => {
     if (actingOnScope === "all") return undefined
     if (!moreActionsTargetMessageId) return { unavailable: true as const }
@@ -2056,12 +2260,15 @@ function InboxPageContent() {
         void handleMarkMessageDone(moreActionsTargetMessageId, next)
       },
       onAddInternalNote: handleAddInternalNoteAbout,
+      onAddToTodo: () => {
+        void handleAddMessageToTodo()
+      },
       onTrashMessage: () => {
         void handleTrashMessage(moreActionsTargetMessageId, true)
       },
       intentStatus: moreActionsTargetIntentStatus,
     }
-  }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout, handleTrashMessage])
+  }, [actingOnScope, moreActionsTargetMessageId, moreActionsTargetIntentStatus, handleMarkMessageDone, handleAddInternalNoteAbout, handleAddMessageToTodo, handleTrashMessage])
 
   /**
    * `selectedIndex` and `navigateConversation` work over the *visible* list (after Work +
@@ -2687,6 +2894,7 @@ function InboxPageContent() {
       onCreateCalendarEvent={handleCreateCalendarEvent}
       askMode={askMode}
       askAnchorMessageId={askAnchorMessageId}
+      onCreateTodoFromPendingItem={handleCreateTodoFromPendingItem}
     />
   ) : null
 
@@ -2865,6 +3073,58 @@ function InboxPageContent() {
 
                   {selected && (
                     <>
+                      {/*
+                        Phase 3 — internal note TODO suggestion banner. Renders only when the
+                        operator just saved an internal note whose body started with `TODO:`,
+                        `To-do:`, or `Pendiente:` AND we're still on the same conversation.
+                        The banner offers an opt-in CTA (we never auto-create silently); a
+                        dismiss button kills the suggestion without leaving a trace. After a
+                        successful create the banner clears itself and the generic capture
+                        feedback toast (todoCaptureFeedback) handles the success message.
+                      */}
+                      {internalNoteTodoSuggestion &&
+                      internalNoteTodoSuggestion.conversationId === activeSelectedId ? (
+                        <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/8 px-3 py-2 text-xs text-emerald-100">
+                          <ListPlus className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden="true" />
+                          <div className="min-w-0 flex-1 leading-snug">
+                            <div className="font-medium text-emerald-100/95">Create To-do from this note?</div>
+                            <div className="truncate text-emerald-200/70">{internalNoteTodoSuggestion.title}</div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={internalNoteTodoBusy}
+                            onClick={() => void handleAcceptInternalNoteTodo()}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-50 transition-colors hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {internalNoteTodoBusy ? (
+                              <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Sparkles className="h-3 w-3" aria-hidden="true" />
+                            )}
+                            Create To-do
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Dismiss To-do suggestion"
+                            onClick={handleDismissInternalNoteTodo}
+                            className="inline-flex shrink-0 items-center justify-center rounded-md p-1 text-emerald-200/70 transition-colors hover:bg-emerald-500/15 hover:text-emerald-50"
+                          >
+                            <X className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </div>
+                      ) : null}
+                      {/*
+                        Phase 3 — generic capture feedback toast. Reused by all three capture
+                        surfaces (pending item, message action, internal note). Auto-clears on
+                        a timer (~3.5s). Kept compact and on the same row band so it doesn't
+                        push the composer down on every confirmation.
+                      */}
+                      {todoCaptureFeedback ? (
+                        <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/8 px-3 py-1.5 text-[11px] text-emerald-100">
+                          <Sparkles className="h-3 w-3 shrink-0 text-emerald-300" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">{todoCaptureFeedback}</span>
+                        </div>
+                      ) : null}
                       <ReplyComposer
                         channel={selected.channel}
                         channelLabel={channelLabel(selected.channel, uiLocale)}

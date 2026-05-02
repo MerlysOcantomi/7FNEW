@@ -10,7 +10,7 @@ import {
   User, FolderKanban, CheckSquare,
   Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
   Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
-  BookOpen,
+  BookOpen, ListPlus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -175,6 +175,21 @@ interface ContextPanelProps {
    */
   askMode?: "message" | "conversation"
   askAnchorMessageId?: string | null
+  /**
+   * Phase 3 To-do capture — Smart Hub "Still needed" items become explicit converters. Each
+   * pending item gets a "Convert" affordance that calls this prop with the item's text and an
+   * optional `sourceMessageId` (only set in message mode). The page is responsible for the
+   * actual `POST /api/inbox/todos` and any list refresh; the panel just owns the click and the
+   * "already converted" disabled state for the session.
+   *
+   * Returns a boolean: `true` = success (panel marks the item converted), `false` = failure
+   * (panel re-enables the button so the operator can retry). Omit the prop to hide the
+   * affordance entirely (legacy behaviour).
+   */
+  onCreateTodoFromPendingItem?: (input: {
+    text: string
+    sourceMessageId: string | null
+  }) => Promise<boolean>
 }
 
 export function ContextPanel({
@@ -196,8 +211,24 @@ export function ContextPanel({
   onCreateCalendarEvent,
   askMode,
   askAnchorMessageId,
+  onCreateTodoFromPendingItem,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
+  /**
+   * Phase 3 — local set of pending-item identifiers already converted to To-dos in this
+   * session. Identifier is `${index}::${text}` so that the same text appearing twice (rare
+   * but possible) can still be tracked independently. Resets when the conversation changes
+   * because `selected.id` is part of the dependency. Intentionally session-only: there is no
+   * persistent "this pending item became a To-do" backend link, so reloading the panel will
+   * re-enable the buttons. That's an acceptable trade-off — the backend already accepts
+   * duplicates and the To-do view is the source of truth for what exists.
+   */
+  const [convertedPendingItemKeys, setConvertedPendingItemKeys] = useState<Set<string>>(() => new Set())
+  const [convertingPendingItemKey, setConvertingPendingItemKey] = useState<string | null>(null)
+  useEffect(() => {
+    setConvertedPendingItemKeys(new Set())
+    setConvertingPendingItemKey(null)
+  }, [selected.id])
   /**
    * Message-mode only: secondary "Conversation context" block (summary + facts + decisions)
    * is collapsed by default so the operator's eyes go to message-level insight first. We keep
@@ -811,7 +842,14 @@ export function ContextPanel({
     </section>
   )
 
-  /** Pending items — "what's missing to act?" Hidden when empty (no fabricated noise). */
+  /**
+   * Pending items — "what's missing to act?" Hidden when empty (no fabricated noise).
+   *
+   * Phase 3 To-do capture: when `onCreateTodoFromPendingItem` is provided, each row gets a
+   * compact "Convert" button (or a "Done" pill once the operator has used it during this
+   * session). Without the callback the section keeps its previous read-only shape so existing
+   * call sites (e.g. read-only previews, tests) don't see new affordances.
+   */
   const stillNeededSection = handoffPendingItems.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
@@ -824,15 +862,64 @@ export function ContextPanel({
         </p>
       </div>
       <ul className="mt-1.5 space-y-1">
-        {handoffPendingItems.map((item, idx) => (
-          <li
-            key={idx}
-            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-          >
-            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
-            <span>{item}</span>
-          </li>
-        ))}
+        {handoffPendingItems.map((item, idx) => {
+          const itemKey = `${idx}::${item}`
+          const isConverted = convertedPendingItemKeys.has(itemKey)
+          const isConverting = convertingPendingItemKey === itemKey
+          return (
+            <li
+              key={idx}
+              className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+            >
+              <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
+              <span className="flex-1">{item}</span>
+              {onCreateTodoFromPendingItem ? (
+                isConverted ? (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400/90"
+                    aria-label="Already converted to To-do"
+                  >
+                    <Check className="h-2.5 w-2.5" aria-hidden="true" />
+                    To-do
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isConverting}
+                    aria-label={`Convert "${item.slice(0, 60)}" to To-do`}
+                    onClick={async () => {
+                      setConvertingPendingItemKey(itemKey)
+                      const ok = await onCreateTodoFromPendingItem({
+                        text: item,
+                        sourceMessageId: isMessageMode ? selectedMessageId ?? null : null,
+                      })
+                      setConvertingPendingItemKey(null)
+                      if (ok) {
+                        setConvertedPendingItemKeys((prev) => {
+                          const next = new Set(prev)
+                          next.add(itemKey)
+                          return next
+                        })
+                      }
+                    }}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--inbox-intelligence-text-secondary)] transition-colors",
+                      "hover:border-[var(--inbox-accent)]/50 hover:bg-white/5 hover:text-[var(--inbox-accent)]",
+                      "disabled:cursor-not-allowed disabled:opacity-60",
+                    )}
+                  >
+                    {isConverting ? (
+                      <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ListPlus className="h-2.5 w-2.5" aria-hidden="true" />
+                    )}
+                    To-do
+                  </button>
+                )
+              ) : null}
+            </li>
+          )
+        })}
       </ul>
     </section>
   ) : null
