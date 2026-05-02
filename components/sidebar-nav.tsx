@@ -30,7 +30,6 @@ import {
   ChevronDown,
   ChevronRight,
   Search,
-  Circle,
   Star,
   Clock,
   CheckCircle,
@@ -41,6 +40,8 @@ import {
   Trash2,
   ListTodo,
   CalendarClock,
+  ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -171,6 +172,35 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
 }
 
 const NAV_SECTIONS = buildNavSections();
+
+// ── Inbox-focused mode ───────────────────────────────────────────────────────
+/**
+ * When the operator is on /inbox we swap the global navigation for an Inbox-only
+ * navigation: Inbox + Work + Smart views + Storage. The full 7F app modules
+ * (Clients, Projects, Finance, etc.) get out of the way so the sidebar reads as
+ * "you are inside Smart Inbox", not "Smart Inbox is one of many sections".
+ *
+ * This is a sidebar-only change. AppShell, /inbox/page.tsx, top chrome (search,
+ * notifications, global new) all stay identical — they're product utilities
+ * that work the same in any workspace mode. The "Back to 7F" link in the
+ * focused header is the explicit way out.
+ *
+ * The items are extracted from the existing Smart Inbox subitems in NAV_SECTIONS
+ * so the two views never drift: when we add a new Inbox filter to the global
+ * sidebar it automatically shows up in the focused mode, and vice versa.
+ */
+function getInboxFocusedItems(): NavItem[] {
+  const main = NAV_SECTIONS.find((s) => s.section === "Main");
+  const smartInbox = main?.items.find((i) => i.href === "/inbox");
+  return smartInbox?.subitems ?? [];
+}
+
+const INBOX_FOCUSED_ITEMS = getInboxFocusedItems();
+
+/** True when the current route is the Inbox workspace (top-level or any subroute). */
+function isInboxFocusedPath(pathname: string): boolean {
+  return pathname === "/inbox" || pathname.startsWith("/inbox/");
+}
 
 // ── Helper: determine which section contains active route ────────────────────
 function getActiveSectionFor(pathname: string): string {
@@ -528,6 +558,99 @@ function AccordionSection({
   );
 }
 
+// ── Inbox-focused sidebar body ───────────────────────────────────────────────
+/**
+ * Renders the Inbox-only navigation: focus header (Smart Inbox · by Fanny) at the
+ * top, "Back to 7F" link to escape, then the grouped filters (Work / Smart views
+ * / Storage). Active state is delegated to `SmartInboxNavLink` which already
+ * compares `?filter=` against the current URL.
+ *
+ * Used by both desktop and mobile. The desktop layout shows the focus header
+ * inline with the rest of the sidebar; mobile renders the same content inside
+ * the bottom sheet.
+ *
+ * `collapsed` only applies to the desktop sidebar. When collapsed we hide the
+ * header text and "Back" label but keep the icon-only links so the operator
+ * can still navigate without expanding.
+ */
+function InboxFocusedNav({
+  collapsed = false,
+  onNavClick,
+}: {
+  collapsed?: boolean;
+  onNavClick?: () => void;
+}) {
+  /**
+   * When expanded we show Work / Smart views / Storage group separators (matching the
+   * global sidebar's submenu). When collapsed, the separators don't fit the icon-only
+   * width so we just render the links as a flat icon column — same pattern the global
+   * sidebar uses for its accordion sections in collapsed mode.
+   */
+  const body = useMemo(() => {
+    if (collapsed) {
+      return INBOX_FOCUSED_ITEMS.map((item) => (
+        <SmartInboxNavLink key={item.href} {...item} collapsed onClick={onNavClick} />
+      ));
+    }
+    return renderGroupedSubitems(INBOX_FOCUSED_ITEMS, onNavClick);
+  }, [collapsed, onNavClick]);
+
+  return (
+    <div className="space-y-2">
+      {/**
+       * Focus header — visually distinct from the global sidebar so the operator
+       * immediately knows they're in Inbox mode. Card surface + accent ring + a
+       * small "by Fanny" helper, matching the existing Smart Inbox brand chip in
+       * the global nav. When collapsed, the header collapses to just the icon.
+       */}
+      <div
+        className={cn(
+          "flex items-center gap-2.5 rounded-[10px] border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-surface)]/70 px-3 py-2",
+          collapsed && "justify-center px-2",
+        )}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shrink-0">
+          <Inbox size={14} strokeWidth={2} />
+        </span>
+        {!collapsed ? (
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[11px] font-semibold text-[var(--app-sidebar-text)] tracking-wide">
+              Smart Inbox
+            </span>
+            <span className="text-[9px] text-[var(--app-sidebar-text-muted)] tracking-wide flex items-center gap-1">
+              <Sparkles size={9} className="shrink-0" />
+              by Fanny
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      {/**
+       * "Back to 7F" — the only explicit way out of focused mode. Routes to "/"
+       * which restores the default global sidebar via the `pathname` check at
+       * the top of `SidebarNav`. We use a muted style so it doesn't compete
+       * with the active inbox filter for visual weight.
+       */}
+      <Link
+        href="/"
+        onClick={onNavClick}
+        title={collapsed ? "Back to 7F" : undefined}
+        className={cn(
+          "flex items-center gap-2 rounded-[8px] text-[11px] font-medium transition-colors",
+          collapsed ? "justify-center px-2 py-1.5" : "px-3 py-1.5",
+          "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60",
+        )}
+      >
+        <ArrowLeft size={13} strokeWidth={2} className="shrink-0" />
+        {!collapsed && <span>Back to 7F</span>}
+      </Link>
+
+      {/** Inbox + Work / Smart views / Storage filters. Shared with the global sidebar's submenu. */}
+      <div className="space-y-0.5">{body}</div>
+    </div>
+  );
+}
+
 function useSectionsWithBadges(): NavSection[] {
   const inboxBadge = useInboxBadge();
   return useMemo(() => {
@@ -555,6 +678,16 @@ export function SidebarNav() {
     setOpenSection((prev) => (prev === section ? "" : section));
   };
 
+  /**
+   * Inbox-focused mode — when the operator is on /inbox we replace the global nav
+   * (Overview, Main, More, Workspace) with the InboxFocusedNav (Inbox + Work +
+   * Smart views + Storage). Logo, Search, footer, and collapse toggle stay so the
+   * shell still feels like 7F. Navigating away (e.g. clicking the 7F logo or
+   * "Back to 7F" link) puts the user on "/", which falls through this branch
+   * and restores the full sidebar.
+   */
+  const focused = isInboxFocusedPath(pathname);
+
   return (
     <aside
       className={cn(
@@ -564,18 +697,32 @@ export function SidebarNav() {
     >
       {/* Logo + Collapse Toggle */}
       <div className={cn("flex items-center shrink-0 px-3 pt-5 pb-4", collapsed ? "justify-center" : "justify-between px-5")}>
+        {/**
+         * Logo is now a link to "/" so it doubles as the canonical "back to home"
+         * affordance. Inside the inbox-focused mode this is reinforced by the
+         * dedicated "Back to 7F" CTA at the top of the nav body. Outside inbox
+         * the logo just goes to the dashboard like before.
+         */}
         {!collapsed && (
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40"
+            title={focused ? "Back to 7F" : "7F"}
+          >
             <div className="w-8 h-8 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shrink-0 shadow-lg">
               <span className="text-white text-sm font-bold tracking-tight">7F</span>
             </div>
             <span className="text-[var(--app-sidebar-text)] font-semibold text-base tracking-wide">7F</span>
-          </div>
+          </Link>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shadow-lg">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40"
+            title={focused ? "Back to 7F" : "7F"}
+          >
             <span className="text-white text-sm font-bold tracking-tight">7F</span>
-          </div>
+          </Link>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -608,18 +755,22 @@ export function SidebarNav() {
 
       {/* Navigation */}
       <nav className={cn("flex-1 pb-4 space-y-1", collapsed ? "px-1.5" : "px-3")}>
-        {sections.map(({ section, subtitle, items, dividerAbove }) => (
-          <AccordionSection
-            key={section}
-            section={section}
-            subtitle={subtitle}
-            items={items}
-            dividerAbove={dividerAbove}
-            collapsed={collapsed}
-            isOpen={openSection === section}
-            onToggle={() => toggleSection(section)}
-          />
-        ))}
+        {focused ? (
+          <InboxFocusedNav collapsed={collapsed} />
+        ) : (
+          sections.map(({ section, subtitle, items, dividerAbove }) => (
+            <AccordionSection
+              key={section}
+              section={section}
+              subtitle={subtitle}
+              items={items}
+              dividerAbove={dividerAbove}
+              collapsed={collapsed}
+              isOpen={openSection === section}
+              onToggle={() => toggleSection(section)}
+            />
+          ))
+        )}
       </nav>
 
       {/* Footer */}
@@ -665,6 +816,9 @@ export function MobileSidebarNav() {
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
+
+  /** Same focused-mode rule as desktop: when on /inbox we render InboxFocusedNav inside the sheet. */
+  const focused = isInboxFocusedPath(pathname);
 
   return (
     <>
@@ -717,19 +871,23 @@ export function MobileSidebarNav() {
           </div>
 
           <nav className="px-3 pb-6 flex-1 space-y-1 overflow-y-auto">
-            {sections.map(({ section, subtitle, items, dividerAbove }) => (
-              <AccordionSection
-                key={section}
-                section={section}
-                subtitle={subtitle}
-                items={items}
-                dividerAbove={dividerAbove}
-                collapsed={false}
-                isOpen={openSection === section}
-                onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
-                onNavClick={() => setOpen(false)}
-              />
-            ))}
+            {focused ? (
+              <InboxFocusedNav onNavClick={() => setOpen(false)} />
+            ) : (
+              sections.map(({ section, subtitle, items, dividerAbove }) => (
+                <AccordionSection
+                  key={section}
+                  section={section}
+                  subtitle={subtitle}
+                  items={items}
+                  dividerAbove={dividerAbove}
+                  collapsed={false}
+                  isOpen={openSection === section}
+                  onToggle={() => setOpenSection((prev) => (prev === section ? "" : section))}
+                  onNavClick={() => setOpen(false)}
+                />
+              ))
+            )}
           </nav>
         </SheetContent>
       </Sheet>
