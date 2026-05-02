@@ -26,7 +26,13 @@ interface ConversationItem {
   id: string
   channel: string
   title: string
-  senderIntent?: string | null
+  /**
+   * Subject / short conversation label rendered as the secondary line in the *collapsed* row.
+   * Replaced the old `senderIntent` (AI-derived snippet) on this surface to keep the list
+   * scannable: collapsed = "who + what", expanded = "what to do next". The AI intent text now
+   * lives only inside the expanded panel as `latestActiveIntent`.
+   */
+  subject?: string | null
   sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
@@ -366,7 +372,7 @@ export function ConversationList({
                   key={item.id}
                   channel={item.channel}
                   title={item.title}
-                  senderIntent={item.senderIntent}
+                  subject={item.subject}
                   sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}

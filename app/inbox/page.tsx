@@ -45,8 +45,6 @@ import {
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
-import { firstShortIntentFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
-import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, Send, Loader2 } from "lucide-react"
@@ -1334,20 +1332,22 @@ function InboxPageContent() {
           contact?.email?.trim() ||
           "Contact"
 
-        const shortFromMessages = firstShortIntentFromRecentMessages(conversation.messages)
-
-        const senderIntent =
-          formatSenderIntentPhrase(shortFromMessages) ||
-          formatSenderIntentPhrase(conversation.classification?.intent?.trim() || null) ||
-          formatSenderIntentPhrase(conversation.intent?.trim() || null) ||
-          formatSenderIntentPhrase(conversation.subject?.trim() || null) ||
-          null
+        /**
+         * Collapsed-row label refactor: dropped the AI-derived `senderIntent` here on purpose.
+         * Per the new model the collapsed row only shows "who + what is this thread about", so
+         * the secondary line is the structural Subject (when present) — short, fast to scan,
+         * and never repeats the AI summary already visible in the expanded panel + the right
+         * ContextPanel. The `firstShortIntentFromRecentMessages`/`formatSenderIntentPhrase`
+         * helpers no longer feed this surface; they remain available in their modules for
+         * other callers (Ask Fanny, intelligence) that still need the AI text.
+         */
+        const subject = conversation.subject?.trim() || null
 
         return {
           id: conversation.id,
           channel: conversation.channel,
           title: primaryTitle,
-          senderIntent,
+          subject,
           sectorLabel: conversation.classification?.sector?.trim() || null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -1368,7 +1368,7 @@ function InboxPageContent() {
           id: conversation.id,
           channel: conversation.channel,
           title: "Conversation",
-          senderIntent: null as string | null,
+          subject: null as string | null,
           sectorLabel: null as string | null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -2097,16 +2097,44 @@ function InboxPageContent() {
      * Phase 3 fix: el panel "actionable intents" del listado solo expone intents de mensajes
      * INBOUND. Outbound siguen visibles y seleccionables en el hilo central; aquí no compiten
      * como "lo que requiere acción". El backend ya devuelve `direction` por fila, sin borrar data.
+     *
+     * Active-intent filters (collapsed/expanded refactor): además del filtro por dirección,
+     * descartamos rows que no son "trabajo pendiente" hoy:
+     *  - `trashedAt` set → message-level soft trash (Message.metadata.trashedAt). Su intent no
+     *    debe manejar la fila ni aparecer en el expanded panel; el bubble in-thread sigue
+     *    mostrando un placeholder con CTA Restore para revertir.
+     *  - `intentStatus === "done"` → el operador marcó ese mensaje como hecho desde el More
+     *    menu. Lo escondemos del listado de pendientes para no contar trabajo cerrado.
+     *  - `isInternal === true` → notas privadas del operador; nunca son intent del cliente.
+     *  - `role === "system"` → eventos del sistema (asignaciones automáticas, transitions);
+     *    no son intent.
+     * Todos los flags vienen del backend en `listMessageShortIntents`; mantenemos un fallback
+     * seguro para callers viejos (rows sin esos campos siguen pasando).
      */
     async function parseResponse(
       res: Response,
     ): Promise<Array<{ messageId: string; text: string }>> {
       const json = (await res.json()) as {
         success?: boolean
-        data?: Array<{ id: string; direction?: string; shortIntent: string }>
+        data?: Array<{
+          id: string
+          direction?: string
+          shortIntent: string
+          intentStatus?: string
+          trashedAt?: string
+          isInternal?: boolean
+          role?: string
+        }>
       }
       const rawRows = json?.success && Array.isArray(json.data) ? json.data : []
-      const rows = rawRows.filter((r) => r.direction === "inbound")
+      const rows = rawRows.filter((r) => {
+        if (r.direction !== "inbound") return false
+        if (r.trashedAt) return false
+        if (r.intentStatus === "done") return false
+        if (r.isInternal === true) return false
+        if (r.role === "system") return false
+        return true
+      })
       const lines = rows.map((r) => r.shortIntent).filter(Boolean)
       const filteredTexts = pickExpandedIntents(lines)
       const result: Array<{ messageId: string; text: string }> = []

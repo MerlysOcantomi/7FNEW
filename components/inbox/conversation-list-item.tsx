@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
 import { ChevronRight, Loader2 } from "lucide-react"
@@ -14,7 +14,13 @@ export interface ShortIntentEntry {
 
 interface ConversationListItemProps {
   title: string
-  senderIntent?: string | null
+  /**
+   * Subject / short conversation label shown as the secondary line in the *collapsed* row.
+   * Replaced the old AI-derived `senderIntent` snippet on this row to keep scanning fast: the
+   * collapsed row is "who + what is this thread about" only. Intents live in the expanded panel.
+   * Optional because not every channel has a structured subject (web chat, walk-in, etc.).
+   */
+  subject?: string | null
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -22,6 +28,11 @@ interface ConversationListItemProps {
   onClick: () => void
   expanded: boolean
   onToggleExpand: () => void
+  /**
+   * Pre-filtered active intents: caller already removed trashed messages, intentStatus="done",
+   * internal notes and system messages. Order is chronological — the LAST entry is the latest
+   * active intent and gets surfaced as the headline of the expanded panel.
+   */
   intents?: ShortIntentEntry[]
   intentsLoading: boolean
   /** Disparado al hacer clic en un intent expandido — el padre debe seleccionar el Message correspondiente. */
@@ -39,7 +50,7 @@ interface ConversationListItemProps {
 
 export function ConversationListItem({
   title,
-  senderIntent,
+  subject,
   sectorLabel,
   timeLabel,
   selected,
@@ -61,15 +72,35 @@ export function ConversationListItem({
   messageCount,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * Local toggle for the "View N more intents" link inside the expanded panel. Kept as
+   * component-local state (not lifted) because it's a purely presentational, per-row affordance
+   * with no impact on selection, URL params, or fetching. Reset implicitly when the row collapses
+   * via the useEffect below.
+   */
+  const [showOlderIntents, setShowOlderIntents] = useState(false)
 
   useEffect(() => {
     if (!selected) return
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
 
-  /** `undefined` = aún no cargado; `[]` = cargado sin shortIntent en metadata (o todo filtrado). */
+  useEffect(() => {
+    if (!expanded) setShowOlderIntents(false)
+  }, [expanded])
+
+  /** `undefined` = aún no cargado; `[]` = cargado sin intents activos (todo done/trash/etc.). */
   const intentPanelVisible =
     expanded && (intentsLoading || intents !== undefined)
+
+  /**
+   * `intents` ya viene filtrado y deduplicado por el parent (pickExpandedIntents + done/trash
+   * filters). Tomamos la última posición como "latest active intent" porque la lista respeta
+   * orden cronológico ascendente — la dedup del helper es last-wins, así que la entrada más
+   * reciente queda al final.
+   */
+  const latestActiveIntent = intents && intents.length > 0 ? intents[intents.length - 1] : null
+  const olderIntents = intents && intents.length > 1 ? intents.slice(0, -1) : []
 
   return (
     <div
@@ -140,12 +171,18 @@ export function ConversationListItem({
                     >
                       {title}
                     </p>
-                    {senderIntent ? (
+                    {subject ? (
+                      /**
+                       * Single-line truncated subject — never wraps. This is structural metadata
+                       * (the email Subject header, or web-chat label), not AI text, so we can
+                       * trust it to be short. If a subject is unusually long it gets ellipsized;
+                       * the operator can read the full one in the thread header.
+                       */
                       <p
-                        className="mt-0.5 block max-w-full text-[13px] leading-snug text-[var(--inbox-list-text-secondary)] break-words [overflow-wrap:anywhere]"
-                        title={senderIntent}
+                        className="mt-0.5 truncate text-[12.5px] leading-snug text-[var(--inbox-list-text-secondary)]"
+                        title={subject}
                       >
-                        {senderIntent}
+                        {subject}
                       </p>
                     ) : null}
                   </div>
@@ -201,32 +238,79 @@ export function ConversationListItem({
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
               <span className="text-[11px]">Loading intents…</span>
             </div>
-          ) : intents && intents.length > 0 ? (
-            <ul className="space-y-1" role="list">
-              {[...intents].reverse().map((intent, idx) => (
-                <li key={`${intent.messageId}-${idx}`}>
+          ) : latestActiveIntent ? (
+            <div className="space-y-1">
+              {/*
+                Headline: the single most recent active intent. Rendered prominently so the
+                operator gets a one-glance answer to "what does this thread need next?" without
+                scanning a list. Click → seleccionar el Message correspondiente.
+              */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onIntentSelect?.(latestActiveIntent.messageId)
+                }}
+                title={latestActiveIntent.text}
+                aria-label={`Open latest active intent: ${latestActiveIntent.text}`}
+                className={cn(
+                  "block w-full border-l-2 border-[var(--inbox-list-selected)] pl-2 text-left text-[12px] leading-snug text-[var(--inbox-list-text)] [overflow-wrap:anywhere]",
+                  "rounded-r-md transition-colors hover:bg-[var(--inbox-list-selected-bg)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                )}
+              >
+                {latestActiveIntent.text}
+              </button>
+
+              {olderIntents.length > 0 ? (
+                <>
                   <button
                     type="button"
+                    aria-expanded={showOlderIntents}
                     onClick={(e) => {
                       e.stopPropagation()
-                      onIntentSelect?.(intent.messageId)
+                      setShowOlderIntents((prev) => !prev)
                     }}
-                    title={intent.text}
-                    aria-label={`Open message: ${intent.text}`}
                     className={cn(
-                      "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
-                      "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                      "ml-2 inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10.5px] font-medium text-[var(--inbox-list-text-secondary)] transition-colors",
+                      "hover:text-[var(--inbox-list-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
                     )}
                   >
-                    {intent.text}
+                    {showOlderIntents
+                      ? "Hide older intents"
+                      : `View ${olderIntents.length} more ${olderIntents.length === 1 ? "intent" : "intents"}`}
                   </button>
-                </li>
-              ))}
-            </ul>
+
+                  {showOlderIntents ? (
+                    <ul className="space-y-1 pt-0.5" role="list">
+                      {[...olderIntents].reverse().map((intent, idx) => (
+                        <li key={`${intent.messageId}-${idx}`}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onIntentSelect?.(intent.messageId)
+                            }}
+                            title={intent.text}
+                            aria-label={`Open message: ${intent.text}`}
+                            className={cn(
+                              "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
+                              "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                            )}
+                          >
+                            {intent.text}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
           ) : (
             <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
-              No hay intents por mensaje guardados.
+              No pending intents.
             </p>
           )}
         </div>

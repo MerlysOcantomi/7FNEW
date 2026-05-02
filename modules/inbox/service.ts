@@ -464,18 +464,54 @@ export async function listConversationActions(conversationId: string, workspaceI
  * el frontend decide qué subset mostrar (p. ej. solo `inbound` en el panel "actionable intents"
  * y, en el futuro, `outbound` en una sección "Waiting on them"). Mantener ambas direcciones aquí
  * preserva la data sin coste y deja la UI tomar la decisión sin tocar backend de nuevo.
+ *
+ * Phase: collapsed/expanded list refactor — adicionalmente exponemos cuatro flags derivadas de
+ * la metadata o columnas existentes para que el frontend pueda filtrar "intents activos" sin
+ * un endpoint nuevo:
+ *  - intentStatus: "done" | "open" | undefined  (Message.metadata.intentStatus, MVP done-state).
+ *  - trashedAt:    string | undefined            (Message.metadata.trashedAt, soft-delete).
+ *  - isInternal:   boolean                       (columna existente; nota privada del operador).
+ *  - role:         string                        (columna existente; "system" se filtra en UI).
+ *
+ * Los flags son aditivos: callers que solo lean `id`/`direction`/`shortIntent` siguen funcionando.
  */
 export async function listMessageShortIntents(conversationId: string, workspaceId: string) {
   const rows = await db.message.findMany({
     where: { conversationId, workspaceId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, direction: true, metadata: true },
+    select: {
+      id: true,
+      direction: true,
+      metadata: true,
+      isInternal: true,
+      role: true,
+    },
   })
-  const result: { id: string; direction: string; shortIntent: string }[] = []
+  const result: {
+    id: string
+    direction: string
+    shortIntent: string
+    intentStatus?: string
+    trashedAt?: string
+    isInternal: boolean
+    role: string
+  }[] = []
   for (const row of rows) {
     const meta = parseMessageMetadataRecord(row.metadata)
     const si = getShortIntentFromMetadataRecord(meta)
-    if (si) result.push({ id: row.id, direction: row.direction, shortIntent: si })
+    if (!si) continue
+    /** Defensive reads: metadata can be missing/corrupt; we never throw. */
+    const intentStatusRaw = meta && typeof meta.intentStatus === "string" ? meta.intentStatus : undefined
+    const trashedAtRaw = meta && typeof meta.trashedAt === "string" && meta.trashedAt.length > 0 ? meta.trashedAt : undefined
+    result.push({
+      id: row.id,
+      direction: row.direction,
+      shortIntent: si,
+      intentStatus: intentStatusRaw,
+      trashedAt: trashedAtRaw,
+      isInternal: row.isInternal,
+      role: row.role,
+    })
   }
   return result
 }
