@@ -1,13 +1,16 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { AlertTriangle, ChevronLeft, Loader2, MessageSquare, Sparkles } from "lucide-react"
+import { AlertTriangle, ChevronLeft, Loader2, Mail, MessageSquare, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
+import { EmailReadingView, type EmailReadingMessage } from "@/components/inbox/email-reading-view"
 import { cn } from "@/lib/utils"
+
+export type EmailViewMode = "chat" | "email"
 
 interface StatusOption {
   value: string
@@ -53,6 +56,14 @@ interface ConversationThreadProps {
   onRestoreMessage?: (messageId: string) => void
   onBack?: () => void
   onOpenContext?: () => void
+  /**
+   * Reading mode for email conversations. `chat` keeps the original bubble pile;
+   * `email` swaps the body for `EmailReadingView` (one email at a time, traditional
+   * client layout). Ignored when `channel !== "email"`. Stored in localStorage by the
+   * page-level shell — the thread is only responsible for rendering and notifying.
+   */
+  emailViewMode?: EmailViewMode
+  onEmailViewModeChange?: (mode: EmailViewMode) => void
 }
 
 export function ConversationThread({
@@ -72,6 +83,8 @@ export function ConversationThread({
   onRestoreMessage,
   onBack,
   onOpenContext,
+  emailViewMode = "chat",
+  onEmailViewModeChange,
 }: ConversationThreadProps) {
   /**
    * Mapa estable de refs por messageId para hacer scrollIntoView cuando cambia la selección.
@@ -109,6 +122,51 @@ export function ConversationThread({
   }
 
   const isEmailChannel = channel === "email"
+  const showEmailToggle = isEmailChannel && Boolean(onEmailViewModeChange)
+  const renderEmailView = isEmailChannel && emailViewMode === "email"
+
+  /**
+   * Compact segmented toggle: Chat | Email. Lives only in email-channel headers; non-email
+   * channels never see it because there is no Email view to switch to. Two buttons sharing
+   * the same surface mirror the rest of the inbox segmented controls (sidebar filters, ask
+   * mode chips) for visual consistency.
+   */
+  const EmailViewToggle = showEmailToggle ? (
+    <div
+      role="group"
+      aria-label="Email reading mode"
+      className="inline-flex items-center gap-0.5 rounded-md border border-[var(--inbox-border)]/45 bg-white/[0.03] p-0.5 text-[11px]"
+    >
+      <button
+        type="button"
+        onClick={() => onEmailViewModeChange?.("chat")}
+        aria-pressed={emailViewMode === "chat"}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 font-medium transition-colors",
+          emailViewMode === "chat"
+            ? "bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)]"
+            : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+        )}
+      >
+        <MessageSquare className="h-3 w-3" aria-hidden="true" />
+        Chat
+      </button>
+      <button
+        type="button"
+        onClick={() => onEmailViewModeChange?.("email")}
+        aria-pressed={emailViewMode === "email"}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 font-medium transition-colors",
+          emailViewMode === "email"
+            ? "bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)]"
+            : "text-[var(--inbox-text-secondary)] hover:text-[var(--inbox-text)]",
+        )}
+      >
+        <Mail className="h-3 w-3" aria-hidden="true" />
+        Email
+      </button>
+    </div>
+  ) : null
 
   return (
     <>
@@ -135,6 +193,7 @@ export function ConversationThread({
             <Sparkles className="h-3 w-3" />
             Context
           </Button>
+          {EmailViewToggle}
           <div className="ml-auto">
             <InlineSelect
               value={statusValue}
@@ -153,40 +212,60 @@ export function ConversationThread({
             <p className="truncate text-sm font-medium text-[var(--inbox-text)]">{headerTitle}</p>
             <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
           </div>
-          <InlineSelect
-            value={statusValue}
-            options={statusOptions}
-            onSave={onStatusChange}
-            badgeClassName={statusBadgeClassName}
-          />
+          <div className="flex items-center gap-2">
+            {EmailViewToggle}
+            <InlineSelect
+              value={statusValue}
+              options={statusOptions}
+              onSave={onStatusChange}
+              badgeClassName={statusBadgeClassName}
+            />
+          </div>
         </div>
       </div>
 
       {/* Thread */}
+      {detailErrorMessage ? (
+        <div className="flex min-h-[min(280px,50dvh)] flex-1 flex-col items-center justify-center bg-[var(--inbox-chat-background)] py-12">
+          <EmptyState
+            variant="inbox"
+            icon={AlertTriangle}
+            title="Could not load conversation"
+            description={detailErrorMessage}
+          />
+        </div>
+      ) : detailLoading ? (
+        <div className="flex min-h-[min(280px,50dvh)] flex-1 flex-col items-center justify-center gap-3 bg-[var(--inbox-chat-background)] py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--inbox-text-secondary)]" aria-hidden />
+          <p className="text-xs text-[var(--inbox-text-secondary)]">Loading conversation…</p>
+        </div>
+      ) : messages.length === 0 ? (
+        <div className="flex flex-1 flex-col bg-[var(--inbox-chat-background)] px-5 py-6">
+          <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-white/[0.04] p-6">
+            <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
+          </div>
+        </div>
+      ) : renderEmailView ? (
+        /**
+         * Email reading mode — body is fully delegated to `EmailReadingView`. Selection,
+         * deep-link, Smart Hub message mode, and trash placeholder all reuse the existing
+         * props (`selectedMessageId`, `onSelectMessage`, `onRestoreMessage`) so we stay on
+         * a single source of truth. The header above (with the Chat | Email toggle) is
+         * always rendered, so the operator can flip back to Chat with one click.
+         */
+        <EmailReadingView
+          messages={messages as EmailReadingMessage[]}
+          selectedMessageId={selectedMessageId ?? null}
+          onSelectMessage={(id) => onSelectMessage?.(id)}
+          onRestoreMessage={onRestoreMessage}
+        />
+      ) : (
       <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
         <div className={cn(
           "bg-[var(--inbox-chat-background)] px-5 py-6 md:px-6 md:py-7",
           isEmailChannel ? "space-y-0" : "space-y-4",
         )}>
-          {detailErrorMessage ? (
-            <div className="flex min-h-[min(280px,50dvh)] flex-col items-center justify-center py-12">
-              <EmptyState
-                variant="inbox"
-                icon={AlertTriangle}
-                title="Could not load conversation"
-                description={detailErrorMessage}
-              />
-            </div>
-          ) : detailLoading ? (
-            <div className="flex min-h-[min(280px,50dvh)] flex-col items-center justify-center gap-3 py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-[var(--inbox-text-secondary)]" aria-hidden />
-              <p className="text-xs text-[var(--inbox-text-secondary)]">Loading conversation…</p>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-white/[0.04] p-6">
-              <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
-            </div>
-          ) : isEmailChannel ? (
+          {isEmailChannel ? (
             messages.map((message, index) => (
               <div key={message.id} ref={setMessageRef(message.id)}>
                 {index > 0 && (
@@ -243,6 +322,7 @@ export function ConversationThread({
           )}
         </div>
       </ScrollArea>
+      )}
     </>
   )
 }

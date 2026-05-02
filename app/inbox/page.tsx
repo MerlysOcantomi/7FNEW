@@ -352,6 +352,29 @@ function InboxPageContent() {
   /** Marca el último `?messageId=` que aplicamos a `selectedMessageId` para no re-aplicar en bucle. */
   const lastAppliedMessageIdRef = useRef<string | null>(null)
   /**
+   * Email reading mode (`chat` | `email`). Persisted in localStorage so the operator's
+   * preference survives navigation and reloads. Default is `chat` to match the existing
+   * behavior — flipping the default would surprise users with a single-email reader the
+   * first time they open the inbox after deploy. Only consulted for email-channel
+   * conversations; non-email channels always render the chat thread.
+   */
+  type EmailViewMode = "chat" | "email"
+  const EMAIL_VIEW_MODE_STORAGE_KEY = "smart-inbox-email-view-mode"
+  const [emailViewMode, setEmailViewMode] = useState<EmailViewMode>("chat")
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const stored = window.localStorage.getItem(EMAIL_VIEW_MODE_STORAGE_KEY)
+      if (stored === "email" || stored === "chat") setEmailViewMode(stored)
+    } catch { /* localStorage may be unavailable (private mode) — fall back to default */ }
+  }, [])
+  const handleEmailViewModeChange = useCallback((mode: EmailViewMode) => {
+    setEmailViewMode(mode)
+    if (typeof window === "undefined") return
+    try { window.localStorage.setItem(EMAIL_VIEW_MODE_STORAGE_KEY, mode) }
+    catch { /* swallow — toggle still works in-memory for this session */ }
+  }, [])
+  /**
    * Acting on scope: controla qué mensaje/contexto usan los tools del composer.
    *  - "latest": último mensaje relevante (default)
    *  - "selected": mensaje actualmente seleccionado (requiere selectedMessageId)
@@ -3239,6 +3262,8 @@ function InboxPageContent() {
                       onRestoreMessage={(messageId) => handleTrashMessage(messageId, false)}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
+                      emailViewMode={emailViewMode}
+                      onEmailViewModeChange={handleEmailViewModeChange}
                     />
                   </div>
 
