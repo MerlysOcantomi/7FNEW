@@ -208,11 +208,30 @@ async function matchConversationByThread(
   references: string | null | undefined,
   workspaceId: string,
 ): Promise<{ conversationId: string; matchedBy: "in-reply-to" | "references" } | null> {
+  /**
+   * Threading match — RFC `In-Reply-To` / `References` headers point at a previous
+   * Message-ID we've stored. We deliberately exclude conversations in `trashed` state:
+   * if the operator moved a thread to the trash, an incoming reply must NOT silently
+   * resurrect it inside the trashed shell (the message would land but the operator
+   * would never see it because the conversation is hidden by the Trash filter, and
+   * trash semantics say "I'm done with this thread"). Falling through to contact
+   * matching — and ultimately to creating a fresh conversation — is the right
+   * behaviour. Closed/archived threads are still reusable here because those states
+   * are routinely reopened on follow-ups (mirrors the contact-fallback policy below).
+   *
+   * The exclusion is enforced via the `conversation.status` relation filter on the
+   * Message query, so we never select a candidate whose container is trashed in the
+   * first place — no extra round-trip needed.
+   */
   if (inReplyTo) {
     const normalizedId = normalizeMessageId(inReplyTo)
     if (normalizedId) {
       const hit = await db.message.findFirst({
-        where: { workspaceId, metadata: { contains: normalizedId } },
+        where: {
+          workspaceId,
+          metadata: { contains: normalizedId },
+          conversation: { status: { not: "trashed" } },
+        },
         select: { conversationId: true },
         orderBy: { createdAt: "desc" },
       })
@@ -223,7 +242,11 @@ async function matchConversationByThread(
   const refIds = parseReferencesHeader(references)
   for (const refId of refIds) {
     const hit = await db.message.findFirst({
-      where: { workspaceId, metadata: { contains: refId } },
+      where: {
+        workspaceId,
+        metadata: { contains: refId },
+        conversation: { status: { not: "trashed" } },
+      },
       select: { conversationId: true },
       orderBy: { createdAt: "desc" },
     })
@@ -243,12 +266,23 @@ async function matchConversationByContact(
 ): Promise<{ conversationId: string; matchedBy: "contact-active" | "contact-reopen" } | null> {
   const REOPEN_WINDOW_MS = 1000 * 60 * 60 * 48
 
+  /**
+   * Contact-active match — the thread headers didn't help (no In-Reply-To/References,
+   * or those pointed at messages we don't have). Fall back to "any non-terminal email
+   * conversation with this contact". `trashed` MUST be excluded alongside `closed`/
+   * `archived` here: once an operator trashes a thread, follow-up emails from the same
+   * contact must open a fresh conversation, never silently re-attach to the trashed
+   * shell where they'd be invisible behind the Trash filter. Closed/archived threads
+   * are reopened (see the second query below) because that's a common workflow; trash
+   * is intentionally NOT reopened — if you wanted it back, you would Restore it
+   * manually from the Trash view.
+   */
   const activeConv = await db.conversation.findFirst({
     where: {
       workspaceId,
       contactId,
       channel: "email",
-      status: { notIn: ["closed", "archived"] },
+      status: { notIn: ["closed", "archived", "trashed"] },
     },
     orderBy: { lastMessageAt: "desc" },
   })
