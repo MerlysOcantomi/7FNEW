@@ -28,14 +28,14 @@ export function ConversationChannelBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap",
         selected
           ? "bg-[var(--inbox-surface)] text-[var(--inbox-accent)]"
           : "bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]",
       )}
     >
-      <Icon className="h-3 w-3" />
-      <span className="truncate">{label}</span>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span>{label}</span>
     </span>
   )
 }

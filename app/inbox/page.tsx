@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
+import { InboxToolbar } from "@/components/inbox/inbox-toolbar"
 import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
 import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
@@ -1009,42 +1010,15 @@ function InboxPageContent() {
     setAutoPopulated(true)
   }, [selected, selectedMessageId])
 
-  const serverLeads = typeof conversationsMeta?.leads === "number" ? conversationsMeta.leads : null
-  const serverUrgent = typeof conversationsMeta?.urgent === "number" ? conversationsMeta.urgent : null
-
-  const stats = useMemo(() => {
-    if (conversations.length === 0) {
-      return {
-        total: 0,
-        leads: 0,
-        urgent: 0,
-        unread: 0,
-        reply: 0,
-        waiting: 0,
-        done: 0,
-        archived: 0,
-        trash: 0,
-      }
-    }
-    
-    // Safe counting to avoid hydration mismatches
-    const unreadCount = conversations.filter(conv => conv.status === "new").length
-    const replyCount = conversations.filter(conv => 
-      conv.status === "awaiting_response" || conv.status === "triaged"
-    ).length
-    
-    return {
-      total: serverTotal ?? conversations.length,
-      leads: serverLeads ?? conversations.filter((item) => item.status === "lead_detected").length,
-      urgent: serverUrgent ?? conversations.filter((item) => item.urgency === "alta" || item.urgency === "critica").length,
-      unread: unreadCount,
-      reply: replyCount,
-      waiting: conversations.filter(conv => conv.status === "triaged").length,
-      done: conversations.filter(conv => conv.status === "closed").length,
-      archived: conversations.filter(conv => conv.status === "archived").length,
-      trash: conversations.filter((conv) => conv.status === "trashed").length,
-    }
-  }, [conversations, serverTotal, serverLeads, serverUrgent])
+  /**
+   * Inbox-level aggregate stats (`leads`, `urgent`, `done`, `trash`, …) used to be
+   * computed here and passed down to `<ConversationList stats={…}>` for header
+   * counters. After lifting filters/search/fetch into `<InboxToolbar>` and reducing
+   * the list to a pure listing surface, no surface consumes these counts anymore.
+   * The block was removed (along with `serverLeads` / `serverUrgent`) instead of
+   * being kept as dead code; if a future feature needs the counters they can be
+   * re-derived from `conversations` at the call site.
+   */
 
   /**
    * Phase 2 — confirm-and-create internal Evento from a Smart Inbox `create_event` action.
@@ -3110,7 +3084,39 @@ function InboxPageContent() {
             </div>
           </div>
         ) : null}
-        <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
+        {/*
+         * Inbox shell: a vertical stack of (toolbar) + (three-column grid). The toolbar
+         * spans the full width above the grid so channel/work filters never compete for
+         * space with the conversation list. The inner grid retains its original
+         * `xl:grid-cols-[...]` contract — only the wrapper restructured.
+         */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+          <InboxToolbar
+            search={search}
+            onSearchChange={setSearch}
+            activeSearchTerm={debouncedSearch || undefined}
+            onFetchEmails={handleFetchEmails}
+            fetchingEmails={fetchingEmails}
+            lastSyncedAt={lastSyncedAt}
+            onCompose={() => setComposeOpen(true)}
+            primaryWorkFilter={primaryWorkFilter}
+            onPrimaryWorkFilterChange={handlePrimaryWorkFilterChange}
+            channel={channel}
+            channelOptions={channelSelectOptions}
+            onChannelChange={setChannel}
+            status={status}
+            statusOptions={statusFilterOptions}
+            onStatusChange={handleListStatusFilterChange}
+            intentStatusFilter={intentStatusFilter}
+            onIntentStatusFilterChange={setIntentStatusFilter}
+            senderFilter={senderFilter}
+            senderOptions={senderOptions}
+            onSenderFilterChange={setSenderFilter}
+            assignmentFilter={assignmentFilter}
+            onAssignmentFilterChange={setAssignmentFilter}
+            isTodoMode={isTodoMode}
+          />
+          <div className={cn("flex min-h-0 flex-1 flex-col gap-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
@@ -3235,33 +3241,12 @@ function InboxPageContent() {
                     messageShortIntentsById={messageShortIntentsById}
                     messageIntentsLoadingId={messageIntentsLoadingId}
                     onIntentSelect={handleSelectIntent}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    statusOptions={statusFilterOptions}
-                    onStatusChange={handleListStatusFilterChange}
-                    channel={channel}
-                    channelOptions={channelSelectOptions}
-                    onChannelChange={setChannel}
                     assignmentFilter={assignmentFilter}
-                    onAssignmentFilterChange={setAssignmentFilter}
-                    intentStatusFilter={intentStatusFilter}
-                    onIntentStatusFilterChange={setIntentStatusFilter}
-                    senderFilter={senderFilter}
-                    senderOptions={senderOptions}
-                    onSenderFilterChange={setSenderFilter}
-                    primaryWorkFilter={primaryWorkFilter}
-                    onPrimaryWorkFilterChange={handlePrimaryWorkFilterChange}
-                    stats={stats}
                     onSelect={handleSelectConversation}
                     hasMore={hasMore}
                     loadingMore={loadingMore}
                     activeSearchTerm={debouncedSearch || undefined}
                     onLoadMore={loadMore}
-                    onFetchEmails={handleFetchEmails}
-                    fetchingEmails={fetchingEmails}
-                    lastSyncedAt={lastSyncedAt}
-                    onCompose={() => setComposeOpen(true)}
                   />
                 )}
               </>
@@ -3449,6 +3434,7 @@ function InboxPageContent() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 

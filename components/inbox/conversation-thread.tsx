@@ -212,7 +212,10 @@ export function ConversationThread({
             <p className="truncate text-sm font-medium text-[var(--inbox-text)]">{headerTitle}</p>
             <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Right-side controls — `shrink-0` prevents the EmailViewToggle / status select
+           * from being compressed when the title is long; `truncate` on the title takes
+           * care of the overflow on its side instead. */}
+          <div className="flex shrink-0 items-center gap-2">
             {EmailViewToggle}
             <InlineSelect
               value={statusValue}

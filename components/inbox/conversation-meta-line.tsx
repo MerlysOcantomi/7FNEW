@@ -71,7 +71,7 @@ export function ConversationMetaLine({
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {sectorLabel ? (
-        <span className="rounded-md border border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)]">
+        <span className="rounded-md border border-[var(--inbox-list-border)] bg-[var(--inbox-list-background)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-list-text-secondary)] whitespace-nowrap">
           {sectorLabel}
         </span>
       ) : null}
@@ -79,7 +79,7 @@ export function ConversationMetaLine({
         <Badge
           variant={statusClassName as BadgeVariant}
           className={cn(
-            "h-auto rounded-lg border-0 px-2 py-0.5 text-[10px] font-semibold shadow-none",
+            "h-auto rounded-lg border-0 px-2 py-0.5 text-[10px] font-semibold shadow-none whitespace-nowrap",
             statusSemanticClasses(conversationStatus),
           )}
         >
@@ -90,7 +90,7 @@ export function ConversationMetaLine({
         <Badge
           variant={urgencyClassName as BadgeVariant}
           className={cn(
-            "h-auto rounded-md border-0 px-2 py-0.5 text-[10px] font-medium shadow-none",
+            "h-auto rounded-md border-0 px-2 py-0.5 text-[10px] font-medium shadow-none whitespace-nowrap",
             urgencySoftClasses(urgencyClassName),
           )}
         >
@@ -98,7 +98,7 @@ export function ConversationMetaLine({
         </Badge>
       ) : null}
       {typeof leadScore === "number" && (
-        <span className="rounded-md border border-[rgba(242,198,109,0.35)] bg-[rgba(242,198,109,0.12)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--inbox-lead-color)] shadow-none">
+        <span className="rounded-md border border-[rgba(242,198,109,0.35)] bg-[rgba(242,198,109,0.12)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--inbox-lead-color)] shadow-none whitespace-nowrap">
           Lead {leadScore}
         </span>
       )}
