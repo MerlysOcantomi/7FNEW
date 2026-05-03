@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireAnyPlatformRole, requirePlatformAdmin } from "@/lib/auth/platform-auth"
 import { listUsersForSystem } from "@core/system/users"
+import { logPlatformAudit } from "@core/system/audit"
 import { db } from "@/lib/db"
 
 /**
@@ -66,7 +67,7 @@ export async function GET() {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    await requirePlatformAdmin()
+    const { session } = await requirePlatformAdmin()
 
     const body = await request.json()
     const { userId, role } = body as { userId?: string; role?: string }
@@ -81,11 +82,22 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    /**
+     * Capture previous role BEFORE the write so the audit row can record the
+     * actual transition. No-op if user is missing — `update` below will throw
+     * P2025 and the catch logs the error normally.
+     */
+    const previous = await db.user.findUnique({
+      where: { id: userId },
+      select: { role: true, email: true },
+    })
+
     const user = await db.user.update({
       where: { id: userId },
       data: { role },
     })
 
+    let allowedEmailSynced = false
     const allowedEmail = await db.allowedEmail.findUnique({
       where: { email: user.email },
     })
@@ -94,7 +106,23 @@ export async function PATCH(request: NextRequest) {
         where: { id: allowedEmail.id },
         data: { role },
       })
+      allowedEmailSynced = true
     }
+
+    await logPlatformAudit({
+      actorId: session.userId,
+      action: "user.update",
+      targetType: "user",
+      targetId: user.id,
+      metadata: {
+        email: user.email,
+        changedFields: ["role"],
+        previousRole: previous?.role ?? null,
+        nextRole: user.role,
+        allowedEmailSynced,
+      },
+      request,
+    })
 
     return successResponse(user)
   } catch (error) {
@@ -134,8 +162,22 @@ export async function DELETE(request: NextRequest) {
       return errorResponse("FORBIDDEN", "No puedes eliminar tu propio acceso", 403)
     }
 
-    await db.allowedEmail.deleteMany({ where: { email: user.email } })
+    const allowedEmailDelete = await db.allowedEmail.deleteMany({
+      where: { email: user.email },
+    })
     await db.user.delete({ where: { id: userId } })
+
+    await logPlatformAudit({
+      actorId: session.userId,
+      action: "user.delete",
+      targetType: "user",
+      targetId: user.id,
+      metadata: {
+        email: user.email,
+        removedAllowedEmail: allowedEmailDelete.count > 0,
+      },
+      request,
+    })
 
     return successResponse({ deleted: true })
   } catch (error) {

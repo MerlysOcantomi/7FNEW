@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requirePlatformAdmin } from "@/lib/auth/platform-auth"
+import { logPlatformAudit } from "@core/system/audit"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ id: string }> }
@@ -27,7 +28,7 @@ function isLegacyUserRole(v: unknown): v is LegacyUserRole {
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    await requirePlatformAdmin()
+    const { session } = await requirePlatformAdmin()
 
     const { id } = await params
     const body = await request.json()
@@ -40,15 +41,42 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
+    /**
+     * Capture the previous role BEFORE the update so the audit row reflects
+     * the actual state transition. If the row vanished between the read and
+     * the update (race), `previous` is null and we still log the change.
+     */
+    const previous = await db.allowedEmail.findUnique({
+      where: { id },
+      select: { role: true, email: true },
+    })
+
     const record = await db.allowedEmail.update({
       where: { id },
       data: { role },
     })
 
+    let userSynced = false
     const user = await db.user.findUnique({ where: { email: record.email } })
     if (user) {
       await db.user.update({ where: { id: user.id }, data: { role } })
+      userSynced = true
     }
+
+    await logPlatformAudit({
+      actorId: session.userId,
+      action: "allowed_email.update",
+      targetType: "allowed_email",
+      targetId: record.id,
+      metadata: {
+        email: record.email,
+        changedFields: ["role"],
+        previousRole: previous?.role ?? null,
+        nextRole: record.role,
+        userRoleSynced: userSynced,
+      },
+      request,
+    })
 
     return successResponse(record)
   } catch (error) {
@@ -62,7 +90,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
  * against accidental lockout of the admin's invite-only entry; their
  * `PlatformAdmin` row + `User` are untouched.
  */
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { session } = await requirePlatformAdmin()
 
@@ -77,6 +105,18 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await db.allowedEmail.delete({ where: { id } })
+
+    await logPlatformAudit({
+      actorId: session.userId,
+      action: "allowed_email.delete",
+      targetType: "allowed_email",
+      targetId: record.id,
+      metadata: {
+        email: record.email,
+        role: record.role,
+      },
+      request,
+    })
 
     return successResponse({ deleted: true })
   } catch (error) {

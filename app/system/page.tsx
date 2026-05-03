@@ -63,10 +63,11 @@ export default async function SystemHomePage() {
             title="Admins"
             description="Promover y revocar PlatformAdmins. Solo accesible para SUPER_ADMIN."
           />
-          <PlannedCard
+          <ActiveCard
+            href="/system/audit"
             icon={<ScrollText size={14} />}
             title="Audit log"
-            description="Registro inmutable de toda acción del control plane."
+            description="Registro append-only de toda mutación del control plane (últimos 100 eventos)."
           />
           <PlannedCard
             icon={<CreditCard size={14} />}

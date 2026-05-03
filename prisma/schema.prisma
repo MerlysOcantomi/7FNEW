@@ -329,6 +329,43 @@ model PlatformAdmin {
   createdBy String?  // userId of the platform admin who promoted this user, or "bootstrap-env" for env-driven bootstraps
 }
 
+/**
+ * Append-only audit trail for the SevenF System Admin control plane.
+ *
+ * Every mutation done from `/system` (and any sensitive read in the future)
+ * lands here so we have a forensic record of who did what to whom.
+ *
+ * Design notes:
+ *   - `actorId` stays a plain string (no FK relation) on purpose. Keeping
+ *     audit rows independent of `User.id` means we never silently lose the
+ *     trail if a user is deleted later — `onDelete: Cascade` would erase
+ *     evidence, which is the opposite of what an audit log should do.
+ *   - `metadata` is `String?` (TEXT) holding JSON, consistent with how the
+ *     rest of the schema stores JSON (`Workspace.config`,
+ *     `ChannelConnection.config|credentials|syncState`). The `logPlatformAudit`
+ *     helper sanitises and serialises before writing.
+ *   - Indexes target the read patterns of the audit page: scan by actor,
+ *     by action, by target, or by recency.
+ *   - Rows are NEVER mutated — there are no UPDATE/DELETE endpoints. The
+ *     audit endpoint is read-only.
+ */
+model PlatformAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   String?  // JSON-serialised, sanitised payload (no secrets, no message bodies)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
 model WorkspaceMember {
   id          String   @id @default(cuid())
   userId      String

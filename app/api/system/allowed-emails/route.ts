@@ -5,6 +5,7 @@ import {
   requirePlatformAdmin,
 } from "@/lib/auth/platform-auth"
 import { listAllowedEmails } from "@core/system/allowed-emails"
+import { logPlatformAudit } from "@core/system/audit"
 import { db } from "@/lib/db"
 
 /**
@@ -43,7 +44,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    await requirePlatformAdmin()
+    const { session } = await requirePlatformAdmin()
 
     const body = await request.json()
     const { email, role } = body as { email?: string; role?: string }
@@ -67,6 +68,18 @@ export async function POST(request: NextRequest) {
 
     const record = await db.allowedEmail.create({
       data: { email: normalizedEmail, role: validRole },
+    })
+
+    await logPlatformAudit({
+      actorId: session.userId,
+      action: "allowed_email.create",
+      targetType: "allowed_email",
+      targetId: record.id,
+      metadata: {
+        email: record.email,
+        role: record.role,
+      },
+      request,
     })
 
     return successResponse(record)
