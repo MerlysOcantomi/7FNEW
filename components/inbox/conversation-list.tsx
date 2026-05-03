@@ -48,6 +48,14 @@ interface ConversationItem {
   urgencyClassName: string
   leadScore?: number | null
   messageCount: number
+  /**
+   * Operator-assigned workspace category from `Conversation.category`.
+   * Forwarded as-is to `<ConversationListItem>` → `<ConversationMetaLine>`
+   * which decides whether to render the badge. `null` / `undefined`
+   * keeps the row identical to its pre-category appearance, which is
+   * what Skina and any other workspace without taxonomies will see.
+   */
+  category?: string | null
 }
 
 interface ConversationListProps {
@@ -162,6 +170,7 @@ export function ConversationList({
                   urgencyClassName={item.urgencyClassName}
                   leadScore={item.leadScore}
                   messageCount={item.messageCount}
+                  category={item.category}
                 />
               ))}
               {hasMore && onLoadMore && (

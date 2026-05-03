@@ -52,6 +52,18 @@ interface ConversationMetaLineProps {
   urgencyClassName: string
   leadScore?: number | null
   sectorLabel?: string | null
+  /**
+   * Operator-assigned workspace category from `Conversation.category`.
+   * Drawn from `Workspace.config.taxonomies.inbox` and set manually via
+   * `<ConversationCategoryEditor>` in the thread header. We render a
+   * subtle pill ONLY when it is a non-empty string — `null` / `""`
+   * means "uncategorised" and the row stays exactly as before.
+   *
+   * Independent of `intent` (AI classifier) on purpose; that text is
+   * never surfaced here so the operator can tell at a glance which
+   * threads they have personally triaged vs. those still on AI hints.
+   */
+  category?: string | null
 }
 
 export function ConversationMetaLine({
@@ -62,6 +74,7 @@ export function ConversationMetaLine({
   urgencyClassName,
   leadScore,
   sectorLabel,
+  category,
 }: ConversationMetaLineProps) {
   const hideTerminal =
     conversationStatus === "archived" ||
@@ -102,6 +115,23 @@ export function ConversationMetaLine({
           Lead {leadScore}
         </span>
       )}
+      {/*
+       * Workspace category pill. Subtle by design — same rounded-md
+       * footprint as the sector chip, accent-tinted so it remains
+       * distinguishable from urgency/status without competing with
+       * them. `max-w` + `truncate` guard against operator-defined
+       * labels longer than the row can comfortably hold (e.g. an
+       * accidental paragraph), without blowing the layout. The full
+       * value stays accessible via `title`.
+       */}
+      {category ? (
+        <span
+          className="inline-flex max-w-[12rem] items-center rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] shadow-none truncate whitespace-nowrap"
+          title={`Category: ${category}`}
+        >
+          {category}
+        </span>
+      ) : null}
     </div>
   )
 }

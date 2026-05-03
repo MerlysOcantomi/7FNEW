@@ -47,6 +47,13 @@ interface ConversationListItemProps {
   urgencyClassName: string
   leadScore?: number | null
   messageCount: number
+  /**
+   * Operator-assigned workspace category. Forwarded to
+   * `<ConversationMetaLine>` which renders the badge inline next to
+   * status/urgency. `null` / `undefined` means uncategorised — the row
+   * looks identical to its pre-PR state.
+   */
+  category?: string | null
 }
 
 export function ConversationListItem({
@@ -70,6 +77,7 @@ export function ConversationListItem({
   urgencyClassName,
   leadScore,
   messageCount,
+  category,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
   /**
@@ -220,6 +228,7 @@ export function ConversationListItem({
                 urgencyLabel={urgencyLabel}
                 urgencyClassName={urgencyClassName}
                 leadScore={leadScore}
+                category={category}
               />
             </div>
           </div>

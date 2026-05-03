@@ -1611,6 +1611,7 @@ function InboxPageContent() {
           urgencyClassName: urgencyBadge(conversation.urgency),
           leadScore: conversation.leadScore,
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+          category: conversation.category ?? null,
         }
       } catch (e) {
         if (process.env.NODE_ENV === "development") {
@@ -1632,6 +1633,7 @@ function InboxPageContent() {
           urgencyClassName: urgencyBadge(conversation.urgency),
           leadScore: conversation.leadScore,
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
+          category: conversation.category ?? null,
         }
       }
     }),
