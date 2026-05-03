@@ -50,6 +50,7 @@ import type { EntityVocabulary } from "@core/personalization";
 import { DEFAULT_VOCABULARY } from "@core/personalization";
 import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigger";
 import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
+import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -840,36 +841,15 @@ export function SidebarNav() {
         )}
       </nav>
 
-      {/* Footer */}
-      {!collapsed && (
-        <div
-          className={cn(
-            "border-t border-[var(--app-sidebar-border)] shrink-0",
-            /** Inbox mode: trim ~6px vertical and 4px horizontal to match the chrome. */
-            focused ? "px-3 pb-4 pt-3" : "px-4 pb-5 pt-4",
-          )}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[var(--app-sidebar-surface)] flex items-center justify-center text-xs font-medium text-[var(--app-sidebar-text-muted)]">
-              EA
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-medium text-[var(--app-sidebar-text)] truncate">Executive Admin</span>
-              <span className="text-[10px] text-[var(--app-sidebar-text-muted)] truncate">admin@7fcopilot.com</span>
-            </div>
-          </div>
-        </div>
-      )}
-      {collapsed && (
-        <div className="pb-5 pt-4 border-t border-[var(--app-sidebar-border)] shrink-0 flex justify-center">
-          <div
-            className="w-7 h-7 rounded-full bg-[var(--app-sidebar-surface)] flex items-center justify-center text-xs font-medium text-[var(--app-sidebar-text-muted)]"
-            title="Executive Admin"
-          >
-            EA
-          </div>
-        </div>
-      )}
+      {/**
+       * Footer — real authenticated identity + active workspace + sign-out.
+       * The previous static "Executive Admin / admin@7fcopilot.com / EA" placeholder
+       * has been replaced by `SidebarAccountMenu`, which reads from `useUser()` and
+       * `useActiveWorkspace()` and exposes a Sign-out action via dropdown. The footer
+       * keeps the same visual footprint (avatar + name/email stack, with a collapsed
+       * variant) so this is a data-only swap, not a layout redesign.
+       */}
+      <SidebarAccountMenu collapsed={collapsed} focused={focused} />
     </aside>
   );
 }
@@ -924,7 +904,7 @@ export function MobileSidebarNav() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="left"
-          className="w-64 p-0 bg-[var(--app-sidebar-bg)] border-r-0 [&>button]:hidden"
+          className="w-64 p-0 bg-[var(--app-sidebar-bg)] border-r-0 [&>button]:hidden flex flex-col"
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
@@ -943,7 +923,7 @@ export function MobileSidebarNav() {
             </button>
           </div>
 
-          <nav className="px-3 pb-6 flex-1 space-y-1 overflow-y-auto">
+          <nav className="px-3 pb-3 flex-1 space-y-1 overflow-y-auto">
             {focused ? (
               <InboxFocusedNav onNavClick={() => setOpen(false)} />
             ) : (
@@ -962,6 +942,14 @@ export function MobileSidebarNav() {
               ))
             )}
           </nav>
+
+          {/**
+           * Mobile users had no footer or visible logout before this change. Showing the
+           * account menu inside the sheet keeps mobile in parity with desktop without
+           * adding a separate top-bar avatar (which would compete with the search and
+           * notification icons in the mobile header chrome).
+           */}
+          <SidebarAccountMenu collapsed={false} />
         </SheetContent>
       </Sheet>
       <GlobalNewMobileSheet />
