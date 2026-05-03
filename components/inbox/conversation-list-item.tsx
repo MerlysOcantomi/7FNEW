@@ -15,12 +15,13 @@ export interface ShortIntentEntry {
 interface ConversationListItemProps {
   title: string
   /**
-   * Subject / short conversation label shown as the secondary line in the *collapsed* row.
-   * Replaced the old AI-derived `senderIntent` snippet on this row to keep scanning fast: the
-   * collapsed row is "who + what is this thread about" only. Intents live in the expanded panel.
-   * Optional because not every channel has a structured subject (web chat, walk-in, etc.).
+   * Collapsed-row philosophy: a sender/contact list, nothing more. We deliberately do NOT
+   * render the email subject, AI intent snippet, or message preview here — those compete
+   * with the sender name for the same narrow column and were the source of the "biting" /
+   * collision the operator saw on `/inbox`. Subject lives in the thread header and Smart
+   * Hub; the latest active intent surfaces in the *expanded* panel below the row when the
+   * operator clicks the chevron. The collapsed row stays scannable: "who is this from".
    */
-  subject?: string | null
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -50,7 +51,6 @@ interface ConversationListItemProps {
 
 export function ConversationListItem({
   title,
-  subject,
   sectorLabel,
   timeLabel,
   selected,
@@ -161,30 +161,25 @@ export function ConversationListItem({
                     />
                   )}
                   <div className="min-w-0 flex-1">
+                    {/**
+                     * Sender / contact name. We allow up to 2 lines (`line-clamp-2`) so a
+                     * full company name or "Surname, Firstname" doesn't get cropped to a
+                     * single letter on the narrow list column; `break-words` covers very
+                     * long unbroken tokens (long emails, no-spaces nicknames). One line
+                     * remains the common case — the second line only kicks in when the
+                     * sender truly needs the room.
+                     */}
                     <p
                       className={cn(
-                        "truncate text-[15px] leading-tight",
+                        "line-clamp-2 break-words text-[15px] leading-tight",
                         isUnread
                           ? "font-semibold tracking-tight text-[var(--inbox-list-text)]"
                           : "font-medium text-[var(--inbox-list-text-secondary)]",
                       )}
+                      title={title}
                     >
                       {title}
                     </p>
-                    {subject ? (
-                      /**
-                       * Single-line truncated subject — never wraps. This is structural metadata
-                       * (the email Subject header, or web-chat label), not AI text, so we can
-                       * trust it to be short. If a subject is unusually long it gets ellipsized;
-                       * the operator can read the full one in the thread header.
-                       */
-                      <p
-                        className="mt-0.5 truncate text-[12.5px] leading-snug text-[var(--inbox-list-text-secondary)]"
-                        title={subject}
-                      >
-                        {subject}
-                      </p>
-                    ) : null}
                   </div>
                 </div>
 

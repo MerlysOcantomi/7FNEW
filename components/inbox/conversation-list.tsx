@@ -30,10 +30,11 @@ interface ConversationItem {
   channel: string
   title: string
   /**
-   * Subject / short conversation label rendered as the secondary line in the *collapsed* row.
-   * Replaced the old `senderIntent` (AI-derived snippet) on this surface to keep the list
-   * scannable: collapsed = "who + what", expanded = "what to do next". The AI intent text now
-   * lives only inside the expanded panel as `latestActiveIntent`.
+   * Subject is no longer rendered in the collapsed row (the row is sender-only by design —
+   * see `ConversationListItem` for the full rationale). It still arrives in `conversationItems`
+   * from `app/inbox/page.tsx` because the same shape is consumed by other surfaces (thread
+   * header, Smart Hub, mobile sheet title) — keep the field but don't pass it down to the
+   * list item.
    */
   subject?: string | null
   sectorLabel?: string | null
@@ -139,7 +140,6 @@ export function ConversationList({
                   key={item.id}
                   channel={item.channel}
                   title={item.title}
-                  subject={item.subject}
                   sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}

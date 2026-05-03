@@ -203,8 +203,21 @@ const STATUS_OPTIONS = [
   "trashed",
 ]
 const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
+/**
+ * Desktop column matrix (xl+):
+ *  - left   → minmax(260px, 300px): tight sender list. Was minmax(288px, 30%)
+ *    which let the column eat ~450px on wide screens, starving the thread.
+ *  - center → minmax(0, 1fr): absorbs all remaining width.
+ *  - right  → minmax(300px, 360px): Smart Hub. Was 30% (same problem as left).
+ *
+ * The capped maxes are the key change: 30% of a 1500px main area = 450px each
+ * for left/right and only 600px for the thread; with fixed caps the thread
+ * gets ≥840px on the same viewport. `minmax(0, 1fr)` on the center keeps grid
+ * children allowed to truncate (otherwise long subjects would force the grid
+ * to overflow horizontally).
+ */
 const DESKTOP_INBOX_GRID =
-  "xl:grid xl:grid-cols-[minmax(288px,30%)_minmax(0,1fr)_minmax(320px,30%)] xl:grid-rows-[minmax(0,1fr)]"
+  "xl:grid xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)] xl:grid-rows-[minmax(0,1fr)]"
 
 /**
  * Infer the intent status of a conversation as a whole, based on the most recent inbound
