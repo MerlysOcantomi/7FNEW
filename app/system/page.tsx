@@ -52,10 +52,11 @@ export default async function SystemHomePage() {
             title="Workspaces"
             description="Listado read-only de tenants con plan, miembros, conversaciones y canales."
           />
-          <PlannedCard
+          <ActiveCard
+            href="/system/users"
             icon={<Users size={14} />}
             title="Users"
-            description="Listado global de usuarios, último login, workspaces a los que pertenece."
+            description="Listado global de usuarios, rol de plataforma y workspaces a los que pertenece."
           />
           <PlannedCard
             icon={<ShieldCheck size={14} />}
