@@ -31,10 +31,25 @@ const ROLE_COLORS: Record<string, string> = {
   viewer: "bg-gray-500/10 text-gray-600",
 }
 
+/**
+ * Legacy admin UI. Now routes ALL traffic through the platform endpoints
+ * (`/api/system/*`) instead of the deleted `/api/admin/*` ones. Auth on the
+ * server side is `requirePlatformAdmin()` — only PlatformAdmins can mutate
+ * users / allowlist. The previous legacy combined gate (workspace ADMIN +
+ * `User.role === "admin"`) is gone.
+ *
+ * `GET /api/system/users` returns `{ users, total }` (object) instead of a
+ * bare array, so we extract `usersData?.users`. AllowedEmails kept the same
+ * bare-array shape on its GET endpoint.
+ *
+ * UI itself isn't redesigned in this PR — the `/system/users` view is the
+ * future home for read-only inspection. Mutations might consolidate there
+ * later; for now this page is the canonical place to edit roles.
+ */
 export default function AdminUsuariosPage() {
-  const { data: usersData, loading: usersLoading, refetch: refetchUsers } = useFetch<any>("/api/admin/users")
-  const { data: emailsData, loading: emailsLoading, refetch: refetchEmails } = useFetch<any>("/api/admin/allowed-emails")
-  const users = Array.isArray(usersData) ? usersData : []
+  const { data: usersData, loading: usersLoading, refetch: refetchUsers } = useFetch<any>("/api/system/users")
+  const { data: emailsData, loading: emailsLoading, refetch: refetchEmails } = useFetch<any>("/api/system/allowed-emails")
+  const users = Array.isArray(usersData?.users) ? usersData.users : []
   const allowedEmails = Array.isArray(emailsData) ? emailsData : []
 
   const [activeTab, setActiveTab] = useState<"users" | "whitelist">("users")
@@ -54,7 +69,7 @@ export default function AdminUsuariosPage() {
     setAddLoading(true)
     setAddError("")
     try {
-      const res = await fetch("/api/admin/allowed-emails", {
+      const res = await fetch("/api/system/allowed-emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: newEmail.trim(), role: newRole }),
@@ -80,7 +95,7 @@ export default function AdminUsuariosPage() {
     setActionError("")
     try {
       if (type === "user") {
-        const res = await fetch("/api/admin/users", {
+        const res = await fetch("/api/system/users", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: id, role }),
@@ -90,7 +105,7 @@ export default function AdminUsuariosPage() {
         refetchUsers()
         refetchEmails()
       } else {
-        const res = await fetch(`/api/admin/allowed-emails/${id}`, {
+        const res = await fetch(`/api/system/allowed-emails/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role }),
@@ -112,7 +127,7 @@ export default function AdminUsuariosPage() {
     if (!confirm("¿Seguro que deseas eliminar este usuario y revocar su acceso?")) return
     setActionLoading(userId)
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/system/users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -132,7 +147,7 @@ export default function AdminUsuariosPage() {
     if (!confirm("¿Seguro que deseas eliminar este correo de la lista blanca?")) return
     setActionLoading(id)
     try {
-      const res = await fetch(`/api/admin/allowed-emails/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/system/allowed-emails/${id}`, { method: "DELETE" })
       const json = await res.json()
       if (!json.success) { setActionError(json.error?.message ?? "Error"); return }
       refetchEmails()

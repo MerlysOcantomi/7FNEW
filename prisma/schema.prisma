@@ -281,9 +281,21 @@ model User {
   email           String   @unique
   nombre          String?
   avatar          String?
+  /// @deprecated Legacy global RBAC ("admin" | "editor" | "viewer") used by
+  /// `middleware.ts` to gate workspace pages like `/finanzas`, `/admin`, etc.
+  /// SHOULD migrate to per-workspace `WorkspaceMember.role` for tenant data
+  /// and `PlatformAdmin.role` for the control plane. Do not introduce new
+  /// dependencies on this column; new authorisation logic must use one of
+  /// those two helpers (`requireRoleInWorkspace` / `requirePlatformRole`).
   role            String   @default("viewer")
+  /// @deprecated Visibility flag used by legacy role gating. Same migration
+  /// note as `role` above.
   isPrivate       Boolean  @default(false)
+  /// @deprecated Per-tenant visibility list used by legacy role gating.
   visibleProjects String?
+  /// @deprecated Single-workspace pointer from before multi-tenancy. The
+  /// canonical source of "which workspaces does this user belong to" is the
+  /// `memberships` relation below.
   workspaceId     String?
   lastLogin       DateTime?
   createdAt       DateTime @default(now())
