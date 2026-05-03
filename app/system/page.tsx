@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { getSessionFromCookies } from "@/lib/auth/session"
-import { Building2, Users, ShieldCheck, ScrollText, CreditCard, ArrowRight } from "lucide-react"
+import { Building2, Users, ShieldCheck, ScrollText, CreditCard, ArrowRight, Mail } from "lucide-react"
 
 /**
  * Welcome / landing page of the SevenF System Admin area.
@@ -57,6 +57,12 @@ export default async function SystemHomePage() {
             icon={<Users size={14} />}
             title="Users"
             description="Listado global de usuarios, rol de plataforma y workspaces a los que pertenece."
+          />
+          <ActiveCard
+            href="/system/allowed-emails"
+            icon={<Mail size={14} />}
+            title="Allowed emails"
+            description="Allowlist global para invite-only Google login. Crear, editar rol y revocar."
           />
           <PlannedCard
             icon={<ShieldCheck size={14} />}
