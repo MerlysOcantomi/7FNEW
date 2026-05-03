@@ -1,12 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { LogOut, Building2, Loader2, Check, AlertCircle, ShieldCheck } from "lucide-react"
+import { LogOut, Building2, Loader2, AlertCircle, ShieldCheck, ArrowRightLeft } from "lucide-react"
 import { useUser } from "@/hooks/use-user"
 import { useActiveWorkspace, type ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -106,6 +107,25 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
   const initials = useMemo(
     () => getInitials(user?.nombre, user?.email),
     [user?.nombre, user?.email],
+  )
+
+  /**
+   * Workspaces *other than* the active one — what the "Switch workspace"
+   * section iterates. Kept derived (not stored) so it stays in sync with
+   * `useActiveWorkspace()` whenever the active workspace flips. The
+   * filter is purely visual: the server re-validates membership inside
+   * `POST /api/workspaces/active` regardless of what the client lists.
+   *
+   * If `workspace` is `null` (loading / 401), we fall back to showing
+   * every workspace as switchable — that mirrors the old behaviour and
+   * lets the UX recover gracefully when the active cookie is stale.
+   */
+  const otherWorkspaces = useMemo(
+    () =>
+      workspace
+        ? workspaces.filter((w) => w.id !== workspace.id)
+        : workspaces,
+    [workspaces, workspace],
   )
 
   const handleLogout = () => {
@@ -229,144 +249,215 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
         <DropdownMenuContent
           side={collapsed ? "right" : "top"}
           align={collapsed ? "start" : "end"}
-          className="min-w-[240px]"
+          className="min-w-[280px] p-0"
         >
-          <DropdownMenuLabel className="flex flex-col gap-0.5">
-            <span className="truncate text-sm font-semibold">
-              {user.nombre?.trim() || "Account"}
-            </span>
-            <span className="truncate text-xs font-normal text-muted-foreground">
-              {user.email}
-            </span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
           {/**
-           * Workspace section. Two layouts share this slot:
-           *  - When the user has 0 or 1 workspaces, we render the original
-           *    static row (name + role pill) — there is nothing to switch to,
-           *    so a switcher list would be visual noise.
-           *  - When the user has 2+ memberships, we replace the static row with
-           *    a labelled list where each row is a `DropdownMenuItem`. The
-           *    active row is marked with a check icon and is non-interactive
-           *    (clicking it is a no-op so we don't fire a redundant POST).
+           * Header. The trigger row already shows avatar + name + email +
+           * role, but inside the dropdown we restate it on its own band so
+           * the operator's identity is visible even when the workspace
+           * sections scroll. Avatar bumped to 32px because the band has
+           * room and a slightly larger photo reads better than the trigger
+           * size. We never read or display anything that wasn't already on
+           * `useUser()`.
            */}
-          <div className="px-2 py-1.5 text-xs">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Building2 size={13} />
-              <span className="text-[11px] uppercase tracking-wide">
-                {workspaces.length > 1 ? "Switch workspace" : "Workspace"}
+          <div className="flex items-center gap-3 px-3 py-3">
+            {user.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="h-8 w-8 rounded-full object-cover ring-1 ring-[var(--surface-overlay-border)]"
+              />
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground ring-1 ring-[var(--surface-overlay-border)]">
+                {initials}
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-sm font-semibold">
+                {user.nombre?.trim() || "Account"}
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {user.email}
               </span>
             </div>
           </div>
-          {workspaces.length > 1 ? (
-            <div className="max-h-[260px] overflow-y-auto px-1 pb-1">
-              {workspaces.map((w) => {
-                const isActive = w.id === workspace?.id
+
+          <DropdownMenuSeparator className="m-0" />
+
+          {/**
+           * Current workspace card. Rendered as a *non-interactive* block
+           * (plain `<div>` — NOT a `DropdownMenuItem`) so it never appears
+           * in the keyboard focus loop and never looks "disabled". The
+           * accent stripe + tint signal "you are here" without burning a
+           * checkmark icon (which the previous design used and the user
+           * reported as confusing).
+           */}
+          <DropdownMenuLabel className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Current workspace
+          </DropdownMenuLabel>
+          <div className="px-2 pb-2">
+            {workspace ? (
+              <div
+                role="group"
+                aria-label="Current workspace"
+                className="relative flex items-start gap-2 rounded-md border border-[var(--app-accent)]/25 bg-[var(--app-accent)]/10 px-2.5 py-2"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-2 left-0 w-0.5 rounded-r-full bg-[var(--app-accent)]/60"
+                />
+                <Building2 size={14} className="mt-0.5 shrink-0 text-[var(--app-accent)]" />
+                <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="truncate text-sm font-semibold">
+                      {workspace.nombre}
+                    </span>
+                    {roleLabel ? (
+                      <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {roleLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="truncate text-[10.5px] text-muted-foreground">
+                    {workspace.slug}
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]/80">
+                    You are here
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-[var(--surface-overlay-border)] px-2.5 py-2 text-xs text-muted-foreground">
+                {wsLoading ? "Loading workspace…" : "No active workspace"}
+              </div>
+            )}
+          </div>
+
+          {/**
+           * Switch workspace section. Renders ONLY workspaces that are not
+           * the active one — the active workspace is already represented
+           * by the "Current workspace" card above, so listing it here
+           * again as a disabled row is redundant noise (and the source of
+           * the "Why is it grayed out?" confusion the operator reported).
+           *
+           * Empty state when the user is a member of a single workspace:
+           * a muted line, no list, so the section never looks "broken".
+           *
+           * Security boundary unchanged: the client only iterates the
+           * `workspaces` array returned by `GET /api/workspaces`, and the
+           * actual switch goes through `POST /api/workspaces/active` which
+           * re-validates membership server-side. Filtering the active
+           * workspace out is purely visual.
+           */}
+          <DropdownMenuSeparator className="m-0" />
+          <DropdownMenuLabel className="flex items-center gap-2 px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <ArrowRightLeft size={12} className="shrink-0" />
+            Switch workspace
+          </DropdownMenuLabel>
+          {otherWorkspaces.length > 0 ? (
+            <DropdownMenuGroup className="max-h-[260px] overflow-y-auto px-1 pb-1">
+              {otherWorkspaces.map((w) => {
                 const isSwitching = switchingId === w.id
                 const wRole = formatRoleLabel(w.role)
                 return (
                   <DropdownMenuItem
                     key={w.id}
-                    disabled={isActive || switchingId !== null}
+                    disabled={switchingId !== null}
                     onSelect={(event) => {
                       event.preventDefault()
                       handleSwitch(w)
                     }}
-                    className={cn(
-                      "cursor-pointer items-start gap-2 py-1.5",
-                      isActive && "bg-accent/40",
-                    )}
+                    className="cursor-pointer items-start gap-2 rounded-md px-2 py-2"
                   >
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
                       {isSwitching ? (
                         <Loader2 size={12} className="animate-spin" />
-                      ) : isActive ? (
-                        <Check size={12} />
-                      ) : null}
+                      ) : (
+                        <Building2 size={12} />
+                      )}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                      <span className="truncate font-medium">{w.nombre}</span>
-                      <span className="truncate text-[10px] text-muted-foreground">
+                      <span className="truncate text-sm font-medium">{w.nombre}</span>
+                      <span className="truncate text-[10.5px] text-muted-foreground">
                         {w.slug}
                       </span>
                     </span>
-                    <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-muted-foreground">
                       {wRole}
                     </span>
                   </DropdownMenuItem>
                 )
               })}
-            </div>
+            </DropdownMenuGroup>
           ) : (
-            <div className="px-2 pb-1.5 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium">
-                  {workspace?.nombre ?? (wsLoading ? "Loading…" : "—")}
-                </span>
-                {roleLabel ? (
-                  <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {roleLabel}
-                  </span>
-                ) : null}
-              </div>
-            </div>
+            <p className="px-3 pb-2 text-[11px] italic text-muted-foreground">
+              No other workspaces available
+            </p>
           )}
+
           {switchError ? (
-            <div className="mx-2 mb-1 flex items-start gap-1.5 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+            <div className="mx-2 mb-2 flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-[11px] text-destructive">
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
               <span className="leading-snug">{switchError}</span>
             </div>
           ) : null}
+
           {/**
-           * Platform section. Visible only to PlatformAdmins. Shown as a
-           * SEPARATE section after the workspace switcher so it's never
-           * confused with a customer workspace. We use a plain `<a>` (not
-           * next/link, not the workspace switcher handler) for two reasons:
-           *
-           *   1. It's a HARD navigation. Going into `/system` must NOT touch
-           *      `wf_workspace`; using the switcher API would set that
-           *      cookie and corrupt the active workspace context.
-           *   2. The server gets to re-read the JWT and stamp the right
-           *      chrome from scratch.
-           *
-           * The platform admin can come back to their workspace via the
-           * "Volver al workspace" button in `/system`'s header, which is
-           * simply `<a href="/">` — no cookie work.
+           * Platform section. Visible only to PlatformAdmins. Lives in its
+           * own band so it's never visually mixed with customer
+           * workspaces. We keep the plain `<a>` (NOT the switcher handler)
+           * for the same reasons as before:
+           *   1. Hard navigation — going into `/system` must NOT touch
+           *      `wf_workspace`. The switcher API sets that cookie.
+           *   2. The server re-reads the JWT and stamps the amber chrome
+           *      from scratch.
            */}
           {isPlatformAdmin ? (
             <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-xs">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ShieldCheck size={13} />
-                  <span className="text-[11px] uppercase tracking-wide">Platform</span>
-                </div>
+              <DropdownMenuSeparator className="m-0" />
+              <DropdownMenuLabel className="flex items-center gap-2 px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <ShieldCheck size={12} className="shrink-0" />
+                Platform
+              </DropdownMenuLabel>
+              <div className="px-1 pb-1">
+                <DropdownMenuItem asChild className="cursor-pointer rounded-md px-2 py-2">
+                  <a href="/system" className="flex items-center gap-2">
+                    <ShieldCheck size={14} className="shrink-0 text-amber-500" />
+                    <span className="flex-1 text-sm font-medium">SevenF System Admin</span>
+                    {platformRole ? (
+                      <span className="shrink-0 rounded-full border border-amber-400/50 bg-amber-50/40 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                        {platformRole}
+                      </span>
+                    ) : null}
+                  </a>
+                </DropdownMenuItem>
               </div>
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <a href="/system" className="flex items-center gap-2">
-                  <ShieldCheck size={14} />
-                  <span className="flex-1">SevenF System Admin</span>
-                  {platformRole ? (
-                    <span className="shrink-0 rounded-full border border-amber-400/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                      {platformRole}
-                    </span>
-                  ) : null}
-                </a>
-              </DropdownMenuItem>
             </>
           ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault()
-              handleLogout()
-            }}
-            className="cursor-pointer"
-            disabled={switchingId !== null}
-          >
-            <LogOut size={14} />
-            <span>Sign out</span>
-          </DropdownMenuItem>
+
+          {/**
+           * Sign out lives in its own footer band — visually divorced
+           * from any workspace action so the operator never confuses
+           * "switching out" with "logging out". Keeping the same hard
+           * navigation flow (`window.location.href = "/api/auth/logout"`)
+           * we already had.
+           */}
+          <DropdownMenuSeparator className="m-0" />
+          <div className="px-1 py-1">
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault()
+                handleLogout()
+              }}
+              className="cursor-pointer rounded-md px-2 py-2 text-sm font-medium"
+              disabled={switchingId !== null}
+            >
+              <LogOut size={14} className="shrink-0" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </FooterShell>
