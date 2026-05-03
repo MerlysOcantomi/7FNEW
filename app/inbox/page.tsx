@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar"
+import { InboxTaxonomyChips } from "@/components/inbox/inbox-taxonomy-chips"
 import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
 import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
@@ -3129,6 +3130,16 @@ function InboxPageContent() {
             onAssignmentFilterChange={setAssignmentFilter}
             isTodoMode={isTodoMode}
           />
+          {/*
+           * Workspace taxonomy chips. Renders only when the active workspace has
+           * a non-empty `Workspace.config.taxonomies.inbox` list — see
+           * `core/workspace-taxonomies.ts`. For tenants without taxonomies the
+           * component returns `null` so the Inbox layout is identical to the
+           * pre-PR state. Display-only MVP: clicking a chip does not filter
+           * conversations yet (the wiring will arrive once classification is
+           * reconciled with the operator vocabulary).
+           */}
+          {!isTodoMode ? <InboxTaxonomyChips /> : null}
           <div className={cn("flex min-h-0 flex-1 flex-col gap-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
