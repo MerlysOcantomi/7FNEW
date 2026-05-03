@@ -34,42 +34,54 @@ async function resolvePlatformRoleForLogin(
   userId: string,
   emailLower: string,
 ): Promise<string | null> {
-  const raw = process.env.PLATFORM_BOOTSTRAP_EMAILS ?? ""
-  const bootstrapEmails = raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
+  /**
+   * IMPORTANT: this whole function must be best-effort. If `PlatformAdmin`
+   * is unavailable for ANY reason (table not yet migrated in this
+   * environment, transient DB outage, permission issue), we log and return
+   * `null` so the caller treats the user as "not a platform admin" and
+   * continues with a normal workspace login. We must NEVER break customer
+   * sign-in over a control-plane lookup.
+   */
+  try {
+    const raw = process.env.PLATFORM_BOOTSTRAP_EMAILS ?? ""
+    const bootstrapEmails = raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
 
-  if (bootstrapEmails.includes(emailLower)) {
-    const existing = await db.platformAdmin.findUnique({ where: { userId } })
-    if (!existing) {
-      try {
-        await db.platformAdmin.create({
-          data: {
-            userId,
-            role: "SUPER_ADMIN",
-            createdBy: "bootstrap-env",
-          },
-        })
-        console.warn(
-          "[7F Platform] Bootstrap promoted user to SUPER_ADMIN via PLATFORM_BOOTSTRAP_EMAILS:",
-          emailLower,
-        )
-      } catch (err) {
-        /**
-         * Bootstrap failure must NOT block login. The user just signs in
-         * without a platform role and we log the cause for ops triage.
-         */
-        console.error("[7F Platform] Bootstrap insert failed:", err)
+    if (bootstrapEmails.includes(emailLower)) {
+      const existing = await db.platformAdmin.findUnique({ where: { userId } })
+      if (!existing) {
+        try {
+          await db.platformAdmin.create({
+            data: {
+              userId,
+              role: "SUPER_ADMIN",
+              createdBy: "bootstrap-env",
+            },
+          })
+          console.warn(
+            "[7F Platform] Bootstrap promoted user to SUPER_ADMIN via PLATFORM_BOOTSTRAP_EMAILS:",
+            emailLower,
+          )
+        } catch (err) {
+          console.error("[7F Platform] Bootstrap insert failed:", err)
+        }
       }
     }
-  }
 
-  const row = await db.platformAdmin.findUnique({
-    where: { userId },
-    select: { role: true },
-  })
-  return row?.role ?? null
+    const row = await db.platformAdmin.findUnique({
+      where: { userId },
+      select: { role: true },
+    })
+    return row?.role ?? null
+  } catch (err) {
+    console.error(
+      "[7F Platform] resolvePlatformRoleForLogin failed; continuing login without platform role:",
+      err,
+    )
+    return null
+  }
 }
 
 export async function GET(request: NextRequest) {
