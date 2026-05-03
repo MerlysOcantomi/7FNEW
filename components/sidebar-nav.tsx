@@ -596,24 +596,33 @@ function InboxFocusedNav({
   }, [collapsed, onNavClick]);
 
   return (
-    <div className="space-y-2">
+    /**
+     * Compact gap between header / back-link / list. The previous `space-y-2` (8px)
+     * felt airy next to the new narrower aside; `space-y-1.5` (6px) keeps a clear
+     * separation while reclaiming a few pixels per row.
+     */
+    <div className="space-y-1.5">
       {/**
        * Focus header — visually distinct from the global sidebar so the operator
        * immediately knows they're in Inbox mode. Card surface + accent ring + a
        * small "by Fanny" helper, matching the existing Smart Inbox brand chip in
        * the global nav. When collapsed, the header collapses to just the icon.
+       *
+       * Compact pass: shrunk the icon chip (h-6 w-6 → h-5 w-5), trimmed padding
+       * (px-3 py-2 → px-2.5 py-1.5), and reduced the header gap. The label sizes
+       * stayed (11px / 9px) — both are already at the readable floor.
        */}
       <div
         className={cn(
-          "flex items-center gap-2.5 rounded-[10px] border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-surface)]/70 px-3 py-2",
-          collapsed && "justify-center px-2",
+          "flex items-center gap-2 rounded-[10px] border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-surface)]/70",
+          collapsed ? "justify-center px-2 py-1.5" : "px-2.5 py-1.5",
         )}
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shrink-0">
-          <Inbox size={14} strokeWidth={2} />
+        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shrink-0">
+          <Inbox size={12} strokeWidth={2} />
         </span>
         {!collapsed ? (
-          <div className="flex min-w-0 flex-col">
+          <div className="flex min-w-0 flex-col leading-tight">
             <span className="text-[11px] font-semibold text-[var(--app-sidebar-text)] tracking-wide">
               Smart Inbox
             </span>
@@ -630,6 +639,9 @@ function InboxFocusedNav({
        * which restores the default global sidebar via the `pathname` check at
        * the top of `SidebarNav`. We use a muted style so it doesn't compete
        * with the active inbox filter for visual weight.
+       *
+       * Compact pass: vertical padding `py-1.5` → `py-1` (saves 4px) and slimmer
+       * horizontal padding to align with the new tighter nav gutters.
        */}
       <Link
         href="/"
@@ -637,7 +649,7 @@ function InboxFocusedNav({
         title={collapsed ? "Back to 7F" : undefined}
         className={cn(
           "flex items-center gap-2 rounded-[8px] text-[11px] font-medium transition-colors",
-          collapsed ? "justify-center px-2 py-1.5" : "px-3 py-1.5",
+          collapsed ? "justify-center px-2 py-1" : "px-2.5 py-1",
           "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60",
         )}
       >
@@ -692,11 +704,39 @@ export function SidebarNav() {
     <aside
       className={cn(
         "hidden md:flex flex-col shrink-0 h-screen sticky top-0 bg-[var(--app-sidebar-bg)] text-[var(--app-sidebar-text)] overflow-y-auto overflow-x-hidden transition-all duration-300 border-r border-[var(--app-sidebar-border)]",
-        collapsed ? "w-14" : "w-56"
+        /**
+         * Width matrix:
+         *  - collapsed (any route)   → w-14   (icon-only column, unchanged)
+         *  - focused expanded (/inbox) → w-[13.75rem] (220px) — slightly narrower
+         *    than the global default so the three-column Inbox gets more room
+         *    while keeping every label readable. 220px is the lower edge of the
+         *    operator-friendly range; below ~200px "Needs action" starts
+         *    truncating in some font fallbacks.
+         *  - global expanded (other routes) → w-56 (224px, unchanged)
+         */
+        collapsed
+          ? "w-14"
+          : focused
+            ? "w-[13.75rem]"
+            : "w-56"
       )}
     >
       {/* Logo + Collapse Toggle */}
-      <div className={cn("flex items-center shrink-0 px-3 pt-5 pb-4", collapsed ? "justify-center" : "justify-between px-5")}>
+      <div
+        className={cn(
+          "flex items-center shrink-0",
+          collapsed
+            ? "justify-center px-3 pt-5 pb-4"
+            : focused
+              /**
+               * Compact chrome — only when /inbox + expanded. Vertical padding shrunk
+               * (~6px saved) and horizontal padding pulled in 4px so the header sits
+               * tighter against the narrower aside without feeling cropped.
+               */
+              ? "justify-between px-4 pt-3.5 pb-2.5"
+              : "justify-between px-5 pt-5 pb-4",
+        )}
+      >
         {/**
          * Logo is now a link to "/" so it doubles as the canonical "back to home"
          * affordance. Inside the inbox-focused mode this is reinforced by the
@@ -738,13 +778,27 @@ export function SidebarNav() {
       </div>
 
       {/* Search trigger */}
-      <div className={cn("shrink-0 px-3 pb-3", collapsed && "px-1.5")}>
+      <div
+        className={cn(
+          "shrink-0",
+          collapsed
+            ? "px-1.5 pb-3"
+            : focused
+              /** Compact: 1px less below + 0.5 less horizontal to ride the narrower column. */
+              ? "px-2.5 pb-2"
+              : "px-3 pb-3",
+        )}
+      >
         <button
           onClick={openSearch}
           className={cn(
             "w-full flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150",
-            collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
-            "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60"
+            collapsed
+              ? "px-2 py-2 justify-center"
+              : focused
+                ? "px-2.5 py-1.5"
+                : "px-3 py-2",
+            "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60",
           )}
           title="Search (Ctrl+K)"
         >
@@ -754,7 +808,17 @@ export function SidebarNav() {
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 pb-4 space-y-1", collapsed ? "px-1.5" : "px-3")}>
+      <nav
+        className={cn(
+          "flex-1",
+          collapsed
+            ? "px-1.5 pb-4 space-y-1"
+            : focused
+              /** Tighter inner gutters and bottom space for inbox mode. */
+              ? "px-2.5 pb-3 space-y-0.5"
+              : "px-3 pb-4 space-y-1",
+        )}
+      >
         {focused ? (
           <InboxFocusedNav collapsed={collapsed} />
         ) : (
@@ -775,7 +839,13 @@ export function SidebarNav() {
 
       {/* Footer */}
       {!collapsed && (
-        <div className="px-4 pb-5 pt-4 border-t border-[var(--app-sidebar-border)] shrink-0">
+        <div
+          className={cn(
+            "border-t border-[var(--app-sidebar-border)] shrink-0",
+            /** Inbox mode: trim ~6px vertical and 4px horizontal to match the chrome. */
+            focused ? "px-3 pb-4 pt-3" : "px-4 pb-5 pt-4",
+          )}
+        >
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-full bg-[var(--app-sidebar-surface)] flex items-center justify-center text-xs font-medium text-[var(--app-sidebar-text-muted)]">
               EA
