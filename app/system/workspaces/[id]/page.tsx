@@ -1,11 +1,12 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Building2, Users, Plug } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Building2, Gauge, Users, Plug } from "lucide-react"
 import { requireAnyPlatformRole } from "@/lib/auth/platform-auth"
 import {
   getWorkspaceSystemDetail,
   type SystemWorkspaceMemberSummary,
   type SystemWorkspaceChannelSummary,
+  type SystemWorkspacePlanSummary,
 } from "@core/system/workspaces"
 
 export const dynamic = "force-dynamic"
@@ -36,7 +37,7 @@ export default async function SystemWorkspaceDetailPage({
   const detail = await getWorkspaceSystemDetail(id)
   if (!detail) notFound()
 
-  const { workspace, members, channels } = detail
+  const { workspace, plan, members, channels } = detail
 
   return (
     <div className="flex flex-col gap-5">
@@ -74,12 +75,14 @@ export default async function SystemWorkspaceDetailPage({
             </code>
           </DetailItem>
           <DetailItem label="Slug">{workspace.slug}</DetailItem>
-          <DetailItem label="Plan">{workspace.plan}</DetailItem>
+          <DetailItem label="Plan">{plan.planLabel}</DetailItem>
           <DetailItem label="Vertical">{workspace.vertical ?? "—"}</DetailItem>
           <DetailItem label="Created">{formatDate(workspace.createdAt)}</DetailItem>
           <DetailItem label="Updated">{formatDate(workspace.updatedAt)}</DetailItem>
         </dl>
       </section>
+
+      <PlanCard plan={plan} vertical={workspace.vertical} />
 
       <section className="overflow-hidden rounded-lg border border-amber-200/60 bg-white/60 dark:border-amber-900/30 dark:bg-amber-950/10">
         <div className="flex items-center gap-2 border-b border-amber-200/60 px-3 py-2 text-amber-900 dark:border-amber-900/30 dark:text-amber-100">
@@ -234,6 +237,139 @@ function DetailItem({
         {label}
       </dt>
       <dd className="text-amber-950 dark:text-amber-50">{children}</dd>
+    </div>
+  )
+}
+
+/**
+ * Read-only "Plan & limits" card. Surfaces the resolved plan, current usage
+ * vs. limits, AI credit allowance, enabled modules and vertical.
+ *
+ * IMPORTANT: nothing here is enforced today. The card is a snapshot; member
+ * creation, channel connection and AI usage are NOT blocked by these
+ * numbers. The `seatLimitReached` / `channelLimitReached` flags only flip
+ * the cell colour so operators can spot tenants over their tier.
+ */
+function PlanCard({
+  plan,
+  vertical,
+}: {
+  plan: SystemWorkspacePlanSummary
+  vertical: string | null
+}) {
+  return (
+    <section className="rounded-lg border border-amber-200/60 bg-white/60 p-4 dark:border-amber-900/30 dark:bg-amber-950/10">
+      <div className="mb-3 flex items-center gap-2 text-amber-900 dark:text-amber-100">
+        <Gauge size={14} />
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide">
+          Plan &amp; limits
+        </h2>
+        {plan.isUnknownPlan ? (
+          <span
+            title={`Valor en BD: "${plan.rawPlan}". Fallback aplicado: free.`}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-400/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300"
+          >
+            <AlertTriangle size={10} />
+            Plan desconocido
+          </span>
+        ) : null}
+      </div>
+
+      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <DetailItem label="Plan">
+          <span className="inline-flex items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
+            {plan.planLabel}
+          </span>
+        </DetailItem>
+        <DetailItem label="Vertical">{vertical ?? "—"}</DetailItem>
+        <DetailItem label="AI credits / month">
+          {plan.aiCreditsMonthly === null
+            ? "Unlimited"
+            : plan.aiCreditsMonthly.toLocaleString("en-US")}
+        </DetailItem>
+        <DetailItem label="Seats">
+          <UsageInline
+            usage={plan.seatUsage}
+            limit={plan.includedSeats}
+            reached={plan.seatLimitReached}
+          />
+        </DetailItem>
+        <DetailItem label="Channels">
+          <UsageInline
+            usage={plan.channelUsage}
+            limit={plan.maxChannels}
+            reached={plan.channelLimitReached}
+          />
+        </DetailItem>
+        <DetailItem label="Plan key (raw)">
+          <code className="font-mono text-[11px] text-amber-900/80 dark:text-amber-100/80">
+            {plan.rawPlan || "—"}
+          </code>
+        </DetailItem>
+      </dl>
+
+      <div className="mt-4 flex flex-col gap-1">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-900/60 dark:text-amber-100/50">
+          Enabled modules
+        </span>
+        <ModuleChips modules={plan.enabledModules} />
+      </div>
+
+      <p className="mt-3 text-[10px] italic text-amber-900/50 dark:text-amber-100/40">
+        Limits are observational — no enforcement is wired yet.
+      </p>
+    </section>
+  )
+}
+
+function UsageInline({
+  usage,
+  limit,
+  reached,
+}: {
+  usage: number
+  limit: number | null
+  reached: boolean
+}) {
+  const limitText = limit === null ? "Unlimited" : limit
+  const cls = reached
+    ? "text-amber-700 dark:text-amber-300"
+    : "text-amber-950 dark:text-amber-50"
+  return (
+    <span
+      className={`tabular-nums ${cls}`}
+      title={reached ? "Límite alcanzado (no bloqueante)" : undefined}
+    >
+      {usage} / {limitText}
+    </span>
+  )
+}
+
+function ModuleChips({ modules }: { modules: readonly string[] }) {
+  if (!modules.length) {
+    return (
+      <span className="text-[11px] italic text-amber-900/50 dark:text-amber-100/40">
+        —
+      </span>
+    )
+  }
+  if (modules.length === 1 && modules[0] === "all") {
+    return (
+      <span className="inline-flex w-fit items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
+        All modules
+      </span>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {modules.map((m) => (
+        <span
+          key={m}
+          className="inline-flex items-center rounded-full bg-amber-100/70 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {m}
+        </span>
+      ))}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Building2 } from "lucide-react"
+import { AlertTriangle, Building2 } from "lucide-react"
 import { requireAnyPlatformRole } from "@/lib/auth/platform-auth"
 import { listWorkspacesForSystem, type SystemWorkspaceSummary } from "@core/system/workspaces"
 
@@ -53,9 +53,10 @@ export default async function SystemWorkspacesPage() {
                 <Th>Name</Th>
                 <Th>Slug</Th>
                 <Th>Plan</Th>
+                <Th>Modules</Th>
                 <Th>Owner</Th>
                 <Th>Owner email</Th>
-                <Th align="right">Members</Th>
+                <Th align="right">Seats</Th>
                 <Th align="right">Conversations</Th>
                 <Th align="right">Channels</Th>
                 <Th>Primary channel</Th>
@@ -67,7 +68,7 @@ export default async function SystemWorkspacesPage() {
               {workspaces.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-3 py-8 text-center text-xs text-amber-900/60 dark:text-amber-100/50"
                   >
                     No hay workspaces todavía.
@@ -108,9 +109,22 @@ function WorkspaceRow({ w }: { w: SystemWorkspaceSummary }) {
         </code>
       </Td>
       <Td>
-        <span className="inline-flex items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
-          {w.plan}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
+            {w.planLabel}
+          </span>
+          {w.isUnknownPlan ? (
+            <span
+              title={`Valor en BD: "${w.plan}". Fallback aplicado: free.`}
+              className="inline-flex items-center text-amber-700 dark:text-amber-300"
+            >
+              <AlertTriangle size={12} />
+            </span>
+          ) : null}
+        </div>
+      </Td>
+      <Td>
+        <ModulesCell modules={w.enabledModules} />
       </Td>
       <Td>
         {w.ownerName || w.ownerEmail ? (
@@ -130,9 +144,21 @@ function WorkspaceRow({ w }: { w: SystemWorkspaceSummary }) {
           <Muted>—</Muted>
         )}
       </Td>
-      <Td align="right">{w.memberCount}</Td>
+      <Td align="right">
+        <UsageCell
+          usage={w.seatUsage}
+          limit={w.includedSeats}
+          reached={w.seatLimitReached}
+        />
+      </Td>
       <Td align="right">{w.conversationCount}</Td>
-      <Td align="right">{w.channelCount}</Td>
+      <Td align="right">
+        <UsageCell
+          usage={w.channelUsage}
+          limit={w.maxChannels}
+          reached={w.channelLimitReached}
+        />
+      </Td>
       <Td>
         {w.primaryChannelExternalAccountId || w.primaryChannelType ? (
           <div className="flex flex-col leading-tight">
@@ -175,6 +201,69 @@ function Muted({ children }: { children: React.ReactNode }) {
     <span className="text-[11px] italic text-amber-900/40 dark:text-amber-100/30">
       {children}
     </span>
+  )
+}
+
+/**
+ * Renders `usage / limit` with `Unlimited` when limit is null. When the
+ * usage has reached/exceeded the limit, the cell is tinted amber to make
+ * the situation visible at a glance — this is observational only, no
+ * action is taken anywhere in the platform yet.
+ */
+function UsageCell({
+  usage,
+  limit,
+  reached,
+}: {
+  usage: number
+  limit: number | null
+  reached: boolean
+}) {
+  const limitText = limit === null ? "Unlimited" : limit
+  const cls = reached
+    ? "text-amber-700 dark:text-amber-300"
+    : "text-amber-950 dark:text-amber-50"
+  return (
+    <span className={`text-xs tabular-nums ${cls}`} title={reached ? "Límite alcanzado (no bloqueante)" : undefined}>
+      {usage} / {limitText}
+    </span>
+  )
+}
+
+/**
+ * Compact module list. Enterprise's "all" sentinel renders as a single chip
+ * "All modules". Long lists truncate to 3 chips with a "+N" tail; the full
+ * set lives on the detail page.
+ */
+function ModulesCell({ modules }: { modules: readonly string[] }) {
+  if (!modules.length) {
+    return <Muted>—</Muted>
+  }
+  if (modules.length === 1 && modules[0] === "all") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
+        All modules
+      </span>
+    )
+  }
+  const visible = modules.slice(0, 3)
+  const more = modules.length - visible.length
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((m) => (
+        <span
+          key={m}
+          className="inline-flex items-center rounded-full bg-amber-100/70 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {m}
+        </span>
+      ))}
+      {more > 0 ? (
+        <span className="text-[10px] italic text-amber-900/50 dark:text-amber-100/40">
+          +{more}
+        </span>
+      ) : null}
+    </div>
   )
 }
 

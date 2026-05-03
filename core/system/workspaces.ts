@@ -1,4 +1,9 @@
 import { db } from "@core/db"
+import {
+  hasReachedLimit,
+  resolveWorkspacePlan,
+  type TenantPlan,
+} from "@core/system/plans"
 
 /**
  * Public shape returned to the SevenF System Admin area.
@@ -12,6 +17,10 @@ import { db } from "@core/db"
  * reach the right person and quickly see which channel a tenant is using
  * without having to drill into the workspace detail page. The underlying
  * resolution rules live in `listWorkspacesForSystem` below.
+ *
+ * Plan fields are derived from `core/system/plans.ts` — `resolveWorkspacePlan`
+ * is permissive (unknown plans fall back to free with `isUnknownPlan=true`)
+ * so an operator can spot the misconfiguration without the page crashing.
  */
 export interface SystemWorkspaceSummary {
   id: string
@@ -35,6 +44,18 @@ export interface SystemWorkspaceSummary {
   primaryChannelType: string | null
   primaryChannelStatus: string | null
   lastChannelSyncAt: string | null
+  // Plan metadata — see `core/system/plans.ts`.
+  planKey: TenantPlan
+  planLabel: string
+  isUnknownPlan: boolean
+  includedSeats: number | null
+  seatUsage: number
+  seatLimitReached: boolean
+  maxChannels: number | null
+  channelUsage: number
+  channelLimitReached: boolean
+  enabledModules: readonly string[]
+  aiCreditsMonthly: number | null
 }
 
 /**
@@ -71,6 +92,26 @@ export interface SystemWorkspaceChannelSummary {
   createdAt: string
 }
 
+/**
+ * Plan + limits view of a single workspace, used by the detail page's
+ * "Plan & limits" card. All values are observational — no part of the
+ * platform enforces these limits yet.
+ */
+export interface SystemWorkspacePlanSummary {
+  planKey: TenantPlan
+  planLabel: string
+  isUnknownPlan: boolean
+  rawPlan: string
+  includedSeats: number | null
+  seatUsage: number
+  seatLimitReached: boolean
+  maxChannels: number | null
+  channelUsage: number
+  channelLimitReached: boolean
+  aiCreditsMonthly: number | null
+  enabledModules: readonly string[]
+}
+
 export interface SystemWorkspaceDetail {
   workspace: {
     id: string
@@ -81,6 +122,7 @@ export interface SystemWorkspaceDetail {
     createdAt: string
     updatedAt: string
   }
+  plan: SystemWorkspacePlanSummary
   members: SystemWorkspaceMemberSummary[]
   channels: SystemWorkspaceChannelSummary[]
 }
@@ -196,6 +238,15 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
       null
     const channel = w.channelConnections[0] ?? null
 
+    /**
+     * Plan resolution per row. The resolver is cheap (pure dictionary
+     * lookup) and never throws, so doing it inside the map keeps everything
+     * close to the data we have at hand.
+     */
+    const resolved = resolveWorkspacePlan({ plan: w.plan })
+    const memberCount = w._count.members
+    const channelCount = w._count.channelConnections
+
     return {
       id: w.id,
       nombre: w.nombre,
@@ -204,16 +255,27 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
       plan: w.plan,
       createdAt: w.createdAt.toISOString(),
       updatedAt: w.updatedAt.toISOString(),
-      memberCount: w._count.members,
+      memberCount,
       adminCount: adminCountByWorkspace.get(w.id) ?? 0,
       conversationCount: w._count.conversations,
-      channelCount: w._count.channelConnections,
+      channelCount,
       ownerName: owner?.user.nombre ?? null,
       ownerEmail: owner?.user.email ?? null,
       primaryChannelExternalAccountId: channel?.externalAccountId ?? null,
       primaryChannelType: channel?.channelType ?? null,
       primaryChannelStatus: channel?.status ?? null,
       lastChannelSyncAt: channel?.lastSyncAt ? channel.lastSyncAt.toISOString() : null,
+      planKey: resolved.planKey,
+      planLabel: resolved.label,
+      isUnknownPlan: resolved.isUnknownPlan,
+      includedSeats: resolved.limits.includedSeats,
+      seatUsage: memberCount,
+      seatLimitReached: hasReachedLimit(memberCount, resolved.limits.includedSeats),
+      maxChannels: resolved.limits.maxChannels,
+      channelUsage: channelCount,
+      channelLimitReached: hasReachedLimit(channelCount, resolved.limits.maxChannels),
+      enabledModules: resolved.enabledModules,
+      aiCreditsMonthly: resolved.limits.aiCreditsMonthly,
     }
   })
 }
@@ -290,6 +352,19 @@ export async function getWorkspaceSystemDetail(
     orderBy: { createdAt: "asc" },
   })
 
+  /**
+   * Plan resolution. Reuses the same permissive resolver as the listing,
+   * so an unknown plan string simply surfaces as `isUnknownPlan: true` in
+   * the detail card — no crash, no fallback that hides the misconfiguration.
+   *
+   * Counts come from the queries we already ran (`memberRows.length`,
+   * `channelRows.length`); we don't run extra `_count` calls because the
+   * full lists are already in memory.
+   */
+  const resolved = resolveWorkspacePlan({ plan: ws.plan })
+  const memberCount = memberRows.length
+  const channelCount = channelRows.length
+
   return {
     workspace: {
       id: ws.id,
@@ -299,6 +374,20 @@ export async function getWorkspaceSystemDetail(
       plan: ws.plan,
       createdAt: ws.createdAt.toISOString(),
       updatedAt: ws.updatedAt.toISOString(),
+    },
+    plan: {
+      planKey: resolved.planKey,
+      planLabel: resolved.label,
+      isUnknownPlan: resolved.isUnknownPlan,
+      rawPlan: resolved.rawPlan,
+      includedSeats: resolved.limits.includedSeats,
+      seatUsage: memberCount,
+      seatLimitReached: hasReachedLimit(memberCount, resolved.limits.includedSeats),
+      maxChannels: resolved.limits.maxChannels,
+      channelUsage: channelCount,
+      channelLimitReached: hasReachedLimit(channelCount, resolved.limits.maxChannels),
+      aiCreditsMonthly: resolved.limits.aiCreditsMonthly,
+      enabledModules: resolved.enabledModules,
     },
     members: memberRows.map((m) => ({
       userId: m.user.id,
