@@ -30,6 +30,13 @@ model Workspace {
   verticalKey String   @default("creative-agency")
   config      String?
   plan        String   @default("free")
+  /// Lifecycle status managed from the SevenF System Admin control plane.
+  /// Valid values are mirrored in `core/system/workspace-status.ts`:
+  ///   active | trial | suspended | archived
+  /// IMPORTANT: this column is observational — no part of the runtime
+  /// reads it to gate access. Suspension is administrative-only until a
+  /// future enforcement layer is added.
+  status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

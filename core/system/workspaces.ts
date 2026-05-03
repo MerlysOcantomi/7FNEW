@@ -4,6 +4,10 @@ import {
   resolveWorkspacePlan,
   type TenantPlan,
 } from "@core/system/plans"
+import {
+  resolveWorkspaceStatus,
+  type WorkspaceStatus,
+} from "@core/system/workspace-status"
 
 /**
  * Public shape returned to the SevenF System Admin area.
@@ -56,6 +60,13 @@ export interface SystemWorkspaceSummary {
   channelLimitReached: boolean
   enabledModules: readonly string[]
   aiCreditsMonthly: number | null
+  // Status metadata — see `core/system/workspace-status.ts`.
+  // `rawStatus` is the literal DB value; the resolver normalises and
+  // flags unknown values via `isUnknownStatus`.
+  rawStatus: string
+  statusKey: WorkspaceStatus
+  statusLabel: string
+  isUnknownStatus: boolean
 }
 
 /**
@@ -112,6 +123,22 @@ export interface SystemWorkspacePlanSummary {
   enabledModules: readonly string[]
 }
 
+/**
+ * Status view of a single workspace, used by the detail page's "Status"
+ * card. Mirrors `SystemWorkspacePlanSummary` for symmetry — the raw value
+ * is preserved alongside the resolved key so the UI can render an
+ * "unknown status" warning without losing the original DB value.
+ *
+ * NO ENFORCEMENT: nothing in the runtime reads this to gate access.
+ */
+export interface SystemWorkspaceStatusSummary {
+  statusKey: WorkspaceStatus
+  statusLabel: string
+  description: string
+  isUnknownStatus: boolean
+  rawStatus: string
+}
+
 export interface SystemWorkspaceDetail {
   workspace: {
     id: string
@@ -119,10 +146,12 @@ export interface SystemWorkspaceDetail {
     slug: string
     vertical: string | null
     plan: string
+    status: string
     createdAt: string
     updatedAt: string
   }
   plan: SystemWorkspacePlanSummary
+  status: SystemWorkspaceStatusSummary
   members: SystemWorkspaceMemberSummary[]
   channels: SystemWorkspaceChannelSummary[]
 }
@@ -185,6 +214,7 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
       slug: true,
       vertical: true,
       plan: true,
+      status: true,
       createdAt: true,
       updatedAt: true,
       _count: {
@@ -239,11 +269,12 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
     const channel = w.channelConnections[0] ?? null
 
     /**
-     * Plan resolution per row. The resolver is cheap (pure dictionary
-     * lookup) and never throws, so doing it inside the map keeps everything
-     * close to the data we have at hand.
+     * Plan + status resolution per row. Both resolvers are cheap (pure
+     * dictionary lookups) and never throw, so doing them inside the map
+     * keeps everything close to the data we have at hand.
      */
     const resolved = resolveWorkspacePlan({ plan: w.plan })
+    const resolvedStatus = resolveWorkspaceStatus({ status: w.status })
     const memberCount = w._count.members
     const channelCount = w._count.channelConnections
 
@@ -276,6 +307,10 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
       channelLimitReached: hasReachedLimit(channelCount, resolved.limits.maxChannels),
       enabledModules: resolved.enabledModules,
       aiCreditsMonthly: resolved.limits.aiCreditsMonthly,
+      rawStatus: resolvedStatus.rawStatus,
+      statusKey: resolvedStatus.statusKey,
+      statusLabel: resolvedStatus.label,
+      isUnknownStatus: resolvedStatus.isUnknownStatus,
     }
   })
 }
@@ -309,6 +344,7 @@ export async function getWorkspaceSystemDetail(
       slug: true,
       vertical: true,
       plan: true,
+      status: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -362,6 +398,7 @@ export async function getWorkspaceSystemDetail(
    * full lists are already in memory.
    */
   const resolved = resolveWorkspacePlan({ plan: ws.plan })
+  const resolvedStatus = resolveWorkspaceStatus({ status: ws.status })
   const memberCount = memberRows.length
   const channelCount = channelRows.length
 
@@ -372,6 +409,7 @@ export async function getWorkspaceSystemDetail(
       slug: ws.slug,
       vertical: ws.vertical ?? null,
       plan: ws.plan,
+      status: ws.status,
       createdAt: ws.createdAt.toISOString(),
       updatedAt: ws.updatedAt.toISOString(),
     },
@@ -388,6 +426,13 @@ export async function getWorkspaceSystemDetail(
       channelLimitReached: hasReachedLimit(channelCount, resolved.limits.maxChannels),
       aiCreditsMonthly: resolved.limits.aiCreditsMonthly,
       enabledModules: resolved.enabledModules,
+    },
+    status: {
+      statusKey: resolvedStatus.statusKey,
+      statusLabel: resolvedStatus.label,
+      description: resolvedStatus.description,
+      isUnknownStatus: resolvedStatus.isUnknownStatus,
+      rawStatus: resolvedStatus.rawStatus,
     },
     members: memberRows.map((m) => ({
       userId: m.user.id,

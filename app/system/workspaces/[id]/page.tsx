@@ -1,14 +1,25 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { AlertTriangle, ArrowLeft, Building2, Gauge, Users, Plug } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  CircleDot,
+  Gauge,
+  Users,
+  Plug,
+} from "lucide-react"
 import { requireAnyPlatformRole } from "@/lib/auth/platform-auth"
 import {
   getWorkspaceSystemDetail,
   type SystemWorkspaceMemberSummary,
   type SystemWorkspaceChannelSummary,
   type SystemWorkspacePlanSummary,
+  type SystemWorkspaceStatusSummary,
 } from "@core/system/workspaces"
+import type { WorkspaceStatus } from "@core/system/workspace-status"
 import { WorkspacePlanEditor } from "@/components/system/workspace-plan-editor"
+import { WorkspaceStatusEditor } from "@/components/system/workspace-status-editor"
 
 export const dynamic = "force-dynamic"
 
@@ -38,13 +49,13 @@ export default async function SystemWorkspaceDetailPage({
   const detail = await getWorkspaceSystemDetail(id)
   if (!detail) notFound()
 
-  const { workspace, plan, members, channels } = detail
+  const { workspace, plan, status, members, channels } = detail
 
   /**
-   * Mutation gate. Mirrors the API gate (`requirePlatformAdmin()` ≥ ADMIN)
-   * so SUPPORT/BILLING admins see the read-only PlanCard and a disabled
-   * editor with an explanatory note, instead of an action that would
-   * silently 403 on submit.
+   * Mutation gate. Mirrors the API gates (`requirePlatformAdmin()` ≥ ADMIN
+   * for both `/plan` and `/status`) so SUPPORT/BILLING admins see the
+   * read-only cards with disabled editors + an explanatory note, instead
+   * of actions that would silently 403 on submit.
    */
   const canMutate = platformRole === "SUPER_ADMIN" || platformRole === "ADMIN"
 
@@ -65,8 +76,12 @@ export default async function SystemWorkspaceDetailPage({
             {workspace.slug}
           </code>
           <span className="inline-flex items-center rounded-full border border-amber-300/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300">
-            {workspace.plan}
+            {plan.planLabel}
           </span>
+          <WorkspaceStatusBadge
+            statusKey={status.statusKey}
+            label={status.statusLabel}
+          />
         </div>
         <p className="text-xs text-amber-900/70 dark:text-amber-100/60">
           Read-only · No se muestran mensajes, contenido de inbox, ni credenciales.
@@ -85,11 +100,23 @@ export default async function SystemWorkspaceDetailPage({
           </DetailItem>
           <DetailItem label="Slug">{workspace.slug}</DetailItem>
           <DetailItem label="Plan">{plan.planLabel}</DetailItem>
+          <DetailItem label="Status">
+            <WorkspaceStatusBadge
+              statusKey={status.statusKey}
+              label={status.statusLabel}
+            />
+          </DetailItem>
           <DetailItem label="Vertical">{workspace.vertical ?? "—"}</DetailItem>
           <DetailItem label="Created">{formatDate(workspace.createdAt)}</DetailItem>
           <DetailItem label="Updated">{formatDate(workspace.updatedAt)}</DetailItem>
         </dl>
       </section>
+
+      <StatusCard
+        workspaceId={workspace.id}
+        status={status}
+        canMutate={canMutate}
+      />
 
       <PlanCard
         workspaceId={workspace.id}
@@ -360,6 +387,107 @@ function PlanCard({
       </p>
     </section>
   )
+}
+
+/**
+ * "Status" card. Mirrors the structure of `PlanCard`:
+ *   - Surfaces the resolved status + raw value.
+ *   - Renders the inline editor at the bottom (always visible so
+ *     SUPPORT/BILLING admins discover the gate; only ADMIN+ can submit).
+ *   - Footer reminder that nothing here is enforced.
+ *
+ * `isUnknownStatus` triggers a warning chip mirroring the plan card's
+ * "Plan desconocido" treatment, so an operator can immediately spot a
+ * misconfigured DB row.
+ */
+function StatusCard({
+  workspaceId,
+  status,
+  canMutate,
+}: {
+  workspaceId: string
+  status: SystemWorkspaceStatusSummary
+  canMutate: boolean
+}) {
+  return (
+    <section className="rounded-lg border border-amber-200/60 bg-white/60 p-4 dark:border-amber-900/30 dark:bg-amber-950/10">
+      <div className="mb-3 flex items-center gap-2 text-amber-900 dark:text-amber-100">
+        <CircleDot size={14} />
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide">
+          Status
+        </h2>
+        {status.isUnknownStatus ? (
+          <span
+            title={`Valor en BD: "${status.rawStatus}". Fallback aplicado: active.`}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-400/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300"
+          >
+            <AlertTriangle size={10} />
+            Status desconocido
+          </span>
+        ) : null}
+      </div>
+
+      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <DetailItem label="Status">
+          <WorkspaceStatusBadge
+            statusKey={status.statusKey}
+            label={status.statusLabel}
+          />
+        </DetailItem>
+        <DetailItem label="Status key (raw)">
+          <code className="font-mono text-[11px] text-amber-900/80 dark:text-amber-100/80">
+            {status.rawStatus || "—"}
+          </code>
+        </DetailItem>
+        <DetailItem label="Description">
+          <span className="text-[12px] text-amber-900 dark:text-amber-100">
+            {status.description}
+          </span>
+        </DetailItem>
+      </dl>
+
+      <div className="mt-4 border-t border-amber-200/50 pt-3 dark:border-amber-900/30">
+        <WorkspaceStatusEditor
+          workspaceId={workspaceId}
+          currentStatus={status.statusKey}
+          canMutate={canMutate}
+        />
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Status pill — same colour scheme as the listing's `StatusBadge`. Kept
+ * here as a local helper instead of importing from the listing because
+ * cross-page UI imports tend to drift; this is small and stable.
+ */
+function WorkspaceStatusBadge({
+  statusKey,
+  label,
+}: {
+  statusKey: WorkspaceStatus
+  label: string
+}) {
+  const cls = STATUS_BADGE_CLASS[statusKey]
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+const STATUS_BADGE_CLASS: Readonly<Record<WorkspaceStatus, string>> = {
+  active:
+    "border-emerald-300/60 text-emerald-700 dark:border-emerald-700/40 dark:text-emerald-300",
+  trial:
+    "border-sky-300/60 text-sky-700 dark:border-sky-700/40 dark:text-sky-300",
+  suspended:
+    "border-rose-300/60 text-rose-700 dark:border-rose-700/40 dark:text-rose-300",
+  archived:
+    "border-slate-300/60 text-slate-700 dark:border-slate-700/40 dark:text-slate-300",
 }
 
 function UsageInline({

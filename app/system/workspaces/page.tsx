@@ -2,6 +2,7 @@ import Link from "next/link"
 import { AlertTriangle, Building2 } from "lucide-react"
 import { requireAnyPlatformRole } from "@/lib/auth/platform-auth"
 import { listWorkspacesForSystem, type SystemWorkspaceSummary } from "@core/system/workspaces"
+import type { WorkspaceStatus } from "@core/system/workspace-status"
 
 /**
  * Read-only directory of every tenant in the platform.
@@ -53,6 +54,7 @@ export default async function SystemWorkspacesPage() {
                 <Th>Name</Th>
                 <Th>Slug</Th>
                 <Th>Plan</Th>
+                <Th>Status</Th>
                 <Th>Modules</Th>
                 <Th>Owner</Th>
                 <Th>Owner email</Th>
@@ -68,7 +70,7 @@ export default async function SystemWorkspacesPage() {
               {workspaces.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={13}
                     className="px-3 py-8 text-center text-xs text-amber-900/60 dark:text-amber-100/50"
                   >
                     No hay workspaces todavía.
@@ -116,6 +118,19 @@ function WorkspaceRow({ w }: { w: SystemWorkspaceSummary }) {
           {w.isUnknownPlan ? (
             <span
               title={`Valor en BD: "${w.plan}". Fallback aplicado: free.`}
+              className="inline-flex items-center text-amber-700 dark:text-amber-300"
+            >
+              <AlertTriangle size={12} />
+            </span>
+          ) : null}
+        </div>
+      </Td>
+      <Td>
+        <div className="flex items-center gap-1.5">
+          <StatusBadge statusKey={w.statusKey} label={w.statusLabel} />
+          {w.isUnknownStatus ? (
+            <span
+              title={`Valor en BD: "${w.rawStatus}". Fallback aplicado: active.`}
               className="inline-flex items-center text-amber-700 dark:text-amber-300"
             >
               <AlertTriangle size={12} />
@@ -265,6 +280,46 @@ function ModulesCell({ modules }: { modules: readonly string[] }) {
       ) : null}
     </div>
   )
+}
+
+/**
+ * Status pill. Color is intentionally subtle — these states are
+ * administrative metadata only (no enforcement yet) so we don't want to
+ * scream "danger" the way an outage banner would.
+ *
+ * Mapping (Tailwind tokens, kept inline because the set is tiny and
+ * stable enough that a className lookup wins over a styles file):
+ *   - active     → emerald (running, paying customers)
+ *   - trial      → sky (evaluating)
+ *   - suspended  → rose (administratively halted)
+ *   - archived   → slate (cold, historic)
+ */
+function StatusBadge({
+  statusKey,
+  label,
+}: {
+  statusKey: WorkspaceStatus
+  label: string
+}) {
+  const cls = STATUS_BADGE_CLASS[statusKey]
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+const STATUS_BADGE_CLASS: Readonly<Record<WorkspaceStatus, string>> = {
+  active:
+    "border-emerald-300/60 text-emerald-700 dark:border-emerald-700/40 dark:text-emerald-300",
+  trial:
+    "border-sky-300/60 text-sky-700 dark:border-sky-700/40 dark:text-sky-300",
+  suspended:
+    "border-rose-300/60 text-rose-700 dark:border-rose-700/40 dark:text-rose-300",
+  archived:
+    "border-slate-300/60 text-slate-700 dark:border-slate-700/40 dark:text-slate-300",
 }
 
 function Th({
