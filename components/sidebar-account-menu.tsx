@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo } from "react"
-import { LogOut, Building2, Loader2 } from "lucide-react"
+import { useMemo, useState } from "react"
+import { LogOut, Building2, Loader2, Check, AlertCircle } from "lucide-react"
 import { useUser } from "@/hooks/use-user"
-import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { useActiveWorkspace, type ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,7 +85,23 @@ function getInitials(name: string | null | undefined, email: string | undefined)
  */
 export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccountMenuProps) {
   const { user, loading: userLoading } = useUser()
-  const { workspace, loading: wsLoading } = useActiveWorkspace()
+  const { workspace, workspaces, loading: wsLoading } = useActiveWorkspace()
+
+  /**
+   * Workspace switcher state. We track which `workspaceId` is currently being
+   * activated so we can disable the buttons + show a spinner only on that row,
+   * and a small inline error to surface 403/network failures without dumping
+   * to the console alone.
+   *
+   * Security note: this state is purely UX. The decision of "can this user
+   * switch into workspace X" lives entirely on the server in
+   * `POST /api/workspaces/active`, which validates membership before flipping
+   * the cookie. The client list comes from `GET /api/workspaces`, which only
+   * returns the user's own memberships, so we don't render rows the server
+   * would refuse anyway — but we still trust only the server's response.
+   */
+  const [switchingId, setSwitchingId] = useState<string | null>(null)
+  const [switchError, setSwitchError] = useState<string | null>(null)
 
   const initials = useMemo(
     () => getInitials(user?.nombre, user?.email),
@@ -99,6 +115,54 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
      * user lands. A SPA-style `router.push` would keep the in-memory cache.
      */
     window.location.href = "/api/auth/logout"
+  }
+
+  /**
+   * Switch the active workspace. Hard-reload on success so every workspace-scoped
+   * fetch in the running app (Inbox conversations, channels, clients, todos,
+   * drafts, dashboards) re-runs against the new tenant. A `router.refresh()`
+   * alone would re-fetch server components but leave the in-memory client
+   * `useFetch` caches pointing at the previous workspace — that's the kind of
+   * UI cross-tenant leak the recent audit specifically warns against.
+   *
+   * Errors keep the dropdown open with an inline message; the user can pick
+   * another workspace or retry without re-opening the menu.
+   */
+  const handleSwitch = async (target: ActiveWorkspaceSummary) => {
+    if (!target?.id || target.id === workspace?.id) return
+    setSwitchError(null)
+    setSwitchingId(target.id)
+    try {
+      const res = await fetch("/api/workspaces/active", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ workspaceId: target.id }),
+      })
+      if (!res.ok) {
+        let message = `Could not switch workspace (HTTP ${res.status})`
+        try {
+          const json = await res.json()
+          const errMsg =
+            (json?.error?.message as string | undefined)
+            ?? (typeof json?.message === "string" ? json.message : undefined)
+          if (errMsg) message = errMsg
+        } catch {
+          /** Non-JSON response — keep the generic message. */
+        }
+        setSwitchError(message)
+        setSwitchingId(null)
+        return
+      }
+      /**
+       * Don't bother updating local state: the next paint will be a full
+       * reload, so flickering "switched" briefly here would be wasted work.
+       */
+      window.location.reload()
+    } catch (err) {
+      setSwitchError(err instanceof Error ? err.message : "Network error switching workspace")
+      setSwitchingId(null)
+    }
   }
 
   if (userLoading || !user) {
@@ -165,7 +229,7 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
         <DropdownMenuContent
           side={collapsed ? "right" : "top"}
           align={collapsed ? "start" : "end"}
-          className="min-w-[220px]"
+          className="min-w-[240px]"
         >
           <DropdownMenuLabel className="flex flex-col gap-0.5">
             <span className="truncate text-sm font-semibold">
@@ -176,22 +240,83 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {/**
+           * Workspace section. Two layouts share this slot:
+           *  - When the user has 0 or 1 workspaces, we render the original
+           *    static row (name + role pill) — there is nothing to switch to,
+           *    so a switcher list would be visual noise.
+           *  - When the user has 2+ memberships, we replace the static row with
+           *    a labelled list where each row is a `DropdownMenuItem`. The
+           *    active row is marked with a check icon and is non-interactive
+           *    (clicking it is a no-op so we don't fire a redundant POST).
+           */}
           <div className="px-2 py-1.5 text-xs">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Building2 size={13} />
-              <span className="text-[11px] uppercase tracking-wide">Workspace</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="truncate font-medium">
-                {workspace?.nombre ?? (wsLoading ? "Loading…" : "—")}
+              <span className="text-[11px] uppercase tracking-wide">
+                {workspaces.length > 1 ? "Switch workspace" : "Workspace"}
               </span>
-              {roleLabel ? (
-                <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {roleLabel}
-                </span>
-              ) : null}
             </div>
           </div>
+          {workspaces.length > 1 ? (
+            <div className="max-h-[260px] overflow-y-auto px-1 pb-1">
+              {workspaces.map((w) => {
+                const isActive = w.id === workspace?.id
+                const isSwitching = switchingId === w.id
+                const wRole = formatRoleLabel(w.role)
+                return (
+                  <DropdownMenuItem
+                    key={w.id}
+                    disabled={isActive || switchingId !== null}
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      handleSwitch(w)
+                    }}
+                    className={cn(
+                      "cursor-pointer items-start gap-2 py-1.5",
+                      isActive && "bg-accent/40",
+                    )}
+                  >
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
+                      {isSwitching ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : isActive ? (
+                        <Check size={12} />
+                      ) : null}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                      <span className="truncate font-medium">{w.nombre}</span>
+                      <span className="truncate text-[10px] text-muted-foreground">
+                        {w.slug}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {wRole}
+                    </span>
+                  </DropdownMenuItem>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="px-2 pb-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-medium">
+                  {workspace?.nombre ?? (wsLoading ? "Loading…" : "—")}
+                </span>
+                {roleLabel ? (
+                  <span className="shrink-0 rounded-full border border-[var(--surface-overlay-border)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {roleLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          )}
+          {switchError ? (
+            <div className="mx-2 mb-1 flex items-start gap-1.5 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+              <AlertCircle size={12} className="mt-0.5 shrink-0" />
+              <span className="leading-snug">{switchError}</span>
+            </div>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={(event) => {
@@ -199,6 +324,7 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
               handleLogout()
             }}
             className="cursor-pointer"
+            disabled={switchingId !== null}
           >
             <LogOut size={14} />
             <span>Sign out</span>
