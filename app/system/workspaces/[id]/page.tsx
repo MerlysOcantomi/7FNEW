@@ -8,6 +8,7 @@ import {
   type SystemWorkspaceChannelSummary,
   type SystemWorkspacePlanSummary,
 } from "@core/system/workspaces"
+import { WorkspacePlanEditor } from "@/components/system/workspace-plan-editor"
 
 export const dynamic = "force-dynamic"
 
@@ -32,12 +33,20 @@ export default async function SystemWorkspaceDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireAnyPlatformRole()
+  const { platformRole } = await requireAnyPlatformRole()
   const { id } = await params
   const detail = await getWorkspaceSystemDetail(id)
   if (!detail) notFound()
 
   const { workspace, plan, members, channels } = detail
+
+  /**
+   * Mutation gate. Mirrors the API gate (`requirePlatformAdmin()` ≥ ADMIN)
+   * so SUPPORT/BILLING admins see the read-only PlanCard and a disabled
+   * editor with an explanatory note, instead of an action that would
+   * silently 403 on submit.
+   */
+  const canMutate = platformRole === "SUPER_ADMIN" || platformRole === "ADMIN"
 
   return (
     <div className="flex flex-col gap-5">
@@ -82,7 +91,12 @@ export default async function SystemWorkspaceDetailPage({
         </dl>
       </section>
 
-      <PlanCard plan={plan} vertical={workspace.vertical} />
+      <PlanCard
+        workspaceId={workspace.id}
+        plan={plan}
+        vertical={workspace.vertical}
+        canMutate={canMutate}
+      />
 
       <section className="overflow-hidden rounded-lg border border-amber-200/60 bg-white/60 dark:border-amber-900/30 dark:bg-amber-950/10">
         <div className="flex items-center gap-2 border-b border-amber-200/60 px-3 py-2 text-amber-900 dark:border-amber-900/30 dark:text-amber-100">
@@ -251,11 +265,15 @@ function DetailItem({
  * the cell colour so operators can spot tenants over their tier.
  */
 function PlanCard({
+  workspaceId,
   plan,
   vertical,
+  canMutate,
 }: {
+  workspaceId: string
   plan: SystemWorkspacePlanSummary
   vertical: string | null
+  canMutate: boolean
 }) {
   return (
     <section className="rounded-lg border border-amber-200/60 bg-white/60 p-4 dark:border-amber-900/30 dark:bg-amber-950/10">
@@ -315,8 +333,22 @@ function PlanCard({
         <ModuleChips modules={plan.enabledModules} />
       </div>
 
+      {/**
+        * Plan editor lives at the bottom of the card. Always rendered so
+        * SUPPORT/BILLING discover the gate; only operable by ADMIN+.
+        */}
+      <div className="mt-4 border-t border-amber-200/50 pt-3 dark:border-amber-900/30">
+        <WorkspacePlanEditor
+          workspaceId={workspaceId}
+          currentPlan={plan.planKey}
+          canMutate={canMutate}
+        />
+      </div>
+
       <p className="mt-3 text-[10px] italic text-amber-900/50 dark:text-amber-100/40">
-        Limits are observational — no enforcement is wired yet.
+        Limits are observational — no enforcement is wired yet. Cambiar el
+        plan no factura ni reasigna módulos automáticamente fuera de su
+        nueva definición.
       </p>
     </section>
   )
