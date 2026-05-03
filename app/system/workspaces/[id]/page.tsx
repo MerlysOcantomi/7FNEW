@@ -336,11 +336,19 @@ function PlanCard({
       {/**
         * Plan editor lives at the bottom of the card. Always rendered so
         * SUPPORT/BILLING discover the gate; only operable by ADMIN+.
+        *
+        * `seatUsage` / `channelUsage` / `enabledModules` are passed in so
+        * the editor can show an accurate impact preview when a different
+        * plan is selected — current usage vs. the destination plan's caps,
+        * plus diffs of the modules included.
         */}
       <div className="mt-4 border-t border-amber-200/50 pt-3 dark:border-amber-900/30">
         <WorkspacePlanEditor
           workspaceId={workspaceId}
           currentPlan={plan.planKey}
+          seatUsage={plan.seatUsage}
+          channelUsage={plan.channelUsage}
+          currentEnabledModules={plan.enabledModules}
           canMutate={canMutate}
         />
       </div>
