@@ -53,9 +53,13 @@ export default async function SystemWorkspacesPage() {
                 <Th>Name</Th>
                 <Th>Slug</Th>
                 <Th>Plan</Th>
+                <Th>Owner</Th>
+                <Th>Owner email</Th>
                 <Th align="right">Members</Th>
                 <Th align="right">Conversations</Th>
                 <Th align="right">Channels</Th>
+                <Th>Primary channel</Th>
+                <Th>Last sync</Th>
                 <Th>Created</Th>
               </tr>
             </thead>
@@ -63,7 +67,7 @@ export default async function SystemWorkspacesPage() {
               {workspaces.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     className="px-3 py-8 text-center text-xs text-amber-900/60 dark:text-amber-100/50"
                   >
                     No hay workspaces todavía.
@@ -108,15 +112,69 @@ function WorkspaceRow({ w }: { w: SystemWorkspaceSummary }) {
           {w.plan}
         </span>
       </Td>
+      <Td>
+        {w.ownerName || w.ownerEmail ? (
+          <span className="text-xs text-amber-950 dark:text-amber-50">
+            {w.ownerName ?? w.ownerEmail}
+          </span>
+        ) : (
+          <Muted>No owner</Muted>
+        )}
+      </Td>
+      <Td>
+        {w.ownerEmail ? (
+          <span className="text-[11px] text-amber-900/80 dark:text-amber-100/70">
+            {w.ownerEmail}
+          </span>
+        ) : (
+          <Muted>—</Muted>
+        )}
+      </Td>
       <Td align="right">{w.memberCount}</Td>
       <Td align="right">{w.conversationCount}</Td>
       <Td align="right">{w.channelCount}</Td>
+      <Td>
+        {w.primaryChannelExternalAccountId || w.primaryChannelType ? (
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs text-amber-950 dark:text-amber-50">
+              {w.primaryChannelExternalAccountId ?? "—"}
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-amber-800/60 dark:text-amber-200/60">
+              {[w.primaryChannelType, w.primaryChannelStatus]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
+        ) : (
+          <Muted>No channel</Muted>
+        )}
+      </Td>
+      <Td>
+        {w.lastChannelSyncAt ? (
+          <span
+            title={new Date(w.lastChannelSyncAt).toISOString()}
+            className="text-xs text-amber-900/80 dark:text-amber-100/70"
+          >
+            {formatDate(w.lastChannelSyncAt)}
+          </span>
+        ) : (
+          <Muted>Never</Muted>
+        )}
+      </Td>
       <Td>
         <span title={new Date(w.createdAt).toISOString()} className="text-xs text-amber-900/70 dark:text-amber-100/60">
           {formatDate(w.createdAt)}
         </span>
       </Td>
     </tr>
+  )
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[11px] italic text-amber-900/40 dark:text-amber-100/30">
+      {children}
+    </span>
   )
 }
 

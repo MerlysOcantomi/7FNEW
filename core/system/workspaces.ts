@@ -7,6 +7,11 @@ import { db } from "@core/db"
  * UI by accident — even if the underlying Prisma model gains new fields.
  * No message content, no inbox payloads, no OAuth tokens, no credentials,
  * no per-user data. Counts only.
+ *
+ * Owner / primary-channel fields are derived metadata: they help operators
+ * reach the right person and quickly see which channel a tenant is using
+ * without having to drill into the workspace detail page. The underlying
+ * resolution rules live in `listWorkspacesForSystem` below.
  */
 export interface SystemWorkspaceSummary {
   id: string
@@ -16,9 +21,20 @@ export interface SystemWorkspaceSummary {
   plan: string
   createdAt: string
   updatedAt: string
+  // Counts
   memberCount: number
+  adminCount: number
   conversationCount: number
   channelCount: number
+  // Owner — first OWNER (or first ADMIN if no OWNER exists); null if neither.
+  ownerName: string | null
+  ownerEmail: string | null
+  // Primary channel — first ACTIVE ChannelConnection ranked by recency of
+  // sync; null if the workspace has no active channel.
+  primaryChannelExternalAccountId: string | null
+  primaryChannelType: string | null
+  primaryChannelStatus: string | null
+  lastChannelSyncAt: string | null
 }
 
 /**
@@ -70,6 +86,21 @@ export interface SystemWorkspaceDetail {
 }
 
 /**
+ * Role values that count as "leadership" for owner resolution. We pull both
+ * in a single relation read so the .map() loop can pick OWNER first and
+ * fall back to ADMIN without a second round-trip.
+ */
+const OWNER_RESOLUTION_ROLES = ["OWNER", "ADMIN"] as const
+
+/**
+ * Hard cap on how many leadership members we eagerly load per workspace.
+ * 5 is overkill in practice (a workspace usually has 1 owner + a few admins)
+ * but keeps the relation read bounded if a misconfigured tenant has dozens
+ * of admins.
+ */
+const OWNER_RESOLUTION_TAKE = 5
+
+/**
  * List every workspace in the platform, with safe metadata + aggregate counts.
  *
  * MUST be called only after `requirePlatformRole(...)` (the API route and
@@ -78,8 +109,31 @@ export interface SystemWorkspaceDetail {
  * non-platform context would leak the tenant list. Reviewers: keep call sites
  * minimal and always behind a platform gate.
  *
- * Counts use Prisma's `_count` aggregator, which is a SINGLE query joined on
- * the relation, not N+1. Cheap even with many workspaces.
+ * Query strategy: TWO queries total (no N+1).
+ *
+ *   1. `workspace.findMany` with relation reads for:
+ *      - Aggregate counts (`_count.members | conversations | channelConnections`).
+ *      - A small window of leadership members (OWNER+ADMIN, take=5, oldest
+ *        first) used to derive `ownerName` / `ownerEmail`.
+ *      - The single most recently-synced ACTIVE channel per workspace,
+ *        used to derive primary-channel fields.
+ *   2. `workspaceMember.groupBy` on role=ADMIN to get `adminCount` per
+ *      workspace — Prisma can't do conditional `_count` alongside an
+ *      unconditional `_count` on the same relation, so groupBy is the
+ *      cleanest single-query alternative.
+ *
+ * Owner resolution rule (per task brief):
+ *   - First OWNER ordered by `createdAt asc` (the founding owner).
+ *   - Fallback: first ADMIN ordered by `createdAt asc`.
+ *   - `null` if neither exists (orphaned tenant; operators see "No owner").
+ *
+ * Primary channel resolution rule (per task brief):
+ *   - First ACTIVE ChannelConnection ordered by `lastSyncAt DESC, createdAt DESC`.
+ *   - Tenants with no active channel return `null` for all four channel fields.
+ *
+ * Channel select is INTENTIONALLY narrow: NO `config`, NO `credentials`,
+ * NO `syncState`, NO `lastError`. Same whitelist discipline as
+ * `getWorkspaceSystemDetail`.
  */
 export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[]> {
   const rows = await db.workspace.findMany({
@@ -98,22 +152,70 @@ export async function listWorkspacesForSystem(): Promise<SystemWorkspaceSummary[
           channelConnections: true,
         },
       },
+      members: {
+        where: { role: { in: [...OWNER_RESOLUTION_ROLES] } },
+        select: {
+          role: true,
+          user: { select: { nombre: true, email: true } },
+        },
+        orderBy: { createdAt: "asc" },
+        take: OWNER_RESOLUTION_TAKE,
+      },
+      channelConnections: {
+        where: { status: "active" },
+        select: {
+          externalAccountId: true,
+          channelType: true,
+          status: true,
+          lastSyncAt: true,
+        },
+        orderBy: [{ lastSyncAt: "desc" }, { createdAt: "desc" }],
+        take: 1,
+      },
     },
     orderBy: { createdAt: "asc" },
   })
 
-  return rows.map((w) => ({
-    id: w.id,
-    nombre: w.nombre,
-    slug: w.slug,
-    vertical: w.vertical ?? null,
-    plan: w.plan,
-    createdAt: w.createdAt.toISOString(),
-    updatedAt: w.updatedAt.toISOString(),
-    memberCount: w._count.members,
-    conversationCount: w._count.conversations,
-    channelCount: w._count.channelConnections,
-  }))
+  /**
+   * adminCount per workspace: ONE groupBy across the platform. Mapping into
+   * a Map keeps lookup O(1) inside the .map below.
+   */
+  const adminCountRows = await db.workspaceMember.groupBy({
+    by: ["workspaceId"],
+    where: { role: "ADMIN" },
+    _count: { _all: true },
+  })
+  const adminCountByWorkspace = new Map<string, number>(
+    adminCountRows.map((r) => [r.workspaceId, r._count._all]),
+  )
+
+  return rows.map((w) => {
+    const owner =
+      w.members.find((m) => m.role === "OWNER") ??
+      w.members.find((m) => m.role === "ADMIN") ??
+      null
+    const channel = w.channelConnections[0] ?? null
+
+    return {
+      id: w.id,
+      nombre: w.nombre,
+      slug: w.slug,
+      vertical: w.vertical ?? null,
+      plan: w.plan,
+      createdAt: w.createdAt.toISOString(),
+      updatedAt: w.updatedAt.toISOString(),
+      memberCount: w._count.members,
+      adminCount: adminCountByWorkspace.get(w.id) ?? 0,
+      conversationCount: w._count.conversations,
+      channelCount: w._count.channelConnections,
+      ownerName: owner?.user.nombre ?? null,
+      ownerEmail: owner?.user.email ?? null,
+      primaryChannelExternalAccountId: channel?.externalAccountId ?? null,
+      primaryChannelType: channel?.channelType ?? null,
+      primaryChannelStatus: channel?.status ?? null,
+      lastChannelSyncAt: channel?.lastSyncAt ? channel.lastSyncAt.toISOString() : null,
+    }
+  })
 }
 
 /**
