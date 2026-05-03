@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { requireReadAccess, requireAdminAccess } from "@/lib/auth/workspace-auth"
-import { checkMembership, getWorkspaceWithResolvedConfig, setWorkspaceVertical, updateWorkspaceConfig } from "@/lib/workspace"
+import { requireViewerInWorkspace, requireAdminInWorkspace } from "@/lib/auth/workspace-auth"
+import { getWorkspaceWithResolvedConfig, setWorkspaceVertical, updateWorkspaceConfig } from "@/lib/workspace"
 import { getVerticalByKey, parseJsonConfig, type VerticalConfig } from "@/lib/verticals"
 import { db } from "@/lib/db"
 
@@ -9,11 +9,8 @@ type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireReadAccess()
     const { id } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    const { wsRole } = await requireViewerInWorkspace(id)
 
     const ws = await getWorkspaceWithResolvedConfig(id)
     if (!ws) return errorResponse("NOT_FOUND", "Workspace no encontrado", 404)
@@ -27,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       locale: ws.locale,
       config: parseJsonConfig(ws.config),
       resolvedConfig: ws.resolvedConfig,
-      role: member.role,
+      role: wsRole,
     })
   } catch (error) {
     return handleError(error, "Workspace")
@@ -36,11 +33,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireAdminAccess()
     const { id } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    await requireAdminInWorkspace(id)
 
     const body = await request.json()
     const { nombre, slug, verticalKey, config } = body as {

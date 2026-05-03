@@ -47,8 +47,18 @@ async function sendOutboundAsync(input: OutboundAsyncInput) {
 
   let connectionSender: ConnectionSender | null = null
   if (conv.connectionId) {
-    const conn = await db.channelConnection.findUnique({
-      where: { id: conv.connectionId },
+    /**
+     * Workspace-scoped lookup. The previous `findUnique({ where: { id } })` would happily
+     * return a row from another tenant if `conv.connectionId` were ever pointed at one
+     * (data anomaly, restore-from-backup mismatch, manual SQL). Sending an outbound email
+     * via a foreign workspace's SMTP credentials would be the worst kind of cross-tenant
+     * leak: customer A's reply going out from customer B's mail server. The compound
+     * `findFirst` filter eliminates that class of bug as defense-in-depth — even if the
+     * conversation row is malformed, we silently drop the connection here and the caller
+     * falls back to the env-level `INBOX_FROM_EMAIL` / `RESEND_FROM_EMAIL` instead.
+     */
+    const conn = await db.channelConnection.findFirst({
+      where: { id: conv.connectionId, workspaceId },
       select: { provider: true, config: true, credentials: true, externalAccountId: true },
     })
     if (conn) {

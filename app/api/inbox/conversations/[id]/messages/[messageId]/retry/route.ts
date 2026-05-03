@@ -50,8 +50,15 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     let connectionSender: ConnectionSender | null = null
     if (conv.connectionId) {
-      const conn = await db.channelConnection.findUnique({
-        where: { id: conv.connectionId },
+      /**
+       * Workspace-scoped lookup — same defense-in-depth as the initial send path. Retry
+       * runs out of band of the original send and may fire long after a connection has
+       * been re-keyed, deleted, or migrated. A `findUnique({ id })` could resurrect a
+       * stale or foreign credentials row; the compound `{ id, workspaceId }` filter
+       * guarantees we only ever resend through this tenant's own connection.
+       */
+      const conn = await db.channelConnection.findFirst({
+        where: { id: conv.connectionId, workspaceId },
         select: { provider: true, config: true, credentials: true, externalAccountId: true },
       })
       if (conn) {

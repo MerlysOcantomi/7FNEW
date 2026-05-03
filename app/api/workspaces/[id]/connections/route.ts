@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { requireAdminAccess } from "@/lib/auth/workspace-auth"
-import { checkMembership } from "@/lib/workspace"
+import { requireAdminInWorkspace } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import { encryptJson } from "@core/crypto"
 import { validateImapSmtp, resolveConfig } from "@modules/inbox/connection-validator"
@@ -12,11 +11,8 @@ const TAG = "[connections]"
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireAdminAccess()
     const { id } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    await requireAdminInWorkspace(id)
 
     const connections = await db.channelConnection.findMany({
       where: { workspaceId: id },
@@ -47,11 +43,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   let step = "init"
   try {
     step = "auth"
-    const { session } = await requireAdminAccess()
     const { id } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    await requireAdminInWorkspace(id)
 
     step = "parse-body"
     const body = await request.json()

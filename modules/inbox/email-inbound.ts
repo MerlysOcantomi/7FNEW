@@ -369,14 +369,24 @@ async function findWorkspaceScopedDuplicate(args: {
 // Backfill connectionId helper
 // ---------------------------------------------------------------------------
 
-async function backfillConnectionId(conversationId: string, connectionId: string) {
+async function backfillConnectionId(
+  conversationId: string,
+  connectionId: string,
+  workspaceId: string,
+) {
+  /**
+   * Workspace-scoped backfill: never resolve a Conversation by id alone. If the conversation
+   * happens to live in another tenant (data anomaly, race), updating it would persist a
+   * cross-tenant `connectionId` reference. The caller already resolved `workspaceId` from
+   * the inbound resolution chain, so we trust it as the tenancy oracle here.
+   */
   const existing = await db.conversation.findFirst({
-    where: { id: conversationId },
+    where: { id: conversationId, workspaceId },
     select: { connectionId: true },
   })
   if (existing && !existing.connectionId) {
-    await db.conversation.update({
-      where: { id: conversationId },
+    await db.conversation.updateMany({
+      where: { id: conversationId, workspaceId },
       data: { connectionId },
     })
   }
@@ -419,68 +429,115 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
   console.log(`${tag} from=${senderEmail} subject="${subject}"`)
 
   // ---- Resolve workspace & connection ----
+  /**
+   * Tenant routing must be deterministic. The previous implementation had three escape
+   * hatches that could deliver an email to the WRONG workspace:
+   *   1. `findFirst` over `ChannelConnection` with `externalAccountId IN (recipients)`
+   *      silently picked the first match if two workspaces had the same email account
+   *      (recovery after a re-connect, support@ collisions across tenants).
+   *   2. If no connection matched, it queried `Contact` GLOBALLY by sender email — so
+   *      a stranger emailing two tenants who happened to have a contact row in tenant A
+   *      would always land in tenant A.
+   *   3. As a last resort it fell back to `INBOUND_EMAIL_FALLBACK_WORKSPACE_ID`, which
+   *      meant any unroutable email ended up in whichever tenant the env var pointed at.
+   *
+   * The new policy: if we cannot resolve to a UNIQUE active ChannelConnection from the
+   * `to`/`cc` recipients, OR if the caller passed a `workspaceId` and we can verify it,
+   * we refuse to ingest the email and surface a clear error. The webhook caller is
+   * responsible for retrying or alerting; we never guess. This trades graceful degradation
+   * for tenant safety, which is the right trade for a SaaS multi-tenant product.
+   */
   let connectionId = input.connectionId ?? null
   let workspaceId = input.workspaceId
 
-  if (!workspaceId) {
-    const recipientAddresses = (input.to ?? []).map(extractEmailAddress)
-    if (recipientAddresses.length > 0) {
-      const connection = await db.channelConnection.findFirst({
-        where: {
-          channelType: "email",
-          status: "active",
-          externalAccountId: { in: recipientAddresses },
-        },
-        select: { id: true, workspaceId: true },
-      })
-      if (connection) {
-        workspaceId = connection.workspaceId
-        connectionId = connectionId ?? connection.id
-        console.log(`${tag} Routed by connection=${connection.id} workspace=${workspaceId}`)
-      }
+  if (workspaceId && connectionId) {
+    /** Caller knows the tenant and connection — verify they actually match before trusting them. */
+    const conn = await db.channelConnection.findFirst({
+      where: { id: connectionId, workspaceId },
+      select: { id: true },
+    })
+    if (!conn) {
+      console.error(`${tag} Provided connection=${connectionId} does not belong to workspace=${workspaceId}; refusing.`)
+      throw new Error("Inbound email: connectionId does not belong to provided workspaceId")
     }
   }
 
-  // ---- Resolve contact ----
-  let contactId: string
+  if (!workspaceId) {
+    const recipientAddresses = (input.to ?? []).map(extractEmailAddress)
+    const ccAddresses = (input.cc ?? []).map(extractEmailAddress)
+    const allRecipients = Array.from(new Set([...recipientAddresses, ...ccAddresses])).filter(Boolean)
 
-  if (workspaceId) {
-    const existingContact = await db.contact.findFirst({
-      where: { email: senderEmail, workspaceId },
-      orderBy: { lastSeenAt: "desc" },
-    })
-    if (existingContact) {
-      contactId = existingContact.id
-      await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
-    } else {
-      const contact = await db.contact.create({
-        data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
-      })
-      contactId = contact.id
+    if (allRecipients.length === 0) {
+      console.error(`${tag} No recipients on inbound email; cannot resolve tenant. Dropping.`)
+      throw new Error("Inbound email has no recipient addresses; cannot resolve workspace")
     }
+
+    /**
+     * Find ALL active email connections that match any recipient. We require a UNIQUE
+     * workspace match across the candidate set; multiple workspaces sharing the same
+     * `externalAccountId` is a misconfiguration we must not paper over by routing to one
+     * of them. The DB has `@@unique([workspaceId, externalAccountId])` per workspace, so
+     * collisions are only possible across workspaces.
+     */
+    const candidates = await db.channelConnection.findMany({
+      where: {
+        channelType: "email",
+        status: "active",
+        externalAccountId: { in: allRecipients },
+      },
+      select: { id: true, workspaceId: true, externalAccountId: true },
+    })
+
+    const uniqueWorkspaces = new Set(candidates.map((c) => c.workspaceId))
+    if (uniqueWorkspaces.size === 0) {
+      console.error(
+        `${tag} No active email connection matches recipients=[${allRecipients.join(",")}]. Dropping.`,
+      )
+      throw new Error("Inbound email: no active ChannelConnection matches any recipient address")
+    }
+    if (uniqueWorkspaces.size > 1) {
+      console.error(
+        `${tag} Recipients=[${allRecipients.join(",")}] map to multiple workspaces=[${Array.from(uniqueWorkspaces).join(",")}]; refusing ambiguous routing.`,
+      )
+      throw new Error("Inbound email: recipients match connections in multiple workspaces; routing is ambiguous")
+    }
+
+    /**
+     * Single workspace match. If there are multiple connections within that workspace
+     * (e.g. a primary + alias), we prefer the one whose `externalAccountId` is in the
+     * primary `to` list to maximise correctness; otherwise we take the first stable one.
+     * `connectionId` is allowed to be `null` only if the caller explicitly passes none
+     * and there is no recipient-driven match — but we just established there is one.
+     */
+    const chosen = candidates.find((c) => recipientAddresses.includes(c.externalAccountId))
+      ?? candidates[0]
+    workspaceId = chosen.workspaceId
+    connectionId = connectionId ?? chosen.id
+    console.log(
+      `${tag} Routed by connection=${chosen.id} workspace=${workspaceId} (${candidates.length} candidate(s))`,
+    )
+  }
+
+  if (!workspaceId) {
+    /** Defensive — the branches above should have set or thrown. */
+    console.error(`${tag} Workspace still unresolved after deterministic routing; dropping.`)
+    throw new Error("Inbound email: workspace could not be resolved")
+  }
+
+  // ---- Resolve contact (workspace-scoped only) ----
+  let contactId: string
+  const existingContact = await db.contact.findFirst({
+    where: { email: senderEmail, workspaceId },
+    orderBy: { lastSeenAt: "desc" },
+  })
+  if (existingContact) {
+    contactId = existingContact.id
+    await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
   } else {
-    const existingContact = await db.contact.findFirst({
-      where: { email: senderEmail },
-      orderBy: { lastSeenAt: "desc" },
+    const contact = await db.contact.create({
+      data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
     })
-    if (existingContact) {
-      workspaceId = existingContact.workspaceId
-      contactId = existingContact.id
-      await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
-    } else {
-      const fallbackWsId = process.env.INBOUND_EMAIL_FALLBACK_WORKSPACE_ID
-      if (!fallbackWsId) {
-        console.error("[email-inbound] No workspace resolved and INBOUND_EMAIL_FALLBACK_WORKSPACE_ID not set. Dropping email from:", senderEmail)
-        throw new Error("No workspace available for inbound email — set INBOUND_EMAIL_FALLBACK_WORKSPACE_ID or configure a channel connection")
-      }
-      const workspace = await db.workspace.findUnique({ where: { id: fallbackWsId } })
-      if (!workspace) throw new Error(`Fallback workspace ${fallbackWsId} not found`)
-      workspaceId = workspace.id
-      const contact = await db.contact.create({
-        data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
-      })
-      contactId = contact.id
-    }
+    contactId = contact.id
   }
 
   /**
@@ -518,13 +575,13 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
   if (threadMatch) {
     conversationId = threadMatch.conversationId
     matchedBy = threadMatch.matchedBy
-    if (connectionId) await backfillConnectionId(conversationId, connectionId)
+    if (connectionId) await backfillConnectionId(conversationId, connectionId, workspaceId)
   } else {
     const contactMatch = await matchConversationByContact(workspaceId, contactId)
     if (contactMatch) {
       conversationId = contactMatch.conversationId
       matchedBy = contactMatch.matchedBy
-      if (connectionId) await backfillConnectionId(conversationId, connectionId)
+      if (connectionId) await backfillConnectionId(conversationId, connectionId, workspaceId)
     } else {
       const conv = await db.conversation.create({
         data: {

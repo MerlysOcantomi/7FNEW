@@ -725,6 +725,19 @@ export async function setMessageTrashState(input: {
   return { id: input.messageId, metadata: next }
 }
 
+/**
+ * Thrown when the request body tries to assign a tenant-scoped foreign key (clienteId,
+ * proyectoId) whose target row lives in a different workspace. The caller is expected to
+ * map this to a 400 VALIDATION_ERROR — mirrors how invalid status transitions are
+ * surfaced ("Transición inválida …").
+ */
+export class CrossWorkspaceReferenceError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "CrossWorkspaceReferenceError"
+  }
+}
+
 export async function transitionConversation(input: {
   workspaceId: string
   conversationId: string
@@ -738,6 +751,49 @@ export async function transitionConversation(input: {
   if (!existing) return null
 
   const patch: Record<string, unknown> = { ...(input.data ?? {}) }
+
+  /**
+   * Tenant scoping for foreign-key fields injected from the request body. PATCH handlers
+   * accept `clienteId` / `proyectoId` so an operator can re-link a thread to an existing
+   * customer/project. Without this guard a member of workspace A who knows a row id in
+   * workspace B can attach the conversation to that foreign row, polluting Skina's UI
+   * with cross-tenant references and creating an export/leak vector. We validate each id
+   * against the active workspace BEFORE touching the database; explicit `null` means
+   * "unlink" and is allowed.
+   */
+  if (Object.prototype.hasOwnProperty.call(patch, "clienteId")) {
+    const clienteId = patch.clienteId
+    if (typeof clienteId === "string" && clienteId.length > 0) {
+      const cliente = await db.cliente.findFirst({
+        where: { id: clienteId, workspaceId: input.workspaceId },
+        select: { id: true },
+      })
+      if (!cliente) {
+        throw new CrossWorkspaceReferenceError(
+          `clienteId ${clienteId} no pertenece a este workspace`,
+        )
+      }
+    } else if (clienteId !== null && clienteId !== undefined) {
+      throw new CrossWorkspaceReferenceError("clienteId debe ser string o null")
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "proyectoId")) {
+    const proyectoId = patch.proyectoId
+    if (typeof proyectoId === "string" && proyectoId.length > 0) {
+      const proyecto = await db.proyecto.findFirst({
+        where: { id: proyectoId, workspaceId: input.workspaceId },
+        select: { id: true },
+      })
+      if (!proyecto) {
+        throw new CrossWorkspaceReferenceError(
+          `proyectoId ${proyectoId} no pertenece a este workspace`,
+        )
+      }
+    } else if (proyectoId !== null && proyectoId !== undefined) {
+      throw new CrossWorkspaceReferenceError("proyectoId debe ser string o null")
+    }
+  }
 
   if (input.requestedStatus) {
     const nextStatus = input.requestedStatus
@@ -757,9 +813,21 @@ export async function transitionConversation(input: {
     }
   }
 
-  return db.conversation.update({
-    where: { id: input.conversationId },
-    data: patch as Prisma.ConversationUpdateInput,
+  /**
+   * Workspace-scoped update. The previous `update({ where: { id } })` was safe in practice
+   * because the existence check above is workspace-scoped, but if a race between the
+   * existence check and the update changed the row's tenant (theoretical: deletes +
+   * id collision are unlikely but not impossible across restores), the unscoped update
+   * would still target the foreign row. `updateMany` with the compound filter is the
+   * defense-in-depth move; we re-fetch with includes afterwards to keep the response shape.
+   */
+  await db.conversation.updateMany({
+    where: { id: input.conversationId, workspaceId: input.workspaceId },
+    data: patch as Prisma.ConversationUpdateManyMutationInput,
+  })
+
+  return db.conversation.findFirst({
+    where: { id: input.conversationId, workspaceId: input.workspaceId },
     include: {
       contact: true,
       classification: true,

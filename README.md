@@ -63,7 +63,7 @@ cp .env.example .env
 | `INBOX_FROM_EMAIL` | For email | Sender email address |
 | `DEEPSEEK_API_KEY` | Optional | DeepSeek API key for reasoning mode |
 | `DISABLE_GOOGLE_AUTH` | Optional | Set to `true` for dev login mode |
-| `INBOUND_EMAIL_FALLBACK_WORKSPACE_ID` | Optional | Fallback workspace for unresolved inbound emails |
+| `INBOUND_EMAIL_FALLBACK_WORKSPACE_ID` | Deprecated | No longer used — inbound email is now routed deterministically via `ChannelConnection`. Setting this has no effect. |
 
 ### Database
 

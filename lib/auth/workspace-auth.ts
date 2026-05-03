@@ -6,5 +6,10 @@ export {
   requireWriteAccess,
   requireAdminAccess,
   requireOwnerAccess,
+  requireRoleInWorkspace,
+  requireViewerInWorkspace,
+  requireMemberInWorkspace,
+  requireAdminInWorkspace,
+  requireOwnerInWorkspace,
 } from "@core/auth/workspace-auth"
 export type { WorkspaceRole, WorkspaceAuth } from "@core/auth/workspace-auth"

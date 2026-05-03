@@ -1,18 +1,14 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { requireAdminAccess } from "@/lib/auth/workspace-auth"
-import { checkMembership } from "@/lib/workspace"
+import { requireAdminInWorkspace } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ id: string; connId: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireAdminAccess()
     const { id, connId } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    await requireAdminInWorkspace(id)
 
     const connection = await db.channelConnection.findFirst({
       where: { id: connId, workspaceId: id },
@@ -41,11 +37,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireAdminAccess()
     const { id, connId } = await params
-
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
+    await requireAdminInWorkspace(id)
 
     const existing = await db.channelConnection.findFirst({
       where: { id: connId, workspaceId: id },
@@ -73,9 +66,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       patch.isDefault = false
     }
 
-    const updated = await db.channelConnection.update({
-      where: { id: connId },
+    /**
+     * Re-scope the update by `{ id, workspaceId }` instead of `{ id }` alone. The previous
+     * `findFirst` already proves the connection belongs to this tenant, but the unscoped
+     * `update({ where: { id } })` would still flip a row from another workspace if a race
+     * deleted-then-recreated the row under a different workspace between the two calls.
+     * `updateMany` accepts compound filters and returns 0 instead of throwing on miss,
+     * which is the correct semantics here — the existence guard already returned 404.
+     */
+    await db.channelConnection.updateMany({
+      where: { id: connId, workspaceId: id },
       data: patch,
+    })
+    const updated = await db.channelConnection.findFirst({
+      where: { id: connId, workspaceId: id },
       select: {
         id: true,
         channelType: true,
@@ -97,18 +101,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { session } = await requireAdminAccess()
     const { id, connId } = await params
+    await requireAdminInWorkspace(id)
 
-    const member = await checkMembership(session.userId, id)
-    if (!member) return errorResponse("FORBIDDEN", "No tienes acceso a este workspace", 403)
-
-    const existing = await db.channelConnection.findFirst({
+    /**
+     * Use a workspace-scoped `deleteMany` instead of `delete({ where: { id } })` so the
+     * delete cannot affect a same-id row in another tenant under a race. `count === 0`
+     * means the connection was either never in this workspace or was already removed,
+     * both of which surface as 404 to the caller.
+     */
+    const result = await db.channelConnection.deleteMany({
       where: { id: connId, workspaceId: id },
     })
-    if (!existing) return errorResponse("NOT_FOUND", "Conexión no encontrada", 404)
+    if (result.count === 0) return errorResponse("NOT_FOUND", "Conexión no encontrada", 404)
 
-    await db.channelConnection.delete({ where: { id: connId } })
     return successResponse({ deleted: true })
   } catch (error) {
     return handleError(error, "ConnectionDelete")

@@ -8,6 +8,7 @@ export type WorkspaceResolveSource =
   | "x-workspace-id-header"
   | "wf_workspace_cookie"
   | "first_membership_fallback"
+  | "path-param"
 
 export class WorkspaceError extends Error {
   status: number

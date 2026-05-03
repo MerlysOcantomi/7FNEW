@@ -3,6 +3,7 @@ import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import {
+  CrossWorkspaceReferenceError,
   getConversationById,
   parseConversationJsonFields,
   transitionConversation,
@@ -123,6 +124,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         data,
       })
     } catch (error) {
+      if (error instanceof CrossWorkspaceReferenceError) {
+        /**
+         * 400 instead of 403: the operator IS authorised on this conversation; what they
+         * sent is a malformed body that references a row in another tenant. From the
+         * client's perspective this is "validation failed", not "you can't be here".
+         */
+        return errorResponse("VALIDATION_ERROR", error.message)
+      }
       if (error instanceof Error && error.message.startsWith("Transición inválida")) {
         return errorResponse("VALIDATION_ERROR", error.message)
       }
