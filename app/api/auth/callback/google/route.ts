@@ -18,6 +18,60 @@ function defaultSelfServeUserRole(): string {
   return "viewer"
 }
 
+/**
+ * Bootstrap helper for the SevenF System Admin area.
+ *
+ * `PLATFORM_BOOTSTRAP_EMAILS` is an opt-in CSV of emails that get auto-promoted
+ * to `PlatformAdmin{role: "SUPER_ADMIN"}` on first login. After the first
+ * successful bootstrap login in production the env var SHOULD be cleared so
+ * the door doesn't stay propped open. Existing PlatformAdmin rows are never
+ * downgraded — this only PROMOTES, never demotes.
+ *
+ * Returns the platform role the user should carry in their session JWT
+ * (`null` for everyone who isn't a PlatformAdmin).
+ */
+async function resolvePlatformRoleForLogin(
+  userId: string,
+  emailLower: string,
+): Promise<string | null> {
+  const raw = process.env.PLATFORM_BOOTSTRAP_EMAILS ?? ""
+  const bootstrapEmails = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+
+  if (bootstrapEmails.includes(emailLower)) {
+    const existing = await db.platformAdmin.findUnique({ where: { userId } })
+    if (!existing) {
+      try {
+        await db.platformAdmin.create({
+          data: {
+            userId,
+            role: "SUPER_ADMIN",
+            createdBy: "bootstrap-env",
+          },
+        })
+        console.warn(
+          "[7F Platform] Bootstrap promoted user to SUPER_ADMIN via PLATFORM_BOOTSTRAP_EMAILS:",
+          emailLower,
+        )
+      } catch (err) {
+        /**
+         * Bootstrap failure must NOT block login. The user just signs in
+         * without a platform role and we log the cause for ops triage.
+         */
+        console.error("[7F Platform] Bootstrap insert failed:", err)
+      }
+    }
+  }
+
+  const row = await db.platformAdmin.findUnique({
+    where: { userId },
+    select: { role: true },
+  })
+  return row?.role ?? null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
@@ -92,7 +146,23 @@ export async function GET(request: NextRequest) {
       const preferredMember = await checkMembership(user.id, preferredWorkspaceId)
       if (preferredMember) activeWorkspaceId = preferredWorkspaceId
     }
-    console.log("[7F Auth] Session created for:", user.email, "role:", user.role, "workspace:", activeWorkspaceId)
+
+    /**
+     * Stamp `PlatformAdmin.role` (if any) into the JWT claim so middleware in
+     * the Edge can gate `/system` without DB access. Bootstrap by env var
+     * also happens here, only promoting (never demoting) listed emails.
+     */
+    const platformRole = await resolvePlatformRoleForLogin(user.id, emailLower)
+    console.log(
+      "[7F Auth] Session created for:",
+      user.email,
+      "role:",
+      user.role,
+      "platform:",
+      platformRole ?? "none",
+      "workspace:",
+      activeWorkspaceId,
+    )
 
     const token = await createSession({
       userId: user.id,
@@ -100,6 +170,7 @@ export async function GET(request: NextRequest) {
       role: user.role,
       nombre: user.nombre,
       avatar: user.avatar,
+      platformRole,
     })
 
     const response = NextResponse.redirect(new URL("/", request.url))

@@ -8,6 +8,13 @@ export interface AuthUser {
   role: string
   nombre: string | null
   avatar: string | null
+  /**
+   * Platform-level role for the SevenF System Admin area (`/system`).
+   * `null` for ordinary users. Read from the session JWT via `/api/auth/me`,
+   * so this updates on next login after a promotion/revocation. UI is the
+   * cosmetic gate; the real authorisation lives server-side.
+   */
+  platformRole: string | null
 }
 
 interface UserContextValue {
@@ -19,6 +26,10 @@ interface UserContextValue {
   isEditor: boolean
   isViewer: boolean
   canEdit: boolean
+  /** True when the user has any PlatformAdmin row (regardless of which role). */
+  isPlatformAdmin: boolean
+  /** Raw platform role string when present, else null. */
+  platformRole: string | null
   refetch: () => void
   logout: () => void
 }
@@ -54,6 +65,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const role = user?.role ?? "viewer"
+  const platformRole = user?.platformRole ?? null
 
   const value: UserContextValue = {
     user,
@@ -64,6 +76,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     isEditor: role === "editor",
     isViewer: role === "viewer",
     canEdit: role === "admin" || role === "editor",
+    isPlatformAdmin: platformRole !== null,
+    platformRole,
     refetch: fetchUser,
     logout,
   }
@@ -83,6 +97,8 @@ export function useUser(): UserContextValue {
       isEditor: false,
       isViewer: true,
       canEdit: false,
+      isPlatformAdmin: false,
+      platformRole: null,
       refetch: () => {},
       logout: () => {},
     }

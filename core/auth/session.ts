@@ -11,6 +11,22 @@ export interface SessionUser {
   role: string
   nombre: string | null
   avatar: string | null
+  /**
+   * Optional platform-level role from `PlatformAdmin.role`. Stamped at login
+   * time. `null` for regular users (vast majority).
+   *
+   * Why a JWT claim and not a per-request DB lookup: the middleware runs in
+   * the Edge runtime where Prisma is unavailable. Carrying `platformRole` in
+   * the signed token lets the middleware gate `/system` and `/api/system`
+   * without round-tripping to the database.
+   *
+   * Trade-off: if a user is promoted/demoted in `PlatformAdmin` AFTER they
+   * received their current JWT, the change does not take effect until they
+   * re-login. Server-side handlers under `/api/system/**` MUST therefore
+   * still re-validate against the DB via `requirePlatformRole` (defence in
+   * depth) — the JWT is only a fast-path admission gate.
+   */
+  platformRole: string | null
 }
 
 function getSecret() {
@@ -26,6 +42,7 @@ export async function createSession(user: SessionUser): Promise<string> {
     role: user.role,
     nombre: user.nombre,
     avatar: user.avatar,
+    platformRole: user.platformRole,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -44,6 +61,12 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
       role: payload.role as string,
       nombre: (payload.nombre as string) ?? null,
       avatar: (payload.avatar as string) ?? null,
+      /**
+       * Backwards-compatible: tokens issued before this field existed will
+       * decode to `undefined` and we coerce to `null`. Those users keep their
+       * current session and gain `platformRole` on next login.
+       */
+      platformRole: (payload.platformRole as string | undefined) ?? null,
     }
   } catch {
     return null

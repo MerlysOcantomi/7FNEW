@@ -56,12 +56,25 @@ export async function POST(request: NextRequest) {
 
     const activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
 
+    /**
+     * Mirror the Google-callback behaviour: dev-login also reads `PlatformAdmin`
+     * so the issued JWT carries the same `platformRole` claim. Without this,
+     * dev-only sessions could not enter `/system` even if the user has a row.
+     * No bootstrap-by-env here; bootstrap should run through the Google flow
+     * to keep that path the single source of truth.
+     */
+    const platformRow = await db.platformAdmin.findUnique({
+      where: { userId: user.id },
+      select: { role: true },
+    })
+
     const token = await createSession({
       userId: user.id,
       email: user.email,
       role: user.role,
       nombre: user.nombre,
       avatar: user.avatar,
+      platformRole: platformRow?.role ?? null,
     })
 
     const cookie = buildSessionCookie(token)

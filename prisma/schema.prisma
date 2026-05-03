@@ -292,6 +292,29 @@ model User {
   workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   notifications Notification[]
   memberships   WorkspaceMember[]
+  platformAdmin PlatformAdmin?
+}
+
+// ── Platform / Control Plane ──
+//
+// PlatformAdmin grants access to the SevenF System Admin area (`/system`).
+// Membership here is COMPLETELY ORTHOGONAL to WorkspaceMember:
+//   - A PlatformAdmin is NOT automatically a member of any workspace.
+//   - Workspace data (Inbox, conversations, clients, etc.) is NEVER readable
+//     by virtue of being a PlatformAdmin. Reading customer data requires an
+//     explicit Impersonation flow (not yet implemented).
+//
+// `role` is a string instead of a Prisma enum to stay consistent with the rest
+// of this schema (sqlite/libsql + the existing string-based RBAC). Allowed
+// values are validated in `core/auth/platform-auth.ts`:
+//   SUPER_ADMIN | ADMIN | SUPPORT | BILLING.
+model PlatformAdmin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("SUPPORT")
+  createdAt DateTime @default(now())
+  createdBy String?  // userId of the platform admin who promoted this user, or "bootstrap-env" for env-driven bootstraps
 }
 
 model WorkspaceMember {

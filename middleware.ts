@@ -35,6 +35,24 @@ function getRequiredLevel(p: string): number {
   return ROLE_LEVEL.viewer
 }
 
+/**
+ * Routes that belong to the SevenF System Admin area (control plane).
+ *
+ * They are GATED at the Edge using the `platformRole` claim of the JWT, NOT
+ * the workspace-scoped `User.role`. Only users with a row in `PlatformAdmin`
+ * (and a fresh login that picked up the claim) may pass. Anyone else is
+ * bounced to the home page (UI) or rejected with 403 (API).
+ *
+ * NOTE: this is a fast-path admission gate. Server handlers under
+ * `/api/system/**` MUST still call `requirePlatformRole(...)` to re-check the
+ * DB so a revoked admin loses access immediately, even if their JWT is fresh.
+ */
+const PLATFORM_PATHS = ["/system", "/api/system"]
+
+function isPlatformPath(p: string): boolean {
+  return PLATFORM_PATHS.some((pp) => p === pp || p.startsWith(pp + "/"))
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -99,6 +117,27 @@ export async function middleware(request: NextRequest) {
 
     if (userLevel < requiredLevel) {
       return NextResponse.redirect(new URL("/?error=forbidden", request.url))
+    }
+
+    /**
+     * Platform gate. Runs AFTER the standard workspace-side checks above so
+     * unauthenticated users are bounced to /login first (handled higher up),
+     * and only authenticated users without `platformRole` see the platform
+     * 403. Tokens issued before this claim existed will simply not have it
+     * (`undefined`), which is treated as "not a platform admin" — those
+     * users keep working in their workspace as usual.
+     */
+    if (isPlatformPath(pathname)) {
+      const platformRole = payload.platformRole as string | undefined
+      if (!platformRole) {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            { success: false, error: { code: "NOT_PLATFORM_ADMIN", message: "Acceso restringido al control plane" } },
+            { status: 403 },
+          )
+        }
+        return NextResponse.redirect(new URL("/?error=forbidden_platform", request.url))
+      }
     }
 
     const headers = new Headers(request.headers)

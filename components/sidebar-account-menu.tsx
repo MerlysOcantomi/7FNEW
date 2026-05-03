@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { LogOut, Building2, Loader2, Check, AlertCircle } from "lucide-react"
+import { LogOut, Building2, Loader2, Check, AlertCircle, ShieldCheck } from "lucide-react"
 import { useUser } from "@/hooks/use-user"
 import { useActiveWorkspace, type ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import {
@@ -84,7 +84,7 @@ function getInitials(name: string | null | undefined, email: string | undefined)
  *     and "Loading…" / "Sign in…" labels. We never show stale account info.
  */
 export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccountMenuProps) {
-  const { user, loading: userLoading } = useUser()
+  const { user, loading: userLoading, isPlatformAdmin, platformRole } = useUser()
   const { workspace, workspaces, loading: wsLoading } = useActiveWorkspace()
 
   /**
@@ -316,6 +316,44 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
               <span className="leading-snug">{switchError}</span>
             </div>
+          ) : null}
+          {/**
+           * Platform section. Visible only to PlatformAdmins. Shown as a
+           * SEPARATE section after the workspace switcher so it's never
+           * confused with a customer workspace. We use a plain `<a>` (not
+           * next/link, not the workspace switcher handler) for two reasons:
+           *
+           *   1. It's a HARD navigation. Going into `/system` must NOT touch
+           *      `wf_workspace`; using the switcher API would set that
+           *      cookie and corrupt the active workspace context.
+           *   2. The server gets to re-read the JWT and stamp the right
+           *      chrome from scratch.
+           *
+           * The platform admin can come back to their workspace via the
+           * "Volver al workspace" button in `/system`'s header, which is
+           * simply `<a href="/">` — no cookie work.
+           */}
+          {isPlatformAdmin ? (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <ShieldCheck size={13} />
+                  <span className="text-[11px] uppercase tracking-wide">Platform</span>
+                </div>
+              </div>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <a href="/system" className="flex items-center gap-2">
+                  <ShieldCheck size={14} />
+                  <span className="flex-1">SevenF System Admin</span>
+                  {platformRole ? (
+                    <span className="shrink-0 rounded-full border border-amber-400/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                      {platformRole}
+                    </span>
+                  ) : null}
+                </a>
+              </DropdownMenuItem>
+            </>
           ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
