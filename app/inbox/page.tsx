@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell"
 import { ConversationList } from "@/components/inbox/conversation-list"
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar"
 import { InboxTaxonomyChips } from "@/components/inbox/inbox-taxonomy-chips"
+import { ConversationCategoryEditor } from "@/components/inbox/conversation-category-editor"
 import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
 import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
@@ -82,6 +83,12 @@ interface ConversationListItem {
   subject: string | null
   summary: string | null
   intent: string | null
+  /**
+   * Operator-assigned category drawn from `Workspace.config.taxonomies.inbox`.
+   * Independent of `intent` (AI classifier output) — `category` is set manually
+   * via the chip bar / category editor. `null` means "uncategorised".
+   */
+  category: string | null
   urgency: string
   leadScore: number | null
   assignedTo: string | null
@@ -422,6 +429,16 @@ function InboxPageContent() {
    * by the ConversationList component to keep the bar uncrowded.
    */
   const [senderFilter, setSenderFilter] = useState<string>("all")
+  /**
+   * Workspace category filter (controlled by `<InboxTaxonomyChips>`).
+   * `null` means "all categories"; otherwise the value is one of the
+   * labels from `Workspace.config.taxonomies.inbox` (sanitised by
+   * `core/workspace-taxonomies.ts`). Filtering runs CLIENT-SIDE on the
+   * already loaded page — same pattern as `intentStatusFilter` and
+   * `senderFilter` — to avoid a backend round-trip and to keep the
+   * existing `/api/inbox/conversations` contract unchanged.
+   */
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [members, setMembers] = useState<WorkspaceMemberOption[]>([])
@@ -745,7 +762,9 @@ function InboxPageContent() {
    * this UI contract.
    */
   const conversationsAfterUserFilters = useMemo(() => {
-    if (intentStatusFilter === "all" && senderFilter === "all") return conversationsForList
+    if (intentStatusFilter === "all" && senderFilter === "all" && categoryFilter === null) {
+      return conversationsForList
+    }
 
     return conversationsForList.filter((c) => {
       if (senderFilter !== "all") {
@@ -757,9 +776,20 @@ function InboxPageContent() {
         if (intentStatusFilter === "done" && status !== "done") return false
         if (intentStatusFilter === "open" && status === "done") return false
       }
+      /**
+       * Category filter. `null` means "all"; an active value drops every
+       * conversation whose `category` doesn't match the chip exactly
+       * (case-sensitive). Conversations with `category === null`
+       * (uncategorised) are intentionally excluded when a chip is active —
+       * "show me Bugs" should not include uncategorised threads.
+       */
+      if (categoryFilter !== null) {
+        const cat = (c as { category?: string | null }).category ?? null
+        if (cat !== categoryFilter) return false
+      }
       return true
     })
-  }, [conversationsForList, intentStatusFilter, senderFilter])
+  }, [conversationsForList, intentStatusFilter, senderFilter, categoryFilter])
 
   /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
   const inboxTerminalRescueActive = useMemo(() => {
@@ -3131,15 +3161,20 @@ function InboxPageContent() {
             isTodoMode={isTodoMode}
           />
           {/*
-           * Workspace taxonomy chips. Renders only when the active workspace has
-           * a non-empty `Workspace.config.taxonomies.inbox` list — see
-           * `core/workspace-taxonomies.ts`. For tenants without taxonomies the
-           * component returns `null` so the Inbox layout is identical to the
-           * pre-PR state. Display-only MVP: clicking a chip does not filter
-           * conversations yet (the wiring will arrive once classification is
-           * reconciled with the operator vocabulary).
+           * Workspace taxonomy chips. Renders only when the active workspace
+           * has a non-empty `Workspace.config.taxonomies.inbox` list — see
+           * `core/workspace-taxonomies.ts`. For tenants without taxonomies
+           * the component returns `null` so the Inbox layout is identical to
+           * the pre-PR state. Selection is now FUNCTIONAL: clicking a chip
+           * filters the conversation list by `Conversation.category` (set
+           * manually via `<ConversationCategoryEditor>` on the thread).
            */}
-          {!isTodoMode ? <InboxTaxonomyChips /> : null}
+          {!isTodoMode ? (
+            <InboxTaxonomyChips
+              selected={categoryFilter}
+              onSelectedChange={setCategoryFilter}
+            />
+          ) : null}
           <div className={cn("flex min-h-0 flex-1 flex-col gap-3", DESKTOP_INBOX_GRID)}>
           <div
             className={cn(
@@ -3313,6 +3348,26 @@ function InboxPageContent() {
 
                   {selected && (
                     <>
+                      {/*
+                        Workspace category editor. Renders only when the active workspace
+                        has a non-empty `taxonomies.inbox` (the editor short-circuits to
+                        `null` otherwise, so tenants without taxonomies see no extra
+                        chrome). On save we refetch BOTH the list and the detail so the
+                        chip filter and any list rows reflect the new value immediately.
+                        `canMutate` mirrors the API gate (>= MEMBER); VIEWER sees a
+                        disabled selector with an explanatory tooltip.
+                      */}
+                      <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-[var(--inbox-list-border)]/60 bg-[var(--inbox-list-surface)]/60 px-3 py-1.5">
+                        <ConversationCategoryEditor
+                          conversationId={selected.id}
+                          value={(selected as { category?: string | null }).category ?? null}
+                          canMutate={Boolean(currentUserId)}
+                          onSaved={() => {
+                            refetch()
+                            refetchDetail()
+                          }}
+                        />
+                      </div>
                       {/*
                         Phase 3 — internal note TODO suggestion banner. Renders only when the
                         operator just saved an internal note whose body started with `TODO:`,

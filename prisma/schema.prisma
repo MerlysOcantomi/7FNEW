@@ -461,6 +461,13 @@ model Conversation {
   subject       String?
   summary       String?
   intent        String?
+  /// Operator-assigned category drawn from the workspace taxonomy
+  /// (`Workspace.config.taxonomies.inbox`). Free-form `String?` because
+  /// each tenant defines its own vocabulary; validation against the
+  /// taxonomy lives in the PATCH endpoint, not at the DB level. Stays
+  /// SEPARATE from `intent` (AI-generated free text) on purpose:
+  /// `category` is operator-controlled, `intent` is classifier output.
+  category      String?
   sector        String?
   leadScore     Int?
   urgency       String   @default("media")
