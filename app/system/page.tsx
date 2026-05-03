@@ -1,5 +1,6 @@
+import Link from "next/link"
 import { getSessionFromCookies } from "@/lib/auth/session"
-import { Building2, Users, ShieldCheck, ScrollText, CreditCard } from "lucide-react"
+import { Building2, Users, ShieldCheck, ScrollText, CreditCard, ArrowRight } from "lucide-react"
 
 /**
  * Welcome / landing page of the SevenF System Admin area.
@@ -42,13 +43,14 @@ export default async function SystemHomePage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-amber-900/70 dark:text-amber-100/60">
-          Próximas secciones
+          Secciones
         </h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <PlannedCard
+          <ActiveCard
+            href="/system/workspaces"
             icon={<Building2 size={14} />}
             title="Workspaces"
-            description="Listar tenants, ver plan, cambiar status, suspender / restaurar."
+            description="Listado read-only de tenants con plan, miembros, conversaciones y canales."
           />
           <PlannedCard
             icon={<Users size={14} />}
@@ -98,5 +100,41 @@ function PlannedCard({
         {description}
       </p>
     </div>
+  )
+}
+
+/**
+ * Active section card. Visually distinguishable from `PlannedCard` (no "Soon"
+ * badge, different hover treatment) and uses `next/link` because it stays
+ * within the `/system` layout — no need to abandon the platform shell.
+ */
+function ActiveCard({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex flex-col gap-1.5 rounded-md border border-amber-300/70 bg-white/80 p-3 transition-colors hover:border-amber-400 hover:bg-white dark:border-amber-700/40 dark:bg-amber-950/20 dark:hover:bg-amber-950/40"
+    >
+      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
+        <span className="text-amber-700 dark:text-amber-300">{icon}</span>
+        <span className="text-sm font-medium">{title}</span>
+        <ArrowRight
+          size={12}
+          className="ml-auto text-amber-700/60 transition-transform group-hover:translate-x-0.5 dark:text-amber-300/60"
+        />
+      </div>
+      <p className="text-xs leading-snug text-amber-900/70 dark:text-amber-100/70">
+        {description}
+      </p>
+    </Link>
   )
 }
