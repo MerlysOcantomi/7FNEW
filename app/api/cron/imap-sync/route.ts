@@ -3,6 +3,30 @@ import { db } from "@core/db"
 import { syncImapConnection } from "@modules/inbox/imap-sync"
 
 /**
+ * Route handler config — important for cron correctness.
+ *
+ * `runtime = "nodejs"` — Prisma cannot run on the Edge runtime; we lock the
+ *   route to Node so a future global config change can't accidentally move
+ *   it. (Node is the default today; this is defence-in-depth.)
+ *
+ * `dynamic = "force-dynamic"` + `revalidate = 0` — Next.js 14+ may cache
+ *   GET route-handler responses at the framework/CDN layer. Vercel Cron
+ *   calls this endpoint via `GET`, so without forcing dynamic the second
+ *   tick onward could be served from cache and the actual IMAP sync would
+ *   never run. Auth + DB writes mean this MUST execute on every request.
+ *
+ * `maxDuration = 60` — IMAP sync over multiple workspaces or a slow IMAP
+ *   server can take longer than the 10-second default. 60s is the maximum
+ *   allowed by Vercel for cron functions on the Pro plan; Hobby will cap
+ *   at 10s regardless. Setting this gives Pro deployments enough headroom
+ *   so `lastSyncAt` always gets persisted even on a slow tick.
+ */
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const maxDuration = 60
+
+/**
  * Scheduled IMAP sync — automatic ingestion for active email connections.
  *
  * Runs on a Vercel Cron schedule (see `vercel.json`). Both `GET` and `POST`
