@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getSessionFromCookies } from "@/lib/auth/session"
 import { ShieldCheck, ArrowLeft, LogOut } from "lucide-react"
+import { SystemNav } from "@/components/system/system-nav"
 
 export const metadata = {
   title: "SevenF System Admin",
@@ -15,7 +16,12 @@ export const metadata = {
  *     (no `SidebarNav`, no inbox/clients/etc). The amber accent makes it
  *     visually unambiguous that you are in the control plane and NOT inside
  *     a customer workspace.
- *   - "Volver al workspace" is a hard link to `/` — it does NOT manipulate
+ *   - Internal navigation lives in `SystemNav` (sections: Dashboard,
+ *     Workspaces, Users, Allowed emails, Audit). It uses `next/link`, so
+ *     clicks stay inside the platform shell — no full reload, no cookie
+ *     side-effects.
+ *   - "Volver al workspace" stays separate from the section nav because it
+ *     EXITS the shell. It's a hard link to `/` — it does NOT manipulate
  *     `wf_workspace`, it just takes the admin back to the same workspace
  *     they were already in (the cookie was never modified by entering
  *     `/system`).
@@ -75,6 +81,8 @@ export default async function SystemLayout({
           </div>
         </div>
       </header>
+
+      <SystemNav />
 
       <main className="flex flex-1 flex-col">
         <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-6 md:py-8">
