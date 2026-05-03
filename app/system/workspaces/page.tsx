@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { requireAnyPlatformRole } from "@/lib/auth/platform-auth"
 import { listWorkspacesForSystem, type SystemWorkspaceSummary } from "@core/system/workspaces"
@@ -84,7 +85,12 @@ function WorkspaceRow({ w }: { w: SystemWorkspaceSummary }) {
     <tr className="text-amber-950 dark:text-amber-50">
       <Td>
         <div className="flex flex-col leading-tight">
-          <span className="font-medium">{w.nombre}</span>
+          <Link
+            href={`/system/workspaces/${w.id}`}
+            className="font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-100"
+          >
+            {w.nombre}
+          </Link>
           {w.vertical ? (
             <span className="text-[10px] uppercase tracking-wide text-amber-800/60 dark:text-amber-200/60">
               {w.vertical}
