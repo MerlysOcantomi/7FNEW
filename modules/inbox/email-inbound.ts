@@ -508,9 +508,14 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
      * primary `to` list to maximise correctness; otherwise we take the first stable one.
      * `connectionId` is allowed to be `null` only if the caller explicitly passes none
      * and there is no recipient-driven match — but we just established there is one.
+     *
+     * `externalAccountId` is `String?` in Prisma, so we narrow it before calling `includes`
+     * to keep TypeScript happy under `strictNullChecks` and to avoid matching a connection
+     * with a null account against a recipient list.
      */
-    const chosen = candidates.find((c) => recipientAddresses.includes(c.externalAccountId))
-      ?? candidates[0]
+    const chosen = candidates.find(
+      (c) => c.externalAccountId !== null && recipientAddresses.includes(c.externalAccountId),
+    ) ?? candidates[0]
     workspaceId = chosen.workspaceId
     connectionId = connectionId ?? chosen.id
     console.log(
