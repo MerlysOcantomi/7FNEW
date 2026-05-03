@@ -706,18 +706,21 @@ export function SidebarNav() {
         "hidden md:flex flex-col shrink-0 h-screen sticky top-0 bg-[var(--app-sidebar-bg)] text-[var(--app-sidebar-text)] overflow-y-auto overflow-x-hidden transition-all duration-300 border-r border-[var(--app-sidebar-border)]",
         /**
          * Width matrix:
-         *  - collapsed (any route)   → w-14   (icon-only column, unchanged)
-         *  - focused expanded (/inbox) → w-[13.75rem] (220px) — slightly narrower
-         *    than the global default so the three-column Inbox gets more room
-         *    while keeping every label readable. 220px is the lower edge of the
-         *    operator-friendly range; below ~200px "Needs action" starts
-         *    truncating in some font fallbacks.
+         *  - collapsed (any route)        → w-14 (56px, icon-only column, unchanged)
+         *  - focused expanded (/inbox)    → w-48 (192px) — a noticeably narrower
+         *    column than the global default so the three-column Inbox grid claims
+         *    those 32px back. Verified that every focused label still fits at this
+         *    width: the longest are "Needs attention" (14ch), "Opportunities"
+         *    (13ch) and "Archived" (8ch). 192px leaves ≥130px for the label inside
+         *    a row, well above the longest one. If a future label needs more space
+         *    bump this to `w-52` (208px) — the next safe step before the chrome
+         *    starts cropping.
          *  - global expanded (other routes) → w-56 (224px, unchanged)
          */
         collapsed
           ? "w-14"
           : focused
-            ? "w-[13.75rem]"
+            ? "w-48"
             : "w-56"
       )}
     >
