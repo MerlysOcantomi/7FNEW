@@ -346,14 +346,16 @@ export function AccountCenterPanel({
   const roleLabel = workspace ? formatRoleLabel(workspace.role) : null
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/**
        * Header band — same surface as the panel itself, with a thin
-       * separator below. Mirrors the "Create across your workspace"
+       * separator below. Sticks to the top of the Sheet via the parent
+       * flex column (header + scroll body + footer is the canonical
+       * Sheet layout). Mirrors the "Create across your workspace"
        * subtitle pattern from the New mobile sheet, adapted to "Account
        * Center" identity.
        */}
-      <div className="flex items-center gap-3 border-b border-[var(--border-dark)] px-4 py-4">
+      <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-dark)] px-5 py-4">
         {user.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -385,15 +387,32 @@ export function AccountCenterPanel({
       </div>
 
       {/**
-       * Body — single-column flow stacked vertically. Replaces the
-       * earlier two-column grid because the panel is now an inline
-       * dropdown attached to the sidebar bottom (where horizontal room
-       * is tight) and not a centred Popover. The visual rhythm follows
-       * the New menu's mobile sheet variant: section heading +
-       * action rows, ~24px gutter between sections.
+       * Scrollable body. The panel lives inside a Sheet now, so we let
+       * this region grow to fill all the vertical space the Sheet
+       * container offers and scroll on overflow. `min-h-0` is the
+       * crucial bit — without it the flex child refuses to shrink and
+       * the inner content would clip the Sheet bottom instead of
+       * scrolling.
+       *
+       * Layout strategy:
+       *   - Single column when the Sheet itself is narrow (typical
+       *     480px desktop + mobile widths).
+       *   - Two columns automatically when the Sheet is ≥720px wide
+       *     (e.g. tablet or wider desktop overrides). We use Tailwind
+       *     v4 container queries (`@container` + `@[720px]`) so the
+       *     layout is driven by the *Sheet's* width, NOT the viewport
+       *     — viewport-based `sm:`/`md:` would be wrong here because
+       *     the Sheet has a fixed width regardless of how big the
+       *     window is.
+       *
+       * Column 1 keeps Workspaces + Platform (they answer "where am I
+       * / where can I go"); Column 2 keeps Settings (it answers "what
+       * can I configure"). Sign out lives in the panel footer, never
+       * in either column.
        */}
-      <div className="space-y-5 px-4 py-4">
-        <div className="min-w-0 space-y-5">
+      <div className="@container min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="grid min-w-0 gap-6 @[720px]:grid-cols-2">
+          <div className="min-w-0 space-y-5">
           <section>
             <SectionHeading icon={Building2}>Workspaces</SectionHeading>
 
@@ -524,34 +543,38 @@ export function AccountCenterPanel({
               </ul>
             </section>
           ) : null}
-        </div>
+          </div>
 
-        <section>
-          <SectionHeading icon={SettingsIcon}>Settings</SectionHeading>
-          <ul className="space-y-0.5">
-            {SETTINGS_ITEMS.map((item) => (
-              <li key={item.id}>
-                <ActionRow
-                  icon={item.icon}
-                  title={item.label}
-                  description={item.description}
-                  href={item.href}
-                  onClick={onClose}
-                  disabled={Boolean(item.comingSoon)}
-                  trailing={item.comingSoon ? <ComingSoonTag /> : null}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+          <div className="min-w-0 space-y-5">
+            <section>
+              <SectionHeading icon={SettingsIcon}>Settings</SectionHeading>
+              <ul className="space-y-0.5">
+                {SETTINGS_ITEMS.map((item) => (
+                  <li key={item.id}>
+                    <ActionRow
+                      icon={item.icon}
+                      title={item.label}
+                      description={item.description}
+                      href={item.href}
+                      onClick={onClose}
+                      disabled={Boolean(item.comingSoon)}
+                      trailing={item.comingSoon ? <ComingSoonTag /> : null}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        </div>
       </div>
 
       {/**
        * Footer — sign out lives here so it never visually mingles with
-       * settings or workspace switching. Same hard navigation flow we
+       * settings or workspace switching. Sticks to the bottom of the
+       * Sheet via the parent flex column. Same hard navigation flow we
        * already had (`window.location.href = "/api/auth/logout"`).
        */}
-      <div className="border-t border-[var(--border-dark)] px-3 py-2">
+      <div className="shrink-0 border-t border-[var(--border-dark)] px-3 py-2">
         <button
           type="button"
           onClick={onLogout}

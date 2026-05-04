@@ -1,10 +1,17 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useUser } from "@/hooks/use-user"
 import { useActiveWorkspace, type ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { AccountCenterPanel } from "@/components/account-center/account-center-panel"
 import { cn } from "@/lib/utils"
 
@@ -62,20 +69,27 @@ function getInitials(name: string | null | undefined, email: string | undefined)
  * collapsed and inside the mobile sheet) with the same avatar +
  * name/email/role footprint it always had.
  *
- * What changed: the surface that opens is now an **inline expansion
- * panel** mirroring the global "New" menu pattern from
- * `components/global-new/global-new-desktop-panel.tsx`. We use the
- * exact same animation primitive — `grid-template-rows: 0fr ↔ 1fr` —
- * so the panel grows out of the sidebar instead of overlaying as a
- * floating popover. The Account Center is positioned `bottom-full`
- * relative to the trigger so it expands UPWARD (the trigger is at the
- * bottom of the sidebar), the inverse of the New menu which expands
- * downward from the top header.
+ * What it opens: a left-anchored **Sheet drawer** that overlays the
+ * sidebar with a roomy, scrollable Account Center surface
+ * (`<AccountCenterPanel>`). The Sheet is the same primitive used for
+ * the global "New" mobile sheet, just anchored to the left edge so it
+ * appears to "extend" the sidebar where the trigger sits, instead of
+ * a popover that gets clipped or compressed by the narrow column.
  *
- * Manual handlers (because we are not using Radix anymore):
- *   - Click outside  → close (mirrors `GlobalNewDesktopChrome`)
- *   - Escape         → close + restore focus to the trigger
- *   - Pathname change → close (matches `GlobalNewProvider`)
+ * Why not a Popover anymore:
+ *   The previous inline expansion sat inside the sidebar's narrow
+ *   container and had its content clipped on every viewport — emails,
+ *   slugs and descriptions truncated mid-word. A drawer with a fixed
+ *   480px width on desktop and full width on mobile gives the panel
+ *   enough room to breathe without competing with the sidebar.
+ *
+ * Sheet primitives already do all the close behaviours we need:
+ *   - Esc key             → handled by Radix Dialog
+ *   - Click on overlay    → handled by Radix Dialog
+ *   - Close button (X)    → rendered automatically by `SheetContent`
+ *   - Pathname change     → handled below in a small effect (Radix
+ *                           does not auto-close on route change, and
+ *                           we want the same UX as `GlobalNewProvider`)
  *
  * Backend behaviour preserved verbatim:
  *   - `useUser()`            → `/api/auth/me`
@@ -102,51 +116,14 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  /**
+   * Close on path change. Radix Dialog (the underlying Sheet) doesn't
+   * auto-close when the route changes; users who click a Settings link
+   * or workspace switch should never end up with a drawer still open
+   * on the next route. Mirrors `GlobalNewProvider`'s behaviour for the
+   * New menu.
+   */
   const pathname = usePathname()
-
-  /**
-   * Close on outside click. Mirrors the `mousedown` pattern from
-   * `GlobalNewDesktopChrome` so the close gesture is identical to the
-   * New menu — clicking anywhere outside the panel + trigger collapses
-   * it. We listen on `mousedown` (not `click`) so a drag that starts
-   * outside doesn't slip through.
-   */
-  useEffect(() => {
-    if (!open) return
-    function handleDown(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleDown)
-    return () => document.removeEventListener("mousedown", handleDown)
-  }, [open])
-
-  /**
-   * Close on Escape and restore focus to the trigger so keyboard users
-   * land in a predictable place. Same UX contract as Radix Popover —
-   * we re-implement it here because the panel is inline now, not a
-   * portalled popover.
-   */
-  useEffect(() => {
-    if (!open) return
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    window.addEventListener("keydown", handleKey)
-    return () => window.removeEventListener("keydown", handleKey)
-  }, [open])
-
-  /**
-   * Close on path change. Same behaviour as `GlobalNewProvider` —
-   * users who click a Settings link or workspace switch should never
-   * end up with a panel still open on the next route.
-   */
   useEffect(() => {
     setOpen(false)
   }, [pathname])
@@ -239,117 +216,103 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
 
   return (
     <FooterShell collapsed={collapsed} focused={focused} interactive>
-      <div ref={containerRef} className="relative">
-        {/**
-         * Inline expansion panel — same animation primitive as
-         * `GlobalNewDesktopPanel`: a `grid` whose first row morphs from
-         * `0fr` to `1fr`. The inner overflow-hidden wrapper turns this
-         * into a smooth height animation without measuring DOM heights
-         * by hand.
-         *
-         * Anchored `bottom-full` (above the trigger) because the
-         * trigger is at the BOTTOM of the sidebar — the inverse of the
-         * New menu which is anchored top-full (below the trigger) at
-         * the top of the chrome.
-         *
-         * Width: `w-[min(340px,calc(100vw-1rem))]` — the panel is
-         * intentionally wider than the (often narrow) sidebar so it
-         * spills to the right rather than cramping content. In a
-         * collapsed sidebar (~56px wide) the panel becomes a lateral
-         * drawer; in an expanded sidebar (~240px) it overhangs about
-         * 100px to the right; in a mobile sheet (~280–320px) it caps
-         * to viewport width. Consistent visual size across every
-         * breakpoint.
-         *
-         * `pointer-events-none` while collapsed so any half-faded
-         * action rows can't be clicked through during the transition.
-         */}
-        <div
-          className={cn(
-            "absolute bottom-full left-0 z-40 mb-1.5",
-            "w-[min(340px,calc(100vw-1rem))]",
-            "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
-            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-            !open && "pointer-events-none",
-          )}
-          aria-hidden={!open}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div
-              className={cn(
-                "max-h-[min(75vh,640px)] overflow-y-auto",
-                "rounded-2xl border border-[var(--border-dark)] bg-[var(--app-shell-bg)] text-[var(--app-sidebar-text)]",
-                "shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]",
-                "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-                "transition-opacity duration-150",
-                open ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <AccountCenterPanel
-                user={{
-                  email: user.email,
-                  nombre: user.nombre,
-                  avatar: user.avatar,
-                  initials,
-                }}
-                workspace={workspace}
-                otherWorkspaces={otherWorkspaces}
-                isPlatformAdmin={isPlatformAdmin}
-                platformRole={platformRole}
-                switchingId={switchingId}
-                switchError={switchError}
-                loggingOut={loggingOut}
-                wsLoading={wsLoading}
-                wsError={wsError}
-                onSwitch={handleSwitch}
-                onLogout={handleLogout}
-                onClose={() => setOpen(false)}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40",
+              "hover:bg-[var(--app-sidebar-surface)]/60",
+              collapsed ? "justify-center p-1" : "p-1",
+              open && "bg-[var(--app-sidebar-surface)]/60",
+            )}
+            title={collapsed ? `${displayName}${workspace ? ` · ${workspace.nombre}` : ""}` : undefined}
+            aria-label="Open account center"
+          >
+            {user.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--app-sidebar-border)]"
               />
-            </div>
-          </div>
-        </div>
+            ) : (
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--app-sidebar-surface)] text-xs font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--app-sidebar-border)]">
+                {initials}
+              </div>
+            )}
+            {!collapsed && (
+              <div className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-xs font-medium text-[var(--app-sidebar-text)]">
+                  {displayName}
+                </span>
+                <span className="truncate text-[10px] text-[var(--app-sidebar-text-muted)]">
+                  {workspace?.nombre ?? (wsLoading ? "Loading workspace…" : "No workspace")}
+                  {roleLabel ? ` · ${roleLabel}` : ""}
+                </span>
+              </div>
+            )}
+          </button>
+        </SheetTrigger>
 
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          aria-expanded={open}
-          aria-haspopup="menu"
+        {/**
+         * Drawer surface. We override the Sheet defaults (which cap at
+         * `sm:max-w-sm` ≈ 384px) so the panel gets the 480–520px range
+         * the brief asked for. `cn` resolves the conflict via
+         * `tailwind-merge` so the override wins cleanly.
+         *
+         * Layout: full flex column with no padding (the panel manages
+         * its own spacing); `gap-0` cancels the default `gap-4` of
+         * `SheetContent` which would otherwise push the close button
+         * around. Background uses the same canvas surface as the New
+         * menu so both surfaces feel like the same family.
+         *
+         * Side: anchored LEFT so it appears to extend the sidebar that
+         * triggered it. The user's eye stays in the same region of the
+         * screen instead of darting to the right.
+         */}
+        <SheetContent
+          side="left"
           className={cn(
-            "flex w-full items-center gap-2.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40",
-            "hover:bg-[var(--app-sidebar-surface)]/60",
-            collapsed ? "justify-center p-1" : "p-1",
-            open && "bg-[var(--app-sidebar-surface)]/60",
+            "flex h-full flex-col gap-0 p-0",
+            "w-full max-w-[520px] sm:w-[480px] sm:max-w-[480px]",
+            "border-r border-[var(--border-dark)] bg-[var(--app-shell-bg)] text-[var(--app-sidebar-text)]",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
           )}
-          title={collapsed ? `${displayName}${workspace ? ` · ${workspace.nombre}` : ""}` : undefined}
-          aria-label="Open account center"
         >
-          {user.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.avatar}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--app-sidebar-border)]"
-            />
-          ) : (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--app-sidebar-surface)] text-xs font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--app-sidebar-border)]">
-              {initials}
-            </div>
-          )}
-          {!collapsed && (
-            <div className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-xs font-medium text-[var(--app-sidebar-text)]">
-                {displayName}
-              </span>
-              <span className="truncate text-[10px] text-[var(--app-sidebar-text-muted)]">
-                {workspace?.nombre ?? (wsLoading ? "Loading workspace…" : "No workspace")}
-                {roleLabel ? ` · ${roleLabel}` : ""}
-              </span>
-            </div>
-          )}
-        </button>
-      </div>
+          {/**
+           * Required by Radix Dialog for screen readers. We hide them
+           * visually because the panel header already presents the
+           * same info to sighted users (avatar + name + email).
+           */}
+          <SheetTitle className="sr-only">Account center</SheetTitle>
+          <SheetDescription className="sr-only">
+            Active workspace, workspace switcher, platform admin link, settings, and sign out.
+          </SheetDescription>
+
+          <AccountCenterPanel
+            user={{
+              email: user.email,
+              nombre: user.nombre,
+              avatar: user.avatar,
+              initials,
+            }}
+            workspace={workspace}
+            otherWorkspaces={otherWorkspaces}
+            isPlatformAdmin={isPlatformAdmin}
+            platformRole={platformRole}
+            switchingId={switchingId}
+            switchError={switchError}
+            loggingOut={loggingOut}
+            wsLoading={wsLoading}
+            wsError={wsError}
+            onSwitch={handleSwitch}
+            onLogout={handleLogout}
+            onClose={() => setOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </FooterShell>
   )
 }
