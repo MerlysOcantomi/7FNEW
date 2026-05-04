@@ -353,7 +353,7 @@ export function AccountCenterPanel({
        * subtitle pattern from the New mobile sheet, adapted to "Account
        * Center" identity.
        */}
-      <div className="flex items-center gap-3 border-b border-[var(--border-dark)] px-5 py-4">
+      <div className="flex items-center gap-3 border-b border-[var(--border-dark)] px-4 py-4">
         {user.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -385,13 +385,14 @@ export function AccountCenterPanel({
       </div>
 
       {/**
-       * Body — two columns on desktop (>=640px), single column on
-       * mobile. Same `grid gap-8 sm:grid-cols-2` rhythm the New menu
-       * uses on its desktop panel, scaled to fit the narrower account
-       * surface.
+       * Body — single-column flow stacked vertically. Replaces the
+       * earlier two-column grid because the panel is now an inline
+       * dropdown attached to the sidebar bottom (where horizontal room
+       * is tight) and not a centred Popover. The visual rhythm follows
+       * the New menu's mobile sheet variant: section heading +
+       * action rows, ~24px gutter between sections.
        */}
-      <div className="grid gap-6 px-5 py-4 sm:grid-cols-2">
-        {/* Column 1 — Workspaces */}
+      <div className="space-y-5 px-4 py-4">
         <div className="min-w-0 space-y-5">
           <section>
             <SectionHeading icon={Building2}>Workspaces</SectionHeading>
@@ -525,27 +526,24 @@ export function AccountCenterPanel({
           ) : null}
         </div>
 
-        {/* Column 2 — Settings */}
-        <div className="min-w-0 space-y-5">
-          <section>
-            <SectionHeading icon={SettingsIcon}>Settings</SectionHeading>
-            <ul className="space-y-0.5">
-              {SETTINGS_ITEMS.map((item) => (
-                <li key={item.id}>
-                  <ActionRow
-                    icon={item.icon}
-                    title={item.label}
-                    description={item.description}
-                    href={item.href}
-                    onClick={onClose}
-                    disabled={Boolean(item.comingSoon)}
-                    trailing={item.comingSoon ? <ComingSoonTag /> : null}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+        <section>
+          <SectionHeading icon={SettingsIcon}>Settings</SectionHeading>
+          <ul className="space-y-0.5">
+            {SETTINGS_ITEMS.map((item) => (
+              <li key={item.id}>
+                <ActionRow
+                  icon={item.icon}
+                  title={item.label}
+                  description={item.description}
+                  href={item.href}
+                  onClick={onClose}
+                  disabled={Boolean(item.comingSoon)}
+                  trailing={item.comingSoon ? <ComingSoonTag /> : null}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
       {/**

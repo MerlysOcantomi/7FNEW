@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useUser } from "@/hooks/use-user"
 import { useActiveWorkspace, type ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AccountCenterPanel } from "@/components/account-center/account-center-panel"
 import { cn } from "@/lib/utils"
 
@@ -58,20 +58,26 @@ function getInitials(name: string | null | undefined, email: string | undefined)
 /**
  * Bottom sidebar account trigger.
  *
- * The trigger itself stays where it always lived — at the bottom of the
- * sidebar (desktop expanded / collapsed and inside the mobile sheet) —
- * with the same avatar + name/email/role footprint. What changed is the
- * *surface* it opens: the cramped `<DropdownMenu>` was replaced by a
- * larger Account Center `<Popover>` panel that mirrors the visual
- * language of the global "New" menu (`components/global-new/*`):
+ * The trigger lives at the bottom of the sidebar (desktop expanded /
+ * collapsed and inside the mobile sheet) with the same avatar +
+ * name/email/role footprint it always had.
  *
- *   - Surface tone     → `bg-[var(--app-shell-bg)]` + `border-[var(--border-dark)]`
- *   - Section labels   → uppercase tracking-wider muted
- *   - Action rows      → 36px icon chip + title + sub-text + hover band
- *   - Two-column grid  → `sm:grid-cols-2` like the New panel
+ * What changed: the surface that opens is now an **inline expansion
+ * panel** mirroring the global "New" menu pattern from
+ * `components/global-new/global-new-desktop-panel.tsx`. We use the
+ * exact same animation primitive — `grid-template-rows: 0fr ↔ 1fr` —
+ * so the panel grows out of the sidebar instead of overlaying as a
+ * floating popover. The Account Center is positioned `bottom-full`
+ * relative to the trigger so it expands UPWARD (the trigger is at the
+ * bottom of the sidebar), the inverse of the New menu which expands
+ * downward from the top header.
  *
- * Backend behaviour is preserved verbatim:
+ * Manual handlers (because we are not using Radix anymore):
+ *   - Click outside  → close (mirrors `GlobalNewDesktopChrome`)
+ *   - Escape         → close + restore focus to the trigger
+ *   - Pathname change → close (matches `GlobalNewProvider`)
  *
+ * Backend behaviour preserved verbatim:
  *   - `useUser()`            → `/api/auth/me`
  *   - `useActiveWorkspace()` → `/api/workspaces`
  *   - Switch                 → `POST /api/workspaces/active` + hard reload
@@ -80,8 +86,7 @@ function getInitials(name: string | null | undefined, email: string | undefined)
  *                              `wf_workspace` cookie boundary; `/system`
  *                              is NOT a workspace)
  *
- * No new endpoints, no auth changes, no PlatformAdmin reads. The panel
- * is a pure presentation refactor.
+ * No new endpoints, no auth changes, no PlatformAdmin reads.
  */
 export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccountMenuProps) {
   const { user, loading: userLoading, isPlatformAdmin, platformRole } = useUser()
@@ -92,21 +97,59 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
     error: wsError,
   } = useActiveWorkspace()
 
-  /**
-   * Workspace switcher state. `switchingId` disables every row while a
-   * POST is in flight; `switchError` surfaces 403/network failures
-   * without dumping to console alone. `loggingOut` mirrors the same
-   * pattern for the sign-out button.
-   *
-   * Security note: this state is purely UX. The decision of "can this
-   * user switch into workspace X" lives entirely on the server in
-   * `POST /api/workspaces/active`, which validates membership before
-   * flipping the cookie. We never bypass it.
-   */
   const [open, setOpen] = useState(false)
   const [switchingId, setSwitchingId] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const pathname = usePathname()
+
+  /**
+   * Close on outside click. Mirrors the `mousedown` pattern from
+   * `GlobalNewDesktopChrome` so the close gesture is identical to the
+   * New menu — clicking anywhere outside the panel + trigger collapses
+   * it. We listen on `mousedown` (not `click`) so a drag that starts
+   * outside doesn't slip through.
+   */
+  useEffect(() => {
+    if (!open) return
+    function handleDown(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleDown)
+    return () => document.removeEventListener("mousedown", handleDown)
+  }, [open])
+
+  /**
+   * Close on Escape and restore focus to the trigger so keyboard users
+   * land in a predictable place. Same UX contract as Radix Popover —
+   * we re-implement it here because the panel is inline now, not a
+   * portalled popover.
+   */
+  useEffect(() => {
+    if (!open) return
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [open])
+
+  /**
+   * Close on path change. Same behaviour as `GlobalNewProvider` —
+   * users who click a Settings link or workspace switch should never
+   * end up with a panel still open on the next route.
+   */
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
 
   const initials = useMemo(
     () => getInitials(user?.nombre, user?.email),
@@ -136,24 +179,11 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
     /**
      * Hard navigation so the entire React tree unmounts and any cached
      * fetches (workspaces, conversations, todos, drafts) are discarded
-     * before the next user lands. A SPA-style `router.push` would keep
-     * the in-memory cache.
+     * before the next user lands.
      */
     window.location.href = "/api/auth/logout"
   }
 
-  /**
-   * Switch the active workspace. Hard-reload on success so every
-   * workspace-scoped fetch in the running app (Inbox conversations,
-   * channels, clients, todos, drafts, dashboards) re-runs against the
-   * new tenant. A `router.refresh()` alone would re-fetch server
-   * components but leave the in-memory client `useFetch` caches
-   * pointing at the previous workspace — that's the kind of cross-tenant
-   * leak the recent audit specifically warns against.
-   *
-   * Errors keep the panel open with an inline message so the user can
-   * pick another workspace or retry without re-opening it.
-   */
   const handleSwitch = async (target: ActiveWorkspaceSummary) => {
     if (!target?.id || target.id === workspace?.id) return
     setSwitchError(null)
@@ -209,98 +239,117 @@ export function SidebarAccountMenu({ collapsed, focused = false }: SidebarAccoun
 
   return (
     <FooterShell collapsed={collapsed} focused={focused} interactive>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40",
-              "hover:bg-[var(--app-sidebar-surface)]/60",
-              collapsed ? "justify-center p-1" : "p-1",
-              open && "bg-[var(--app-sidebar-surface)]/60",
-            )}
-            title={collapsed ? `${displayName}${workspace ? ` · ${workspace.nombre}` : ""}` : undefined}
-            aria-label="Open account center"
-          >
-            {user.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.avatar}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--app-sidebar-border)]"
-              />
-            ) : (
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--app-sidebar-surface)] text-xs font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--app-sidebar-border)]">
-                {initials}
-              </div>
-            )}
-            {!collapsed && (
-              <div className="flex min-w-0 flex-col leading-tight">
-                <span className="truncate text-xs font-medium text-[var(--app-sidebar-text)]">
-                  {displayName}
-                </span>
-                <span className="truncate text-[10px] text-[var(--app-sidebar-text-muted)]">
-                  {workspace?.nombre ?? (wsLoading ? "Loading workspace…" : "No workspace")}
-                  {roleLabel ? ` · ${roleLabel}` : ""}
-                </span>
-              </div>
-            )}
-          </button>
-        </PopoverTrigger>
-
+      <div ref={containerRef} className="relative">
         {/**
-         * Panel surface. We override most of the default Popover styles
-         * because this surface follows the New menu's visual language
-         * (panel-canvas, large radius, subtle inset highlight), not the
-         * generic dropdown look.
+         * Inline expansion panel — same animation primitive as
+         * `GlobalNewDesktopPanel`: a `grid` whose first row morphs from
+         * `0fr` to `1fr`. The inner overflow-hidden wrapper turns this
+         * into a smooth height animation without measuring DOM heights
+         * by hand.
          *
-         * `side`/`align`:
-         *   - Desktop expanded   → side="top" align="start" (panel rises
-         *     from the bottom-left of the sidebar like a card lifting
-         *     off the trigger).
-         *   - Desktop collapsed  → side="right" align="end" (panel pops
-         *     out to the right since the sidebar is too narrow to fit
-         *     the panel above).
-         *   - Mobile             → same `top/start` config; Radix's
-         *     collision detection will reposition it inside the viewport
-         *     automatically, and the responsive width caps below keep
-         *     it within the screen.
+         * Anchored `bottom-full` (above the trigger) because the
+         * trigger is at the BOTTOM of the sidebar — the inverse of the
+         * New menu which is anchored top-full (below the trigger) at
+         * the top of the chrome.
+         *
+         * Width: `w-[min(340px,calc(100vw-1rem))]` — the panel is
+         * intentionally wider than the (often narrow) sidebar so it
+         * spills to the right rather than cramping content. In a
+         * collapsed sidebar (~56px wide) the panel becomes a lateral
+         * drawer; in an expanded sidebar (~240px) it overhangs about
+         * 100px to the right; in a mobile sheet (~280–320px) it caps
+         * to viewport width. Consistent visual size across every
+         * breakpoint.
+         *
+         * `pointer-events-none` while collapsed so any half-faded
+         * action rows can't be clicked through during the transition.
          */}
-        <PopoverContent
-          side={collapsed ? "right" : "top"}
-          align={collapsed ? "end" : "start"}
-          sideOffset={8}
-          collisionPadding={12}
+        <div
           className={cn(
-            "z-50 w-[min(560px,calc(100vw-1.5rem))] overflow-hidden p-0",
-            "rounded-2xl border border-[var(--border-dark)] bg-[var(--app-shell-bg)] text-[var(--app-sidebar-text)]",
-            "shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
+            "absolute bottom-full left-0 z-40 mb-1.5",
+            "w-[min(340px,calc(100vw-1rem))]",
+            "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            !open && "pointer-events-none",
           )}
+          aria-hidden={!open}
         >
-          <AccountCenterPanel
-            user={{
-              email: user.email,
-              nombre: user.nombre,
-              avatar: user.avatar,
-              initials,
-            }}
-            workspace={workspace}
-            otherWorkspaces={otherWorkspaces}
-            isPlatformAdmin={isPlatformAdmin}
-            platformRole={platformRole}
-            switchingId={switchingId}
-            switchError={switchError}
-            loggingOut={loggingOut}
-            wsLoading={wsLoading}
-            wsError={wsError}
-            onSwitch={handleSwitch}
-            onLogout={handleLogout}
-            onClose={() => setOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
+          <div className="min-h-0 overflow-hidden">
+            <div
+              className={cn(
+                "max-h-[min(75vh,640px)] overflow-y-auto",
+                "rounded-2xl border border-[var(--border-dark)] bg-[var(--app-shell-bg)] text-[var(--app-sidebar-text)]",
+                "shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                "transition-opacity duration-150",
+                open ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <AccountCenterPanel
+                user={{
+                  email: user.email,
+                  nombre: user.nombre,
+                  avatar: user.avatar,
+                  initials,
+                }}
+                workspace={workspace}
+                otherWorkspaces={otherWorkspaces}
+                isPlatformAdmin={isPlatformAdmin}
+                platformRole={platformRole}
+                switchingId={switchingId}
+                switchError={switchError}
+                loggingOut={loggingOut}
+                wsLoading={wsLoading}
+                wsError={wsError}
+                onSwitch={handleSwitch}
+                onLogout={handleLogout}
+                onClose={() => setOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40",
+            "hover:bg-[var(--app-sidebar-surface)]/60",
+            collapsed ? "justify-center p-1" : "p-1",
+            open && "bg-[var(--app-sidebar-surface)]/60",
+          )}
+          title={collapsed ? `${displayName}${workspace ? ` · ${workspace.nombre}` : ""}` : undefined}
+          aria-label="Open account center"
+        >
+          {user.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatar}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--app-sidebar-border)]"
+            />
+          ) : (
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--app-sidebar-surface)] text-xs font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--app-sidebar-border)]">
+              {initials}
+            </div>
+          )}
+          {!collapsed && (
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-xs font-medium text-[var(--app-sidebar-text)]">
+                {displayName}
+              </span>
+              <span className="truncate text-[10px] text-[var(--app-sidebar-text-muted)]">
+                {workspace?.nombre ?? (wsLoading ? "Loading workspace…" : "No workspace")}
+                {roleLabel ? ` · ${roleLabel}` : ""}
+              </span>
+            </div>
+          )}
+        </button>
+      </div>
     </FooterShell>
   )
 }
