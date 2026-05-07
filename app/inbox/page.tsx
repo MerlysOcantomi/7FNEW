@@ -568,6 +568,15 @@ function InboxPageContent() {
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
   const [busyTodoId, setBusyTodoId] = useState<string | null>(null)
   /**
+   * Triage Summary: open To-do count for the *currently selected* conversation. We keep this
+   * separate from `todos` (which is only loaded in `isTodoMode`) so the counter stays fresh
+   * regardless of the current view. The fetch is scoped server-side (`?conversationId=...&
+   * status=open,waiting`) so we never load the workspace-wide list just to render a number.
+   * Reset to `0` when no conversation is selected and re-run when `todosRefreshKey` bumps so
+   * creating a To-do from the panel updates the chip without a full refetch.
+   */
+  const [conversationTodoCount, setConversationTodoCount] = useState(0)
+  /**
    * Phase 3 To-do capture — transient state used by the three capture surfaces:
    *  - `creatingTodoFromMessage`: lock guard against double-click on the More menu entries.
    *  - `internalNoteTodoSuggestion`: holds the candidate To-do parsed from a just-saved internal
@@ -2237,10 +2246,16 @@ function InboxPageContent() {
         return false
       }
       setTodoCaptureFeedback("To-do created from pending item")
-      if (isTodoMode) setTodosRefreshKey((k) => k + 1)
+      /**
+       * Bump `todosRefreshKey` unconditionally so the Triage Summary counter (which depends on
+       * it via a per-conversation fetch) refreshes even when the operator is not in
+       * `isTodoMode`. The workspace-wide `todos` loader is still gated by `isTodoMode` itself,
+       * so this bump is cheap when the To-do view isn't active.
+       */
+      setTodosRefreshKey((k) => k + 1)
       return true
     },
-    [activeSelectedId, isTodoMode],
+    [activeSelectedId],
   )
 
   /**
@@ -2300,8 +2315,9 @@ function InboxPageContent() {
       return
     }
     setTodoCaptureFeedback(actingOnScope === "selected" ? "To-do created from selected message" : "To-do created from latest message")
-    if (isTodoMode) setTodosRefreshKey((k) => k + 1)
-  }, [activeSelectedId, moreActionsTargetMessageId, selected, actingOnScope, isTodoMode, creatingTodoFromMessage])
+    /** See bump rationale in `handleCreateTodoFromPendingItem` — keeps the Triage counter fresh. */
+    setTodosRefreshKey((k) => k + 1)
+  }, [activeSelectedId, moreActionsTargetMessageId, selected, actingOnScope, creatingTodoFromMessage])
 
   /**
    * Phase 3 — accept the internal-note TODO suggestion. Reads the captured title + note id
@@ -2332,8 +2348,9 @@ function InboxPageContent() {
     }
     setTodoCaptureFeedback("To-do created from internal note")
     setInternalNoteTodoSuggestion(null)
-    if (isTodoMode) setTodosRefreshKey((k) => k + 1)
-  }, [internalNoteTodoSuggestion, internalNoteTodoBusy, isTodoMode])
+    /** See bump rationale in `handleCreateTodoFromPendingItem` — keeps the Triage counter fresh. */
+    setTodosRefreshKey((k) => k + 1)
+  }, [internalNoteTodoSuggestion, internalNoteTodoBusy])
 
   const handleDismissInternalNoteTodo = useCallback(() => {
     setInternalNoteTodoSuggestion(null)
@@ -2484,6 +2501,43 @@ function InboxPageContent() {
       cancelled = true
     }
   }, [isTodoMode, todosRefreshKey])
+
+  /**
+   * Triage Summary counter — load the per-conversation open To-do count whenever the active
+   * conversation changes or `todosRefreshKey` bumps. The query is intentionally narrow
+   * (`take=200` + scoped status) so this stays a tiny, idempotent number fetch even on busy
+   * threads. Failures fall back to `0` rather than surfacing a UI error: a stale-but-zero
+   * counter is preferable to an alarming red banner for an informational chip.
+   */
+  useEffect(() => {
+    if (!activeSelectedId) {
+      setConversationTodoCount(0)
+      return
+    }
+
+    let cancelled = false
+    fetch(
+      `/api/inbox/todos?conversationId=${encodeURIComponent(activeSelectedId)}&status=open,waiting&take=200`,
+      { credentials: "same-origin" },
+    )
+      .then(async (response) => {
+        const json = await response.json().catch(() => ({}))
+        if (cancelled) return
+        if (!response.ok || !json?.success) {
+          setConversationTodoCount(0)
+          return
+        }
+        const data = Array.isArray(json.data) ? json.data : []
+        setConversationTodoCount(data.length)
+      })
+      .catch(() => {
+        if (!cancelled) setConversationTodoCount(0)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSelectedId, todosRefreshKey])
 
   const handleRefreshTodos = useCallback(() => {
     setTodosRefreshKey((k) => k + 1)
@@ -3101,6 +3155,7 @@ function InboxPageContent() {
       askMode={askMode}
       askAnchorMessageId={askAnchorMessageId}
       onCreateTodoFromPendingItem={handleCreateTodoFromPendingItem}
+      conversationTodoCount={conversationTodoCount}
     />
   ) : null
 

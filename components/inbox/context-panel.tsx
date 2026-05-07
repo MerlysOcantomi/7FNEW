@@ -10,7 +10,7 @@ import {
   User, FolderKanban, CheckSquare,
   Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
   Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
-  BookOpen, ListPlus,
+  BookOpen, ListPlus, Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -88,6 +88,15 @@ interface ContextPanelProps {
     urgency?: string | null
     assignedTo?: string | null
     sentiment?: string | null
+    /**
+     * Triage Summary inputs. `intent` is the AI classifier output (semantic);
+     * `category` is the operator-assigned label drawn from the workspace
+     * taxonomy. They are intentionally separate concepts and the panel renders
+     * them as two distinct rows. Both are optional so callers that already
+     * built `selected` from a partial detail payload don't break.
+     */
+    intent?: string | null
+    category?: string | null
     classification?: {
       summary?: string | null
       intent?: string | null
@@ -111,6 +120,13 @@ interface ContextPanelProps {
       sourceMessageId?: string | null
     } | null
     actions?: ActionItem[]
+    /**
+     * Open drafts counted by the Triage Summary. Each draft carries the
+     * same `status` shape as `ConversationDraft` ("draft" | "edited" |
+     * "approved" | "discarded" | "superseded"); we count "draft" + "edited"
+     * as the operator-actionable open set.
+     */
+    drafts?: Array<{ status?: string | null }>
     /** Si falta (datos incompletos), todo el panel usa fallbacks sin romper render. */
     contact?: {
       nombre?: string | null
@@ -190,6 +206,15 @@ interface ContextPanelProps {
     text: string
     sourceMessageId: string | null
   }) => Promise<boolean>
+  /**
+   * Number of `InboxTodo` rows for the active conversation that are still in
+   * `open` or `waiting` status (the human-actionable subset). The page is the
+   * source of truth — it owns the todo state — and passes a derived integer
+   * here so the panel never has to fetch its own list. `undefined` means "the
+   * page hasn't computed it yet" (initial load) and the Triage Summary treats
+   * it as 0 for rendering purposes.
+   */
+  conversationTodoCount?: number
 }
 
 export function ContextPanel({
@@ -212,6 +237,7 @@ export function ContextPanel({
   askMode,
   askAnchorMessageId,
   onCreateTodoFromPendingItem,
+  conversationTodoCount,
 }: ContextPanelProps) {
   const [contactExpanded, setContactExpanded] = useState(false)
   /**
@@ -419,6 +445,241 @@ export function ContextPanel({
    * rather than duplicating layout. Each one is gated internally so it renders nothing when
    * its data is empty (no fabricated content per spec rule "show clean empty states").
    */
+
+  /**
+   * ── Triage Summary ──────────────────────────────────────────────────────
+   * Read-only one-glance answer to "what is this thread and what's next?".
+   * The block is intentionally NOT a source of new state: it derives every
+   * value from `selected` (already loaded by the page) plus a single integer
+   * `conversationTodoCount` that the page passes in. No fetches, no schema
+   * change, no new endpoints.
+   *
+   * Field separation contract:
+   *   - `intent`   = AI classifier output (semantic).
+   *   - `category` = operator-assigned label from the workspace taxonomy
+   *                  (`Workspace.config.taxonomies.inbox`). They are
+   *                  rendered on two separate rows on purpose.
+   *
+   * Suggested category requires persisting AI category output and is
+   * intentionally handled in a follow-up PR.
+   */
+  const triageIntent =
+    pickTriageString(selected.classification?.intent) ?? pickTriageString(selected.intent)
+  const triageCategory = pickTriageString(selected.category)
+  const triageNextAction =
+    pickTriageString(selected.handoff?.nextRecommendedAction)
+    ?? getStringValue(selected.classification?.nextBestAction, [
+      "description",
+      "label",
+      "title",
+      "action",
+    ])
+
+  /**
+   * Drafts count: only the operator-actionable subset. `superseded` /
+   * `approved` / `discarded` drafts already had their moment in the
+   * pipeline and are excluded so the counter never invites the operator
+   * to act on something that's already resolved.
+   */
+  const triageDraftsOpen = (selected.drafts ?? []).filter((draft) => {
+    const s = typeof draft?.status === "string" ? draft.status.toLowerCase() : ""
+    return s === "draft" || s === "edited"
+  }).length
+
+  /**
+   * Actions count: same idea — only `suggested` and `approved` need the
+   * operator's attention. `executed`, `dismissed`, `failed` are terminal
+   * for triage purposes (the row already shows its outcome elsewhere).
+   */
+  const triageActionsOpen = (selected.actions ?? []).filter(
+    (action) => action.status === "suggested" || action.status === "approved",
+  ).length
+
+  /** To-dos count comes from the page; default to 0 while it's loading. */
+  const triageTodosOpen = typeof conversationTodoCount === "number" ? conversationTodoCount : 0
+
+  /**
+   * Risks count from the handoff payload (best-effort). We do NOT pull
+   * from `classification.risks` because the panel already presents that
+   * stream via `watchOutSection`; counting both would double-count.
+   */
+  const triageRisksOpen = safeStringList(selected.handoff?.risks).length
+
+  /**
+   * Priority semantics. We treat `media` (the schema default for a brand
+   * new conversation that the AI hasn't analysed) as "no signal" — it
+   * shouldn't on its own keep the Triage block visible. Any other value
+   * — `baja`, `alta`, `critica` — is an explicit triage signal.
+   */
+  const triagePriorityIsExplicit =
+    typeof selected.urgency === "string"
+    && selected.urgency.length > 0
+    && selected.urgency !== "media"
+  const triagePriority = mapUrgency(selected.urgency)
+
+  const triageHasCounters =
+    triageDraftsOpen > 0
+    || triageActionsOpen > 0
+    || triageTodosOpen > 0
+    || triageRisksOpen > 0
+
+  /**
+   * Meaningfulness gate. The block hides itself entirely on a brand-new
+   * conversation with nothing to summarise so we don't show a noisy empty
+   * card to the operator. Show as soon as ONE genuinely useful signal
+   * exists.
+   */
+  const triageHasMeaningfulData = Boolean(
+    triageIntent
+    || triageCategory
+    || triageNextAction
+    || triagePriorityIsExplicit
+    || triageHasCounters,
+  )
+
+  /**
+   * Default-open in conversation mode (operator wants the overview),
+   * default-collapsed in message mode (the operator's eyes are on the
+   * selected bubble first; one click reveals the bigger picture). Initial
+   * value only — once the operator toggles it, we keep their choice for
+   * the lifetime of this conversation. Switching to a different
+   * conversation does NOT reset this on purpose: it preserves the user's
+   * "I always want this open/closed" preference within the session.
+   */
+  const [triageOpen, setTriageOpen] = useState(!isMessageMode)
+
+  const triageSummarySection = triageHasMeaningfulData ? (
+    <section
+      role="group"
+      aria-label="Triage summary"
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]"
+    >
+      <button
+        type="button"
+        onClick={() => setTriageOpen((value) => !value)}
+        aria-expanded={triageOpen}
+        aria-controls="context-panel-triage-summary"
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-1.5">
+          <Target
+            className="h-3 w-3 text-[var(--inbox-accent)]"
+            aria-hidden="true"
+          />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Triage
+          </span>
+        </span>
+        {triageOpen ? (
+          <ChevronUp
+            className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]"
+            aria-hidden="true"
+          />
+        ) : (
+          <ChevronDown
+            className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]"
+            aria-hidden="true"
+          />
+        )}
+      </button>
+      {triageOpen ? (
+        <div
+          id="context-panel-triage-summary"
+          className="space-y-2 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
+        >
+          {triageIntent ? (
+            <TriageRow label="Intent">
+              <span
+                className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
+                title={triageIntent}
+              >
+                {triageIntent}
+              </span>
+            </TriageRow>
+          ) : null}
+
+          {/*
+            Category row: shows the active workspace category exactly as the
+            operator chose it. Falls back to "Uncategorised" only when the
+            block is already meaningful for other reasons (intent, next
+            action, counters); we never invent a category when nothing else
+            justifies the row.
+          */}
+          {triageCategory ? (
+            <TriageRow label="Category">
+              <span
+                className="inline-flex max-w-full items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)]"
+                title={triageCategory}
+              >
+                <span className="truncate">{triageCategory}</span>
+              </span>
+            </TriageRow>
+          ) : (triageIntent || triageNextAction || triagePriorityIsExplicit || triageHasCounters) ? (
+            <TriageRow label="Category">
+              <span className="text-[11px] italic text-[var(--inbox-intelligence-text-secondary)]">
+                Uncategorised
+              </span>
+            </TriageRow>
+          ) : null}
+
+          {triagePriorityIsExplicit ? (
+            <TriageRow label="Priority">
+              <span
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
+                aria-label={`Priority ${triagePriority.label}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "inline-block h-2 w-2 shrink-0 rounded-full",
+                    triagePriority.barClass,
+                  )}
+                />
+                <span>{triagePriority.label}</span>
+              </span>
+            </TriageRow>
+          ) : null}
+
+          {triageNextAction ? (
+            <TriageRow label="Next">
+              <span
+                className="block line-clamp-2 text-[12px] leading-snug text-[var(--inbox-intelligence-text)]"
+                title={triageNextAction}
+              >
+                {triageNextAction}
+              </span>
+            </TriageRow>
+          ) : null}
+
+          {triageHasCounters ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
+              {triageDraftsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
+                />
+              ) : null}
+              {triageActionsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
+                />
+              ) : null}
+              {triageTodosOpen > 0 ? (
+                <CounterPill
+                  label={`${triageTodosOpen} ${triageTodosOpen === 1 ? "to-do" : "to-dos"}`}
+                />
+              ) : null}
+              {triageRisksOpen > 0 ? (
+                <CounterPill
+                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
+                  tone="warning"
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  ) : null
 
   const headerSection = (
     <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
@@ -1107,6 +1368,13 @@ export function ContextPanel({
 
       {isMessageMode ? (
         <>
+          {/*
+            0. Triage summary — read-only one-glance answer covering intent,
+            category, priority, next recommended action and open work
+            counters. Renders null when the conversation has nothing
+            meaningful to summarise yet.
+          */}
+          {triageSummarySection}
           {/* 1. Contact (always at top) */}
           {contactSection}
           {/* 2. What this message means */}
@@ -1168,6 +1436,11 @@ export function ContextPanel({
         </>
       ) : (
         <>
+          {/*
+            0. Triage summary — see message-mode comment above. Same gating
+            rules apply; no duplication.
+          */}
+          {triageSummarySection}
           {/* 1. Contact (always at top) */}
           {contactSection}
           {/* 2. Conversation summary (replaces "What this message means") */}
@@ -1313,6 +1586,56 @@ function isCreateEventActionExecuted(
   const actionId = info.eventHint.actionId
   const match = (actions ?? []).find((a) => a.id === actionId)
   return match?.status === "executed"
+}
+
+/**
+ * Triage helpers. Kept tiny and local to this file because they exist only to
+ * normalise inputs for the Triage Summary block — exporting them would invite
+ * accidental reuse in places that have different empty-string conventions.
+ */
+function pickTriageString(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function TriageRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-2">
+      <span className="pt-0.5 text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {label}
+      </span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+/**
+ * Counter chip used in the Triage Summary footer row. Defaults to a neutral
+ * tone; warning is reserved for risks so the operator can pick out "things to
+ * watch" at a glance without relying on color alone — the label always
+ * spells out the count.
+ */
+function CounterPill({
+  label,
+  tone = "neutral",
+}: {
+  label: string
+  tone?: "neutral" | "warning"
+}) {
+  return (
+    <span
+      aria-label={label}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        tone === "warning"
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+          : "border-[var(--inbox-intelligence-border)] bg-white/[0.04] text-[var(--inbox-intelligence-text)]",
+      )}
+    >
+      {label}
+    </span>
+  )
 }
 
 function safeStringList(value: unknown): string[] {
