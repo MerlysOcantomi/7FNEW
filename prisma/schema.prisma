@@ -69,6 +69,7 @@ model Workspace {
   forteSnapshot  ForteSnapshot?
   channelConnections ChannelConnection[]
   inboxTodos     InboxTodo[]
+  workspaceTasks WorkspaceTask[]
 }
 
 model Cliente {
@@ -1002,6 +1003,134 @@ model ChannelConnection {
   @@index([workspaceId, channelType])
   @@index([workspaceId, status])
   @@unique([workspaceId, externalAccountId])
+}
+
+/**
+ * WorkspaceTask — future global workspace work item (foundation only).
+ *
+ * Goal: a single, brand-neutral, workspace-scoped record for "work the
+ * operator (or AI) needs to do" regardless of where the work was born
+ * (Inbox, Fanny suggestion, manual capture, project, client, calendar,
+ * etc.). The Today view (`/today`) and the eventual global Tasks page
+ * will read from THIS model. Until the migration plan ships, this PR
+ * is purely additive: nothing reads from or writes to it yet.
+ *
+ * Coexistence with other "work-like" models:
+ *   - InboxTodo   — TRANSITIONAL. Stays untouched. The current /today
+ *                   aggregator still reads it; New → New task still
+ *                   writes to it. Will be deprecated in a later PR
+ *                   after dual-write + backfill (PR 3).
+ *   - Tarea       — Project/CRM task. Stays as a deeper sub-record;
+ *                   may eventually be linked from WorkspaceTask via
+ *                   `tareaId`, never replaced wholesale.
+ *   - Evento      — Calendar event; surfaced by Today but distinct
+ *                   from work items.
+ *   - ConversationAction — AI-suggested action proposals (system
+ *                   intent), separate concept from a human-actionable
+ *                   task. May produce a WorkspaceTask in the future.
+ *
+ * Conventions (mirror `InboxTodo` / `Conversation` / etc.):
+ *   - `workspaceId` is REQUIRED with `onDelete: Cascade`. No legacy
+ *     null-tenant rows are possible because nothing writes to this
+ *     table yet. Multi-tenant filtering remains the caller's job.
+ *   - All "kind" fields (`status`, `priority`, `assigneeType`,
+ *     `suggestedBy`, `executionMode`) are free `String` columns, not
+ *     Prisma enums, to match the rest of the schema (sqlite/libsql)
+ *     and keep validation in the service layer where it can evolve
+ *     without a migration.
+ *   - Source / link fields (`sourceType`, `sourceId`, `conversationId`,
+ *     `messageId`, `clienteId`, `proyectoId`, `eventoId`, `tareaId`,
+ *     `conversationActionId`) are NULLABLE SCALAR IDs WITHOUT FK
+ *     constraints. Same rationale as `InboxTodo.sourceMessageId`:
+ *     deleting/restoring a source record must NOT cascade into the
+ *     task row — the audit trail outlives the source. We can promote
+ *     specific links to real FKs in a later PR if it ever buys us
+ *     anything (it usually doesn't).
+ *   - `metadata` is a free JSON string (TEXT under sqlite/libsql),
+ *     parsed safely in the service layer like the rest of the schema.
+ *
+ * Status flow (validated in the service, not at DB level):
+ *   proposed     — Fanny / AI proposal awaiting operator approval.
+ *   open         — Active, ready to be picked up.
+ *   in_progress  — Operator (or AI) actively working on it.
+ *   waiting      — Blocked by external party but still active.
+ *   done         — Completed; `completedAt`/`completedBy` set.
+ *   dismissed    — Will not be done; `dismissedAt`/`dismissedReason` set.
+ *
+ * Priorities (validated in the service):
+ *   low | normal | high | urgent
+ *   The Today aggregator's TodayPriority will keep mapping `urgent` →
+ *   `critical` for UI presentation; we store the raw schema convention.
+ */
+model WorkspaceTask {
+  id                   String    @id @default(cuid())
+  workspaceId          String
+
+  title                String
+  description          String?
+
+  status               String    @default("open")
+  priority             String    @default("normal")
+
+  /** Assignment plane — who owns this task. `assigneeId` is a free
+   *  string (no FK) because it may point to a User, a future AI agent
+   *  identifier, or a team handle. The runtime validates the shape. */
+  assigneeType         String    @default("unassigned")
+  assigneeId           String?
+
+  /** Lifecycle dates. `dueAt` drives the Today buckets; `remindAt`
+   *  is reserved for future reminder/notification jobs. */
+  dueAt                DateTime?
+  remindAt             DateTime?
+  completedAt          DateTime?
+  completedBy          String?
+  dismissedAt          DateTime?
+  dismissedReason      String?
+
+  /** Origin of the task. `sourceType` is a free string (e.g.
+   *  `inbox_conversation`, `fanny_suggestion`, `manual`,
+   *  `client_request`). `sourceId` is opaque — interpretation depends
+   *  on `sourceType`. `sourceLabel` is a short human label cached at
+   *  creation time so UI doesn't have to resolve the source row. */
+  sourceType           String?
+  sourceId             String?
+  sourceLabel          String?
+
+  /** Optional links to first-class records, kept as nullable scalar
+   *  IDs without FK constraints. None of these gate creation. */
+  conversationId       String?
+  messageId            String?
+  conversationActionId String?
+  clienteId            String?
+  proyectoId           String?
+  eventoId             String?
+  tareaId              String?
+
+  /** Audit and origin metadata. `createdBy` is required (operator id
+   *  or system actor); `suggestedBy` is the upstream proposer when
+   *  the task came from a suggestion path (`user | fanny | system`).
+   *  `executionMode` captures how this task is meant to be done
+   *  (`manual | ai_assisted | ai`). */
+  createdBy            String
+  suggestedBy          String?
+  executionMode        String?
+
+  /** Free JSON blob (TEXT under sqlite/libsql). Parsed and sanitised
+   *  in the service. Keeps the model forward-compatible. */
+  metadata             String?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, dueAt])
+  @@index([workspaceId, assigneeId])
+  @@index([workspaceId, sourceType, sourceId])
+  @@index([workspaceId, conversationId])
+  @@index([workspaceId, proyectoId])
+  @@index([workspaceId, tareaId])
 }
 
 // ── Forte Analysis Snapshot ──
