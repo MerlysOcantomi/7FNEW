@@ -994,11 +994,16 @@ export function ContextPanel({
     </section>
   )
 
-  /** Recommended next move — single CTA-style card with editable text + ranked actions list. */
+  /**
+   * Recommended next step — single CTA-style card with editable text +
+   * ranked actions list. Title is intentionally identical across
+   * message-mode and conversation-mode (PR 11) so the operator's IA
+   * stays stable when toggling between views.
+   */
   const nextMoveSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        {isMessageMode ? "Recommended next action" : "Recommended next move"}
+        Recommended next step
       </p>
       {nextRecommendedAction ? (
         <InlineTextarea
@@ -1157,17 +1162,29 @@ export function ContextPanel({
   const proposedFannyTasks = (selected.proposedTasks ?? []).filter(
     (task): task is ProposedFannyTaskItem => Boolean(task && task.id && task.title),
   )
-  const fannySuggestedTasksSection = proposedFannyTasks.length > 0 ? (
+  /**
+   * PR 11 — section renamed from "Fanny suggested tasks" to
+   * "Pending decisions". Rationale: the panel's IA puts decisions
+   * (approve / dismiss) above execution (Smart actions, Today). The
+   * section currently only renders proposed `WorkspaceTask` rows that
+   * are awaiting human decision, so "Pending decisions" is precise.
+   * The caption keeps Fanny's branding context without making the
+   * title compete with `Today`'s execution language.
+   */
+  const pendingDecisionsSection = proposedFannyTasks.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Fanny suggested tasks"
+      aria-label="Pending decisions"
     >
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny suggested tasks
+          Pending decisions
         </p>
       </div>
+      <p className="mt-1 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]/85">
+        Fanny suggestions awaiting your approval before becoming workspace tasks.
+      </p>
       <ul className="mt-2 space-y-2">
         {proposedFannyTasks.map((task) => {
           /**
@@ -1577,18 +1594,23 @@ export function ContextPanel({
           {whatThisMeansSection}
           {/* 3. Signal bars (mood / urgency / lead) */}
           {signalsSection}
-          {/* 4. Recommended next action (single strongest CTA) */}
+          {/* 4. Recommended next step (single strongest CTA) */}
           {nextMoveSection}
-          {/* 5. Smart actions */}
+          {/*
+            5. Pending decisions (PR 11, was 5b) — proposed WorkspaceTasks
+            awaiting human approve / dismiss. Decisions outrank direct
+            execution shortcuts in the IA so this section now sits
+            above Smart actions.
+          */}
+          {pendingDecisionsSection}
+          {/* 6. Smart actions — direct conversion shortcuts (one-click). */}
           {smartActionsSection}
-          {/* 5b. Fanny suggested tasks (PR 9) — proposed WorkspaceTasks awaiting approval. */}
-          {fannySuggestedTasksSection}
-          {/* 6. Still needed */}
+          {/* 7. Still needed */}
           {stillNeededSection}
-          {/* 7. Watch out */}
+          {/* 8. Watch out */}
           {watchOutSection}
           {/*
-            8. Conversation context — collapsible, contains Summary + Facts + Decisions of the
+            9. Conversation context — collapsible, contains Summary + Facts + Decisions of the
             full thread. Hidden by default in message mode so the operator's eyes go to message
             insight first; one click reveals the bigger picture without leaving the panel.
             Rendered only when there's something to show.
@@ -1647,15 +1669,19 @@ export function ContextPanel({
           </section>
           {/* 3. Signal bars */}
           {signalsSection}
-          {/* 4. Recommended next move */}
+          {/* 4. Recommended next step */}
           {nextMoveSection}
-          {/* 5. Smart actions */}
+          {/*
+            5. Pending decisions (PR 11, was 5b) — proposed WorkspaceTasks
+            awaiting human approve / dismiss. Sits above Smart actions
+            so decisions outrank direct execution.
+          */}
+          {pendingDecisionsSection}
+          {/* 6. Smart actions — direct conversion shortcuts (one-click). */}
           {smartActionsSection}
-          {/* 5b. Fanny suggested tasks (PR 9) — proposed WorkspaceTasks awaiting approval. */}
-          {fannySuggestedTasksSection}
-          {/* 6. Still needed */}
+          {/* 7. Still needed */}
           {stillNeededSection}
-          {/* 7. Watch out */}
+          {/* 8. Watch out */}
           {watchOutSection}
           {/* 8. Facts / Decisions — separate section, only when we have content */}
           {factsAndDecisionsBlock ? (

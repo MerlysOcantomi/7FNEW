@@ -89,17 +89,19 @@ export function ConversationMetaLine({
   proposedTaskCount,
 }: ConversationMetaLineProps) {
   /**
-   * Singular / plural copy that mirrors the rest of the inbox
-   * vocabulary ("Fanny suggestion(s)") and stays compact enough to
-   * sit alongside the existing chips without forcing a wrap. The pill
-   * is hidden entirely when `count <= 0` (or `undefined`), so rows
-   * without suggestions keep their previous footprint to the pixel.
+   * Singular / plural copy. PR 11 swapped "Fanny suggestion(s)" for
+   * "pending decision(s)" so the badge stays consistent with the
+   * Smart Hub's "Pending decisions" section title and reinforces the
+   * IA: this row needs a human decision (approve / dismiss), not
+   * generic execution. The pill is hidden entirely when `count <= 0`
+   * (or `undefined`), so rows without proposals keep their previous
+   * footprint to the pixel.
    */
   const proposedTaskBadge =
     typeof proposedTaskCount === "number" && proposedTaskCount > 0
       ? proposedTaskCount === 1
-        ? "1 Fanny suggestion"
-        : `${proposedTaskCount} Fanny suggestions`
+        ? "1 pending decision"
+        : `${proposedTaskCount} pending decisions`
       : null
   const hideTerminal =
     conversationStatus === "archived" ||
@@ -169,7 +171,7 @@ export function ConversationMetaLine({
       {proposedTaskBadge ? (
         <span
           className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] shadow-none whitespace-nowrap"
-          title="Fanny has suggested tasks awaiting approval for this conversation"
+          title="Fanny suggestions awaiting your approve / dismiss decision"
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
           {proposedTaskBadge}
