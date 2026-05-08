@@ -195,6 +195,26 @@ interface ConversationDetail extends ConversationListItem {
     proyectoId?: string | null
     tareaId?: string | null
   }>
+  /**
+   * PR 9 — Fanny-suggested `WorkspaceTask` rows for this conversation that
+   * are still in `proposed` status. The detail endpoint
+   * (`getConversationById`) attaches them so the Smart Hub renders the
+   * suggestions section without an extra round-trip. Approve / dismiss go
+   * through the linked `ConversationAction` (via `conversationActionId`),
+   * not a new task-mutation API.
+   */
+  proposedTasks?: Array<{
+    id: string
+    title: string
+    description: string | null
+    priority: "low" | "normal" | "high" | "urgent"
+    sourceLabel: string | null
+    conversationActionId: string | null
+    messageId: string | null
+    metadata: Record<string, unknown> | null
+    createdAt: string
+    updatedAt: string
+  }>
 }
 
 const STATUS_OPTIONS = [

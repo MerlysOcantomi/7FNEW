@@ -352,3 +352,107 @@ export async function listInboxScopedTasks(
 
   return rows.map(projectWorkspaceTaskAsInboxTodo)
 }
+
+// ─── Proposed Fanny tasks (PR 9) ────────────────────────────────────────────
+
+/**
+ * UI-shaped projection of a Fanny-suggested `WorkspaceTask` (status=proposed).
+ *
+ * Surfaced in the Inbox conversation detail / Smart Hub so the operator can
+ * approve (promote → "open") or dismiss the suggestion via the existing
+ * `ConversationAction` flows. The shape is deliberately narrow:
+ *
+ *   - Only fields the Smart Hub card needs (no assignee, no dueAt — Fanny
+ *     suggestions don't carry those today).
+ *   - `metadata` is parsed once here so the client never has to wrap a JSON
+ *     parse in a try/catch. `confidence`, `aiReasoning`, etc. live inside.
+ *   - `conversationActionId` is the linkage that makes approve / dismiss
+ *     work — UI must defensively handle the (rare) case where it's missing.
+ */
+export interface ProposedFannyTaskRecord {
+  id: string
+  title: string
+  description: string | null
+  priority: InboxTodoPriority
+  sourceLabel: string | null
+  conversationActionId: string | null
+  messageId: string | null
+  metadata: Record<string, unknown> | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface ListProposedFannyTasksParams {
+  workspaceId: string
+  conversationId: string
+}
+
+/**
+ * Read every Fanny-suggested `WorkspaceTask` still in `proposed` status for
+ * a single conversation in a single workspace. Used by the Inbox conversation
+ * detail payload (`getConversationById`) so the Smart Hub can render the
+ * "Fanny suggested tasks" section without an extra round-trip.
+ *
+ * Hard filters (defense in depth — every clause is workspace-scoped):
+ *   - `workspaceId` — multi-tenant boundary.
+ *   - `conversationId` — conversation-scoped surface.
+ *   - `status = "proposed"` — already-promoted / dismissed rows are out of
+ *     scope for the suggestions surface.
+ *   - `sourceType = "fanny_suggestion"` — only the Fanny pipeline writes
+ *     this value (PR 7). Other writers (`inbox_todo`, `manual`,
+ *     `inbox_conversation`) are excluded.
+ *   - `suggestedBy = "fanny"` — belt-and-braces against any future writer
+ *     that re-uses the `fanny_suggestion` sourceType for non-AI provenance.
+ *
+ * Order: createdAt desc — most-recent suggestions surface first, matching
+ * how the AI pipeline stamps actions.
+ *
+ * Both required parameters throw on empty strings rather than silently
+ * returning `[]`, so a misuse fails loud at the service boundary.
+ */
+export async function listProposedFannyTasksForConversation(
+  params: ListProposedFannyTasksParams,
+): Promise<ProposedFannyTaskRecord[]> {
+  if (!params.workspaceId?.trim()) {
+    throw new Error("workspaceId is required")
+  }
+  if (!params.conversationId?.trim()) {
+    throw new Error("conversationId is required")
+  }
+
+  const rows = await db.workspaceTask.findMany({
+    where: {
+      workspaceId: params.workspaceId.trim(),
+      conversationId: params.conversationId.trim(),
+      status: "proposed",
+      sourceType: "fanny_suggestion",
+      suggestedBy: "fanny",
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      priority: true,
+      sourceLabel: true,
+      conversationActionId: true,
+      messageId: true,
+      metadata: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  })
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    priority: mapPriority(row.priority),
+    sourceLabel: row.sourceLabel,
+    conversationActionId: row.conversationActionId,
+    messageId: row.messageId,
+    metadata: parseTaskMetadata(row.metadata),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }))
+}

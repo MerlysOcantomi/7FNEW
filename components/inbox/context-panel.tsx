@@ -121,6 +121,14 @@ interface ContextPanelProps {
     } | null
     actions?: ActionItem[]
     /**
+     * PR 9 — Fanny-suggested `WorkspaceTask` rows still in `proposed` status
+     * for this conversation. Provided by the conversation detail endpoint
+     * (see `getConversationById` in `modules/inbox/service.ts`). The Smart
+     * Hub renders them as approve/dismiss cards backed by the linked
+     * `ConversationAction` (via `conversationActionId`).
+     */
+    proposedTasks?: ProposedFannyTaskItem[]
+    /**
      * Open drafts counted by the Triage Summary. Each draft carries the
      * same `status` shape as `ConversationDraft` ("draft" | "edited" |
      * "approved" | "discarded" | "superseded"); we count "draft" + "edited"
@@ -215,6 +223,28 @@ interface ContextPanelProps {
    * it as 0 for rendering purposes.
    */
   conversationTodoCount?: number
+}
+
+/**
+ * PR 9 — UI projection of a Fanny-suggested `WorkspaceTask` (status=proposed).
+ *
+ * Mirrors `ProposedFannyTaskRecord` from `modules/inbox/inbox-tasks-read.ts`
+ * but with `Date` fields serialised to ISO strings (the wire format from
+ * `successResponse`/JSON). Kept inline in the panel module so the import
+ * surface stays UI-only — the detail payload is structurally typed in
+ * `app/inbox/page.tsx`.
+ */
+export interface ProposedFannyTaskItem {
+  id: string
+  title: string
+  description: string | null
+  priority: "low" | "normal" | "high" | "urgent"
+  sourceLabel: string | null
+  conversationActionId: string | null
+  messageId: string | null
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
 }
 
 export function ContextPanel({
@@ -1104,6 +1134,147 @@ export function ContextPanel({
   )
 
   /**
+   * PR 9 — Fanny suggested tasks (proposed `WorkspaceTask` rows backed by a
+   * `create_task` ConversationAction). Hidden when empty (no noise on
+   * conversations the AI didn't propose tasks for).
+   *
+   * Each card surfaces title, description, priority, and an optional
+   * confidence pill (when the Fanny pipeline persisted a numeric
+   * `metadata.confidence` between 0 and 1). The approve / dismiss CTAs
+   * reuse the existing ConversationAction flow via `handleSuggestedAction`:
+   *   - Approve → operation `approve_and_execute`. PR 7's
+   *     `convertConversationToRecords` promotes the linked proposed
+   *     WorkspaceTask to `"open"` instead of duplicating it.
+   *   - Dismiss → operation `dismiss`. PR 7's `dismissConversationAction`
+   *     cascades to mark the linked proposed WorkspaceTask `"dismissed"`.
+   *
+   * Defensive fallbacks:
+   *   - If a proposed task arrives without `conversationActionId`, or the
+   *     linked action can't be found in `selected.actions` (already
+   *     promoted / dismissed by another tab), the card renders read-only
+   *     with disabled buttons. The operator can refresh to re-sync.
+   */
+  const proposedFannyTasks = (selected.proposedTasks ?? []).filter(
+    (task): task is ProposedFannyTaskItem => Boolean(task && task.id && task.title),
+  )
+  const fannySuggestedTasksSection = proposedFannyTasks.length > 0 ? (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Fanny suggested tasks"
+    >
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Fanny suggested tasks
+        </p>
+      </div>
+      <ul className="mt-2 space-y-2">
+        {proposedFannyTasks.map((task) => {
+          /**
+           * Resolve the linked ConversationAction so approve/dismiss can
+           * route through the existing flow. We only consider non-terminal
+           * statuses ("suggested" / "approved") — anything else means the
+           * panel state is stale (the user acted in another tab) and the
+           * card should degrade to read-only until the next refetch.
+           */
+          const linkedAction = task.conversationActionId
+            ? (selected.actions ?? []).find(
+                (a) =>
+                  a.id === task.conversationActionId &&
+                  (a.status === "suggested" || a.status === "approved"),
+              )
+            : null
+          const canAct = Boolean(linkedAction)
+          const isPending = canAct && linkedAction?.id === pendingActionId
+          const confidencePct = readConfidencePct(task.metadata)
+          const priorityLabel = task.priority.charAt(0).toUpperCase() + task.priority.slice(1)
+          return (
+            <li
+              key={task.id}
+              className="rounded-md border border-[var(--inbox-intelligence-border)] bg-white/4 px-3 py-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-[var(--inbox-intelligence-text)]">
+                    {task.title}
+                  </p>
+                  {task.description ? (
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
+                      {task.description}
+                    </p>
+                  ) : null}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--inbox-intelligence-border)] bg-white/6 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-intelligence-text-secondary)]">
+                      <Target className="h-2.5 w-2.5" aria-hidden="true" />
+                      {priorityLabel}
+                    </span>
+                    {confidencePct !== null ? (
+                      <span
+                        className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-accent)]"
+                        title="Fanny's confidence in this suggestion"
+                      >
+                        {confidencePct}% confidence
+                      </span>
+                    ) : null}
+                    {!canAct ? (
+                      <span
+                        className="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-400/90"
+                        title="The linked action is no longer pending — refresh to resync."
+                      >
+                        View only
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!canAct || isPending}
+                  onClick={() => {
+                    if (!linkedAction) return
+                    handleSuggestedAction(linkedAction, "dismiss")
+                  }}
+                  className={cn(
+                    "h-6 rounded-md px-2 text-[10px]",
+                    INBOX_GHOST_BUTTON,
+                  )}
+                  aria-label={`Dismiss suggested task: ${task.title}`}
+                >
+                  Dismiss
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!canAct || isPending}
+                  onClick={() => {
+                    if (!linkedAction) return
+                    handleSuggestedAction(linkedAction, "approve_and_execute")
+                  }}
+                  className={cn(
+                    "h-6 rounded-md px-2 text-[10px]",
+                    INBOX_GHOST_BUTTON,
+                  )}
+                  aria-label={`Approve suggested task: ${task.title}`}
+                >
+                  {isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                  ) : (
+                    "Create task"
+                  )}
+                </Button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  ) : null
+
+  /**
    * Pending items — "what's missing to act?" Hidden when empty (no fabricated noise).
    *
    * Phase 3 To-do capture: when `onCreateTodoFromPendingItem` is provided, each row gets a
@@ -1385,6 +1556,8 @@ export function ContextPanel({
           {nextMoveSection}
           {/* 5. Smart actions */}
           {smartActionsSection}
+          {/* 5b. Fanny suggested tasks (PR 9) — proposed WorkspaceTasks awaiting approval. */}
+          {fannySuggestedTasksSection}
           {/* 6. Still needed */}
           {stillNeededSection}
           {/* 7. Watch out */}
@@ -1453,6 +1626,8 @@ export function ContextPanel({
           {nextMoveSection}
           {/* 5. Smart actions */}
           {smartActionsSection}
+          {/* 5b. Fanny suggested tasks (PR 9) — proposed WorkspaceTasks awaiting approval. */}
+          {fannySuggestedTasksSection}
           {/* 6. Still needed */}
           {stillNeededSection}
           {/* 7. Watch out */}
@@ -1648,6 +1823,24 @@ function safeStringList(value: unknown): string[] {
     }
   }
   return out
+}
+
+/**
+ * PR 9 — derive a UI-displayable confidence percentage from a parsed
+ * `WorkspaceTask.metadata` blob. Tolerates the values Fanny historically
+ * persists:
+ *   - 0..1 (canonical) — multiplied by 100 and rounded.
+ *   - 0..100 (already a percentage) — passed through and rounded.
+ * Returns `null` for anything unrecognisable so the UI can hide the chip
+ * rather than render misleading numbers.
+ */
+function readConfidencePct(metadata: Record<string, unknown> | null | undefined): number | null {
+  if (!metadata) return null
+  const raw = metadata.confidence
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return null
+  if (raw <= 1 && raw >= 0) return Math.round(raw * 100)
+  if (raw > 1 && raw <= 100) return Math.round(raw)
+  return null
 }
 
 function mapSentimentToMood(sentiment?: string | null) {

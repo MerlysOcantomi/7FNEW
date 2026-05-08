@@ -15,6 +15,10 @@ import {
 import * as calendarioService from "@modules/calendario/service"
 import { createEventoSchema } from "@modules/calendario/validation"
 import { buildConversationToWorkspaceTaskData } from "@modules/tasks/conversation-action-mapping"
+import {
+  listProposedFannyTasksForConversation,
+  type ProposedFannyTaskRecord,
+} from "./inbox-tasks-read"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -535,19 +539,61 @@ export async function listMessageShortIntents(conversationId: string, workspaceI
 }
 
 export async function getConversationById(id: string, workspaceId: string) {
-  return db.conversation.findFirst({
-    where: { id, workspaceId },
-    include: {
-      contact: true,
-      cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
-      proyecto: { select: { id: true, nombre: true, estado: true } },
-      classification: true,
-      handoff: true,
-      drafts: { orderBy: { createdAt: "desc" }, take: 10 },
-      messages: { orderBy: { createdAt: "asc" } },
-      actions: { orderBy: { createdAt: "desc" } },
-    },
-  })
+  /**
+   * PR 9 — fetch the conversation row + the workspace's Fanny-suggested
+   * `proposed` tasks for this conversation in parallel. Both queries are
+   * workspace-scoped (the conversation read filters on `workspaceId`; the
+   * proposed-tasks reader enforces it internally) so no cross-tenant leak
+   * is possible.
+   *
+   * If the conversation isn't found we return `null` immediately and skip
+   * attaching `proposedTasks` — there's no payload to attach them to. The
+   * caller (the GET route) treats `null` as 404, same as before.
+   */
+  const [conversation, proposedTasks] = await Promise.all([
+    db.conversation.findFirst({
+      where: { id, workspaceId },
+      include: {
+        contact: true,
+        cliente: { select: { id: true, nombre: true, email: true, empresa: true } },
+        proyecto: { select: { id: true, nombre: true, estado: true } },
+        classification: true,
+        handoff: true,
+        drafts: { orderBy: { createdAt: "desc" }, take: 10 },
+        messages: { orderBy: { createdAt: "asc" } },
+        actions: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    listProposedFannyTasksForConversation({ workspaceId, conversationId: id }).catch(
+      (err: unknown) => {
+        /**
+         * Defensive: a failure here MUST NOT break the conversation detail
+         * fetch — the Smart Hub task suggestions are auxiliary information.
+         * We log in dev (matches the rest of this module's debug pattern)
+         * and degrade to `[]` so the panel renders without the section.
+         */
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[inbox:audit:detail] proposed tasks fetch failed", {
+            conversationId: id,
+            workspaceId,
+            message: err instanceof Error ? err.message : String(err),
+          })
+        }
+        return [] as ProposedFannyTaskRecord[]
+      },
+    ),
+  ])
+
+  if (!conversation) return null
+
+  /**
+   * Attach `proposedTasks` to the returned object so downstream consumers
+   * (`parseConversationJsonFields`, the GET route, the inbox page) get them
+   * on the same payload as actions / drafts / handoff. The cast preserves
+   * the rich Prisma type while widening it with the new field — no changes
+   * needed in the existing typing of `getConversationById`'s callers.
+   */
+  return Object.assign(conversation, { proposedTasks })
 }
 
 export async function addMessage(input: AddMessageInput) {
