@@ -111,15 +111,15 @@ This section records where time zone and language **actually** live today so we 
 | Concern | Where it lives | Consumers (examples) |
 |--------|----------------|----------------------|
 | **Operator UI language** | Root `Workspace.config.locale` as a **string** (`es`, `en`, `de`, …) | `resolveLocaleFromConfig`, `getWorkspaceWithResolvedConfig`, operator-facing copy |
-| **Workspace IANA time zone for Fanny inbox intelligence** | Root `Workspace.config.timeZone` as a **string** (preferred) | `pickWorkspaceTimezone` in `modules/inbox/intelligence.ts` — used when anchoring calendar hints (`nowISO`, “tomorrow at 8”, etc.) |
+| **Workspace IANA time zone for Fanny inbox intelligence** | Root `Workspace.config.timeZone` as a **non-empty string** after vertical/workspace merge | `pickWorkspaceTimezoneFromConfig` in `modules/inbox/workspace-config-timezone.ts` (called from `modules/inbox/intelligence.ts` with merged **`resolvedConfig`**) — anchors calendar hints (`nowISO`, “tomorrow at 8”, etc.) |
 
-The same helper also reads `Workspace.config.locale.timeZone` **only if** `locale` is an **object**. That path conflicts with the normal convention where `locale` is a **language code string**. Treat **root `timeZone`** as the supported IANA slot; avoid relying on `locale`-as-object until config shape is intentionally unified.
+**`locale.timeZone` is unsupported and ignored.** Only root **`timeZone`** on parsed merged config is read; **`locale`** must remain a **language code string** for `resolveLocaleFromConfig` / i18n (never stash tz under `locale`).
 
 ### `businessProfile.workingHours` vs IANA
 
 - **`businessProfile.workingHours`** (edited on `/business-profile`) is **natural-language operating context** for humans and for `resolveWorkspaceContext` / `buildWorkspaceContextBlock` — e.g. “Mon–Fri 9–18 CET”.
 - It is **not** a substitute for an IANA zone for server-side date math.
-- **Do not** add `businessProfile.timezone` — that would duplicate the workspace-level IANA source of truth and drift from Fanny’s existing reader (`pickWorkspaceTimezone`).
+- **Do not** add `businessProfile.timezone` — that would duplicate the workspace-level IANA source of truth and drift from Fanny’s reader (`pickWorkspaceTimezoneFromConfig`).
 
 ### `/today` and tasks/events
 
@@ -134,7 +134,7 @@ The same helper also reads `Workspace.config.locale.timeZone` **only if** `local
 
 1. Keep **`workingHours`** as natural language only — already shipped; matches “guided operating context,” not scheduling math.
 2. When we expose an explicit **IANA time zone** in UI, wire it to **root `Workspace.config.timeZone`** via the existing config merge helpers — **not** under `businessProfile`, and **no schema migration**.
-3. First clarify or document the **`locale` string vs `locale` object** tension so admins never break `resolveLocaleFromConfig` while setting time zone.
+3. **`locale`** is **always** the UI language string; do **not** use a `locale` object or **`locale.timeZone`** — timezone belongs **only** in root **`Workspace.config.timeZone`** after merge.
 
 ---
 

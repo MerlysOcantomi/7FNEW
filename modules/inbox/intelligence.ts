@@ -16,6 +16,7 @@ import type {
 import { transitionConversationStatus } from "./state"
 import { evaluateAutoCreatePolicy } from "./auto-task-policy"
 import { planCreateTaskWrite } from "./auto-task-write-planner"
+import { pickWorkspaceTimezoneFromConfig } from "./workspace-config-timezone"
 
 const PIPELINE_VERSION = "5"
 const PROMPT_VERSION = "fanny-v1.2"
@@ -52,24 +53,6 @@ function parseJsonResponse<T>(response: string): T | null {
   } catch {
     return null
   }
-}
-
-/**
- * Resolve a sane workspace timezone hint. We never pull from the host (server might be UTC); we
- * read `Workspace.config.locale.timeZone` if present, else fall back to UTC. The model uses this
- * to anchor relative phrases like "tomorrow at 8".
- */
-function pickWorkspaceTimezone(config: unknown): string {
-  if (!config || typeof config !== "object") return "UTC"
-  const cfg = config as Record<string, unknown>
-  const direct = typeof cfg.timeZone === "string" ? cfg.timeZone.trim() : ""
-  if (direct) return direct
-  const localeBlock = cfg.locale
-  if (localeBlock && typeof localeBlock === "object") {
-    const tz = (localeBlock as Record<string, unknown>).timeZone
-    if (typeof tz === "string" && tz.trim()) return tz.trim()
-  }
-  return "UTC"
 }
 
 /**
@@ -627,7 +610,9 @@ export async function runConversationIntelligence(input: {
   const workspaceContextBlock = wsContext ? buildWorkspaceContextBlock(wsContext, operatorLocale) : null
 
   /** Phase 1 calendar prompt anchors. We resolve tz once here so the prompt is deterministic. */
-  const workspaceTimeZone = pickWorkspaceTimezone(wsResolved?.config ?? null)
+  const workspaceTimeZone = pickWorkspaceTimezoneFromConfig(
+    wsResolved?.resolvedConfig ?? null,
+  )
   const nowISO = new Date().toISOString()
 
   const intelligence = await generateConversationIntelligence({
