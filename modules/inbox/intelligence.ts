@@ -14,13 +14,8 @@ import type {
   InboxClassification,
 } from "./types"
 import { transitionConversationStatus } from "./state"
-import {
-  buildAutoCreatedWorkspaceTaskFromAction,
-  buildProposedWorkspaceTaskFromAction,
-  pickAutoCreatedWorkspaceTaskRefreshFields,
-  pickProposedWorkspaceTaskRefreshFields,
-} from "@modules/tasks/conversation-action-mapping"
 import { evaluateAutoCreatePolicy } from "./auto-task-policy"
+import { planCreateTaskWrite } from "./auto-task-write-planner"
 
 const PIPELINE_VERSION = "5"
 const PROMPT_VERSION = "fanny-v1.2"
@@ -1091,77 +1086,49 @@ export async function runConversationIntelligence(input: {
           select: { id: true, status: true, sourceType: true },
         })
 
-        if (policyDecision.auto) {
-          /**
-           * Auto lane.
-           *
-           * Idempotency rules (mirror the proposed lane):
-           *   - No existing row → create the auto task AND flip the
-           *     action to `"executed"` with deterministic
-           *     `executionNotes` for audit. `resultModule` /
-           *     `resultId` point at the new WorkspaceTask so the
-           *     audit trail can resolve the work item from the
-           *     action.
-           *   - Existing row in `"open"` and `sourceType="fanny_auto"`
-           *     → safe re-run, refresh the mutable subset only. We
-           *     deliberately do NOT touch rows that were promoted
-           *     from a different lane (e.g. operator-approved
-           *     proposed → open) — `sourceType` mismatch is the
-           *     guard.
-           *   - Any other state (in_progress / waiting / done /
-           *     dismissed, or sourceType !== fanny_auto) → leave
-           *     untouched. Fanny never regresses operator-managed
-           *     work, and never rewrites a row that the operator
-           *     has actively moved through the lifecycle.
-           */
-          const autoData = buildAutoCreatedWorkspaceTaskFromAction({
-            ...builderInput,
-            automationReason: policyDecision.reason,
+        /**
+         * PR 14 — pure planner. Decides between create/refresh/skip
+         * for the WorkspaceTask AND whether the linked
+         * ConversationAction should be flipped to `"executed"`. The
+         * lane semantics, idempotency guards, and refresh-field
+         * subsets are now centralised in `planCreateTaskWrite` so
+         * tests can drive them without DB mocks. Production
+         * behavior is identical — this block just maps the plan
+         * back to the same Prisma calls PR 12 already made.
+         */
+        const plan = planCreateTaskWrite({
+          decision: policyDecision,
+          builderInput,
+          existingTask,
+        })
+
+        if (plan.taskWrite.kind === "create") {
+          const created = await tx.workspaceTask.create({
+            data: plan.taskWrite.data,
           })
-
-          if (!existingTask) {
-            const created = await tx.workspaceTask.create({ data: autoData })
-
+          if (plan.actionUpdate?.kind === "execute") {
             await tx.conversationAction.update({
               where: { id: persistedActionId },
               data: {
                 status: "executed",
                 resultId: created.id,
-                resultModule: "workspace_task",
-                executionNotes: `Auto-created by Fanny (${policyDecision.reason})`,
+                resultModule: plan.actionUpdate.resultModule,
+                executionNotes: plan.actionUpdate.executionNotes,
                 reviewedAt: new Date(),
               },
             })
-          } else if (
-            existingTask.status === "open" &&
-            existingTask.sourceType === "fanny_auto"
-          ) {
-            await tx.workspaceTask.update({
-              where: { id: existingTask.id },
-              data: pickAutoCreatedWorkspaceTaskRefreshFields(autoData),
-            })
           }
-        } else {
-          /**
-           * Review lane (existing PR 7 path, untouched). Only refreshes
-           * proposed rows so the operator's decisions are never
-           * overwritten by re-runs.
-           */
-          const proposedData = buildProposedWorkspaceTaskFromAction(builderInput)
-
-          if (!existingTask) {
-            await tx.workspaceTask.create({ data: proposedData })
-          } else if (existingTask.status === "proposed") {
-            await tx.workspaceTask.update({
-              where: { id: existingTask.id },
-              data: pickProposedWorkspaceTaskRefreshFields(proposedData),
-            })
-          }
-          /** Any other status (open / in_progress / waiting / done /
-           *  dismissed) means the operator has already acted on this
-           *  suggestion. Leave the row alone — Fanny has no business
-           *  rewriting operator-managed work. */
+        } else if (plan.taskWrite.kind === "refresh") {
+          await tx.workspaceTask.update({
+            where: { id: plan.taskWrite.existingTaskId },
+            data: plan.taskWrite.refreshData,
+          })
         }
+        /** plan.taskWrite.kind === "skip" → intentional no-op.
+         *  Fanny never regresses operator-managed work and never
+         *  rewrites a row that has moved through the lifecycle.
+         *  See `auto-task-write-planner.ts` for the full guard
+         *  matrix. */
       }
     }
 
