@@ -626,6 +626,25 @@ model InboxTodo {
 
   metadata        String?
 
+  /**
+   * Forward link to the canonical `WorkspaceTask` row this InboxTodo
+   * is mirrored into during the transitional dual-write phase (PR 3).
+   *
+   * Stored as a nullable scalar without a FK constraint by design:
+   *   - Same audit-trail rationale as `sourceActionId` /
+   *     `sourceMessageId` — deleting the WorkspaceTask must not
+   *     cascade into the InboxTodo row, and vice versa.
+   *   - Lets the backfill script run idempotently: an unbacked
+   *     InboxTodo (`workspaceTaskId IS NULL`) is exactly the set the
+   *     script needs to process. Re-running the script is a no-op
+   *     once every row is linked.
+   *
+   * `null` is the legitimate steady state for rows that pre-date PR 3
+   * and have not been backfilled yet, plus any row whose dual-write
+   * partially failed and is waiting for the next backfill pass.
+   */
+  workspaceTaskId String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -637,6 +656,15 @@ model InboxTodo {
   @@index([conversationId, status])
   @@index([sourceActionId])
   @@index([sourceMessageId])
+  /**
+   * Supports two query patterns used by PR 3:
+   *   - "Find unbacked todos in this workspace" (backfill driver):
+   *     `WHERE workspaceId = ? AND workspaceTaskId IS NULL`
+   *   - "Find the InboxTodo that mirrors this WorkspaceTask"
+   *     (forensic / inverse-link lookup).
+   * Sparse on libSQL/sqlite, so the storage cost is negligible.
+   */
+  @@index([workspaceId, workspaceTaskId])
 }
 
 model AIClassification {

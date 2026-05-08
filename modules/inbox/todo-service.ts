@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { mapInboxTodoToWorkspaceTaskData } from "@modules/tasks/inbox-todo-mapping"
 
 /**
  * InboxTodo service — operator-facing work queue.
@@ -18,6 +19,17 @@ import type { Prisma } from "@/generated/prisma/client"
  * **validated against workspaceId** at create time so a To-do can never silently reference data
  * from another tenant. We do NOT FK-cascade these in the schema — keeping audit trail intact when
  * the source record is deleted/restored is a feature, not a bug.
+ *
+ * Dual-write to WorkspaceTask (PR 3, transitional)
+ * ────────────────────────────────────────────────
+ * Every `createTodo` call now also creates a mirror `WorkspaceTask` row in the same
+ * interactive transaction and links the two via `InboxTodo.workspaceTaskId`. The mirror
+ * is the future canonical work-item; reads keep going through InboxTodo until PR 4
+ * swaps `/today` and the inbox To-do tab over. Status mutations and field updates
+ * (`updateTodoStatus`, `updateTodoFields`, `dismissTodo`) intentionally do NOT propagate
+ * to the linked WorkspaceTask in this PR — the mirror records the work item's birth
+ * snapshot only, and PR 4 will rewire the read path before we worry about backwards-flow
+ * synchronisation.
  */
 
 const VALID_STATUSES = new Set(["open", "done", "dismissed", "waiting"] as const)
@@ -44,6 +56,10 @@ function parseTodoMetadata(raw: string | null | undefined): Record<string, unkno
 /**
  * Public response shape — keeps the raw DB record but replaces the `metadata` string with the
  * parsed object (or null on parse failure). Front-end never sees the JSON string directly.
+ *
+ * `workspaceTaskId` (PR 3) is `null` for rows that pre-date dual-write and have not been
+ * back-linked yet, otherwise points to the mirror `WorkspaceTask`. This field is additive —
+ * existing API consumers can ignore it without changes.
  */
 export interface InboxTodoRecord {
   id: string
@@ -67,6 +83,7 @@ export interface InboxTodoRecord {
   dismissedAt: Date | null
   dismissedReason: string | null
   metadata: Record<string, unknown> | null
+  workspaceTaskId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -93,6 +110,7 @@ function formatTodo(todo: {
   dismissedAt: Date | null
   dismissedReason: string | null
   metadata: string | null
+  workspaceTaskId: string | null
   createdAt: Date
   updatedAt: Date
 }): InboxTodoRecord {
@@ -252,6 +270,13 @@ export async function createTodo(input: CreateTodoInput): Promise<InboxTodoRecor
     ? input.assigneeType
     : "me"
 
+  /**
+   * Cross-tenant validation runs OUTSIDE the transaction on purpose:
+   * these are read-only lookups, idempotent, and any failure should
+   * 400 the request before we write anything. Doing them inside the
+   * tx would still work but would needlessly hold a write connection
+   * during three round-trips.
+   */
   await assertSourcesBelongToWorkspace({
     workspaceId: input.workspaceId,
     conversationId: input.conversationId ?? null,
@@ -263,27 +288,61 @@ export async function createTodo(input: CreateTodoInput): Promise<InboxTodoRecor
   const completedAt = status === "done" ? now : null
   const completedBy = status === "done" ? input.createdBy.trim() : null
 
-  const todo = await db.inboxTodo.create({
-    data: {
-      workspaceId: input.workspaceId,
-      conversationId: input.conversationId ?? null,
-      sourceMessageId: input.sourceMessageId ?? null,
-      sourceActionId: input.sourceActionId ?? null,
-      sourceNoteId: input.sourceNoteId ?? null,
-      title,
-      description: input.description?.trim() ? input.description.trim() : null,
-      status,
-      priority,
-      assigneeType,
-      assigneeId: input.assigneeId?.trim() ? input.assigneeId.trim() : null,
-      dueAt: input.dueAt ?? null,
-      remindAt: input.remindAt ?? null,
-      createdBy: input.createdBy.trim(),
-      createdSource: input.createdSource?.trim() || "operator",
-      completedAt,
-      completedBy,
-      metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-    },
+  const inboxTodoData: Prisma.InboxTodoUncheckedCreateInput = {
+    workspaceId: input.workspaceId,
+    conversationId: input.conversationId ?? null,
+    sourceMessageId: input.sourceMessageId ?? null,
+    sourceActionId: input.sourceActionId ?? null,
+    sourceNoteId: input.sourceNoteId ?? null,
+    title,
+    description: input.description?.trim() ? input.description.trim() : null,
+    status,
+    priority,
+    assigneeType,
+    assigneeId: input.assigneeId?.trim() ? input.assigneeId.trim() : null,
+    dueAt: input.dueAt ?? null,
+    remindAt: input.remindAt ?? null,
+    createdBy: input.createdBy.trim(),
+    createdSource: input.createdSource?.trim() || "operator",
+    completedAt,
+    completedBy,
+    metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+  }
+
+  /**
+   * Dual-write transaction — atomic by design.
+   *
+   * Sequence:
+   *   1. Create the InboxTodo (the legacy canonical row).
+   *   2. Map it to the WorkspaceTask shape and create the mirror.
+   *      `sourceId` on the mirror points back to the InboxTodo so a
+   *      forensics query can navigate either direction even before
+   *      step 3 lands.
+   *   3. Update the InboxTodo with `workspaceTaskId` so the forward
+   *      link is in place when the function returns.
+   *
+   * Atomicity: if any step throws, the entire transaction rolls back
+   * — no partially-mirrored state is ever observable. We rely on the
+   * libSQL adapter's interactive transaction support; the rest of the
+   * codebase already uses this pattern (`modules/inbox/service.ts`,
+   * `modules/inbox/intelligence.ts`, etc.), so the runtime guarantees
+   * are well exercised.
+   *
+   * Why interactive (callback) form: step 2 needs the auto-generated
+   * cuid from step 1, and step 3 needs the auto-generated cuid from
+   * step 2. The array form (`db.$transaction([a, b, c])`) cannot
+   * thread these dependencies.
+   */
+  const todo = await db.$transaction(async (tx) => {
+    const created = await tx.inboxTodo.create({ data: inboxTodoData })
+
+    const taskData = mapInboxTodoToWorkspaceTaskData(created)
+    const task = await tx.workspaceTask.create({ data: taskData })
+
+    return tx.inboxTodo.update({
+      where: { id: created.id },
+      data: { workspaceTaskId: task.id },
+    })
   })
 
   return formatTodo(todo)
