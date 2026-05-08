@@ -578,12 +578,30 @@ model ConversationAction {
 }
 
 /**
- * InboxTodo — operator-facing work queue.
+ * InboxTodo — DEPRECATED legacy model (PR 8).
  *
- * Distinct from ConversationAction (system-executable AI suggestions: create_event, create_task,
- * etc.) and from Tarea (project-scoped task model). InboxTodo represents concrete units of human
- * work surfaced from the Smart Inbox — "Reply to this client", "Send invoice", "Follow up
- * tomorrow". Free-form `title`, reversible `status`, optional `dueAt`, per-operator `assigneeId`.
+ * Replaced by WorkspaceTask (see `WorkspaceTask` below). The table is preserved for audit /
+ * forensic safety; no production code path writes to it as of PR 8. The dual-write era
+ * (PR 3 → PR 7) populated `workspaceTaskId` on every new row, so historic records remain
+ * resolvable to their canonical `WorkspaceTask` mirror.
+ *
+ *   - All HTTP routes (`/api/inbox/todos*`) target WorkspaceTask via
+ *     `modules/inbox/inbox-tasks-write.ts`.
+ *   - `modules/inbox/todo-service.ts` is `@deprecated`. Functions remain exported for
+ *     emergency rescue scripts and for `scripts/backfill-workspace-tasks.ts`, which still
+ *     walks legacy rows that pre-date dual-write.
+ *   - Do NOT add new writers. Do NOT drop the table without a separately-approved
+ *     destructive migration; it carries audit history.
+ *
+ * Historic context kept below for anyone tracing repository history.
+ *
+ * ────────────────────────────────────────────────────────────────────
+ * Original PR 1 contract (now historic):
+ * Operator-facing work queue. Distinct from ConversationAction (system-executable AI
+ * suggestions: create_event, create_task, etc.) and from Tarea (project-scoped task model).
+ * InboxTodo represented concrete units of human work surfaced from the Smart Inbox — "Reply
+ * to this client", "Send invoice", "Follow up tomorrow". Free-form `title`, reversible
+ * `status`, optional `dueAt`, per-operator `assigneeId`.
  *
  * - `conversationId` is nullable so a To-do can exist without a conversation (manual capture or
  *   automation). When set, it scopes the To-do back to its source thread.

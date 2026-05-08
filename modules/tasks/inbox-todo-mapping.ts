@@ -1,8 +1,16 @@
 /**
  * InboxTodo → WorkspaceTask field mapping.
  *
+ * @deprecated PR 8 — the dual-write contract this module enables is
+ * retired. Production write paths now target `WorkspaceTask` directly
+ * via `modules/inbox/inbox-tasks-write.ts` and never create
+ * `InboxTodo` rows. This module is preserved exclusively to back
+ * `scripts/backfill-workspace-tasks.ts`, which still walks legacy
+ * `InboxTodo` rows that pre-date the dual-write era and ensures each
+ * one has a paired `WorkspaceTask`. Do NOT add new callers.
+ *
  * Single source of truth for the dual-write transition (PR 3). Used
- * by:
+ * (historically) by:
  *   - `modules/inbox/todo-service.ts#createTodo` to mirror every new
  *     InboxTodo into a WorkspaceTask in the same transaction.
  *   - `scripts/backfill-workspace-tasks.ts` to retro-mirror historic

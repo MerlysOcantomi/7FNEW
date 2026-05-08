@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
-import {
-  updateTodoFields,
-  updateTodoStatus,
-  type InboxTodoAssigneeType,
-  type InboxTodoPriority,
-  type InboxTodoStatus,
+import type {
+  InboxTodoAssigneeType,
+  InboxTodoPriority,
+  InboxTodoStatus,
 } from "@modules/inbox/todo-service"
+import {
+  updateInboxScopedTaskFields,
+  updateInboxScopedTaskStatus,
+} from "@modules/inbox/inbox-tasks-write"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -17,17 +19,26 @@ type Params = { params: Promise<{ id: string }> }
  * Two distinct operations on the same endpoint:
  *
  *   1. Status change — body `{ status: "open" | "done" | "dismissed" | "waiting", reason? }`.
- *      Routed to `updateTodoStatus` which keeps audit fields (completedAt/By, dismissedAt/Reason)
- *      consistent and handles reversibility (re-opening a "done" item clears its completion
- *      stamp, etc.). `reason` is only honored for `status: "dismissed"`.
+ *      Routed to `updateInboxScopedTaskStatus`, which keeps audit fields
+ *      (completedAt/By, dismissedAt/Reason) consistent and handles
+ *      reversibility (re-opening a "done" item clears its completion
+ *      stamp, etc.). `reason` is only honoured for `status: "dismissed"`.
  *
  *   2. Field patch — any subset of { title, description, priority, assigneeType, assigneeId,
- *      dueAt, remindAt, metadata }. Routed to `updateTodoFields`. Status changes are NOT allowed
- *      via this path even if `status` is in the body — must use the dedicated branch.
+ *      dueAt, remindAt, metadata }. Routed to `updateInboxScopedTaskFields`. Status changes
+ *      are NOT allowed via this path even if `status` is in the body — must use the dedicated
+ *      branch.
  *
  * If the body contains BOTH a `status` and other patchable fields, we apply the field patch
- * first, then the status change. This lets a single request do "rename + mark done" atomically
- * from the operator's perspective. (Two writes, but the user-visible state is consistent.)
+ * first, then the status change. This lets a single request do "rename + mark done"
+ * atomically from the operator's perspective. (Two writes, but the user-visible state is
+ * consistent.)
+ *
+ * Storage (PR 8): every write goes against `WorkspaceTask`. The legacy `InboxTodo` table is
+ * never mutated. The service layer accepts the wire `id` as either a `WorkspaceTask.id`
+ * (canonical) or a stale `InboxTodo.id` (resolved via the `InboxTodo.workspaceTaskId`
+ * forward link the legacy dual-write populated), so any UI session with cached old ids
+ * keeps working through the deprecation window.
  *
  * No DELETE endpoint by design — this phase has no hard delete. Use status=dismissed instead.
  */
@@ -46,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     /** Field-level patch — only emit when at least one whitelisted key is present. */
-    const fieldPatch: Parameters<typeof updateTodoFields>[0]["patch"] = {}
+    const fieldPatch: Parameters<typeof updateInboxScopedTaskFields>[0]["patch"] = {}
     let hasFieldPatch = false
 
     if (typeof body?.title === "string") {
@@ -89,17 +100,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       hasFieldPatch = true
     }
 
-    let result: Awaited<ReturnType<typeof updateTodoFields>> = null
+    let result: Awaited<ReturnType<typeof updateInboxScopedTaskFields>> = null
 
     if (hasFieldPatch) {
-      result = await updateTodoFields({ id, workspaceId, patch: fieldPatch })
+      result = await updateInboxScopedTaskFields({ id, workspaceId, patch: fieldPatch })
       if (!result) return errorResponse("NOT_FOUND", "To-do not found", 404)
     }
 
     if (typeof body?.status === "string") {
       const status = body.status as InboxTodoStatus
       const reason = typeof body?.reason === "string" ? body.reason : null
-      result = await updateTodoStatus({
+      result = await updateInboxScopedTaskStatus({
         id,
         workspaceId,
         status,

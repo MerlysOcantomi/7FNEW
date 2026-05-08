@@ -1,42 +1,48 @@
 import { NextRequest } from "next/server"
 import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
-import {
-  createTodo,
-  type InboxTodoAssigneeType,
-  type InboxTodoPriority,
-  type InboxTodoStatus,
+import type {
+  InboxTodoAssigneeType,
+  InboxTodoPriority,
+  InboxTodoStatus,
 } from "@modules/inbox/todo-service"
 import { listInboxScopedTasks } from "@modules/inbox/inbox-tasks-read"
+import { createInboxScopedTask } from "@modules/inbox/inbox-tasks-write"
+
+/**
+ * Inbox To-do HTTP surface (legacy contract, WorkspaceTask backend).
+ *
+ * As of PR 8 the wire shape is unchanged but the storage is exclusively
+ * `WorkspaceTask`:
+ *
+ *   - GET reads inbox-scoped WorkspaceTasks via `listInboxScopedTasks`
+ *     and projects them into `InboxTodoRecord`.
+ *   - POST creates a WorkspaceTask via `createInboxScopedTask` (no
+ *     `InboxTodo` row is written) and returns the projected response.
+ *
+ * Why we kept the route mounted: the existing UI calls these paths
+ * from a dozen places and every Phase-3 capture surface (smart-hub
+ * pending items, internal-note TODO, message actions, NewTaskDialog).
+ * Re-pointing every consumer would be a large-blast-radius change for
+ * no end-user benefit; routing through `inbox-tasks-write` keeps the
+ * API stable while the storage migrates underneath.
+ */
 
 /**
  * GET /api/inbox/todos
  *
- * List To-do items scoped to the caller's workspace. Filters are read from query string and
- * intentionally narrow — listing is paginated server-side via `take` (max 500). The endpoint
- * returns an empty array (not 404) when there are no matches; the front-end can render an empty
- * state without branching on HTTP code.
- *
- * Read path (PR 5)
- * ────────────────
- * The endpoint now reads from `WorkspaceTask` (filtered to inbox-scoped
- * `sourceType` values) rather than from `InboxTodo` directly. The wire
- * shape is unchanged — `listInboxScopedTasks` projects every row into
- * the same `InboxTodoRecord` shape `listTodos` returned, including the
- * legacy `id` (the originating InboxTodo id) so deep-links and the
- * PATCH endpoint keep working without UI changes.
- *
- * Writes (`POST` below, plus `PATCH /api/inbox/todos/{id}`) still flow
- * through `todo-service.ts`, which dual-writes to the WorkspaceTask
- * mirror. Reads stay consistent with writes because PR 5 also extends
- * the update paths to mirror status / field changes back into the
- * WorkspaceTask row.
+ * Read path (PR 5 → PR 8):
+ *   `listInboxScopedTasks` filters `WorkspaceTask` by
+ *   `sourceType IN ("inbox_todo", "manual")` and projects each row
+ *   into the same `InboxTodoRecord` wire shape `listTodos` used to
+ *   return. The projector keys off `WorkspaceTask.id` for the wire
+ *   `id` (PR 8 change — see `projectWorkspaceTaskAsInboxTodo` doc).
  *
  * Query params:
  *   - status        comma-separated subset of: open | done | dismissed | waiting
  *   - assigneeId    user id (exact match). Future: special token "unassigned".
  *   - conversationId restrict to a single conversation thread.
- *   - skip / take   pagination (defaults: 0 / 200).
+ *   - skip / take   pagination (defaults: 0 / 200, hard cap 500).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -66,12 +72,19 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/inbox/todos
  *
- * Create a To-do. `title` is the only strictly-required body field; everything else has sensible
- * defaults (status=open, priority=normal, assigneeType=me, createdSource=operator). `createdBy`
- * is always taken from the authenticated session — body cannot override it (audit safety).
+ * Create a To-do. `title` is the only strictly-required body field;
+ * everything else has sensible defaults (status=open, priority=normal,
+ * assigneeType=me, createdSource=operator). `createdBy` is always
+ * derived from the authenticated session — the body cannot override it
+ * (audit safety).
  *
- * Cross-tenant references (conversationId, sourceMessageId, sourceActionId) are validated in the
- * service layer; mismatches return a VALIDATION_ERROR rather than silently dropping the link.
+ * Storage (PR 8): `createInboxScopedTask` writes a single
+ * `WorkspaceTask` row with `sourceType` resolved from `createdSource`
+ * (`manual` for the New-task dialog, `inbox_todo` for everything else).
+ * No `InboxTodo` row is created. Cross-tenant references
+ * (conversationId, sourceMessageId, sourceActionId, sourceNoteId) are
+ * validated in the service layer; mismatches return a VALIDATION_ERROR
+ * rather than silently dropping the link.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -84,9 +97,10 @@ export async function POST(request: NextRequest) {
     }
 
     /**
-     * Optional ISO date strings → Date. Accept null and undefined transparently. We deliberately
-     * fail soft here: if the operator sends a bad date string we coerce to null rather than 400 —
-     * the worst outcome is "no due date" which is recoverable, not data loss.
+     * Optional ISO date strings → Date. Same forgiving behaviour as
+     * the legacy `createTodo` route: a malformed string degrades to
+     * `null` rather than 400, because "no due date" is recoverable
+     * while "data lost on a typo" is not.
      */
     const parseDate = (raw: unknown): Date | null => {
       if (raw === null || raw === undefined || raw === "") return null
@@ -95,7 +109,7 @@ export async function POST(request: NextRequest) {
       return Number.isNaN(d.getTime()) ? null : d
     }
 
-    const todo = await createTodo({
+    const todo = await createInboxScopedTask({
       workspaceId,
       title,
       description: typeof body?.description === "string" ? body.description : null,

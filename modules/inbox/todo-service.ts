@@ -6,40 +6,51 @@ import {
 } from "@modules/tasks/inbox-todo-mapping"
 
 /**
- * InboxTodo service — operator-facing work queue.
+ * InboxTodo service — DEPRECATED (PR 8).
  *
- * This module is intentionally small and provider-agnostic: no AI calls, no OpenAI/DeepSeek imports,
- * no auto-extraction. All write paths preserve the audit trail (createdBy, completedBy, etc.) and
- * keep `metadata` as a free JSON string parsed only via `parseTodoMetadata` so a corrupted blob
- * never crashes the API.
+ * @deprecated As of PR 8 the legacy `/api/inbox/todos*` HTTP routes
+ * write exclusively against `WorkspaceTask` via
+ * `modules/inbox/inbox-tasks-write.ts`. None of the functions in this
+ * module are called from the production HTTP surface anymore. They
+ * remain exported for:
+ *
+ *   - One-off rescue scripts that need to inspect / repair a legacy
+ *     `InboxTodo` row directly (this is the only writer that can put
+ *     a row back into the `InboxTodo` table).
+ *   - The historical backfill path
+ *     (`scripts/backfill-workspace-tasks.ts`), which still walks
+ *     `InboxTodo` rows that pre-date the dual-write era and ensures
+ *     each one has a paired `WorkspaceTask`.
+ *
+ * Do NOT call these from new code. Use `inbox-tasks-write.ts` for
+ * inbox-tab writes and `modules/tasks/service.ts#createWorkspaceTask`
+ * for new task surfaces. The `InboxTodo` Prisma model itself is also
+ * deprecated — the table is preserved for audit / forensic safety
+ * but no production write path targets it.
+ *
+ * Historic context kept below for anyone tracing repository history.
+ *
+ * ────────────────────────────────────────────────────────────────────
+ * Original PR 1 contract (now historic):
+ * Operator-facing work queue. Provider-agnostic: no AI calls, no
+ * OpenAI/DeepSeek imports, no auto-extraction. All write paths
+ * preserved the audit trail (createdBy, completedBy, etc.) and kept
+ * `metadata` as a free JSON string parsed only via `parseTodoMetadata`.
  *
  * Status flow (all reversible):
  *   open ↔ done       — operator marks complete; reopening clears completedAt/completedBy.
  *   open ↔ dismissed  — operator decides this never needed action; reopening clears dismissedAt.
  *   open ↔ waiting    — blocked by external party but still active. No completion fields touched.
  *
- * Source linkage (`conversationId`, `sourceMessageId`, `sourceActionId`, `sourceNoteId`) is
- * **validated against workspaceId** at create time so a To-do can never silently reference data
- * from another tenant. We do NOT FK-cascade these in the schema — keeping audit trail intact when
- * the source record is deleted/restored is a feature, not a bug.
+ * Cross-tenant linkage validation lived in `assertSourcesBelongToWorkspace`
+ * here; PR 8 copied that logic into `inbox-tasks-write.ts` so the
+ * deprecation surface stays self-contained.
  *
- * Dual-write to WorkspaceTask (PR 3, extended in PR 5)
- * ─────────────────────────────────────────────────────
- * Every `createTodo` call creates a mirror `WorkspaceTask` row in the same interactive
- * transaction and links the two via `InboxTodo.workspaceTaskId`. PR 4 then made `/today`
- * read from the mirror; PR 5 makes the Inbox To-do tab read from the mirror too via
- * `listInboxScopedTasks`.
- *
- * To keep those reads consistent with writes that still arrive on the InboxTodo side
- * (PATCH `/api/inbox/todos/{id}` — status changes, field patches), every mutation that
- * goes through this module now also propagates to the linked mirror inside the same
- * transaction. The propagation is full re-derivation via
- * `mapInboxTodoUpdateToWorkspaceTaskUpdateData`, which only touches the mutable subset
- * of mirror columns (status, priority, dates, audit fields, metadata) and never
- * clobbers immutable linkage / origin columns (`sourceType`, `sourceId`, `createdBy`,
- * etc.). Rows without a `workspaceTaskId` (legacy unbacked inbox todos) update the
- * InboxTodo only; the backfill script `scripts/backfill-workspace-tasks.ts` is the
- * tool to give them mirrors.
+ * Dual-write to WorkspaceTask (PR 3, extended in PR 5):
+ * Every `createTodo` call also created a mirror `WorkspaceTask` row.
+ * PR 4 made `/today` read from the mirror; PR 5 made the Inbox To-do
+ * tab read from the mirror; PR 8 made every write target the mirror
+ * directly and stopped touching `InboxTodo` from the route layer.
  */
 
 const VALID_STATUSES = new Set(["open", "done", "dismissed", "waiting"] as const)
@@ -151,14 +162,11 @@ interface ListTodosParams {
 /**
  * Direct InboxTodo list reader.
  *
- * Superseded by `listInboxScopedTasks` (in `./inbox-tasks-read.ts`) for
- * the Inbox To-do tab and `/today`, which now project the same shape
- * out of `WorkspaceTask`. Kept exported for backward compatibility:
- * any caller that still needs to see the underlying `InboxTodo` rows
- * directly (debug scripts, future migration tools) can keep using it.
- *
- * The HTTP route `GET /api/inbox/todos` no longer calls this function
- * as of PR 5 — it goes through `listInboxScopedTasks`.
+ * @deprecated PR 8 — use `listInboxScopedTasks` from
+ * `modules/inbox/inbox-tasks-read.ts`. This function still walks the
+ * `InboxTodo` table directly and is only useful for forensic /
+ * repair work. The HTTP route `GET /api/inbox/todos` has not called
+ * this function since PR 5.
  */
 export async function listTodos(params: ListTodosParams): Promise<InboxTodoRecord[]> {
   const { workspaceId, status, assigneeId, conversationId, skip = 0, take = 200 } = params
@@ -274,6 +282,13 @@ async function assertSourcesBelongToWorkspace(input: {
   /** sourceNoteId is also a Message id (internal note) — same validation path covers it. */
 }
 
+/**
+ * @deprecated PR 8 — use `createInboxScopedTask` from
+ * `modules/inbox/inbox-tasks-write.ts`. This function still writes
+ * a fresh `InboxTodo` plus its dual-write mirror; it is no longer
+ * called by any HTTP route and is retained only for emergency
+ * scripts.
+ */
 export async function createTodo(input: CreateTodoInput): Promise<InboxTodoRecord> {
   const title = input.title?.trim()
   if (!title) {
@@ -382,17 +397,12 @@ interface UpdateTodoStatusInput {
 }
 
 /**
- * Reversible status update. The transition table:
+ * Reversible status update on an `InboxTodo` row plus its mirror.
  *
- *   target=done       → completedAt=now,  completedBy=actor,    dismissedAt/Reason cleared.
- *   target=open       → completedAt/By cleared,                 dismissedAt/Reason cleared.
- *   target=dismissed  → dismissedAt=now,  dismissedReason=reason, completedAt/By cleared.
- *   target=waiting    → only status change. completion/dismiss fields untouched (so reopening
- *                        from waiting → done still feels honest about when it was done).
- *
- * This is intentionally **strict about field clearing** so the audit trail never lies (a "done"
- * record always has completedAt; a "dismissed" record always has dismissedAt; reopening clears
- * both). Returns null when the todo doesn't exist or doesn't belong to the workspace.
+ * @deprecated PR 8 — use `updateInboxScopedTaskStatus` from
+ * `modules/inbox/inbox-tasks-write.ts`, which writes against
+ * `WorkspaceTask` directly. This function is no longer called from
+ * any HTTP route.
  */
 export async function updateTodoStatus(input: UpdateTodoStatusInput): Promise<InboxTodoRecord | null> {
   if (!VALID_STATUSES.has(input.status)) {
@@ -469,6 +479,12 @@ interface DismissTodoInput {
   reason?: string | null
 }
 
+/**
+ * @deprecated PR 8 — call
+ * `updateInboxScopedTaskStatus({ ..., status: "dismissed", reason })`
+ * from `modules/inbox/inbox-tasks-write.ts` instead. This wrapper
+ * still reaches into the `InboxTodo` table.
+ */
 export async function dismissTodo(input: DismissTodoInput): Promise<InboxTodoRecord | null> {
   return updateTodoStatus({
     id: input.id,
@@ -498,9 +514,12 @@ export interface UpdateTodoFieldsInput {
 }
 
 /**
- * Surgical field update. Status changes are NOT allowed here — callers must use updateTodoStatus
- * so the audit fields stay consistent. Returns null when the todo doesn't exist or doesn't belong
- * to the workspace. Whitelisted fields only — anything else in `patch` is silently ignored.
+ * Surgical field update.
+ *
+ * @deprecated PR 8 — use `updateInboxScopedTaskFields` from
+ * `modules/inbox/inbox-tasks-write.ts`, which writes against
+ * `WorkspaceTask` directly. This function is no longer called from
+ * any HTTP route.
  */
 export async function updateTodoFields(input: UpdateTodoFieldsInput): Promise<InboxTodoRecord | null> {
   const existing = await db.inboxTodo.findFirst({

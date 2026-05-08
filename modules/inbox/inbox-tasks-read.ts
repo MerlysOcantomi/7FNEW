@@ -27,19 +27,20 @@ import type {
  *     backing InboxTodo. Anything else (Fanny suggestions, project tasks,
  *     calendar-derived items in the future) is intentionally excluded.
  *
- * Identity preservation:
- *   The wire `id` we return is `WorkspaceTask.sourceId`, which by the dual-
- *   write contract is the originating `InboxTodo.id`. This keeps every
- *   downstream API path that uses ids stable:
- *     - `PATCH /api/inbox/todos/{id}` still operates on the InboxTodo (and
- *       PR 5 propagates updates to the mirror so reads stay consistent).
- *     - The page's `selectedTodoId` deep-link state is unchanged.
- *     - Any other consumer that round-trips an id through the wire keeps
- *       working.
- *   `workspaceTaskId` on the returned record is the `WorkspaceTask.id` —
- *   exactly mirroring the forward link InboxTodo already stores.
+ * Identity (PR 5 → PR 8):
+ *   PR 5 returned `WorkspaceTask.sourceId` (== originating `InboxTodo.id`)
+ *   as the wire `id`. PR 8 retired the dual-write, so new rows have no
+ *   originating `InboxTodo`. From PR 8 onward the wire `id` is
+ *   `WorkspaceTask.id` — the canonical identifier going forward. The
+ *   PATCH route accepts both the new id and any stale `InboxTodo.id`
+ *   (resolved via the `InboxTodo.workspaceTaskId` forward link the
+ *   dual-write era populated), so deep-links and cached UI sessions
+ *   keep working through the deprecation window.
+ *   `workspaceTaskId` on the returned record is the same as `id` and
+ *   is preserved for callers that depended on the older shape.
  *
- * No mutation in this module. Writes still flow through `todo-service.ts`.
+ * No mutation in this module. Writes flow through `inbox-tasks-write.ts`
+ * (the legacy `todo-service.ts` is `@deprecated` as of PR 8).
  */
 
 /**
@@ -226,22 +227,24 @@ interface WorkspaceTaskRow {
 }
 
 /**
- * Project a `WorkspaceTask` row into the `InboxTodoRecord` wire shape the
- * existing UI consumes. Returns null when the row is missing the required
- * `sourceId` (which would mean a corrupt mirror — we'd rather skip than
- * return a row the PATCH endpoint can't address).
+ * Project a `WorkspaceTask` row into the `InboxTodoRecord` wire shape
+ * the existing UI consumes.
+ *
+ * Wire identity (PR 8):
+ *   The wire `id` is now `WorkspaceTask.id` directly — the canonical
+ *   identifier going forward. Before PR 8 we used `sourceId`, which
+ *   for dual-written rows happened to be the originating
+ *   `InboxTodo.id`. With dual-write retired (PR 8), new rows have no
+ *   originating InboxTodo, and using a self-pointer for `sourceId`
+ *   created a confusing "id == sourceId" coincidence we'd rather not
+ *   teach. The PATCH route still accepts old `InboxTodo.id` values
+ *   via a workspaceTaskId fallback so any stale UI session survives.
+ *
+ * Exported (PR 8) so the inbox write module can reuse the same
+ * projector after every mutation, keeping the GET / POST / PATCH wire
+ * shapes byte-identical without duplicating the mapping.
  */
-function projectWorkspaceTaskAsInboxTodo(row: WorkspaceTaskRow): InboxTodoRecord | null {
-  if (!row.sourceId) {
-    /**
-     * Defensive: rows passing the `sourceType IN (inbox_todo, manual)`
-     * filter should always have a `sourceId` per the dual-write contract.
-     * If the contract is violated we skip rather than render an item the
-     * PATCH endpoint can't reach (the wire `id` would be null).
-     */
-    return null
-  }
-
+export function projectWorkspaceTaskAsInboxTodo(row: WorkspaceTaskRow): InboxTodoRecord {
   const meta = parseTaskMetadata(row.metadata)
   const inboxTodoMetadata = readInboxTodoMetadata(meta)
 
@@ -250,7 +253,7 @@ function projectWorkspaceTaskAsInboxTodo(row: WorkspaceTaskRow): InboxTodoRecord
   const sourceNoteId = readMetaString(meta, "inboxTodoSourceNoteId")
 
   return {
-    id: row.sourceId,
+    id: row.id,
     workspaceId: row.workspaceId,
     conversationId: row.conversationId,
     sourceMessageId: row.messageId,
@@ -347,10 +350,5 @@ export async function listInboxScopedTasks(
     take: Math.max(1, Math.min(500, take)),
   })
 
-  const projected: InboxTodoRecord[] = []
-  for (const row of rows) {
-    const record = projectWorkspaceTaskAsInboxTodo(row)
-    if (record) projected.push(record)
-  }
-  return projected
+  return rows.map(projectWorkspaceTaskAsInboxTodo)
 }
