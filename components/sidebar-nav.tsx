@@ -42,6 +42,7 @@ import {
   CalendarClock,
   ArrowLeft,
   Sparkles,
+  Sun,
 } from "lucide-react";
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -95,6 +96,18 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
       section: "Main",
       subtitle: "",
       items: [
+        /**
+         * Today — global daily execution view. Reads existing workspace work
+         * signals (Inbox tasks, project tasks, today's calendar events) and
+         * surfaces them in one place. Sits ABOVE Smart Inbox on purpose: Today
+         * is the "first click of the day", Inbox is the discovery surface.
+         *
+         * Active state: handled by the default `NavLink` matcher (`pathname ===
+         * "/today" || pathname.startsWith("/today/")`). It will NOT light up on
+         * `/inbox?filter=todo` because that route still belongs to the Inbox
+         * subitem.
+         */
+        { label: "Today", href: "/today", icon: Sun, helper: "Daily focus" },
         {
           /**
            * Smart Inbox parent — operational reorganization. Subitems are grouped by
