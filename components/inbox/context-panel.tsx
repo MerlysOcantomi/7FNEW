@@ -1172,15 +1172,28 @@ export function ContextPanel({
         {proposedFannyTasks.map((task) => {
           /**
            * Resolve the linked ConversationAction so approve/dismiss can
-           * route through the existing flow. We only consider non-terminal
-           * statuses ("suggested" / "approved") — anything else means the
-           * panel state is stale (the user acted in another tab) and the
-           * card should degrade to read-only until the next refetch.
+           * route through the existing flow.
+           *
+           * Hardening (PR 9 follow-up):
+           *   1. Must be the same id as the task's `conversationActionId`.
+           *   2. Must be `type === "create_task"`. PR 7 only ever creates
+           *      proposed `WorkspaceTask` rows for `create_task` actions,
+           *      so any other type linked here is data-corruption / an
+           *      unexpected upstream change. Routing approve+execute to
+           *      the wrong type would either no-op (e.g. assign_operator
+           *      requires `assignedTo`) or fire a different side-effect.
+           *      We refuse to act on it.
+           *   3. Status must be `"suggested"` or `"approved"` — anything
+           *      else means the action has already been executed or
+           *      dismissed (likely from another tab) and the panel is
+           *      momentarily stale. The "View only" pill signals this
+           *      until the next detail refetch flushes the row.
            */
           const linkedAction = task.conversationActionId
             ? (selected.actions ?? []).find(
                 (a) =>
                   a.id === task.conversationActionId &&
+                  a.type === "create_task" &&
                   (a.status === "suggested" || a.status === "approved"),
               )
             : null
@@ -1188,6 +1201,18 @@ export function ContextPanel({
           const isPending = canAct && linkedAction?.id === pendingActionId
           const confidencePct = readConfidencePct(task.metadata)
           const priorityLabel = task.priority.charAt(0).toUpperCase() + task.priority.slice(1)
+          /**
+           * Primary CTA label tracks the linked action's lifecycle so the
+           * operator always sees the next concrete step:
+           *   - suggested → "Create task" (approve + execute will run).
+           *   - approved  → "Execute" (approve already happened, e.g. a
+           *     prior execute failed and we're retrying just the run).
+           * Both routes call `approve_and_execute`; `approveConversationAction`
+           * is idempotent on `approved` so the re-approve is a no-op write
+           * and the execute is what does the real work.
+           */
+          const primaryCtaLabel =
+            linkedAction?.status === "approved" ? "Execute" : "Create task"
           return (
             <li
               key={task.id}
@@ -1258,12 +1283,12 @@ export function ContextPanel({
                     "h-6 rounded-md px-2 text-[10px]",
                     INBOX_GHOST_BUTTON,
                   )}
-                  aria-label={`Approve suggested task: ${task.title}`}
+                  aria-label={`${primaryCtaLabel} for suggested task: ${task.title}`}
                 >
                   {isPending ? (
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                   ) : (
-                    "Create task"
+                    primaryCtaLabel
                   )}
                 </Button>
               </div>

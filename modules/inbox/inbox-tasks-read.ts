@@ -407,9 +407,17 @@ interface ListProposedFannyTasksParams {
  * Order: createdAt desc — most-recent suggestions surface first, matching
  * how the AI pipeline stamps actions.
  *
+ * Bounded read (PR 9 hardening): hard-capped at 50 rows. A
+ * conversation that genuinely has more than 50 outstanding Fanny
+ * suggestions is a runaway-pipeline incident, not a UX problem to
+ * scroll through; the cap keeps the detail payload bounded and
+ * protects the panel from rendering an unreasonable list.
+ *
  * Both required parameters throw on empty strings rather than silently
  * returning `[]`, so a misuse fails loud at the service boundary.
  */
+const PROPOSED_FANNY_TASK_TAKE_CAP = 50
+
 export async function listProposedFannyTasksForConversation(
   params: ListProposedFannyTasksParams,
 ): Promise<ProposedFannyTaskRecord[]> {
@@ -429,6 +437,7 @@ export async function listProposedFannyTasksForConversation(
       suggestedBy: "fanny",
     },
     orderBy: { createdAt: "desc" },
+    take: PROPOSED_FANNY_TASK_TAKE_CAP,
     select: {
       id: true,
       title: true,
