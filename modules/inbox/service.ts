@@ -14,6 +14,7 @@ import {
 } from "./message-short-intent"
 import * as calendarioService from "@modules/calendario/service"
 import { createEventoSchema } from "@modules/calendario/validation"
+import { buildConversationToWorkspaceTaskData } from "@modules/tasks/conversation-action-mapping"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -82,15 +83,32 @@ interface ConversationConversionResult {
   cliente: Record<string, unknown> | null
   proyecto: Record<string, unknown> | null
   tarea: Record<string, unknown> | null
+  /**
+   * PR 6 — every `Tarea` created via inbox conversion (whether driven
+   * by an approved `create_task` ConversationAction or by the
+   * operator-driven `/convert` route) now also produces a mirrored
+   * `WorkspaceTask` in the same transaction. The mirror is the
+   * canonical surface for `/today` and the Inbox To-do tab, so this
+   * field stays additive (existing consumers can ignore it).
+   *
+   * `null` when no Tarea was created in this run, or when the row
+   * already existed and was reused from `output.ids.tareaId`.
+   */
+  workspaceTask: Record<string, unknown> | null
   created: {
     cliente: boolean
     proyecto: boolean
     tarea: boolean
+    /** True only when a fresh `WorkspaceTask` mirror was inserted in
+     *  this conversion; mirrors `created.tarea` for the create-task
+     *  path. */
+    workspaceTask: boolean
   }
   ids: {
     clienteId: string | null
     proyectoId: string | null
     tareaId: string | null
+    workspaceTaskId: string | null
   }
 }
 
@@ -1440,15 +1458,18 @@ export async function convertConversationToRecords(
       cliente: null,
       proyecto: null,
       tarea: null,
+      workspaceTask: null,
       created: {
         cliente: false,
         proyecto: false,
         tarea: false,
+        workspaceTask: false,
       },
       ids: {
         clienteId: conversation.clienteId ?? null,
         proyectoId: conversation.proyectoId ?? null,
         tareaId: null,
+        workspaceTaskId: null,
       },
     }
 
@@ -1536,6 +1557,66 @@ export async function convertConversationToRecords(
         output.ids.tareaId = tarea.id
         output.tarea = tarea
         output.created.tarea = true
+
+        /**
+         * PR 6 — mirror the freshly-created Tarea into a WorkspaceTask.
+         *
+         * The mirror is the canonical surface that `/today` (PR 4) and
+         * the Inbox To-do tab (PR 5) read from. We only run when the
+         * Tarea was *created* in this run (`output.created.tarea`); a
+         * pre-existing Tarea is intentionally left alone so re-running
+         * the convert route on the same conversation is idempotent and
+         * never produces a second mirror.
+         *
+         * When the conversion is driven by an approved
+         * `ConversationAction` (i.e. `actionRecordId` is set), we
+         * re-fetch the action inside the transaction so the mapping
+         * sees the same row about to be transitioned to `executed`
+         * later in this same transaction. That hand-off keeps the
+         * source classification (`fanny_suggestion` vs
+         * `inbox_conversation`) honest without expanding
+         * `convertConversationToRecords`'s input shape.
+         *
+         * The `createdBy` falls back to `"system"` only when the
+         * caller didn't pass `reviewedBy` (legacy convert routes that
+         * don't gate on session). Today every production caller does.
+         */
+        const linkedAction = input.actionRecordId
+          ? await tx.conversationAction.findFirst({
+              where: { id: input.actionRecordId, workspaceId: input.workspaceId },
+              select: {
+                id: true,
+                type: true,
+                source: true,
+                data: true,
+                sourceMessageId: true,
+              },
+            })
+          : null
+
+        const workspaceTaskData = buildConversationToWorkspaceTaskData({
+          workspaceId: input.workspaceId,
+          createdBy: input.reviewedBy?.userId?.trim() || "system",
+          conversation: {
+            id: conversation.id,
+            sourceMessageId: input.sourceMessageId ?? null,
+          },
+          tarea: {
+            id: tarea.id,
+            titulo: tarea.titulo,
+            descripcion: tarea.descripcion,
+            prioridad: tarea.prioridad,
+            fechaLimite: tarea.fechaLimite,
+          },
+          action: linkedAction,
+          clienteId: output.ids.clienteId,
+          proyectoId: output.ids.proyectoId,
+        })
+
+        const workspaceTask = await tx.workspaceTask.create({ data: workspaceTaskData })
+        output.ids.workspaceTaskId = workspaceTask.id
+        output.workspaceTask = workspaceTask
+        output.created.workspaceTask = true
       }
     }
 
