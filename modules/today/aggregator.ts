@@ -1,38 +1,61 @@
 import { db } from "@core/db"
-import type { TodayBuckets, TodayItem, TodayPayload, TodayPriority } from "./types"
+import type { TodayBuckets, TodayItem, TodayPayload, TodayPriority, TodaySource } from "./types"
 
 /**
  * Today aggregator — server-side, pure-ish (DB only, no global state, no AI).
  *
- * Reads three workspace-scoped sources and unifies them into the `TodayPayload`
- * contract. Multi-tenant safety is non-negotiable: every query filters by
- * `workspaceId` exact-match. For the two models with `workspaceId String?` in
- * the schema (`Tarea`, `Evento`) this trivially excludes legacy null-tenant
- * rows, which must never leak into any workspace's view.
+ * As of PR 4 the canonical task source is `WorkspaceTask`. The aggregator now
+ * reads three workspace-scoped sources:
  *
- * Dedup: when a `Tarea` was created via `convertConversationToRecords` and the
- * operator additionally captured an `InboxTodo` whose `sourceActionId` points
- * to the matching `ConversationAction.resultId`, we keep ONLY the InboxTodo.
- * The InboxTodo carries the inbox link the operator cares about; the Tarea is
- * a downstream record. Best-effort — if a workspace has organic Tareas without
- * any linked action they appear normally.
+ *   1. `WorkspaceTask`  — every task-shaped item in Today comes from here
+ *      (manual New-task captures, dual-written InboxTodo mirrors, and any
+ *      future direct writers). Status filter excludes terminal and proposed
+ *      rows so only actionable work surfaces.
+ *   2. `Tarea`          — legacy CRM task model. Included only when no
+ *      WorkspaceTask claims the row, so organic Tareas (created without a
+ *      mirror) keep showing up but already-mirrored work doesn't duplicate.
+ *   3. `Evento`         — calendar events for "today" in the user's timezone.
  *
- * NOT in scope for PR 1: writes, completion, assignment, suggested-from-Fanny
+ * Multi-tenant safety is non-negotiable: every query filters by `workspaceId`
+ * exact-match. For models with `workspaceId String?` (`Tarea`, `Evento`) the
+ * filter trivially excludes legacy null-tenant rows, which must never leak.
+ *
+ * Dedup strategy (Tarea ↔ WorkspaceTask):
+ *   - If a WorkspaceTask row carries `tareaId`, the matching Tarea is hidden
+ *     (forward-compat for PR 5/8 when a writer starts populating that field).
+ *   - If a WorkspaceTask row carries `conversationActionId`, we look up the
+ *     `ConversationAction.resultId` (when `resultModule="tareas"`) and hide
+ *     that Tarea too. This preserves the PR 1 behaviour of "don't show both
+ *     sides of a conversation→Tarea promotion".
+ *
+ * NOT in scope for PR 4: writes, completion, assignment, suggested-from-Fanny
  * actions, paginated lists, push notifications, real-time updates.
  */
 
 /** Hard upper bounds — protect Turso from "tenant with 50k rows" runaway queries. */
-const TODOS_TAKE = 200
+const TASKS_TAKE = 200
 const TAREAS_TAKE = 200
 const EVENTOS_TAKE = 50
 
 /**
- * Tarea status values that must NEVER show up in Today. Anything else is treated
- * as "active" (operator-actionable). The schema stores `estado` as a free
+ * `WorkspaceTask` statuses that ARE actionable from the Today view.
+ *
+ * Excluded:
+ *   - `proposed`   — Fanny / AI suggestion awaiting approval; surfaced in a
+ *                    separate "Suggestions" surface (PR 6) so Today doesn't
+ *                    mix unreviewed proposals with confirmed work.
+ *   - `done`       — completed; the operator already finished it.
+ *   - `dismissed`  — the operator decided not to do it.
+ */
+const TASK_ACTIVE_STATUSES = ["open", "in_progress", "waiting"] as const
+
+/**
+ * `Tarea.estado` values that must NEVER show up in Today. Anything else is
+ * treated as "active" (operator-actionable). Schema stores `estado` as a free
  * `String` with default `"pendiente"` and the UI conventionally uses
  * `pendiente | en_progreso | revision | completada | cancelada`. We exclude
  * both terminal states; if a tenant uses a synonym (`hecha`, `finalizada`)
- * those will appear here until normalisation in PR 2/3.
+ * those will appear here until the migration normalises them.
  */
 const TAREA_TERMINAL_STATES = ["completada", "cancelada"] as const
 
@@ -66,14 +89,14 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
   const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000)
 
   /** Stage 1 — pull the three sources in parallel. */
-  const [todos, allTareas, eventos] = await Promise.all([
-    db.inboxTodo.findMany({
+  const [tasks, allTareas, eventos] = await Promise.all([
+    db.workspaceTask.findMany({
       where: {
         workspaceId: input.workspaceId,
-        status: { in: ["open", "waiting"] },
+        status: { in: [...TASK_ACTIVE_STATUSES] },
       },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-      take: TODOS_TAKE,
+      take: TASKS_TAKE,
     }),
     db.tarea.findMany({
       where: {
@@ -98,19 +121,55 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
   ])
 
   /**
-   * Stage 2 — compute the dedup set. We only run this query when the InboxTodo
-   * fetch surfaced at least one `sourceActionId`, otherwise the dedup is a no-op
-   * and skipping the round-trip keeps the empty workspace path snappy.
+   * Stage 2a — resolve project names for any tasks that point at a project.
+   * One round-trip with a single `IN (...)` query keeps the page fast even
+   * for tenants with hundreds of open tasks across many projects. The
+   * workspaceId predicate is included for defence in depth — without it a
+   * faulty `proyectoId` could cross tenants on the SELECT.
    */
-  const sourceActionIds = todos
-    .map((t) => t.sourceActionId)
+  const projectIds = Array.from(
+    new Set(
+      tasks
+        .map((t) => t.proyectoId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  )
+
+  const projectMap = new Map<string, { id: string; nombre: string }>()
+  if (projectIds.length > 0) {
+    const projects = await db.proyecto.findMany({
+      where: { id: { in: projectIds }, workspaceId: input.workspaceId },
+      select: { id: true, nombre: true },
+    })
+    for (const p of projects) projectMap.set(p.id, p)
+  }
+
+  /**
+   * Stage 2b — compute the Tarea dedup set. Two signals are merged:
+   *
+   *   (a) Direct link: a WorkspaceTask whose `tareaId` points at a Tarea
+   *       claims that Tarea. Forward-compat — nothing writes this in PR 4
+   *       but PR 5 / future writers will.
+   *   (b) Promotion link: a WorkspaceTask whose `conversationActionId`
+   *       points at a `ConversationAction` that itself produced a
+   *       `Tarea` via `resultModule="tareas"` claims that Tarea. This
+   *       preserves the PR 1 behaviour where a conversation → Tarea
+   *       promotion appears once (as the WorkspaceTask), not twice.
+   */
+  const tareaIdsCoveredByTask = new Set<string>()
+
+  for (const t of tasks) {
+    if (t.tareaId) tareaIdsCoveredByTask.add(t.tareaId)
+  }
+
+  const taskActionIds = tasks
+    .map((t) => t.conversationActionId)
     .filter((id): id is string => typeof id === "string" && id.length > 0)
 
-  const tareaIdsCoveredByTodo = new Set<string>()
-  if (sourceActionIds.length > 0) {
+  if (taskActionIds.length > 0) {
     const dedupActions = await db.conversationAction.findMany({
       where: {
-        id: { in: sourceActionIds },
+        id: { in: taskActionIds },
         workspaceId: input.workspaceId,
         resultModule: "tareas",
         resultId: { not: null },
@@ -118,28 +177,24 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
       select: { resultId: true },
     })
     for (const a of dedupActions) {
-      if (a.resultId) tareaIdsCoveredByTodo.add(a.resultId)
+      if (a.resultId) tareaIdsCoveredByTask.add(a.resultId)
     }
   }
 
-  const tareas = tareaIdsCoveredByTodo.size > 0
-    ? allTareas.filter((t) => !tareaIdsCoveredByTodo.has(t.id))
+  const tareas = tareaIdsCoveredByTask.size > 0
+    ? allTareas.filter((t) => !tareaIdsCoveredByTask.has(t.id))
     : allTareas
 
-  /** Stage 3 — normalise each row to TodayItem. */
-  const todoItems: TodayItem[] = todos.map((todo) => ({
-    id: `inbox-todo:${todo.id}`,
+  /** Stage 3 — normalise each row to `TodayItem`. */
+  const taskItems: TodayItem[] = tasks.map((task) => ({
+    id: `task:${task.id}`,
     kind: "task" as const,
-    title: todo.title,
-    description: todo.description,
-    dueAt: todo.dueAt ? todo.dueAt.toISOString() : null,
-    priority: normaliseInboxTodoPriority(todo.priority),
-    source: {
-      kind: "inbox" as const,
-      conversationId: todo.conversationId,
-      href: todo.conversationId ? `/inbox?id=${encodeURIComponent(todo.conversationId)}` : "/inbox",
-    },
-    assignee: buildInboxTodoAssignee(todo, input.userId),
+    title: task.title,
+    description: task.description,
+    dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+    priority: normaliseWorkspaceTaskPriority(task.priority),
+    source: buildWorkspaceTaskSource(task, projectMap),
+    assignee: buildWorkspaceTaskAssignee(task, input.userId),
   }))
 
   const tareaItems: TodayItem[] = tareas.map((tarea) => ({
@@ -182,7 +237,7 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     undated: [],
   }
 
-  for (const item of [...todoItems, ...tareaItems]) {
+  for (const item of [...taskItems, ...tareaItems]) {
     if (!item.dueAt) {
       /**
        * `undated` is restricted to items the current user owns, otherwise it
@@ -201,7 +256,7 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     } else if (due < startOfTomorrow) {
       buckets.today.push(item)
     }
-    /** Future-dated items (>= startOfTomorrow) are intentionally NOT included in PR 1. */
+    /** Future-dated items (>= startOfTomorrow) are intentionally NOT included. */
   }
 
   for (const event of eventoItems) {
@@ -250,7 +305,12 @@ function compareTodayItems(a: TodayItem, b: TodayItem): number {
   return a.title.localeCompare(b.title)
 }
 
-function normaliseInboxTodoPriority(raw: string | null | undefined): TodayPriority {
+/**
+ * `WorkspaceTask.priority` shares the four-level vocabulary with the legacy
+ * `InboxTodo.priority` column, so the same mapping applies. `urgent` collapses
+ * to `critical` so the UI picks a single visual treatment per tier.
+ */
+function normaliseWorkspaceTaskPriority(raw: string | null | undefined): TodayPriority {
   switch ((raw ?? "").toLowerCase()) {
     case "low":
       return "low"
@@ -278,29 +338,79 @@ function normaliseTareaPrioridad(raw: string | null | undefined): TodayPriority 
   }
 }
 
-function buildInboxTodoAssignee(
-  todo: { assigneeId: string | null; assigneeType: string },
-  currentUserId: string,
-): TodayItem["assignee"] {
-  /**
-   * `assigneeType="me"` is the schema's "no explicit user, the operator who created
-   * it owns it" sentinel. We treat that as the current user only when the request
-   * is made by the same caller, so a teammate looking at the same workspace
-   * doesn't see those items as "yours". Otherwise we trust the explicit
-   * `assigneeId` match.
-   */
-  if (todo.assigneeId) {
+/**
+ * Decide the source chip + click target for a WorkspaceTask row. Resolution
+ * order matches the documentation in `types.ts`:
+ *
+ *   conversationId → "From Inbox"        → /inbox?id=<conversation>
+ *   tareaId        → "From <project>"    → /tareas/<tarea>
+ *   proyectoId     → "From <project>"    → /proyectos/<project>
+ *   otherwise      → generic "Task" chip → /today (self-pointer)
+ *
+ * `tareaId` resolves a project name through `task.proyectoId` when present,
+ * falling back to `null`. We could resolve via Tarea→Proyecto but that would
+ * require an extra join in stage 2a, and the chip already degrades gracefully
+ * to "From Project" when no name is available.
+ */
+function buildWorkspaceTaskSource(
+  task: {
+    conversationId: string | null
+    tareaId: string | null
+    proyectoId: string | null
+  },
+  projectMap: Map<string, { id: string; nombre: string }>,
+): TodaySource {
+  if (task.conversationId) {
     return {
-      id: todo.assigneeId,
-      name: null,
-      isCurrentUser: todo.assigneeId === currentUserId,
+      kind: "inbox",
+      conversationId: task.conversationId,
+      href: `/inbox?id=${encodeURIComponent(task.conversationId)}`,
     }
   }
-  if (todo.assigneeType === "me") {
-    /** Without an explicit ID we can't decide ownership across users; conservative: not "yours". */
+  if (task.tareaId) {
+    const proj = task.proyectoId ? projectMap.get(task.proyectoId) ?? null : null
+    return {
+      kind: "project",
+      projectId: proj?.id ?? task.proyectoId ?? null,
+      projectName: proj?.nombre ?? null,
+      href: `/tareas/${task.tareaId}`,
+    }
+  }
+  if (task.proyectoId) {
+    const proj = projectMap.get(task.proyectoId) ?? null
+    return {
+      kind: "project",
+      projectId: task.proyectoId,
+      projectName: proj?.nombre ?? null,
+      href: `/proyectos/${task.proyectoId}`,
+    }
+  }
+  return {
+    kind: "manual",
+    href: "/today",
+  }
+}
+
+/**
+ * `WorkspaceTask` assignee semantics:
+ *   - `assigneeType="user"` + matching `assigneeId` → `isCurrentUser=true`.
+ *   - `assigneeType="user"` + non-matching `assigneeId` → another user owns it.
+ *   - `assigneeType="ai" | "team"` → not the current user; show the explicit id
+ *     when available so future UI can resolve a name.
+ *   - `assigneeType="unassigned"` → null (no assignee).
+ */
+function buildWorkspaceTaskAssignee(
+  task: { assigneeType: string; assigneeId: string | null },
+  currentUserId: string,
+): TodayItem["assignee"] {
+  if (task.assigneeType === "unassigned" || !task.assigneeId) {
     return null
   }
-  return null
+  return {
+    id: task.assigneeId,
+    name: null,
+    isCurrentUser: task.assigneeType === "user" && task.assigneeId === currentUserId,
+  }
 }
 
 function buildTareaAssignee(

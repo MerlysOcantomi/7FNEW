@@ -1,17 +1,19 @@
 import Link from "next/link"
-import { ArrowUpRight, Inbox, FolderKanban } from "lucide-react"
+import { ArrowUpRight, Inbox, FolderKanban, ListTodo } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TodayItem, TodayPriority } from "@modules/today/types"
 
 /**
- * One row in a Today bucket. Used for both InboxTodo-backed and Tarea-backed
- * tasks — the difference is purely the source chip ("From Inbox" vs
- * "From <project>"). We deliberately do NOT expose "InboxTodo" anywhere in the
+ * One row in a Today bucket. Used for any task-shaped item in the payload
+ * regardless of upstream origin — the difference is purely the source chip
+ * ("From Inbox", "From <project>", or a generic "Task" for manual rows). We
+ * deliberately do NOT expose "InboxTodo" or "WorkspaceTask" anywhere in the
  * UI; the operator sees a uniform "task" everywhere in Today.
  *
- * Click navigates to the source's detail surface. PR 1 is read-only: there is
- * no inline complete/dismiss/assign control here. Those affordances belong to
- * a later PR once `WorkspaceTask` owns the writes.
+ * Click navigates to the source's detail surface (or stays on /today for
+ * manual rows that have no upstream surface yet). Today remains read-only:
+ * there is no inline complete/dismiss/assign control here. Those affordances
+ * belong to a later PR once `WorkspaceTask` owns the writes.
  */
 export function TodayTaskRow({ item }: { item: TodayItem }) {
   if (item.kind !== "task") {
@@ -139,6 +141,24 @@ function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix:
         </span>
       ),
       ariaSuffix: `from project ${label}`,
+    }
+  }
+  if (item.source.kind === "manual") {
+    /**
+     * Generic "Task" chip for WorkspaceTask rows that have no upstream
+     * link (manual capture from the New dropdown, or a future direct
+     * write that doesn't reference a conversation/project). Keeps the
+     * row visually consistent with the others without lying about a
+     * source it doesn't have.
+     */
+    return {
+      node: (
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
+          <ListTodo size={10} className="shrink-0" aria-hidden="true" />
+          Task
+        </span>
+      ),
+      ariaSuffix: "manual task",
     }
   }
   /** Calendar source on a task row would be unusual — keep a fallback so future sources don't crash. */

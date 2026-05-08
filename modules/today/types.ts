@@ -2,10 +2,11 @@
  * Today aggregator — public types.
  *
  * `Today` is a read-only, workspace-level view that surfaces the work the operator
- * should look at first thing in the morning. It deliberately reads from THREE
- * existing sources (`InboxTodo`, `Tarea`, `Evento`) and presents them as a single
- * unified list grouped by temporal bucket. It is NOT a new persistence model and
- * NEVER renames or migrates the underlying tables.
+ * should look at first thing in the morning. As of PR 4 the canonical task source
+ * is `WorkspaceTask`, with `Evento` still feeding calendar items and `Tarea`
+ * surviving as a fallback for legacy CRM rows that have not yet been mirrored
+ * into `WorkspaceTask`. `InboxTodo` is no longer queried directly — its rows
+ * reach Today via the dual-write mirror established in PR 3.
  *
  * The shape lives in its own module so the API route, the aggregator, and the
  * client components can all import the SAME contract — drift between server
@@ -13,15 +14,15 @@
  *
  * NB: brand neutrality is enforced at the boundary. `TodaySource.kind` uses the
  * neutral term `"inbox"` (operator-facing copy is `"From Inbox"`); we do NOT
- * surface "InboxTodo" as a UI label anywhere downstream.
+ * surface "InboxTodo" or "WorkspaceTask" as UI labels anywhere downstream.
  */
 
 /**
- * Normalised priority across the two underlying status taxonomies.
+ * Normalised priority across underlying taxonomies.
  *
  * Source mapping:
- *   - `InboxTodo.priority`   : "low" | "normal" | "high" | "urgent"
- *   - `Tarea.prioridad`      : "baja" | "media" | "alta" | "urgente"
+ *   - `WorkspaceTask.priority` : "low" | "normal" | "high" | "urgent"
+ *   - `Tarea.prioridad`        : "baja" | "media" | "alta" | "urgente"
  *
  * Both `"urgent"` and `"urgente"` collapse to `"critical"` so the UI can pick a
  * single visual treatment per tier without branching on origin.
@@ -30,11 +31,17 @@ export type TodayPriority = "low" | "normal" | "high" | "critical"
 
 /**
  * Provenance of the underlying record. Used by the UI to render the chip on the
- * right of each row ("From Inbox", "From <project>", "From Calendar") and to
- * decide where a click should navigate.
+ * right of each row ("From Inbox", "From <project>", "From Calendar", "Task")
+ * and to decide where a click should navigate.
  *
  * `href` is always a relative path inside the app — never an absolute URL — so
  * the client component can render `<Link>` without sanitisation.
+ *
+ * Source resolution priority for `WorkspaceTask` rows (highest → lowest):
+ *   conversationId → `inbox`
+ *   tareaId        → `project` (link goes to the underlying Tarea page)
+ *   proyectoId     → `project` (link goes to the project page)
+ *   otherwise      → `manual` (no upstream source yet — chip says "Task")
  */
 export type TodaySource =
   | {
@@ -52,18 +59,32 @@ export type TodaySource =
       kind: "calendar"
       href: string
     }
+  | {
+      /**
+       * Task without a first-class upstream link (manual capture from
+       * the New dropdown, or a future direct WorkspaceTask write that
+       * doesn't carry a conversation/project pointer). The renderer
+       * shows a small generic "Task" chip; `href` exists only to keep
+       * the row clickable — `/today` is a self-pointer used as a
+       * no-op until a global Task detail page lands.
+       */
+      kind: "manual"
+      href: string
+    }
 
 /**
  * One displayable item in Today.
  *
- * `id` is prefixed with the source kind (e.g. `"inbox-todo:abc"`, `"tarea:xyz"`,
- * `"evento:def"`) so React keys never collide across sources and downstream
- * code can branch on the prefix when needed without re-querying.
+ * `id` is prefixed with the source kind (e.g. `"task:abc"` for a WorkspaceTask,
+ * `"tarea:xyz"` for a legacy Tarea fallback, `"evento:def"` for a calendar
+ * event) so React keys never collide across sources and downstream code can
+ * branch on the prefix when needed without re-querying.
  *
  * `kind`:
- *   - `"task"`  — actionable work (InboxTodo or Tarea). Renders as a row.
+ *   - `"task"`  — actionable work (a WorkspaceTask, or a legacy Tarea that has
+ *                 no mirror yet). Renders as a row.
  *   - `"event"` — calendar event for today. Renders as a card with a time chip;
- *                 NOT actionable in PR 1 (no inline complete/dismiss).
+ *                 still NOT actionable from Today (no inline complete/dismiss).
  */
 export interface TodayItem {
   id: string
