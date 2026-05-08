@@ -14,3 +14,23 @@ Summary:
 - Exceptions: split-view (Inbox), chat (Assistant), internal table/panel scroll — see the doc.
 
 Do not regress **ContextShell** / legacy layouts without aligning them to this contract when touching those files.
+
+## Inbox pipeline testing
+
+Write-heavy Inbox flows (Fanny `create_task` automation, future approve /
+dismiss / convert flows) follow the **pure planner** pattern:
+
+**→ [docs/inbox-pipeline-testing.md](docs/inbox-pipeline-testing.md)**
+
+Summary:
+
+- Keep policy and write-planning logic pure and deterministic.
+- Let the Prisma transaction be a thin orchestration layer with no inline
+  business conditions.
+- Test the pure layers with `node:test`; reach for DB integration tests
+  only when Prisma / migration / persistence behavior itself is what you
+  need to verify.
+
+Reference example: [`modules/inbox/auto-task-policy.ts`](modules/inbox/auto-task-policy.ts) +
+[`modules/inbox/auto-task-write-planner.ts`](modules/inbox/auto-task-write-planner.ts) +
+their `*.test.ts` siblings.
