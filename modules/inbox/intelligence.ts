@@ -989,6 +989,16 @@ export async function runConversationIntelligence(input: {
          * The gate is purely additive: when auto rejects, behavior
          * is identical to PR 7. The proposed lane is never removed.
          */
+        /**
+         * Inputs are extracted once here so the gate and the
+         * telemetry log below see the *same* values and can never
+         * drift. `otherActionTypesInRun` is a plain string[] so it
+         * is cheap to log and trivially serialisable.
+         */
+        const otherActionTypesInRun = normalizedSuggestedActions
+          .filter((a) => a.type !== action.type)
+          .map((a) => a.type)
+
         const policyDecision = evaluateAutoCreatePolicy({
           action: {
             type: action.type,
@@ -1009,9 +1019,45 @@ export async function runConversationIntelligence(input: {
            * operator must approve before any internal task assumes
            * they happened.
            */
-          otherActionTypesInRun: normalizedSuggestedActions
-            .filter((a) => a.type !== action.type)
-            .map((a) => a.type),
+          otherActionTypesInRun,
+        })
+
+        /**
+         * PR 13 telemetry — structured one-line audit trail of the
+         * gate decision. This is the only place the auto-create
+         * lane diverges from the proposed lane, so it is the only
+         * place we instrument.
+         *
+         * PII / privacy contract (must stay this way):
+         *   - We log identifiers (workspaceId, conversationId,
+         *     conversationActionId), routing signals (tipo,
+         *     urgencia, otherActionTypesInRun), and the policy's own
+         *     output (auto, reason, confidence).
+         *   - We NEVER log message bodies, customer PII, action
+         *     title / description, email, phone, or raw payloads.
+         *     The deny-list reason is sufficient to debug a
+         *     rejection without exposing the underlying text.
+         *
+         * eslint-disable rationale: the workspace `no-console` rule
+         * allows only `warn` / `error`. `info` is the semantically
+         * correct level for routine telemetry events (these are not
+         * warnings or errors), so we disable per-line rather than
+         * downgrade the message to `warn`. A future lint update
+         * that adds `info` to the allow list can drop this disable.
+         */
+        // eslint-disable-next-line no-console
+        console.info({
+          event: "fanny_auto_decision",
+          workspaceId: input.workspaceId,
+          conversationId: conversation.id,
+          conversationActionId: persistedActionId,
+          actionType: action.type,
+          auto: policyDecision.auto,
+          reason: policyDecision.reason,
+          confidence: action.confidence ?? null,
+          tipo: intelligence.tipo,
+          urgencia: intelligence.urgencia,
+          otherActionTypesInRun,
         })
 
         const builderInput = {
