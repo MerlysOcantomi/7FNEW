@@ -168,6 +168,12 @@ Run narrowly with `npm run test:auto-policy` and `npm run test:fanny-pipeline`.
 
 ---
 
+## Related — Workspace timezone vs Business Profile
+
+Fanny inbox intelligence reads workspace IANA time from `Workspace.config.timeZone` (see `pickWorkspaceTimezone` in `modules/inbox/intelligence.ts`). `/today` uses the **browser** time zone via query param, not that config. Natural-language **`businessProfile.workingHours`** on `/business-profile` is context for agents, not the same as IANA — do not duplicate tz under `businessProfile`. Details: [workspace-profile-for-inbox.md](workspace-profile-for-inbox.md) (section 7).
+
+---
+
 ## Related — Workspace Profile & Inbox standalone
 
 **Smart Inbox standalone is not “Inbox without profile”.** Every workspace keeps a **minimal Workspace Profile** so Fanny has business/workspace context to classify, prioritise, summarise, and automate safely. Full 7F Business can expose deeper profile and operations context; plan tiers may vary **UI depth** (“Workspace Profile Lite” vs full), not whether base profile infrastructure exists.

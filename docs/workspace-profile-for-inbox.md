@@ -1,6 +1,6 @@
 # Workspace Profile & Smart Inbox standalone
 
-Last updated: 2026-05-08
+Last updated: 2026-05-08 — section 7 (timezone audit)
 
 Product/architecture decision: **Smart Inbox offered as a standalone product is not “Inbox without any workspace profile.”** It is **Smart Inbox plus a minimal Workspace Profile** — enough business/workspace context for classification, prioritisation, summaries, and safe automation.
 
@@ -51,7 +51,7 @@ Minimum fields / areas the standalone Inbox offering should assume exist or stro
 | Identity | Business/workspace display name |
 | Sector | Industry or category |
 | Narrative | Short business description (“what we do”) |
-| Locale | Primary language; timezone (IANA) |
+| Locale | Primary language (workspace config); IANA time zone — see **section 7** (not duplicated in `businessProfile`) |
 | Voice | Default communication tone guidance |
 | Offering | Main services or products (high level) |
 | Channels | Connected inbox channels |
@@ -99,6 +99,42 @@ Fanny’s effective behaviour is the intersection of several layers, applied **t
 - **Fanny preferences UI** should be framed as “how much automation we allow **within** safety,” not “disable safety.”  
 - **Learned automation** should be stored and gated so it cannot widen execution beyond what layers 1–3 allow.  
 - **Plan tiers** can hide **depth** of profile UI (lite vs full), not whether a **minimal** profile exists for AI.
+
+---
+
+## 7. Timezone & locale alignment (audit)
+
+This section records where time zone and language **actually** live today so we do not invent a second IANA field under `businessProfile` or confuse **natural-language hours** with **machine time zones**.
+
+### Canonical sources (workspace config JSON — no extra schema)
+
+| Concern | Where it lives | Consumers (examples) |
+|--------|----------------|----------------------|
+| **Operator UI language** | Root `Workspace.config.locale` as a **string** (`es`, `en`, `de`, …) | `resolveLocaleFromConfig`, `getWorkspaceWithResolvedConfig`, operator-facing copy |
+| **Workspace IANA time zone for Fanny inbox intelligence** | Root `Workspace.config.timeZone` as a **string** (preferred) | `pickWorkspaceTimezone` in `modules/inbox/intelligence.ts` — used when anchoring calendar hints (`nowISO`, “tomorrow at 8”, etc.) |
+
+The same helper also reads `Workspace.config.locale.timeZone` **only if** `locale` is an **object**. That path conflicts with the normal convention where `locale` is a **language code string**. Treat **root `timeZone`** as the supported IANA slot; avoid relying on `locale`-as-object until config shape is intentionally unified.
+
+### `businessProfile.workingHours` vs IANA
+
+- **`businessProfile.workingHours`** (edited on `/business-profile`) is **natural-language operating context** for humans and for `resolveWorkspaceContext` / `buildWorkspaceContextBlock` — e.g. “Mon–Fri 9–18 CET”.
+- It is **not** a substitute for an IANA zone for server-side date math.
+- **Do not** add `businessProfile.timezone` — that would duplicate the workspace-level IANA source of truth and drift from Fanny’s existing reader (`pickWorkspaceTimezone`).
+
+### `/today` and tasks/events
+
+- **`/today`** resolves “today” using the **browser’s** IANA zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) passed as the `tz` query parameter to `/api/today`, validated in `modules/today/aggregator.ts` — **not** `Workspace.config.timeZone`.
+- So workspace-level IANA (Fanny prompts) and operator-local “today” (Today view) **may differ by design** until product chooses to align them.
+
+### External calendar / Google
+
+- Audit did **not** find a Google Calendar OAuth flow supplying a dedicated workspace time zone; calendar/event features use app data models without mandating a separate imported tz for the workspace shell.
+
+### Decision for `/business-profile` (before any new field)
+
+1. Keep **`workingHours`** as natural language only — already shipped; matches “guided operating context,” not scheduling math.
+2. When we expose an explicit **IANA time zone** in UI, wire it to **root `Workspace.config.timeZone`** via the existing config merge helpers — **not** under `businessProfile`, and **no schema migration**.
+3. First clarify or document the **`locale` string vs `locale` object** tension so admins never break `resolveLocaleFromConfig` while setting time zone.
 
 ---
 
