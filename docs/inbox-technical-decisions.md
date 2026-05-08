@@ -145,3 +145,23 @@ This document records pragmatic technical decisions in the Smart Inbox module, w
 | Inbound attachment re-upload | < 5 attachments/email | Low | Small (background job) |
 | Search via CONTAINS | < 10K msgs/workspace | Medium | Medium (FTS5) |
 | Per-request stat counts | < 5K conversations | Low | Small (cache layer) |
+
+---
+
+## Related — Inbox pipeline testing pattern
+
+Write-heavy Inbox flows (Fanny `create_task` automation, future approve /
+dismiss / convert flows) follow the **pure planner** pattern: keep policy
+and write-planning deterministic, let the Prisma transaction be a thin
+orchestration layer, test the pure layers with `node:test`.
+
+**→ [inbox-pipeline-testing.md](inbox-pipeline-testing.md)**
+
+Reference example — Fanny `create_task` automation lane:
+
+- [`modules/inbox/auto-task-policy.ts`](../modules/inbox/auto-task-policy.ts) — pure decision (`evaluateAutoCreatePolicy`).
+- [`modules/inbox/auto-task-write-planner.ts`](../modules/inbox/auto-task-write-planner.ts) — pure planner (`planCreateTaskWrite`).
+- [`modules/inbox/auto-task-policy.test.ts`](../modules/inbox/auto-task-policy.test.ts) — 35 decision cases.
+- [`modules/inbox/auto-task-pipeline.test.ts`](../modules/inbox/auto-task-pipeline.test.ts) — 11 planner cases (lane × idempotency matrix).
+
+Run narrowly with `npm run test:auto-policy` and `npm run test:fanny-pipeline`.

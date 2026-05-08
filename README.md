@@ -105,6 +105,8 @@ npm start
 | `npm run lint` | Run ESLint |
 | `npm run test:forte` | Run Forte agent tests |
 | `npm run test:i18n` | Run i18n tests |
+| `npm run test:auto-policy` | Run Fanny auto-task policy tests (`modules/inbox/auto-task-policy.test.ts`) |
+| `npm run test:fanny-pipeline` | Run Fanny `create_task` pipeline planner tests (`modules/inbox/auto-task-pipeline.test.ts`) |
 
 ## Key concepts
 
