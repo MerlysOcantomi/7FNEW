@@ -61,6 +61,8 @@ Minimum fields / areas the standalone Inbox offering should assume exist or stro
 
 This is **not** full CRM or project depth — it is the **smallest** slice that makes classification and safe automation credible.
 
+**Product implementation:** The Business Profile screen (`/business-profile`) stores identity and operating context in `Workspace.config.businessProfile`. Operators can edit **region / market**, **working hours**, and **attention rules** (short bullet-style reminders) there; `resolveWorkspaceContext` and `buildWorkspaceContextBlock` in `core/workspace.ts` already merge these into the workspace context block passed to Fanny.
+
 ---
 
 ## 4. Full 7F Business profile (additional depth)

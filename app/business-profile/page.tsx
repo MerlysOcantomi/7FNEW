@@ -12,6 +12,9 @@ interface ProfileData {
   services: string[]
   tone: string
   languages: string[]
+  region: string
+  workingHours: string
+  attentionRules: string[]
 }
 
 const EMPTY_PROFILE: ProfileData = {
@@ -20,6 +23,9 @@ const EMPTY_PROFILE: ProfileData = {
   services: [],
   tone: "",
   languages: [],
+  region: "",
+  workingHours: "",
+  attentionRules: [],
 }
 
 export default function BusinessProfilePage() {
@@ -30,6 +36,7 @@ export default function BusinessProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [newService, setNewService] = useState("")
   const [newLanguage, setNewLanguage] = useState("")
+  const [newAttentionRule, setNewAttentionRule] = useState("")
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -42,6 +49,9 @@ export default function BusinessProfilePage() {
         services: data.services ?? [],
         tone: data.tone ?? "",
         languages: data.languages ?? [],
+        region: data.region ?? "",
+        workingHours: data.workingHours ?? "",
+        attentionRules: data.attentionRules ?? [],
       })
     } catch {
       setError("Could not load business profile")
@@ -94,6 +104,20 @@ export default function BusinessProfilePage() {
 
   const removeLanguage = (idx: number) => {
     setProfile((p) => ({ ...p, languages: p.languages.filter((_, i) => i !== idx) }))
+  }
+
+  const MAX_ATTENTION_RULES = 20
+
+  const addAttentionRule = () => {
+    const trimmed = newAttentionRule.trim()
+    if (trimmed && !profile.attentionRules.includes(trimmed) && profile.attentionRules.length < MAX_ATTENTION_RULES) {
+      setProfile((p) => ({ ...p, attentionRules: [...p.attentionRules, trimmed] }))
+      setNewAttentionRule("")
+    }
+  }
+
+  const removeAttentionRule = (idx: number) => {
+    setProfile((p) => ({ ...p, attentionRules: p.attentionRules.filter((_, i) => i !== idx) }))
   }
 
   if (loading) {
@@ -199,6 +223,7 @@ export default function BusinessProfilePage() {
                 >
                   {lang}
                   <button
+                    type="button"
                     onClick={() => removeLanguage(i)}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     aria-label={`Remove ${lang}`}
@@ -218,6 +243,7 @@ export default function BusinessProfilePage() {
                 className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <button
+                type="button"
                 onClick={addLanguage}
                 disabled={!newLanguage.trim()}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -226,6 +252,86 @@ export default function BusinessProfilePage() {
               </button>
             </div>
           </Field>
+
+          <div className="border-t border-border pt-6 flex flex-col gap-6">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Operating context</h2>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                Rules Fanny should consider when classifying, summarizing, and suggesting work. Examples:
+                payment questions require review, urgent complaints need operator attention, new leads should get a
+                follow-up task.
+              </p>
+            </div>
+
+            <Field label="Region / market" hint="Where you mainly operate or who you mainly serve">
+              <input
+                type="text"
+                value={profile.region}
+                onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
+                placeholder="e.g. Spain & LATAM, DACH, remote worldwide"
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </Field>
+
+            <Field label="Working hours" hint="When customers can generally expect a reply (plain language is fine)">
+              <input
+                type="text"
+                value={profile.workingHours}
+                onChange={(e) => setProfile((p) => ({ ...p, workingHours: e.target.value }))}
+                placeholder="e.g. Mon–Fri 9:00–18:00 CET; emergencies via phone only"
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </Field>
+
+            <Field
+              label="Attention rules"
+              hint={`Short reminders for how to treat certain kinds of messages (max ${MAX_ATTENTION_RULES})`}
+            >
+              <div className="flex flex-wrap gap-2 mb-2">
+                {profile.attentionRules.map((rule, i) => (
+                  <span
+                    key={i}
+                    className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground max-w-full"
+                  >
+                    <span className="truncate">{rule}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttentionRule(i)}
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={`Remove rule: ${rule.slice(0, 80)}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              {profile.attentionRules.length < MAX_ATTENTION_RULES && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newAttentionRule}
+                    onChange={(e) => setNewAttentionRule(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addAttentionRule()
+                      }
+                    }}
+                    placeholder="Add a rule..."
+                    className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={addAttentionRule}
+                    disabled={!newAttentionRule.trim()}
+                    className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </button>
+                </div>
+              )}
+            </Field>
+          </div>
 
           {/* Save */}
           <div className="flex items-center gap-3 pt-2">

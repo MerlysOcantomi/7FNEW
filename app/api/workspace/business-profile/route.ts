@@ -26,6 +26,9 @@ export async function GET() {
       services: profile.services ?? [],
       tone: profile.tone ?? "",
       languages: profile.languages ?? [],
+      region: profile.region ?? "",
+      workingHours: profile.workingHours ?? "",
+      attentionRules: profile.attentionRules ?? [],
     })
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -37,12 +40,24 @@ export async function PUT(request: NextRequest) {
     const { workspaceId } = await requireAdminAccess()
 
     const body = await request.json()
-    const { businessName, businessDescription, services, tone, languages } = body as {
+    const {
+      businessName,
+      businessDescription,
+      services,
+      tone,
+      languages,
+      region,
+      workingHours,
+      attentionRules,
+    } = body as {
       businessName?: string
       businessDescription?: string
       services?: string[]
       tone?: string
       languages?: string[]
+      region?: string
+      workingHours?: string
+      attentionRules?: string[]
     }
 
     const profile: WorkspaceBusinessProfile = {
@@ -54,6 +69,11 @@ export async function PUT(request: NextRequest) {
       tone: tone?.trim() || undefined,
       languages: Array.isArray(languages)
         ? languages.map((l: string) => l.trim()).filter(Boolean)
+        : undefined,
+      region: region?.trim() || undefined,
+      workingHours: workingHours?.trim() || undefined,
+      attentionRules: Array.isArray(attentionRules)
+        ? attentionRules.map((r: string) => r.trim()).filter(Boolean).slice(0, 20)
         : undefined,
     }
 
