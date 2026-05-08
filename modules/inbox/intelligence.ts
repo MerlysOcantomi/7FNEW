@@ -14,6 +14,10 @@ import type {
   InboxClassification,
 } from "./types"
 import { transitionConversationStatus } from "./state"
+import {
+  buildProposedWorkspaceTaskFromAction,
+  pickProposedWorkspaceTaskRefreshFields,
+} from "@modules/tasks/conversation-action-mapping"
 
 const PIPELINE_VERSION = "5"
 const PROMPT_VERSION = "fanny-v1.2"
@@ -901,8 +905,10 @@ export async function runConversationIntelligence(input: {
         payload.data = action.data
       }
 
+      let persistedActionId: string
+      let persistedActionSourceMessageId: string | null
       if (latestActionOfType?.status === "suggested") {
-        await tx.conversationAction.update({
+        const updated = await tx.conversationAction.update({
           where: { id: latestActionOfType.id },
           data: {
             source: ACTION_SOURCE,
@@ -913,9 +919,12 @@ export async function runConversationIntelligence(input: {
             dismissedAt: null,
             errorMessage: null,
           },
+          select: { id: true, sourceMessageId: true },
         })
+        persistedActionId = updated.id
+        persistedActionSourceMessageId = updated.sourceMessageId
       } else {
-        await tx.conversationAction.create({
+        const created = await tx.conversationAction.create({
           data: {
             workspaceId: input.workspaceId,
             conversationId: conversation.id,
@@ -926,7 +935,80 @@ export async function runConversationIntelligence(input: {
             sourceMessageId: anchorMessageId,
             data: stringifyJson(payload),
           },
+          select: { id: true, sourceMessageId: true },
         })
+        persistedActionId = created.id
+        persistedActionSourceMessageId = created.sourceMessageId
+      }
+
+      /**
+       * PR 7 — proposed WorkspaceTask for `create_task` suggestions.
+       *
+       * Writes a `WorkspaceTask(status="proposed", suggestedBy="fanny",
+       * sourceType="fanny_suggestion", sourceId=actionId,
+       * conversationActionId=actionId, ...)` alongside every
+       * Fanny-generated `create_task` ConversationAction. Idempotency
+       * is keyed on `(workspaceId, conversationActionId)` — at most
+       * one proposed task per action — so re-running Fanny on the same
+       * conversation refreshes the existing row's text instead of
+       * piling duplicates.
+       *
+       * Status guard: we only refresh rows that are still `"proposed"`.
+       * If the operator has already approved / executed / dismissed
+       * the action (and PR 6's promote step or the dismiss path moved
+       * the WorkspaceTask out of `proposed`), Fanny must not regress
+       * it. The check is explicit on the read side because libSQL
+       * doesn't have a partial unique index we could rely on.
+       *
+       * Other action types (create_client, create_project,
+       * create_event, etc.) do NOT get a WorkspaceTask mirror: they
+       * have their own surfaces (Clientes / Proyectos pages, the
+       * calendar) and should not pollute the global task queue.
+       */
+      if (action.type === "create_task") {
+        const proposedData = buildProposedWorkspaceTaskFromAction({
+          workspaceId: input.workspaceId,
+          conversation: {
+            id: conversation.id,
+            clienteId: conversation.clienteId ?? null,
+            proyectoId: conversation.proyectoId ?? null,
+            urgency: conversation.urgency ?? null,
+          },
+          action: {
+            id: persistedActionId,
+            type: action.type,
+            source: ACTION_SOURCE,
+            data: stringifyJson(payload),
+            sourceMessageId: persistedActionSourceMessageId,
+            confidence: action.confidence ?? null,
+          },
+          pipeline: {
+            pipelineVersion: PIPELINE_VERSION,
+            promptVersion: PROMPT_VERSION,
+            trigger: input.trigger,
+          },
+        })
+
+        const existingProposed = await tx.workspaceTask.findFirst({
+          where: {
+            workspaceId: input.workspaceId,
+            conversationActionId: persistedActionId,
+          },
+          select: { id: true, status: true },
+        })
+
+        if (!existingProposed) {
+          await tx.workspaceTask.create({ data: proposedData })
+        } else if (existingProposed.status === "proposed") {
+          await tx.workspaceTask.update({
+            where: { id: existingProposed.id },
+            data: pickProposedWorkspaceTaskRefreshFields(proposedData),
+          })
+        }
+        /** Any other status (open / in_progress / waiting / done /
+         *  dismissed) means the operator has already acted on this
+         *  suggestion. Leave the row alone — Fanny has no business
+         *  rewriting operator-managed work. */
       }
     }
 

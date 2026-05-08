@@ -1036,15 +1036,48 @@ export async function dismissConversationAction(input: {
     throw new Error("La acción no puede descartarse en su estado actual")
   }
 
-  return db.conversationAction.update({
-    where: { id: input.actionId },
-    data: {
-      status: "dismissed",
-      dismissedAt: new Date(),
-      reviewedBy: input.dismissedBy,
-      reviewedAt: new Date(),
-      executionNotes: input.executionNotes ?? existing.executionNotes,
-    },
+  /**
+   * PR 7 — also dismiss the linked *proposed* WorkspaceTask, when one
+   * exists. We only touch rows still in `"proposed"` status: if the
+   * operator (or a race) has already promoted the task to `"open"` /
+   * `"executed"` / etc., the dismissal of the suggestion shouldn't
+   * regress the live work item.
+   *
+   * Both writes happen in the same interactive transaction so the
+   * action and its mirror are always consistent — Smart-Hub readers
+   * see "dismissed" everywhere or nowhere, never half-and-half.
+   *
+   * `dismissedReason` mirrors the action's `executionNotes` (the
+   * caller's free-form reason); `null` is the safe default when the
+   * caller didn't supply one. The status guard makes this a no-op
+   * for any row outside the proposed bucket.
+   */
+  return db.$transaction(async (tx) => {
+    const updatedAction = await tx.conversationAction.update({
+      where: { id: input.actionId },
+      data: {
+        status: "dismissed",
+        dismissedAt: new Date(),
+        reviewedBy: input.dismissedBy,
+        reviewedAt: new Date(),
+        executionNotes: input.executionNotes ?? existing.executionNotes,
+      },
+    })
+
+    await tx.workspaceTask.updateMany({
+      where: {
+        workspaceId: input.workspaceId,
+        conversationActionId: input.actionId,
+        status: "proposed",
+      },
+      data: {
+        status: "dismissed",
+        dismissedAt: new Date(),
+        dismissedReason: input.executionNotes ?? null,
+      },
+    })
+
+    return updatedAction
   })
 }
 
@@ -1613,10 +1646,77 @@ export async function convertConversationToRecords(
           proyectoId: output.ids.proyectoId,
         })
 
-        const workspaceTask = await tx.workspaceTask.create({ data: workspaceTaskData })
-        output.ids.workspaceTaskId = workspaceTask.id
-        output.workspaceTask = workspaceTask
-        output.created.workspaceTask = true
+        /**
+         * PR 7 hand-off — promote an existing *proposed* WorkspaceTask
+         * instead of creating a duplicate.
+         *
+         * Fanny may have already written a `WorkspaceTask(status="proposed",
+         * conversationActionId=actionRecordId)` when it suggested this
+         * `create_task`. The operator-driven execute path now checks for
+         * that mirror and:
+         *
+         *   - If found AND still proposed → flip to `"open"`, link the
+         *     just-created Tarea (`tareaId`), refresh the mutable
+         *     payload from `workspaceTaskData` (so any edits the
+         *     operator made on the action are reflected). The status
+         *     becomes "open" so `/today` can pick it up immediately.
+         *   - If found but not proposed (already open / executed /
+         *     dismissed by another path) → leave it alone and DON'T
+         *     create a duplicate either; surface the existing row in
+         *     the result. This is defensive: the only way to land
+         *     here is a race we don't expect, and creating a fresh
+         *     row would stack mirrors.
+         *   - If not found → fall back to the PR 6 behaviour and
+         *     create a new mirror.
+         *
+         * This keeps `/convert` (no actionRecordId) and the
+         * Smart-Inbox approve→execute path on the same data shape:
+         * exactly one WorkspaceTask per Tarea created in this run.
+         */
+        const existingProposed = input.actionRecordId
+          ? await tx.workspaceTask.findFirst({
+              where: {
+                workspaceId: input.workspaceId,
+                conversationActionId: input.actionRecordId,
+              },
+              select: { id: true, status: true },
+            })
+          : null
+
+        if (existingProposed && existingProposed.status === "proposed") {
+          const promoted = await tx.workspaceTask.update({
+            where: { id: existingProposed.id },
+            data: {
+              status: "open",
+              tareaId: tarea.id,
+              clienteId: output.ids.clienteId,
+              proyectoId: output.ids.proyectoId,
+              title: workspaceTaskData.title,
+              description: workspaceTaskData.description,
+              priority: workspaceTaskData.priority,
+              dueAt: workspaceTaskData.dueAt,
+              messageId: workspaceTaskData.messageId,
+              metadata: workspaceTaskData.metadata,
+            },
+          })
+          output.ids.workspaceTaskId = promoted.id
+          output.workspaceTask = promoted
+          /** Promoted, not freshly inserted — `created.workspaceTask`
+           *  stays false so consumers that gate logging / activity on
+           *  "first-time creation" don't double-count. */
+          output.created.workspaceTask = false
+        } else if (existingProposed) {
+          output.ids.workspaceTaskId = existingProposed.id
+          output.workspaceTask = await tx.workspaceTask.findFirst({
+            where: { id: existingProposed.id, workspaceId: input.workspaceId },
+          })
+          output.created.workspaceTask = false
+        } else {
+          const workspaceTask = await tx.workspaceTask.create({ data: workspaceTaskData })
+          output.ids.workspaceTaskId = workspaceTask.id
+          output.workspaceTask = workspaceTask
+          output.created.workspaceTask = true
+        }
       }
     }
 

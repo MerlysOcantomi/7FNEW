@@ -228,3 +228,187 @@ export function buildConversationToWorkspaceTaskData(
     metadata: JSON.stringify(metadata),
   }
 }
+
+// ─── PR 7 — Proposed (Fanny-suggested) WorkspaceTasks ───────────────────────
+
+/**
+ * `Conversation.urgency` vocabulary: `critica | alta | media | baja | null`.
+ * Translate to the `WorkspaceTaskPriority` union used by the model.
+ */
+function mapUrgencyToPriority(
+  raw: string | null | undefined,
+): WorkspaceTaskCreateData["priority"] {
+  switch ((raw ?? "").toLowerCase()) {
+    case "critica":
+      return "urgent"
+    case "alta":
+      return "high"
+    case "baja":
+      return "low"
+    case "media":
+    case "":
+    default:
+      return "normal"
+  }
+}
+
+/**
+ * Slice that the Fanny-side helper needs from the upstream
+ * ConversationAction. Required (PR 7 only writes proposed tasks for
+ * actions that already exist in the DB, so the id is always known).
+ */
+export interface ProposedActionRow {
+  id: string
+  type: string
+  source: string | null
+  data: string | null
+  sourceMessageId: string | null
+  confidence: number | null
+}
+
+export interface ProposedConversationContext {
+  id: string
+  clienteId: string | null
+  proyectoId: string | null
+  /** `Conversation.urgency` raw value, used to seed the priority. */
+  urgency: string | null
+}
+
+export interface BuildProposedWorkspaceTaskInput {
+  workspaceId: string
+  conversation: ProposedConversationContext
+  action: ProposedActionRow
+  /** Pipeline metadata kept verbatim in `metadata` for forensics
+   *  (matches what Fanny writes into `ConversationAction.data`). */
+  pipeline?: {
+    pipelineVersion?: string | null
+    promptVersion?: string | null
+    trigger?: string | null
+  }
+}
+
+/**
+ * Build the `WorkspaceTaskCreateData` payload for a Fanny-proposed
+ * task (status="proposed").
+ *
+ * Differences vs `buildConversationToWorkspaceTaskData`:
+ *   - `status: "proposed"` — awaiting operator approval, hidden from
+ *     `/today` (the aggregator already excludes proposed) and from
+ *     the Inbox To-do tab (sourceType is `fanny_suggestion`, which
+ *     `listInboxScopedTasks` does not include).
+ *   - `priority` is seeded from `Conversation.urgency` (no Tarea yet
+ *     to read priority from).
+ *   - `tareaId` and `dueAt` start `null`; the execute path (PR 6)
+ *     fills them when promoting the row to "open".
+ *   - `createdBy: "system"` because the Fanny pipeline runs without
+ *     an authenticated session. PR 6's promote step will record the
+ *     operator id in audit columns of the Tarea + ConversationAction
+ *     (the WorkspaceTask itself doesn't gain a `reviewedBy` column —
+ *     that's the linked action's job).
+ */
+export function buildProposedWorkspaceTaskFromAction(
+  input: BuildProposedWorkspaceTaskInput,
+): WorkspaceTaskCreateData {
+  const { action, conversation } = input
+
+  const title = (readActionDataString(action, "title") ?? "Tarea sugerida").slice(0, 500)
+  const description = readActionDataString(action, "description")
+
+  const metadata: Record<string, unknown> = {
+    inboxConversationId: conversation.id,
+    inboxConversationActionId: action.id,
+    inboxConversationActionType: action.type,
+    inboxConversationActionSource: action.source ?? null,
+  }
+  if (typeof action.confidence === "number") {
+    metadata.fannyConfidence = action.confidence
+  }
+  if (input.pipeline?.pipelineVersion) {
+    metadata.fannyPipelineVersion = input.pipeline.pipelineVersion
+  }
+  if (input.pipeline?.promptVersion) {
+    metadata.fannyPromptVersion = input.pipeline.promptVersion
+  }
+  if (input.pipeline?.trigger) {
+    metadata.fannyTrigger = input.pipeline.trigger
+  }
+
+  return {
+    workspaceId: input.workspaceId,
+    title,
+    description,
+    status: "proposed",
+    priority: mapUrgencyToPriority(conversation.urgency),
+    assigneeType: "unassigned",
+    assigneeId: null,
+    dueAt: null,
+    remindAt: null,
+    completedAt: null,
+    completedBy: null,
+    dismissedAt: null,
+    dismissedReason: null,
+    sourceType: "fanny_suggestion",
+    sourceId: action.id,
+    sourceLabel: "From Inbox",
+    conversationId: conversation.id,
+    messageId: action.sourceMessageId,
+    conversationActionId: action.id,
+    clienteId: conversation.clienteId,
+    proyectoId: conversation.proyectoId,
+    eventoId: null,
+    tareaId: null,
+    createdBy: "system",
+    suggestedBy: "fanny",
+    executionMode: "manual",
+    metadata: JSON.stringify(metadata),
+  }
+}
+
+/**
+ * Mutable subset of `WorkspaceTaskCreateData` re-applied when Fanny
+ * re-runs and updates an existing *proposed* WorkspaceTask. Excludes:
+ *
+ *   - identity / link columns (`workspaceId`, `sourceType`,
+ *     `sourceId`, `conversationId`, `messageId`,
+ *     `conversationActionId`, `tareaId`, `eventoId`)
+ *   - audit / origin (`createdBy`, `suggestedBy`, `executionMode`,
+ *     `status`)
+ *
+ * Keeping the status column off this update is critical: Fanny must
+ * never regress an "open" / "executed" / "dismissed" task back to
+ * "proposed" just because it re-ran on the same conversation. The
+ * caller is responsible for guarding with `status === "proposed"`
+ * before applying this patch.
+ */
+export type ProposedWorkspaceTaskRefreshData = Pick<
+  WorkspaceTaskCreateData,
+  | "title"
+  | "description"
+  | "priority"
+  | "messageId"
+  | "clienteId"
+  | "proyectoId"
+  | "sourceLabel"
+  | "metadata"
+>
+
+/**
+ * Reduce a freshly built proposed payload to the safe-to-refresh
+ * subset above. Used by intelligence.ts when the operator hasn't
+ * touched the suggestion yet but Fanny has new text / new
+ * conversation context.
+ */
+export function pickProposedWorkspaceTaskRefreshFields(
+  data: WorkspaceTaskCreateData,
+): ProposedWorkspaceTaskRefreshData {
+  return {
+    title: data.title,
+    description: data.description,
+    priority: data.priority,
+    messageId: data.messageId,
+    clienteId: data.clienteId,
+    proyectoId: data.proyectoId,
+    sourceLabel: data.sourceLabel,
+    metadata: data.metadata,
+  }
+}
