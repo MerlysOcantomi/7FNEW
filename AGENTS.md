@@ -34,3 +34,16 @@ Summary:
 Reference example: [`modules/inbox/auto-task-policy.ts`](modules/inbox/auto-task-policy.ts) +
 [`modules/inbox/auto-task-write-planner.ts`](modules/inbox/auto-task-write-planner.ts) +
 their `*.test.ts` siblings.
+
+## Workspace profile & Smart Inbox
+
+Even when Smart Inbox is offered standalone, the workspace must keep a **minimal Workspace Profile**
+enabled — **core infrastructure**, not an optional add-on. Fanny needs that context to behave usefully
+and safely; “Inbox-only” means **Inbox + lite profile**, not an empty workspace shell.
+
+**→ [docs/workspace-profile-for-inbox.md](docs/workspace-profile-for-inbox.md)**
+
+Summary:
+
+- Plan/UI may expose **Workspace Profile Lite** vs **full Business Profile** depth; global hard safety
+  in code always caps automation — workspace preferences cannot bypass it.

@@ -1,6 +1,6 @@
 # Smart Inbox — Technical Decisions Log
 
-Last updated: 2026-04-09
+Last updated: 2026-05-08
 
 This document records pragmatic technical decisions in the Smart Inbox module, why they're acceptable today, their known limits, and when/how to evolve them.
 
@@ -165,3 +165,11 @@ Reference example — Fanny `create_task` automation lane:
 - [`modules/inbox/auto-task-pipeline.test.ts`](../modules/inbox/auto-task-pipeline.test.ts) — 11 planner cases (lane × idempotency matrix).
 
 Run narrowly with `npm run test:auto-policy` and `npm run test:fanny-pipeline`.
+
+---
+
+## Related — Workspace Profile & Inbox standalone
+
+**Smart Inbox standalone is not “Inbox without profile”.** Every workspace keeps a **minimal Workspace Profile** so Fanny has business/workspace context to classify, prioritise, summarise, and automate safely. Full 7F Business can expose deeper profile and operations context; plan tiers may vary **UI depth** (“Workspace Profile Lite” vs full), not whether base profile infrastructure exists.
+
+**→ [workspace-profile-for-inbox.md](workspace-profile-for-inbox.md)**
