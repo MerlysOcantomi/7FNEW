@@ -94,6 +94,14 @@ interface ConversationListItem {
   assignedTo: string | null
   lastMessageAt: string
   messageCount: number
+  /**
+   * PR 10 — number of Fanny-suggested `WorkspaceTask` rows still in
+   * `proposed` status for this conversation. Attached server-side by
+   * `/api/inbox/conversations` so the list can render a discreet
+   * "Fanny suggestion(s)" badge without an extra round-trip. Defaults
+   * to `0` when missing or when the aggregation degraded silently.
+   */
+  proposedTaskCount?: number
   contact: {
     id: string
     nombre: string | null
@@ -1641,6 +1649,7 @@ function InboxPageContent() {
           leadScore: conversation.leadScore,
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
           category: conversation.category ?? null,
+          proposedTaskCount: conversation.proposedTaskCount ?? 0,
         }
       } catch (e) {
         if (process.env.NODE_ENV === "development") {
@@ -1663,6 +1672,7 @@ function InboxPageContent() {
           leadScore: conversation.leadScore,
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
           category: conversation.category ?? null,
+          proposedTaskCount: conversation.proposedTaskCount ?? 0,
         }
       }
     }),

@@ -465,3 +465,96 @@ export async function listProposedFannyTasksForConversation(
     updatedAt: row.updatedAt,
   }))
 }
+
+// ─── Batched proposed-task counts for the list (PR 10) ──────────────────────
+
+interface ListProposedFannyTaskCountsParams {
+  workspaceId: string
+  /**
+   * Visible conversation ids the inbox list will render. Always pass the
+   * page's slice — never an unbounded universe of ids — so the IN clause
+   * stays bounded by `pageSize` (typically ≤ 50). Empty / falsy entries
+   * are filtered out internally; passing only blanks short-circuits to
+   * an empty map without touching the DB.
+   */
+  conversationIds: readonly string[]
+}
+
+/**
+ * Per-conversation counts of Fanny-suggested `WorkspaceTask` rows still
+ * in `proposed` status. Backs the conversation-list "Fanny suggestion"
+ * badge surfaced by PR 10 — the inbox list calls this once per page
+ * with the visible ids and renders a count chip for any conversation
+ * with `count > 0`.
+ *
+ * Why a `groupBy` (and not N `count()` calls):
+ *   - Single round-trip regardless of `pageSize`. With `take=20..50` the
+ *     N+1 pattern would produce 20–50 separate DB calls just to render
+ *     a list — wasteful even on hot caches.
+ *   - The aggregation is naturally bounded by `conversationIds.length`,
+ *     which is the inbox page slice (operator never sees more than
+ *     `pageSize` rows at once). No unbounded scan possible.
+ *
+ * Filters (mirrors `listProposedFannyTasksForConversation` exactly so
+ * the badge count and the Smart Hub list always agree):
+ *   - `workspaceId` — multi-tenant boundary.
+ *   - `conversationId IN (visible page)` — keeps the result set small.
+ *   - `status = "proposed"` — open suggestions only.
+ *   - `sourceType = "fanny_suggestion"` — Fanny-only provenance.
+ *   - `suggestedBy = "fanny"` — defence in depth.
+ *
+ * Returns a `Map<conversationId, count>` so callers can do an O(1)
+ * lookup per row when merging into the response. Conversations with
+ * no proposed tasks are simply absent from the map — callers must
+ * default to `0`.
+ */
+export async function listProposedFannyTaskCountsByConversation(
+  params: ListProposedFannyTaskCountsParams,
+): Promise<Map<string, number>> {
+  if (!params.workspaceId?.trim()) {
+    throw new Error("workspaceId is required")
+  }
+
+  /**
+   * Dedupe + drop empties before issuing the query. Without this a
+   * caller passing duplicate or blank ids would either inflate the
+   * `IN (...)` clause (cheap waste) or trigger a Prisma validation
+   * error on empty strings. Defensive cleanup keeps the helper
+   * forgiving without hiding real misuse — a fully-empty input simply
+   * returns an empty map and skips the round-trip.
+   */
+  const ids = Array.from(
+    new Set(
+      params.conversationIds.filter(
+        (id): id is string => typeof id === "string" && id.trim().length > 0,
+      ),
+    ),
+  )
+  if (ids.length === 0) return new Map<string, number>()
+
+  const rows = await db.workspaceTask.groupBy({
+    by: ["conversationId"],
+    where: {
+      workspaceId: params.workspaceId.trim(),
+      conversationId: { in: ids },
+      status: "proposed",
+      sourceType: "fanny_suggestion",
+      suggestedBy: "fanny",
+    },
+    _count: { _all: true },
+  })
+
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    /**
+     * `groupBy` on a nullable column can in theory yield a `null`
+     * key. Our filter excludes nulls (nullable `conversationId IN
+     * [...]` with non-null ids), but we guard anyway so the public
+     * Map<string, number> contract stays honest.
+     */
+    if (row.conversationId) {
+      map.set(row.conversationId, row._count._all)
+    }
+  }
+  return map
+}

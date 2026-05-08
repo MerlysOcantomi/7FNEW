@@ -56,6 +56,15 @@ interface ConversationItem {
    * what Skina and any other workspace without taxonomies will see.
    */
   category?: string | null
+  /**
+   * PR 10 — count of Fanny-suggested `WorkspaceTask` rows still in
+   * `proposed` status for this conversation. Forwarded as-is to
+   * `<ConversationListItem>` → `<ConversationMetaLine>` which renders
+   * a discreet "Fanny suggestion(s)" pill only when the value is `> 0`.
+   * Defaults to `0` everywhere — the row stays visually identical for
+   * conversations with no pending suggestions.
+   */
+  proposedTaskCount?: number
 }
 
 interface ConversationListProps {
@@ -171,6 +180,7 @@ export function ConversationList({
                   leadScore={item.leadScore}
                   messageCount={item.messageCount}
                   category={item.category}
+                  proposedTaskCount={item.proposedTaskCount}
                 />
               ))}
               {hasMore && onLoadMore && (

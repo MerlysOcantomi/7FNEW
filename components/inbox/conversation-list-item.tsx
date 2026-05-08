@@ -54,6 +54,14 @@ interface ConversationListItemProps {
    * looks identical to its pre-PR state.
    */
   category?: string | null
+  /**
+   * PR 10 — count of Fanny-suggested `WorkspaceTask` rows still in
+   * `proposed` status for this conversation. Forwarded to
+   * `<ConversationMetaLine>` which renders the pill only when the
+   * value is `> 0`. Defaults to `0` to keep the row visually identical
+   * for conversations without suggestions.
+   */
+  proposedTaskCount?: number
 }
 
 export function ConversationListItem({
@@ -78,6 +86,7 @@ export function ConversationListItem({
   leadScore,
   messageCount,
   category,
+  proposedTaskCount,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
   /**
@@ -229,6 +238,7 @@ export function ConversationListItem({
                 urgencyClassName={urgencyClassName}
                 leadScore={leadScore}
                 category={category}
+                proposedTaskCount={proposedTaskCount}
               />
             </div>
           </div>

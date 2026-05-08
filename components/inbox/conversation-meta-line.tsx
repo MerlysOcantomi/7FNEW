@@ -2,6 +2,7 @@
 
 import { Badge, badgeVariants } from "@/components/ui/badge"
 import type { VariantProps } from "class-variance-authority"
+import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
@@ -64,6 +65,16 @@ interface ConversationMetaLineProps {
    * threads they have personally triaged vs. those still on AI hints.
    */
   category?: string | null
+  /**
+   * PR 10 — count of Fanny-suggested `WorkspaceTask` rows still in
+   * `proposed` status for this conversation. Renders a discreet
+   * accent-tinted pill only when `proposedTaskCount > 0` so the
+   * operator can spot conversations that have AI suggestions waiting
+   * for approval without opening each thread. Defaults to `0` /
+   * `undefined` for conversations without suggestions, which keeps
+   * their meta line visually identical to its pre-PR state.
+   */
+  proposedTaskCount?: number
 }
 
 export function ConversationMetaLine({
@@ -75,7 +86,21 @@ export function ConversationMetaLine({
   leadScore,
   sectorLabel,
   category,
+  proposedTaskCount,
 }: ConversationMetaLineProps) {
+  /**
+   * Singular / plural copy that mirrors the rest of the inbox
+   * vocabulary ("Fanny suggestion(s)") and stays compact enough to
+   * sit alongside the existing chips without forcing a wrap. The pill
+   * is hidden entirely when `count <= 0` (or `undefined`), so rows
+   * without suggestions keep their previous footprint to the pixel.
+   */
+  const proposedTaskBadge =
+    typeof proposedTaskCount === "number" && proposedTaskCount > 0
+      ? proposedTaskCount === 1
+        ? "1 Fanny suggestion"
+        : `${proposedTaskCount} Fanny suggestions`
+      : null
   const hideTerminal =
     conversationStatus === "archived" ||
     conversationStatus === "closed" ||
@@ -130,6 +155,24 @@ export function ConversationMetaLine({
           title={`Category: ${category}`}
         >
           {category}
+        </span>
+      ) : null}
+      {/*
+       * PR 10 — Fanny suggestion pill. Renders only when the conversation
+       * has at least one proposed `WorkspaceTask` (linked to a `create_task`
+       * ConversationAction). The accent border + sparkle icon keep it
+       * distinguishable from status / urgency / category chips while
+       * staying visually secondary; it does NOT compete with primary
+       * metadata for vertical real estate (sits inline on the existing
+       * meta row's wrap line).
+       */}
+      {proposedTaskBadge ? (
+        <span
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] shadow-none whitespace-nowrap"
+          title="Fanny has suggested tasks awaiting approval for this conversation"
+        >
+          <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+          {proposedTaskBadge}
         </span>
       ) : null}
     </div>

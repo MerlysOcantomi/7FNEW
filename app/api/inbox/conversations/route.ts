@@ -3,6 +3,7 @@ import { successResponse, handleError, getPaginationParams } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { listConversations, parseConversationJsonFields } from "@modules/inbox/service"
+import { listProposedFannyTaskCountsByConversation } from "@modules/inbox/inbox-tasks-read"
 
 const INBOX_LIST_DEBUG =
   process.env.NODE_ENV === "development" || process.env.INBOX_DEBUG_INBOX_LIST === "1"
@@ -66,8 +67,47 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    /**
+     * PR 10 — attach `proposedTaskCount` to each visible conversation so
+     * the list can render a "Fanny suggestion" badge.
+     *
+     * Scope is **strictly** the visible page's ids: we pass `data.map(c =>
+     * c.id)` so the IN-clause is bounded by `pageSize` and we never count
+     * proposed tasks across the whole workspace just to render this slice.
+     * A single `groupBy` call replaces what would otherwise be `pageSize`
+     * separate counts (no N+1).
+     *
+     * On failure we degrade to `proposedTaskCount = 0` everywhere — the
+     * badge is auxiliary discoverability, not core list data. The inbox
+     * list must NEVER be blocked by an aggregation query.
+     */
+    const conversationIdsForCounts = data
+      .map((record) => (record as { id?: string }).id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+    const proposedCounts = conversationIdsForCounts.length > 0
+      ? await listProposedFannyTaskCountsByConversation({
+          workspaceId,
+          conversationIds: conversationIdsForCounts,
+        }).catch((err: unknown) => {
+          if (INBOX_LIST_DEBUG) {
+            console.warn("[inbox:debug:list] proposed task counts failed", {
+              workspaceId,
+              message: err instanceof Error ? err.message : String(err),
+            })
+          }
+          return new Map<string, number>()
+        })
+      : new Map<string, number>()
+
     return successResponse(
-      data.map((record) => parseConversationJsonFields(record)),
+      data.map((record) => {
+        const parsed = parseConversationJsonFields(record)
+        const id = (record as { id?: string }).id
+        return {
+          ...parsed,
+          proposedTaskCount: id ? proposedCounts.get(id) ?? 0 : 0,
+        }
+      }),
       {
         page,
         pageSize,
