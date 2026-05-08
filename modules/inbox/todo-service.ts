@@ -1,6 +1,9 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
-import { mapInboxTodoToWorkspaceTaskData } from "@modules/tasks/inbox-todo-mapping"
+import {
+  mapInboxTodoToWorkspaceTaskData,
+  mapInboxTodoUpdateToWorkspaceTaskUpdateData,
+} from "@modules/tasks/inbox-todo-mapping"
 
 /**
  * InboxTodo service — operator-facing work queue.
@@ -20,16 +23,23 @@ import { mapInboxTodoToWorkspaceTaskData } from "@modules/tasks/inbox-todo-mappi
  * from another tenant. We do NOT FK-cascade these in the schema — keeping audit trail intact when
  * the source record is deleted/restored is a feature, not a bug.
  *
- * Dual-write to WorkspaceTask (PR 3, transitional)
- * ────────────────────────────────────────────────
- * Every `createTodo` call now also creates a mirror `WorkspaceTask` row in the same
- * interactive transaction and links the two via `InboxTodo.workspaceTaskId`. The mirror
- * is the future canonical work-item; reads keep going through InboxTodo until PR 4
- * swaps `/today` and the inbox To-do tab over. Status mutations and field updates
- * (`updateTodoStatus`, `updateTodoFields`, `dismissTodo`) intentionally do NOT propagate
- * to the linked WorkspaceTask in this PR — the mirror records the work item's birth
- * snapshot only, and PR 4 will rewire the read path before we worry about backwards-flow
- * synchronisation.
+ * Dual-write to WorkspaceTask (PR 3, extended in PR 5)
+ * ─────────────────────────────────────────────────────
+ * Every `createTodo` call creates a mirror `WorkspaceTask` row in the same interactive
+ * transaction and links the two via `InboxTodo.workspaceTaskId`. PR 4 then made `/today`
+ * read from the mirror; PR 5 makes the Inbox To-do tab read from the mirror too via
+ * `listInboxScopedTasks`.
+ *
+ * To keep those reads consistent with writes that still arrive on the InboxTodo side
+ * (PATCH `/api/inbox/todos/{id}` — status changes, field patches), every mutation that
+ * goes through this module now also propagates to the linked mirror inside the same
+ * transaction. The propagation is full re-derivation via
+ * `mapInboxTodoUpdateToWorkspaceTaskUpdateData`, which only touches the mutable subset
+ * of mirror columns (status, priority, dates, audit fields, metadata) and never
+ * clobbers immutable linkage / origin columns (`sourceType`, `sourceId`, `createdBy`,
+ * etc.). Rows without a `workspaceTaskId` (legacy unbacked inbox todos) update the
+ * InboxTodo only; the backfill script `scripts/backfill-workspace-tasks.ts` is the
+ * tool to give them mirrors.
  */
 
 const VALID_STATUSES = new Set(["open", "done", "dismissed", "waiting"] as const)
@@ -138,6 +148,18 @@ interface ListTodosParams {
   take?: number
 }
 
+/**
+ * Direct InboxTodo list reader.
+ *
+ * Superseded by `listInboxScopedTasks` (in `./inbox-tasks-read.ts`) for
+ * the Inbox To-do tab and `/today`, which now project the same shape
+ * out of `WorkspaceTask`. Kept exported for backward compatibility:
+ * any caller that still needs to see the underlying `InboxTodo` rows
+ * directly (debug scripts, future migration tools) can keep using it.
+ *
+ * The HTTP route `GET /api/inbox/todos` no longer calls this function
+ * as of PR 5 — it goes through `listInboxScopedTasks`.
+ */
 export async function listTodos(params: ListTodosParams): Promise<InboxTodoRecord[]> {
   const { workspaceId, status, assigneeId, conversationId, skip = 0, take = 200 } = params
 
@@ -410,9 +432,29 @@ export async function updateTodoStatus(input: UpdateTodoStatusInput): Promise<In
   }
   /** "waiting" intentionally leaves completion/dismiss fields alone. */
 
-  const todo = await db.inboxTodo.update({
-    where: { id: input.id },
-    data,
+  /**
+   * Atomic mirror sync (PR 5). We update the InboxTodo first, then mirror
+   * the post-update row into the linked `WorkspaceTask` (when one exists).
+   * Both writes happen in the same interactive transaction so the inbox
+   * reads (which now go through the mirror via `listInboxScopedTasks`) can
+   * never observe a stale status. Rows without a `workspaceTaskId` skip
+   * the mirror step — they're legacy unbacked inboxTodos and the backfill
+   * script is responsible for giving them mirrors.
+   */
+  const todo = await db.$transaction(async (tx) => {
+    const updated = await tx.inboxTodo.update({
+      where: { id: input.id },
+      data,
+    })
+
+    if (updated.workspaceTaskId) {
+      await tx.workspaceTask.update({
+        where: { id: updated.workspaceTaskId },
+        data: mapInboxTodoUpdateToWorkspaceTaskUpdateData(updated),
+      })
+    }
+
+    return updated
   })
 
   return formatTodo(todo)
@@ -518,9 +560,28 @@ export async function updateTodoFields(input: UpdateTodoFieldsInput): Promise<In
     return current ? formatTodo(current) : null
   }
 
-  const todo = await db.inboxTodo.update({
-    where: { id: input.id },
-    data,
+  /**
+   * Same atomic-mirror pattern as `updateTodoStatus` (PR 5). The
+   * mutable mirror columns (title, description, priority, assignee,
+   * dueAt, remindAt, metadata) are re-derived from the post-update
+   * InboxTodo so the WorkspaceTask read path stays consistent with the
+   * legacy InboxTodo write path. No-op patches and unbacked rows skip
+   * the mirror update.
+   */
+  const todo = await db.$transaction(async (tx) => {
+    const updated = await tx.inboxTodo.update({
+      where: { id: input.id },
+      data,
+    })
+
+    if (updated.workspaceTaskId) {
+      await tx.workspaceTask.update({
+        where: { id: updated.workspaceTaskId },
+        data: mapInboxTodoUpdateToWorkspaceTaskUpdateData(updated),
+      })
+    }
+
+    return updated
   })
 
   return formatTodo(todo)

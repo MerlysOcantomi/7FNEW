@@ -295,3 +295,70 @@ export function mapInboxTodoToWorkspaceTaskData(
     metadata: JSON.stringify(buildMetadata(todo)),
   }
 }
+
+/**
+ * Mutable subset of `WorkspaceTaskCreateData` — the fields a downstream
+ * `InboxTodo` mutation (status change, field patch) is allowed to
+ * propagate back into the mirror. Excludes everything immutable at the
+ * mirror level:
+ *
+ *   - identity / link columns (`workspaceId`, `sourceType`, `sourceId`,
+ *     `sourceLabel`, `conversationId`, `messageId`, `conversationActionId`,
+ *     `clienteId`, `proyectoId`, `eventoId`, `tareaId`)
+ *   - audit / origin (`createdBy`, `suggestedBy`, `executionMode`)
+ *
+ * The InboxTodo write path (`updateTodoStatus`, `updateTodoFields`)
+ * cannot change any of those fields by design, so leaving them off the
+ * mirror update keeps the two sides in sync without ever clobbering
+ * relational stable data.
+ */
+export type WorkspaceTaskMirrorUpdateData = Pick<
+  WorkspaceTaskCreateData,
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "assigneeType"
+  | "assigneeId"
+  | "dueAt"
+  | "remindAt"
+  | "completedAt"
+  | "completedBy"
+  | "dismissedAt"
+  | "dismissedReason"
+  | "metadata"
+>
+
+/**
+ * Build the partial `data` payload for re-syncing a `WorkspaceTask`
+ * mirror after its source `InboxTodo` was mutated. The full row passed
+ * in must be the post-mutation InboxTodo — this is intentionally not a
+ * "diff this patch" helper, because deriving the result row from
+ * `tx.inboxTodo.update({ ... })` is both atomic and cheap, and lets us
+ * re-run the canonical mapping (`mapStatus`, `mapPriority`,
+ * `mapAssigneeType`, `buildMetadata`) so the mirror always sees the
+ * same normalised values it would have on first creation.
+ *
+ * Used by the inbox write paths in `modules/inbox/todo-service.ts`
+ * (PR 5) — keep all mirror-mapping logic in this module so future
+ * schema tweaks have a single place to touch.
+ */
+export function mapInboxTodoUpdateToWorkspaceTaskUpdateData(
+  todo: InboxTodoSourceRow,
+): WorkspaceTaskMirrorUpdateData {
+  return {
+    title: todo.title,
+    description: todo.description,
+    status: mapStatus(todo.status),
+    priority: mapPriority(todo.priority),
+    assigneeType: mapAssigneeType(todo.assigneeType),
+    assigneeId: todo.assigneeId,
+    dueAt: todo.dueAt,
+    remindAt: todo.remindAt,
+    completedAt: todo.completedAt,
+    completedBy: todo.completedBy,
+    dismissedAt: todo.dismissedAt,
+    dismissedReason: todo.dismissedReason,
+    metadata: JSON.stringify(buildMetadata(todo)),
+  }
+}

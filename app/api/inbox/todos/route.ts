@@ -3,11 +3,11 @@ import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 import {
   createTodo,
-  listTodos,
   type InboxTodoAssigneeType,
   type InboxTodoPriority,
   type InboxTodoStatus,
 } from "@modules/inbox/todo-service"
+import { listInboxScopedTasks } from "@modules/inbox/inbox-tasks-read"
 
 /**
  * GET /api/inbox/todos
@@ -16,6 +16,21 @@ import {
  * intentionally narrow — listing is paginated server-side via `take` (max 500). The endpoint
  * returns an empty array (not 404) when there are no matches; the front-end can render an empty
  * state without branching on HTTP code.
+ *
+ * Read path (PR 5)
+ * ────────────────
+ * The endpoint now reads from `WorkspaceTask` (filtered to inbox-scoped
+ * `sourceType` values) rather than from `InboxTodo` directly. The wire
+ * shape is unchanged — `listInboxScopedTasks` projects every row into
+ * the same `InboxTodoRecord` shape `listTodos` returned, including the
+ * legacy `id` (the originating InboxTodo id) so deep-links and the
+ * PATCH endpoint keep working without UI changes.
+ *
+ * Writes (`POST` below, plus `PATCH /api/inbox/todos/{id}`) still flow
+ * through `todo-service.ts`, which dual-writes to the WorkspaceTask
+ * mirror. Reads stay consistent with writes because PR 5 also extends
+ * the update paths to mirror status / field changes back into the
+ * WorkspaceTask row.
  *
  * Query params:
  *   - status        comma-separated subset of: open | done | dismissed | waiting
@@ -33,7 +48,7 @@ export async function GET(request: NextRequest) {
     const skip = skipRaw ? Math.max(0, parseInt(skipRaw, 10) || 0) : 0
     const take = takeRaw ? Math.max(1, parseInt(takeRaw, 10) || 200) : 200
 
-    const todos = await listTodos({
+    const todos = await listInboxScopedTasks({
       workspaceId,
       status: url.searchParams.get("status"),
       assigneeId: url.searchParams.get("assigneeId"),
