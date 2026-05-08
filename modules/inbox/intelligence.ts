@@ -15,9 +15,12 @@ import type {
 } from "./types"
 import { transitionConversationStatus } from "./state"
 import {
+  buildAutoCreatedWorkspaceTaskFromAction,
   buildProposedWorkspaceTaskFromAction,
+  pickAutoCreatedWorkspaceTaskRefreshFields,
   pickProposedWorkspaceTaskRefreshFields,
 } from "@modules/tasks/conversation-action-mapping"
+import { evaluateAutoCreatePolicy } from "./auto-task-policy"
 
 const PIPELINE_VERSION = "5"
 const PROMPT_VERSION = "fanny-v1.2"
@@ -966,7 +969,52 @@ export async function runConversationIntelligence(input: {
        * calendar) and should not pollute the global task queue.
        */
       if (action.type === "create_task") {
-        const proposedData = buildProposedWorkspaceTaskFromAction({
+        /**
+         * PR 12 — Automation gate. Decides between two lanes:
+         *
+         *   - **auto** (low-risk, high-confidence, no external
+         *     impact, no risky vocabulary): write the WorkspaceTask
+         *     directly as `status="open"` with `sourceType="fanny_auto"`
+         *     and mark the linked ConversationAction `"executed"` so
+         *     it never appears in the Smart Hub "Pending decisions"
+         *     section / badge. The task surfaces in `/today` like
+         *     any other open task.
+         *
+         *   - **review** (default for everything else): preserve the
+         *     existing PR 7 path — write `status="proposed"` with
+         *     `sourceType="fanny_suggestion"` so the Smart Hub /
+         *     conversation-list badge still surface it for human
+         *     decision.
+         *
+         * The gate is purely additive: when auto rejects, behavior
+         * is identical to PR 7. The proposed lane is never removed.
+         */
+        const policyDecision = evaluateAutoCreatePolicy({
+          action: {
+            type: action.type,
+            title: action.title,
+            description: action.description,
+            confidence: action.confidence ?? null,
+          },
+          conversation: {
+            workspaceId: input.workspaceId,
+            conversationId: conversation.id,
+            urgency: intelligence.urgencia,
+            tipo: intelligence.tipo,
+          },
+          /**
+           * Cross-action guard — block auto-create when the same run
+           * also produced a calendar / follow-up / proposal /
+           * assignment action. Those carry external impact that the
+           * operator must approve before any internal task assumes
+           * they happened.
+           */
+          otherActionTypesInRun: normalizedSuggestedActions
+            .filter((a) => a.type !== action.type)
+            .map((a) => a.type),
+        })
+
+        const builderInput = {
           workspaceId: input.workspaceId,
           conversation: {
             id: conversation.id,
@@ -987,28 +1035,87 @@ export async function runConversationIntelligence(input: {
             promptVersion: PROMPT_VERSION,
             trigger: input.trigger,
           },
-        })
+        }
 
-        const existingProposed = await tx.workspaceTask.findFirst({
+        const existingTask = await tx.workspaceTask.findFirst({
           where: {
             workspaceId: input.workspaceId,
             conversationActionId: persistedActionId,
           },
-          select: { id: true, status: true },
+          select: { id: true, status: true, sourceType: true },
         })
 
-        if (!existingProposed) {
-          await tx.workspaceTask.create({ data: proposedData })
-        } else if (existingProposed.status === "proposed") {
-          await tx.workspaceTask.update({
-            where: { id: existingProposed.id },
-            data: pickProposedWorkspaceTaskRefreshFields(proposedData),
+        if (policyDecision.auto) {
+          /**
+           * Auto lane.
+           *
+           * Idempotency rules (mirror the proposed lane):
+           *   - No existing row → create the auto task AND flip the
+           *     action to `"executed"` with deterministic
+           *     `executionNotes` for audit. `resultModule` /
+           *     `resultId` point at the new WorkspaceTask so the
+           *     audit trail can resolve the work item from the
+           *     action.
+           *   - Existing row in `"open"` and `sourceType="fanny_auto"`
+           *     → safe re-run, refresh the mutable subset only. We
+           *     deliberately do NOT touch rows that were promoted
+           *     from a different lane (e.g. operator-approved
+           *     proposed → open) — `sourceType` mismatch is the
+           *     guard.
+           *   - Any other state (in_progress / waiting / done /
+           *     dismissed, or sourceType !== fanny_auto) → leave
+           *     untouched. Fanny never regresses operator-managed
+           *     work, and never rewrites a row that the operator
+           *     has actively moved through the lifecycle.
+           */
+          const autoData = buildAutoCreatedWorkspaceTaskFromAction({
+            ...builderInput,
+            automationReason: policyDecision.reason,
           })
+
+          if (!existingTask) {
+            const created = await tx.workspaceTask.create({ data: autoData })
+
+            await tx.conversationAction.update({
+              where: { id: persistedActionId },
+              data: {
+                status: "executed",
+                resultId: created.id,
+                resultModule: "workspace_task",
+                executionNotes: `Auto-created by Fanny (${policyDecision.reason})`,
+                reviewedAt: new Date(),
+              },
+            })
+          } else if (
+            existingTask.status === "open" &&
+            existingTask.sourceType === "fanny_auto"
+          ) {
+            await tx.workspaceTask.update({
+              where: { id: existingTask.id },
+              data: pickAutoCreatedWorkspaceTaskRefreshFields(autoData),
+            })
+          }
+        } else {
+          /**
+           * Review lane (existing PR 7 path, untouched). Only refreshes
+           * proposed rows so the operator's decisions are never
+           * overwritten by re-runs.
+           */
+          const proposedData = buildProposedWorkspaceTaskFromAction(builderInput)
+
+          if (!existingTask) {
+            await tx.workspaceTask.create({ data: proposedData })
+          } else if (existingTask.status === "proposed") {
+            await tx.workspaceTask.update({
+              where: { id: existingTask.id },
+              data: pickProposedWorkspaceTaskRefreshFields(proposedData),
+            })
+          }
+          /** Any other status (open / in_progress / waiting / done /
+           *  dismissed) means the operator has already acted on this
+           *  suggestion. Leave the row alone — Fanny has no business
+           *  rewriting operator-managed work. */
         }
-        /** Any other status (open / in_progress / waiting / done /
-         *  dismissed) means the operator has already acted on this
-         *  suggestion. Leave the row alone — Fanny has no business
-         *  rewriting operator-managed work. */
       }
     }
 

@@ -412,3 +412,98 @@ export function pickProposedWorkspaceTaskRefreshFields(
     metadata: data.metadata,
   }
 }
+
+// ─── PR 12 — Auto-created (Fanny low-risk automation lane) WorkspaceTasks ──
+
+export interface BuildAutoCreatedWorkspaceTaskInput
+  extends BuildProposedWorkspaceTaskInput {
+  /** Short, human-readable reason from `evaluateAutoCreatePolicy`,
+   *  persisted in `metadata.automationReason` for audit. Always set
+   *  by the caller; the helper never invents a reason. */
+  automationReason: string
+}
+
+/**
+ * Build the `WorkspaceTaskCreateData` payload for a Fanny
+ * auto-created task (status="open"). This is the automation lane
+ * that bypasses the proposed-decision queue for low-risk obvious
+ * internal work. The decision to call this builder lives in
+ * `modules/inbox/auto-task-policy.ts`; this module just maps.
+ *
+ * Differences vs `buildProposedWorkspaceTaskFromAction`:
+ *   - `status: "open"` — actionable immediately, surfaces in `/today`
+ *     like any other open task.
+ *   - `sourceType: "fanny_auto"` — distinct from `"fanny_suggestion"`
+ *     so:
+ *       * `listProposedFannyTasksForConversation` (PR 9 Smart Hub)
+ *         filters by `fanny_suggestion` → auto rows are hidden.
+ *       * `listProposedFannyTaskCountsByConversation` (PR 10 badge)
+ *         filters by `fanny_suggestion` → auto rows do NOT inflate
+ *         the "pending decision" badge.
+ *       * `listInboxScopedTasks` (Inbox To-do tab) filters by
+ *         `inbox_todo | manual` → auto rows do NOT pollute that view.
+ *   - `metadata.autoCreated: true` and `metadata.automationReason`
+ *     for audit / forensics.
+ *   - `executionMode: "manual"` — the *creation* was automatic, but
+ *     the operator still does the actual work. Staying with
+ *     `"manual"` keeps the existing semantics of `executionMode`
+ *     (how the task is meant to be done, not how it was created).
+ *   - `suggestedBy: "fanny"` — same as proposed, so analytics that
+ *     filter by Fanny-originated work continue to include both lanes.
+ *
+ * Identity / link columns mirror the proposed builder exactly so
+ * downstream code (e.g. dismiss / promote flows) can resolve the
+ * row from the same `(workspaceId, conversationActionId)` key.
+ */
+export function buildAutoCreatedWorkspaceTaskFromAction(
+  input: BuildAutoCreatedWorkspaceTaskInput,
+): WorkspaceTaskCreateData {
+  const proposed = buildProposedWorkspaceTaskFromAction(input)
+
+  /**
+   * Re-parse the metadata the proposed builder produced and stamp
+   * the auto-create markers on top. We round-trip through JSON so
+   * we never mutate the proposed builder's output object and the
+   * resulting metadata stays valid JSON.
+   */
+  let metadataObj: Record<string, unknown> = {}
+  try {
+    const parsed = JSON.parse(proposed.metadata) as unknown
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      metadataObj = parsed as Record<string, unknown>
+    }
+  } catch {
+    metadataObj = {}
+  }
+  metadataObj.autoCreated = true
+  metadataObj.automationReason = input.automationReason
+
+  return {
+    ...proposed,
+    status: "open",
+    sourceType: "fanny_auto",
+    sourceLabel: "Auto-created from Inbox",
+    metadata: JSON.stringify(metadataObj),
+  }
+}
+
+/**
+ * Mutable subset of fields refreshed when Fanny re-runs over an
+ * auto-created task that the operator hasn't touched yet. Identical
+ * shape to `ProposedWorkspaceTaskRefreshData` — keeping them in sync
+ * means re-runs behave the same in both lanes (text and priority
+ * may shift, identity and lifecycle never do).
+ *
+ * Status is intentionally NOT in this subset: even though auto rows
+ * are born `"open"`, Fanny must never silently regress an
+ * `in_progress` / `done` / `dismissed` task back to `open` based on
+ * a re-classification. The caller is responsible for guarding with
+ * `status === "open"` before applying this patch.
+ */
+export type AutoCreatedWorkspaceTaskRefreshData = ProposedWorkspaceTaskRefreshData
+
+export function pickAutoCreatedWorkspaceTaskRefreshFields(
+  data: WorkspaceTaskCreateData,
+): AutoCreatedWorkspaceTaskRefreshData {
+  return pickProposedWorkspaceTaskRefreshFields(data)
+}

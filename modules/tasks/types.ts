@@ -65,6 +65,20 @@ export const WORKSPACE_TASK_SOURCE_TYPES = {
   inboxMessage: "inbox_message",
   inboxAction: "inbox_action",
   fannySuggestion: "fanny_suggestion",
+  /**
+   * PR 12 — Fanny auto-created task. Distinct from `fanny_suggestion`
+   * (which represents a *proposed* task awaiting operator approval).
+   * `fanny_auto` rows are written directly with `status="open"` by the
+   * conservative auto-create policy in `modules/inbox/auto-task-policy.ts`
+   * when an upstream `create_task` action is judged low-risk and
+   * high-confidence. They surface in `/today` like any other open
+   * task and are deliberately EXCLUDED from:
+   *   - the Inbox To-do tab (filter is `sourceType ∈ {inbox_todo, manual}`)
+   *   - the Smart Hub "Pending decisions" section + badge counts
+   *     (filter is `status="proposed" AND sourceType="fanny_suggestion"`)
+   * so they never compete with the proposed-decision lane.
+   */
+  fannyAuto: "fanny_auto",
   clientRequest: "client_request",
   project: "project",
   client: "client",
