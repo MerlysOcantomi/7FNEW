@@ -7,10 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Users, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Building2, ArrowRight, CornerUpLeft,
-  User, FolderKanban, CheckSquare,
+  User, FolderKanban,
   Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
   Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
-  BookOpen, ListPlus, Target,
+  BookOpen, Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
@@ -525,8 +525,14 @@ export function ContextPanel({
     (action) => action.status === "suggested" || action.status === "approved",
   ).length
 
-  /** To-dos count comes from the page; default to 0 while it's loading. */
-  const triageTodosOpen = typeof conversationTodoCount === "number" ? conversationTodoCount : 0
+  /**
+   * TODO(inbox-tasks): To-dos count is no longer rendered in Triage. We keep
+   * the value derived (and the prop) so the rest of the meaningfulness gate
+   * keeps the same shape; the counter pill itself was removed from the
+   * footer below. Tasks live in `/tareas` (global) and `/today`.
+   */
+  const _triageTodosOpen = typeof conversationTodoCount === "number" ? conversationTodoCount : 0
+  void _triageTodosOpen
 
   /**
    * Risks count from the handoff payload (best-effort). We do NOT pull
@@ -550,7 +556,6 @@ export function ContextPanel({
   const triageHasCounters =
     triageDraftsOpen > 0
     || triageActionsOpen > 0
-    || triageTodosOpen > 0
     || triageRisksOpen > 0
 
   /**
@@ -693,11 +698,14 @@ export function ContextPanel({
                   label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
                 />
               ) : null}
-              {triageTodosOpen > 0 ? (
-                <CounterPill
-                  label={`${triageTodosOpen} ${triageTodosOpen === 1 ? "to-do" : "to-dos"}`}
-                />
-              ) : null}
+              {/*
+                TODO(inbox-tasks): The Inbox-specific "to-do" counter was retired
+                — Inbox is conversation triage, not a task store. Tasks live in
+                `/tareas` (global Tasks) and the daily view is `/today`. The
+                `triageTodosOpen` derivation and `conversationTodoCount` prop
+                stay for now to avoid breaking the panel signature; remove in a
+                follow-up cleanup once we drop the legacy plumbing.
+              */}
               {triageRisksOpen > 0 ? (
                 <CounterPill
                   label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
@@ -1003,7 +1011,7 @@ export function ContextPanel({
   const nextMoveSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Recommended next step
+        Next step
       </p>
       {nextRecommendedAction ? (
         <InlineTextarea
@@ -1092,51 +1100,68 @@ export function ContextPanel({
   )
 
   /**
-   * Smart actions block. Now lives in BOTH modes (was message-mode only). Add to calendar is
-   * gated to message mode because it's anchored to a specific inbound EventHint; the rest of
-   * the actions (Reply with AI draft, Create task/client/project) work either way — handleConvert
-   * sends sourceMessageId only when one is available so the backend does the right thing.
-   * Hidden when there is genuinely nothing to do (no draft and no convert handlers makes the
-   * grid look empty otherwise — but we always have the three convert CTAs, so the section
-   * always renders at least one row).
+   * Suggested actions block — only contextual approvals tied to a specific AI
+   * suggestion remain:
+   *   - "Reply with AI draft" (when Fanny has a draft scoped to the selected
+   *     message / conversation).
+   *   - "Add to calendar" (when an inbound message carries a parsed
+   *     `create_event` EventHint).
+   *
+   * The previous generic "Create task / Create client / Create project"
+   * buttons were removed: the Inbox is conversation triage, not a global
+   * creation menu. Tasks live in `/tareas` (global Tasks/WorkspaceTask),
+   * clients in `/clientes`, and projects in `/proyectos`. When the operator
+   * needs to spawn one of those records, the AI's "Pending decisions"
+   * (approve / dismiss) and the global "New" command are the canonical
+   * paths.
+   *
+   * If neither contextual CTA applies, the section is hidden entirely so the
+   * panel doesn't render an empty card. The section title is dropped to
+   * avoid the "Smart actions" naming the new product spec wants to retire;
+   * if a title is still needed visually we surface "Suggested" only when at
+   * least one CTA is rendered.
    */
-  const smartActionsSection = (
+  const showSuggestedDraftCta = Boolean(hasSuggestedDraft && onUseSuggestedDraft)
+  const showAddToCalendarCta = Boolean(
+    isMessageMode
+    && selectedMessageInfo?.eventHint
+    && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
+    && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions),
+  )
+  const hasSuggestedActionCta = showSuggestedDraftCta || showAddToCalendarCta
+  /**
+   * TODO(inbox-tasks): the `handleConvert` prop is preserved on the panel
+   * surface for now — composer / message-action paths still call it via
+   * other mounts. Once those entry points migrate to the approve/dismiss
+   * next-step flow, this prop and the Convert CTAs can go away entirely.
+   */
+  void handleConvert
+  const smartActionsSection = hasSuggestedActionCta ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Smart actions"
+      aria-label="Suggested"
     >
       <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Smart actions
+        Suggested
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {hasSuggestedDraft && onUseSuggestedDraft ? (
+        {showSuggestedDraftCta ? (
           <ActionButton
             label="Reply with AI draft"
             icon={Sparkles}
             onClick={onUseSuggestedDraft}
           />
         ) : null}
-        {/*
-          Add to calendar appears only in message mode, when the AI persisted a `create_event`
-          action anchored to the selected inbound message AND that action has not yet been
-          executed. Once executed the actions list shows the executed status badge instead.
-        */}
-        {isMessageMode
-          && selectedMessageInfo?.eventHint
-          && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
-          && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions) ? (
+        {showAddToCalendarCta ? (
           <ActionButton
             label="Add to calendar"
             icon={CalendarPlus}
             onClick={() => setCalendarPreviewOpen(true)}
           />
         ) : null}
-        <ActionButton label="Create task" icon={CheckSquare} onClick={() => handleConvert("tarea")} />
-        <ActionButton label="Create client" icon={User} onClick={() => handleConvert("cliente")} />
-        <ActionButton label="Create project" icon={FolderKanban} onClick={() => handleConvert("proyecto")} />
       </div>
     </section>
-  )
+  ) : null
 
   /**
    * PR 9 — Fanny suggested tasks (proposed `WorkspaceTask` rows backed by a
@@ -1317,13 +1342,24 @@ export function ContextPanel({
   ) : null
 
   /**
-   * Pending items — "what's missing to act?" Hidden when empty (no fabricated noise).
+   * Pending items — "what's missing to act?". Hidden when empty so we never
+   * render an empty card.
    *
-   * Phase 3 To-do capture: when `onCreateTodoFromPendingItem` is provided, each row gets a
-   * compact "Convert" button (or a "Done" pill once the operator has used it during this
-   * session). Without the callback the section keeps its previous read-only shape so existing
-   * call sites (e.g. read-only previews, tests) don't see new affordances.
+   * TODO(inbox-tasks): direct "convert pending item to Inbox To-do" was
+   * retired — the panel must not spawn task-shaped records as a side effect
+   * of pure read-only reasoning. Promotion to a `WorkspaceTask` should
+   * happen through the AI's approve/dismiss next-step flow (see
+   * `pendingDecisionsSection` below) so a human explicitly authorises the
+   * write. The `onCreateTodoFromPendingItem` prop and the per-item session
+   * state (`convertedPendingItemKeys`, `convertingPendingItemKey`) are kept
+   * in the component signature for now to avoid breaking callers; they are
+   * intentionally unused below and will be removed in a follow-up cleanup.
    */
+  void onCreateTodoFromPendingItem
+  void convertedPendingItemKeys
+  void convertingPendingItemKey
+  void setConvertedPendingItemKeys
+  void setConvertingPendingItemKey
   const stillNeededSection = handoffPendingItems.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
@@ -1336,64 +1372,15 @@ export function ContextPanel({
         </p>
       </div>
       <ul className="mt-1.5 space-y-1">
-        {handoffPendingItems.map((item, idx) => {
-          const itemKey = `${idx}::${item}`
-          const isConverted = convertedPendingItemKeys.has(itemKey)
-          const isConverting = convertingPendingItemKey === itemKey
-          return (
-            <li
-              key={idx}
-              className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-            >
-              <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
-              <span className="flex-1">{item}</span>
-              {onCreateTodoFromPendingItem ? (
-                isConverted ? (
-                  <span
-                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400/90"
-                    aria-label="Already converted to To-do"
-                  >
-                    <Check className="h-2.5 w-2.5" aria-hidden="true" />
-                    To-do
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={isConverting}
-                    aria-label={`Convert "${item.slice(0, 60)}" to To-do`}
-                    onClick={async () => {
-                      setConvertingPendingItemKey(itemKey)
-                      const ok = await onCreateTodoFromPendingItem({
-                        text: item,
-                        sourceMessageId: isMessageMode ? selectedMessageId ?? null : null,
-                      })
-                      setConvertingPendingItemKey(null)
-                      if (ok) {
-                        setConvertedPendingItemKeys((prev) => {
-                          const next = new Set(prev)
-                          next.add(itemKey)
-                          return next
-                        })
-                      }
-                    }}
-                    className={cn(
-                      "inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--inbox-intelligence-text-secondary)] transition-colors",
-                      "hover:border-[var(--inbox-accent)]/50 hover:bg-white/5 hover:text-[var(--inbox-accent)]",
-                      "disabled:cursor-not-allowed disabled:opacity-60",
-                    )}
-                  >
-                    {isConverting ? (
-                      <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <ListPlus className="h-2.5 w-2.5" aria-hidden="true" />
-                    )}
-                    To-do
-                  </button>
-                )
-              ) : null}
-            </li>
-          )
-        })}
+        {handoffPendingItems.map((item, idx) => (
+          <li
+            key={idx}
+            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+          >
+            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
+            <span className="flex-1">{item}</span>
+          </li>
+        ))}
       </ul>
     </section>
   ) : null

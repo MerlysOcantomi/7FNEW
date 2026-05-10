@@ -8,6 +8,15 @@ import { ConversationList } from "@/components/inbox/conversation-list"
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar"
 import { InboxTaxonomyChips } from "@/components/inbox/inbox-taxonomy-chips"
 import { ConversationCategoryEditor } from "@/components/inbox/conversation-category-editor"
+/**
+ * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Keep
+ * legacy task plumbing for now because Smart Hub / pending items may
+ * still convert suggestions into WorkspaceTask behind the scenes. The
+ * `<InboxTodoList>` JSX branch below is gated on `isTodoMode`, which is
+ * now hard-wired to `false`, so the import survives only to keep the
+ * unreachable branch type-checking. Cleanup (remove branch + handlers
+ * + import) belongs to a follow-up PR.
+ */
 import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
 import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
@@ -542,13 +551,21 @@ function InboxPageContent() {
   const sidebarFilter = searchParams.get("filter")
   const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
   /**
-   * Phase 2 — `?filter=todo` repurposes the left column as the operational To-do view.
-   * `isTodoMode` short-circuits a few flow effects (auto-select-first conversation, sidebar
-   * rescue banner) so the conversation list state doesn't fight with the To-do list state.
-   * The conversations fetch keeps running so deep-link clicks from a To-do still resolve the
-   * source conversation in the right pane.
+   * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Even when a
+   * legacy URL still carries `?filter=todo`, the page falls back to the normal
+   * Inbox conversation list so the right-hand panel stays focused on triage and
+   * the global Tasks/WorkspaceTask + Today surfaces own all task UI.
+   *
+   * `isTodoMode` is forced to `false` so the `<InboxTodoList>` branch never
+   * mounts. We deliberately keep the surrounding state, fetchers, and handlers
+   * (`todos`, `todosLoading`, `setTodosRefreshKey`, `handleSelectTodo`,
+   * `handleToggleTodoDone`, `handleDismissTodo`, `handleRefreshTodos`,
+   * `handleCreateTodoFromPendingItem`, etc.) because Smart Hub pending-item
+   * conversion, the composer's More-actions "add to To-do", and the per-
+   * conversation triage refresh keys still rely on them to write
+   * `WorkspaceTask` rows behind the scenes. Removing those is a follow-up PR.
    */
-  const isTodoMode = sidebarFilter === "todo"
+  const isTodoMode = false
   const lastDeepLinkRef = useRef<string | null>(null)
 
   /**

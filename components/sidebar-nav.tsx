@@ -38,7 +38,6 @@ import {
   Fingerprint,
   Briefcase,
   Trash2,
-  ListTodo,
   CalendarClock,
   ArrowLeft,
   Sparkles,
@@ -120,11 +119,13 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
            * - "Inbox" subitem (no group) duplicates the parent click target on purpose:
            *   gives operators an explicit "go back to default view" affordance even
            *   when they've drilled into a sub-filter.
-           * - To-do is a placeholder for the future action queue. It routes to /inbox
-           *   with `?filter=todo` which currently maps to {} (no extra status filter)
-           *   so the active state highlights while the list shows the default Inbox.
-           *   When the To-do engine ships, only mapSidebarFilter needs to change.
-           * - Scheduled is similarly placeholder — backed by EventHint detection later.
+           * - The former "To-do" subitem was retired: Inbox no longer owns a
+           *   visible To-do mode. Tasks live in the global Tasks/WorkspaceTask
+           *   surface and the daily view is `/today`. Legacy bookmarks pointing
+           *   to `/inbox?filter=todo` still resolve, but render the default Inbox
+           *   list (see `mapSidebarFilter` + the forced `isTodoMode=false` in
+           *   app/inbox/page.tsx).
+           * - Scheduled is a placeholder — backed by EventHint detection later.
            * - Storage is intentionally last (terminal/done/discarded states).
            */
           label: "Smart Inbox",
@@ -133,7 +134,6 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
           helper: "by Fanny",
           subitems: [
             { label: "Inbox", href: "/inbox", icon: Inbox },
-            { label: "To-do", href: "/inbox?filter=todo", icon: ListTodo, group: "Work" },
             { label: "Needs action", href: "/inbox?filter=needs_action", icon: MessageSquarePlus, group: "Work" },
             { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock, group: "Work" },
             { label: "Done", href: "/inbox?filter=done", icon: CheckCircle, group: "Work" },
@@ -246,10 +246,8 @@ function SmartInboxNavLink({
     switch (label) {
       /**
        * Inbox + Work group — accent-tinted icons signal "active operational lanes".
-       * To-do uses the same accent because it's the future home of the action queue.
        */
       case "Inbox": return "text-[var(--inbox-accent)]";
-      case "To-do": return "text-[var(--inbox-accent)]";
       case "Needs action": return "text-[var(--inbox-accent)]";
       case "Waiting": return "text-[var(--inbox-waiting-color)]";
       case "Done": return "text-[var(--inbox-done-color)]";
