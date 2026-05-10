@@ -13,8 +13,8 @@ import { NotificationsBell } from "@/components/notifications-bell";
 import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel";
 import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger";
 import { useGlobalNew } from "@/components/global-new/use-global-new";
-import { TodayBottomLauncher } from "@/components/today/today-bottom-launcher";
-import { TodayBottomDrawer } from "@/components/today/today-bottom-drawer";
+import { TodayDrawerProvider } from "@/components/today/today-drawer-provider";
+import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
 
 export interface BreadcrumbItem {
   label: string;
@@ -81,21 +81,15 @@ export function ContextShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copilotCollapsed, setCopilotCollapsed] = useState(false);
   /**
-   * Mirror of the same Today drawer state lifted into `AppShell`. Kept local
-   * to each shell (instead of a single global provider) because the two
-   * shells render exclusive subtrees — one shell is mounted at a time, so a
-   * shared store would buy no de-duplication and would force pages without
-   * any shell at all to also wire the provider. When the legacy direct-
-   * SidebarNav pages get aligned to a shell, that's the moment to promote
-   * this into a `<TodayDrawerProvider>` at `app/layout.tsx`.
-   */
-  const [todayDrawerOpen, setTodayDrawerOpen] = useState(false);
-  /**
    * Defensive parity with `AppShell`: ContextShell is currently only used by
    * detail routes (`/clientes/[id]`, `/proyectos/[id]`, `/facturacion/[id]`),
    * none of which live under `/today`, so this guard is a no-op today. It
    * exists so a future operator can route `/today/*` through ContextShell
    * without having to remember to hide the launcher.
+   *
+   * The drawer's open/close state is owned by `<TodayDrawerProvider>` (see
+   * `components/today/today-drawer-provider.tsx`); ContextShell only feeds
+   * visibility + sidebar metrics into the chrome.
    */
   const pathname = usePathname();
   const hideLauncherOnToday = pathname === "/today" || pathname.startsWith("/today/");
@@ -103,6 +97,13 @@ export function ContextShell({
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
+        {/*
+          Today drawer state is scoped to THIS shell instance via its own
+          provider. AppShell does the same on its side — at runtime only one
+          shell renders, so each provider owns its own boolean and no
+          duplicate launcher can land in the same tree.
+        */}
+        <TodayDrawerProvider>
         {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
         <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
           <SidebarNav />
@@ -188,22 +189,17 @@ export function ContextShell({
           <CopilotPanel defaultContext={copilotContext} />
 
           {/*
-            Global Today surface — same mount pattern as `AppShell`, kept in
-            sync so the floating launcher behaves identically across the new
-            and legacy shells (Inbox/Tasks/Dashboard vs detail surfaces).
-            The drawer itself is rendered as a portal by `vaul`, so adding it
-            here doesn't affect ContextShell's three-column geometry.
+            Single Today mount via `<GlobalTodayChrome>` — same component
+            AppShell uses, fed the legacy-shell sidebar state. Drawer is
+            portalled by vaul; launcher is `position: fixed`. Neither
+            affects ContextShell's three-column geometry.
           */}
-          <TodayBottomLauncher
-            onOpen={() => setTodayDrawerOpen(true)}
-            hidden={hideLauncherOnToday}
+          <GlobalTodayChrome
             sidebarCollapsed={sidebarCollapsed}
-          />
-          <TodayBottomDrawer
-            open={todayDrawerOpen}
-            onOpenChange={setTodayDrawerOpen}
+            hidden={hideLauncherOnToday}
           />
         </div>
+        </TodayDrawerProvider>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>
   );

@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils"
 import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel"
 import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
-import { TodayBottomLauncher } from "@/components/today/today-bottom-launcher"
-import { TodayBottomDrawer } from "@/components/today/today-bottom-drawer"
+import { TodayDrawerProvider } from "@/components/today/today-drawer-provider"
+import { GlobalTodayChrome } from "@/components/today/global-today-chrome"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -29,21 +29,15 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
   const { desktopOpen } = useGlobalNew()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   /**
-   * Global Today drawer state. Lifted into AppShell instead of a dedicated
-   * provider because (a) the launcher and the drawer are siblings under this
-   * shell and never need to be triggered from outside it, and (b) the shell
-   * already gates on authentication — keeping the state co-located avoids a
-   * new provider just for one boolean. If a future surface needs to open the
-   * drawer (e.g. a keyboard shortcut handler outside AppShell, an action from
-   * a nested page), lift this into its own `<TodayDrawerProvider>` then.
-   */
-  const [todayDrawerOpen, setTodayDrawerOpen] = useState(false)
-  /**
    * Hide the floating launcher on `/today` itself: the operator is already
    * looking at the canonical surface, so layering a "Today" button on top of
    * the Today page is pure noise. The drawer can still be opened from any
    * other route. Path comparison is exact + prefix so future `/today/*`
    * sub-routes (e.g. detail panes) inherit the same hide rule.
+   *
+   * The drawer's open/close state now lives in `<TodayDrawerProvider>`
+   * (see `components/today/today-drawer-provider.tsx`) — AppShell only
+   * controls visibility of the launcher, not the drawer boolean.
    */
   const hideLauncherOnToday = pathname === "/today" || pathname.startsWith("/today/")
 
@@ -67,6 +61,14 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
+      {/*
+        Today drawer state is scoped to this shell instance via a dedicated
+        provider so AppShell and ContextShell can share the same chrome
+        component without sharing a boolean (only one shell renders at a
+        time, so each provider naturally owns its own state — no risk of
+        duplicate launchers in the same tree).
+      */}
+      <TodayDrawerProvider>
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
       <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
         <SidebarNav />
@@ -110,22 +112,17 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         </main>
 
         {/*
-          Global Today surface. The launcher is `position: fixed` so it floats
-          above the main scroll without participating in the flex layout — any
-          page (Inbox three-column, Today full, dashboards, etc.) renders
-          unchanged whether or not the launcher is on screen. The drawer is
-          rendered as a portal by `vaul` so it also never affects layout.
+          Global Today surface — single mount via `<GlobalTodayChrome>`. The
+          launcher is `position: fixed` so it floats above the main scroll
+          without participating in the flex layout; the drawer is portalled
+          by vaul. Both consume the surrounding `<TodayDrawerProvider>`.
         */}
-        <TodayBottomLauncher
-          onOpen={() => setTodayDrawerOpen(true)}
-          hidden={hideLauncherOnToday}
+        <GlobalTodayChrome
           sidebarCollapsed={sidebarCollapsed}
-        />
-        <TodayBottomDrawer
-          open={todayDrawerOpen}
-          onOpenChange={setTodayDrawerOpen}
+          hidden={hideLauncherOnToday}
         />
       </div>
+      </TodayDrawerProvider>
     </SidebarCollapseContext.Provider>
   )
 }
