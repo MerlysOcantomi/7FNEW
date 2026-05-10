@@ -13,12 +13,18 @@ import { cn } from "@/lib/utils"
  * regardless of whether the launcher is on screen.
  *
  * Positioning:
- *   - Anchored to the BOTTOM-LEFT of the viewport so it never collides with
- *     the existing bottom-right floating chrome (Inbox `TalkToFanny`,
- *     mobile-only `CopilotPanel`, toast stack). On desktop we offset by the
- *     current sidebar width so the launcher sits just inside the main
- *     content area instead of overlapping the sidebar; on mobile the
- *     sidebar is a sheet drawer, so a flush 16px gutter is safe.
+ *   - Anchored to the BOTTOM-CENTER of the workspace (main content) area,
+ *     not the raw viewport: on desktop we shift by half the sidebar width
+ *     so the button visually centers between the sidebar's right edge and
+ *     the viewport's right edge. Math: centerX = S + (W - S)/2 = W/2 + S/2,
+ *     which in CSS becomes `left: calc(50% + S/2)` combined with
+ *     `-translate-x-1/2` to anchor the BUTTON's center at that point. On
+ *     mobile the sidebar is a sheet drawer, so a plain viewport-centered
+ *     `left-1/2 -translate-x-1/2` is correct.
+ *   - This keeps Today comfortably clear of the bottom-right floating
+ *     chrome (Inbox `TalkToFanny` at `bottom-6 right-6`, mobile-only
+ *     `CopilotPanel` at `bottom-5 right-5`) without needing a higher
+ *     `z-index` — the buttons live in different horizontal regions.
  *   - `mb-[env(safe-area-inset-bottom)]` keeps clear of iOS home-indicator
  *     chrome on mobile.
  *   - `z-40` sits BELOW any modal/dialog overlay (vaul drawers, alert dialogs
@@ -55,32 +61,33 @@ export function TodayBottomLauncher({
       title="Open Today overview"
       className={cn(
         /**
-         * `fixed` + `bottom-/left-` keep the button anchored to the viewport
-         * regardless of the underlying page's scroll position. Bottom-left
-         * was chosen over bottom-right because the existing global floating
-         * controls (Inbox `TalkToFanny` at `bottom-6 right-6`, mobile
-         * CopilotPanel at `bottom-5 right-5`) already own the bottom-right
-         * corner — anchoring Today there would stack two buttons on top of
-         * each other.
+         * Mobile baseline: viewport-centered bottom pill. `left-1/2`
+         * positions the button's LEFT edge at the viewport center, and
+         * `-translate-x-1/2` shifts it back by half the button's own
+         * width so the BUTTON's center lands on the viewport center.
          */
-        "group fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full",
+        "group fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full",
         "border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-2",
         "text-xs font-semibold text-[var(--text-primary-light)] shadow-lg",
         "transition-all duration-200",
         "hover:border-[var(--accent-primary)]/40 hover:bg-[var(--app-surface-dark)] hover:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.4)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
         /**
-         * Desktop offset is the sidebar width + 16px gutter so the launcher
-         * sits just inside the main content column instead of overlapping
-         * the sidebar:
-         *   - collapsed sidebar (`w-14` = 56px) → `left-[72px]`
-         *   - expanded sidebar (`w-56` = 224px) → `left-[240px]`
+         * Desktop: shift right by half the sidebar width so the launcher
+         * visually centers in the main content area, not in the full
+         * viewport (which would pull it under/near the sidebar). The
+         * `-translate-x-1/2` from the base classes is still in effect, so
+         * `left: calc(50% + S/2)` lands the button's CENTER on the
+         * workspace center.
+         *   - collapsed sidebar (`w-14` = 56px) → `calc(50% + 28px)`
+         *   - expanded sidebar  (`w-56` = 224px) → `calc(50% + 112px)`
          * The focused-inbox sidebar (`w-48` = 192px) falls back to the
-         * expanded offset, which keeps the launcher safely inside Inbox's
-         * main column with a small extra gap.
+         * expanded offset; that puts the button ~16px to the right of the
+         * exact Inbox-area center, which is visually indistinguishable
+         * and never lands on the sidebar.
          */
         "md:bottom-5",
-        sidebarCollapsed ? "md:left-[72px]" : "md:left-[240px]",
+        sidebarCollapsed ? "md:left-[calc(50%+28px)]" : "md:left-[calc(50%+112px)]",
         "mb-[env(safe-area-inset-bottom)]",
       )}
     >
