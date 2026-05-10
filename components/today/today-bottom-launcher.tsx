@@ -13,8 +13,14 @@ import { cn } from "@/lib/utils"
  * regardless of whether the launcher is on screen.
  *
  * Positioning:
- *   - Bottom-right with `safe-area-inset-bottom` respected so it doesn't
- *     overlap iOS home-indicator chrome on mobile.
+ *   - Anchored to the BOTTOM-LEFT of the viewport so it never collides with
+ *     the existing bottom-right floating chrome (Inbox `TalkToFanny`,
+ *     mobile-only `CopilotPanel`, toast stack). On desktop we offset by the
+ *     current sidebar width so the launcher sits just inside the main
+ *     content area instead of overlapping the sidebar; on mobile the
+ *     sidebar is a sheet drawer, so a flush 16px gutter is safe.
+ *   - `mb-[env(safe-area-inset-bottom)]` keeps clear of iOS home-indicator
+ *     chrome on mobile.
  *   - `z-40` sits BELOW any modal/dialog overlay (vaul drawers, alert dialogs
  *     use `z-50`), so the launcher is hidden once a modal takes over the
  *     viewport — exactly what we want.
@@ -26,9 +32,18 @@ import { cn } from "@/lib/utils"
 export function TodayBottomLauncher({
   onOpen,
   hidden = false,
+  sidebarCollapsed = false,
 }: {
   onOpen: () => void
   hidden?: boolean
+  /**
+   * Whether the desktop sidebar is currently collapsed. Used only to pick
+   * the correct `md:left-*` offset so the launcher clears the sidebar's
+   * footprint without overlapping it. Mobile ignores this entirely (the
+   * sidebar is a sheet there). Defaults to `false` to keep the launcher
+   * usable even if the parent forgets to wire the prop.
+   */
+  sidebarCollapsed?: boolean
 }) {
   if (hidden) return null
 
@@ -40,25 +55,32 @@ export function TodayBottomLauncher({
       title="Open Today overview"
       className={cn(
         /**
-         * `fixed` + `bottom-/right-` keep the button anchored to the viewport
-         * regardless of the underlying page's scroll position. The
-         * `pb-[env(safe-area-inset-bottom)]` shim is applied via a wrapper
-         * span so the visual padding doesn't get baked into the button's
-         * tappable area (clicks on the safe-area gutter would otherwise miss).
+         * `fixed` + `bottom-/left-` keep the button anchored to the viewport
+         * regardless of the underlying page's scroll position. Bottom-left
+         * was chosen over bottom-right because the existing global floating
+         * controls (Inbox `TalkToFanny` at `bottom-6 right-6`, mobile
+         * CopilotPanel at `bottom-5 right-5`) already own the bottom-right
+         * corner — anchoring Today there would stack two buttons on top of
+         * each other.
          */
-        "group fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full",
+        "group fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full",
         "border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-2",
         "text-xs font-semibold text-[var(--text-primary-light)] shadow-lg",
         "transition-all duration-200",
         "hover:border-[var(--accent-primary)]/40 hover:bg-[var(--app-surface-dark)] hover:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.4)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
         /**
-         * Mobile sits a bit higher to clear the iOS keyboard / home indicator
-         * area. We don't push it inside any existing mobile bottom nav
-         * because the sidebar uses a sheet-based mobile nav with no
-         * bottom-anchored chrome.
+         * Desktop offset is the sidebar width + 16px gutter so the launcher
+         * sits just inside the main content column instead of overlapping
+         * the sidebar:
+         *   - collapsed sidebar (`w-14` = 56px) → `left-[72px]`
+         *   - expanded sidebar (`w-56` = 224px) → `left-[240px]`
+         * The focused-inbox sidebar (`w-48` = 192px) falls back to the
+         * expanded offset, which keeps the launcher safely inside Inbox's
+         * main column with a small extra gap.
          */
-        "md:bottom-5 md:right-5",
+        "md:bottom-5",
+        sidebarCollapsed ? "md:left-[72px]" : "md:left-[240px]",
         "mb-[env(safe-area-inset-bottom)]",
       )}
     >

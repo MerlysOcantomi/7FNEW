@@ -119,6 +119,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         <TodayBottomLauncher
           onOpen={() => setTodayDrawerOpen(true)}
           hidden={hideLauncherOnToday}
+          sidebarCollapsed={sidebarCollapsed}
         />
         <TodayBottomDrawer
           open={todayDrawerOpen}
