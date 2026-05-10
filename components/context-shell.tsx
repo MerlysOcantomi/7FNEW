@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
@@ -12,6 +13,8 @@ import { NotificationsBell } from "@/components/notifications-bell";
 import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel";
 import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger";
 import { useGlobalNew } from "@/components/global-new/use-global-new";
+import { TodayBottomLauncher } from "@/components/today/today-bottom-launcher";
+import { TodayBottomDrawer } from "@/components/today/today-bottom-drawer";
 
 export interface BreadcrumbItem {
   label: string;
@@ -77,6 +80,25 @@ export function ContextShell({
   const [activeTab, setActiveTab] = useState(defaultTab ?? tabs[0]?.key ?? "");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copilotCollapsed, setCopilotCollapsed] = useState(false);
+  /**
+   * Mirror of the same Today drawer state lifted into `AppShell`. Kept local
+   * to each shell (instead of a single global provider) because the two
+   * shells render exclusive subtrees — one shell is mounted at a time, so a
+   * shared store would buy no de-duplication and would force pages without
+   * any shell at all to also wire the provider. When the legacy direct-
+   * SidebarNav pages get aligned to a shell, that's the moment to promote
+   * this into a `<TodayDrawerProvider>` at `app/layout.tsx`.
+   */
+  const [todayDrawerOpen, setTodayDrawerOpen] = useState(false);
+  /**
+   * Defensive parity with `AppShell`: ContextShell is currently only used by
+   * detail routes (`/clientes/[id]`, `/proyectos/[id]`, `/facturacion/[id]`),
+   * none of which live under `/today`, so this guard is a no-op today. It
+   * exists so a future operator can route `/today/*` through ContextShell
+   * without having to remember to hide the launcher.
+   */
+  const pathname = usePathname();
+  const hideLauncherOnToday = pathname === "/today" || pathname.startsWith("/today/");
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
@@ -164,6 +186,23 @@ export function ContextShell({
           </main>
 
           <CopilotPanel defaultContext={copilotContext} />
+
+          {/*
+            Global Today surface — same mount pattern as `AppShell`, kept in
+            sync so the floating launcher behaves identically across the new
+            and legacy shells (Inbox/Tasks/Dashboard vs detail surfaces).
+            The drawer itself is rendered as a portal by `vaul`, so adding it
+            here doesn't affect ContextShell's three-column geometry.
+          */}
+          <TodayBottomLauncher
+            onOpen={() => setTodayDrawerOpen(true)}
+            hidden={hideLauncherOnToday}
+            sidebarCollapsed={sidebarCollapsed}
+          />
+          <TodayBottomDrawer
+            open={todayDrawerOpen}
+            onOpenChange={setTodayDrawerOpen}
+          />
         </div>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>
