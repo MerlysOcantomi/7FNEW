@@ -1,5 +1,12 @@
 import { db } from "@core/db"
-import type { TodayBuckets, TodayItem, TodayPayload, TodayPriority, TodaySource } from "./types"
+import type {
+  TodayAssigneeType,
+  TodayBuckets,
+  TodayItem,
+  TodayPayload,
+  TodayPriority,
+  TodaySource,
+} from "./types"
 
 /**
  * Today aggregator — server-side, pure-ish (DB only, no global state, no AI).
@@ -38,16 +45,23 @@ const TAREAS_TAKE = 200
 const EVENTOS_TAKE = 50
 
 /**
- * `WorkspaceTask` statuses that ARE actionable from the Today view.
+ * `WorkspaceTask` statuses that ARE visible in the Today view.
+ *
+ * Included:
+ *   - `proposed`     — Fanny / AI suggestion awaiting approval. Surfaced so
+ *                      the operator sees the full AI-work pipeline in the
+ *                      AI lane (the row stays read-only beyond a "Proposed"
+ *                      pill; Approve / Dismiss still lives in the Inbox /
+ *                      Smart Hub for now).
+ *   - `open`         — confirmed actionable work.
+ *   - `in_progress`  — confirmed actionable work, already started.
+ *   - `waiting`      — confirmed actionable work, paused by the operator.
  *
  * Excluded:
- *   - `proposed`   — Fanny / AI suggestion awaiting approval; surfaced in a
- *                    separate "Suggestions" surface (PR 6) so Today doesn't
- *                    mix unreviewed proposals with confirmed work.
  *   - `done`       — completed; the operator already finished it.
  *   - `dismissed`  — the operator decided not to do it.
  */
-const TASK_ACTIVE_STATUSES = ["open", "in_progress", "waiting"] as const
+const TASK_VISIBLE_STATUSES = ["proposed", "open", "in_progress", "waiting"] as const
 
 /**
  * `Tarea.estado` values that must NEVER show up in Today. Anything else is
@@ -93,7 +107,7 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     db.workspaceTask.findMany({
       where: {
         workspaceId: input.workspaceId,
-        status: { in: [...TASK_ACTIVE_STATUSES] },
+        status: { in: [...TASK_VISIBLE_STATUSES] },
       },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: TASKS_TAKE,
@@ -195,6 +209,8 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     priority: normaliseWorkspaceTaskPriority(task.priority),
     source: buildWorkspaceTaskSource(task, projectMap),
     assignee: buildWorkspaceTaskAssignee(task, input.userId),
+    assigneeType: normaliseAssigneeType(task.assigneeType),
+    isProposed: task.status === "proposed",
   }))
 
   const tareaItems: TodayItem[] = tareas.map((tarea) => ({
@@ -211,6 +227,14 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
       href: `/tareas/${tarea.id}`,
     },
     assignee: buildTareaAssignee(tarea, input.userId),
+    /**
+     * Legacy `Tarea` rows have no `WorkspaceTask` mirror to update, so
+     * `assigneeType` is intentionally `null`. The client uses this to
+     * hide the Send-to-AI / Take-over affordances on Tarea fallback
+     * rows (the PATCH route only knows how to update WorkspaceTask).
+     */
+    assigneeType: null,
+    isProposed: false,
   }))
 
   const eventoItems: TodayItem[] = eventos.map((evento) => ({
@@ -228,6 +252,9 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     },
     /** Events don't expose an explicit assignee in the existing schema. */
     assignee: null,
+    /** Events live outside the assignment plane — no lane, no row controls. */
+    assigneeType: null,
+    isProposed: false,
   }))
 
   /** Stage 4 — bucketise. */
@@ -410,6 +437,24 @@ function buildWorkspaceTaskAssignee(
     id: task.assigneeId,
     name: null,
     isCurrentUser: task.assigneeType === "user" && task.assigneeId === currentUserId,
+  }
+}
+
+/**
+ * Coerce the raw `WorkspaceTask.assigneeType` string to the discriminated
+ * `TodayAssigneeType` union. Schema stores it as a free `String` (default
+ * `"unassigned"`) so we defensively narrow any unknown value to
+ * `"unassigned"` — better than leaking a typo into the lane classifier.
+ */
+function normaliseAssigneeType(raw: string | null | undefined): TodayAssigneeType {
+  switch (raw) {
+    case "user":
+    case "ai":
+    case "team":
+    case "unassigned":
+      return raw
+    default:
+      return "unassigned"
   }
 }
 

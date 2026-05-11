@@ -298,3 +298,105 @@ export async function listWorkspaceTasks(
 
   return tasks.map(formatTask)
 }
+
+// ─── Assignment moves (Send to AI / Take over) ──────────────────────────────
+
+/**
+ * High-level "move work between owners" targets for the Today surface.
+ *
+ *   - `"user"` — the operator is taking the task over. We pin the assignee
+ *                to the requesting `actorId` so the row appears in
+ *                "My work" with `assigneeType="user"`.
+ *   - `"ai"`   — the operator is handing the task off to the AI lane. We
+ *                set `assigneeType="ai"` and clear `assigneeId` because
+ *                "the AI" is not a single account id; the runtime will
+ *                later attach a concrete agent identifier if needed. A
+ *                deliberately conservative move: we do NOT also flip
+ *                `executionMode`, `status`, `suggestedBy`, or `sourceType`
+ *                — those carry independent semantics that the route can
+ *                evolve in later PRs without re-shipping this one.
+ */
+export type WorkspaceTaskAssignmentTarget = "user" | "ai"
+
+export interface UpdateWorkspaceTaskAssignmentInput {
+  workspaceId: string
+  taskId: string
+  /** Where to move the task to. */
+  to: WorkspaceTaskAssignmentTarget
+  /** Authenticated session userId. When `to === "user"` becomes the new `assigneeId`. */
+  actorId: string
+}
+
+/**
+ * Move a task between the user and AI lanes by updating ONLY
+ * `assigneeType` + `assigneeId`. Everything else on the row stays
+ * untouched (status, executionMode, suggestedBy, sourceType, etc.).
+ *
+ * Returns the updated `WorkspaceTaskRecord`. Throws when:
+ *   - any required arg is missing/blank
+ *   - `to` is not `"user"` or `"ai"`
+ *   - the task does not exist in the supplied workspace (the workspaceId
+ *     predicate in the `where` clause prevents cross-tenant writes; we
+ *     re-check the affected row count by catching Prisma's RecordNotFound)
+ *
+ * The route layer is responsible for translating thrown errors into HTTP
+ * responses; the service only cares about the data shape.
+ */
+export async function updateWorkspaceTaskAssignment(
+  input: UpdateWorkspaceTaskAssignmentInput,
+): Promise<WorkspaceTaskRecord> {
+  const workspaceId = input.workspaceId?.trim()
+  const taskId = input.taskId?.trim()
+  const actorId = input.actorId?.trim()
+
+  if (!workspaceId) throw new Error("workspaceId is required")
+  if (!taskId) throw new Error("taskId is required")
+  if (!actorId) throw new Error("actorId is required")
+  if (input.to !== "user" && input.to !== "ai") {
+    throw new Error('to must be "user" or "ai"')
+  }
+
+  const data: Prisma.WorkspaceTaskUpdateInput =
+    input.to === "user"
+      ? { assigneeType: "user", assigneeId: actorId }
+      : { assigneeType: "ai", assigneeId: null }
+
+  /**
+   * `updateMany` lets us scope the write by both `id` AND `workspaceId`
+   * in a single query — Prisma's standard `update` would 404 before we
+   * could verify the tenant. If `count === 0` the task either doesn't
+   * exist or belongs to another workspace; either way the route should
+   * return 404 without leaking which.
+   */
+  const result = await db.workspaceTask.updateMany({
+    where: { id: taskId, workspaceId },
+    data,
+  })
+
+  if (result.count === 0) {
+    throw new WorkspaceTaskNotFoundError(taskId)
+  }
+
+  const updated = await db.workspaceTask.findFirst({
+    where: { id: taskId, workspaceId },
+  })
+
+  if (!updated) {
+    /** Defence-in-depth: a concurrent delete between update and re-read. */
+    throw new WorkspaceTaskNotFoundError(taskId)
+  }
+
+  return formatTask(updated)
+}
+
+/**
+ * Sentinel error thrown by `updateWorkspaceTaskAssignment` when the row
+ * cannot be found or belongs to another workspace. Routes use `instanceof`
+ * to choose 404 over the default 500.
+ */
+export class WorkspaceTaskNotFoundError extends Error {
+  constructor(taskId: string) {
+    super(`WorkspaceTask not found: ${taskId}`)
+    this.name = "WorkspaceTaskNotFoundError"
+  }
+}

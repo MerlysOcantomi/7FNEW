@@ -20,11 +20,20 @@ export function TodaySection({
   title,
   tone = "default",
   items,
+  onLaneMove,
 }: {
   id: string
   title: string
   tone?: "default" | "warning"
   items: TodayItem[]
+  /**
+   * Forwarded to each `<TodayTaskRow>` so the parent surface (page or
+   * drawer) owns the mutation lifecycle. When omitted, rows render
+   * without the Send-to-AI / Take-over affordances — which is the
+   * right behaviour for any read-only surface that may reuse this
+   * primitive in the future.
+   */
+  onLaneMove?: (taskId: string, to: "user" | "ai") => void | Promise<void>
 }) {
   if (items.length === 0) return null
 
@@ -53,7 +62,7 @@ export function TodaySection({
           item.kind === "event" ? (
             <TodayEventCard key={item.id} item={item} />
           ) : (
-            <TodayTaskRow key={item.id} item={item} />
+            <TodayTaskRow key={item.id} item={item} onLaneMove={onLaneMove} />
           ),
         )}
       </div>

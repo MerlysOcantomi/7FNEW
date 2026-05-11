@@ -86,6 +86,16 @@ export type TodaySource =
  *   - `"event"` — calendar event for today. Renders as a card with a time chip;
  *                 still NOT actionable from Today (no inline complete/dismiss).
  */
+/**
+ * Ownership lane for a Today item — mirrors `WorkspaceTask.assigneeType`
+ * with `null` for non-WorkspaceTask sources (events; legacy `Tarea`
+ * fallback rows that have no canonical mirror yet). Surfaced into the
+ * payload so the client can split rows into the My work / AI work
+ * lanes without having to interpret `assignee.isCurrentUser` plus a
+ * heuristic — the lane is owned by the server.
+ */
+export type TodayAssigneeType = "user" | "ai" | "team" | "unassigned" | null
+
 export interface TodayItem {
   id: string
   kind: "task" | "event"
@@ -100,6 +110,20 @@ export interface TodayItem {
     name: string | null
     isCurrentUser: boolean
   } | null
+  /**
+   * Canonical `WorkspaceTask.assigneeType`. `null` for events and for
+   * legacy `Tarea` fallback rows. Used by the client to render the
+   * My work / AI work lanes and to gate the "Send to AI" / "Take over"
+   * row controls.
+   */
+  assigneeType: TodayAssigneeType
+  /**
+   * True when the underlying `WorkspaceTask.status === "proposed"`
+   * (Fanny / AI suggestion awaiting operator approval). UI uses this
+   * to show a "Proposed" pill and to disable the Take-over affordance
+   * — Approve / Dismiss still lives in Inbox / Smart Hub.
+   */
+  isProposed: boolean
 }
 
 /**

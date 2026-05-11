@@ -1,8 +1,16 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, ArrowUpRight, Loader2, Sun, X } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Loader2,
+  Sparkles,
+  Sun,
+  UserRound,
+  X,
+} from "lucide-react"
 import {
   Drawer,
   DrawerContent,
@@ -10,7 +18,10 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { useFetch } from "@/hooks/use-fetch"
-import type { TodayPayload } from "@modules/today/types"
+import { useToast } from "@/components/toast-provider"
+import { sendToAI as sendToAIRequest, takeOver as takeOverRequest } from "@/lib/today/lane-client"
+import type { TodayBuckets, TodayPayload } from "@modules/today/types"
+import { countLane, splitBucketsByLane } from "@modules/today/lanes"
 import { TodaySection } from "@/components/today/today-section"
 import { cn } from "@/lib/utils"
 
@@ -72,12 +83,42 @@ export function TodayBottomDrawer({
    * of an idle Today fetch on every route.
    */
   const url = open && timezone ? `/api/today?tz=${encodeURIComponent(timezone)}` : null
-  const { data, loading, error } = useFetch<TodayPayload>(url)
+  const { data, loading, error, refetch } = useFetch<TodayPayload>(url)
+  const { addToast } = useToast()
 
-  const buckets = data?.buckets ?? { overdue: [], today: [], undated: [] }
+  const buckets: TodayBuckets = useMemo(
+    () => data?.buckets ?? { overdue: [], today: [], undated: [] },
+    [data?.buckets],
+  )
+  const lanes = useMemo(() => splitBucketsByLane(buckets), [buckets])
   const totalItems = useMemo(
     () => buckets.overdue.length + buckets.today.length + buckets.undated.length,
     [buckets.overdue.length, buckets.today.length, buckets.undated.length],
+  )
+
+  /**
+   * Same lane-move flow as `TodayPageClient` — kept duplicated here so the
+   * drawer remains self-contained. Refactoring this into a hook would invite
+   * cross-surface coupling for ~10 lines of glue.
+   */
+  const handleLaneMove = useCallback(
+    async (taskId: string, to: "user" | "ai") => {
+      try {
+        if (to === "ai") await sendToAIRequest(taskId)
+        else await takeOverRequest(taskId)
+        refetch()
+      } catch (err) {
+        addToast({
+          type: "error",
+          title: to === "ai" ? "Could not send to AI" : "Could not take over",
+          description:
+            err instanceof Error && err.message
+              ? err.message
+              : "Please try again in a moment.",
+        })
+      }
+    },
+    [addToast, refetch],
   )
 
   return (
@@ -140,8 +181,9 @@ export function TodayBottomDrawer({
           <TodayDrawerBody
             loading={loading}
             error={error}
-            buckets={buckets}
+            lanes={lanes}
             totalItems={totalItems}
+            onLaneMove={handleLaneMove}
           />
         </div>
       </DrawerContent>
@@ -152,18 +194,22 @@ export function TodayBottomDrawer({
 /**
  * Inner body of the Today drawer. Mirrors the loading / error / empty /
  * content branching from `TodayPageClient` but with compact tokens suitable
- * for the drawer height budget.
+ * for the drawer height budget. The drawer renders the two lanes stacked
+ * (vs. side-by-side in the full page) because the drawer's narrow width
+ * doesn't comfortably fit two columns.
  */
 function TodayDrawerBody({
   loading,
   error,
-  buckets,
+  lanes,
   totalItems,
+  onLaneMove,
 }: {
   loading: boolean
   error: string | null
-  buckets: TodayPayload["buckets"]
+  lanes: ReturnType<typeof splitBucketsByLane>
   totalItems: number
+  onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
 }) {
   if (loading) {
     return (
@@ -214,14 +260,107 @@ function TodayDrawerBody({
 
   return (
     <div className="flex flex-col gap-6">
-      <TodaySection
-        id="today-drawer-overdue"
-        title="Overdue"
-        tone="warning"
-        items={buckets.overdue}
+      <TodayDrawerLane
+        idPrefix="today-drawer-mine"
+        title="My work"
+        icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
+        buckets={lanes.mine}
+        emptyTitle="No work assigned to you"
+        emptyDescription="Tasks you take over or create will land here."
+        onLaneMove={onLaneMove}
       />
-      <TodaySection id="today-drawer-due-today" title="Due today" items={buckets.today} />
-      <TodaySection id="today-drawer-no-date" title="No date" items={buckets.undated} />
+      <TodayDrawerLane
+        idPrefix="today-drawer-ai"
+        title="AI work"
+        icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
+        buckets={lanes.ai}
+        emptyTitle="No AI work yet"
+        emptyDescription="AI work will appear here when Fanny proposes or starts work."
+        onLaneMove={onLaneMove}
+      />
     </div>
+  )
+}
+
+/**
+ * One compact lane block inside the drawer. Stacked vertically. The drawer
+ * intentionally trades the wider page's two-column air for vertical density;
+ * this matches the drawer's role as a "quick glance" surface.
+ */
+function TodayDrawerLane({
+  idPrefix,
+  title,
+  icon,
+  buckets,
+  emptyTitle,
+  emptyDescription,
+  onLaneMove,
+}: {
+  idPrefix: string
+  title: string
+  icon: React.ReactNode
+  buckets: TodayBuckets
+  emptyTitle: string
+  emptyDescription: string
+  onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
+}) {
+  const count = countLane(buckets)
+
+  return (
+    <section aria-label={title} className="flex flex-col gap-3">
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="flex h-5 w-5 items-center justify-center rounded-md bg-white/[0.06] text-[var(--text-primary-light)]"
+          >
+            {icon}
+          </span>
+          <h3 className="text-xs font-semibold tracking-tight text-[var(--text-primary-light)]">
+            {title}
+          </h3>
+        </div>
+        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
+          {count}
+        </span>
+      </header>
+
+      {count === 0 ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-3"
+        >
+          <p className="text-[11px] font-medium text-[var(--text-primary-light)]">
+            {emptyTitle}
+          </p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--text-secondary-light)]">
+            {emptyDescription}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <TodaySection
+            id={`${idPrefix}-overdue`}
+            title="Overdue"
+            tone="warning"
+            items={buckets.overdue}
+            onLaneMove={onLaneMove}
+          />
+          <TodaySection
+            id={`${idPrefix}-due-today`}
+            title="Due today"
+            items={buckets.today}
+            onLaneMove={onLaneMove}
+          />
+          <TodaySection
+            id={`${idPrefix}-no-date`}
+            title="No date"
+            items={buckets.undated}
+            onLaneMove={onLaneMove}
+          />
+        </div>
+      )}
+    </section>
   )
 }
