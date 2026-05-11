@@ -5,6 +5,7 @@ import { Send, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, Lightbulb } from 
 import Link from "next/link";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
 import { ContextBar } from "@/components/context-bar";
+import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -231,6 +232,8 @@ export default function AssistantPage() {
           </aside>
         </div>
       </main>
+
+      <LegacyTodayChrome />
     </div>
   );
 }

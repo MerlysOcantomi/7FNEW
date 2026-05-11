@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
+import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -588,6 +589,8 @@ export default function AgentePage() {
 
           {/* Copilot Panel */}
           <CopilotPanel defaultContext="Overview" />
+
+          <LegacyTodayChrome />
         </div>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>

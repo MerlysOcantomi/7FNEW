@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
+import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -583,6 +584,8 @@ export default function Dashboard() {
           </main>
 
           <CopilotPanel defaultContext="Overview" />
+
+          <LegacyTodayChrome />
         </div>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>

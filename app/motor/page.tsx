@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
+import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { cn } from "@/lib/utils";
 import {
   Cpu,
@@ -437,6 +438,8 @@ export default function MotorPage() {
 
         </div>
       </main>
+
+      <LegacyTodayChrome />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
 import { CopilotPanel } from "@/components/copilot-panel";
+import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
@@ -307,6 +308,8 @@ export default function ProyectosPage() {
       </main>
 
       <CopilotPanel defaultContext="Projects" />
+
+      <LegacyTodayChrome />
 
       <ProyectoForm open={formOpen} onClose={() => setFormOpen(false)} onSuccess={handleFormSuccess} />
     </div>
