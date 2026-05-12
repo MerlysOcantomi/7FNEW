@@ -211,6 +211,7 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     assignee: buildWorkspaceTaskAssignee(task, input.userId),
     assigneeType: normaliseAssigneeType(task.assigneeType),
     isProposed: task.status === "proposed",
+    isWaiting: task.status === "waiting",
   }))
 
   const tareaItems: TodayItem[] = tareas.map((tarea) => ({
@@ -235,6 +236,14 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
      */
     assigneeType: null,
     isProposed: false,
+    /**
+     * `Tarea.estado` doesn't expose a 1:1 "waiting" status (the legacy
+     * vocabulary is `pendiente | en_progreso | revision | completada |
+     * cancelada`). We deliberately do NOT try to coerce one of those
+     * into "waiting" because the semantics differ — the operator can
+     * still see the row in its date bucket within My work.
+     */
+    isWaiting: false,
   }))
 
   const eventoItems: TodayItem[] = eventos.map((evento) => ({
@@ -255,6 +264,7 @@ export async function aggregateToday(input: AggregateTodayInput): Promise<TodayP
     /** Events live outside the assignment plane — no lane, no row controls. */
     assigneeType: null,
     isProposed: false,
+    isWaiting: false,
   }))
 
   /** Stage 4 — bucketise. */

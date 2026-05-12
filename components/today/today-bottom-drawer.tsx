@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   AlertTriangle,
   ArrowUpRight,
+  CalendarClock,
   Loader2,
   Sparkles,
   Sun,
@@ -20,36 +21,37 @@ import {
 import { useFetch } from "@/hooks/use-fetch"
 import { useToast } from "@/components/toast-provider"
 import { sendToAI as sendToAIRequest, takeOver as takeOverRequest } from "@/lib/today/lane-client"
-import type { TodayBuckets, TodayPayload } from "@modules/today/types"
-import { countLane, splitBucketsByLane } from "@modules/today/lanes"
+import type { TodayBuckets, TodayItem, TodayPayload } from "@modules/today/types"
+import {
+  countLane,
+  getScheduleItems,
+  splitBucketsByLane,
+  type TodayLaneBuckets,
+} from "@modules/today/lanes"
 import { TodaySection } from "@/components/today/today-section"
+import { TodayEventCard } from "@/components/today/today-event-card"
 import { cn } from "@/lib/utils"
 
 /**
  * Global bottom Today drawer.
  *
- * Compact, read-only projection of `/today` so the operator can glance at the
- * day's work from anywhere in the app without leaving their current context.
- * The full Today page (`/today`) remains the canonical surface — this drawer
- * is a launcher-friendly summary, not a replacement.
+ * Compact projection of `/today` so the operator can glance at the
+ * day's work from anywhere in the app without leaving their current
+ * context. The full Today page (`/today`) remains the canonical
+ * workboard — this drawer is a launcher-friendly summary with the
+ * same lane vocabulary.
  *
- * Reuses the same data flow as `TodayPageClient`:
- *   - same `GET /api/today?tz=...` endpoint
- *   - same `TodayPayload` shape
- *   - same `<TodaySection>` rendering primitive (so any future change to a row
- *     automatically reflects here too)
+ * Render order inside the drawer:
+ *   1. Schedule (only when events exist)  — time-anchored, top first
+ *   2. My work                              — operator-owned + team + unassigned
+ *   3. AI work                              — AI-assigned + proposed (read-only)
  *
- * Behaviour:
- *   - Fetch is lazy: we only call `/api/today` once the drawer is `open`.
- *   - Closing the drawer leaves the cache in memory; reopening reuses it
- *     until the operator hits the explicit "Refresh" affordance (none in this
- *     PR — they reload by closing and opening again).
- *   - The body uses an inner `max-h-[70vh] overflow-y-auto` scrollport so the
- *     drawer never grows past 70% of the viewport regardless of payload size.
+ * Lane-move actions (Send to AI / Take over) follow the same
+ * refetch-on-success + toast-on-error contract as the full page.
  *
- * Multi-tenancy: the fetch goes through `requireReadAccess` in the route,
- * which ALWAYS scopes to the active workspace. No client-side workspace
- * juggling here.
+ * Multi-tenancy: the fetch goes through `requireReadAccess` in the
+ * route, which ALWAYS scopes to the active workspace. No client-side
+ * workspace juggling here.
  */
 export function TodayBottomDrawer({
   open,
@@ -91,9 +93,10 @@ export function TodayBottomDrawer({
     [data?.buckets],
   )
   const lanes = useMemo(() => splitBucketsByLane(buckets), [buckets])
+  const scheduleItems = useMemo(() => getScheduleItems(lanes), [lanes])
   const totalItems = useMemo(
-    () => buckets.overdue.length + buckets.today.length + buckets.undated.length,
-    [buckets.overdue.length, buckets.today.length, buckets.undated.length],
+    () => countLane(lanes.mine) + countLane(lanes.ai) + scheduleItems.length,
+    [lanes.mine, lanes.ai, scheduleItems.length],
   )
 
   /**
@@ -127,7 +130,7 @@ export function TodayBottomDrawer({
         /**
          * Override the default `bg-background` so the drawer adopts the app's
          * dark surface tokens — consistent with `app-shell.tsx` and the Today
-         * page chrome. `max-h-[70vh]` keeps the panel compact; the body owns
+         * page chrome. `max-h-[78vh]` keeps the panel compact; the body owns
          * its own scrollport below.
          */
         className={cn(
@@ -182,6 +185,7 @@ export function TodayBottomDrawer({
             loading={loading}
             error={error}
             lanes={lanes}
+            scheduleItems={scheduleItems}
             totalItems={totalItems}
             onLaneMove={handleLaneMove}
           />
@@ -193,21 +197,22 @@ export function TodayBottomDrawer({
 
 /**
  * Inner body of the Today drawer. Mirrors the loading / error / empty /
- * content branching from `TodayPageClient` but with compact tokens suitable
- * for the drawer height budget. The drawer renders the two lanes stacked
- * (vs. side-by-side in the full page) because the drawer's narrow width
- * doesn't comfortably fit two columns.
+ * content branching from `TodayPageClient` but with compact tokens
+ * suitable for the drawer height budget. Stack order is Schedule →
+ * My work → AI work so the time-anchored items lead the day.
  */
 function TodayDrawerBody({
   loading,
   error,
   lanes,
+  scheduleItems,
   totalItems,
   onLaneMove,
 }: {
   loading: boolean
   error: string | null
   lanes: ReturnType<typeof splitBucketsByLane>
+  scheduleItems: TodayItem[]
   totalItems: number
   onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
 }) {
@@ -260,14 +265,19 @@ function TodayDrawerBody({
 
   return (
     <div className="flex flex-col gap-6">
+      {scheduleItems.length > 0 ? (
+        <TodayDrawerSchedule items={scheduleItems} />
+      ) : null}
+
       <TodayDrawerLane
         idPrefix="today-drawer-mine"
         title="My work"
         icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
         buckets={lanes.mine}
-        emptyTitle="No work assigned to you"
-        emptyDescription="Tasks you take over or create will land here."
+        emptyTitle="No work for you today"
+        emptyDescription="Tasks you create or take over will land here."
         onLaneMove={onLaneMove}
+        accent="mine"
       />
       <TodayDrawerLane
         idPrefix="today-drawer-ai"
@@ -277,15 +287,50 @@ function TodayDrawerBody({
         emptyTitle="No AI work yet"
         emptyDescription="AI work will appear here when Fanny proposes or starts work."
         onLaneMove={onLaneMove}
+        accent="ai"
       />
     </div>
   )
 }
 
 /**
- * One compact lane block inside the drawer. Stacked vertically. The drawer
- * intentionally trades the wider page's two-column air for vertical density;
- * this matches the drawer's role as a "quick glance" surface.
+ * Compact Schedule block at the top of the drawer. Lists today's
+ * events using the same `TodayEventCard` the full page uses; this
+ * keeps style parity between surfaces.
+ */
+function TodayDrawerSchedule({ items }: { items: TodayItem[] }) {
+  return (
+    <section aria-label="Schedule" className="flex flex-col gap-3">
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+          >
+            <CalendarClock size={12} strokeWidth={2} />
+          </span>
+          <h3 className="text-xs font-semibold tracking-tight text-[var(--text-primary-light)]">
+            Schedule
+          </h3>
+        </div>
+        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
+          {items.length}
+        </span>
+      </header>
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <TodayEventCard key={item.id} item={item} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * One compact lane block inside the drawer. Stacked vertically. The
+ * AI lane carries the same subtle gradient top line as the full
+ * workboard — that's the only place the AI accent surfaces in the
+ * drawer, keeping the surface calm.
  */
 function TodayDrawerLane({
   idPrefix,
@@ -295,24 +340,38 @@ function TodayDrawerLane({
   emptyTitle,
   emptyDescription,
   onLaneMove,
+  accent,
 }: {
   idPrefix: string
   title: string
   icon: React.ReactNode
-  buckets: TodayBuckets
+  buckets: TodayLaneBuckets
   emptyTitle: string
   emptyDescription: string
   onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  accent: "mine" | "ai"
 }) {
   const count = countLane(buckets)
 
   return (
-    <section aria-label={title} className="flex flex-col gap-3">
+    <section aria-label={title} className="relative flex flex-col gap-3">
+      {accent === "ai" ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-1 h-[2px] rounded-full bg-[linear-gradient(135deg,#2f80ed,#8b5cf6,#ec4899)]"
+        />
+      ) : null}
+
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="flex h-5 w-5 items-center justify-center rounded-md bg-white/[0.06] text-[var(--text-primary-light)]"
+            className={cn(
+              "flex h-5 w-5 items-center justify-center rounded-md text-[var(--text-primary-light)]",
+              accent === "ai"
+                ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))]"
+                : "bg-white/[0.06]",
+            )}
           >
             {icon}
           </span>
@@ -351,6 +410,12 @@ function TodayDrawerLane({
             id={`${idPrefix}-due-today`}
             title="Due today"
             items={buckets.today}
+            onLaneMove={onLaneMove}
+          />
+          <TodaySection
+            id={`${idPrefix}-waiting`}
+            title="Waiting / Blocked"
+            items={buckets.waiting}
             onLaneMove={onLaneMove}
           />
           <TodaySection

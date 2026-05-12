@@ -124,6 +124,16 @@ export interface TodayItem {
    * — Approve / Dismiss still lives in Inbox / Smart Hub.
    */
   isProposed: boolean
+  /**
+   * True when the underlying `WorkspaceTask.status === "waiting"`
+   * (operator-blocked, paused on an external dependency). UI uses
+   * this to route the row into a dedicated "Waiting / Blocked"
+   * sub-bucket inside its lane and to surface the workboard-level
+   * "Waiting / Blocked" count. Always `false` for legacy `Tarea`
+   * fallback rows and for events — those sources do not expose a
+   * compatible status concept.
+   */
+  isWaiting: boolean
 }
 
 /**

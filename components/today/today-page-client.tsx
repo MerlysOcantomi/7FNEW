@@ -1,42 +1,57 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertTriangle, Loader2, Sparkles, UserRound } from "lucide-react"
+import {
+  AlertTriangle,
+  CalendarClock,
+  Loader2,
+  PauseCircle,
+  Sparkles,
+  Sun,
+  UserRound,
+} from "lucide-react"
 import { useFetch } from "@/hooks/use-fetch"
 import { useToast } from "@/components/toast-provider"
 import { sendToAI as sendToAIRequest, takeOver as takeOverRequest } from "@/lib/today/lane-client"
 import type { TodayBuckets, TodayPayload } from "@modules/today/types"
-import { countLane, splitBucketsByLane } from "@modules/today/lanes"
+import {
+  countLane,
+  countWaitingAcrossLanes,
+  getScheduleItems,
+  splitBucketsByLane,
+  type TodayLaneBuckets,
+} from "@modules/today/lanes"
 import { TodaySection } from "./today-section"
 import { TodayEmptyState } from "./today-empty-state"
+import { TodayEventCard } from "./today-event-card"
+import { cn } from "@/lib/utils"
 
 /**
- * Today page body — owns the fetch lifecycle so the parent server component
- * stays a thin wrapper. Reads the browser timezone client-side and forwards
- * it to `/api/today` as `?tz=`; falls back to `"UTC"` when `Intl` returns
- * something unusable. The aggregator validates the timezone and substitutes
- * UTC if it's not a real IANA zone, so even a malformed query string is safe.
+ * Today page body — the daily workboard.
  *
- * Layout: a responsive two-column split
+ * Layout:
  *
- *   - "My work" — `assigneeType === "user"`. The operator-owned column.
- *   - "AI work" — `assigneeType === "ai"`. Fanny / AI-owned column;
- *                  includes `proposed` rows surfaced read-only with a pill.
+ *   ┌─────────────────────────────────────────────────────────────────┐
+ *   │ Header: title + caption + counts (My / AI / Schedule / Waiting) │
+ *   ├─────────────────────────────────────────────────────────────────┤
+ *   │ Schedule strip (only when events exist)                         │
+ *   ├──────────────────────────────┬──────────────────────────────────┤
+ *   │ My work                      │ AI work (gradient accent line)   │
+ *   │  - Overdue                   │  - Overdue                       │
+ *   │  - Due today                 │  - Due today                     │
+ *   │  - Waiting / Blocked         │  - Waiting / Blocked             │
+ *   │  - No date                   │  - No date                       │
+ *   └──────────────────────────────┴──────────────────────────────────┘
  *
- * Each column reuses `<TodaySection>` for the Overdue / Due today / No date
- * buckets so the visual taxonomy stays identical across lanes. Events and
- * legacy `Tarea` fallback rows are intentionally NOT mixed into either lane
- * — they fall into the "other" classifier slot, which this layout hides for
- * now (a future surface can opt in once the product story for unowned work
- * is decided).
+ * Lane classification lives in `@modules/today/lanes`:
+ *   - `assigneeType === "ai"` → AI work column.
+ *   - `kind === "event"` → Schedule strip.
+ *   - everything else task-shaped → My work column (includes user, team,
+ *     unassigned, and legacy `Tarea` fallback rows so nothing important
+ *     disappears just because the ownership label is fuzzy).
  *
- * Writes (Send to AI / Take over):
- *   - The row component fires `onLaneMove(taskId, "user" | "ai")` which we
- *     map to the `lib/today/lane-client` helpers (`PATCH /api/tasks/:id/
- *     assignee`).
- *   - On success → `refetch()` so the row reappears in the other column.
- *   - On error → toast with the server's error message; no UI changes
- *     because we deliberately avoid complex optimistic state in this PR.
+ * Writes (Send to AI / Take over) keep refetch-on-success + toast-on-
+ * error semantics. No optimistic state, per the previous PR's brief.
  */
 export function TodayPageClient() {
   const [timezone, setTimezone] = useState<string | null>(null)
@@ -60,12 +75,6 @@ export function TodayPageClient() {
   const url = timezone ? `/api/today?tz=${encodeURIComponent(timezone)}` : null
   const { data, loading, error, refetch } = useFetch<TodayPayload>(url)
 
-  /**
-   * Lane move handler. Wraps the lib helper so the row component can stay
-   * unaware of fetch / toast / refetch concerns. We refetch on success
-   * (correctness over optimistic state per the PR brief) and surface the
-   * server error message verbatim on failure.
-   */
   const handleLaneMove = useCallback(
     async (taskId: string, to: "user" | "ai") => {
       try {
@@ -98,10 +107,17 @@ export function TodayPageClient() {
     [data?.buckets],
   )
   const lanes = useMemo(() => splitBucketsByLane(buckets), [buckets])
-  const totalItems = useMemo(
-    () => buckets.overdue.length + buckets.today.length + buckets.undated.length,
-    [buckets.overdue.length, buckets.today.length, buckets.undated.length],
+  const scheduleItems = useMemo(() => getScheduleItems(lanes), [lanes])
+  const counts = useMemo(
+    () => ({
+      mine: countLane(lanes.mine),
+      ai: countLane(lanes.ai),
+      schedule: scheduleItems.length,
+      waiting: countWaitingAcrossLanes(lanes),
+    }),
+    [lanes, scheduleItems.length],
   )
+  const totalItems = counts.mine + counts.ai + counts.schedule
 
   if (showSpinner) {
     return (
@@ -129,74 +145,250 @@ export function TodayPageClient() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <TodayLaneColumn
-        idPrefix="today-mine"
-        title="My work"
-        icon={<UserRound size={13} strokeWidth={2} aria-hidden="true" />}
-        buckets={lanes.mine}
-        emptyTitle="No work assigned to you"
-        emptyDescription="Tasks you take over or create will land here."
-        onLaneMove={handleLaneMove}
-      />
-      <TodayLaneColumn
-        idPrefix="today-ai"
-        title="AI work"
-        icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
-        buckets={lanes.ai}
-        emptyTitle="No AI work yet"
-        emptyDescription="AI work will appear here when Fanny proposes or starts work."
-        onLaneMove={handleLaneMove}
-      />
+    <div className="flex flex-col gap-6">
+      <TodayWorkboardHeader counts={counts} />
+
+      {scheduleItems.length > 0 ? (
+        <TodayScheduleStrip items={scheduleItems} />
+      ) : null}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <TodayLaneColumn
+          idPrefix="today-mine"
+          title="My work"
+          subtitle="Yours, your team's, and anything not yet handed to AI"
+          icon={<UserRound size={13} strokeWidth={2} aria-hidden="true" />}
+          buckets={lanes.mine}
+          emptyTitle="No work for you today"
+          emptyDescription="Tasks you create or take over will land here."
+          onLaneMove={handleLaneMove}
+          accent="mine"
+        />
+        <TodayLaneColumn
+          idPrefix="today-ai"
+          title="AI work"
+          subtitle="Proposals from Fanny and anything you handed off to AI"
+          icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
+          buckets={lanes.ai}
+          emptyTitle="No AI work yet"
+          emptyDescription="AI work will appear here when Fanny proposes or starts work."
+          onLaneMove={handleLaneMove}
+          accent="ai"
+        />
+      </div>
     </div>
   )
 }
 
+// ─── Header ────────────────────────────────────────────────────────────────
+
 /**
- * One lane column. Renders the three buckets via `TodaySection` (which
- * gracefully no-ops when a bucket is empty) and falls back to a friendly
+ * Workboard header. Renders the page title, a short caption, and a
+ * compact stat strip with the four counts the operator cares about
+ * most: My work, AI work, Schedule, and Waiting / Blocked.
+ *
+ * Waiting count surfaces even when zero so the absence of blockers
+ * itself is informative — many operators ask "is anything stuck?"
+ * before they pick up a row.
+ */
+function TodayWorkboardHeader({
+  counts,
+}: {
+  counts: { mine: number; ai: number; schedule: number; waiting: number }
+}) {
+  return (
+    <header className="flex flex-col gap-3 rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-5">
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+        >
+          <Sun size={16} strokeWidth={1.9} />
+        </span>
+        <div className="flex-1">
+          <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary-light)]">
+            Today
+          </h1>
+          <p className="text-xs leading-relaxed text-[var(--text-secondary-light)]">
+            Your daily workboard. Hand work to AI, take work back, see what&apos;s on the calendar.
+          </p>
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <StatTile
+          label="My work"
+          value={counts.mine}
+          icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
+        />
+        <StatTile
+          label="AI work"
+          value={counts.ai}
+          icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
+          tone="ai"
+        />
+        <StatTile
+          label="Schedule"
+          value={counts.schedule}
+          icon={<CalendarClock size={12} strokeWidth={2} aria-hidden="true" />}
+        />
+        <StatTile
+          label="Waiting"
+          value={counts.waiting}
+          icon={<PauseCircle size={12} strokeWidth={2} aria-hidden="true" />}
+          tone={counts.waiting > 0 ? "warning" : "default"}
+        />
+      </dl>
+    </header>
+  )
+}
+
+function StatTile({
+  label,
+  value,
+  icon,
+  tone = "default",
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  tone?: "default" | "ai" | "warning"
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-xl border px-3 py-2",
+        tone === "ai"
+          ? "border-[var(--border-dark)] bg-[linear-gradient(135deg,rgba(47,128,237,0.10),rgba(139,92,246,0.10),rgba(236,72,153,0.10))]"
+          : tone === "warning"
+            ? "border-[var(--status-warning-text)]/30 bg-[var(--status-warning-bg)]/40"
+            : "border-[var(--border-dark)] bg-[var(--app-surface-dark)]",
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-[var(--text-secondary-light)]">
+        <span aria-hidden="true">{icon}</span>
+        <dt className="text-[10px] font-semibold uppercase tracking-widest">{label}</dt>
+      </div>
+      <dd className="text-base font-semibold tabular-nums text-[var(--text-primary-light)]">
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+// ─── Schedule strip ────────────────────────────────────────────────────────
+
+/**
+ * Schedule section. Displays today's calendar events above the
+ * workboard so the day's time-anchored commitments are visible
+ * before the operator dives into the lanes. Reuses the existing
+ * `TodayEventCard` so style stays consistent with the drawer.
+ *
+ * Conscious choice: events render in a single-column stack on
+ * desktop too (no horizontal carousel). Most workspaces have 0–5
+ * events on any given day; a horizontal strip would feel empty most
+ * of the time and would require its own a11y / overflow handling.
+ */
+function TodayScheduleStrip({ items }: { items: TodayPayload["buckets"]["today"] }) {
+  return (
+    <section
+      aria-label="Schedule"
+      className="flex flex-col gap-3 rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4"
+    >
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+          >
+            <CalendarClock size={13} strokeWidth={2} />
+          </span>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
+            Schedule
+          </h2>
+        </div>
+        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
+          {items.length}
+        </span>
+      </header>
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <TodayEventCard key={item.id} item={item} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── Lane column ───────────────────────────────────────────────────────────
+
+/**
+ * One lane column. Renders the four sub-buckets (Overdue / Due today /
+ * Waiting-Blocked / No date) via `TodaySection`, which gracefully
+ * no-ops when a sub-bucket is empty. Falls back to a friendly
  * empty state when the entire lane is empty.
  *
- * Kept private to this file because it's tightly coupled to the page-level
- * layout decisions (heading copy, icon vocabulary, empty-state messaging).
- * Other surfaces that need a lane view should compose `TodaySection` +
- * `splitBucketsByLane` directly.
+ * `accent="ai"` paints a subtle gradient top line and a gradient halo
+ * on the icon — the only place the AI accent gradient surfaces, per
+ * the PR brief. Kept calm so the workboard doesn't read as noisy.
  */
 function TodayLaneColumn({
   idPrefix,
   title,
+  subtitle,
   icon,
   buckets,
   emptyTitle,
   emptyDescription,
   onLaneMove,
+  accent,
 }: {
   idPrefix: string
   title: string
+  subtitle: string
   icon: React.ReactNode
-  buckets: TodayBuckets
+  buckets: TodayLaneBuckets
   emptyTitle: string
   emptyDescription: string
   onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  accent: "mine" | "ai"
 }) {
   const count = countLane(buckets)
 
   return (
     <section
       aria-label={title}
-      className="flex flex-col gap-4 rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4"
+      className={cn(
+        "relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4",
+      )}
     >
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      {accent === "ai" ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(135deg,#2f80ed,#8b5cf6,#ec4899)]"
+        />
+      ) : null}
+
+      <header className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 items-center justify-center rounded-md bg-white/[0.06] text-[var(--text-primary-light)]"
+            className={cn(
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+              accent === "ai"
+                ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]"
+                : "bg-white/[0.06] text-[var(--text-primary-light)]",
+            )}
           >
             {icon}
           </span>
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-            {title}
-          </h2>
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
+              {title}
+            </h2>
+            <p className="text-[11px] leading-snug text-[var(--text-secondary-light)]">
+              {subtitle}
+            </p>
+          </div>
         </div>
         <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
           {count}
@@ -227,6 +419,12 @@ function TodayLaneColumn({
             id={`${idPrefix}-due-today`}
             title="Due today"
             items={buckets.today}
+            onLaneMove={onLaneMove}
+          />
+          <TodaySection
+            id={`${idPrefix}-waiting`}
+            title="Waiting / Blocked"
+            items={buckets.waiting}
             onLaneMove={onLaneMove}
           />
           <TodaySection
