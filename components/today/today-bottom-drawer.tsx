@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
@@ -19,35 +19,47 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { useFetch } from "@/hooks/use-fetch"
-import { useToast } from "@/components/toast-provider"
-import { sendToAI as sendToAIRequest, takeOver as takeOverRequest } from "@/lib/today/lane-client"
-import type { TodayBuckets, TodayItem, TodayPayload } from "@modules/today/types"
+import type { TodayBuckets, TodayItem, TodayPayload, TodayPriority } from "@modules/today/types"
 import {
   countLane,
   getScheduleItems,
   splitBucketsByLane,
   type TodayLaneBuckets,
 } from "@modules/today/lanes"
-import { TodaySection } from "@/components/today/today-section"
-import { TodayEventCard } from "@/components/today/today-event-card"
 import { cn } from "@/lib/utils"
 
 /**
  * Global bottom Today drawer.
  *
- * Compact projection of `/today` so the operator can glance at the
- * day's work from anywhere in the app without leaving their current
- * context. The full Today page (`/today`) remains the canonical
- * workboard — this drawer is a launcher-friendly summary with the
- * same lane vocabulary.
+ * Compact two-column preview of the full `/today` workboard. The drawer
+ * shares the same lane vocabulary (My work / AI work / Schedule) but
+ * uses tighter rows and a smaller height budget so it reads as a
+ * peek, not a duplicated page.
  *
- * Render order inside the drawer:
- *   1. Schedule (only when events exist)  — time-anchored, top first
- *   2. My work                              — operator-owned + team + unassigned
- *   3. AI work                              — AI-assigned + proposed (read-only)
+ * Layout:
+ *   - Desktop (md+): Schedule strip above (when events exist), then
+ *     My work | AI work side by side.
+ *   - Mobile: same blocks stacked vertically.
  *
- * Lane-move actions (Send to AI / Take over) follow the same
- * refetch-on-success + toast-on-error contract as the full page.
+ * Decisions specific to the drawer (NOT shared with `/today` full page):
+ *   - Rows are single-line + a metadata row underneath. No description
+ *     line, no priority chip text, no priority dot box-out — only the
+ *     bare minimum so the drawer doesn't grow tall.
+ *   - Send to AI / Take over are intentionally HIDDEN inside the drawer.
+ *     The compact rows would feel noisy with action buttons; operators
+ *     who want to move work between lanes can click through to /today.
+ *     This keeps the drawer feeling like a glance, not a control panel.
+ *   - AI accent is a subtle 2px gradient top hairline + tinted icon halo,
+ *     identical to the full page but on a smaller surface.
+ *   - Max height capped at 70vh (full page surface is the canonical
+ *     deep-dive; drawer should feel lighter).
+ *
+ * Behaviour:
+ *   - Lazy fetch: data is only requested once the drawer is `open`.
+ *   - Closing the drawer leaves the cached payload in memory; reopening
+ *     reuses it. The full `/today` page is the canonical source of
+ *     truth, so any drift between the two surfaces resolves naturally
+ *     when the operator navigates there.
  *
  * Multi-tenancy: the fetch goes through `requireReadAccess` in the
  * route, which ALWAYS scopes to the active workspace. No client-side
@@ -85,8 +97,7 @@ export function TodayBottomDrawer({
    * of an idle Today fetch on every route.
    */
   const url = open && timezone ? `/api/today?tz=${encodeURIComponent(timezone)}` : null
-  const { data, loading, error, refetch } = useFetch<TodayPayload>(url)
-  const { addToast } = useToast()
+  const { data, loading, error } = useFetch<TodayPayload>(url)
 
   const buckets: TodayBuckets = useMemo(
     () => data?.buckets ?? { overdue: [], today: [], undated: [] },
@@ -99,43 +110,18 @@ export function TodayBottomDrawer({
     [lanes.mine, lanes.ai, scheduleItems.length],
   )
 
-  /**
-   * Same lane-move flow as `TodayPageClient` — kept duplicated here so the
-   * drawer remains self-contained. Refactoring this into a hook would invite
-   * cross-surface coupling for ~10 lines of glue.
-   */
-  const handleLaneMove = useCallback(
-    async (taskId: string, to: "user" | "ai") => {
-      try {
-        if (to === "ai") await sendToAIRequest(taskId)
-        else await takeOverRequest(taskId)
-        refetch()
-      } catch (err) {
-        addToast({
-          type: "error",
-          title: to === "ai" ? "Could not send to AI" : "Could not take over",
-          description:
-            err instanceof Error && err.message
-              ? err.message
-              : "Please try again in a moment.",
-        })
-      }
-    },
-    [addToast, refetch],
-  )
-
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
         /**
          * Override the default `bg-background` so the drawer adopts the app's
          * dark surface tokens — consistent with `app-shell.tsx` and the Today
-         * page chrome. `max-h-[78vh]` keeps the panel compact; the body owns
-         * its own scrollport below.
+         * page chrome. `max-h-[70vh]` keeps the panel intentionally lighter
+         * than the full `/today` page; the body owns its own scrollport below.
          */
         className={cn(
           "bg-[var(--app-shell-bg)] text-[var(--text-primary-light)]",
-          "data-[vaul-drawer-direction=bottom]:max-h-[78vh]",
+          "data-[vaul-drawer-direction=bottom]:max-h-[70vh]",
         )}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-dark)] px-5 py-3">
@@ -187,7 +173,6 @@ export function TodayBottomDrawer({
             lanes={lanes}
             scheduleItems={scheduleItems}
             totalItems={totalItems}
-            onLaneMove={handleLaneMove}
           />
         </div>
       </DrawerContent>
@@ -196,10 +181,9 @@ export function TodayBottomDrawer({
 }
 
 /**
- * Inner body of the Today drawer. Mirrors the loading / error / empty /
- * content branching from `TodayPageClient` but with compact tokens
- * suitable for the drawer height budget. Stack order is Schedule →
- * My work → AI work so the time-anchored items lead the day.
+ * Inner body of the Today drawer. Renders Schedule (when events
+ * exist), then the My-work / AI-work mini workboard. On desktop the
+ * two lanes sit side by side (md:grid-cols-2); on mobile they stack.
  */
 function TodayDrawerBody({
   loading,
@@ -207,14 +191,12 @@ function TodayDrawerBody({
   lanes,
   scheduleItems,
   totalItems,
-  onLaneMove,
 }: {
   loading: boolean
   error: string | null
   lanes: ReturnType<typeof splitBucketsByLane>
   scheduleItems: TodayItem[]
   totalItems: number
-  onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
 }) {
   if (loading) {
     return (
@@ -246,10 +228,10 @@ function TodayDrawerBody({
       <div
         role="status"
         aria-live="polite"
-        className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-8 text-center"
+        className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-6 text-center"
       >
         <Sun
-          className="h-6 w-6 text-[var(--accent-primary)]/80"
+          className="h-5 w-5 text-[var(--accent-primary)]/80"
           strokeWidth={1.5}
           aria-hidden="true"
         />
@@ -264,52 +246,52 @@ function TodayDrawerBody({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {scheduleItems.length > 0 ? (
         <TodayDrawerSchedule items={scheduleItems} />
       ) : null}
 
-      <TodayDrawerLane
-        idPrefix="today-drawer-mine"
-        title="My work"
-        icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
-        buckets={lanes.mine}
-        emptyTitle="No work for you today"
-        emptyDescription="Tasks you create or take over will land here."
-        onLaneMove={onLaneMove}
-        accent="mine"
-      />
-      <TodayDrawerLane
-        idPrefix="today-drawer-ai"
-        title="AI work"
-        icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
-        buckets={lanes.ai}
-        emptyTitle="No AI work yet"
-        emptyDescription="AI work will appear here when Fanny proposes or starts work."
-        onLaneMove={onLaneMove}
-        accent="ai"
-      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <TodayDrawerLane
+          idPrefix="today-drawer-mine"
+          title="My work"
+          icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
+          buckets={lanes.mine}
+          emptyLabel="No work for you today."
+          accent="mine"
+        />
+        <TodayDrawerLane
+          idPrefix="today-drawer-ai"
+          title="AI work"
+          icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
+          buckets={lanes.ai}
+          emptyLabel="No AI work yet."
+          accent="ai"
+        />
+      </div>
     </div>
   )
 }
 
+// ─── Schedule (compact) ────────────────────────────────────────────────────
+
 /**
- * Compact Schedule block at the top of the drawer. Lists today's
- * events using the same `TodayEventCard` the full page uses; this
- * keeps style parity between surfaces.
+ * Compact Schedule block at the top of the drawer. One row per event
+ * with a small time chip and a truncated title — events almost always
+ * read fine in this single-line shape.
  */
 function TodayDrawerSchedule({ items }: { items: TodayItem[] }) {
   return (
-    <section aria-label="Schedule" className="flex flex-col gap-3">
+    <section aria-label="Schedule" className="flex flex-col gap-2">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
             className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
           >
-            <CalendarClock size={12} strokeWidth={2} />
+            <CalendarClock size={11} strokeWidth={2} />
           </span>
-          <h3 className="text-xs font-semibold tracking-tight text-[var(--text-primary-light)]">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">
             Schedule
           </h3>
         </div>
@@ -317,44 +299,70 @@ function TodayDrawerSchedule({ items }: { items: TodayItem[] }) {
           {items.length}
         </span>
       </header>
-      <div className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-1">
         {items.map((item) => (
-          <TodayEventCard key={item.id} item={item} />
+          <li key={item.id}>
+            <CompactEventRow item={item} />
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   )
 }
 
+// ─── Lane block (compact) ──────────────────────────────────────────────────
+
 /**
- * One compact lane block inside the drawer. Stacked vertically. The
- * AI lane carries the same subtle gradient top line as the full
- * workboard — that's the only place the AI accent surfaces in the
- * drawer, keeping the surface calm.
+ * One compact lane block inside the drawer. The AI variant carries
+ * a subtle gradient hairline on the top edge and a tinted icon halo
+ * — the only places the AI accent surfaces in the drawer.
+ *
+ * Rows are stacked tightly under a single small "count + title"
+ * header. We deliberately collapse the per-date sub-buckets
+ * (Overdue / Due today / Waiting / No date) into one flat stream:
+ * the drawer is a glance, and four sub-headers per lane would make
+ * it feel like the full page. Sub-bucket information still rides
+ * along on each row's compact metadata (the due chip already says
+ * "Yesterday", "Today 4:00 PM", etc., and "Waiting" rows render a
+ * small status pill).
+ *
+ * The aggregator's overall sort order is preserved by walking the
+ * sub-buckets in priority order: Overdue → Due today → Waiting →
+ * No date. Within each sub-bucket the aggregator's priority / due /
+ * title sort already applies.
  */
 function TodayDrawerLane({
   idPrefix,
   title,
   icon,
   buckets,
-  emptyTitle,
-  emptyDescription,
-  onLaneMove,
+  emptyLabel,
   accent,
 }: {
   idPrefix: string
   title: string
   icon: React.ReactNode
   buckets: TodayLaneBuckets
-  emptyTitle: string
-  emptyDescription: string
-  onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  emptyLabel: string
   accent: "mine" | "ai"
 }) {
   const count = countLane(buckets)
+  const flat: TodayItem[] = useMemo(
+    () => [
+      ...buckets.overdue,
+      ...buckets.today,
+      ...buckets.waiting,
+      ...buckets.undated,
+    ],
+    [buckets.overdue, buckets.today, buckets.waiting, buckets.undated],
+  )
 
   return (
-    <section aria-label={title} className="relative flex flex-col gap-3">
+    <section
+      aria-label={title}
+      id={idPrefix}
+      className="relative flex flex-col gap-2"
+    >
       {accent === "ai" ? (
         <span
           aria-hidden="true"
@@ -375,7 +383,7 @@ function TodayDrawerLane({
           >
             {icon}
           </span>
-          <h3 className="text-xs font-semibold tracking-tight text-[var(--text-primary-light)]">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">
             {title}
           </h3>
         </div>
@@ -385,47 +393,215 @@ function TodayDrawerLane({
       </header>
 
       {count === 0 ? (
-        <div
+        <p
           role="status"
           aria-live="polite"
-          className="rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-3"
+          className="rounded-md border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-2.5 py-2 text-[11px] text-[var(--text-secondary-light)]"
         >
-          <p className="text-[11px] font-medium text-[var(--text-primary-light)]">
-            {emptyTitle}
-          </p>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--text-secondary-light)]">
-            {emptyDescription}
-          </p>
-        </div>
+          {emptyLabel}
+        </p>
       ) : (
-        <div className="flex flex-col gap-4">
-          <TodaySection
-            id={`${idPrefix}-overdue`}
-            title="Overdue"
-            tone="warning"
-            items={buckets.overdue}
-            onLaneMove={onLaneMove}
-          />
-          <TodaySection
-            id={`${idPrefix}-due-today`}
-            title="Due today"
-            items={buckets.today}
-            onLaneMove={onLaneMove}
-          />
-          <TodaySection
-            id={`${idPrefix}-waiting`}
-            title="Waiting / Blocked"
-            items={buckets.waiting}
-            onLaneMove={onLaneMove}
-          />
-          <TodaySection
-            id={`${idPrefix}-no-date`}
-            title="No date"
-            items={buckets.undated}
-            onLaneMove={onLaneMove}
-          />
-        </div>
+        <ul className="flex flex-col gap-1">
+          {flat.map((item) => (
+            <li key={item.id}>
+              <CompactTaskRow item={item} />
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   )
+}
+
+// ─── Compact rows (drawer-only) ────────────────────────────────────────────
+
+/**
+ * Compact task row used ONLY inside the drawer. Renders as a single
+ * navigable line: priority dot · title · trailing chevron, with a
+ * small metadata row beneath (due / source / status). No actions —
+ * Send to AI / Take over live on the full `/today` page.
+ *
+ * Wrapped in `<Link>` so the whole row is clickable to the source
+ * (the same `item.source.href` the full page uses). Closing the
+ * drawer on click is handled by the framework's outside-click flow.
+ */
+function CompactTaskRow({ item }: { item: TodayItem }) {
+  if (item.kind !== "task") return null
+
+  const due = formatDueCompact(item.dueAt)
+  const sourceLabel = compactSourceLabel(item)
+  const ariaLabel = [
+    "Task",
+    item.title,
+    item.isProposed ? "proposed by AI" : null,
+    item.isWaiting ? "waiting" : null,
+    due ? `due ${due}` : null,
+    sourceLabel,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
+  return (
+    <Link
+      href={item.source.href}
+      aria-label={ariaLabel}
+      className={cn(
+        "group flex items-start gap-2 rounded-md border border-transparent px-2 py-1.5 transition-colors",
+        "hover:border-[var(--border-dark)] hover:bg-[var(--app-surface-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+          priorityDotClass(item.priority),
+        )}
+      />
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] font-medium text-[var(--text-primary-light)]">
+          {item.title}
+        </p>
+        <div className="flex flex-wrap items-center gap-1 text-[10px] text-[var(--text-secondary-light)]">
+          {due ? (
+            <span className="tabular-nums" suppressHydrationWarning>
+              {due}
+            </span>
+          ) : null}
+          {due && sourceLabel ? <span aria-hidden="true">·</span> : null}
+          {sourceLabel ? <span className="truncate">{sourceLabel}</span> : null}
+          {item.isProposed ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="font-medium text-[var(--accent-primary)]">Proposed</span>
+            </>
+          ) : null}
+          {item.isWaiting ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="font-medium text-[var(--status-warning-text)]">Waiting</span>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <ArrowUpRight
+        size={11}
+        className="mt-1.5 shrink-0 text-[var(--text-secondary-light)]/70 transition-colors group-hover:text-[var(--text-primary-light)]"
+        aria-hidden="true"
+      />
+    </Link>
+  )
+}
+
+/**
+ * Compact event row. Single line: time chip · title.
+ */
+function CompactEventRow({ item }: { item: TodayItem }) {
+  if (item.kind !== "event" || item.source.kind !== "calendar") return null
+  const time = formatEventTimeCompact(item.dueAt)
+
+  return (
+    <Link
+      href={item.source.href}
+      aria-label={[
+        "Event",
+        item.title,
+        time ? `at ${time}` : null,
+        "from Calendar",
+      ]
+        .filter(Boolean)
+        .join(", ")}
+      className={cn(
+        "group flex items-center gap-2 rounded-md border border-transparent border-l-2 border-l-[var(--accent-primary)]/60 px-2 py-1.5 transition-colors",
+        "hover:border-[var(--border-dark)] hover:border-l-[var(--accent-primary)] hover:bg-[var(--app-surface-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
+      )}
+    >
+      {time ? (
+        <span
+          className="inline-flex shrink-0 items-center rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-[var(--text-secondary-light)]"
+          suppressHydrationWarning
+        >
+          {time}
+        </span>
+      ) : null}
+      <p className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--text-primary-light)]">
+        {item.title}
+      </p>
+      <ArrowUpRight
+        size={11}
+        className="shrink-0 text-[var(--text-secondary-light)]/70 transition-colors group-hover:text-[var(--text-primary-light)]"
+        aria-hidden="true"
+      />
+    </Link>
+  )
+}
+
+// ─── Compact format helpers ────────────────────────────────────────────────
+
+/**
+ * Short single-token due label. Examples:
+ *   - "Today 4:00 PM"
+ *   - "Yesterday"
+ *   - "Tomorrow"
+ *   - "3d ago"
+ *   - "12 Aug"
+ * Returns empty string when there is no due / it is unparseable.
+ */
+function formatDueCompact(iso: string | null): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+
+  const now = new Date()
+  const diffMs = date.getTime() - now.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) {
+    return `Today ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+  }
+  if (diffDays === -1) return "Yesterday"
+  if (diffDays === 1) return "Tomorrow"
+  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
+}
+
+/** "10:30 AM" style time, locale-aware. Returns empty string on bad input. */
+function formatEventTimeCompact(iso: string | null): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+}
+
+/**
+ * Compact source descriptor used in the drawer row. Mirrors the
+ * vocabulary used by the full row (`TodayTaskRow`) but as a plain
+ * string for tighter inline rendering.
+ */
+function compactSourceLabel(item: TodayItem): string {
+  if (item.source.kind === "inbox") return "Inbox"
+  if (item.source.kind === "project") {
+    return item.source.projectName ? `${item.source.projectName}` : "Project"
+  }
+  if (item.source.kind === "manual") return "Task"
+  return ""
+}
+
+/**
+ * Mirrors the priority dot palette used by the full row so the
+ * scanning vocabulary stays consistent across surfaces.
+ */
+function priorityDotClass(priority: TodayPriority | null): string {
+  switch (priority) {
+    case "critical":
+      return "bg-[var(--status-danger-text)]"
+    case "high":
+      return "bg-[var(--status-warning-text)]"
+    case "low":
+      return "bg-[var(--text-secondary-light)]/40"
+    case "normal":
+    default:
+      return "bg-[var(--text-secondary-light)]/60"
+  }
 }
