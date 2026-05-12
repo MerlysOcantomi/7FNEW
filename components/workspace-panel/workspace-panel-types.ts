@@ -1,17 +1,33 @@
 /**
  * Shared types for the Global Workspace Panel layer.
  *
- * The Today Inlay PR introduces the FIRST consumer of these types (a
- * single bottom-center panel showing the Today quick view). Future
- * PRs will add:
+ * Status as of the Today bottom-chrome PR:
+ *   Today no longer renders through `WorkspacePanelSurface` /
+ *   `WorkspacePanelBackdrop`. The desktop Today quick view is now
+ *   an INLINE shell chrome (see
+ *   `components/today/today-desktop-bottom-chrome.tsx`) that mirrors
+ *   `GlobalNewDesktopChrome` architecturally — no portal, no scrim,
+ *   no scroll lock, no focus trap. That change made Today feel like
+ *   part of the workspace shell rather than a modal layered on top.
  *
- *   - A "Stack" mode (`top-center` for New + `bottom-center` for Today)
- *   - A "Side-by-side" mode (`left` for Today + `right` for New)
- *   - A "WorkspacePanelCoordinator" owning multi-panel state
+ *   These types and their consumers
+ *   (`WorkspacePanelSurface` / `WorkspacePanelBackdrop`) are kept in
+ *   the repo because they remain the right shape for FUTURE
+ *   workspace-panel needs that DO want a true floating panel:
  *
- * To avoid having to rename / re-shape these types in PR 2 / PR 3,
- * the anchor union and size shape are designed with the full set in
- * mind even though only one anchor is actually used today.
+ *     - Side rails (`anchor: "left" | "right"`) for a future
+ *       side-by-side mode (Today rail + New rail), where the surface
+ *       genuinely overlays the workspace from an edge.
+ *     - Notification / activity peek surfaces that need focus-trap
+ *       and Escape-to-close semantics.
+ *     - Any future modal-feeling micro-panel that isn't a Dialog
+ *       (e.g. a quick command palette anchored at a specific
+ *       position).
+ *
+ *   `anchor: "bottom-center"` was the original Today consumer; that
+ *   value remains valid for non-Today use cases (e.g. a transient
+ *   bottom-center toast peek). Today itself moved off it in favour
+ *   of the bottom chrome.
  *
  * Keep this file framework-agnostic: NO React imports, NO Radix
  * imports, NO Next imports. The types must be usable from server-only

@@ -20,20 +20,43 @@ import {
 import { cn } from "@/lib/utils"
 
 /**
+ * Tone variants supported by the Today quick view.
+ *
+ *   - `"canvas"` — dark shell tokens (AppShell + mobile drawer).
+ *   - `"light"`  — light slate tokens (ContextShell bottom chrome).
+ *
+ * Tone parity mirrors the Global New convention so any future shared
+ * "workspace chrome" coordinator can reuse the same vocabulary.
+ */
+export type TodayQuickTone = "canvas" | "light"
+
+/**
  * Pure presentational body of the Today quick view.
  *
- * Renders the Schedule strip + My-work | AI-work mini-workboard with
+ * Renders the Schedule strip + My-work | AI-work mini-workboard in
  * the same vocabulary as the full `/today` page but in a compact
  * shape. It does NOT own:
  *
  *   - The fetch lifecycle (data hook lives in `today-quick-data.ts`).
  *   - The chrome around it (title, close button, "Open full Today"
- *     link). Each surface (`TodayMobileDrawer`, `TodayDesktopInlay`,
- *     future stack / side-by-side wrappers) owns its own chrome.
+ *     link). Each surface (`TodayMobileDrawer`,
+ *     `TodayDesktopBottomChrome`, future stack / side-by-side
+ *     wrappers) owns its own chrome.
  *
  * That split is what makes this content reusable across all the
  * future workspace-panel layouts described in
  * `components/workspace-panel/workspace-panel-types.ts`.
+ *
+ * Tone awareness:
+ *   Surfaces that live in a DARK shell (AppShell, mobile vaul drawer)
+ *   pass `tone="canvas"`. Surfaces that live in a LIGHT shell
+ *   (ContextShell's bottom chrome) pass `tone="light"`. The component
+ *   switches every dark token to its slate equivalent so the rows are
+ *   readable on `#F8FAFC` without bespoke shell-specific code paths.
+ *
+ *   Mobile keeps `tone="canvas"` regardless of host shell because the
+ *   vaul drawer surface itself is dark (`bg-[var(--app-shell-bg)]`)
+ *   and would clash with light-tone content.
  *
  * Layout:
  *   - On `md+`: Schedule strip (if events exist) above a 2-column
@@ -53,6 +76,7 @@ export function TodayQuickContent({
   scheduleItems,
   totalItems,
   onRowNavigate,
+  tone = "canvas",
   className,
 }: {
   loading: boolean
@@ -62,13 +86,16 @@ export function TodayQuickContent({
   totalItems: number
   /**
    * Called when the user clicks a row link / event link. Lets the
-   * surrounding surface (mobile drawer, desktop inlay) close itself
+   * surrounding surface (mobile drawer, bottom chrome) close itself
    * as the user navigates away. Optional — the rows still navigate
    * even if the surface doesn't react.
    */
   onRowNavigate?: () => void
+  tone?: TodayQuickTone
   className?: string
 }) {
+  const t = toneTokens(tone)
+
   if (loading) {
     return (
       <div
@@ -76,7 +103,7 @@ export function TodayQuickContent({
         aria-label="Loading Today"
         className={cn("flex items-center justify-center py-10", className)}
       >
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary-light)]" />
+        <Loader2 className={cn("h-6 w-6 animate-spin", t.textMuted)} />
       </div>
     )
   }
@@ -103,13 +130,15 @@ export function TodayQuickContent({
         role="status"
         aria-live="polite"
         className={cn(
-          "flex flex-col items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-6 text-center",
+          "flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-4 py-6 text-center",
+          t.surfaceMuted,
+          t.borderMuted,
           className,
         )}
       >
-        <Sun className="h-5 w-5 text-[var(--accent-primary)]/80" strokeWidth={1.5} aria-hidden="true" />
-        <p className="text-xs font-medium text-[var(--text-primary-light)]">Nothing pending. Nice.</p>
-        <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
+        <Sun className={cn("h-5 w-5", t.accentDim)} strokeWidth={1.5} aria-hidden="true" />
+        <p className={cn("text-xs font-medium", t.text)}>Nothing pending. Nice.</p>
+        <p className={cn("text-[11px] leading-relaxed", t.textMuted)}>
           Anything that needs your attention will show up here.
         </p>
       </div>
@@ -119,7 +148,7 @@ export function TodayQuickContent({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {scheduleItems.length > 0 ? (
-        <TodayQuickSchedule items={scheduleItems} onRowNavigate={onRowNavigate} />
+        <TodayQuickSchedule items={scheduleItems} onRowNavigate={onRowNavigate} tone={tone} />
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -130,6 +159,7 @@ export function TodayQuickContent({
           buckets={lanes.mine}
           emptyLabel="No work for you today."
           accent="mine"
+          tone={tone}
           onRowNavigate={onRowNavigate}
         />
         <TodayQuickLane
@@ -139,6 +169,7 @@ export function TodayQuickContent({
           buckets={lanes.ai}
           emptyLabel="No AI work yet."
           accent="ai"
+          tone={tone}
           onRowNavigate={onRowNavigate}
         />
       </div>
@@ -156,30 +187,37 @@ export function TodayQuickContent({
 function TodayQuickSchedule({
   items,
   onRowNavigate,
+  tone,
 }: {
   items: TodayItem[]
   onRowNavigate?: () => void
+  tone: TodayQuickTone
 }) {
+  const t = toneTokens(tone)
   return (
     <section aria-label="Schedule" className="flex flex-col gap-2">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+            className={cn(
+              "flex h-5 w-5 items-center justify-center rounded-md",
+              t.accentHalo,
+              t.accent,
+            )}
           >
             <CalendarClock size={11} strokeWidth={2} />
           </span>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">
+          <h3 className={cn("text-[11px] font-semibold uppercase tracking-widest", t.textMuted)}>
             Schedule
           </h3>
         </div>
-        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">{items.length}</span>
+        <span className={cn("text-[10px] tabular-nums", t.textDim)}>{items.length}</span>
       </header>
       <ul className="flex flex-col gap-1">
         {items.map((item) => (
           <li key={item.id}>
-            <CompactEventRow item={item} onRowNavigate={onRowNavigate} />
+            <CompactEventRow item={item} onRowNavigate={onRowNavigate} tone={tone} />
           </li>
         ))}
       </ul>
@@ -207,6 +245,7 @@ function TodayQuickLane({
   buckets,
   emptyLabel,
   accent,
+  tone,
   onRowNavigate,
 }: {
   idPrefix: string
@@ -215,8 +254,10 @@ function TodayQuickLane({
   buckets: TodayLaneBuckets
   emptyLabel: string
   accent: "mine" | "ai"
+  tone: TodayQuickTone
   onRowNavigate?: () => void
 }) {
+  const t = toneTokens(tone)
   const count = countLane(buckets)
   const flat: TodayItem[] = useMemo(
     () => [...buckets.overdue, ...buckets.today, ...buckets.waiting, ...buckets.undated],
@@ -237,26 +278,32 @@ function TodayQuickLane({
           <span
             aria-hidden="true"
             className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-md text-[var(--text-primary-light)]",
+              "flex h-5 w-5 items-center justify-center rounded-md",
               accent === "ai"
                 ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))]"
-                : "bg-white/[0.06]",
+                : t.surfaceSubtle,
+              t.text,
             )}
           >
             {icon}
           </span>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">
+          <h3 className={cn("text-[11px] font-semibold uppercase tracking-widest", t.textMuted)}>
             {title}
           </h3>
         </div>
-        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">{count}</span>
+        <span className={cn("text-[10px] tabular-nums", t.textDim)}>{count}</span>
       </header>
 
       {count === 0 ? (
         <p
           role="status"
           aria-live="polite"
-          className="rounded-md border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-2.5 py-2 text-[11px] text-[var(--text-secondary-light)]"
+          className={cn(
+            "rounded-md border border-dashed px-2.5 py-2 text-[11px]",
+            t.surfaceMuted,
+            t.borderMuted,
+            t.textMuted,
+          )}
         >
           {emptyLabel}
         </p>
@@ -264,7 +311,7 @@ function TodayQuickLane({
         <ul className="flex flex-col gap-1">
           {flat.map((item) => (
             <li key={item.id}>
-              <CompactTaskRow item={item} onRowNavigate={onRowNavigate} />
+              <CompactTaskRow item={item} onRowNavigate={onRowNavigate} tone={tone} />
             </li>
           ))}
         </ul>
@@ -284,11 +331,14 @@ function TodayQuickLane({
 function CompactTaskRow({
   item,
   onRowNavigate,
+  tone,
 }: {
   item: TodayItem
   onRowNavigate?: () => void
+  tone: TodayQuickTone
 }) {
   if (item.kind !== "task") return null
+  const t = toneTokens(tone)
 
   const due = formatDueCompact(item.dueAt)
   const sourceLabel = compactSourceLabel(item)
@@ -310,20 +360,21 @@ function CompactTaskRow({
       aria-label={ariaLabel}
       className={cn(
         "group flex items-start gap-2 rounded-md border border-transparent px-2 py-1.5 transition-colors",
-        "hover:border-[var(--border-dark)] hover:bg-[var(--app-surface-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
+        t.rowHover,
+        t.focusRing,
       )}
     >
       <span
         aria-hidden="true"
         className={cn(
           "mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-          priorityDotClass(item.priority),
+          priorityDotClass(item.priority, tone),
         )}
       />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-medium text-[var(--text-primary-light)]">{item.title}</p>
-        <div className="flex flex-wrap items-center gap-1 text-[10px] text-[var(--text-secondary-light)]">
+        <p className={cn("truncate text-[12px] font-medium", t.text)}>{item.title}</p>
+        <div className={cn("flex flex-wrap items-center gap-1 text-[10px]", t.textMuted)}>
           {due ? (
             <span className="tabular-nums" suppressHydrationWarning>
               {due}
@@ -334,13 +385,13 @@ function CompactTaskRow({
           {item.isProposed ? (
             <>
               <span aria-hidden="true">·</span>
-              <span className="font-medium text-[var(--accent-primary)]">Proposed</span>
+              <span className={cn("font-medium", t.accent)}>Proposed</span>
             </>
           ) : null}
           {item.isWaiting ? (
             <>
               <span aria-hidden="true">·</span>
-              <span className="font-medium text-[var(--status-warning-text)]">Waiting</span>
+              <span className={cn("font-medium", t.warningText)}>Waiting</span>
             </>
           ) : null}
         </div>
@@ -348,7 +399,7 @@ function CompactTaskRow({
 
       <ArrowUpRight
         size={11}
-        className="mt-1.5 shrink-0 text-[var(--text-secondary-light)]/70 transition-colors group-hover:text-[var(--text-primary-light)]"
+        className={cn("mt-1.5 shrink-0 transition-colors", t.textDim, t.rowHoverText)}
         aria-hidden="true"
       />
     </Link>
@@ -361,11 +412,14 @@ function CompactTaskRow({
 function CompactEventRow({
   item,
   onRowNavigate,
+  tone,
 }: {
   item: TodayItem
   onRowNavigate?: () => void
+  tone: TodayQuickTone
 }) {
   if (item.kind !== "event" || item.source.kind !== "calendar") return null
+  const t = toneTokens(tone)
   const time = formatEventTimeCompact(item.dueAt)
 
   return (
@@ -376,22 +430,31 @@ function CompactEventRow({
         .filter(Boolean)
         .join(", ")}
       className={cn(
-        "group flex items-center gap-2 rounded-md border border-transparent border-l-2 border-l-[var(--accent-primary)]/60 px-2 py-1.5 transition-colors",
-        "hover:border-[var(--border-dark)] hover:border-l-[var(--accent-primary)] hover:bg-[var(--app-surface-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
+        "group flex items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1.5 transition-colors",
+        tone === "canvas" ? "border-l-[var(--accent-primary)]/60" : "border-l-[#2563EB]/60",
+        t.rowHover,
+        tone === "canvas"
+          ? "hover:border-l-[var(--accent-primary)]"
+          : "hover:border-l-[#2563EB]",
+        t.focusRing,
       )}
     >
       {time ? (
         <span
-          className="inline-flex shrink-0 items-center rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-[var(--text-secondary-light)]"
+          className={cn(
+            "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+            t.chipBg,
+            t.textMuted,
+          )}
           suppressHydrationWarning
         >
           {time}
         </span>
       ) : null}
-      <p className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--text-primary-light)]">{item.title}</p>
+      <p className={cn("min-w-0 flex-1 truncate text-[12px] font-medium", t.text)}>{item.title}</p>
       <ArrowUpRight
         size={11}
-        className="shrink-0 text-[var(--text-secondary-light)]/70 transition-colors group-hover:text-[var(--text-primary-light)]"
+        className={cn("shrink-0 transition-colors", t.textDim, t.rowHoverText)}
         aria-hidden="true"
       />
     </Link>
@@ -434,7 +497,20 @@ function compactSourceLabel(item: TodayItem): string {
   return ""
 }
 
-function priorityDotClass(priority: TodayPriority | null): string {
+function priorityDotClass(priority: TodayPriority | null, tone: TodayQuickTone): string {
+  if (tone === "light") {
+    switch (priority) {
+      case "critical":
+        return "bg-[#DC2626]"
+      case "high":
+        return "bg-[#D97706]"
+      case "low":
+        return "bg-[#94A3B8]/40"
+      case "normal":
+      default:
+        return "bg-[#94A3B8]/60"
+    }
+  }
   switch (priority) {
     case "critical":
       return "bg-[var(--status-danger-text)]"
@@ -445,5 +521,88 @@ function priorityDotClass(priority: TodayPriority | null): string {
     case "normal":
     default:
       return "bg-[var(--text-secondary-light)]/60"
+  }
+}
+
+// ─── Tone token map ────────────────────────────────────────────────────────
+
+/**
+ * Map of named class strings per tone.
+ *
+ * Lives in the component file (vs. a separate module) because the
+ * mapping is intimately coupled to the row / lane / header layout
+ * decisions made above — pulling it into a shared utility would
+ * invite reuse for surfaces with different layout needs and
+ * eventually drift. Kept close, kept honest.
+ */
+interface ToneTokens {
+  /** Primary text colour (titles, row titles, empty-state heading). */
+  text: string
+  /** Secondary text colour (headers, metadata). */
+  textMuted: string
+  /** Dim text colour (count badges, trailing chevrons). */
+  textDim: string
+  /** Accent text (Proposed pill, accent icons). */
+  accent: string
+  /** Accent text in a "calm" state for empty-state Sun icon. */
+  accentDim: string
+  /** Accent halo for icon wrappers — `bg-<accent>/15`-ish. */
+  accentHalo: string
+  /** Warning emphasis text ("Waiting" pill). */
+  warningText: string
+  /** Subtle surface used for icon wrappers and chips. */
+  surfaceSubtle: string
+  /** Muted surface for empty-state cards. */
+  surfaceMuted: string
+  /** Muted border for empty-state cards. */
+  borderMuted: string
+  /** Background for time chips. */
+  chipBg: string
+  /** Row hover state: border + bg. */
+  rowHover: string
+  /** Row hover state: trailing chevron colour shift on hover. */
+  rowHoverText: string
+  /** Focus ring for row links. */
+  focusRing: string
+}
+
+function toneTokens(tone: TodayQuickTone): ToneTokens {
+  if (tone === "light") {
+    return {
+      text: "text-[#0F172A]",
+      textMuted: "text-[#64748B]",
+      textDim: "text-[#94A3B8]",
+      accent: "text-[#2563EB]",
+      accentDim: "text-[#2563EB]/80",
+      accentHalo: "bg-[#DBEAFE]",
+      warningText: "text-[#B45309]",
+      surfaceSubtle: "bg-[#F1F5F9]",
+      surfaceMuted: "bg-white",
+      borderMuted: "border-[#E2E8F0]",
+      chipBg: "bg-[#F1F5F9]",
+      rowHover:
+        "hover:border-[#E2E8F0] hover:bg-[#F1F5F9]",
+      rowHoverText: "group-hover:text-[#0F172A]",
+      focusRing:
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35",
+    }
+  }
+  return {
+    text: "text-[var(--text-primary-light)]",
+    textMuted: "text-[var(--text-secondary-light)]",
+    textDim: "text-[var(--text-secondary-light)]/80",
+    accent: "text-[var(--accent-primary)]",
+    accentDim: "text-[var(--accent-primary)]/80",
+    accentHalo: "bg-[var(--accent-primary)]/15",
+    warningText: "text-[var(--status-warning-text)]",
+    surfaceSubtle: "bg-white/[0.06]",
+    surfaceMuted: "bg-[var(--app-surface-dark)]",
+    borderMuted: "border-[var(--border-dark)]",
+    chipBg: "bg-white/[0.06]",
+    rowHover:
+      "hover:border-[var(--border-dark)] hover:bg-[var(--app-surface-dark)]",
+    rowHoverText: "group-hover:text-[var(--text-primary-light)]",
+    focusRing:
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
   }
 }

@@ -13,6 +13,7 @@ import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trig
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { TodayDrawerProvider } from "@/components/today/today-drawer-provider"
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome"
+import { TodayDesktopBottomChrome } from "@/components/today/today-desktop-bottom-chrome"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -109,13 +110,36 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
               {children}
             </div>
           </div>
+
+          {/*
+            Today desktop bottom chrome — architectural mirror of
+            `<GlobalNewDesktopChrome>` at the top of <main>. Mounted as
+            the LAST sticky child of <main> so when the panel grows it
+            sticks to the bottom of the workspace scrollport instead of
+            scrolling out of view. Closed state collapses to 0px tall
+            (grid-rows animation) so the chrome never steals workspace
+            area when idle.
+
+            `variant="app"` selects the dark canvas tokens — the panel
+            visually bleeds into the AppShell surface tokens, just like
+            New does at the top.
+
+            Hidden on mobile via `hidden md:block` so the mobile vaul
+            drawer (mounted by `<GlobalTodayChrome>`) remains the only
+            mobile surface.
+          */}
+          <div className="sticky bottom-0 z-30 hidden shrink-0 md:block">
+            <TodayDesktopBottomChrome variant="app" />
+          </div>
         </main>
 
         {/*
           Global Today surface — single mount via `<GlobalTodayChrome>`. The
           launcher is `position: fixed` so it floats above the main scroll
-          without participating in the flex layout; the drawer is portalled
-          by vaul. Both consume the surrounding `<TodayDrawerProvider>`.
+          without participating in the flex layout; the mobile drawer is
+          portalled by vaul. Both consume the surrounding
+          `<TodayDrawerProvider>`. The DESKTOP surface lives inline inside
+          <main> above; this component intentionally does NOT mount it.
         */}
         <GlobalTodayChrome
           sidebarCollapsed={sidebarCollapsed}

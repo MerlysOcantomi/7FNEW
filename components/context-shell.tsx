@@ -15,6 +15,7 @@ import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trig
 import { useGlobalNew } from "@/components/global-new/use-global-new";
 import { TodayDrawerProvider } from "@/components/today/today-drawer-provider";
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
+import { TodayDesktopBottomChrome } from "@/components/today/today-desktop-bottom-chrome";
 
 export interface BreadcrumbItem {
   label: string;
@@ -184,15 +185,36 @@ export function ContextShell({
             <div className="min-h-0 flex-1 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
               {children(activeTab)}
             </div>
+
+            {/*
+              Today desktop bottom chrome — mirror of
+              `<GlobalNewDesktopChrome>` at the top of <main>, anchored at
+              the bottom of the workspace scrollport.
+
+              `variant="context"` selects the light slate tokens
+              (`#F8FAFC` surface, `#0F172A` text) so the panel reads as
+              an extension of the ContextShell surface, not a stark dark
+              band inside a light layout.
+
+              The CopilotPanel is a sibling AFTER `<main>` (a separate
+              flex-row column at the right on `lg+`). Our bottom chrome
+              lives INSIDE <main>, so it never extends under the
+              CopilotPanel — exactly the same containment as
+              `GlobalNewDesktopChrome` at the top.
+            */}
+            <div className="sticky bottom-0 z-30 hidden shrink-0 md:block">
+              <TodayDesktopBottomChrome variant="context" />
+            </div>
           </main>
 
           <CopilotPanel defaultContext={copilotContext} />
 
           {/*
             Single Today mount via `<GlobalTodayChrome>` — same component
-            AppShell uses, fed the legacy-shell sidebar state. Drawer is
-            portalled by vaul; launcher is `position: fixed`. Neither
-            affects ContextShell's three-column geometry.
+            AppShell uses, fed the legacy-shell sidebar state. Mobile
+            drawer is portalled by vaul; launcher is `position: fixed`.
+            The DESKTOP surface lives inline inside <main> above; this
+            component intentionally does NOT mount it.
           */}
           <GlobalTodayChrome
             sidebarCollapsed={sidebarCollapsed}
