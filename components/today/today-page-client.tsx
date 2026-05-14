@@ -152,7 +152,17 @@ export function TodayPageClient() {
         <TodayScheduleStrip items={scheduleItems} />
       ) : null}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/*
+        Workboard grid — desktop wants My work / AI work side by side.
+        We use `lg:grid-cols-2` (≥1024px) instead of `md:` (≥768px) on
+        purpose: between 768 and 1024 the AppShell sidebar (224px expanded)
+        leaves only ~544–800px for the content column, which makes two
+        lane columns feel cramped and unreadable. From `lg` upward there
+        is real breathing room for the four sub-buckets in each lane.
+        Mobile keeps the single-column stack — operators on phones don't
+        try to scan two columns side by side anyway.
+      */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <TodayLaneColumn
           idPrefix="today-mine"
           title="My work"
