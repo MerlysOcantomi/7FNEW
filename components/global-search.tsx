@@ -31,6 +31,9 @@ import {
   UserCircle,
   StickyNote,
   Paperclip,
+  Mail,
+  ListTodo,
+  Calendar,
 } from "lucide-react"
 
 // ── Static quick-links (shown when query is empty) ──────────────────
@@ -65,6 +68,35 @@ interface SearchResults {
   documentos: { id: string; nombre: string; tipo: string; tamano?: number | null; proyecto?: { nombre: string } | null }[]
   notas?: { id: string; titulo: string; clienteId?: string | null; proyectoId?: string | null; cliente?: { nombre: string } | null; proyecto?: { nombre: string } | null }[]
   archivos?: { id: string; nombre: string; module: string; recordId: string }[]
+  conversations?: {
+    id: string
+    channel: string
+    status: string
+    subject: string | null
+    summary: string | null
+    lastMessageAt: string
+    category: string | null
+    contact: { nombre: string | null; email: string | null; empresa: string | null }
+  }[]
+  workspaceTasks?: {
+    id: string
+    title: string
+    status: string
+    priority: string
+    dueAt: string | null
+    conversationId: string | null
+    clienteId: string | null
+    proyectoId: string | null
+    completedAt: string | null
+    sourceLabel: string | null
+  }[]
+  eventos?: {
+    id: string
+    titulo: string
+    tipo: string
+    fechaInicio: string
+    cliente: { nombre: string } | null
+  }[]
 }
 
 interface FlatResult {
@@ -94,40 +126,79 @@ const estadoColors: Record<string, string> = {
   baja: "bg-gray-500/15 text-gray-500",
 }
 
-function flattenResults(data: SearchResults): FlatResult[] {
+function truncate(s: string, max: number) {
+  const t = s.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max - 1)}…`
+}
+
+function formatWhen(iso: string | null | undefined) {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+}
+
+function contactLabel(c: { nombre: string | null; email: string | null; empresa: string | null }) {
+  return c.nombre?.trim() || c.empresa?.trim() || c.email?.trim() || "Contact"
+}
+
+function flattenResults(raw: SearchResults): FlatResult[] {
+  const conversations = raw.conversations ?? []
+  const workspaceTasks = raw.workspaceTasks ?? []
+  const eventos = raw.eventos ?? []
+
   const results: FlatResult[] = []
 
-  for (const c of data.clientes) {
+  for (const cv of conversations) {
+    const title =
+      truncate(cv.subject?.trim() || "", 72) ||
+      truncate(cv.summary?.trim() || "", 72) ||
+      `Conversation · ${contactLabel(cv.contact)}`
+    const subtitleParts = [
+      `${contactLabel(cv.contact)} · ${cv.channel}`,
+      cv.summary ? truncate(cv.summary, 96) : null,
+      formatWhen(cv.lastMessageAt),
+    ].filter(Boolean)
     results.push({
-      id: `cliente-${c.id}`,
-      title: c.nombre,
-      subtitle: c.empresa || "No company",
-      href: `/clientes/${c.id}`,
-      group: "Clients",
-      icon: Users,
-      badge: c.estado,
-      badgeColor: estadoColors[c.estado] || "",
+      id: `conversation-${cv.id}`,
+      title,
+      subtitle: subtitleParts.join(" · "),
+      href: `/inbox?id=${encodeURIComponent(cv.id)}`,
+      group: "Inbox",
+      icon: Mail,
+      badge: cv.category || cv.status,
+      badgeColor:
+        estadoColors[cv.category || ""] ||
+        estadoColors[cv.status] ||
+        "",
     })
   }
 
-  for (const p of data.proyectos) {
+  for (const wt of workspaceTasks) {
+    const due = formatWhen(wt.dueAt || undefined)
+    const subtitleParts = [
+      "Opens Today board (full workspace task)",
+      wt.sourceLabel ? truncate(wt.sourceLabel, 64) : null,
+      due ? `Due ${due}` : null,
+    ].filter(Boolean)
     results.push({
-      id: `proyecto-${p.id}`,
-      title: p.nombre,
-      subtitle: p.cliente?.nombre || "No client",
-      href: `/proyectos/${p.id}`,
-      group: "Projects",
-      icon: FolderKanban,
-      badge: p.estado,
-      badgeColor: estadoColors[p.estado] || "",
+      id: `workspace-task-${wt.id}`,
+      title: wt.title,
+      subtitle: subtitleParts.join(" · "),
+      href: "/today",
+      group: "Today tasks",
+      icon: ListTodo,
+      badge: wt.status,
+      badgeColor: estadoColors[wt.status] || "",
     })
   }
 
-  for (const t of data.tareas) {
+  for (const t of raw.tareas) {
     results.push({
       id: `tarea-${t.id}`,
       title: t.titulo,
-      subtitle: t.proyecto?.nombre || "No project",
+      subtitle: t.proyecto?.nombre || "Legacy task · no project",
       href: `/tareas/${t.id}`,
       group: "Tasks",
       icon: CheckSquare,
@@ -136,7 +207,33 @@ function flattenResults(data: SearchResults): FlatResult[] {
     })
   }
 
-  for (const f of data.facturas) {
+  for (const c of raw.clientes) {
+    results.push({
+      id: `cliente-${c.id}`,
+      title: c.nombre,
+      subtitle: c.empresa || "Client",
+      href: `/clientes/${c.id}`,
+      group: "Clients",
+      icon: Users,
+      badge: c.estado,
+      badgeColor: estadoColors[c.estado] || "",
+    })
+  }
+
+  for (const p of raw.proyectos) {
+    results.push({
+      id: `proyecto-${p.id}`,
+      title: p.nombre,
+      subtitle: p.cliente?.nombre || "Project",
+      href: `/proyectos/${p.id}`,
+      group: "Projects",
+      icon: FolderKanban,
+      badge: p.estado,
+      badgeColor: estadoColors[p.estado] || "",
+    })
+  }
+
+  for (const f of raw.facturas) {
     results.push({
       id: `factura-${f.id}`,
       title: `Invoice ${f.numero}`,
@@ -149,23 +246,28 @@ function flattenResults(data: SearchResults): FlatResult[] {
     })
   }
 
-  for (const d of data.documentos) {
+  for (const ev of eventos) {
     results.push({
-      id: `documento-${d.id}`,
-      title: d.nombre,
-      subtitle: d.proyecto?.nombre || d.tipo,
-      href: `/archivos/${d.id}`,
-      group: "Documents",
-      icon: FolderOpen,
+      id: `evento-${ev.id}`,
+      title: ev.titulo,
+      subtitle: [
+        "Opens Calendar (workspace event)",
+        ev.tipo,
+        formatWhen(ev.fechaInicio),
+        ev.cliente?.nombre || null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: "/calendario",
+      group: "Schedule",
+      icon: Calendar,
+      badge: ev.tipo,
+      badgeColor: "",
     })
   }
 
-  for (const n of data.notas ?? []) {
-    const href = n.clienteId
-      ? `/clientes/${n.clienteId}`
-      : n.proyectoId
-      ? `/proyectos/${n.proyectoId}`
-      : null
+  for (const n of raw.notas ?? []) {
+    const href = n.clienteId ? `/clientes/${n.clienteId}` : n.proyectoId ? `/proyectos/${n.proyectoId}` : null
     if (!href) continue
     results.push({
       id: `nota-${n.id}`,
@@ -177,7 +279,18 @@ function flattenResults(data: SearchResults): FlatResult[] {
     })
   }
 
-  for (const a of data.archivos ?? []) {
+  for (const d of raw.documentos) {
+    results.push({
+      id: `documento-${d.id}`,
+      title: d.nombre,
+      subtitle: d.proyecto?.nombre || d.tipo,
+      href: `/archivos/${d.id}`,
+      group: "Documents",
+      icon: FolderOpen,
+    })
+  }
+
+  for (const a of raw.archivos ?? []) {
     results.push({
       id: `archivo-${a.id}`,
       title: a.nombre,
@@ -229,7 +342,21 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
       const json = await res.json()
       if (json.success && json.data) {
-        setResults(flattenResults(json.data))
+        const d = json.data as SearchResults
+        setResults(
+          flattenResults({
+            clientes: d.clientes ?? [],
+            proyectos: d.proyectos ?? [],
+            tareas: d.tareas ?? [],
+            facturas: d.facturas ?? [],
+            documentos: d.documentos ?? [],
+            notas: d.notas ?? [],
+            archivos: d.archivos ?? [],
+            conversations: d.conversations ?? [],
+            workspaceTasks: d.workspaceTasks ?? [],
+            eventos: d.eventos ?? [],
+          }),
+        )
       } else {
         setResults([])
       }
@@ -356,7 +483,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search clients, projects, tasks, invoices..."
+            placeholder="Search inbox, Today tasks, clients, projects..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
