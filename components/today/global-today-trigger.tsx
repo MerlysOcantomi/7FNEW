@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
+import { useGlobalNew } from "@/components/global-new/use-global-new"
 
 /**
  * Desktop trigger for the global Today surface — visual sibling of
@@ -26,20 +27,33 @@ import { useTodayDrawer } from "@/components/today/today-drawer-provider"
  *
  * Wiring:
  *   - `onClick` toggles `useTodayDrawer().open` directly. The shared
- *     provider drives `TodayDesktopBottomChrome` (desktop panel mounted
- *     sticky-bottom inside `<main>`) and `TodayMobileDrawer` (vaul) — so
- *     this single button drives every Today surface in the shell.
+ *     provider drives `GlobalTodayDesktopChrome` (desktop panel mounted
+ *     sticky-top alongside the New panel) and `TodayMobileDrawer` (vaul)
+ *     — so this single button drives every Today surface in the shell.
+ *   - Cross-link with New: when the user opens Today, we proactively
+ *     close the New panel. Today and New share the sticky-top region
+ *     and only one should ever be visible at a time; relying on
+ *     click-outside alone is fragile because both panels nest inside
+ *     the same container, so we enforce mutual exclusion at the
+ *     trigger level.
  *   - `data-today-trigger="true"` opts the button out of
- *     `TodayDesktopBottomChrome`'s click-outside listener, avoiding the
+ *     `GlobalTodayDesktopChrome`'s click-outside listener, avoiding the
  *     "mousedown closes -> onClick reopens" race when the trigger is
- *     clicked while the panel is open. The guard lives in the chrome
- *     (the orchestrator) — any future Today trigger only needs the
- *     attribute to inherit the behavior.
- *   - `aria-controls="today-bottom-chrome"` points to the panel id (set
- *     in `today-desktop-bottom-chrome.tsx`) for AT users.
+ *     clicked while the panel is open.
+ *   - `aria-controls="today-desktop-chrome"` points to the panel id
+ *     (set in `global-today-desktop-chrome.tsx`) for AT users.
  */
 export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { open, setOpen } = useTodayDrawer()
+  const { closeAll: closeNew } = useGlobalNew()
+
+  const handleClick = () => {
+    const next = !open
+    if (next) {
+      closeNew()
+    }
+    setOpen(next)
+  }
 
   const base =
     variant === "app"
@@ -49,11 +63,11 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
   return (
     <button
       type="button"
-      onClick={() => setOpen(!open)}
+      onClick={handleClick}
       data-today-trigger="true"
       aria-expanded={open}
       aria-haspopup="true"
-      aria-controls="today-bottom-chrome"
+      aria-controls="today-desktop-chrome"
       className={cn(
         "flex cursor-pointer items-center gap-1.5 transition-colors",
         base,

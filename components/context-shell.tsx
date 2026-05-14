@@ -13,10 +13,10 @@ import { NotificationsBell } from "@/components/notifications-bell";
 import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel";
 import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger";
 import { useGlobalNew } from "@/components/global-new/use-global-new";
-import { TodayDrawerProvider } from "@/components/today/today-drawer-provider";
+import { TodayDrawerProvider, useTodayDrawer } from "@/components/today/today-drawer-provider";
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
 import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger";
-import { TodayDesktopBottomChrome } from "@/components/today/today-desktop-bottom-chrome";
+import { GlobalTodayDesktopChrome } from "@/components/today/global-today-desktop-chrome";
 
 export interface BreadcrumbItem {
   label: string;
@@ -39,11 +39,25 @@ export interface ContextShellProps {
   copilotContext?: string;
 }
 
+/**
+ * Top desktop chrome of `ContextShell`.
+ *
+ * Lives inside `<TodayDrawerProvider>` (mounted by `ContextShell` below)
+ * so it can read both `useGlobalNew()` and `useTodayDrawer()` to drive
+ * the toolbar bottom-border highlight when EITHER panel is open.
+ *
+ * Mounts the New + Today desktop panels as siblings inside the same
+ * `sticky top-0` container — both grow DOWN from the toolbar. The
+ * legacy bottom-chrome mount inside `<main>` has been retired so Today
+ * is no longer architecturally inverted from New on desktop.
+ */
 function ContextShellDesktopToolbar() {
   const { openSearch } = useGlobalSearch();
   const { desktopOpen } = useGlobalNew();
+  const { open: todayOpen } = useTodayDrawer();
+  const eitherOpen = desktopOpen || todayOpen;
   /**
-   * Mirrors AppShell's `hideLauncherOnToday`: ContextShell currently never lives
+   * Mirrors AppShell's `hideTodayTrigger`: ContextShell currently never lives
    * under `/today`, but if a future operator routes a Today subview through
    * ContextShell the toolbar trigger automatically disappears there — so we
    * never end up with a "Today" button pointing back at the canonical Today.
@@ -52,34 +66,43 @@ function ContextShellDesktopToolbar() {
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
 
   return (
-    <GlobalNewDesktopChrome variant="context">
-      <div
-        className={cn(
-          "flex shrink-0 items-center justify-end gap-2 border-b bg-[#F8FAFC] px-5 py-2.5 transition-colors md:px-8",
-          desktopOpen ? "border-[#CBD5E1]" : "border-transparent",
-        )}
-      >
-        {/*
-          Today first, New second — same global action order as AppShell so
-          the operator never has to relearn the toolbar between detail and
-          workspace routes.
-        */}
-        {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="context" />}
-        <GlobalNewTriggerDesktop variant="context" />
-        <button
-          type="button"
-          onClick={openSearch}
-          className="hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex"
+    <>
+      <GlobalNewDesktopChrome variant="context">
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-end gap-2 border-b bg-[#F8FAFC] px-5 py-2.5 transition-colors md:px-8",
+            eitherOpen ? "border-[#CBD5E1]" : "border-transparent",
+          )}
         >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="w-32 text-left lg:w-48">Search...</span>
-          <kbd className="ml-auto rounded border border-[#E2E8F0] px-1 py-0.5 font-mono text-[10px] text-[#94A3B8]">
-            Ctrl+K
-          </kbd>
-        </button>
-        <NotificationsBell />
-      </div>
-    </GlobalNewDesktopChrome>
+          {/*
+            Today first, New second — same global action order as AppShell so
+            the operator never has to relearn the toolbar between detail and
+            workspace routes.
+          */}
+          {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="context" />}
+          <GlobalNewTriggerDesktop variant="context" />
+          <button
+            type="button"
+            onClick={openSearch}
+            className="hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex"
+          >
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            <span className="w-32 text-left lg:w-48">Search...</span>
+            <kbd className="ml-auto rounded border border-[#E2E8F0] px-1 py-0.5 font-mono text-[10px] text-[#94A3B8]">
+              Ctrl+K
+            </kbd>
+          </button>
+          <NotificationsBell />
+        </div>
+      </GlobalNewDesktopChrome>
+      {/*
+        Today desktop chrome — sibling of `GlobalNewDesktopChrome` inside
+        the same sticky-top container. Panel hangs from the toolbar and
+        grows DOWN, identical recipe to the New panel. The previous
+        sticky-bottom mount inside `<main>` has been retired.
+      */}
+      <GlobalTodayDesktopChrome variant="context" />
+    </>
   );
 }
 
@@ -101,14 +124,10 @@ export function ContextShell({
    * detail routes (`/clientes/[id]`, `/proyectos/[id]`, `/facturacion/[id]`),
    * none of which live under `/today`, so this guard is a no-op today. It
    * exists so a future operator can route `/today/*` through ContextShell
-   * without having to remember to hide the launcher.
-   *
-   * The drawer's open/close state is owned by `<TodayDrawerProvider>` (see
-   * `components/today/today-drawer-provider.tsx`); ContextShell only feeds
-   * visibility + sidebar metrics into the chrome.
+   * without having to remember to hide the Today surfaces.
    */
   const pathname = usePathname();
-  const hideLauncherOnToday = pathname === "/today" || pathname.startsWith("/today/");
+  const hideTodaySurfaces = pathname === "/today" || pathname.startsWith("/today/");
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
@@ -200,40 +219,18 @@ export function ContextShell({
             <div className="min-h-0 flex-1 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
               {children(activeTab)}
             </div>
-
-            {/*
-              Today desktop bottom chrome — mirror of
-              `<GlobalNewDesktopChrome>` at the top of <main>, anchored at
-              the bottom of the workspace scrollport.
-
-              `variant="context"` selects the light slate tokens
-              (`#F8FAFC` surface, `#0F172A` text) so the panel reads as
-              an extension of the ContextShell surface, not a stark dark
-              band inside a light layout.
-
-              The CopilotPanel is a sibling AFTER `<main>` (a separate
-              flex-row column at the right on `lg+`). Our bottom chrome
-              lives INSIDE <main>, so it never extends under the
-              CopilotPanel — exactly the same containment as
-              `GlobalNewDesktopChrome` at the top.
-            */}
-            <div className="sticky bottom-0 z-30 hidden shrink-0 md:block">
-              <TodayDesktopBottomChrome variant="context" />
-            </div>
           </main>
 
           <CopilotPanel defaultContext={copilotContext} />
 
           {/*
-            Single Today mount via `<GlobalTodayChrome>` — same component
-            AppShell uses, fed the legacy-shell sidebar state. Mobile
-            drawer is portalled by vaul; launcher is `position: fixed`.
-            The DESKTOP surface lives inline inside <main> above; this
-            component intentionally does NOT mount it.
+            Single Today mount via `<GlobalTodayChrome>` — only mounts the
+            mobile vaul drawer. Desktop Today surface lives inline in the
+            top sticky container above (see `ContextShellDesktopToolbar`).
           */}
           <GlobalTodayChrome
             sidebarCollapsed={sidebarCollapsed}
-            hidden={hideLauncherOnToday}
+            hidden={hideTodaySurfaces}
           />
         </div>
         </TodayDrawerProvider>

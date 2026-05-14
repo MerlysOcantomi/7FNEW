@@ -40,7 +40,7 @@ export type TodayQuickTone = "canvas" | "light"
  *   - The fetch lifecycle (data hook lives in `today-quick-data.ts`).
  *   - The chrome around it (title, close button, "Open full Today"
  *     link). Each surface (`TodayMobileDrawer`,
- *     `TodayDesktopBottomChrome`, future stack / side-by-side
+ *     `GlobalTodayDesktopChrome`, future stack / side-by-side
  *     wrappers) owns its own chrome.
  *
  * That split is what makes this content reusable across all the

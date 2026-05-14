@@ -3,9 +3,26 @@
 import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGlobalNew } from "./global-new-provider"
+import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 
 export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context" }) {
-  const { desktopOpen, toggleDesktop } = useGlobalNew()
+  const { desktopOpen, setDesktopOpen } = useGlobalNew()
+  /**
+   * Cross-link with Today: when the user opens New, we proactively
+   * close the Today panel. New and Today share the sticky-top region
+   * (both grow DOWN from the toolbar) and only one should ever be
+   * visible at a time. `useTodayDrawer()` falls back to a noop store
+   * outside a provider, so this stays safe on any future legacy mount.
+   */
+  const { closeToday } = useTodayDrawer()
+
+  const handleClick = () => {
+    const next = !desktopOpen
+    if (next) {
+      closeToday()
+    }
+    setDesktopOpen(next)
+  }
 
   const base =
     variant === "app"
@@ -15,7 +32,7 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
   return (
     <button
       type="button"
-      onClick={toggleDesktop}
+      onClick={handleClick}
       aria-expanded={desktopOpen}
       aria-haspopup="true"
       className={cn(

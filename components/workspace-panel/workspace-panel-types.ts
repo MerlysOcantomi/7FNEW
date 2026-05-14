@@ -1,14 +1,15 @@
 /**
  * Shared types for the Global Workspace Panel layer.
  *
- * Status as of the Today bottom-chrome PR:
+ * Status as of the Today top-chrome PR:
  *   Today no longer renders through `WorkspacePanelSurface` /
  *   `WorkspacePanelBackdrop`. The desktop Today quick view is now
  *   an INLINE shell chrome (see
- *   `components/today/today-desktop-bottom-chrome.tsx`) that mirrors
- *   `GlobalNewDesktopChrome` architecturally — no portal, no scrim,
- *   no scroll lock, no focus trap. That change made Today feel like
- *   part of the workspace shell rather than a modal layered on top.
+ *   `components/today/global-today-desktop-chrome.tsx`) that hangs
+ *   from the top toolbar as a visual sibling of
+ *   `GlobalNewDesktopChrome` — no portal, no scrim, no scroll lock,
+ *   no focus trap. That change made Today feel like part of the
+ *   workspace shell rather than a modal layered on top.
  *
  *   These types and their consumers
  *   (`WorkspacePanelSurface` / `WorkspacePanelBackdrop`) are kept in
