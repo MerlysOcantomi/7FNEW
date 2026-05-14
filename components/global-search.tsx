@@ -59,6 +59,13 @@ const quickLinks = [
   { label: "Users", href: "/usuarios", icon: UserCircle, keywords: "team members roles" },
 ]
 
+const EXAMPLE_SEARCH_CHIPS = [
+  "Ana factura",
+  "contrato Carlos",
+  "cita mañana",
+  "propuesta",
+] as const
+
 // ── Types ───────────────────────────────────────────────────────────
 interface SearchResults {
   clientes: { id: string; nombre: string; empresa?: string | null; estado: string }[]
@@ -165,7 +172,7 @@ function flattenResults(raw: SearchResults): FlatResult[] {
       title,
       subtitle: subtitleParts.join(" · "),
       href: `/inbox?id=${encodeURIComponent(cv.id)}`,
-      group: "Inbox",
+      group: "Inbox conversations",
       icon: Mail,
       badge: cv.category || cv.status,
       badgeColor:
@@ -380,14 +387,19 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   }, [query, searchApi])
 
   // Filtered quick links when no query
-  const filteredLinks = query.length === 0
-    ? quickLinks
-    : query.length < 2
-    ? quickLinks.filter(r =>
-        r.label.toLowerCase().includes(query.toLowerCase()) ||
-        r.keywords.toLowerCase().includes(query.toLowerCase())
-      )
-    : []
+  const filteredLinks = useMemo(
+    () =>
+      query.length === 0
+        ? quickLinks
+        : query.length < 2
+          ? quickLinks.filter(
+              (r) =>
+                r.label.toLowerCase().includes(query.toLowerCase()) ||
+                r.keywords.toLowerCase().includes(query.toLowerCase()),
+            )
+          : [],
+    [query],
+  )
 
   // Combined items for keyboard navigation
   const displayMode: "links" | "results" = query.length >= 2 ? "results" : "links"
@@ -475,18 +487,22 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[12vh] p-4">
-      <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-foreground/[0.12] backdrop-blur-[6px]"
+        onClick={onClose}
+      />
+      <div className="relative z-[1] w-full max-w-xl overflow-hidden rounded-xl border border-border/80 bg-card shadow-[0_14px_50px_-12px_rgba(0,0,0,0.14)] animate-in fade-in zoom-in-[0.985] duration-150 ring-1 ring-black/[0.04] dark:shadow-[0_18px_55px_-14px_rgba(0,0,0,0.55)] dark:ring-white/[0.06]">
         {/* Search input */}
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <div className="flex items-center gap-3 border-b border-border/90 bg-muted/25 px-4 py-2.5 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.06)] dark:shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.06)]">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search inbox, Today tasks, clients, projects..."
+            placeholder="Search messages, tasks, clients, invoices..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            className="flex-1 bg-transparent text-sm leading-snug text-foreground outline-none placeholder:text-muted-foreground/80"
           />
           {loading && <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />}
           <button
@@ -501,35 +517,65 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         {/* Results */}
         <div ref={listRef} className="max-h-[50vh] overflow-y-auto">
           {displayMode === "links" ? (
-            /* Quick links mode */
-            <div className="p-2">
+            <div className="space-y-3 p-3">
+              {query.length === 0 && (
+                <div className="rounded-lg border border-border/70 bg-muted/35 px-4 py-3 shadow-sm">
+                  <h2 className="text-[13px] font-semibold tracking-tight text-foreground">
+                    Search your workspace
+                  </h2>
+                  <p className="mt-1 max-w-none text-[12px] leading-relaxed text-muted-foreground">
+                    Find inbox conversations, Today tasks, clients, projects, invoices, events and files.
+                  </p>
+                  <div
+                    className="mt-3 flex flex-wrap gap-2"
+                    role="group"
+                    aria-label="Example workspace searches"
+                  >
+                    {EXAMPLE_SEARCH_CHIPS.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          setQuery(chip)
+                          setTimeout(() => inputRef.current?.focus(), 0)
+                        }}
+                        className="rounded-md border border-border/90 bg-background/80 px-2.5 py-1 text-left text-[11px] font-medium leading-tight text-foreground/85 shadow-sm transition-colors hover:bg-accent/55 hover:border-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-[0.5px]"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {filteredLinks.length > 0 ? (
                 <>
-                  <div className="px-3 py-1.5">
+                  <div className="px-1 pb-0.5 pt-0">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      {query.length === 0 ? "Quick navigation" : "Pages"}
+                      Quick navigation
                     </span>
                   </div>
-                  {filteredLinks.map((route, i) => {
-                    const Icon = route.icon
-                    return (
-                      <Link
-                        key={route.href}
-                        href={route.href}
-                        onClick={onClose}
-                        data-active={i === activeIndex}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                          i === activeIndex
-                            ? "bg-accent text-foreground"
-                            : "text-foreground/80 hover:bg-accent/50"
-                        )}
-                      >
-                        <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span>{route.label}</span>
-                      </Link>
-                    )
-                  })}
+                  <div className="flex flex-col gap-0.5">
+                    {filteredLinks.map((route, i) => {
+                      const Icon = route.icon
+                      return (
+                        <Link
+                          key={route.href}
+                          href={route.href}
+                          onClick={onClose}
+                          data-active={i === activeIndex}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                            i === activeIndex
+                              ? "bg-accent text-foreground shadow-sm ring-1 ring-border/70"
+                              : "text-foreground/85 hover:bg-muted/55",
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{route.label}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
                 </>
               ) : (
                 <EmptyState query={query} />
@@ -564,13 +610,13 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                           onClick={onClose}
                           data-active={idx === activeIndex}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors group",
+                            "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                             idx === activeIndex
-                              ? "bg-accent text-foreground"
-                              : "text-foreground/80 hover:bg-accent/50"
+                              ? "bg-accent text-foreground shadow-sm ring-1 ring-border/60"
+                              : "text-foreground/85 hover:bg-muted/55",
                           )}
                         >
-                          <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
                             <div className="truncate font-medium">{item.title}</div>
                             <div className="truncate text-xs text-muted-foreground">{item.subtitle}</div>
@@ -598,7 +644,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         </div>
 
         {/* Footer with keyboard hints */}
-        <div className="border-t border-border px-4 py-2 flex items-center gap-4">
+        <div className="flex items-center gap-4 border-t border-border/90 px-4 py-2">
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <kbd className="px-1 py-0.5 rounded border border-border bg-background text-[10px] font-mono">↑</kbd>
             <kbd className="px-1 py-0.5 rounded border border-border bg-background text-[10px] font-mono">↓</kbd>
