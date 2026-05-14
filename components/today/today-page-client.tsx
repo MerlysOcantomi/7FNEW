@@ -148,21 +148,44 @@ export function TodayPageClient() {
     <div className="flex flex-col gap-6">
       <TodayWorkboardHeader counts={counts} />
 
-      {scheduleItems.length > 0 ? (
-        <TodayScheduleStrip items={scheduleItems} />
-      ) : null}
-
       {/*
-        Workboard grid — desktop wants My work / AI work side by side.
-        We use `lg:grid-cols-2` (≥1024px) instead of `md:` (≥768px) on
-        purpose: between 768 and 1024 the AppShell sidebar (224px expanded)
-        leaves only ~544–800px for the content column, which makes two
-        lane columns feel cramped and unreadable. From `lg` upward there
-        is real breathing room for the four sub-buckets in each lane.
-        Mobile keeps the single-column stack — operators on phones don't
-        try to scan two columns side by side anyway.
+        Workboard grid — three equal columns on desktop:
+
+          ┌──────────────┬──────────────┬──────────────┐
+          │ My work      │ AI work      │ Schedule     │
+          ├──────────────┼──────────────┼──────────────┤
+          │ Overdue      │ Overdue      │ 09:00 ...    │
+          │ Due today    │ Due today    │ 12:30 ...    │
+          │ Waiting      │ Waiting      │ 16:00 ...    │
+          │ No date      │ No date      │              │
+          └──────────────┴──────────────┴──────────────┘
+
+        Schedule used to live as a horizontal strip ABOVE the lanes;
+        promoting it to a third column matches the operator's mental
+        model — work, AI work, time-anchored commitments are three
+        equal lanes of the daily plan.
+
+        Breakpoints:
+          - mobile / small (<lg): single-column stack, schedule LAST
+            so the operator sees their work first and the calendar
+            after a swipe (matches phone scanning patterns).
+          - lg (≥1024px): three columns. On the AppShell (sidebar
+            ~224px) at `max-w-7xl` the content column is ~1056px,
+            giving each lane ~336px — comfortable for the four
+            sub-buckets / event cards.
+
+        The Schedule column renders only when there are events; when
+        empty it collapses entirely so My work + AI work get a wider
+        2-of-3 layout via the explicit `lg:col-span-*` modifiers
+        below. (Plain CSS grid would otherwise leave a blank third
+        column — feels like a layout bug to the operator.)
       */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div
+        className={cn(
+          "grid gap-6",
+          scheduleItems.length > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2",
+        )}
+      >
         <TodayLaneColumn
           idPrefix="today-mine"
           title="My work"
@@ -185,6 +208,9 @@ export function TodayPageClient() {
           onLaneMove={handleLaneMove}
           accent="ai"
         />
+        {scheduleItems.length > 0 ? (
+          <TodayScheduleColumn items={scheduleItems} />
+        ) : null}
       </div>
     </div>
   )
@@ -285,36 +311,44 @@ function StatTile({
   )
 }
 
-// ─── Schedule strip ────────────────────────────────────────────────────────
+// ─── Schedule column ───────────────────────────────────────────────────────
 
 /**
- * Schedule section. Displays today's calendar events above the
- * workboard so the day's time-anchored commitments are visible
- * before the operator dives into the lanes. Reuses the existing
- * `TodayEventCard` so style stays consistent with the drawer.
+ * Schedule lane. Renders today's calendar events as the third column
+ * of the workboard grid (same visual shell as `TodayLaneColumn` so
+ * the three lanes read as siblings rather than a strip + two cards).
  *
- * Conscious choice: events render in a single-column stack on
- * desktop too (no horizontal carousel). Most workspaces have 0–5
- * events on any given day; a horizontal strip would feel empty most
- * of the time and would require its own a11y / overflow handling.
+ * The events stack vertically inside the column so the visual
+ * pattern matches My work / AI work — short list of event cards
+ * mirroring the short list of sub-buckets the lanes show. Reuses
+ * `TodayEventCard` so the row style stays in lock-step with the
+ * mobile drawer and the bottom chrome.
+ *
+ * Hidden by the parent when `scheduleItems.length === 0` — the grid
+ * collapses to two columns in that case.
  */
-function TodayScheduleStrip({ items }: { items: TodayPayload["buckets"]["today"] }) {
+function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"] }) {
   return (
     <section
       aria-label="Schedule"
-      className="flex flex-col gap-3 rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4"
+      className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4"
     >
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <header className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
           >
-            <CalendarClock size={13} strokeWidth={2} />
+            <CalendarClock size={13} strokeWidth={2} aria-hidden="true" />
           </span>
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-            Schedule
-          </h2>
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
+              Schedule
+            </h2>
+            <p className="text-[11px] leading-snug text-[var(--text-secondary-light)]">
+              Calendar events anchored to today
+            </p>
+          </div>
         </div>
         <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
           {items.length}
