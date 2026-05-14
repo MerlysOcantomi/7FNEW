@@ -56,17 +56,31 @@ export function GlobalTodayChrome({
    *   - Always hidden when the parent shell asks (e.g. on the full
    *     `/today` route — that page is the canonical Today surface,
    *     a floating launcher on top of it would be visual noise).
-   *   - Hidden when Today is open on DESKTOP. The bottom chrome owns
-   *     the visual focus; keeping the launcher visible would also
-   *     create a click-outside race (mousedown on the launcher would
-   *     close the panel via the chrome's outside listener, then
-   *     re-open via the launcher's onClick → no-op flicker).
-   *   - NOT hidden when Today is open on MOBILE. vaul already paints
-   *     the bottom sheet over the launcher area, so the launcher is
-   *     naturally occluded; explicitly hiding it would re-trigger
-   *     the launcher's `aria-hidden` flow on every drawer toggle.
+   *   - Always hidden on DESKTOP. Today is now a first-class global
+   *     action with a dedicated toolbar trigger
+   *     (`GlobalTodayTriggerDesktop`), visual sibling of New. Two
+   *     entry points (toolbar AND floating launcher) compete for the
+   *     same intent and break the rule "Today vive arriba como
+   *     trabajo diario, no abajo" — so on desktop the launcher is
+   *     retired as the primary affordance. The bottom chrome
+   *     (`TodayDesktopBottomChrome`) is unchanged and remains the
+   *     surface that opens.
+   *   - On MOBILE the launcher stays for now: the mobile header has
+   *     its own `GlobalTodayTriggerMobile` icon, but keeping the
+   *     bottom pill avoids a behavior regression while the mobile
+   *     header is still settling in. Retiring the mobile launcher
+   *     can be a follow-up once usage analytics confirm the header
+   *     trigger is sufficient. vaul already paints the drawer over
+   *     the launcher area when open, so there's no visual conflict.
+   *
+   * `useIsMobile()` returns `false` during SSR; that means the
+   * launcher renders hidden on the very first server pass and
+   * reveals on hydration only on actual mobile breakpoints. This is
+   * safe because (a) on desktop the launcher must stay hidden, and
+   * (b) the mobile header trigger is visible from the first render
+   * via plain CSS, so the operator always has a Today entry point.
    */
-  const launcherHidden = hidden || (open && !isMobile)
+  const launcherHidden = hidden || !isMobile
 
   return (
     <>

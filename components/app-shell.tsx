@@ -13,6 +13,7 @@ import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trig
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { TodayDrawerProvider } from "@/components/today/today-drawer-provider"
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome"
+import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger"
 import { TodayDesktopBottomChrome } from "@/components/today/today-desktop-bottom-chrome"
 
 interface AppShellProps {
@@ -86,6 +87,15 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
                   desktopOpen ? "border-b border-[var(--border-dark)]" : "border-b border-transparent",
                 )}
               >
+                {/*
+                  Today is the first global action — daily-work surface, mounted
+                  BEFORE New (capture surface) so the operator's eye lands on
+                  "what do I have to do today" before "what should I create".
+                  Hidden on /today itself (operator is already on the canonical
+                  Today surface; a toolbar trigger pointing back at the same
+                  thing is pure noise — same rule as the floating launcher).
+                */}
+                {!hideLauncherOnToday && <GlobalTodayTriggerDesktop variant="app" />}
                 <GlobalNewTriggerDesktop variant="app" />
                 <button
                   type="button"

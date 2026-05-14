@@ -10,12 +10,21 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
  * convenience helpers `openToday` / `closeToday` exist for call sites that
  * only need one direction (typically a button) — they make intent explicit
  * at the call site instead of every caller having to know the boolean.
+ *
+ * `available` is `true` only when consumed inside a real provider. It
+ * lets call sites that live in unknown territory — most importantly
+ * `MobileSidebarNav`, which is rendered both inside the workspace shells
+ * (provider available) AND directly by un-shelled legacy pages where the
+ * provider is owned by `LegacyTodayChrome` further down the tree
+ * (provider NOT visible from MobileSidebarNav) — fall back to a direct
+ * `/today` navigation instead of clicking a silently no-op button.
  */
 export interface TodayDrawerContextValue {
   open: boolean
   setOpen: (open: boolean) => void
   openToday: () => void
   closeToday: () => void
+  available: boolean
 }
 
 /**
@@ -24,12 +33,16 @@ export interface TodayDrawerContextValue {
  * so legacy / public routes that aren't wrapped (login, customer portal,
  * /widget/chat) can still mount the chrome safely — they just won't be
  * able to open anything, which matches user expectations there.
+ *
+ * `available: false` is the explicit signal that no provider was found,
+ * so triggers can pick a graceful fallback (e.g. navigate to `/today`).
  */
 const noopContext: TodayDrawerContextValue = {
   open: false,
   setOpen: () => {},
   openToday: () => {},
   closeToday: () => {},
+  available: false,
 }
 
 const TodayDrawerContext = createContext<TodayDrawerContextValue>(noopContext)
@@ -70,7 +83,7 @@ export function TodayDrawerProvider({ children }: { children: React.ReactNode })
    * the value object exposes it directly.
    */
   const value = useMemo<TodayDrawerContextValue>(
-    () => ({ open, setOpen, openToday, closeToday }),
+    () => ({ open, setOpen, openToday, closeToday, available: true }),
     [open, openToday, closeToday],
   )
 

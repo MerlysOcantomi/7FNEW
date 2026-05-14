@@ -50,6 +50,7 @@ import type { EntityVocabulary } from "@core/personalization";
 import { DEFAULT_VOCABULARY } from "@core/personalization";
 import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigger";
 import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
+import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
@@ -884,6 +885,14 @@ export function MobileSidebarNav() {
   /** Same focused-mode rule as desktop: when on /inbox we render InboxFocusedNav inside the sheet. */
   const focused = isInboxFocusedPath(pathname);
 
+  /**
+   * Hide the Today header trigger on `/today` itself — the operator is
+   * already on the canonical Today surface, an icon-only button pointing
+   * back at the same page is noise. Mirrors the desktop toolbar gate and
+   * the floating launcher's existing rule.
+   */
+  const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
+
   return (
     <>
       <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[var(--app-sidebar-bg)] sticky top-0 z-50">
@@ -893,7 +902,15 @@ export function MobileSidebarNav() {
           </div>
           <span className="text-white font-semibold text-sm">7F</span>
         </div>
+        {/*
+          Header action order: Today | New | Search | Menu.
+          Today is the daily-work surface and goes first so the operator's
+          first tap of the day is one motion. New keeps its capture role
+          right after. Search and Menu close the row.
+        */}
         <div className="flex items-center gap-0.5">
+          {!hideTodayTrigger && <GlobalTodayTriggerMobile />}
+          <GlobalNewTriggerMobile />
           <button
             onClick={openSearch}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
@@ -901,7 +918,6 @@ export function MobileSidebarNav() {
           >
             <Search size={20} />
           </button>
-          <GlobalNewTriggerMobile />
           <button
             onClick={() => setOpen(true)}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"

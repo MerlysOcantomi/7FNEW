@@ -15,6 +15,7 @@ import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trig
 import { useGlobalNew } from "@/components/global-new/use-global-new";
 import { TodayDrawerProvider } from "@/components/today/today-drawer-provider";
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
+import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger";
 import { TodayDesktopBottomChrome } from "@/components/today/today-desktop-bottom-chrome";
 
 export interface BreadcrumbItem {
@@ -41,6 +42,14 @@ export interface ContextShellProps {
 function ContextShellDesktopToolbar() {
   const { openSearch } = useGlobalSearch();
   const { desktopOpen } = useGlobalNew();
+  /**
+   * Mirrors AppShell's `hideLauncherOnToday`: ContextShell currently never lives
+   * under `/today`, but if a future operator routes a Today subview through
+   * ContextShell the toolbar trigger automatically disappears there — so we
+   * never end up with a "Today" button pointing back at the canonical Today.
+   */
+  const pathname = usePathname();
+  const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
 
   return (
     <GlobalNewDesktopChrome variant="context">
@@ -50,6 +59,12 @@ function ContextShellDesktopToolbar() {
           desktopOpen ? "border-[#CBD5E1]" : "border-transparent",
         )}
       >
+        {/*
+          Today first, New second — same global action order as AppShell so
+          the operator never has to relearn the toolbar between detail and
+          workspace routes.
+        */}
+        {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="context" />}
         <GlobalNewTriggerDesktop variant="context" />
         <button
           type="button"

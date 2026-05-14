@@ -118,9 +118,25 @@ export function TodayDesktopBottomChrome({
   // Matches `GlobalNewDesktopChrome`. Listener is only registered
   // while the desktop panel is open — when closed there is nothing
   // to dismiss.
+  //
+  // Guard for Today triggers (`[data-today-trigger]`):
+  //   The toolbar Today button (`GlobalTodayTriggerDesktop`) lives
+  //   OUTSIDE this chrome's `ref` (the panel is sticky-bottom of
+  //   `<main>`, the trigger is in the top toolbar). Without the
+  //   guard, clicking the trigger while the panel is open would
+  //   fire the click-outside listener on `mousedown` (closing the
+  //   panel), then the button's `onClick` would toggle from the
+  //   stale captured `open=true` and call `setOpen(false)` again —
+  //   net effect closes correctly, but the path is brittle and
+  //   leaves no room for "click-trigger-to-toggle" to ever mean
+  //   anything else. Skipping clicks that originate inside any
+  //   element with `data-today-trigger` lets the trigger own the
+  //   toggle and keeps the chrome's outside-dismiss policy explicit.
   useEffect(() => {
     if (!isOpenOnDesktop) return
     function handle(e: MouseEvent) {
+      const target = e.target as Element | null
+      if (target?.closest?.("[data-today-trigger]")) return
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
       }
@@ -235,7 +251,20 @@ export function TodayDesktopBottomChrome({
       : "relative z-30 hidden shrink-0 md:block"
 
   return (
-    <div ref={ref} className={wrapperClass} data-today-bottom-chrome>
+    <div
+      ref={ref}
+      /**
+       * `id` is the target of the toolbar trigger's `aria-controls`. We
+       * only set it for the in-main placement because that's the variant
+       * shells mount alongside the toolbar trigger; the `viewport-fixed`
+       * legacy chrome has no matching trigger today and we don't want to
+       * risk duplicate IDs if a legacy page ever ends up wrapping a
+       * shelled subtree.
+       */
+      id={placement === "main-bottom" ? "today-bottom-chrome" : undefined}
+      className={wrapperClass}
+      data-today-bottom-chrome
+    >
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
