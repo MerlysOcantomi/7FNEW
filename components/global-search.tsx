@@ -503,18 +503,31 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[11vh] p-4">
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[var(--app-canvas)]/78 backdrop-blur-[3px]"
+        className="absolute inset-0 backdrop-blur-[4px]"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--app-canvas) 76%, rgb(8 6 14))",
+        }}
         onClick={onClose}
       />
       <div
-        className="relative z-[1] w-full max-w-xl animate-in fade-in zoom-in-[0.99] duration-150"
+        className="relative z-[1] isolate w-full max-w-xl animate-in fade-in zoom-in-[0.99] duration-150 [color-scheme:dark]"
         role="dialog"
         aria-modal="true"
         aria-label="Workspace search"
       >
-        <div className="overflow-hidden rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-[0_22px_60px_-12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(124,77,255,0.14)_inset]">
+        <div
+          className="overflow-hidden rounded-xl border border-[var(--border-dark)] text-[var(--text-primary-light)] ring-1 ring-[var(--accent-primary)]/14"
+          style={{
+            backgroundColor: "var(--app-surface-dark)",
+            boxShadow:
+              "0 24px 64px -14px rgba(0,0,0,0.58), inset 0 1px 0 0 rgba(124, 77, 255, 0.12), inset 0 0 0 1px rgba(255,255,255,0.035)",
+          }}
+        >
         {/* Search input — elevated chrome strip */}
-        <div className="flex items-center gap-3 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-2 shadow-[inset_0_-1px_0_0_rgba(124,77,255,0.06)]">
+        <div
+          className="flex items-center gap-3 border-b border-[var(--border-dark)] px-3.5 py-2"
+          style={{ backgroundColor: "var(--app-surface-dark-elevated)" }}
+        >
           <Search className="h-[15px] w-[15px] shrink-0 text-[var(--accent-primary)] opacity-90" aria-hidden />
           <input
             ref={inputRef}
@@ -542,17 +555,23 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[min(52vh,520px)] overflow-y-auto bg-[var(--app-surface-dark)]">
+        <div
+          ref={listRef}
+          className="max-h-[min(52vh,520px)] overflow-y-auto"
+          style={{ backgroundColor: "var(--app-surface-dark)" }}
+        >
           {displayMode === "links" ? (
             <div className="space-y-3 p-3">
               {query.length === 0 && (
-                <div className="rounded-lg border border-[var(--border-dark)] bg-white/[0.025] px-3.5 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
-                  <div className="flex gap-2.5">
+                <>
+                  {/* Integrated intro — no inner “white card”: sits on shell surface */}
+                  <div className="border-b border-[var(--border-dark)] pb-3 pt-1">
+                  <div className="flex gap-2.5 px-1">
                     <span
-                      className="mt-0.5 h-9 w-0.5 shrink-0 rounded-full bg-[var(--accent-primary)]/70"
+                      className="mt-1 h-[2.875rem] w-px shrink-0 rounded-full bg-[var(--accent-primary)]/55 shadow-[0_0_14px_rgb(124_77_255/0.35)]"
                       aria-hidden
                     />
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pt-0.5">
                       <h2 className="text-[13px] font-semibold tracking-tight text-[var(--text-primary-light)]">
                         Search your workspace
                       </h2>
@@ -574,9 +593,9 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                             }}
                             className={cn(
                               "rounded-md border px-2.5 py-1 text-left text-[11px] font-medium leading-tight transition-colors",
-                              "border-[var(--border-dark)] bg-white/[0.04] text-[var(--text-primary-light)]",
-                              "hover:border-[var(--accent-primary)]/35 hover:bg-[var(--accent-primary)]/12",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface-dark)] active:translate-y-px",
+                              "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-primary-light)] max-sm:w-full max-sm:basis-[46%]",
+                              "hover:border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)]/14",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface-dark)] active:translate-y-px",
                             )}
                           >
                             {chip}
@@ -585,7 +604,8 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                       </div>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </>
               )}
               {filteredLinks.length > 0 ? (
                 <>
@@ -682,7 +702,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         </div>
 
         {/* Footer with keyboard hints */}
-        <div className="flex items-center gap-4 border-t border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-1.5">
+        <div
+          className="flex items-center gap-4 border-t border-[var(--border-dark)] px-3.5 py-1.5"
+          style={{ backgroundColor: "var(--app-surface-dark-elevated)" }}
+        >
           <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary-light)]">
             <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">↑</kbd>
             <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">↓</kbd>
