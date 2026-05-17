@@ -56,8 +56,8 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-      <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, value)}%` }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+      <div className="h-full rounded-full bg-[var(--accent-primary)]" style={{ width: `${Math.min(100, value)}%` }} />
     </div>
   );
 }
@@ -125,7 +125,7 @@ export default function ProyectosPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--app-shell-bg)] font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
@@ -133,6 +133,7 @@ export default function ProyectosPage() {
         <PageHeader
           eyebrow="Core"
           title="Projects"
+          tone="canvas"
           actions={
             <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />
@@ -160,30 +161,35 @@ export default function ProyectosPage() {
           {/* Search + Filters */}
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary-light)]" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search projects or clients..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] focus:outline-none focus:border-[var(--accent-primary)]/50 transition-colors"
               />
             </div>
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[130px] justify-between"
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)]/45 transition-colors min-w-[130px] justify-between"
               >
                 <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
-                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", statusOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg overflow-hidden min-w-[130px]">
                   {ESTADO_OPTIONS.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt.value ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
+                      className={cn(
+                        "w-full text-left px-4 py-2 text-sm transition-colors",
+                        statusFilter === opt.value
+                          ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]"
+                          : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
+                      )}
                     >
                       {opt.label}
                     </button>
@@ -194,18 +200,23 @@ export default function ProyectosPage() {
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[130px] justify-between"
+                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)]/45 transition-colors min-w-[130px] justify-between"
               >
                 <span>{PRIORIDAD_OPTIONS.find((o) => o.value === priorityFilter)?.label ?? "Priority"}</span>
-                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", priorityOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", priorityOpen && "rotate-180")} />
               </button>
               {priorityOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg overflow-hidden min-w-[130px]">
                   {PRIORIDAD_OPTIONS.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setPriorityFilter(opt.value); setPriorityOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", priorityFilter === opt.value ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
+                      className={cn(
+                        "w-full text-left px-4 py-2 text-sm transition-colors",
+                        priorityFilter === opt.value
+                          ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]"
+                          : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
+                      )}
                     >
                       {opt.label}
                     </button>
@@ -217,14 +228,14 @@ export default function ProyectosPage() {
 
           {/* Projects List */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">All projects</h2>
-              <span className="text-xs text-muted-foreground">{proyectos.length} project{proyectos.length !== 1 ? "s" : ""}</span>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-widest">All projects</h2>
+              <span className="text-xs text-[var(--text-secondary-light)]">{proyectos.length} project{proyectos.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--text-secondary-light)]" />
               </div>
             ) : error ? (
               <div className="bg-destructive/5 rounded-xl border border-destructive/20 p-8 text-center">
@@ -233,10 +244,10 @@ export default function ProyectosPage() {
                 <p className="text-xs text-destructive/80 mt-1">Projects could not be loaded</p>
               </div>
             ) : proyectos.length === 0 ? (
-              <div className="bg-card rounded-xl border border-border p-16 text-center">
-                <FolderKanban className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-sm font-medium text-foreground">No projects yet</p>
-                <p className="text-xs text-muted-foreground mt-1">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-16 text-center">
+                <FolderKanban className="mx-auto h-12 w-12 text-[var(--text-secondary-light)] mb-4" />
+                <p className="text-sm font-medium text-[var(--text-primary-light)]">No projects yet</p>
+                <p className="text-xs text-[var(--text-secondary-light)] mt-1">
                   {search || statusFilter || priorityFilter ? "No results for the selected filters." : "Create your first project to get started."}
                 </p>
                 {!search && !statusFilter && !priorityFilter && (
@@ -249,30 +260,30 @@ export default function ProyectosPage() {
             ) : (
               <>
                 {/* Desktop list */}
-                <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-muted bg-background">
-                    <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Project</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Client</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due date</span>
+                <div className="hidden sm:block overflow-hidden rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] ring-1 ring-white/[0.04] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.45)]">
+                  <div className="grid grid-cols-12 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-5 py-2.5">
+                    <span className="col-span-4 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Project</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Status</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Progress</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Due date</span>
                     <span className="col-span-1" />
                   </div>
                   {proyectos.map((p: any, i: number) => (
-                    <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-background transition-colors", i < proyectos.length - 1 && "border-b border-muted")}>
+                    <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 transition-colors hover:bg-white/[0.04]", i < proyectos.length - 1 && "border-b border-[var(--border-dark)]")}>
                       <div className="col-span-4 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{p.nombre}</p>
-                        <p className="text-[10px] text-muted-foreground">{p.tags || displayLabel(p.prioridad, prioridadLabel)}</p>
+                        <p className="truncate text-sm font-medium text-[var(--text-primary-light)]">{p.nombre}</p>
+                        <p className="text-[10px] text-[var(--text-secondary-light)]">{p.tags || displayLabel(p.prioridad, prioridadLabel)}</p>
                       </div>
-                      <span className="col-span-2 text-sm text-muted-foreground truncate">{p.cliente?.nombre ?? "—"}</span>
+                      <span className="col-span-2 truncate text-sm text-[var(--text-secondary-light)]">{p.cliente?.nombre ?? "—"}</span>
                       <div className="col-span-2"><StatusBadge estado={p.estado} /></div>
                       <div className="col-span-2 pr-4">
                         <ProgressBar value={p.progreso ?? 0} />
-                        <p className="text-[10px] text-muted-foreground mt-1">{p.progreso ?? 0}%</p>
+                        <p className="mt-1 text-[10px] text-[var(--text-secondary-light)]">{p.progreso ?? 0}%</p>
                       </div>
-                      <span className="col-span-1 text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.fechaFin)}</span>
+                      <span className="col-span-1 whitespace-nowrap text-xs text-[var(--text-secondary-light)]">{formatDate(p.fechaFin)}</span>
                       <div className="col-span-1 flex justify-end">
-                        <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                        <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85">
                           View <ArrowUpRight size={11} />
                         </Link>
                       </div>
@@ -283,19 +294,19 @@ export default function ProyectosPage() {
                 {/* Mobile cards */}
                 <div className="sm:hidden space-y-3">
                   {proyectos.map((p: any) => (
-                    <div key={p.id} className="bg-card rounded-xl border border-border shadow-sm p-4">
-                      <div className="flex items-start justify-between gap-3 mb-2">
+                    <div key={p.id} className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 ring-1 ring-white/[0.04]">
+                      <div className="mb-2 flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{p.nombre}</p>
-                          <p className="text-xs text-muted-foreground">{p.cliente?.nombre ?? "—"} · {displayLabel(p.prioridad, prioridadLabel)}</p>
+                          <p className="truncate text-sm font-semibold text-[var(--text-primary-light)]">{p.nombre}</p>
+                          <p className="text-xs text-[var(--text-secondary-light)]">{p.cliente?.nombre ?? "—"} · {displayLabel(p.prioridad, prioridadLabel)}</p>
                         </div>
                         <StatusBadge estado={p.estado} />
                       </div>
                       <div className="mb-3">
                         <ProgressBar value={p.progreso ?? 0} />
-                        <p className="text-[10px] text-muted-foreground mt-1">{p.progreso ?? 0}% · Due {formatDate(p.fechaFin)}</p>
+                        <p className="mt-1 text-[10px] text-[var(--text-secondary-light)]">{p.progreso ?? 0}% · Due {formatDate(p.fechaFin)}</p>
                       </div>
-                      <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs text-primary font-medium hover:text-primary/80 transition-colors">
+                      <Link href={`/proyectos/${p.id}`} className="flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85">
                         View project <ArrowUpRight size={11} />
                       </Link>
                     </div>

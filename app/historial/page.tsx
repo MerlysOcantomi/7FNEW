@@ -155,63 +155,68 @@ export default function HistorialPage() {
   return (
     <AppShell currentSection="historial" breadcrumbs={[{ label: "7F" }, { label: "History" }]}>
       <SectionPage
+        tone="canvas"
         title="History"
         description="Unified log of all workspace activity. Every action, change, and event recorded chronologically."
       >
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Events today</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.todayCount}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Events today</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{loading ? "—" : stats.todayCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Comments</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.commentCount}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Comments</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{loading ? "—" : stats.commentCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unique actors</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.uniqueActors}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Unique actors</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{loading ? "—" : stats.uniqueActors}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total records</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{loading ? "—" : stats.total}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Total records</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{loading ? "—" : stats.total}</p>
           </div>
         </div>
 
         {/* Search + filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary-light)]" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by text, user, or entity..."
-              className="w-full rounded-lg border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] py-2.5 pl-10 pr-4 text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] ring-1 ring-white/[0.04] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/40"
             />
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground mr-1">Module:</span>
+            <span className="mr-1 text-xs text-[var(--text-secondary-light)]">Module:</span>
             {MODULE_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setModuleFilter(f)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  moduleFilter === f ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  moduleFilter === f
+                    ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                    : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]",
                 )}
               >
                 {f === "All" ? "All" : MODULE_LABELS[f] ?? f}
               </button>
             ))}
-            <span className="text-xs text-muted-foreground ml-2 mr-1">Action:</span>
+            <span className="ml-2 mr-1 text-xs text-[var(--text-secondary-light)]">Action:</span>
             {TYPE_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setTypeFilter(f)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  typeFilter === f ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  typeFilter === f
+                    ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                    : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]",
                 )}
               >
                 {f === "All" ? "All" : TYPE_LABELS[f] ?? f}
@@ -222,27 +227,27 @@ export default function HistorialPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-border bg-card">
-            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Loading activity...</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] py-20 ring-1 ring-white/[0.04]">
+            <Loader2 className="mb-3 h-10 w-10 animate-spin text-[var(--text-secondary-light)]" />
+            <p className="text-sm text-[var(--text-secondary-light)]">Loading activity...</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-border bg-card">
-            <AlertTriangle className="h-10 w-10 text-destructive mb-3" />
-            <p className="text-sm font-medium text-foreground mb-1">Error loading history</p>
-            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] py-20 ring-1 ring-white/[0.04]">
+            <AlertTriangle className="mb-3 h-10 w-10 text-destructive" />
+            <p className="mb-1 text-sm font-medium text-[var(--text-primary-light)]">Error loading history</p>
+            <p className="mb-4 text-sm text-[var(--text-secondary-light)]">{error}</p>
             <button
               onClick={() => refetch()}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-2 text-sm font-medium text-[var(--text-primary-light)] ring-1 ring-white/[0.04] transition-colors hover:bg-white/[0.06]"
             >
               Retry
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-border bg-card/50">
-            <History className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-medium text-foreground">No activity recorded</p>
-            <p className="text-xs text-muted-foreground mt-1 text-center max-w-sm">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)]/75 py-20 ring-1 ring-white/[0.03]">
+            <History className="mb-3 h-12 w-12 text-[var(--text-secondary-light)]/40" />
+            <p className="text-sm font-medium text-[var(--text-primary-light)]">No activity recorded</p>
+            <p className="mt-1 max-w-sm text-center text-xs text-[var(--text-secondary-light)]">
               Activity from clients, projects, tasks, billing, and documents will appear here.
             </p>
           </div>
@@ -250,13 +255,13 @@ export default function HistorialPage() {
           <div className="flex flex-col gap-8">
             {Object.entries(grouped).map(([date, events]) => (
               <div key={date}>
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">{date}</h3>
-                  <span className="text-xs text-muted-foreground">{events.length} events</span>
+                <div className="mb-4 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[var(--text-secondary-light)]" />
+                  <h3 className="text-sm font-semibold text-[var(--text-primary-light)]">{date}</h3>
+                  <span className="text-xs text-[var(--text-secondary-light)]">{events.length} events</span>
                 </div>
 
-                <div className="relative ml-4 border-l-2 border-border pl-6 flex flex-col gap-0">
+                <div className="relative ml-4 flex flex-col gap-0 border-l-2 border-[var(--border-dark)] pl-6">
                   {events.map((event) => {
                     const EventIcon = MODULE_ICONS[event.module] ?? MessageSquare
                     const href = getModuleHref(event.module, event.recordId)
@@ -266,38 +271,38 @@ export default function HistorialPage() {
                     return (
                       <div key={event.id} className="relative pb-5 last:pb-0">
                         <div
-                          className="absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
+                          className="absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--app-shell-bg)] bg-[var(--app-surface-dark-elevated)]"
                         >
-                          <EventIcon className="h-3 w-3 text-muted-foreground" />
+                          <EventIcon className="h-3 w-3 text-[var(--text-secondary-light)]" />
                         </div>
 
-                        <div className="rounded-xl border border-border bg-card px-4 py-3 hover:shadow-sm transition-shadow">
+                        <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-3 ring-1 ring-white/[0.04] transition-shadow hover:shadow-none">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm text-foreground leading-relaxed">
+                              <p className="text-sm leading-relaxed text-[var(--text-primary-light)]">
                                 <span className="font-medium">{actor}</span> {actionLabel}
                               </p>
-                              <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <div className="mt-1 flex flex-wrap items-center gap-3">
+                                <span className="flex items-center gap-1 text-[10px] text-[var(--text-secondary-light)]">
                                   {MODULE_LABELS[event.module] ?? event.module}
                                 </span>
                                 {event.type !== "comment" && event.data?.label && (
-                                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                                  <span className="max-w-[200px] truncate text-[10px] text-[var(--text-secondary-light)]">
                                     {event.data.label}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex flex-shrink-0 items-center gap-2">
                               {href && (
                                 <Link
                                   href={href}
-                                  className="text-xs text-primary hover:underline font-medium"
+                                  className="text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85 hover:underline"
                                 >
                                   View
                                 </Link>
                               )}
-                              <span className="text-xs text-muted-foreground">{formatTimeAgo(event.createdAt)}</span>
+                              <span className="text-xs text-[var(--text-secondary-light)]">{formatTimeAgo(event.createdAt)}</span>
                             </div>
                           </div>
                         </div>

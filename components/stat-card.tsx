@@ -8,18 +8,55 @@ interface StatCardProps {
   icon?: LucideIcon
   iconClassName?: string
   className?: string
+  /** Match `--app-shell-bg` chrome (dark sidebar-adjacent column). */
+  tone?: "default" | "canvas"
 }
 
-export function StatCard({ label, value, subtitle, icon: Icon, iconClassName, className }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  subtitle,
+  icon: Icon,
+  iconClassName,
+  className,
+  tone = "default",
+}: StatCardProps) {
+  const isCanvas = tone === "canvas"
+
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
-      {Icon && (
-        <Icon size={16} strokeWidth={1.75} className={cn("mb-3 text-primary", iconClassName)} />
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        isCanvas ? "border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-none" : "border-border bg-card",
+        className,
       )}
-      <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
-      <p className="mt-0.5 text-xs font-medium text-foreground">{label}</p>
+    >
+      {Icon && (
+        <Icon
+          size={16}
+          strokeWidth={1.75}
+          className={cn(
+            "mb-3 text-primary",
+            isCanvas && "text-[var(--accent-primary)]",
+            iconClassName,
+          )}
+        />
+      )}
+      <p
+        className={cn(
+          "text-2xl font-bold tracking-tight",
+          isCanvas ? "text-[var(--text-primary-light)]" : "text-foreground",
+        )}
+      >
+        {value}
+      </p>
+      <p className={cn("mt-0.5 text-xs font-medium", isCanvas ? "text-[var(--text-primary-light)]" : "text-foreground")}>
+        {label}
+      </p>
       {subtitle && (
-        <p className="mt-0.5 text-[10px] text-muted-foreground">{subtitle}</p>
+        <p className={cn("mt-0.5 text-[10px]", isCanvas ? "text-[var(--text-secondary-light)]" : "text-muted-foreground")}>
+          {subtitle}
+        </p>
       )}
     </div>
   )

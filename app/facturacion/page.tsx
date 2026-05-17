@@ -108,7 +108,7 @@ export default function FacturacionPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
       <SidebarNav />
       <MobileSidebarNav />
 
@@ -116,6 +116,7 @@ export default function FacturacionPage() {
         <PageHeader
           eyebrow="Revenue"
           title="Invoices"
+          tone="canvas"
           actions={
             <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />
@@ -135,7 +136,7 @@ export default function FacturacionPage() {
                 subtitle={sub}
                 icon={icon}
                 iconClassName={iconClass}
-                className="bg-accent shadow-sm"
+                tone="canvas"
               />
             ))}
           </div>
@@ -162,30 +163,35 @@ export default function FacturacionPage() {
           {/* Search + Filter */}
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary-light)]" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by invoice number..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] transition-colors focus:border-[var(--accent-primary)]/50 focus:outline-none"
               />
             </div>
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setClienteOpen(false); setStatusOpen(!statusOpen); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[130px] justify-between"
+                className="flex w-full lg:w-auto min-w-[130px] items-center justify-between gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-2.5 text-sm text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-primary)]/45"
               >
                 <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
-                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", statusOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[130px]">
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(60vh,20rem)] min-w-[130px] overflow-hidden overflow-y-auto rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg lg:right-auto">
                   {ESTADO_OPTIONS.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors", statusFilter === opt.value ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
+                      className={cn(
+                        "w-full px-4 py-2 text-left text-sm transition-colors",
+                        statusFilter === opt.value
+                          ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]"
+                          : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
+                      )}
                     >
                       {opt.label}
                     </button>
@@ -196,16 +202,19 @@ export default function FacturacionPage() {
             <div className="relative w-full lg:w-auto">
               <button
                 onClick={() => { setStatusOpen(false); setClienteOpen(!clienteOpen); }}
-                className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground hover:border-primary transition-colors min-w-[140px] justify-between"
+                className="flex w-full lg:w-auto min-w-[140px] items-center justify-between gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-2.5 text-sm text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-primary)]/45"
               >
                 <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? "Client") : "Client"}</span>
-                <ChevronDown size={14} className={cn("text-muted-foreground transition-transform", clienteOpen && "rotate-180")} />
+                <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", clienteOpen && "rotate-180")} />
               </button>
               {clienteOpen && (
-                <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[180px] max-h-60 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 min-w-[180px] overflow-hidden overflow-y-auto rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg lg:right-auto">
                   <button
                     onClick={() => { setClienteFilter(""); setClienteOpen(false); }}
-                    className={cn("w-full text-left px-4 py-2 text-sm transition-colors", !clienteFilter ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
+                    className={cn(
+                      "w-full px-4 py-2 text-left text-sm transition-colors",
+                      !clienteFilter ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]" : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
+                    )}
                   >
                     All
                   </button>
@@ -213,7 +222,10 @@ export default function FacturacionPage() {
                     <button
                       key={c.id}
                       onClick={() => { setClienteFilter(c.id); setClienteOpen(false); }}
-                      className={cn("w-full text-left px-4 py-2 text-sm transition-colors truncate", clienteFilter === c.id ? "bg-accent text-primary font-medium" : "text-foreground hover:bg-background")}
+                      className={cn(
+                        "truncate w-full px-4 py-2 text-left text-sm transition-colors",
+                        clienteFilter === c.id ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]" : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
+                      )}
                     >
                       {c.nombre}
                     </button>
@@ -225,14 +237,14 @@ export default function FacturacionPage() {
 
           {/* Invoice List */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">All invoices</h2>
-              <span className="text-xs text-muted-foreground">{facturas.length} invoice{facturas.length !== 1 ? "s" : ""}</span>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">All invoices</h2>
+              <span className="text-xs text-[var(--text-secondary-light)]">{facturas.length} invoice{facturas.length !== 1 ? "s" : ""}</span>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--text-secondary-light)]" />
               </div>
             ) : error ? (
               <div className="bg-destructive/5 rounded-xl border border-destructive/20 p-8 text-center">
@@ -241,10 +253,10 @@ export default function FacturacionPage() {
                 <p className="text-xs text-destructive/80 mt-1">Invoices could not be loaded</p>
               </div>
             ) : facturas.length === 0 ? (
-              <div className="bg-card rounded-xl border border-border p-16 text-center">
-                <Receipt className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-sm font-medium text-foreground">No invoices yet</p>
-                <p className="text-xs text-muted-foreground mt-1">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-16 text-center">
+                <Receipt className="mx-auto mb-4 h-12 w-12 text-[var(--text-secondary-light)]" />
+                <p className="text-sm font-medium text-[var(--text-primary-light)]">No invoices yet</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary-light)]">
                   {search || statusFilter || clienteFilter ? "No results for the selected filters." : "Create your first invoice to get started."}
                 </p>
                 {!search && !statusFilter && !clienteFilter && (
@@ -257,35 +269,35 @@ export default function FacturacionPage() {
             ) : (
               <>
                 {/* Desktop list */}
-                <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-muted bg-background">
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Invoice</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Client</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Project</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Amount</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Issued</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
+                <div className="hidden overflow-hidden rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] ring-1 ring-white/[0.04] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.45)] sm:block">
+                  <div className="grid grid-cols-12 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-5 py-2.5">
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Invoice</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Client</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Project</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Amount</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Issued</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Due</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Status</span>
                     <span className="col-span-1" />
                   </div>
                   {facturas.map((f: any, i: number) => {
                     const s = STATUS_STYLE[f.estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
                     return (
-                      <div key={f.id} className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-background transition-colors", i < facturas.length - 1 && "border-b border-muted")}>
+                      <div key={f.id} className={cn("grid grid-cols-12 items-center px-5 py-4 transition-colors hover:bg-white/[0.04]", i < facturas.length - 1 && "border-b border-[var(--border-dark)]")}>
                         <div className="col-span-2 flex items-center gap-1.5">
-                          <FileText size={13} className="text-muted-foreground" strokeWidth={1.75} />
-                          <Link href={`/facturacion/${f.id}`} className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">#{f.numero}</Link>
+                          <FileText size={13} className="text-[var(--text-secondary-light)]" strokeWidth={1.75} />
+                          <Link href={`/facturacion/${f.id}`} className="text-sm font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85">#{f.numero}</Link>
                         </div>
-                        <span className="col-span-2 text-sm text-foreground truncate">{f.cliente?.nombre ?? "—"}</span>
-                        <span className="col-span-2 text-xs text-muted-foreground truncate">{f.proyecto?.nombre ?? "—"}</span>
-                        <span className="col-span-2 text-sm font-medium text-foreground">{formatCurrency(f.total)}</span>
-                        <span className="col-span-1 text-xs text-muted-foreground">{formatDate(f.fechaEmision)}</span>
-                        <span className="col-span-1 text-xs text-muted-foreground">{formatDate(f.fechaVencimiento)}</span>
+                        <span className="col-span-2 truncate text-sm text-[var(--text-primary-light)]">{f.cliente?.nombre ?? "—"}</span>
+                        <span className="col-span-2 truncate text-xs text-[var(--text-secondary-light)]">{f.proyecto?.nombre ?? "—"}</span>
+                        <span className="col-span-2 text-sm font-medium text-[var(--text-primary-light)]">{formatCurrency(f.total)}</span>
+                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(f.fechaEmision)}</span>
+                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(f.fechaVencimiento)}</span>
                         <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s.bg, s.text)}>
                           {displayLabel(f.estado, estadoLabel)}
                         </span>
                         <div className="col-span-1 flex justify-end">
-                          <Link href={`/facturacion/${f.id}`} className="text-xs text-primary hover:text-primary/80 font-medium transition-colors flex items-center gap-0.5">
+                          <Link href={`/facturacion/${f.id}`} className="flex items-center gap-0.5 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85">
                             View <ArrowUpRight size={11} />
                           </Link>
                         </div>
@@ -299,16 +311,16 @@ export default function FacturacionPage() {
                   {facturas.map((f: any) => {
                     const s = STATUS_STYLE[f.estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
                     return (
-                      <div key={f.id} className="bg-card rounded-xl border border-border shadow-sm p-4">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <Link href={`/facturacion/${f.id}`} className="text-sm font-semibold text-primary">#{f.numero}</Link>
+                      <div key={f.id} className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 ring-1 ring-white/[0.04]">
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <Link href={`/facturacion/${f.id}`} className="text-sm font-semibold text-[var(--accent-primary)]">#{f.numero}</Link>
                           <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s.bg, s.text)}>
                             {displayLabel(f.estado, estadoLabel)}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-foreground">{formatCurrency(f.total)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{f.cliente?.nombre ?? "—"} · {f.proyecto?.nombre ?? "—"}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        <p className="text-sm font-medium text-[var(--text-primary-light)]">{formatCurrency(f.total)}</p>
+                        <p className="mt-0.5 text-xs text-[var(--text-secondary-light)]">{f.cliente?.nombre ?? "—"} · {f.proyecto?.nombre ?? "—"}</p>
+                        <p className="mt-0.5 text-[10px] text-[var(--text-secondary-light)]">
                           Issued {formatDate(f.fechaEmision)}
                           {f.fechaVencimiento && <> · Due {formatDate(f.fechaVencimiento)}</>}
                         </p>

@@ -29,40 +29,49 @@ export default function BibliotecaPage() {
       breadcrumbs={[{ label: "7F" }, { label: "Library" }]}
     >
       <SectionPage
+        tone="canvas"
         title="Library"
         description="Resources, templates, documents, and shared team files."
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {["Branding", "Templates", "Media", "Legal"].map((cat) => (
-            <div key={cat} className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow cursor-pointer">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted mb-3">
-                <BookOpen className="h-5 w-5 text-muted-foreground" />
+            <div
+              key={cat}
+              className="cursor-pointer rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-5 shadow-none ring-1 ring-white/[0.04] transition-shadow hover:bg-white/[0.03]"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--app-surface-dark-elevated)]">
+                <BookOpen className="h-5 w-5 text-[var(--text-secondary-light)]" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground">{cat}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
+              <h3 className="text-sm font-semibold text-[var(--text-primary-light)]">{cat}</h3>
+              <p className="mt-1 text-xs text-[var(--text-secondary-light)]">
                 {resources.filter((r) => r.category === cat).length} files
               </p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">All Resources</h2>
+        <div className="overflow-hidden rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] ring-1 ring-white/[0.04]">
+          <div className="flex items-center gap-2 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-5 py-4">
+            <BookOpen className="h-4 w-4 text-[var(--text-secondary-light)]" />
+            <h2 className="text-sm font-semibold text-[var(--text-primary-light)]">All Resources</h2>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-[var(--border-dark)]">
             {resources.map((res, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground flex-shrink-0">
+              <div key={i} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.04]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-surface-dark-elevated)] text-[var(--text-secondary-light)]">
                   {typeIcons[res.type] || <File className="h-4 w-4" />}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{res.name}</p>
-                  <p className="text-xs text-muted-foreground">{res.type} &middot; {res.size} &middot; {res.category}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[var(--text-primary-light)]">{res.name}</p>
+                  <p className="text-xs text-[var(--text-secondary-light)]">
+                    {res.type} &middot; {res.size} &middot; {res.category}
+                  </p>
                 </div>
-                <span className="hidden sm:block text-xs text-muted-foreground flex-shrink-0">{res.date}</span>
-                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0" aria-label={`Download ${res.name}`}>
+                <span className="hidden shrink-0 text-xs text-[var(--text-secondary-light)] sm:block">{res.date}</span>
+                <button
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]"
+                  aria-label={`Download ${res.name}`}
+                >
                   <Download className="h-4 w-4" />
                 </button>
               </div>

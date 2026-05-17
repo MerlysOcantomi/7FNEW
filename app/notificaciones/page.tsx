@@ -45,7 +45,7 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; label: stri
   documento_subido: { icon: FileText, color: "text-cyan-500 bg-cyan-500/10", label: "Files" },
   comentario_nuevo: { icon: MessageSquare, color: "text-indigo-500 bg-indigo-500/10", label: "Comment" },
   mencion: { icon: AtSign, color: "text-pink-500 bg-pink-500/10", label: "Mention" },
-  sistema: { icon: Bell, color: "text-muted-foreground bg-muted", label: "System" },
+  sistema: { icon: Bell, color: "text-[var(--text-secondary-light)] bg-white/[0.08]", label: "System" },
   inbox_nueva_conversacion: { icon: Inbox, color: "text-teal-500 bg-teal-500/10", label: "Inbox" },
   inbox_nuevo_mensaje: { icon: Mail, color: "text-teal-600 bg-teal-600/10", label: "Inbox" },
   inbox_asignacion: { icon: UserCheck, color: "text-violet-500 bg-violet-500/10", label: "Inbox" },
@@ -128,24 +128,24 @@ export default function NotificacionesPage() {
 
   return (
     <AppShell currentSection="notificaciones" breadcrumbs={[{ label: "7F" }, { label: "Notifications" }]}>
-      <SectionPage title="Notifications" description="Platform alerts and updates.">
+      <SectionPage title="Notifications" description="Platform alerts and updates." tone="canvas">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unread</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{unreadCount}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Unread</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{unreadCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{todayCount}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Today</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{todayCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Total</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{notifications.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Read</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{notifications.length - unreadCount}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Read</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{notifications.length - unreadCount}</p>
           </div>
         </div>
 
@@ -157,8 +157,10 @@ export default function NotificacionesPage() {
                 key={f.value}
                 onClick={() => setActiveFilter(f.value)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  activeFilter === f.value ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  activeFilter === f.value
+                    ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                    : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]",
                 )}
               >
                 {f.label}
@@ -169,8 +171,10 @@ export default function NotificacionesPage() {
             <button
               onClick={() => setShowUnreadOnly(!showUnreadOnly)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                showUnreadOnly ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                showUnreadOnly
+                  ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                  : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]",
               )}
             >
               <Bell className="h-3 w-3" /> Unread only
@@ -178,7 +182,7 @@ export default function NotificacionesPage() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary-light)] ring-1 ring-white/[0.03] transition-colors hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]"
               >
                 <CheckCheck className="h-3 w-3" /> Mark all as read
               </button>
@@ -189,7 +193,7 @@ export default function NotificacionesPage() {
         {/* Notifications list */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary-light)]" />
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -202,23 +206,25 @@ export default function NotificacionesPage() {
                   key={n.id}
                   onClick={() => handleClick(n)}
                   className={cn(
-                    "flex items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition-all w-full",
-                    n.read ? "border-border bg-card/60 hover:bg-accent/30" : "border-foreground/10 bg-card shadow-sm hover:bg-accent/40",
-                    n.link && "cursor-pointer"
+                    "flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition-all ring-1",
+                    n.read
+                      ? "border-[var(--border-dark)] bg-[var(--app-surface-dark)]/70 ring-transparent hover:bg-white/[0.04]"
+                      : "border-[var(--accent-primary)]/25 bg-[var(--app-surface-dark)] shadow-none ring-white/[0.05] hover:bg-white/[0.06]",
+                    n.link && "cursor-pointer",
                   )}
                 >
-                  <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 mt-0.5", iconBg)}>
+                  <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg mt-0.5", iconBg)}>
                     <Icon className={cn("h-4 w-4", iconColor)} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className={cn("text-sm text-foreground", !n.read && "font-semibold")}>{n.title}</p>
-                          {!n.read && <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className={cn("text-sm text-[var(--text-primary-light)]", !n.read && "font-semibold")}>{n.title}</p>
+                          {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent-primary)]" />}
                         </div>
                         {n.message && (
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary-light)]">{n.message}</p>
                         )}
                         <div className="flex items-center gap-3 mt-1.5">
                           <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", iconBg, iconColor)}>
@@ -226,19 +232,19 @@ export default function NotificacionesPage() {
                           </span>
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{timeAgo(n.createdAt)}</span>
+                      <span className="flex-shrink-0 text-xs text-[var(--text-secondary-light)]">{timeAgo(n.createdAt)}</span>
                     </div>
                   </div>
                 </button>
               )
             })}
             {filtered.length === 0 && (
-              <div className="rounded-xl border border-border bg-card/50 p-12 text-center">
-                <BellRing className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/75 p-12 text-center ring-1 ring-white/[0.04]">
+                <BellRing className="mx-auto mb-3 h-10 w-10 text-[var(--text-secondary-light)]/30" />
+                <p className="text-sm font-medium text-[var(--text-secondary-light)]">
                   {showUnreadOnly ? "No unread notifications" : "No notifications"}
                 </p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
+                <p className="mt-1 text-xs text-[var(--text-secondary-light)]/75">
                   Notifications will appear here when there is activity in the platform.
                 </p>
               </div>

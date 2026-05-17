@@ -59,14 +59,14 @@ const SYSTEM_STATUS = [
 function SectionHeader({ title, description }: { title: string; description?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-base font-semibold text-[#0F172A] tracking-tight">{title}</h2>
-      {description && <p className="text-xs text-[#64748B] mt-0.5">{description}</p>}
+      <h2 className="text-base font-semibold text-[var(--text-primary-light)] tracking-tight">{title}</h2>
+      {description && <p className="text-xs text-[var(--text-secondary-light)] mt-0.5">{description}</p>}
     </div>
   );
 }
 
 function HelperText({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">{children}</p>;
+  return <p className="text-xs text-[var(--text-secondary-light)] mt-1.5 leading-relaxed">{children}</p>;
 }
 
 function OnboardingHint({
@@ -77,9 +77,9 @@ function OnboardingHint({
   description: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-      <p className="text-sm font-medium text-[#0F172A]">{title}</p>
-      <p className="text-xs text-[#64748B] mt-1 leading-relaxed">{description}</p>
+    <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 ring-1 ring-white/[0.04]">
+      <p className="text-sm font-medium text-[var(--text-primary-light)]">{title}</p>
+      <p className="text-xs text-[var(--text-secondary-light)] mt-1 leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -88,7 +88,7 @@ function StatusDot({ status }: { status: "ok" | "warning" | "error" }) {
   return (
     <span className={cn(
       "inline-block w-2 h-2 rounded-full shrink-0",
-      status === "ok" ? "bg-[#22C55E]" : status === "warning" ? "bg-[#F59E0B]" : "bg-[#EF4444]"
+      status === "ok" ? "bg-[var(--status-success-text)]" : status === "warning" ? "bg-[var(--status-warning-text)]" : "bg-[var(--status-danger-text)]"
     )} />
   );
 }
@@ -101,11 +101,11 @@ function ToolToggle({
   onToggle: (id: string) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3.5 border-b border-[#F1F5F9] last:border-0">
+    <div className="flex items-start justify-between gap-4 py-3.5 border-b border-[var(--border-dark)] last:border-0">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#0F172A]">{tool.label}</p>
-        <p className="text-xs text-[#64748B] mt-0.5">{tool.description}</p>
-        <p className="text-[11px] text-[#94A3B8] mt-1">
+        <p className="text-sm font-medium text-[var(--text-primary-light)]">{tool.label}</p>
+        <p className="text-xs text-[var(--text-secondary-light)] mt-0.5">{tool.description}</p>
+        <p className="text-[11px] text-[var(--text-secondary-light)] mt-1">
           {tool.enabled ? "Available to the assistant when needed." : "Hidden from the assistant for now."}
         </p>
       </div>
@@ -115,8 +115,8 @@ function ToolToggle({
         aria-label={tool.enabled ? `Disable ${tool.label}` : `Enable ${tool.label}`}
       >
         {tool.enabled
-          ? <ToggleRight size={22} className="text-[#3B82F6]" strokeWidth={1.75} />
-          : <ToggleLeft size={22} className="text-[#CBD5E1]" strokeWidth={1.75} />
+          ? <ToggleRight size={22} className="text-[var(--accent-primary)]" strokeWidth={1.75} />
+          : <ToggleLeft size={22} className="text-[var(--text-secondary-light)]/50" strokeWidth={1.75} />
         }
       </button>
     </div>
@@ -151,20 +151,20 @@ export default function MotorPage() {
   const currentModel = MODEL_OPTIONS.find((m) => m.id === selectedModel)!;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--app-shell-bg)] font-sans overflow-x-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
       <main className="flex-1 min-w-0 overflow-y-auto">
         {/* Header */}
-        <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">Advanced · Internal</p>
+        <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
+          <p className="text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-widest mb-1">Advanced · Internal</p>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">AI workspace</h1>
-              <p className="text-sm text-[#64748B] mt-0.5">Choose how the assistant responds, when it switches behavior, and which helpers it can use.</p>
+              <h1 className="text-xl font-semibold text-[var(--text-primary-light)] tracking-tight">AI workspace</h1>
+              <p className="text-sm text-[var(--text-secondary-light)] mt-0.5">Choose how the assistant responds, when it switches behavior, and which helpers it can use.</p>
             </div>
-            <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-sm text-[#334155] hover:border-[#3B82F6] transition-colors text-xs font-medium">
+            <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)] transition-colors text-xs font-medium ring-1 ring-white/[0.03]">
               <RefreshCw size={13} strokeWidth={1.75} />
               <span className="hidden sm:inline">Save Changes</span>
               <span className="sm:hidden">Save</span>
@@ -173,7 +173,7 @@ export default function MotorPage() {
         </div>
 
         {/* Tab nav */}
-        <div className="flex border-b border-[#E2E8F0] bg-white px-5 md:px-8 overflow-x-auto">
+        <div className="flex border-b border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-5 md:px-8 overflow-x-auto">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -181,8 +181,8 @@ export default function MotorPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
                 activeTab === key
-                  ? "border-[#3B82F6] text-[#1D4ED8]"
-                  : "border-transparent text-[#64748B] hover:text-[#334155]"
+                  ? "border-[var(--accent-primary)] text-[var(--accent-primary)]"
+                  : "border-transparent text-[var(--text-secondary-light)] hover:text-[var(--text-primary-light)]"
               )}
             >
               <Icon size={14} strokeWidth={1.75} />
@@ -203,47 +203,47 @@ export default function MotorPage() {
               />
 
               {/* Model selector */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
-                <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">Active model</label>
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-5 shadow-none ring-1 ring-white/[0.04]">
+                <label className="block text-xs font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider mb-2">Active model</label>
                 <div className="relative">
                   <button
                     onClick={() => setModelDropOpen(!modelDropOpen)}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] hover:border-[#3B82F6] transition-colors"
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)] transition-colors"
                   >
                     <div>
                       <span className="font-medium">{currentModel.label}</span>
-                      <span className="ml-2 text-[#64748B] text-xs">— {currentModel.provider}</span>
+                      <span className="ml-2 text-[var(--text-secondary-light)] text-xs">— {currentModel.provider}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={cn(
                         "text-[10px] font-bold px-2 py-0.5 rounded",
-                        currentModel.tier === "Production" ? "bg-[#DCFCE7] text-[#166534]" :
-                        currentModel.tier === "Evaluation" ? "bg-[#FEF9C3] text-[#854D0E]" :
-                        "bg-[#F1F5F9] text-[#64748B]"
+                        currentModel.tier === "Production" ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]" :
+                        currentModel.tier === "Evaluation" ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]" :
+                        "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]"
                       )}>{currentModel.tier}</span>
-                      <ChevronDown size={14} className={cn("text-[#94A3B8] transition-transform", modelDropOpen && "rotate-180")} />
+                      <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", modelDropOpen && "rotate-180")} />
                     </div>
                   </button>
                   {modelDropOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-lg shadow-lg overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] shadow-lg overflow-hidden ring-1 ring-white/[0.06]">
                       {MODEL_OPTIONS.map((m) => (
                         <button
                           key={m.id}
                           onClick={() => { setSelectedModel(m.id); setModelDropOpen(false); }}
                           className={cn(
                             "w-full flex items-center justify-between px-4 py-3 text-sm transition-colors",
-                            selectedModel === m.id ? "bg-[#EFF6FF] text-[#1D4ED8]" : "text-[#334155] hover:bg-[#F8FAFC]"
+                            selectedModel === m.id ? "bg-white/[0.08] text-[var(--accent-primary)]" : "text-[var(--text-primary-light)] hover:bg-white/[0.06]"
                           )}
                         >
                           <div>
                             <span className="font-medium">{m.label}</span>
-                            <span className="ml-2 text-[#94A3B8] text-xs">{m.provider}</span>
+                            <span className="ml-2 text-[var(--text-secondary-light)] text-xs">{m.provider}</span>
                           </div>
                           <span className={cn(
                             "text-[10px] font-bold px-2 py-0.5 rounded",
-                            m.tier === "Production" ? "bg-[#DCFCE7] text-[#166534]" :
-                            m.tier === "Evaluation" ? "bg-[#FEF9C3] text-[#854D0E]" :
-                            "bg-[#F1F5F9] text-[#64748B]"
+                            m.tier === "Production" ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]" :
+                            m.tier === "Evaluation" ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]" :
+                            "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]"
                           )}>{m.tier}</span>
                         </button>
                       ))}
@@ -256,23 +256,23 @@ export default function MotorPage() {
               </div>
 
               {/* Parameters */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5 space-y-5">
-                <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider">Parameters</label>
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-5 space-y-5 shadow-none ring-1 ring-white/[0.04]">
+                <label className="block text-xs font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Parameters</label>
                 <HelperText>
                   These controls change how the assistant answers. Lower values feel more controlled. Higher values feel more open and exploratory.
                 </HelperText>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[#0F172A]">Temperature</span>
-                    <span className="text-sm font-mono font-semibold text-[#3B82F6]">{temperature.toFixed(1)}</span>
+                    <span className="text-sm font-medium text-[var(--text-primary-light)]">Temperature</span>
+                    <span className="text-sm font-mono font-semibold text-[var(--accent-primary)]">{temperature.toFixed(1)}</span>
                   </div>
                   <input
                     type="range" min={0} max={1} step={0.1} value={temperature}
                     onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                    className="w-full accent-[#3B82F6]"
+                    className="w-full accent-[var(--accent-primary)]"
                   />
-                  <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1">
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary-light)] mt-1">
                     <span>Precise (0.0)</span><span>Creative (1.0)</span>
                   </div>
                   <HelperText>
@@ -282,15 +282,15 @@ export default function MotorPage() {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[#0F172A]">Max Output Tokens</span>
-                    <span className="text-sm font-mono font-semibold text-[#3B82F6]">{integerFormatter.format(maxTokens)}</span>
+                    <span className="text-sm font-medium text-[var(--text-primary-light)]">Max Output Tokens</span>
+                    <span className="text-sm font-mono font-semibold text-[var(--accent-primary)]">{integerFormatter.format(maxTokens)}</span>
                   </div>
                   <input
                     type="range" min={512} max={8192} step={512} value={maxTokens}
                     onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                    className="w-full accent-[#3B82F6]"
+                    className="w-full accent-[var(--accent-primary)]"
                   />
-                  <div className="flex justify-between text-[10px] text-[#94A3B8] mt-1">
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary-light)] mt-1">
                     <span>512</span><span>8,192</span>
                   </div>
                   <HelperText>
@@ -300,12 +300,12 @@ export default function MotorPage() {
               </div>
 
               {/* System prompt */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
-                <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">System Prompt</label>
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-5 shadow-none ring-1 ring-white/[0.04]">
+                <label className="block text-xs font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider mb-2">System Prompt</label>
                 <textarea
                   defaultValue="You are 7F workspace intelligence, an executive assistant for a professional services firm. You have access to project portfolio data, fund performance metrics, client CRM records, and operational risk feeds. Always respond with precision, brevity, and strategic framing. Do not speculate beyond available data."
                   rows={5}
-                  className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-4 py-3 text-xs sm:text-sm text-[#334155] font-mono leading-relaxed resize-none focus:outline-none focus:border-[#3B82F6] transition-colors"
+                  className="w-full bg-[var(--app-surface-dark-elevated)] border border-[var(--border-dark)] rounded-lg px-4 py-3 text-xs sm:text-sm text-[var(--text-primary-light)] font-mono leading-relaxed resize-none focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 />
                 <HelperText>
                   This is the internal instruction that sets the assistant's role and tone. Change it carefully, and only if you want to redefine how the workspace behaves overall.
@@ -322,36 +322,36 @@ export default function MotorPage() {
                 title="Think of this like traffic direction"
                 description="You do not need to configure every case. The router simply helps send each request to the model that fits best."
               />
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-none ring-1 ring-white/[0.04] overflow-hidden">
                 {/* Desktop table */}
                 <div className="hidden sm:block">
-                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Trigger</span>
-                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Model</span>
-                    <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Reason</span>
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)]">
+                    <span className="col-span-4 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Trigger</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Model</span>
+                    <span className="col-span-5 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Reason</span>
                   </div>
                   {ROUTER_RULES.map((rule, i) => (
-                    <div key={rule.trigger} className={cn("grid grid-cols-12 items-center px-5 py-4", i < ROUTER_RULES.length - 1 && "border-b border-[#F1F5F9]")}>
-                      <span className="col-span-4 text-sm font-medium text-[#0F172A]">{rule.trigger}</span>
-                      <span className="col-span-3 text-xs font-mono text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded w-fit">{rule.model}</span>
-                      <span className="col-span-5 text-xs text-[#64748B] pl-3">{rule.reason}</span>
+                    <div key={rule.trigger} className={cn("grid grid-cols-12 items-center px-5 py-4 transition-colors hover:bg-white/[0.04]", i < ROUTER_RULES.length - 1 && "border-b border-[var(--border-dark)]")}>
+                      <span className="col-span-4 text-sm font-medium text-[var(--text-primary-light)]">{rule.trigger}</span>
+                      <span className="col-span-3 text-xs font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/12 px-2 py-0.5 rounded w-fit">{rule.model}</span>
+                      <span className="col-span-5 text-xs text-[var(--text-secondary-light)] pl-3">{rule.reason}</span>
                     </div>
                   ))}
                 </div>
                 {/* Mobile cards */}
-                <div className="sm:hidden divide-y divide-[#F1F5F9]">
+                <div className="sm:hidden divide-y divide-[var(--border-dark)]">
                   {ROUTER_RULES.map((rule) => (
                     <div key={rule.trigger} className="px-4 py-4 space-y-2">
-                      <p className="text-sm font-medium text-[#0F172A]">{rule.trigger}</p>
-                      <span className="inline-block text-xs font-mono text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded">{rule.model}</span>
-                      <p className="text-xs text-[#64748B]">{rule.reason}</p>
+                      <p className="text-sm font-medium text-[var(--text-primary-light)]">{rule.trigger}</p>
+                      <span className="inline-block text-xs font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/12 px-2 py-0.5 rounded">{rule.model}</span>
+                      <p className="text-xs text-[var(--text-secondary-light)]">{rule.reason}</p>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-[#EFF6FF] rounded-xl p-4 border border-[#BFDBFE]">
-                <p className="text-xs text-[#334155] leading-relaxed">
-                  <span className="font-semibold text-[#1D4ED8]">Helpful tip:</span> The first matching rule wins. Put your most important or most specific rules at the top.
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--status-info-bg)] p-4 ring-1 ring-white/[0.04]">
+                <p className="text-xs text-[var(--text-primary-light)] leading-relaxed">
+                  <span className="font-semibold text-[var(--accent-primary)]">Helpful tip:</span> The first matching rule wins. Put your most important or most specific rules at the top.
                 </p>
               </div>
             </div>
@@ -365,12 +365,12 @@ export default function MotorPage() {
                 title="Tools do not answer on their own"
                 description="A tool gives the assistant access to useful actions or data, like looking up projects or drafting a reply. Turn on only what you want available."
               />
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm px-5">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-5 shadow-none ring-1 ring-white/[0.04]">
                 {tools.map((tool) => (
                   <ToolToggle key={tool.id} tool={tool} onToggle={toggleTool} />
                 ))}
               </div>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
+              <p className="text-xs text-[var(--text-secondary-light)] leading-relaxed">
                 Tool changes apply to future sessions. Existing conversations keep their current context.
               </p>
             </div>
@@ -380,55 +380,55 @@ export default function MotorPage() {
           {activeTab === "status" && (
             <div className="space-y-5">
               <SectionHeader title="System Health" description="Real-time status of AI infrastructure components." />
-              <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-none ring-1 ring-white/[0.04] overflow-hidden">
                 {/* Desktop table */}
                 <div className="hidden sm:block">
-                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[#F1F5F9] bg-[#F8FAFC]">
-                    <span className="col-span-5 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Component</span>
-                    <span className="col-span-4 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Status</span>
-                    <span className="col-span-3 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Latency</span>
+                  <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)]">
+                    <span className="col-span-5 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Component</span>
+                    <span className="col-span-4 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Status</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Latency</span>
                   </div>
                   {SYSTEM_STATUS.map((item, i) => (
-                    <div key={item.label} className={cn("grid grid-cols-12 items-center px-5 py-4", i < SYSTEM_STATUS.length - 1 && "border-b border-[#F1F5F9]")}>
-                      <span className="col-span-5 text-sm font-medium text-[#0F172A]">{item.label}</span>
+                    <div key={item.label} className={cn("grid grid-cols-12 items-center px-5 py-4 transition-colors hover:bg-white/[0.04]", i < SYSTEM_STATUS.length - 1 && "border-b border-[var(--border-dark)]")}>
+                      <span className="col-span-5 text-sm font-medium text-[var(--text-primary-light)]">{item.label}</span>
                       <div className="col-span-4 flex items-center gap-2">
                         <StatusDot status={item.status} />
                         <span className={cn(
                           "text-xs font-semibold",
-                          item.status === "ok" ? "text-[#166534]" : item.status === "warning" ? "text-[#854D0E]" : "text-[#991B1B]"
+                          item.status === "ok" ? "text-[var(--status-success-text)]" : item.status === "warning" ? "text-[var(--status-warning-text)]" : "text-destructive"
                         )}>
                           {item.status === "ok" ? "Operational" : item.status === "warning" ? "Degraded" : "Error"}
                         </span>
                       </div>
-                      <span className="col-span-3 text-xs font-mono text-[#64748B]">{item.latency}</span>
+                      <span className="col-span-3 text-xs font-mono text-[var(--text-secondary-light)]">{item.latency}</span>
                     </div>
                   ))}
                 </div>
                 {/* Mobile cards */}
-                <div className="sm:hidden divide-y divide-[#F1F5F9]">
+                <div className="sm:hidden divide-y divide-[var(--border-dark)]">
                   {SYSTEM_STATUS.map((item) => (
                     <div key={item.label} className="px-4 py-4 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <StatusDot status={item.status} />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-[#0F172A]">{item.label}</p>
+                          <p className="text-sm font-medium text-[var(--text-primary-light)]">{item.label}</p>
                           <span className={cn(
                             "text-xs font-semibold",
-                            item.status === "ok" ? "text-[#166534]" : item.status === "warning" ? "text-[#854D0E]" : "text-[#991B1B]"
+                            item.status === "ok" ? "text-[var(--status-success-text)]" : item.status === "warning" ? "text-[var(--status-warning-text)]" : "text-destructive"
                           )}>
                             {item.status === "ok" ? "Operational" : item.status === "warning" ? "Degraded" : "Error"}
                           </span>
                         </div>
                       </div>
-                      <span className="text-xs font-mono text-[#64748B] shrink-0">{item.latency}</span>
+                      <span className="text-xs font-mono text-[var(--text-secondary-light)] shrink-0">{item.latency}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-[#FEF9C3] border border-[#FDE68A] rounded-xl p-4">
+              <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--status-warning-bg)] p-4 ring-1 ring-white/[0.04]">
                 <div className="flex items-start gap-2.5">
-                  <AlertTriangle size={14} className="text-[#854D0E] mt-0.5 shrink-0" strokeWidth={1.75} />
-                  <p className="text-xs text-[#854D0E] leading-relaxed">
+                  <AlertTriangle size={14} className="text-[var(--status-warning-text)] mt-0.5 shrink-0" strokeWidth={1.75} />
+                  <p className="text-xs text-[var(--status-warning-text)] leading-relaxed">
                     <span className="font-semibold">Session Memory latency elevated.</span> Average response times for context retrieval are 2.1x above baseline. Monitoring in progress — no action required at this time.
                   </p>
                 </div>

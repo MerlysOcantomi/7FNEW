@@ -64,25 +64,25 @@ export default function ComunicacionPage() {
 
   return (
     <AppShell currentSection="comunicacion" breadcrumbs={[{ label: "7F" }, { label: "Communication" }]}>
-      <SectionPage title="Communication" description="Internal team messages, client threads, and channels by area.">
+      <SectionPage title="Communication" description="Internal team messages, client threads, and channels by area." tone="canvas">
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Channels</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{channels.length}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Channels</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{channels.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct messages</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{directMessages.length}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Direct messages</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{directMessages.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Client threads</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{clientThreads.length}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Client threads</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{clientThreads.length}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unread</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{totalUnread}</p>
+          <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 shadow-none ring-1 ring-white/[0.04]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">Unread</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary-light)]">{totalUnread}</p>
           </div>
         </div>
 
@@ -94,25 +94,27 @@ export default function ComunicacionPage() {
                 key={v}
                 onClick={() => { setView(v); setSelectedThread(null) }}
                 className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors capitalize",
-                  view === v ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  "rounded-full px-4 py-2 text-sm font-medium transition-colors capitalize border",
+                  view === v
+                    ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                    : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.04] hover:text-[var(--text-primary-light)]",
                 )}
               >
                 {v}
               </button>
             ))}
-            <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition-opacity hover:opacity-80">
+            <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-3.5 py-2 text-xs font-medium text-white transition-opacity hover:opacity-85">
               <Plus className="h-3.5 w-3.5" /> New
             </button>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-2 ring-1 ring-white/[0.04]">
+            <Search className="h-4 w-4 text-[var(--text-secondary-light)] shrink-0" />
             <input
               type="text"
               placeholder="Search conversations..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              className="w-full bg-transparent text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] outline-none"
             />
           </div>
         </div>
@@ -128,41 +130,43 @@ export default function ComunicacionPage() {
                   key={item.id}
                   onClick={() => setSelectedThread(item.id)}
                   className={cn(
-                    "w-full rounded-xl border bg-card px-4 py-3 text-left transition-all hover:shadow-sm",
-                    isSelected ? "border-foreground/30 shadow-sm" : "border-border"
+                    "w-full rounded-xl border px-4 py-3 text-left transition-all",
+                    isSelected
+                      ? "border-[var(--accent-primary)]/45 bg-[var(--accent-primary)]/10 ring-1 ring-white/[0.05]"
+                      : "border-[var(--border-dark)] bg-[var(--app-surface-dark)] hover:bg-white/[0.04]",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted flex-shrink-0">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--app-surface-dark-elevated)]">
                       {view === "channels" ? (
-                        <Hash className="h-4 w-4 text-muted-foreground" />
+                        <Hash className="h-4 w-4 text-[var(--text-secondary-light)]" />
                       ) : view === "direct" ? (
-                        <span className="text-xs font-bold text-muted-foreground">{"avatar" in item ? (item as typeof directMessages[number]).avatar : ""}</span>
+                        <span className="text-xs font-bold text-[var(--text-secondary-light)]">{"avatar" in item ? (item as typeof directMessages[number]).avatar : ""}</span>
                       ) : (
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <Users className="h-4 w-4 text-[var(--text-secondary-light)]" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className={cn("text-sm truncate", item.unread > 0 ? "font-semibold text-foreground" : "font-medium text-foreground")}>{item.name}</p>
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0">{item.lastTime}</span>
+                        <p className={cn("truncate text-sm", item.unread > 0 ? "font-semibold text-[var(--text-primary-light)]" : "font-medium text-[var(--text-primary-light)]")}>{item.name}</p>
+                        <span className="flex-shrink-0 text-[10px] text-[var(--text-secondary-light)]">{item.lastTime}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className="mt-0.5 truncate text-xs text-[var(--text-secondary-light)]">
                         {"lastAuthor" in item ? `${(item as typeof channels[number]).lastAuthor}: ` : ""}
                         {item.lastMessage}
                       </p>
                     </div>
                     {item.unread > 0 && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background flex-shrink-0">{item.unread}</span>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[10px] font-bold text-white">{item.unread}</span>
                     )}
                   </div>
                 </button>
               )
             })}
             {filtered.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
-                <MessageSquare className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">No results</p>
+              <div className="rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-8 text-center ring-1 ring-white/[0.03]">
+                <MessageSquare className="mx-auto mb-2 h-6 w-6 text-[var(--text-secondary-light)]/35" />
+                <p className="text-sm font-medium text-[var(--text-primary-light)]">No results</p>
               </div>
             )}
           </div>
@@ -170,16 +174,16 @@ export default function ComunicacionPage() {
           {/* Chat view */}
           {selectedThread && (
             <div className="lg:col-span-3">
-              <div className="rounded-xl border border-border bg-card flex flex-col" style={{ minHeight: 420 }}>
+              <div className="flex flex-col rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] ring-1 ring-white/[0.04]" style={{ minHeight: 420 }}>
                 {/* Chat header */}
-                <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                <div className="flex items-center justify-between border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-5 py-3">
                   <div className="flex items-center gap-2">
-                    {view === "channels" ? <Hash className="h-4 w-4 text-muted-foreground" /> : <User className="h-4 w-4 text-muted-foreground" />}
-                    <h3 className="text-sm font-semibold text-foreground">
+                    {view === "channels" ? <Hash className="h-4 w-4 text-[var(--text-secondary-light)]" /> : <User className="h-4 w-4 text-[var(--text-secondary-light)]" />}
+                    <h3 className="text-sm font-semibold text-[var(--text-primary-light)]">
                       {currentItems.find(i => i.id === selectedThread)?.name || "Conversation"}
                     </h3>
                   </div>
-                  <button onClick={() => setSelectedThread(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden" aria-label="Close">
+                  <button onClick={() => setSelectedThread(null)} className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text-primary-light)] lg:hidden" aria-label="Close">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -188,17 +192,17 @@ export default function ComunicacionPage() {
                 <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                   {sampleMessages.map(msg => (
                     <div key={msg.id} className={cn("flex gap-3", msg.isOwn && "flex-row-reverse")}>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0">
-                        <span className="text-[10px] font-bold text-muted-foreground">{msg.avatar}</span>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--app-surface-dark-elevated)]">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary-light)]">{msg.avatar}</span>
                       </div>
                       <div className={cn("max-w-[85%] sm:max-w-[75%]")}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-foreground">{msg.author}</span>
-                          <span className="text-[10px] text-muted-foreground">{msg.time}</span>
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="text-xs font-medium text-[var(--text-primary-light)]">{msg.author}</span>
+                          <span className="text-[10px] text-[var(--text-secondary-light)]">{msg.time}</span>
                         </div>
                         <div className={cn(
                           "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
-                          msg.isOwn ? "bg-foreground text-background" : "bg-muted text-foreground"
+                          msg.isOwn ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--app-surface-dark-elevated)] text-[var(--text-primary-light)] ring-1 ring-white/[0.04]",
                         )}>
                           {msg.text}
                         </div>
@@ -208,17 +212,17 @@ export default function ComunicacionPage() {
                 </div>
 
                 {/* Message input */}
-                <div className="border-t border-border p-3">
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                    <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground" aria-label="Attach">
+                <div className="border-t border-[var(--border-dark)] p-3">
+                  <div className="flex items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-2 ring-1 ring-white/[0.03]">
+                    <button className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary-light)] transition-colors hover:text-[var(--text-primary-light)]" aria-label="Attach">
                       <Paperclip className="h-4 w-4" />
                     </button>
                     <input
                       type="text"
                       placeholder="Write a message..."
-                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                      className="flex-1 bg-transparent text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] outline-none"
                     />
-                    <button className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background" aria-label="Send">
+                    <button className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent-primary)] text-white transition-opacity hover:opacity-90" aria-label="Send">
                       <Send className="h-3.5 w-3.5" />
                     </button>
                   </div>
