@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -35,6 +36,8 @@ import {
   ListTodo,
   Calendar,
 } from "lucide-react"
+
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // ── Static quick-links (shown when query is empty) ──────────────────
 const quickLinks = [
@@ -339,6 +342,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const chromeRefDesktop = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Focus input when opened
@@ -488,7 +492,41 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
   useKeyboardShortcuts(overlayShortcuts, { scope: "overlay" })
 
+  const isMobileViewport = useIsMobile()
+
+  useEffect(() => {
+    if (!open || isMobileViewport) return
+    function handle(e: MouseEvent) {
+      const target = e.target as Element | null
+      if (target?.closest?.("[data-global-search-trigger]")) return
+      if (chromeRefDesktop.current && !chromeRefDesktop.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener("mousedown", handle)
+    return () => document.removeEventListener("mousedown", handle)
+  }, [open, isMobileViewport, onClose])
+
   if (!open) return null
+
+  const portalMount =
+    typeof document !== "undefined" ? document.getElementById("global-search-desktop-root") : null
+  const useDesktopPortal = portalMount !== null && !isMobileViewport
+  const toneLight =
+    useDesktopPortal && portalMount.getAttribute("data-search-chrome-variant") === "context"
+
+  const rowResultIdle = toneLight
+    ? "text-[#0F172A] hover:bg-[#F1F5F9]"
+    : SEARCH_ROW_IDLE
+  const rowResultActive = toneLight
+    ? "bg-[#3B82F6]/14 text-[#0F172A] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6]/20"
+    : SEARCH_ROW_ACTIVE
+  const rowQuickNav = toneLight
+    ? "text-[#64748B] hover:bg-[#F1F5F9]/70"
+    : SEARCH_ROW_QUICK_NAV
+  const rowQuickNavActive = toneLight
+    ? "bg-[#E2E8F0]/80 text-[#0F172A] shadow-[inset_0_0_0_1px_rgba(226,232,240,1)] ring-1 ring-[#CBD5E1]"
+    : SEARCH_ROW_QUICK_NAV_ACTIVE
 
   // Group results by category for display
   const grouped = new Map<string, FlatResult[]>()
@@ -497,38 +535,50 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     grouped.get(r.group)!.push(r)
   }
 
+  const accentIcon = toneLight ? "text-[#2563EB]" : "text-[var(--accent-primary)]"
+  const mutedSecondary = toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]"
+  const textPrimaryTone = toneLight ? "text-[#0F172A]" : "text-[var(--text-primary-light)]"
+  const listAreaClass = toneLight ? "bg-[#F8FAFC]" : ""
+  const listAreaStyle =
+    toneLight ? undefined : { backgroundColor: "var(--app-surface-dark)" }
+
+  const outerPanelDesktop = cn(
+    "flex max-h-[min(520px,72vh)] flex-col overflow-hidden border-b rounded-b-xl",
+    toneLight
+      ? "border-[#CBD5E1] bg-[#F8FAFC] shadow-[inset_0_1px_0_rgba(148,163,184,0.12)]"
+      : "border-[var(--border-dark)] bg-[var(--app-shell-bg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+  )
+
   let globalIdx = -1
 
-  return (
-    <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[11vh] p-4">
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 backdrop-blur-[4px]"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--app-canvas) 76%, rgb(8 6 14))",
-        }}
-        onClick={onClose}
-      />
-      <div
-        className="relative z-[1] isolate w-full max-w-xl animate-in fade-in zoom-in-[0.99] duration-150 [color-scheme:dark]"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Workspace search"
-      >
+  const innerShell = (
         <div
-          className="overflow-hidden rounded-xl border border-[var(--border-dark)] text-[var(--text-primary-light)] ring-1 ring-[var(--accent-primary)]/14"
-          style={{
-            backgroundColor: "var(--app-surface-dark)",
-            boxShadow:
-              "0 24px 64px -14px rgba(0,0,0,0.58), inset 0 1px 0 0 rgba(124, 77, 255, 0.12), inset 0 0 0 1px rgba(255,255,255,0.035)",
-          }}
+          className={cn(
+            !useDesktopPortal &&
+              "overflow-hidden rounded-xl border border-[var(--border-dark)] text-[var(--text-primary-light)] ring-1 ring-[var(--accent-primary)]/14",
+            useDesktopPortal && outerPanelDesktop,
+          )}
+          style={
+            useDesktopPortal
+              ? undefined
+              : {
+                  backgroundColor: "var(--app-surface-dark)",
+                  boxShadow:
+                    "0 24px 64px -14px rgba(0,0,0,0.58), inset 0 1px 0 0 rgba(124, 77, 255, 0.12), inset 0 0 0 1px rgba(255,255,255,0.035)",
+                }
+          }
         >
         {/* Search input — elevated chrome strip */}
         <div
-          className="flex items-center gap-3 border-b border-[var(--border-dark)] px-3.5 py-2"
-          style={{ backgroundColor: "var(--app-surface-dark-elevated)" }}
+          className={cn(
+            "flex items-center gap-3 border-b px-3.5 py-2",
+            toneLight ? "border-[#E2E8F0] bg-white" : "border-[var(--border-dark)]",
+          )}
+          style={
+            toneLight ? undefined : { backgroundColor: "var(--app-surface-dark-elevated)" }
+          }
         >
-          <Search className="h-[15px] w-[15px] shrink-0 text-[var(--accent-primary)] opacity-90" aria-hidden />
+          <Search className={cn("h-[15px] w-[15px] shrink-0 opacity-90", accentIcon)} aria-hidden />
           <input
             ref={inputRef}
             type="text"
@@ -537,17 +587,24 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
             autoComplete="off"
             onChange={(e) => setQuery(e.target.value)}
             className={cn(
-              "min-h-0 flex-1 bg-transparent text-[13px] leading-snug outline-none",
-              "text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] placeholder:opacity-90",
+              "min-h-0 flex-1 bg-transparent text-[13px] leading-snug outline-none placeholder:opacity-90",
+              toneLight
+                ? "text-[#0F172A] placeholder:text-[#64748B]"
+                : "text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)]",
             )}
           />
           {loading && (
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--accent-primary)] opacity-85" aria-hidden />
+            <Loader2 className={cn("h-4 w-4 shrink-0 animate-spin opacity-85", accentIcon)} aria-hidden />
           )}
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]"
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+              toneLight
+                ? "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+                : "text-[var(--text-secondary-light)] hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]",
+            )}
             aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
@@ -557,25 +614,40 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         {/* Results */}
         <div
           ref={listRef}
-          className="max-h-[min(52vh,520px)] overflow-y-auto"
-          style={{ backgroundColor: "var(--app-surface-dark)" }}
+          className={cn(
+            useDesktopPortal
+              ? "min-h-0 flex-1 overflow-y-auto"
+              : "max-h-[min(52vh,520px)] overflow-y-auto",
+            listAreaClass,
+          )}
+          style={listAreaStyle}
         >
           {displayMode === "links" ? (
             <div className="space-y-3 p-3">
               {query.length === 0 && (
                 <>
                   {/* Integrated intro — no inner “white card”: sits on shell surface */}
-                  <div className="border-b border-[var(--border-dark)] pb-3 pt-1">
+                  <div
+                    className={cn(
+                      "border-b pb-3 pt-1",
+                      toneLight ? "border-[#E2E8F0]" : "border-[var(--border-dark)]",
+                    )}
+                  >
                   <div className="flex gap-2.5 px-1">
                     <span
-                      className="mt-1 h-[2.875rem] w-px shrink-0 rounded-full bg-[var(--accent-primary)]/55 shadow-[0_0_14px_rgb(124_77_255/0.35)]"
+                      className={cn(
+                        "mt-1 h-[2.875rem] w-px shrink-0 rounded-full opacity-95",
+                        toneLight
+                          ? "bg-[#2563EB]/55 shadow-[0_0_14px_rgba(37,99,235,0.35)]"
+                          : "bg-[var(--accent-primary)]/55 shadow-[0_0_14px_rgb(124_77_255/0.35)]",
+                      )}
                       aria-hidden
                     />
                     <div className="min-w-0 flex-1 pt-0.5">
-                      <h2 className="text-[13px] font-semibold tracking-tight text-[var(--text-primary-light)]">
+                      <h2 className={cn("text-[13px] font-semibold tracking-tight", textPrimaryTone)}>
                         Search your workspace
                       </h2>
-                      <p className="mt-1 max-w-none text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">
+                      <p className={cn("mt-1 max-w-none text-[11.5px] leading-relaxed", mutedSecondary)}>
                         Find inbox conversations, Today tasks, clients, projects, invoices, events and files.
                       </p>
                       <div
@@ -593,9 +665,18 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                             }}
                             className={cn(
                               "rounded-md border px-2.5 py-1 text-left text-[11px] font-medium leading-tight transition-colors",
-                              "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-primary-light)] max-sm:w-full max-sm:basis-[46%]",
-                              "hover:border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)]/14",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface-dark)] active:translate-y-px",
+                              "max-sm:w-full max-sm:basis-[46%] active:translate-y-px",
+                              toneLight
+                                ? cn(
+                                    "border-[#E2E8F0] bg-white text-[#0F172A]",
+                                    "hover:border-[#3B82F6]/35 hover:bg-[#EFF6FF]",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC]",
+                                  )
+                                : cn(
+                                    "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-primary-light)]",
+                                    "hover:border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)]/14",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface-dark)]",
+                                  ),
                             )}
                           >
                             {chip}
@@ -610,7 +691,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
               {filteredLinks.length > 0 ? (
                 <>
                   <div className="px-0.5 pt-1">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-secondary-light)]/55">
+                    <span className={cn(
+                      "text-[10px] font-medium uppercase tracking-[0.14em]",
+                      toneLight ? "text-[#94A3B8]/80" : "text-[var(--text-secondary-light)]/55",
+                    )}>
                       Quick navigation
                     </span>
                   </div>
@@ -625,10 +709,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                           data-active={i === activeIndex}
                           className={cn(
                             SEARCH_ROW_BASE,
-                            i === activeIndex ? SEARCH_ROW_QUICK_NAV_ACTIVE : SEARCH_ROW_QUICK_NAV,
+                            i === activeIndex ? rowQuickNavActive : rowQuickNav,
                           )}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary-light)]/80 opacity-85" />
+                          <Icon className={cn("h-3.5 w-3.5 shrink-0 opacity-85", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]/80")} />
                           <span>{route.label}</span>
                         </Link>
                       )
@@ -636,7 +720,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                   </div>
                 </>
               ) : (
-                <EmptyState query={query} />
+                <EmptyState query={query} toneLight={toneLight} />
               )}
             </div>
           ) : (
@@ -644,16 +728,19 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
             <div className="p-2">
               {loading && results.length === 0 ? (
                 <div className="py-10 text-center">
-                  <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-[var(--accent-primary)] opacity-85" />
-                  <p className="text-[13px] text-[var(--text-secondary-light)]">Buscando…</p>
+                  <Loader2 className={cn("mx-auto mb-2 h-5 w-5 animate-spin opacity-85", accentIcon)} />
+                  <p className={cn("text-[13px]", mutedSecondary)}>Buscando…</p>
                 </div>
               ) : results.length === 0 && !loading ? (
-                <EmptyState query={query} />
+                <EmptyState query={query} toneLight={toneLight} />
               ) : (
                 Array.from(grouped.entries()).map(([group, items]) => (
                   <div key={group} className="mb-0.5">
                     <div className="px-2 py-1.5">
-                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-secondary-light)]/65">
+                      <span className={cn(
+                        "text-[10px] font-medium uppercase tracking-[0.12em]",
+                        toneLight ? "text-[#64748B]/90" : "text-[var(--text-secondary-light)]/65",
+                      )}>
                         {group}
                       </span>
                     </div>
@@ -669,26 +756,29 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                           data-active={idx === activeIndex}
                           className={cn(
                             SEARCH_ROW_BASE,
-                            idx === activeIndex ? SEARCH_ROW_ACTIVE : SEARCH_ROW_IDLE,
+                            idx === activeIndex ? rowResultActive : rowResultIdle,
                           )}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)] opacity-85" />
+                          <Icon className={cn("h-3.5 w-3.5 shrink-0 opacity-85", accentIcon)} />
                           <div className="min-w-0 flex-1">
                             <div className="truncate font-medium">{item.title}</div>
-                            <div className="truncate text-[11px] text-[var(--text-secondary-light)]">
+                            <div className={cn("truncate text-[11px]", mutedSecondary)}>
                               {item.subtitle}
                             </div>
                           </div>
                           {item.badge && (
                             <span className={cn(
                               "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none",
-                              item.badgeColor || "bg-white/[0.07] text-[var(--text-secondary-light)] ring-1 ring-[var(--border-dark)]",
+                              item.badgeColor || (toneLight
+                                ? "bg-[#F1F5F9] text-[#64748B] ring-1 ring-[#E2E8F0]"
+                                : "bg-white/[0.07] text-[var(--text-secondary-light)] ring-1 ring-[var(--border-dark)]"),
                             )}>
                               {item.badge.replace("_", " ")}
                             </span>
                           )}
                           <CornerDownLeft className={cn(
-                            "h-3 w-3 shrink-0 text-[var(--text-secondary-light)] opacity-0 transition-opacity",
+                            "h-3 w-3 shrink-0 opacity-0 transition-opacity",
+                            toneLight ? "text-[#94A3B8]" : "text-[var(--text-secondary-light)]",
                             idx === activeIndex && "opacity-80",
                           )} aria-hidden />
                         </Link>
@@ -703,23 +793,39 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
         {/* Footer with keyboard hints */}
         <div
-          className="flex items-center gap-4 border-t border-[var(--border-dark)] px-3.5 py-1.5"
-          style={{ backgroundColor: "var(--app-surface-dark-elevated)" }}
+          className={cn(
+            "flex items-center gap-4 border-t px-3.5 py-1.5 text-[10px]",
+            toneLight ? "border-[#E2E8F0] bg-[#F1F5F9]" : "border-[var(--border-dark)]",
+            !toneLight ? "text-[var(--text-secondary-light)]" : "text-[#64748B]",
+          )}
+          style={toneLight ? undefined : { backgroundColor: "var(--app-surface-dark-elevated)" }}
         >
-          <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary-light)]">
-            <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">↑</kbd>
-            <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">↓</kbd>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+            <kbd className={cn(
+              "rounded border px-1 py-0.5 font-mono text-[10px]",
+              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+            )}>↑</kbd>
+            <kbd className={cn(
+              "rounded border px-1 py-0.5 font-mono text-[10px]",
+              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+            )}>↓</kbd>
             <span>navegar</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary-light)]">
-            <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">↵</kbd>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+            <kbd className={cn(
+              "rounded border px-1 py-0.5 font-mono text-[10px]",
+              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+            )}>↵</kbd>
             <span>abrir</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary-light)]">
-            <kbd className="rounded border border-[var(--border-dark)] bg-white/[0.05] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]">esc</kbd>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+            <kbd className={cn(
+              "rounded border px-1 py-0.5 font-mono text-[10px]",
+              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+            )}>esc</kbd>
             <span>close</span>
           </div>
-          <span className="ml-auto text-[10px] text-[var(--text-secondary-light)]/80">
+          <span className={cn("ml-auto tabular-nums", toneLight ? "text-[#64748B]/90" : "text-[var(--text-secondary-light)]/80")}>
             {displayMode === "results"
               ? `${results.length} result${results.length !== 1 ? "s" : ""}`
               : `${filteredLinks.length} link${filteredLinks.length !== 1 ? "s" : ""}`
@@ -727,19 +833,80 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           </span>
         </div>
         </div>
+  )
+
+  if (useDesktopPortal && portalMount) {
+    return createPortal(
+      <div ref={chromeRefDesktop} className="relative z-30 w-full">
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+          aria-hidden={!open}
+        >
+          <div className="min-h-0 overflow-hidden">
+            {innerShell}
+          </div>
+        </div>
+      </div>,
+      portalMount,
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        "fixed inset-0 z-[150] flex items-start justify-center pt-[11vh] p-4",
+        portalMount !== null && "md:hidden",
+      )}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 backdrop-blur-[4px]"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--app-canvas) 76%, rgb(8 6 14))",
+        }}
+        onClick={onClose}
+      />
+      <div
+        className="relative z-[1] isolate w-full max-w-xl animate-in fade-in zoom-in-[0.99] duration-150 [color-scheme:dark]"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Workspace search"
+      >
+        {innerShell}
       </div>
     </div>
   )
 }
 
-function EmptyState({ query }: { query: string }) {
+function EmptyState({ query, toneLight }: { query: string; toneLight?: boolean }) {
   return (
     <div className="py-10 text-center">
-      <Search className="mx-auto mb-3 h-8 w-8 text-[var(--accent-primary)]/35" aria-hidden />
-      <p className="text-[13px] text-[var(--text-secondary-light)]">
-        No results for <span className="font-medium text-[var(--text-primary-light)]">&quot;{query}&quot;</span>
+      <Search
+        className={cn(
+          "mx-auto mb-3 h-8 w-8",
+          toneLight ? "text-[#2563EB]/35" : "text-[var(--accent-primary)]/35",
+        )}
+        aria-hidden
+      />
+      <p className={cn(
+        "text-[13px]",
+        toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]",
+      )}>
+        No results for{" "}
+        <span className={cn(
+          "font-medium",
+          toneLight ? "text-[#0F172A]" : "text-[var(--text-primary-light)]",
+        )}>
+          &quot;{query}&quot;
+        </span>
       </p>
-      <p className="mt-1 text-[11px] text-[var(--text-secondary-light)]/80">
+      <p className={cn(
+        "mt-1 text-[11px]",
+        toneLight ? "text-[#94A3B8]" : "text-[var(--text-secondary-light)]/80",
+      )}>
         Try another search term
       </p>
     </div>

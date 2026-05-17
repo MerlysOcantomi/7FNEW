@@ -5,6 +5,7 @@ import { Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
+import { useGlobalSearch } from "@/components/global-search-provider"
 
 /**
  * Desktop trigger for the global Today surface — visual sibling of
@@ -46,11 +47,13 @@ import { useGlobalNew } from "@/components/global-new/use-global-new"
 export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { open, setOpen } = useTodayDrawer()
   const { closeAll: closeNew } = useGlobalNew()
+  const { closeSearch } = useGlobalSearch()
 
   const handleClick = () => {
     const next = !open
     if (next) {
       closeNew()
+      closeSearch()
     }
     setOpen(next)
   }

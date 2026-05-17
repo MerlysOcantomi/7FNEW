@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGlobalNew } from "./global-new-provider"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
+import { useGlobalSearch } from "@/components/global-search-provider"
 
 export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { desktopOpen, setDesktopOpen } = useGlobalNew()
@@ -15,11 +16,13 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
    * outside a provider, so this stays safe on any future legacy mount.
    */
   const { closeToday } = useTodayDrawer()
+  const { closeSearch } = useGlobalSearch()
 
   const handleClick = () => {
     const next = !desktopOpen
     if (next) {
       closeToday()
+      closeSearch()
     }
     setDesktopOpen(next)
   }

@@ -9,6 +9,8 @@ import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { useGlobalSearch } from "@/components/global-search-provider";
+import { CloseTodayWhenGlobalSearchOpen } from "@/components/close-today-when-global-search-open";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { GlobalNewDesktopChrome } from "@/components/global-new/global-new-desktop-panel";
 import { GlobalNewTriggerDesktop } from "@/components/global-new/global-new-trigger";
@@ -52,10 +54,11 @@ export interface ContextShellProps {
  * is no longer architecturally inverted from New on desktop.
  */
 function ContextShellDesktopToolbar() {
-  const { openSearch } = useGlobalSearch();
+  const { openSearch, searchOpen } = useGlobalSearch();
   const { desktopOpen } = useGlobalNew();
   const { open: todayOpen } = useTodayDrawer();
-  const eitherOpen = desktopOpen || todayOpen;
+  const isMobileViewport = useIsMobile();
+  const eitherOpen = desktopOpen || todayOpen || (searchOpen && !isMobileViewport);
   /**
    * Mirrors AppShell's `hideTodayTrigger`: ContextShell currently never lives
    * under `/today`, but if a future operator routes a Today subview through
@@ -83,6 +86,7 @@ function ContextShellDesktopToolbar() {
           <GlobalNewTriggerDesktop variant="context" />
           <button
             type="button"
+            data-global-search-trigger
             onClick={openSearch}
             className="hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex"
           >
@@ -102,6 +106,11 @@ function ContextShellDesktopToolbar() {
         sticky-bottom mount inside `<main>` has been retired.
       */}
       <GlobalTodayDesktopChrome variant="context" />
+      <div
+        id="global-search-desktop-root"
+        data-search-chrome-variant="context"
+        className="relative z-30 hidden shrink-0 md:block"
+      />
     </>
   );
 }
@@ -139,6 +148,7 @@ export function ContextShell({
           duplicate launcher can land in the same tree.
         */}
         <TodayDrawerProvider>
+        <CloseTodayWhenGlobalSearchOpen />
         {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
         <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
           <SidebarNav />

@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
 import { useGlobalSearch } from "@/components/global-search-provider"
+import { CloseTodayWhenGlobalSearchOpen } from "@/components/close-today-when-global-search-open"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { useUser } from "@/hooks/use-user"
 import { cn } from "@/lib/utils"
@@ -41,10 +43,11 @@ function AppShellDesktopToolbar({
 }: {
   hideTodayTrigger: boolean
 }) {
-  const { openSearch } = useGlobalSearch()
+  const { openSearch, searchOpen } = useGlobalSearch()
   const { desktopOpen } = useGlobalNew()
   const { open: todayOpen } = useTodayDrawer()
-  const eitherOpen = desktopOpen || todayOpen
+  const isMobileViewport = useIsMobile()
+  const eitherOpen = desktopOpen || todayOpen || (searchOpen && !isMobileViewport)
 
   return (
     <div className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
@@ -67,6 +70,7 @@ function AppShellDesktopToolbar({
           <GlobalNewTriggerDesktop variant="app" />
           <button
             type="button"
+            data-global-search-trigger
             onClick={openSearch}
             className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/6 px-3 py-1.5 transition-colors hover:bg-white/10"
           >
@@ -89,6 +93,11 @@ function AppShellDesktopToolbar({
         and New behave as a single global action family at the top.
       */}
       <GlobalTodayDesktopChrome variant="app" />
+      <div
+        id="global-search-desktop-root"
+        data-search-chrome-variant="app"
+        className="relative z-30 hidden shrink-0 md:block"
+      />
     </div>
   )
 }
@@ -133,6 +142,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         time, so each provider naturally owns its own state).
       */}
       <TodayDrawerProvider>
+      <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
       <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
         <SidebarNav />

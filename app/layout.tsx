@@ -47,11 +47,11 @@ export default function RootLayout({
           <UserProvider>
             <ToastProvider>
               <KeyboardShortcutsProvider>
-                <GlobalSearchProvider>
-                  <GlobalNewProvider>
+                <GlobalNewProvider>
+                  <GlobalSearchProvider>
                     {children}
-                  </GlobalNewProvider>
-                </GlobalSearchProvider>
+                  </GlobalSearchProvider>
+                </GlobalNewProvider>
               </KeyboardShortcutsProvider>
             </ToastProvider>
           </UserProvider>
