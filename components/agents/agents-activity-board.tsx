@@ -138,11 +138,15 @@ export function AgentsActivityBoard() {
     <div className="flex flex-col gap-6">
       <AgentsHeader agents={data?.agents ?? []} totalItems={totalItems} />
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {LANES.map((lane) => (
-          <AgentsLaneColumn key={lane.key} meta={lane} items={lanes[lane.key]} />
-        ))}
-      </div>
+      {totalItems === 0 ? (
+        <AgentsGlobalEmptyState />
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {LANES.map((lane) => (
+            <AgentsLaneColumn key={lane.key} meta={lane} items={lanes[lane.key]} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -166,9 +170,9 @@ function AgentsHeader({
           <Sparkles size={16} strokeWidth={1.9} />
         </span>
         <div className="flex-1">
-          <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary-light)]">
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary-light)]">
             Agent activity
-          </h1>
+          </h2>
           <p className="text-xs leading-relaxed text-[var(--text-secondary-light)]">
             {totalItems > 0
               ? `${totalItems} item${totalItems === 1 ? "" : "s"} across your agents right now.`
@@ -202,6 +206,39 @@ function AgentsHeader({
         </ul>
       ) : null}
     </header>
+  )
+}
+
+// ─── Global empty state ──────────────────────────────────────────────────────
+
+/**
+ * Shown when every lane is empty. A single friendly state reads better
+ * as a first impression than four dashed empty cards side by side. The
+ * per-lane empty cards still render once there is partial activity.
+ */
+function AgentsGlobalEmptyState() {
+  return (
+    <div
+      role="status"
+      className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 px-6 py-16 text-center"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]"
+      >
+        <Sparkles size={18} strokeWidth={1.9} />
+      </span>
+      <div className="max-w-sm">
+        <p className="text-sm font-medium text-[var(--text-primary-light)]">
+          No agent activity yet
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary-light)]">
+          When Fanny automates work, proposes a task, or runs an action, it will
+          show up here — grouped by what is automated, awaiting review, executed,
+          or needs your attention.
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -282,8 +319,16 @@ function AgentsLaneColumn({
 // ─── Item card ───────────────────────────────────────────────────────────────
 
 function AgentsActivityCard({ item }: { item: AgentActivityItem }) {
+  const interactive = Boolean(item.source.href)
+
   const body = (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-2.5 transition-colors hover:bg-white/[0.04]">
+    <div
+      className={cn(
+        "flex flex-col gap-1.5 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-2.5 transition-colors",
+        /** Hover affordance only when the card actually navigates. */
+        interactive && "hover:bg-white/[0.04]",
+      )}
+    >
       <p className="text-xs font-medium leading-snug text-[var(--text-primary-light)]">
         {item.title}
       </p>
