@@ -17,6 +17,10 @@ import { TodayDrawerProvider, useTodayDrawer } from "@/components/today/today-dr
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome"
 import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger"
 import { GlobalTodayDesktopChrome } from "@/components/today/global-today-desktop-chrome"
+import { AgentsPanelProvider, useAgentsPanel } from "@/components/agents/agents-panel-provider"
+import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome"
+import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger"
+import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -40,14 +44,18 @@ interface AppShellProps {
  */
 function AppShellDesktopToolbar({
   hideTodayTrigger,
+  hideAgentsTrigger,
 }: {
   hideTodayTrigger: boolean
+  hideAgentsTrigger: boolean
 }) {
   const { openSearch, searchOpen } = useGlobalSearch()
   const { desktopOpen } = useGlobalNew()
   const { open: todayOpen } = useTodayDrawer()
+  const { open: agentsOpen } = useAgentsPanel()
   const isMobileViewport = useIsMobile()
-  const eitherOpen = desktopOpen || todayOpen || (searchOpen && !isMobileViewport)
+  const eitherOpen =
+    desktopOpen || todayOpen || agentsOpen || (searchOpen && !isMobileViewport)
 
   return (
     <div className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
@@ -68,6 +76,13 @@ function AppShellDesktopToolbar({
           */}
           {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="app" />}
           <GlobalNewTriggerDesktop variant="app" />
+          {/*
+            Agents — fourth global action. Visibility/decision plane over
+            AI work; sits after New (create) and before Search (find).
+            Hidden on /agents itself (operator is already on the canonical
+            surface), mirroring the Today trigger's /today rule.
+          */}
+          {!hideAgentsTrigger && <GlobalAgentsTriggerDesktop variant="app" />}
           <button
             type="button"
             data-global-search-trigger
@@ -93,6 +108,13 @@ function AppShellDesktopToolbar({
         and New behave as a single global action family at the top.
       */}
       <GlobalTodayDesktopChrome variant="app" />
+      {/*
+        Agents desktop chrome — sibling of the New + Today panels inside
+        the same sticky-top container. Hangs from the toolbar and grows
+        DOWN, identical recipe; mutual exclusion at the trigger level
+        keeps only one panel open at a time.
+      */}
+      <GlobalAgentsDesktopChrome variant="app" />
       <div
         id="global-search-desktop-root"
         data-search-chrome-variant="app"
@@ -114,6 +136,12 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
    * prefix so future `/today/*` sub-routes inherit the same hide rule.
    */
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/")
+  /**
+   * Hide the Agents trigger on `/agents` itself — same rationale as the
+   * Today trigger gate: a toolbar button pointing back at the canonical
+   * Agents page the operator is already on is pure noise.
+   */
+  const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/")
 
   useEffect(() => {
     if (!loading && !user) {
@@ -142,6 +170,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         time, so each provider naturally owns its own state).
       */}
       <TodayDrawerProvider>
+      <AgentsPanelProvider>
       <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
       <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
@@ -150,7 +179,10 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
 
         {/* max-h-full caps main to the shell height so overflow-y-auto always forms a scrollport when content is taller */}
         <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
-          <AppShellDesktopToolbar hideTodayTrigger={hideTodayTrigger} />
+          <AppShellDesktopToolbar
+            hideTodayTrigger={hideTodayTrigger}
+            hideAgentsTrigger={hideAgentsTrigger}
+          />
 
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8">
             <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
@@ -168,7 +200,15 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           sidebarCollapsed={sidebarCollapsed}
           hidden={hideTodayTrigger}
         />
+
+        {/*
+          Global Agents surface — only mounts the mobile vaul drawer.
+          Desktop Agents surface lives in the top sticky container inside
+          `<main>` (see `AppShellDesktopToolbar` above).
+        */}
+        <GlobalAgentsChrome />
       </div>
+      </AgentsPanelProvider>
       </TodayDrawerProvider>
     </SidebarCollapseContext.Provider>
   )

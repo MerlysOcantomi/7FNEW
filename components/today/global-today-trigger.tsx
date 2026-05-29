@@ -5,6 +5,7 @@ import { Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
+import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
 
 /**
@@ -47,12 +48,14 @@ import { useGlobalSearch } from "@/components/global-search-provider"
 export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { open, setOpen } = useTodayDrawer()
   const { closeAll: closeNew } = useGlobalNew()
+  const { closeAgents } = useAgentsPanel()
   const { closeSearch } = useGlobalSearch()
 
   const handleClick = () => {
     const next = !open
     if (next) {
       closeNew()
+      closeAgents()
       closeSearch()
     }
     setOpen(next)
@@ -119,10 +122,14 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
  */
 export function GlobalTodayTriggerMobile() {
   const { open, openToday, available } = useTodayDrawer()
+  const { closeAll: closeNew } = useGlobalNew()
+  const { closeAgents } = useAgentsPanel()
   const router = useRouter()
 
   const onClick = () => {
     if (available) {
+      closeNew()
+      closeAgents()
       openToday()
     } else {
       router.push("/today")

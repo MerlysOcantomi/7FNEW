@@ -4,24 +4,28 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGlobalNew } from "./global-new-provider"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
+import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
 
 export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { desktopOpen, setDesktopOpen } = useGlobalNew()
   /**
-   * Cross-link with Today: when the user opens New, we proactively
-   * close the Today panel. New and Today share the sticky-top region
-   * (both grow DOWN from the toolbar) and only one should ever be
-   * visible at a time. `useTodayDrawer()` falls back to a noop store
+   * Cross-link with Today + Agents: when the user opens New, we
+   * proactively close the Today and Agents panels. New, Today and
+   * Agents all share the sticky-top region (all grow DOWN from the
+   * toolbar) and only one should ever be visible at a time.
+   * `useTodayDrawer()` / `useAgentsPanel()` fall back to noop stores
    * outside a provider, so this stays safe on any future legacy mount.
    */
   const { closeToday } = useTodayDrawer()
+  const { closeAgents } = useAgentsPanel()
   const { closeSearch } = useGlobalSearch()
 
   const handleClick = () => {
     const next = !desktopOpen
     if (next) {
       closeToday()
+      closeAgents()
       closeSearch()
     }
     setDesktopOpen(next)
@@ -55,11 +59,24 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
 
 export function GlobalNewTriggerMobile() {
   const { mobileOpen, setMobileOpen } = useGlobalNew()
+  /**
+   * Mobile mutual exclusion: close the Agents + Today vaul drawers
+   * before opening the New sheet so two bottom surfaces never stack.
+   * Both hooks are noop-safe outside their providers (legacy mounts).
+   */
+  const { closeAgents } = useAgentsPanel()
+  const { closeToday } = useTodayDrawer()
+
+  const handleClick = () => {
+    closeAgents()
+    closeToday()
+    setMobileOpen(true)
+  }
 
   return (
     <button
       type="button"
-      onClick={() => setMobileOpen(true)}
+      onClick={handleClick}
       className={cn(
         "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-white/10 hover:text-white",
         mobileOpen && "text-white",

@@ -19,6 +19,10 @@ import { TodayDrawerProvider, useTodayDrawer } from "@/components/today/today-dr
 import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
 import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger";
 import { GlobalTodayDesktopChrome } from "@/components/today/global-today-desktop-chrome";
+import { AgentsPanelProvider, useAgentsPanel } from "@/components/agents/agents-panel-provider";
+import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome";
+import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger";
+import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome";
 
 export interface BreadcrumbItem {
   label: string;
@@ -57,8 +61,10 @@ function ContextShellDesktopToolbar() {
   const { openSearch, searchOpen } = useGlobalSearch();
   const { desktopOpen } = useGlobalNew();
   const { open: todayOpen } = useTodayDrawer();
+  const { open: agentsOpen } = useAgentsPanel();
   const isMobileViewport = useIsMobile();
-  const eitherOpen = desktopOpen || todayOpen || (searchOpen && !isMobileViewport);
+  const eitherOpen =
+    desktopOpen || todayOpen || agentsOpen || (searchOpen && !isMobileViewport);
   /**
    * Mirrors AppShell's `hideTodayTrigger`: ContextShell currently never lives
    * under `/today`, but if a future operator routes a Today subview through
@@ -67,6 +73,7 @@ function ContextShellDesktopToolbar() {
    */
   const pathname = usePathname();
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
+  const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/");
 
   return (
     <>
@@ -84,6 +91,8 @@ function ContextShellDesktopToolbar() {
           */}
           {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="context" />}
           <GlobalNewTriggerDesktop variant="context" />
+          {/* Agents — fourth global action, after New and before Search. */}
+          {!hideAgentsTrigger && <GlobalAgentsTriggerDesktop variant="context" />}
           <button
             type="button"
             data-global-search-trigger
@@ -106,6 +115,8 @@ function ContextShellDesktopToolbar() {
         sticky-bottom mount inside `<main>` has been retired.
       */}
       <GlobalTodayDesktopChrome variant="context" />
+      {/* Agents desktop chrome — sibling of the New + Today panels. */}
+      <GlobalAgentsDesktopChrome variant="context" />
       <div
         id="global-search-desktop-root"
         data-search-chrome-variant="context"
@@ -148,6 +159,7 @@ export function ContextShell({
           duplicate launcher can land in the same tree.
         */}
         <TodayDrawerProvider>
+        <AgentsPanelProvider>
         <CloseTodayWhenGlobalSearchOpen />
         {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
         <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
@@ -242,7 +254,11 @@ export function ContextShell({
             sidebarCollapsed={sidebarCollapsed}
             hidden={hideTodaySurfaces}
           />
+
+          {/* Global Agents surface — mobile vaul drawer only (desktop is inline above). */}
+          <GlobalAgentsChrome />
         </div>
+        </AgentsPanelProvider>
         </TodayDrawerProvider>
       </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>

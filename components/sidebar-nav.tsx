@@ -51,6 +51,7 @@ import { DEFAULT_VOCABULARY } from "@core/personalization";
 import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigger";
 import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
 import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigger";
+import { GlobalAgentsTriggerMobile } from "@/components/agents/global-agents-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
@@ -899,6 +900,8 @@ export function MobileSidebarNav() {
    * the floating launcher's existing rule.
    */
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
+  /** Same /agents gate as the desktop toolbar — no Agents button on the canonical Agents page. */
+  const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/");
 
   return (
     <>
@@ -918,6 +921,7 @@ export function MobileSidebarNav() {
         <div className="flex items-center gap-0.5">
           {!hideTodayTrigger && <GlobalTodayTriggerMobile />}
           <GlobalNewTriggerMobile />
+          {!hideAgentsTrigger && <GlobalAgentsTriggerMobile />}
           <button
             onClick={openSearch}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
