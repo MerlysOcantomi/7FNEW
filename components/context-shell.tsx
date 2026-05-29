@@ -93,11 +93,24 @@ function ContextShellDesktopToolbar() {
           <GlobalNewTriggerDesktop variant="context" />
           {/* Agents — fourth global action, after New and before Search. */}
           {!hideAgentsTrigger && <GlobalAgentsTriggerDesktop variant="context" />}
+          {/*
+            Search trigger — light (context) sibling of the Today / New /
+            Agents buttons. Keeps the Ctrl+K input affordance but adopts the
+            shared open-state ring so the family stays coherent on detail
+            routes too.
+          */}
           <button
             type="button"
             data-global-search-trigger
             onClick={openSearch}
-            className="hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex"
+            aria-expanded={searchOpen && !isMobileViewport}
+            aria-haspopup="dialog"
+            className={cn(
+              "hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex",
+              searchOpen &&
+                !isMobileViewport &&
+                "bg-[#F1F5F9] ring-2 ring-[#3B82F6]/30",
+            )}
           >
             <Search className="h-3.5 w-3.5 shrink-0" />
             <span className="w-32 text-left lg:w-48">Search...</span>

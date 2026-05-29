@@ -83,11 +83,25 @@ function AppShellDesktopToolbar({
             surface), mirroring the Today trigger's /today rule.
           */}
           {!hideAgentsTrigger && <GlobalAgentsTriggerDesktop variant="app" />}
+          {/*
+            Search trigger — visually part of the global action family.
+            It keeps its input-like Ctrl+K affordance (search is a typed,
+            focal task) but shares the sibling buttons' surface token
+            (bg-white/[0.06]) and the same open-state ring as Today / New /
+            Agents so the four actions read as one row.
+          */}
           <button
             type="button"
             data-global-search-trigger
             onClick={openSearch}
-            className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/6 px-3 py-1.5 transition-colors hover:bg-white/10"
+            aria-expanded={searchOpen && !isMobileViewport}
+            aria-haspopup="dialog"
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/[0.06] px-3 py-1.5 transition-colors hover:bg-white/10",
+              searchOpen &&
+                !isMobileViewport &&
+                "bg-white/10 ring-2 ring-[var(--accent-primary)]/40",
+            )}
           >
             <Search className="h-3.5 w-3.5 text-[var(--text-secondary-light)]" />
             <span className="w-32 text-left text-sm text-[var(--text-secondary-light)] lg:w-48">

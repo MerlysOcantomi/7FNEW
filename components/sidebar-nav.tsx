@@ -913,10 +913,12 @@ export function MobileSidebarNav() {
           <span className="text-white font-semibold text-sm">7F</span>
         </div>
         {/*
-          Header action order: Today | New | Search | Menu.
-          Today is the daily-work surface and goes first so the operator's
-          first tap of the day is one motion. New keeps its capture role
-          right after. Search and Menu close the row.
+          Header action order: Today | New | Agents | Search | Menu — the
+          same global action family (and order) as the desktop toolbar.
+          Today (daily work) goes first so the operator's first tap of the
+          day is one motion; New (capture) follows; Agents (AI visibility)
+          sits before Search (find); Menu closes the row. Today and Agents
+          are hidden on their own canonical routes (/today, /agents).
         */}
         <div className="flex items-center gap-0.5">
           {!hideTodayTrigger && <GlobalTodayTriggerMobile />}

@@ -1,5 +1,6 @@
 "use client"
 
+import { Plus } from "lucide-react"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   GLOBAL_NEW_GROUP_LABELS,
@@ -25,13 +26,30 @@ export function GlobalNewMobileSheet() {
         side="bottom"
         className="flex max-h-[85dvh] flex-col rounded-t-[24px] border-t border-[var(--border-dark)] bg-[var(--app-shell-bg)] p-0 [&>button]:top-3"
       >
-        <SheetTitle className="sr-only">New</SheetTitle>
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b border-[var(--border-dark)] px-5 pb-3 pt-4">
-            <p className="text-sm font-semibold text-[var(--app-sidebar-text)]">New</p>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary-light)]">
-              Create across your workspace
-            </p>
+          {/*
+            Header aligned with the Today / Agents mobile drawers: icon
+            halo + title + subtitle, same px-5 py-3 spacing and dark tokens.
+            The Sheet keeps its own built-in close button (top-right).
+            Follow-up: migrate this radix Sheet to a vaul Drawer to fully
+            match Today/Agents (drag-to-close, 70vh) — deferred to keep this
+            PR token-level only.
+          */}
+          <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-dark)] px-5 py-3">
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+            >
+              <Plus size={14} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0">
+              <SheetTitle className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
+                New
+              </SheetTitle>
+              <p className="text-[11px] leading-tight text-[var(--text-secondary-light)]">
+                Create across your workspace
+              </p>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-8">
             {GROUP_ORDER.map((g) => {
