@@ -169,152 +169,69 @@ export function InboxToolbar({
   return (
     <div className="shrink-0 rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-surface)] shadow-[var(--app-shadow-subtle)]">
       {/*
-       * Row 1 — Inbox list filter + demoted overflow actions.
+       * Compact single-row toolbar. Everything lives on ONE line on desktop to
+       * maximise the Inbox vertical space:
+       *   [+ Compose] [work chips] [Channel] [More filters] … [Filter inbox] […]
        *
-       * IMPORTANT: this input is NOT the global Search. It only filters the
-       * conversation list of the active inbox, so it is labelled "Filter inbox"
-       * and width-capped on desktop so it never reads as a hero search bar
-       * competing with the global Search action in the top chrome.
+       * - Compose is a VISIBLE primary action (icon-only "+" on narrow widths),
+       *   wired to the existing `onCompose` handler — no longer buried in the
+       *   overflow menu.
+       * - "Filter inbox" is the LOCAL list filter (NOT Global Search). It sits
+       *   near the end, immediately before the overflow kebab, width-capped and
+       *   visually secondary so it never reads as a hero search bar.
+       * - "Sync now" stays demoted inside the overflow kebab (auto-sync on load
+       *   already covers the common case).
        *
-       * "New message" (legacy compose) and "Sync now" (manual refresh) used to
-       * be prominent toolbar buttons. They are demoted into an overflow menu —
-       * messages already auto-sync on load, and New message is also reachable
-       * from Global New, so neither needs to compete for primary attention.
+       * Conversation-only controls (work chips / channel / More filters) are
+       * hidden in To-do mode; Compose + Filter + overflow stay available.
+       * `flex-wrap` keeps narrow viewports usable: lower-priority controls wrap
+       * to a second line instead of clipping.
        */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 md:px-4">
-        <div className="relative flex min-w-[180px] flex-1 items-center sm:max-w-[320px]">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 text-[var(--inbox-list-text-secondary)]"
-            aria-hidden="true"
-          />
-          <Input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Filter inbox..."
-            aria-label="Filter inbox"
-            className="h-9 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] pl-9 pr-9 text-sm text-[var(--inbox-list-text)] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
-          />
-          {search ? (
-            <button
-              type="button"
-              aria-label="Clear filter"
-              onClick={() => onSearchChange("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--inbox-list-text)]"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-
-        {activeSearchTerm ? (
-          <div
-            className="hidden shrink-0 rounded-md bg-[var(--inbox-list-selected-bg)] px-2 py-1 text-xs font-medium text-[var(--inbox-list-selected)] sm:block"
-            title={`Filtering: ${activeSearchTerm}`}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2 md:px-4">
+        {onCompose ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="accent"
+            onClick={() => onCompose()}
+            title="Compose new message"
+            aria-label="Compose new message"
+            className="h-8 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-medium"
           >
-            <span className="whitespace-nowrap">&ldquo;{activeSearchTerm}&rdquo;</span>
-          </div>
+            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">Compose</span>
+          </Button>
         ) : null}
 
-        {onCompose || onFetchEmails ? (
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+        {!isTodoMode && onPrimaryWorkFilterChange ? (
+          <div role="group" aria-label="Work filter" className="flex shrink-0 flex-wrap items-center gap-1">
+            {WORK_FILTERS.map((option) => {
+              const isActive = primaryWorkFilter === option.value
+              return (
                 <button
+                  key={option.value}
                   type="button"
-                  aria-label="Inbox actions"
-                  title="Inbox actions"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)] data-[state=open]:bg-[var(--inbox-list-background)] data-[state=open]:text-[var(--inbox-list-text)]"
-                >
-                  {fetchingEmails ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  onClick={() => onPrimaryWorkFilterChange(option.value)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+                    isActive
+                      ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
+                      : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
                   )}
+                >
+                  {option.label}
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {onCompose ? (
-                  <DropdownMenuItem onSelect={() => onCompose()} className="gap-2">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    New message
-                  </DropdownMenuItem>
-                ) : null}
-                {onFetchEmails ? (
-                  <DropdownMenuItem
-                    onSelect={(event) => {
-                      if (fetchingEmails) {
-                        event.preventDefault()
-                        return
-                      }
-                      onFetchEmails()
-                    }}
-                    disabled={fetchingEmails}
-                    className="gap-2"
-                  >
-                    <RefreshCw
-                      className={cn("h-4 w-4", fetchingEmails && "animate-spin")}
-                      aria-hidden="true"
-                    />
-                    {fetchingEmails ? "Syncing…" : "Sync now"}
-                  </DropdownMenuItem>
-                ) : null}
-                {onFetchEmails && lastSyncedAt && !fetchingEmails ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel
-                      className="text-[11px] font-normal text-[var(--inbox-list-text-secondary)]"
-                      title={lastSyncedAt.toLocaleString()}
-                    >
-                      Last synced {formatSyncAge(lastSyncedAt)}
-                    </DropdownMenuLabel>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              )
+            })}
           </div>
         ) : null}
-      </div>
 
-      {/*
-       * Row 2 — Primary work chips + collapsed channel picker + More filters
-       * trigger. Hidden in To-do mode because they describe conversation
-       * state, which doesn't apply to the operator's task queue.
-       *
-       * `flex-wrap` lets all three groups stack on narrow viewports instead
-       * of being clipped or scrolled horizontally.
-       */}
-      {!isTodoMode ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-[var(--inbox-list-border)]/60 px-3 py-2 md:px-4">
-          {onPrimaryWorkFilterChange ? (
-            <div role="group" aria-label="Work filter" className="flex shrink-0 flex-wrap items-center gap-1">
-              {WORK_FILTERS.map((option) => {
-                const isActive = primaryWorkFilter === option.value
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => onPrimaryWorkFilterChange(option.value)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                      isActive
-                        ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
-                        : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-
-          <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-[var(--inbox-list-border)]/60 sm:inline-block" />
-
-          {/*
-           * Channel picker trigger — collapsed state only shows the active
-           * channel label. Click toggles Row 3 (the wrapping channel panel).
-           */}
+        {/*
+         * Channel picker trigger — collapsed state only shows the active
+         * channel label. Click toggles the wrapping channel panel below.
+         */}
+        {!isTodoMode ? (
           <button
             type="button"
             onClick={() => setChannelOpen((open) => !open)}
@@ -336,21 +253,23 @@ export function InboxToolbar({
               <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
             )}
           </button>
+        ) : null}
 
+        {!isTodoMode ? (
           <button
             type="button"
             onClick={() => setMoreOpen((open) => !open)}
             aria-expanded={moreOpen}
             aria-controls="inbox-toolbar-more-panel"
             className={cn(
-              "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
               moreOpen
                 ? "bg-[var(--inbox-list-background)] text-[var(--inbox-list-text)]"
                 : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
             )}
           >
             <SlidersHorizontal className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span>More filters</span>
+            <span className="hidden sm:inline">More filters</span>
             {advancedHasActiveFilter ? (
               <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold text-[var(--inbox-accent)]">
                 on
@@ -362,8 +281,97 @@ export function InboxToolbar({
               <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
             )}
           </button>
+        ) : null}
+
+        {/*
+         * Right cluster — pushed to the row end with `ml-auto`. Holds the LOCAL
+         * "Filter inbox" input (secondary, width-capped) immediately before the
+         * overflow kebab, matching the desired order: … [Filter inbox] […].
+         */}
+        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
+          {activeSearchTerm ? (
+            <div
+              className="hidden shrink-0 rounded-md bg-[var(--inbox-list-selected-bg)] px-2 py-1 text-[11px] font-medium text-[var(--inbox-list-selected)] lg:block"
+              title={`Filtering: ${activeSearchTerm}`}
+            >
+              <span className="whitespace-nowrap">&ldquo;{activeSearchTerm}&rdquo;</span>
+            </div>
+          ) : null}
+
+          <div className="relative w-[120px] sm:w-[150px] lg:w-[190px]">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 text-[var(--inbox-list-text-secondary)]/70"
+              aria-hidden="true"
+            />
+            <Input
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Filter inbox..."
+              aria-label="Filter inbox"
+              className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.03] pl-8 pr-7 text-xs text-[var(--inbox-list-text)] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
+            />
+            {search ? (
+              <button
+                type="button"
+                aria-label="Clear filter"
+                onClick={() => onSearchChange("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--inbox-list-text)]"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+
+          {onFetchEmails ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Inbox actions"
+                  title="Inbox actions"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)] data-[state=open]:bg-[var(--inbox-list-background)] data-[state=open]:text-[var(--inbox-list-text)]"
+                >
+                  {fetchingEmails ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    if (fetchingEmails) {
+                      event.preventDefault()
+                      return
+                    }
+                    onFetchEmails()
+                  }}
+                  disabled={fetchingEmails}
+                  className="gap-2"
+                >
+                  <RefreshCw
+                    className={cn("h-4 w-4", fetchingEmails && "animate-spin")}
+                    aria-hidden="true"
+                  />
+                  {fetchingEmails ? "Syncing…" : "Sync now"}
+                </DropdownMenuItem>
+                {lastSyncedAt && !fetchingEmails ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel
+                      className="text-[11px] font-normal text-[var(--inbox-list-text-secondary)]"
+                      title={lastSyncedAt.toLocaleString()}
+                    >
+                      Last synced {formatSyncAge(lastSyncedAt)}
+                    </DropdownMenuLabel>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {/*
        * Row 3 — Full-width channel panel. Wraps naturally so labels never
