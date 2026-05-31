@@ -400,3 +400,145 @@ export class WorkspaceTaskNotFoundError extends Error {
     this.name = "WorkspaceTaskNotFoundError"
   }
 }
+
+// ─── Legacy Tarea → WorkspaceTask handoff (Send to AI) ──────────────────────
+
+/**
+ * Sentinel error thrown by `handoffLegacyTareaToAI` when the legacy
+ * `Tarea` cannot be found or belongs to another workspace. Routes use
+ * `instanceof` to choose 404 over the default 500.
+ */
+export class TareaNotFoundError extends Error {
+  constructor(tareaId: string) {
+    super(`Tarea not found: ${tareaId}`)
+    this.name = "TareaNotFoundError"
+  }
+}
+
+/**
+ * Map the legacy `Tarea.prioridad` vocabulary (Spanish) onto the
+ * `WorkspaceTask.priority` storage vocabulary. Mirrors the read-side
+ * mapping in `modules/today/aggregator.ts` (`normaliseTareaPrioridad`)
+ * but targets the RAW storage label (`urgent`, not the UI `critical`).
+ */
+function mapTareaPrioridadToWorkspacePriority(
+  raw: string | null | undefined,
+): WorkspaceTaskPriority {
+  switch ((raw ?? "").toLowerCase()) {
+    case "baja":
+      return "low"
+    case "alta":
+      return "high"
+    case "urgente":
+      return "urgent"
+    case "media":
+    default:
+      return "normal"
+  }
+}
+
+export interface HandoffLegacyTareaInput {
+  workspaceId: string
+  /** The legacy `Tarea.id` the operator clicked "Send to AI" on. */
+  tareaId: string
+  /** Authenticated session userId — recorded as `createdBy` on the new row. */
+  actorId: string
+}
+
+/**
+ * Hand a legacy `Tarea` off to the AI lane from the Today surface.
+ *
+ * Legacy `Tarea` rows have no `WorkspaceTask` mirror, so the lane-move
+ * endpoint (`updateWorkspaceTaskAssignment`) can't touch them. This
+ * helper bridges the gap by mirroring the Tarea into a `WorkspaceTask`
+ * linked via `tareaId`, assigned to AI. The Today aggregator already
+ * deduplicates a `Tarea` once a `WorkspaceTask` claims it via `tareaId`,
+ * so after this runs the original `tarea:` row disappears and the new
+ * `task:` row appears in the AI lane.
+ *
+ * Behaviour:
+ *   - Loads the `Tarea` scoped to `workspaceId` (exact match → no
+ *     cross-tenant leak); throws `TareaNotFoundError` when missing.
+ *   - IDEMPOTENT: if a `WorkspaceTask` already links this `tareaId` in
+ *     the same workspace it is REUSED — we only flip the assignment
+ *     plane (`assigneeType="ai"`, `assigneeId=null`) and deliberately
+ *     leave the operator-managed `status` (and everything else) intact.
+ *   - Otherwise creates a new `WorkspaceTask` mirroring the Tarea's
+ *     title / description / due / priority / client / project, with
+ *     `status="open"`, `assigneeType="ai"`, `assigneeId=null`, and a
+ *     `metadata.convertedFrom = "tarea"` breadcrumb.
+ *
+ * Nothing on the underlying `Tarea` is mutated — the schema is left
+ * untouched and the legacy row keeps its own lifecycle. We only ADD a
+ * WorkspaceTask mirror.
+ */
+export async function handoffLegacyTareaToAI(
+  input: HandoffLegacyTareaInput,
+): Promise<WorkspaceTaskRecord> {
+  const workspaceId = input.workspaceId?.trim()
+  const tareaId = input.tareaId?.trim()
+  const actorId = input.actorId?.trim()
+
+  if (!workspaceId) throw new Error("workspaceId is required")
+  if (!tareaId) throw new Error("tareaId is required")
+  if (!actorId) throw new Error("actorId is required")
+
+  /**
+   * Exact `id + workspaceId` match is the only tenant boundary that
+   * matters here: a Tarea from another workspace (or a null-tenant
+   * legacy row) must never be mirrored into this workspace.
+   */
+  const tarea = await db.tarea.findFirst({
+    where: { id: tareaId, workspaceId },
+    include: {
+      proyecto: { select: { id: true, nombre: true } },
+      cliente: { select: { id: true, nombre: true } },
+    },
+  })
+
+  if (!tarea) throw new TareaNotFoundError(tareaId)
+
+  /**
+   * Idempotency: reuse any existing mirror so a double-click (or a
+   * Tarea that was already handed off and later re-surfaced) never
+   * spawns a duplicate WorkspaceTask. In practice the aggregator would
+   * have already deduped a `tarea:` row that has a mirror, so this
+   * branch mostly guards races; we keep it conservative and only touch
+   * the assignment plane.
+   */
+  const existing = await db.workspaceTask.findFirst({
+    where: { workspaceId, tareaId },
+  })
+
+  if (existing) {
+    await db.workspaceTask.updateMany({
+      where: { id: existing.id, workspaceId },
+      data: { assigneeType: "ai", assigneeId: null },
+    })
+    const updated = await db.workspaceTask.findFirst({
+      where: { id: existing.id, workspaceId },
+    })
+    if (!updated) throw new WorkspaceTaskNotFoundError(existing.id)
+    return formatTask(updated)
+  }
+
+  const projectLabel = tarea.proyecto?.nombre ?? tarea.cliente?.nombre ?? null
+
+  return createWorkspaceTask({
+    workspaceId,
+    tareaId,
+    title: tarea.titulo,
+    description: tarea.descripcion,
+    status: "open",
+    priority: mapTareaPrioridadToWorkspacePriority(tarea.prioridad),
+    dueAt: tarea.fechaLimite,
+    clienteId: tarea.clienteId,
+    proyectoId: tarea.proyectoId,
+    assigneeType: "ai",
+    assigneeId: null,
+    sourceType: "legacy_tarea",
+    sourceLabel: projectLabel ? `From ${projectLabel}` : "From Project",
+    createdBy: actorId,
+    metadata: { convertedFrom: "tarea", tareaId },
+  })
+}

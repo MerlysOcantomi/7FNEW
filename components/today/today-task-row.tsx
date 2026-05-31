@@ -42,6 +42,7 @@ import { getTodayLane } from "@modules/today/lanes"
 export function TodayTaskRow({
   item,
   onLaneMove,
+  onLegacyHandoff,
 }: {
   item: TodayItem
   /**
@@ -52,6 +53,14 @@ export function TodayTaskRow({
    * entirely.
    */
   onLaneMove?: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  /**
+   * Optional callback for handing a LEGACY `Tarea` row off to AI.
+   * Receives the canonical `Tarea.id` (id prefix stripped). The parent
+   * calls the conversion endpoint (mirror Tarea → WorkspaceTask assigned
+   * to AI) and refetches Today. When omitted, legacy rows stay purely
+   * navigational. Only relevant for `tarea:` rows in the "mine" lane.
+   */
+  onLegacyHandoff?: (tareaId: string) => void | Promise<void>
 }) {
   const [pending, setPending] = useState(false)
 
@@ -65,18 +74,40 @@ export function TodayTaskRow({
   const sourceChip = renderSourceChip(item)
   const lane = getTodayLane(item)
   /**
-   * Only WorkspaceTask rows can be moved. The aggregator prefixes ids by
-   * source kind, so we use that to gate the action without re-querying
-   * the row's origin.
+   * The aggregator prefixes ids by source kind, so we branch on that
+   * without re-querying the row's origin:
+   *   - `task:`  → canonical WorkspaceTask. Supports Send to AI /
+   *                Take over directly via the lane-move endpoint.
+   *   - `tarea:` → legacy Tarea with no mirror yet. "Send to AI"
+   *                converts it into a WorkspaceTask first (the parent
+   *                owns that call); Take over is never offered here
+   *                because a legacy Tarea always classifies into the
+   *                "mine" lane.
+   *   - `evento:`→ events render via TodayEventCard, not this row.
    */
   const canonicalTaskId = item.id.startsWith("task:") ? item.id.slice("task:".length) : null
-  const showActions = Boolean(onLaneMove) && canonicalTaskId !== null
+  const legacyTareaId = item.id.startsWith("tarea:") ? item.id.slice("tarea:".length) : null
+
+  const canMoveWorkspaceTask = Boolean(onLaneMove) && canonicalTaskId !== null
+  const canHandoffLegacyTarea =
+    Boolean(onLegacyHandoff) && legacyTareaId !== null && lane === "mine"
+  const showActions = canMoveWorkspaceTask || canHandoffLegacyTarea
 
   const handleAction = async (to: "user" | "ai") => {
     if (!onLaneMove || !canonicalTaskId || pending) return
     setPending(true)
     try {
       await onLaneMove(canonicalTaskId, to)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const handleLegacyHandoff = async () => {
+    if (!onLegacyHandoff || !legacyTareaId || pending) return
+    setPending(true)
+    try {
+      await onLegacyHandoff(legacyTareaId)
     } finally {
       setPending(false)
     }
@@ -161,7 +192,7 @@ export function TodayTaskRow({
 
       {showActions ? (
         <div className="flex shrink-0 items-start pt-0.5">
-          {lane === "mine" ? (
+          {canMoveWorkspaceTask && lane === "mine" ? (
             <LaneActionButton
               label="Send to AI"
               icon={<Send size={11} strokeWidth={2} aria-hidden="true" />}
@@ -170,7 +201,16 @@ export function TodayTaskRow({
               tone="ai"
             />
           ) : null}
-          {lane === "ai" && !item.isProposed ? (
+          {canHandoffLegacyTarea ? (
+            <LaneActionButton
+              label="Send to AI"
+              icon={<Send size={11} strokeWidth={2} aria-hidden="true" />}
+              pending={pending}
+              onClick={handleLegacyHandoff}
+              tone="ai"
+            />
+          ) : null}
+          {canMoveWorkspaceTask && lane === "ai" && !item.isProposed ? (
             <LaneActionButton
               label="Take over"
               icon={<UserRound size={11} strokeWidth={2} aria-hidden="true" />}

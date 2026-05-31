@@ -21,6 +21,7 @@ export function TodaySection({
   tone = "default",
   items,
   onLaneMove,
+  onLegacyHandoff,
 }: {
   id: string
   title: string
@@ -34,6 +35,8 @@ export function TodaySection({
    * primitive in the future.
    */
   onLaneMove?: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  /** Forwarded to each row for legacy `Tarea` → AI conversion. */
+  onLegacyHandoff?: (tareaId: string) => void | Promise<void>
 }) {
   if (items.length === 0) return null
 
@@ -62,7 +65,12 @@ export function TodaySection({
           item.kind === "event" ? (
             <TodayEventCard key={item.id} item={item} />
           ) : (
-            <TodayTaskRow key={item.id} item={item} onLaneMove={onLaneMove} />
+            <TodayTaskRow
+              key={item.id}
+              item={item}
+              onLaneMove={onLaneMove}
+              onLegacyHandoff={onLegacyHandoff}
+            />
           ),
         )}
       </div>

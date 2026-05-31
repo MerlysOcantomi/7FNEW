@@ -22,25 +22,13 @@ type ApiEnvelope<T> =
   | { success: true; data: T }
   | { success: false; error?: { message?: string; code?: string } }
 
-async function patchAssignee(taskId: string, to: "user" | "ai"): Promise<void> {
-  let res: Response
-  try {
-    res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/assignee`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to }),
-      credentials: "same-origin",
-    })
-  } catch {
-    throw new Error("Network request failed")
-  }
-
-  /**
-   * Pre-parse before checking `res.ok` so we get the server's error
-   * message even when it returns 400/404/500. Most API routes here use
-   * the `{ success, error: { message } }` envelope; we degrade
-   * gracefully if a layer below returned something else.
-   */
+/**
+ * Pre-parse before checking `res.ok` so we get the server's error
+ * message even when it returns 400/404/500. Most API routes here use
+ * the `{ success, error: { message } }` envelope; we degrade gracefully
+ * if a layer below returned something else. Throws on any non-success.
+ */
+async function assertOk(res: Response): Promise<void> {
   let parsed: ApiEnvelope<unknown> | null = null
   try {
     parsed = (await res.json()) as ApiEnvelope<unknown>
@@ -55,6 +43,22 @@ async function patchAssignee(taskId: string, to: "user" | "ai"): Promise<void> {
         : `Could not update task (HTTP ${res.status})`
     throw new Error(msg)
   }
+}
+
+async function patchAssignee(taskId: string, to: "user" | "ai"): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/assignee`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to }),
+      credentials: "same-origin",
+    })
+  } catch {
+    throw new Error("Network request failed")
+  }
+
+  await assertOk(res)
 }
 
 /**
@@ -79,4 +83,31 @@ export async function sendToAI(taskId: string): Promise<void> {
 export async function takeOver(taskId: string): Promise<void> {
   if (!taskId) throw new Error("taskId is required")
   return patchAssignee(taskId, "user")
+}
+
+/**
+ * Hand a LEGACY `Tarea` off to the AI lane. Unlike `sendToAI` (which
+ * patches an existing WorkspaceTask), this hits a conversion route that
+ * mirrors the Tarea into a WorkspaceTask linked via `tareaId` and
+ * assigns it to AI. Idempotent server-side: a double-click reuses the
+ * existing mirror. After it resolves the caller should refetch Today so
+ * the `tarea:` row becomes a `task:` row in the AI lane.
+ */
+export async function sendLegacyTareaToAI(tareaId: string): Promise<void> {
+  if (!tareaId) throw new Error("tareaId is required")
+  let res: Response
+  try {
+    res = await fetch(
+      `/api/tasks/legacy-tarea/${encodeURIComponent(tareaId)}/send-to-ai`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+      },
+    )
+  } catch {
+    throw new Error("Network request failed")
+  }
+
+  await assertOk(res)
 }

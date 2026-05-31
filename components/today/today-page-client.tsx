@@ -14,7 +14,11 @@ import {
 } from "lucide-react"
 import { useFetch } from "@/hooks/use-fetch"
 import { useToast } from "@/components/toast-provider"
-import { sendToAI as sendToAIRequest, takeOver as takeOverRequest } from "@/lib/today/lane-client"
+import {
+  sendToAI as sendToAIRequest,
+  takeOver as takeOverRequest,
+  sendLegacyTareaToAI as sendLegacyTareaToAIRequest,
+} from "@/lib/today/lane-client"
 import type { TodayBuckets, TodayPayload } from "@modules/today/types"
 import {
   countLane,
@@ -87,6 +91,32 @@ export function TodayPageClient() {
         addToast({
           type: "error",
           title: to === "ai" ? "Could not send to AI" : "Could not take over",
+          description:
+            err instanceof Error && err.message
+              ? err.message
+              : "Please try again in a moment.",
+        })
+      }
+    },
+    [addToast, refetch],
+  )
+
+  /**
+   * Legacy `Tarea` rows have no WorkspaceTask mirror, so "Send to AI"
+   * goes through the conversion endpoint (mirror Tarea → WorkspaceTask
+   * assigned to AI). On success we refetch — the aggregator dedups the
+   * Tarea via `tareaId`, so the `tarea:` row disappears from My work and
+   * the new `task:` row appears in AI work.
+   */
+  const handleLegacyHandoff = useCallback(
+    async (tareaId: string) => {
+      try {
+        await sendLegacyTareaToAIRequest(tareaId)
+        refetch()
+      } catch (err) {
+        addToast({
+          type: "error",
+          title: "Could not send to AI",
           description:
             err instanceof Error && err.message
               ? err.message
@@ -192,6 +222,7 @@ export function TodayPageClient() {
           emptyTitle="No work for you today"
           emptyDescription="Tasks you create or take over will land here."
           onLaneMove={handleLaneMove}
+          onLegacyHandoff={handleLegacyHandoff}
           accent="mine"
         />
         <TodayLaneColumn
@@ -395,6 +426,7 @@ function TodayLaneColumn({
   emptyDescription,
   emptyAction,
   onLaneMove,
+  onLegacyHandoff,
   accent,
 }: {
   idPrefix: string
@@ -411,6 +443,8 @@ function TodayLaneColumn({
    */
   emptyAction?: { href: string; label: string }
   onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
+  /** Forwarded to rows for legacy `Tarea` → AI conversion (My work lane). */
+  onLegacyHandoff?: (tareaId: string) => void | Promise<void>
   accent: "mine" | "ai"
 }) {
   const count = countLane(buckets)
@@ -484,24 +518,28 @@ function TodayLaneColumn({
             tone="warning"
             items={buckets.overdue}
             onLaneMove={onLaneMove}
+            onLegacyHandoff={onLegacyHandoff}
           />
           <TodaySection
             id={`${idPrefix}-due-today`}
             title="Due today"
             items={buckets.today}
             onLaneMove={onLaneMove}
+            onLegacyHandoff={onLegacyHandoff}
           />
           <TodaySection
             id={`${idPrefix}-waiting`}
             title="Waiting / Blocked"
             items={buckets.waiting}
             onLaneMove={onLaneMove}
+            onLegacyHandoff={onLegacyHandoff}
           />
           <TodaySection
             id={`${idPrefix}-no-date`}
             title="No date"
             items={buckets.undated}
             onLaneMove={onLaneMove}
+            onLegacyHandoff={onLegacyHandoff}
           />
         </div>
       )}
