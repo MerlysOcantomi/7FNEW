@@ -3461,17 +3461,16 @@ function InboxPageContent() {
                         `canMutate` mirrors the API gate (>= MEMBER); VIEWER sees a
                         disabled selector with an explanatory tooltip.
                       */}
-                      <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-[var(--inbox-list-border)]/60 bg-[var(--inbox-list-surface)]/60 px-3 py-1.5">
-                        <ConversationCategoryEditor
-                          conversationId={selected.id}
-                          value={(selected as { category?: string | null }).category ?? null}
-                          canMutate={Boolean(currentUserId)}
-                          onSaved={() => {
-                            refetch()
-                            refetchDetail()
-                          }}
-                        />
-                      </div>
+                      <ConversationCategoryEditor
+                        conversationId={selected.id}
+                        value={(selected as { category?: string | null }).category ?? null}
+                        canMutate={Boolean(currentUserId)}
+                        onSaved={() => {
+                          refetch()
+                          refetchDetail()
+                        }}
+                        className="mx-3 mb-2 rounded-lg border border-[var(--inbox-list-border)]/60 bg-[var(--inbox-list-surface)]/60 px-3 py-1.5"
+                      />
                       {/*
                         Phase 3 — internal note TODO suggestion banner. Renders only when the
                         operator just saved an internal note whose body started with `TODO:`,

@@ -62,6 +62,14 @@ interface Props {
    * VIEWER, so this is purely UX (no enforcement here).
    */
   canMutate: boolean
+  /**
+   * Optional chrome (box, border, margins) applied to the component root.
+   * IMPORTANT: keep the surrounding box styling here — NOT on a wrapper in
+   * the parent — so that when this component short-circuits to `null` (no
+   * taxonomies / loading / error) the box disappears with it. A parent
+   * wrapper would otherwise leave an empty bordered bar above the composer.
+   */
+  className?: string
 }
 
 const UNSET_VALUE = "__unset__"
@@ -71,6 +79,7 @@ export function ConversationCategoryEditor({
   value,
   onSaved,
   canMutate,
+  className,
 }: Props) {
   const { data, loading, error } = useFetch<ApiPayload>(TAXONOMY_ENDPOINT)
   const [submitting, setSubmitting] = useState(false)
@@ -118,7 +127,7 @@ export function ConversationCategoryEditor({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <label
         htmlFor={`conversation-category-${conversationId}`}
         className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80"
