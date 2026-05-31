@@ -1549,6 +1549,34 @@ export function ContextPanel({
     </section>
   )
 
+  /**
+   * Narrative reorder (right-column polish). The panel now reads top-down as a
+   * single story: Who is writing → What is happening → Smart Action → More
+   * context → Ask Fanny. We only REGROUP + reorder the existing section atoms
+   * (no data/contract changes); each atom keeps its own data gating so empty
+   * cards still never render.
+   *
+   * - Smart Action and Ask Fanny are NOT given an extra group heading: their
+   *   cards already carry self-titles ("Smart Action" / "Ask Fanny"), so a
+   *   duplicate label would be noise.
+   * - "More context" is gated on having at least one child (risks / facts /
+   *   decisions / workflow / conversation-context) so we never render a lonely
+   *   heading. Ask Fanny still sits right after it, easy to reach.
+   */
+  const narrativeHeadingClass =
+    "px-0.5 pt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--inbox-intelligence-text-secondary)]/75"
+  const hasMoreContextConversation =
+    handoffRisks.length > 0 ||
+    handoffFacts.length > 0 ||
+    handoffDecisions.length > 0 ||
+    showWorkflow
+  const hasMoreContextMessage =
+    handoffRisks.length > 0 ||
+    Boolean(summary) ||
+    handoffFacts.length > 0 ||
+    handoffDecisions.length > 0 ||
+    Boolean(handoffHeadline)
+
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
@@ -1568,117 +1596,139 @@ export function ContextPanel({
 
       {isMessageMode ? (
         <>
+          {/* 1. Who is writing — stable sender/contact identity. */}
+          <div className="space-y-2">
+            <p className={narrativeHeadingClass}>Who is writing</p>
+            {contactSection}
+          </div>
+
           {/*
-            0. Triage summary — read-only one-glance answer covering intent,
-            category, priority, next recommended action and open work
-            counters. Renders null when the conversation has nothing
-            meaningful to summarise yet.
+            2. What is happening — dynamic conversation state: triage overview
+            (intent / category / priority), what the selected message means,
+            mood / urgency / lead signals, and what's still needed to move
+            forward. Mood lives HERE (current state), not under the sender.
           */}
-          {triageSummarySection}
-          {/* 1. Contact (always at top) */}
-          {contactSection}
-          {/* 2. What this message means */}
-          {whatThisMeansSection}
-          {/* 3. Signal bars (mood / urgency / lead) */}
-          {signalsSection}
-          {/* 4. Recommended next step (single strongest CTA) */}
-          {nextMoveSection}
+          <div className="space-y-2">
+            <p className={narrativeHeadingClass}>What is happening</p>
+            {triageSummarySection}
+            {whatThisMeansSection}
+            {signalsSection}
+            {stillNeededSection}
+          </div>
+
           {/*
-            5. Pending decisions (PR 11, was 5b) — proposed WorkspaceTasks
-            awaiting human approve / dismiss. Decisions outrank direct
-            execution shortcuts in the IA so this section now sits
-            above Smart actions.
+            3. Smart Action — Fanny's main recommended next step (self-titled
+            card, so no extra group heading). Pending decisions + suggested
+            shortcuts follow as secondary execution affordances.
           */}
-          {pendingDecisionsSection}
-          {/* 6. Smart actions — direct conversion shortcuts (one-click). */}
-          {smartActionsSection}
-          {/* 7. Still needed */}
-          {stillNeededSection}
-          {/* 8. Watch out */}
-          {watchOutSection}
+          <div className="space-y-2">
+            {nextMoveSection}
+            {pendingDecisionsSection}
+            {smartActionsSection}
+          </div>
+
           {/*
-            9. Conversation context — collapsible, contains Summary + Facts + Decisions of the
-            full thread. Hidden by default in message mode so the operator's eyes go to message
-            insight first; one click reveals the bigger picture without leaving the panel.
-            Rendered only when there's something to show.
+            4. More context — risks to watch + the collapsible Conversation
+            context (summary + facts + decisions of the whole thread). Gated
+            so the heading never renders alone.
           */}
-          {(summary || handoffFacts.length > 0 || handoffDecisions.length > 0 || handoffHeadline) ? (
-            <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
-              <button
-                type="button"
-                onClick={() => setContextDetailsOpen((v) => !v)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left"
-                aria-expanded={contextDetailsOpen}
-                aria-controls="context-panel-conversation-context"
-              >
-                <span className="flex items-center gap-1.5">
-                  <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-                    Conversation context
-                  </span>
-                </span>
-                {contextDetailsOpen ? (
-                  <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-                )}
-              </button>
-              {contextDetailsOpen ? (
-                <div
-                  id="context-panel-conversation-context"
-                  className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
-                >
-                  {summaryBlock}
-                  {factsAndDecisionsBlock ? (
-                    <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
-                      {factsAndDecisionsBlock}
+          {hasMoreContextMessage ? (
+            <div className="space-y-2">
+              <p className={narrativeHeadingClass}>More context</p>
+              {watchOutSection}
+              {(summary || handoffFacts.length > 0 || handoffDecisions.length > 0 || handoffHeadline) ? (
+                <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
+                  <button
+                    type="button"
+                    onClick={() => setContextDetailsOpen((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left"
+                    aria-expanded={contextDetailsOpen}
+                    aria-controls="context-panel-conversation-context"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+                        Conversation context
+                      </span>
+                    </span>
+                    {contextDetailsOpen ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+                    )}
+                  </button>
+                  {contextDetailsOpen ? (
+                    <div
+                      id="context-panel-conversation-context"
+                      className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
+                    >
+                      {summaryBlock}
+                      {factsAndDecisionsBlock ? (
+                        <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+                          {factsAndDecisionsBlock}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
-                </div>
+                </section>
               ) : null}
-            </section>
+            </div>
           ) : null}
-          {/* 9. Ask Fanny */}
+
+          {/* 5. Ask Fanny — free-form Q&A, self-titled, always last. */}
           {askFannySection}
         </>
       ) : (
         <>
+          {/* 1. Who is writing — stable sender/contact identity. */}
+          <div className="space-y-2">
+            <p className={narrativeHeadingClass}>Who is writing</p>
+            {contactSection}
+          </div>
+
           {/*
-            0. Triage summary — see message-mode comment above. Same gating
-            rules apply; no duplication.
+            2. What is happening — dynamic conversation state: triage overview,
+            thread summary, mood / urgency / lead signals, and what's still
+            needed. Mood lives HERE (current state), not under the sender.
           */}
-          {triageSummarySection}
-          {/* 1. Contact (always at top) */}
-          {contactSection}
-          {/* 2. Conversation summary (replaces "What this message means") */}
-          <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-            {summaryBlock}
-          </section>
-          {/* 3. Signal bars */}
-          {signalsSection}
-          {/* 4. Recommended next step */}
-          {nextMoveSection}
-          {/*
-            5. Pending decisions (PR 11, was 5b) — proposed WorkspaceTasks
-            awaiting human approve / dismiss. Sits above Smart actions
-            so decisions outrank direct execution.
-          */}
-          {pendingDecisionsSection}
-          {/* 6. Smart actions — direct conversion shortcuts (one-click). */}
-          {smartActionsSection}
-          {/* 7. Still needed */}
-          {stillNeededSection}
-          {/* 8. Watch out */}
-          {watchOutSection}
-          {/* 8. Facts / Decisions — separate section, only when we have content */}
-          {factsAndDecisionsBlock ? (
+          <div className="space-y-2">
+            <p className={narrativeHeadingClass}>What is happening</p>
+            {triageSummarySection}
             <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-              {factsAndDecisionsBlock}
+              {summaryBlock}
             </section>
+            {signalsSection}
+            {stillNeededSection}
+          </div>
+
+          {/*
+            3. Smart Action — Fanny's main recommended next step (self-titled
+            card). Pending decisions + suggested shortcuts follow as secondary.
+          */}
+          <div className="space-y-2">
+            {nextMoveSection}
+            {pendingDecisionsSection}
+            {smartActionsSection}
+          </div>
+
+          {/*
+            4. More context — risks to watch, facts / decisions, and workflow
+            (assign). Gated so the heading never renders alone.
+          */}
+          {hasMoreContextConversation ? (
+            <div className="space-y-2">
+              <p className={narrativeHeadingClass}>More context</p>
+              {watchOutSection}
+              {factsAndDecisionsBlock ? (
+                <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+                  {factsAndDecisionsBlock}
+                </section>
+              ) : null}
+              {workflowSection}
+            </div>
           ) : null}
-          {/* Workflow (assign) — only when channel + members allow it */}
-          {workflowSection}
-          {/* 9. Ask Fanny */}
+
+          {/* 5. Ask Fanny — free-form Q&A, self-titled, always last. */}
           {askFannySection}
         </>
       )}
