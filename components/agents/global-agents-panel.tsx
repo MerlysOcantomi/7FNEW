@@ -51,19 +51,19 @@ const PANEL_LANES: {
   {
     key: "needs_review",
     title: "Needs review",
-    icon: <ClipboardCheck size={12} strokeWidth={2} aria-hidden="true" />,
+    icon: <ClipboardCheck size={13} strokeWidth={2} aria-hidden="true" />,
     empty: "No proposals waiting.",
   },
   {
     key: "automated",
     title: "Automated",
-    icon: <Zap size={12} strokeWidth={2} aria-hidden="true" />,
+    icon: <Zap size={13} strokeWidth={2} aria-hidden="true" />,
     empty: "Nothing automated yet.",
   },
   {
     key: "attention",
     title: "Attention",
-    icon: <AlertTriangle size={12} strokeWidth={2} aria-hidden="true" />,
+    icon: <AlertTriangle size={13} strokeWidth={2} aria-hidden="true" />,
     empty: "Nothing needs attention.",
   },
 ]
@@ -74,6 +74,11 @@ const MAX_ROWS = 4
 interface AgentsQuickTokens {
   laneTitle: string
   laneCount: string
+  /** Section-header icon halo — same shape language as the New action
+   *  items (rounded-lg + border + soft surface) so the lane labels read
+   *  as part of the global action family. */
+  laneIconHalo: string
+  laneIconColor: string
   cardBorder: string
   cardBg: string
   cardHover: string
@@ -96,6 +101,8 @@ function tokens(tone: AgentsQuickTone): AgentsQuickTokens {
     return {
       laneTitle: "text-[#0F172A]",
       laneCount: "text-[#94A3B8]",
+      laneIconHalo: "border-[#E2E8F0] bg-white shadow-sm",
+      laneIconColor: "text-[#2563EB]",
       cardBorder: "border-[#E2E8F0]",
       cardBg: "bg-white",
       cardHover: "hover:bg-[#F1F5F9]",
@@ -116,6 +123,8 @@ function tokens(tone: AgentsQuickTone): AgentsQuickTokens {
   return {
     laneTitle: "text-[var(--text-primary-light)]",
     laneCount: "text-[var(--text-secondary-light)]/80",
+    laneIconHalo: "border-[var(--border-dark)] bg-white/[0.06]",
+    laneIconColor: "text-[var(--accent-primary)]",
     cardBorder: "border-[var(--border-dark)]",
     cardBg: "bg-[var(--app-surface-dark)]",
     cardHover: "hover:bg-white/[0.04]",
@@ -275,7 +284,16 @@ function AgentsPanelLane({
   return (
     <section aria-label={title} className="flex flex-col gap-2">
       <header className="flex items-center gap-2">
-        <span className={cn("shrink-0", t.laneCount)}>{icon}</span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border",
+            t.laneIconHalo,
+            t.laneIconColor,
+          )}
+        >
+          {icon}
+        </span>
         <h3 className={cn("text-xs font-semibold tracking-tight", t.laneTitle)}>
           {title}
         </h3>
@@ -285,7 +303,7 @@ function AgentsPanelLane({
       </header>
 
       {items.length === 0 ? (
-        <p className={cn("pl-6 text-[11px] leading-relaxed", t.emptyText)}>{empty}</p>
+        <p className={cn("pl-8 text-[11px] leading-relaxed", t.emptyText)}>{empty}</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {visible.map((item) => (

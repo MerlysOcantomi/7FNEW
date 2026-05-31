@@ -155,7 +155,7 @@ export function TodayQuickContent({
         <TodayQuickLane
           idPrefix="today-quick-mine"
           title="My work"
-          icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
+          icon={<UserRound size={13} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.mine}
           emptyLabel="No work for you today."
           accent="mine"
@@ -165,7 +165,7 @@ export function TodayQuickContent({
         <TodayQuickLane
           idPrefix="today-quick-ai"
           title="AI work"
-          icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
+          icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.ai}
           emptyLabel="No AI work yet."
           accent="ai"
@@ -201,12 +201,12 @@ function TodayQuickSchedule({
           <span
             aria-hidden="true"
             className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-md",
-              t.accentHalo,
+              "flex h-6 w-6 items-center justify-center rounded-lg border",
+              t.iconHalo,
               t.accent,
             )}
           >
-            <CalendarClock size={11} strokeWidth={2} />
+            <CalendarClock size={13} strokeWidth={2} />
           </span>
           <h3 className={cn("text-[11px] font-semibold uppercase tracking-widest", t.textMuted)}>
             Schedule
@@ -275,14 +275,19 @@ function TodayQuickLane({
 
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          {/*
+            Section-icon halo aligned with the New action items
+            (rounded-lg + border + soft surface + accent icon). The AI
+            lane keeps its own accent via the gradient hairline above
+            (`-top-1`), so the icon halo itself stays neutral and the
+            whole family reads with one icon language.
+          */}
           <span
             aria-hidden="true"
             className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-md",
-              accent === "ai"
-                ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))]"
-                : t.surfaceSubtle,
-              t.text,
+              "flex h-6 w-6 items-center justify-center rounded-lg border",
+              t.iconHalo,
+              t.accent,
             )}
           >
             {icon}
@@ -548,6 +553,10 @@ interface ToneTokens {
   accentDim: string
   /** Accent halo for icon wrappers — `bg-<accent>/15`-ish. */
   accentHalo: string
+  /** Section-header icon halo (border + soft surface) — same shape
+   *  language as the New action items so Today/Agents/New section icons
+   *  read as one family. */
+  iconHalo: string
   /** Warning emphasis text ("Waiting" pill). */
   warningText: string
   /** Subtle surface used for icon wrappers and chips. */
@@ -575,6 +584,7 @@ function toneTokens(tone: TodayQuickTone): ToneTokens {
       accent: "text-[#2563EB]",
       accentDim: "text-[#2563EB]/80",
       accentHalo: "bg-[#DBEAFE]",
+      iconHalo: "border-[#E2E8F0] bg-white shadow-sm",
       warningText: "text-[#B45309]",
       surfaceSubtle: "bg-[#F1F5F9]",
       surfaceMuted: "bg-white",
@@ -594,6 +604,7 @@ function toneTokens(tone: TodayQuickTone): ToneTokens {
     accent: "text-[var(--accent-primary)]",
     accentDim: "text-[var(--accent-primary)]/80",
     accentHalo: "bg-[var(--accent-primary)]/15",
+    iconHalo: "border-[var(--border-dark)] bg-white/[0.06]",
     warningText: "text-[var(--status-warning-text)]",
     surfaceSubtle: "bg-white/[0.06]",
     surfaceMuted: "bg-[var(--app-surface-dark)]",
