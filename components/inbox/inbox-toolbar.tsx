@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   Search,
@@ -13,6 +14,14 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -160,12 +169,20 @@ export function InboxToolbar({
   return (
     <div className="shrink-0 rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-surface)] shadow-[var(--app-shadow-subtle)]">
       {/*
-       * Row 1 — Search + global actions. `min-w-0` on the search wrapper is
-       * critical: without it the input's intrinsic width can push the right-
-       * side actions out of view on narrow viewports.
+       * Row 1 — Inbox list filter + demoted overflow actions.
+       *
+       * IMPORTANT: this input is NOT the global Search. It only filters the
+       * conversation list of the active inbox, so it is labelled "Filter inbox"
+       * and width-capped on desktop so it never reads as a hero search bar
+       * competing with the global Search action in the top chrome.
+       *
+       * "New message" (legacy compose) and "Sync now" (manual refresh) used to
+       * be prominent toolbar buttons. They are demoted into an overflow menu —
+       * messages already auto-sync on load, and New message is also reachable
+       * from Global New, so neither needs to compete for primary attention.
        */}
       <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 md:px-4">
-        <div className="relative flex min-w-[220px] flex-1 items-center">
+        <div className="relative flex min-w-[180px] flex-1 items-center sm:max-w-[320px]">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 text-[var(--inbox-list-text-secondary)]"
             aria-hidden="true"
@@ -173,14 +190,14 @@ export function InboxToolbar({
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search conversations..."
-            aria-label="Search conversations"
+            placeholder="Filter inbox..."
+            aria-label="Filter inbox"
             className="h-9 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.05] pl-9 pr-9 text-sm text-[var(--inbox-list-text)] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
           />
           {search ? (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label="Clear filter"
               onClick={() => onSearchChange("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--inbox-list-text)]"
             >
@@ -192,50 +209,70 @@ export function InboxToolbar({
         {activeSearchTerm ? (
           <div
             className="hidden shrink-0 rounded-md bg-[var(--inbox-list-selected-bg)] px-2 py-1 text-xs font-medium text-[var(--inbox-list-selected)] sm:block"
-            title={`Searching: ${activeSearchTerm}`}
+            title={`Filtering: ${activeSearchTerm}`}
           >
             <span className="whitespace-nowrap">&ldquo;{activeSearchTerm}&rdquo;</span>
           </div>
         ) : null}
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          {onFetchEmails ? (
-            <button
-              type="button"
-              onClick={onFetchEmails}
-              disabled={fetchingEmails}
-              title={fetchingEmails ? "Syncing emails..." : "Refresh now"}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                fetchingEmails
-                  ? "text-[var(--inbox-accent)]"
-                  : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
-              )}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", fetchingEmails && "animate-spin")} aria-hidden="true" />
-              <span className="hidden sm:inline">{fetchingEmails ? "Syncing…" : "Fetch"}</span>
-              {lastSyncedAt && !fetchingEmails ? (
-                <span
-                  className="hidden text-[10px] text-[var(--inbox-list-text-secondary)]/60 md:inline whitespace-nowrap"
-                  title={lastSyncedAt.toLocaleString()}
+        {onCompose || onFetchEmails ? (
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Inbox actions"
+                  title="Inbox actions"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)] data-[state=open]:bg-[var(--inbox-list-background)] data-[state=open]:text-[var(--inbox-list-text)]"
                 >
-                  · {formatSyncAge(lastSyncedAt)}
-                </span>
-              ) : null}
-            </button>
-          ) : null}
-
-          {onCompose ? (
-            <button
-              type="button"
-              onClick={onCompose}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--inbox-accent)] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[var(--inbox-accent-hover)] whitespace-nowrap"
-            >
-              <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" strokeWidth={2.25} />
-              <span>Compose</span>
-            </button>
-          ) : null}
-        </div>
+                  {fetchingEmails ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {onCompose ? (
+                  <DropdownMenuItem onSelect={() => onCompose()} className="gap-2">
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    New message
+                  </DropdownMenuItem>
+                ) : null}
+                {onFetchEmails ? (
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      if (fetchingEmails) {
+                        event.preventDefault()
+                        return
+                      }
+                      onFetchEmails()
+                    }}
+                    disabled={fetchingEmails}
+                    className="gap-2"
+                  >
+                    <RefreshCw
+                      className={cn("h-4 w-4", fetchingEmails && "animate-spin")}
+                      aria-hidden="true"
+                    />
+                    {fetchingEmails ? "Syncing…" : "Sync now"}
+                  </DropdownMenuItem>
+                ) : null}
+                {onFetchEmails && lastSyncedAt && !fetchingEmails ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel
+                      className="text-[11px] font-normal text-[var(--inbox-list-text-secondary)]"
+                      title={lastSyncedAt.toLocaleString()}
+                    >
+                      Last synced {formatSyncAge(lastSyncedAt)}
+                    </DropdownMenuLabel>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
       </div>
 
       {/*
