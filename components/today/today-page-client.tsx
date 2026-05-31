@@ -1,8 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import {
   AlertTriangle,
+  ArrowUpRight,
   CalendarClock,
   Loader2,
   PauseCircle,
@@ -174,18 +176,13 @@ export function TodayPageClient() {
             giving each lane ~336px — comfortable for the four
             sub-buckets / event cards.
 
-        The Schedule column renders only when there are events; when
-        empty it collapses entirely so My work + AI work get a wider
-        2-of-3 layout via the explicit `lg:col-span-*` modifiers
-        below. (Plain CSS grid would otherwise leave a blank third
-        column — feels like a layout bug to the operator.)
+        The Schedule column is ALWAYS rendered (even with zero events)
+        so the workboard reads as a stable three-lane plan and the
+        operator never wonders where the calendar went. When empty it
+        shows a calm "No events today" placeholder instead of
+        collapsing the grid.
       */}
-      <div
-        className={cn(
-          "grid gap-6",
-          scheduleItems.length > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2",
-        )}
-      >
+      <div className="grid gap-6 lg:grid-cols-3">
         <TodayLaneColumn
           idPrefix="today-mine"
           title="My work"
@@ -204,13 +201,12 @@ export function TodayPageClient() {
           icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.ai}
           emptyTitle="No AI work yet"
-          emptyDescription="AI work will appear here when Fanny proposes or starts work."
+          emptyDescription="AI work shows up when Fanny proposes work, or when you hand a task off with “Send to AI” on a My work item."
+          emptyAction={{ href: "/agents", label: "Review Agents" }}
           onLaneMove={handleLaneMove}
           accent="ai"
         />
-        {scheduleItems.length > 0 ? (
-          <TodayScheduleColumn items={scheduleItems} />
-        ) : null}
+        <TodayScheduleColumn items={scheduleItems} />
       </div>
     </div>
   )
@@ -324,8 +320,9 @@ function StatTile({
  * `TodayEventCard` so the row style stays in lock-step with the
  * mobile drawer and the bottom chrome.
  *
- * Hidden by the parent when `scheduleItems.length === 0` — the grid
- * collapses to two columns in that case.
+ * Always rendered by the parent — when there are no events for today
+ * it shows a friendly empty state instead of disappearing, so the
+ * three-lane workboard stays stable.
  */
 function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"] }) {
   return (
@@ -354,11 +351,24 @@ function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"
           {items.length}
         </span>
       </header>
-      <div className="flex flex-col gap-2">
-        {items.map((item) => (
-          <TodayEventCard key={item.id} item={item} />
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-6"
+        >
+          <p className="text-xs font-medium text-[var(--text-primary-light)]">No events today</p>
+          <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
+            Scheduled items will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map((item) => (
+            <TodayEventCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -383,6 +393,7 @@ function TodayLaneColumn({
   buckets,
   emptyTitle,
   emptyDescription,
+  emptyAction,
   onLaneMove,
   accent,
 }: {
@@ -393,6 +404,12 @@ function TodayLaneColumn({
   buckets: TodayLaneBuckets
   emptyTitle: string
   emptyDescription: string
+  /**
+   * Optional CTA rendered in the empty state — e.g. the AI lane points
+   * the operator at the Agents surface so an empty "AI work" lane still
+   * teaches where AI activity lives.
+   */
+  emptyAction?: { href: string; label: string }
   onLaneMove: (taskId: string, to: "user" | "ai") => void | Promise<void>
   accent: "mine" | "ai"
 }) {
@@ -449,6 +466,15 @@ function TodayLaneColumn({
           <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
             {emptyDescription}
           </p>
+          {emptyAction ? (
+            <Link
+              href={emptyAction.href}
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-[var(--accent-primary)]/30 px-2 py-1 text-[11px] font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
+            >
+              {emptyAction.label}
+              <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+            </Link>
+          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-6">
