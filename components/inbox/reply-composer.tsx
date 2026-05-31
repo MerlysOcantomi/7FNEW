@@ -257,6 +257,18 @@ export function ReplyComposer({
   const baseTextRef = useRef("")
   const userInterruptedRef = useRef(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  /**
+   * Collapsed-by-default composer (3-column polish). When the operator isn't
+   * actively replying we show only a compact bar (mode chip + textarea +
+   * Send) and hide the header / email-metadata / tool icon bar so the
+   * conversation thread gets more vertical room. The textarea itself is
+   * ALWAYS mounted so the parent's `composerTextareaRef` focus calls
+   * (keyboard shortcuts, intent select) keep working — collapse only hides
+   * the surrounding chrome, never the input. Focus/click expands; see
+   * `composerExpandedView` below for the "stay expanded" guards.
+   */
+  const [composerExpanded, setComposerExpanded] = useState(false)
+  const composerRootRef = useRef<HTMLDivElement | null>(null)
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("dictate")
   /** Solo un grupo (email vs voz) puede llevar el chrome activo de la barra; por defecto gana email (Reply). */
   const [voiceToolbarFocus, setVoiceToolbarFocus] = useState(false)
@@ -689,6 +701,29 @@ export function ReplyComposer({
   const emailToolActive = showEmailModeChrome && !replyIsInternal && !voiceToolbarFocus
 
   /**
+   * Expanded when the operator explicitly opened the composer OR when any
+   * signal means hiding chrome would lose context: typed content, an
+   * in-progress AI change, an internal note, active dictation, an open
+   * tool panel, the canned-responses panel, or pending attachments. This
+   * keeps the collapse purely additive — nothing the operator is working
+   * on is ever hidden underneath the compact bar.
+   */
+  const composerExpandedView =
+    composerExpanded ||
+    hasText ||
+    replyIsInternal ||
+    speech.listening ||
+    composerOverlayOpen ||
+    cannedOpen ||
+    attachments.length > 0 ||
+    contentBeforeAssist !== null
+
+  /** Compact mode label for the collapsed bar — "Reply · Email", "Forward · Email", "Internal note", etc. */
+  const composerModeLabel = replyIsInternal
+    ? "Internal note"
+    : `${emailMode === "forward" ? "Forward" : emailMode === "reply_all" ? "Reply all" : "Reply"} · ${formatChannelBadge(channel, channelLabel)}`
+
+  /**
    * Assist tabs: dinámicos según capacidades disponibles. El icono `Wand2` siempre es visible y
    * abre este panel — los tabs internos se adaptan al estado (no hay snippets si el workspace
    * no tiene canned responses, no hay Fanny tab si no hay sugerencia, no hay Voice tab si el
@@ -710,15 +745,36 @@ export function ReplyComposer({
   }, [cannedResponses.length, hasFannySuggestion, speech.supported])
 
   return (
-    <div className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
+    <div ref={composerRootRef} className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
       <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
+        {/*
+         * Collapsed mode bar — only when the composer is collapsed. A single
+         * compact, clickable chip surfaces the active reply mode and expands
+         * the full composer on click. Mirrors the textarea placeholder so the
+         * operator always knows where (and how) to reply.
+         */}
+        {!composerExpandedView && (
+          <button
+            type="button"
+            onClick={() => {
+              setComposerExpanded(true)
+              focusComposerWithScroll()
+            }}
+            className="flex w-full items-center gap-2 px-1.5 py-0.5 text-left"
+            aria-label="Expand reply composer"
+          >
+            <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
+              Mode: {composerModeLabel}
+            </span>
+          </button>
+        )}
         {/*
          * Composer header: signed-in account (when present) on the left, dynamic channel badge
          * on the right. The badge replaces the channelLabel that used to live inside the toolbar
          * row, freeing horizontal space and keeping channel info contextual rather than as a
-         * tool. Always rendered when we have at least one piece of metadata (account or channel).
+         * tool. Rendered when expanded and we have at least one piece of metadata.
          */}
-        {(signedInEmail?.trim() || channel) && (
+        {composerExpandedView && (signedInEmail?.trim() || channel) && (
           <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
             {signedInEmail?.trim() ? (
               <p className="min-w-0 truncate text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
@@ -769,7 +825,7 @@ export function ReplyComposer({
         )}
 
         {/* ── Email metadata (franja mínima) ── */}
-        {showEmailOptions && (
+        {composerExpandedView && showEmailOptions && (
           <div className="space-y-0.5 rounded border border-[var(--inbox-border)]/20 bg-transparent px-1.5 py-0.5">
             {composerConfig.subjectPreview && (
               <div className="flex min-h-[1.125rem] items-center gap-1">
@@ -854,6 +910,32 @@ export function ReplyComposer({
               isProcessing && "opacity-60 cursor-not-allowed",
             )}
             disabled={isProcessing}
+            onFocus={() => setComposerExpanded(true)}
+            onBlur={(event) => {
+              /**
+               * Collapse on blur only when it's safe: focus left the composer
+               * entirely (relatedTarget outside our root, so clicking a toolbar
+               * button keeps it open) AND there's nothing in progress. Never
+               * collapse with text, an internal note, attachments, dictation,
+               * or an open panel — `composerExpandedView` would force it open
+               * anyway, but we also skip flipping the explicit state so the
+               * UI doesn't flicker.
+               */
+              const root = composerRootRef.current
+              if (root && event.relatedTarget instanceof Node && root.contains(event.relatedTarget)) {
+                return
+              }
+              if (
+                !hasText &&
+                !replyIsInternal &&
+                attachments.length === 0 &&
+                !speech.listening &&
+                !composerOverlayOpen &&
+                contentBeforeAssist === null
+              ) {
+                setComposerExpanded(false)
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) handleSend()
             }}
@@ -964,6 +1046,7 @@ export function ReplyComposer({
         )}
 
         {/* ── Barra de iconos (solo tools — Send vive ahora dentro del textarea) ── */}
+        {composerExpandedView && (
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
           <div className="flex min-w-0 flex-wrap items-center gap-y-1">
             {/* Acting on — first toolbar control, drives scope used by the rest of the toolbar */}
@@ -1175,6 +1258,7 @@ export function ReplyComposer({
 
           </div>
         </div>
+        )}
 
         {/* ── Intelligence panel (tabbed: Improve / Translate) ── */}
         {assistPanelOpen && !isProcessing && (

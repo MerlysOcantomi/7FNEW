@@ -1011,7 +1011,7 @@ export function ContextPanel({
   const nextMoveSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Next step
+        Smart Action
       </p>
       {nextRecommendedAction ? (
         <InlineTextarea
@@ -1023,7 +1023,7 @@ export function ContextPanel({
         />
       ) : (
         <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          No recommendation available yet.
+          Fanny is still preparing the best next action.
         </p>
       )}
 

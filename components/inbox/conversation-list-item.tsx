@@ -139,23 +139,36 @@ export function ConversationListItem({
         aria-hidden="true"
       />
       <div className="flex items-start gap-1">
+        {/*
+         * Signals affordance. Previously a bare 12px chevron that operators
+         * routinely missed — it didn't read as "this row reveals more". Now a
+         * labelled pill ("Signals" + chevron) so it's obvious the sender row
+         * expands to show per-message intents/signals. Kept as its OWN button
+         * (separate from the sender-select button below) so toggling signals
+         * never races conversation selection.
+         */}
         <button
           type="button"
           aria-expanded={expanded}
-          aria-label={expanded ? "Collapse per-message intents" : "Expand per-message intents"}
+          aria-label={expanded ? "Hide signals" : "Show signals"}
           onClick={(e) => {
             e.stopPropagation()
             onToggleExpand()
           }}
           className={cn(
-            "mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--inbox-list-text-secondary)] transition-colors",
-            "hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+            "mt-1 inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+            expanded
+              ? "border-[var(--inbox-list-selected)]/55 bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)]"
+              : "border-white/[0.1] text-[var(--inbox-list-text-secondary)] hover:border-[var(--inbox-list-selected)]/40 hover:bg-white/[0.06] hover:text-[var(--inbox-list-text)]",
           )}
         >
           <ChevronRight
-            className={cn("h-3 w-3 shrink-0 transition-transform duration-200", expanded && "rotate-90")}
+            className={cn("h-4 w-4 shrink-0 transition-transform duration-200", expanded && "rotate-90")}
+            strokeWidth={2.5}
             aria-hidden="true"
           />
+          <span className="text-[10px] font-semibold uppercase tracking-wide">Signals</span>
         </button>
 
         <button
