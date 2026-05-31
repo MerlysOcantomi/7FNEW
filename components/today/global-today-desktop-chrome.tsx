@@ -188,14 +188,14 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
             on the top — same recipe as `GlobalNewDesktopPanel`. The
             panel reads as "hanging" from the toolbar.
 
-            max-h is a touch larger than New's (520 vs 420) because
-            Today shows lanes + schedule + waiting and benefits from
-            the extra rows; bumping it past 72vh would still cap to
-            72vh on shorter viewports.
+            Height fills the viewport below the sticky toolbar (≈3rem
+            tall) so the open panel fully covers the underlying page —
+            no page content peeks below it. The body scrolls internally
+            via `overflow-y-auto`.
           */}
           <div
             className={cn(
-              "flex max-h-[84vh] min-h-[70vh] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+              "flex h-[calc(100dvh-3rem)] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
               panelSurface,
             )}
           >

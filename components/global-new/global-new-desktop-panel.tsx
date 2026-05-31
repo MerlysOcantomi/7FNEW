@@ -103,7 +103,10 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
       <div className="min-h-0 overflow-hidden">
         <div
           className={cn(
-            "flex max-h-[84vh] min-h-[70vh] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+            // Fill the viewport below the sticky toolbar (≈3rem tall) so the
+            // open panel fully covers the underlying page — no page content
+            // peeks below it. Body scrolls internally via `overflow-y-auto`.
+            "flex h-[calc(100dvh-3rem)] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
             panelSurface,
           )}
         >

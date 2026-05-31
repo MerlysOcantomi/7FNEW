@@ -542,8 +542,12 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const listAreaStyle =
     toneLight ? undefined : { backgroundColor: "var(--app-surface-dark)" }
 
+  // Desktop search hangs from the sticky toolbar (≈3rem tall) as a portal
+  // sibling of New / Today / Agents. Fill the viewport below the toolbar so
+  // the open panel fully covers the underlying page — the results list
+  // scrolls internally via `overflow-y-auto`.
   const outerPanelDesktop = cn(
-    "flex max-h-[84vh] min-h-[70vh] flex-col overflow-hidden border-b rounded-b-xl",
+    "flex h-[calc(100dvh-3rem)] flex-col overflow-hidden border-b rounded-b-xl",
     toneLight
       ? "border-[#CBD5E1] bg-[#F8FAFC] shadow-[inset_0_1px_0_rgba(148,163,184,0.12)]"
       : "border-[var(--border-dark)] bg-[var(--app-shell-bg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
