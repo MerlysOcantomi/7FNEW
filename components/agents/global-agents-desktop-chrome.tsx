@@ -134,7 +134,7 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
         <div className="min-h-0 overflow-hidden">
           <div
             className={cn(
-              "flex max-h-[min(520px,72vh)] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+              "flex max-h-[84vh] min-h-[70vh] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
               panelSurface,
             )}
           >

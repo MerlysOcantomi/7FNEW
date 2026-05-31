@@ -51,19 +51,19 @@ const PANEL_LANES: {
   {
     key: "needs_review",
     title: "Needs review",
-    icon: <ClipboardCheck size={13} strokeWidth={2} aria-hidden="true" />,
+    icon: <ClipboardCheck size={16} strokeWidth={2} aria-hidden="true" />,
     empty: "No proposals waiting.",
   },
   {
     key: "automated",
     title: "Automated",
-    icon: <Zap size={13} strokeWidth={2} aria-hidden="true" />,
+    icon: <Zap size={16} strokeWidth={2} aria-hidden="true" />,
     empty: "Nothing automated yet.",
   },
   {
     key: "attention",
     title: "Attention",
-    icon: <AlertTriangle size={13} strokeWidth={2} aria-hidden="true" />,
+    icon: <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />,
     empty: "Nothing needs attention.",
   },
 ]
@@ -287,7 +287,7 @@ function AgentsPanelLane({
         <span
           aria-hidden="true"
           className={cn(
-            "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
             t.laneIconHalo,
             t.laneIconColor,
           )}
@@ -303,7 +303,7 @@ function AgentsPanelLane({
       </header>
 
       {items.length === 0 ? (
-        <p className={cn("pl-8 text-[11px] leading-relaxed", t.emptyText)}>{empty}</p>
+        <p className={cn("pl-10 text-[11px] leading-relaxed", t.emptyText)}>{empty}</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {visible.map((item) => (

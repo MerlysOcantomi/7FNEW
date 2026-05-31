@@ -155,7 +155,7 @@ export function TodayQuickContent({
         <TodayQuickLane
           idPrefix="today-quick-mine"
           title="My work"
-          icon={<UserRound size={13} strokeWidth={2} aria-hidden="true" />}
+          icon={<UserRound size={16} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.mine}
           emptyLabel="No work for you today."
           accent="mine"
@@ -165,7 +165,7 @@ export function TodayQuickContent({
         <TodayQuickLane
           idPrefix="today-quick-ai"
           title="AI work"
-          icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
+          icon={<Sparkles size={16} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.ai}
           emptyLabel="No AI work yet."
           accent="ai"
@@ -201,12 +201,12 @@ function TodayQuickSchedule({
           <span
             aria-hidden="true"
             className={cn(
-              "flex h-6 w-6 items-center justify-center rounded-lg border",
+              "flex h-8 w-8 items-center justify-center rounded-lg border",
               t.iconHalo,
               t.accent,
             )}
           >
-            <CalendarClock size={13} strokeWidth={2} />
+            <CalendarClock size={16} strokeWidth={2} />
           </span>
           <h3 className={cn("text-[11px] font-semibold uppercase tracking-widest", t.textMuted)}>
             Schedule
@@ -285,7 +285,7 @@ function TodayQuickLane({
           <span
             aria-hidden="true"
             className={cn(
-              "flex h-6 w-6 items-center justify-center rounded-lg border",
+              "flex h-8 w-8 items-center justify-center rounded-lg border",
               t.iconHalo,
               t.accent,
             )}

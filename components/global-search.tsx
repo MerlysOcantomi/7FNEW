@@ -543,7 +543,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     toneLight ? undefined : { backgroundColor: "var(--app-surface-dark)" }
 
   const outerPanelDesktop = cn(
-    "flex max-h-[min(520px,72vh)] flex-col overflow-hidden border-b rounded-b-xl",
+    "flex max-h-[84vh] min-h-[70vh] flex-col overflow-hidden border-b rounded-b-xl",
     toneLight
       ? "border-[#CBD5E1] bg-[#F8FAFC] shadow-[inset_0_1px_0_rgba(148,163,184,0.12)]"
       : "border-[var(--border-dark)] bg-[var(--app-shell-bg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
