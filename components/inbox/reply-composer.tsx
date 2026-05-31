@@ -718,11 +718,6 @@ export function ReplyComposer({
     attachments.length > 0 ||
     contentBeforeAssist !== null
 
-  /** Compact mode label for the collapsed bar — "Reply · Email", "Forward · Email", "Internal note", etc. */
-  const composerModeLabel = replyIsInternal
-    ? "Internal note"
-    : `${emailMode === "forward" ? "Forward" : emailMode === "reply_all" ? "Reply all" : "Reply"} · ${formatChannelBadge(channel, channelLabel)}`
-
   /**
    * Assist tabs: dinámicos según capacidades disponibles. El icono `Wand2` siempre es visible y
    * abre este panel — los tabs internos se adaptan al estado (no hay snippets si el workspace
@@ -748,26 +743,12 @@ export function ReplyComposer({
     <div ref={composerRootRef} className="shrink-0 border-t border-[var(--inbox-divider)]/60 bg-[var(--inbox-chat-background)] px-3 py-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] md:px-5" data-composer="true">
       <div className="space-y-0.5 rounded-lg border border-[var(--inbox-border)]/30 bg-[var(--inbox-composer-background)]/70 p-1 shadow-none md:p-1.5">
         {/*
-         * Collapsed mode bar — only when the composer is collapsed. A single
-         * compact, clickable chip surfaces the active reply mode and expands
-         * the full composer on click. Mirrors the textarea placeholder so the
-         * operator always knows where (and how) to reply.
+         * When collapsed the composer is intentionally bare — just the textarea
+         * + Send. The reply mode (Chat / Email) is already visible in the
+         * conversation header, and the placeholder makes the intent obvious, so
+         * no extra "Mode:" chip is needed here. Focusing the textarea expands
+         * the full toolbar (see `onFocus`).
          */}
-        {!composerExpandedView && (
-          <button
-            type="button"
-            onClick={() => {
-              setComposerExpanded(true)
-              focusComposerWithScroll()
-            }}
-            className="flex w-full items-center gap-2 px-1.5 py-0.5 text-left"
-            aria-label="Expand reply composer"
-          >
-            <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]">
-              Mode: {composerModeLabel}
-            </span>
-          </button>
-        )}
         {/*
          * Composer header: signed-in account (when present) on the left, dynamic channel badge
          * on the right. The badge replaces the channelLabel that used to live inside the toolbar

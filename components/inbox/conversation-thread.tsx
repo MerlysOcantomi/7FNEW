@@ -171,7 +171,7 @@ export function ConversationThread({
   return (
     <>
       {/* Mobile navigation */}
-      <div className="xl:hidden shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
+      <div className="xl:hidden shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-4 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -205,12 +205,17 @@ export function ConversationThread({
         </div>
       </div>
 
-      {/* Desktop header */}
-      <div className="hidden xl:block shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
+      {/* Desktop header — single tight row to keep the thread chrome minimal. */}
+      <div className="hidden xl:block shrink-0 border-b border-[var(--inbox-divider)] bg-[var(--inbox-surface)]/98 px-5 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-[var(--inbox-surface)]/94">
         <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-[var(--inbox-text)]">{headerTitle}</p>
-            <p className="truncate text-xs text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
+          {/*
+           * Title + sender share ONE baseline-aligned row (was a two-line
+           * stack). `truncate` on each keeps long subjects/senders from
+           * pushing the toggle/status off-screen.
+           */}
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <p className="truncate text-[13px] font-medium leading-tight text-[var(--inbox-text)]">{headerTitle}</p>
+            <p className="truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">{headerSubtitle}</p>
           </div>
           {/* Right-side controls — `shrink-0` prevents the EmailViewToggle / status select
            * from being compressed when the title is long; `truncate` on the title takes

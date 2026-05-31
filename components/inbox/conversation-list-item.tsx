@@ -140,17 +140,17 @@ export function ConversationListItem({
       />
       <div className="flex items-start gap-1">
         {/*
-         * Signals affordance. Previously a bare 12px chevron that operators
+         * Details affordance. Previously a bare 12px chevron that operators
          * routinely missed — it didn't read as "this row reveals more". Now a
-         * labelled pill ("Signals" + chevron) so it's obvious the sender row
-         * expands to show per-message intents/signals. Kept as its OWN button
-         * (separate from the sender-select button below) so toggling signals
+         * labelled pill ("Details" + chevron) so it's obvious the sender row
+         * expands to show per-message intents. Kept as its OWN button
+         * (separate from the sender-select button below) so toggling details
          * never races conversation selection.
          */}
         <button
           type="button"
           aria-expanded={expanded}
-          aria-label={expanded ? "Hide signals" : "Show signals"}
+          aria-label={expanded ? "Hide details" : "Show details"}
           onClick={(e) => {
             e.stopPropagation()
             onToggleExpand()
@@ -168,7 +168,7 @@ export function ConversationListItem({
             strokeWidth={2.5}
             aria-hidden="true"
           />
-          <span className="text-[10px] font-semibold uppercase tracking-wide">Signals</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide">Details</span>
         </button>
 
         <button
