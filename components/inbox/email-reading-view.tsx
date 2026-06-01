@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react"
 import {
-  ChevronLeft, ChevronRight, Mail, RotateCcw, Trash2, Download, FileText, Paperclip,
+  Mail, RotateCcw, Trash2, Download, FileText, Paperclip,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
@@ -64,6 +64,57 @@ function isNavigable(message: EmailReadingMessage): boolean {
   return true
 }
 
+export interface EmailNavigation {
+  /** Message currently displayed (honours an explicit selection, else newest navigable). */
+  currentMessage: EmailReadingMessage | null
+  /** 0-based index of `currentMessage` within the navigable list, or -1 (e.g. trashed). */
+  currentNavIndex: number
+  /** Count of navigable (non-trashed inbound/outbound) emails. */
+  totalNavigable: number
+  prevId: string | null
+  nextId: string | null
+}
+
+/**
+ * Pure prev/next resolver shared by `EmailReadingView` (body) and the conversation
+ * header (compact nav controls). Single source of truth so both stay in sync.
+ *
+ * Prev/Next walk the navigable list (excludes trashed). When the current message is
+ * trashed (`currentNavIndex === -1`) we fall back to last/first navigable so the
+ * operator can escape the placeholder in either direction.
+ */
+export function computeEmailNavigation(
+  messages: EmailReadingMessage[],
+  selectedMessageId: string | null,
+): EmailNavigation {
+  const navigable = messages.filter(isNavigable)
+  const totalNavigable = navigable.length
+
+  let currentMessage: EmailReadingMessage | null = null
+  if (selectedMessageId) {
+    currentMessage = messages.find((m) => m.id === selectedMessageId) ?? null
+  }
+  if (!currentMessage && totalNavigable > 0) {
+    currentMessage = navigable[totalNavigable - 1]
+  }
+  if (!currentMessage) {
+    return { currentMessage: null, currentNavIndex: -1, totalNavigable, prevId: null, nextId: null }
+  }
+
+  const currentNavIndex = navigable.findIndex((m) => m.id === currentMessage!.id)
+  let prevId: string | null = null
+  let nextId: string | null = null
+  if (currentNavIndex >= 0) {
+    if (currentNavIndex > 0) prevId = navigable[currentNavIndex - 1].id
+    if (currentNavIndex < totalNavigable - 1) nextId = navigable[currentNavIndex + 1].id
+  } else if (totalNavigable > 0) {
+    prevId = navigable[totalNavigable - 1].id
+    nextId = navigable[0].id
+  }
+
+  return { currentMessage, currentNavIndex, totalNavigable, prevId, nextId }
+}
+
 export function EmailReadingView({
   messages,
   selectedMessageId,
@@ -71,29 +122,14 @@ export function EmailReadingView({
   onRestoreMessage,
 }: EmailReadingViewProps) {
   /**
-   * Navigable list = real emails minus trashed. Memoized because we recompute Prev/Next
-   * from this list on every keystroke and a fresh array on each render would invalidate
-   * downstream `useMemo`s unnecessarily.
+   * Prev/Next + current message resolved by the shared pure helper (also used by the
+   * conversation header's compact nav controls). Memoized so the auto-select effect's
+   * `currentMessage` dependency stays referentially stable across renders.
    */
-  const navigable = useMemo(() => messages.filter(isNavigable), [messages])
-
-  /**
-   * Currently displayed message. Three branches:
-   *  1. The page selected a specific message (via thread click, deep-link, More menu).
-   *     Honour it as long as it exists in this conversation, even if it's trashed —
-   *     trashed selections render the placeholder so the operator can Restore.
-   *  2. No selection but we have at least one navigable message → use the last one
-   *     (newest, since `messages` is chronological).
-   *  3. Nothing renderable → null, the empty state below kicks in.
-   */
-  const currentMessage = useMemo<EmailReadingMessage | null>(() => {
-    if (selectedMessageId) {
-      const explicit = messages.find((m) => m.id === selectedMessageId)
-      if (explicit) return explicit
-    }
-    if (navigable.length > 0) return navigable[navigable.length - 1]
-    return null
-  }, [messages, selectedMessageId, navigable])
+  const { currentMessage } = useMemo(
+    () => computeEmailNavigation(messages, selectedMessageId),
+    [messages, selectedMessageId],
+  )
 
   /**
    * If we landed on a default (newest navigable) message because the page didn't select
@@ -121,32 +157,6 @@ export function EmailReadingView({
     )
   }
 
-  const currentNavIndex = navigable.findIndex((m) => m.id === currentMessage.id)
-  const totalNavigable = navigable.length
-
-  /**
-   * Prev/Next walk the navigable list (which excludes trashed messages by design). When
-   * the current message is trashed, `currentNavIndex` will be -1 — we can't navigate
-   * relative to a list we're not in, so we fall back to "go to the last navigable" /
-   * "go to the first navigable" heuristics so the operator can escape the placeholder
-   * with a single click in either direction.
-   */
-  let prevId: string | null = null
-  let nextId: string | null = null
-  if (currentNavIndex >= 0) {
-    if (currentNavIndex > 0) prevId = navigable[currentNavIndex - 1].id
-    if (currentNavIndex < totalNavigable - 1) nextId = navigable[currentNavIndex + 1].id
-  } else if (totalNavigable > 0) {
-    prevId = navigable[totalNavigable - 1].id
-    nextId = navigable[0].id
-  }
-
-  const positionLabel = currentMessage.trashed
-    ? "Trashed email"
-    : currentNavIndex >= 0
-      ? `Email ${currentNavIndex + 1} of ${totalNavigable}`
-      : "—"
-
   const ccList = currentMessage.emailMeta?.cc?.filter(Boolean) ?? []
   const bccList = currentMessage.emailMeta?.bcc?.filter(Boolean) ?? []
   const subject = currentMessage.subject?.trim() || "(No subject)"
@@ -158,44 +168,10 @@ export function EmailReadingView({
   return (
     <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
       <div className="flex min-h-full flex-col gap-3 bg-[var(--inbox-chat-background)] px-5 py-5 md:px-8 md:py-6">
-        {/* Top nav bar — Prev / position / Next. Sticky-feel inside the scroll area. */}
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--inbox-border)]/40 bg-white/[0.03] px-3 py-2">
-          <button
-            type="button"
-            onClick={() => prevId && onSelectMessage(prevId)}
-            disabled={!prevId}
-            aria-label="Previous email"
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-              prevId
-                ? "text-[var(--inbox-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
-                : "cursor-not-allowed text-[var(--inbox-text-secondary)]/50",
-            )}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Previous
-          </button>
-          <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--inbox-text-secondary)]">
-            <Mail className="h-3 w-3" aria-hidden="true" />
-            <span>{positionLabel}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => nextId && onSelectMessage(nextId)}
-            disabled={!nextId}
-            aria-label="Next email"
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-              nextId
-                ? "text-[var(--inbox-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
-                : "cursor-not-allowed text-[var(--inbox-text-secondary)]/50",
-            )}
-          >
-            Next
-            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-
+        {/*
+          Prev/Next navigation moved into the slim conversation header (icons + count)
+          to reclaim this vertical space. `onSelectMessage` is still driven from there.
+        */}
         {currentMessage.trashed ? (
           /**
            * Trashed selection — render the same placeholder shape MessageBubble uses, with

@@ -140,12 +140,13 @@ export function ConversationListItem({
       />
       <div className="flex items-start gap-1">
         {/*
-         * Details affordance. Previously a bare 12px chevron that operators
-         * routinely missed — it didn't read as "this row reveals more". Now a
-         * labelled pill ("Details" + chevron) so it's obvious the sender row
-         * expands to show per-message intents. Kept as its OWN button
-         * (separate from the sender-select button below) so toggling details
-         * never races conversation selection.
+         * Chevron-only expand affordance. The left column is narrow, so we drop
+         * the text label entirely (was "Details"/"Signals") to give the sender,
+         * chips and intent preview more horizontal room. The chevron stays
+         * discoverable via a comfortable square hit area, a subtle bordered
+         * background, strong stroke, and a clear 90° rotation on expand. Kept
+         * as its OWN button (separate from the sender-select button below) so
+         * toggling never races conversation selection.
          */}
         <button
           type="button"
@@ -156,7 +157,7 @@ export function ConversationListItem({
             onToggleExpand()
           }}
           className={cn(
-            "mt-1 inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 transition-colors",
+            "mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
             expanded
               ? "border-[var(--inbox-list-selected)]/55 bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)]"
@@ -168,7 +169,6 @@ export function ConversationListItem({
             strokeWidth={2.5}
             aria-hidden="true"
           />
-          <span className="text-[10px] font-semibold uppercase tracking-wide">Details</span>
         </button>
 
         <button

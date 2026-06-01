@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { AlertTriangle, ChevronLeft, Loader2, Mail, MessageSquare, Sparkles } from "lucide-react"
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Mail, MessageSquare, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
 import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
-import { EmailReadingView, type EmailReadingMessage } from "@/components/inbox/email-reading-view"
+import { EmailReadingView, computeEmailNavigation, type EmailReadingMessage } from "@/components/inbox/email-reading-view"
 import { cn } from "@/lib/utils"
 
 export type EmailViewMode = "chat" | "email"
@@ -168,6 +168,61 @@ export function ConversationThread({
     </div>
   ) : null
 
+  /**
+   * Compact email Prev/Next — icons + position count only (no text labels). Lives in the
+   * header (the old separate nav bar inside EmailReadingView was removed) to reclaim
+   * vertical space. Only rendered in email reading mode with more than one navigable
+   * email; the position/prev/next come from the shared `computeEmailNavigation` helper so
+   * the header and the body always agree on "which email is current".
+   */
+  const emailNav = renderEmailView ? computeEmailNavigation(messages, selectedMessageId) : null
+  const EmailNavControls = emailNav && emailNav.totalNavigable > 1 ? (
+    <div
+      role="group"
+      aria-label="Email navigation"
+      className="inline-flex items-center gap-0.5 rounded-md border border-[var(--inbox-border)]/45 bg-white/[0.03] p-0.5 text-[11px]"
+    >
+      <button
+        type="button"
+        onClick={() => emailNav.prevId && onSelectMessage?.(emailNav.prevId)}
+        disabled={!emailNav.prevId}
+        aria-label="Previous email"
+        className={cn(
+          "inline-flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors",
+          emailNav.prevId
+            ? "text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
+            : "cursor-not-allowed text-[var(--inbox-text-secondary)]/40",
+        )}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+      <span
+        className="px-1 tabular-nums font-medium text-[var(--inbox-text-secondary)]"
+        aria-label={
+          emailNav.currentNavIndex >= 0
+            ? `Email ${emailNav.currentNavIndex + 1} of ${emailNav.totalNavigable}`
+            : `${emailNav.totalNavigable} emails`
+        }
+      >
+        {emailNav.currentNavIndex >= 0 ? `${emailNav.currentNavIndex + 1}/${emailNav.totalNavigable}` : `–/${emailNav.totalNavigable}`}
+      </span>
+      <button
+        type="button"
+        onClick={() => emailNav.nextId && onSelectMessage?.(emailNav.nextId)}
+        disabled={!emailNav.nextId}
+        aria-label="Next email"
+        className={cn(
+          "inline-flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors",
+          emailNav.nextId
+            ? "text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
+            : "cursor-not-allowed text-[var(--inbox-text-secondary)]/40",
+        )}
+      >
+        <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  ) : null
+
   return (
     <>
       {/* Mobile navigation */}
@@ -193,6 +248,7 @@ export function ConversationThread({
             <Sparkles className="h-3 w-3" />
             Context
           </Button>
+          {EmailNavControls}
           {EmailViewToggle}
           <div className="ml-auto">
             <InlineSelect
@@ -221,6 +277,7 @@ export function ConversationThread({
            * from being compressed when the title is long; `truncate` on the title takes
            * care of the overflow on its side instead. */}
           <div className="flex shrink-0 items-center gap-2">
+            {EmailNavControls}
             {EmailViewToggle}
             <InlineSelect
               value={statusValue}
