@@ -459,7 +459,15 @@ function InboxPageContent() {
    * the latest inbound's intent status). A future phase can move this server-side without
    * changing the UI contract.
    */
-  const [intentStatusFilter, setIntentStatusFilter] = useState<"all" | "open" | "done">("all")
+  /**
+   * NOTE: the "Open items" control was removed from the More filters UI (it overlapped
+   * mentally with the top chips' Done bucket and was a weak per-message proxy). The state
+   * + `inferConversationIntentStatus` logic are intentionally KEPT pinned to "all" (no-op)
+   * so the concept can be reintroduced later as a clearer AI/Fanny-state filter (Needs
+   * review / Draft ready / Smart Action / Waiting for Fanny) without re-deriving anything.
+   * Setter dropped from the tuple to avoid an unused-binding lint until that PR lands.
+   */
+  const [intentStatusFilter] = useState<"all" | "open" | "done">("all")
   /**
    * Sender / remitente filter. Value is `"all"` or `contact.id`. Options are derived from the
    * loaded list — when the loaded page has no contacts (empty inbox), the select is hidden
@@ -3270,8 +3278,6 @@ function InboxPageContent() {
             onStatusChange={handleListStatusFilterChange}
             urgencyFilter={urgencyFilter}
             onUrgencyFilterChange={setUrgencyFilter}
-            intentStatusFilter={intentStatusFilter}
-            onIntentStatusFilterChange={setIntentStatusFilter}
             senderFilter={senderFilter}
             senderOptions={senderOptions}
             onSenderFilterChange={setSenderFilter}
