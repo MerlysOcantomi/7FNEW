@@ -19,6 +19,14 @@ export async function GET(request: NextRequest) {
     const urgency = searchParams.get("urgency") ?? undefined
     const q = searchParams.get("q")?.trim() || undefined
     const assignedTo = searchParams.get("assignedTo") ?? undefined
+    /**
+     * Operator-assigned workspace category (`Conversation.category`). Exact
+     * match handled in `listConversations`. We do NOT validate against the
+     * workspace taxonomy here — assignment-time validation already lives in
+     * `PATCH /api/inbox/conversations/[id]/category`, so a stale/removed label
+     * simply returns an empty result set rather than a 4xx.
+     */
+    const category = searchParams.get("category")?.trim() || undefined
 
     const whereSummary = {
       workspaceId,
@@ -27,6 +35,7 @@ export async function GET(request: NextRequest) {
       urgency: urgency ?? "(none)",
       q: q ? "(set)" : "(none)",
       assignedTo: assignedTo ?? "(none)",
+      category: category ?? "(none)",
     }
 
     const [{ data, total, leads, urgent }, wsResolved] = await Promise.all([
@@ -39,6 +48,7 @@ export async function GET(request: NextRequest) {
         urgency,
         q,
         assignedTo,
+        category,
       }),
       getWorkspaceWithResolvedConfig(workspaceId),
     ])

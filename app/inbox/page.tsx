@@ -729,6 +729,13 @@ function InboxPageContent() {
   if (channel !== "all") params.set("channel", channel)
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
   if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
+  /**
+   * Workspace category filter (selected via `<InboxTaxonomyChips>`). Sent to
+   * the server so filtering + counts + pagination all operate on the full
+   * result set — the previous client-side filter only saw the loaded page and
+   * silently hid matches living on later pages. `null` = "all" (no param).
+   */
+  if (categoryFilter) params.set("category", categoryFilter)
 
   const LIST_POLL_INTERVAL = 60_000
 
@@ -816,7 +823,7 @@ function InboxPageContent() {
    * this UI contract.
    */
   const conversationsAfterUserFilters = useMemo(() => {
-    if (intentStatusFilter === "all" && senderFilter === "all" && categoryFilter === null) {
+    if (intentStatusFilter === "all" && senderFilter === "all") {
       return conversationsForList
     }
 
@@ -830,20 +837,9 @@ function InboxPageContent() {
         if (intentStatusFilter === "done" && status !== "done") return false
         if (intentStatusFilter === "open" && status === "done") return false
       }
-      /**
-       * Category filter. `null` means "all"; an active value drops every
-       * conversation whose `category` doesn't match the chip exactly
-       * (case-sensitive). Conversations with `category === null`
-       * (uncategorised) are intentionally excluded when a chip is active —
-       * "show me Bugs" should not include uncategorised threads.
-       */
-      if (categoryFilter !== null) {
-        const cat = (c as { category?: string | null }).category ?? null
-        if (cat !== categoryFilter) return false
-      }
       return true
     })
-  }, [conversationsForList, intentStatusFilter, senderFilter, categoryFilter])
+  }, [conversationsForList, intentStatusFilter, senderFilter])
 
   /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
   const inboxTerminalRescueActive = useMemo(() => {

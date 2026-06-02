@@ -29,6 +29,15 @@ interface ListConversationsParams {
   urgency?: string
   q?: string
   assignedTo?: string
+  /**
+   * Operator-assigned workspace category (`Conversation.category`, drawn from
+   * `Workspace.config.taxonomies.inbox`). Exact, case-sensitive match. Single
+   * value only — NOT CSV: taxonomy labels are free-form operator strings that
+   * may legitimately contain commas (e.g. "Billing, accounting"), so the
+   * `.includes(",")` split pattern used for the enum-like status/urgency
+   * filters would corrupt them. `undefined`/""/"all"/"todos" → no filter.
+   */
+  category?: string
 }
 
 interface CreateConversationFromInboxEntryInput {
@@ -406,9 +415,11 @@ function parseConversationClassification(classification?: {
 }
 
 export async function listConversations(params: ListConversationsParams) {
-  const { workspaceId, skip = 0, take = 20, status, channel, urgency, q, assignedTo } = params
+  const { workspaceId, skip = 0, take = 20, status, channel, urgency, q, assignedTo, category } = params
   const statusForWhere =
     !status || status === "all" || status === "todos" ? undefined : status
+  const categoryForWhere =
+    !category || category === "all" || category === "todos" ? undefined : category
 
   const assignedToFilter: Prisma.ConversationWhereInput =
     assignedTo === "unassigned"
@@ -431,6 +442,7 @@ export async function listConversations(params: ListConversationsParams) {
     ...(urgency && urgency !== "todos"
       ? { urgency: urgency.includes(",") ? { in: urgency.split(",") } : urgency }
       : {}),
+    ...(categoryForWhere ? { category: categoryForWhere } : {}),
     ...(q
       ? {
           OR: [
