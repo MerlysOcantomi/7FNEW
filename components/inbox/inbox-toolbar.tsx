@@ -471,8 +471,18 @@ export function InboxToolbar({
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div className="min-w-0">
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                Status
+              <label className="mb-1 flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                <span>Conversation status</span>
+                {/*
+                 * Disambiguates this advanced control from the top work chips
+                 * (All / Needs attention / Waiting / Done): both drive the same
+                 * `status` query param, and an explicit pick here wins by
+                 * precedence in the page query builder. Surfacing that here makes
+                 * the override non-silent. Label-only — no behavior change.
+                 */}
+                <span className="font-normal normal-case tracking-normal text-[var(--inbox-list-text-secondary)]/55">
+                  overrides the status chips
+                </span>
               </label>
               <Select value={status} onValueChange={onStatusChange}>
                 <SelectTrigger
@@ -480,8 +490,8 @@ export function InboxToolbar({
                     FILTER_TRIGGER_BASE,
                     status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                   )}
-                  aria-label="Status filter"
-                  title="Conversation status"
+                  aria-label="Conversation status filter (overrides the status chips)"
+                  title="Exact conversation status — overrides the top status chips"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -524,8 +534,14 @@ export function InboxToolbar({
 
             {onIntentStatusFilterChange ? (
               <div className="min-w-0">
+                {/*
+                 * "Open items" (was "Work intent"): filters on the per-message
+                 * open/done state (`Message.metadata.intentStatus` via
+                 * `inferConversationIntentStatus`), NOT `Conversation.intent`.
+                 * Renamed label-only to remove that confusion; logic unchanged.
+                 */}
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                  Work intent
+                  Open items
                 </label>
                 <Select
                   value={intentStatusFilter}
@@ -538,8 +554,8 @@ export function InboxToolbar({
                       FILTER_TRIGGER_BASE,
                       intentStatusFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                     )}
-                    aria-label="Work intent filter"
-                    title="Per-message work / intent filter"
+                    aria-label="Open items filter"
+                    title="Per-message open / done items"
                   >
                     <SelectValue />
                   </SelectTrigger>

@@ -883,7 +883,7 @@ function InboxPageContent() {
     })
   }, [status, conversations, inboxTerminalRescueActive, sidebarFilter])
 
-  const filterKey = `${debouncedSearch}|${status}|${channel}|${urgencyFilter}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
+  const filterKey = `${debouncedSearch}|${status}|${channel}|${urgencyFilter}|${categoryFilter ?? ""}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
