@@ -187,6 +187,19 @@ export function InboxToolbar({
     if (advancedHasActiveFilter && !moreOpen) setMoreOpen(true)
   }, [advancedHasActiveFilter, moreOpen])
 
+  /**
+   * Conversation status is now demoted into a collapsed "Advanced" disclosure:
+   * its precise states (lead_detected, archived, converted, closed…) are admin/
+   * specific, not daily filters — the top chips cover the normal flow. Collapsed
+   * by default so the panel doesn't grow; auto-opens when an exact status is
+   * active so the override never hides silently. Behavior/query unchanged.
+   */
+  const statusFilterActive = status !== "all"
+  const [advancedOpen, setAdvancedOpen] = useState(statusFilterActive)
+  useEffect(() => {
+    if (statusFilterActive && !advancedOpen) setAdvancedOpen(true)
+  }, [statusFilterActive, advancedOpen])
+
   const activeChannelLabel =
     channelOptions.find((option) => option.value === channel)?.label ?? "All channels"
 
@@ -470,41 +483,6 @@ export function InboxToolbar({
           className="border-t border-[var(--inbox-list-border)]/60 px-3 py-3 md:px-4"
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="min-w-0">
-              <label className="mb-1 flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                <span>Conversation status</span>
-                {/*
-                 * Disambiguates this advanced control from the top work chips
-                 * (All / Needs attention / Waiting / Done): both drive the same
-                 * `status` query param, and an explicit pick here wins by
-                 * precedence in the page query builder. Surfacing that here makes
-                 * the override non-silent. Label-only — no behavior change.
-                 */}
-                <span className="font-normal normal-case tracking-normal text-[var(--inbox-list-text-secondary)]/55">
-                  overrides the status chips
-                </span>
-              </label>
-              <Select value={status} onValueChange={onStatusChange}>
-                <SelectTrigger
-                  className={cn(
-                    FILTER_TRIGGER_BASE,
-                    status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
-                  )}
-                  aria-label="Conversation status filter (overrides the status chips)"
-                  title="Exact conversation status — overrides the top status chips"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {onUrgencyFilterChange ? (
               <div className="min-w-0">
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
@@ -626,6 +604,77 @@ export function InboxToolbar({
                 ))}
               </div>
             </div>
+          </div>
+
+          {/*
+           * Advanced disclosure — holds the demoted "Conversation status" select.
+           * Collapsed by default (auto-opens when a status is active) so the panel
+           * stays short and the precise/admin states don't compete with the daily
+           * Priority / Sender / Assignment filters. Query/behavior unchanged.
+           */}
+          <div className="mt-2 border-t border-[var(--inbox-list-border)]/60 pt-2">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              aria-expanded={advancedOpen}
+              aria-controls="inbox-toolbar-advanced-panel"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                advancedOpen
+                  ? "text-[var(--inbox-list-text)]"
+                  : "text-[var(--inbox-list-text-secondary)]/80 hover:text-[var(--inbox-list-text)]",
+              )}
+            >
+              <span>Advanced</span>
+              {statusFilterActive ? (
+                <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold normal-case text-[var(--inbox-accent)]">
+                  on
+                </span>
+              ) : null}
+              {advancedOpen ? (
+                <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
+              )}
+            </button>
+
+            {advancedOpen ? (
+              <div id="inbox-toolbar-advanced-panel" className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="min-w-0">
+                  <label className="mb-1 flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                    <span>Conversation status</span>
+                    {/*
+                     * Both this and the top work chips (All / Needs attention /
+                     * Waiting / Done) drive the same `status` query param; an
+                     * explicit pick here wins by precedence in the page query
+                     * builder. Surfacing that keeps the override non-silent.
+                     */}
+                    <span className="font-normal normal-case tracking-normal text-[var(--inbox-list-text-secondary)]/55">
+                      overrides the status chips
+                    </span>
+                  </label>
+                  <Select value={status} onValueChange={onStatusChange}>
+                    <SelectTrigger
+                      className={cn(
+                        FILTER_TRIGGER_BASE,
+                        status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                      )}
+                      aria-label="Conversation status filter (overrides the status chips)"
+                      title="Exact conversation status — overrides the top status chips"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
