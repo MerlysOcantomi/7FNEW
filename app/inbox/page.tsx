@@ -467,6 +467,14 @@ function InboxPageContent() {
    */
   const [senderFilter, setSenderFilter] = useState<string>("all")
   /**
+   * Priority/urgency filter (More filters panel). `"all"` = no filter; other
+   * values are the canonical `Conversation.urgency` strings
+   * (critica/alta/media/baja). Applied SERVER-SIDE via the `urgency` query
+   * param — `listConversations` already supports it — so it scopes results,
+   * counts and pagination just like status/channel/category.
+   */
+  const [urgencyFilter, setUrgencyFilter] = useState<string>("all")
+  /**
    * Workspace category filter (controlled by `<InboxTaxonomyChips>`).
    * `null` means "all categories"; otherwise the value is one of the
    * labels from `Workspace.config.taxonomies.inbox` (sanitised by
@@ -725,7 +733,16 @@ function InboxPageContent() {
   } else if (filterParams.status) {
     params.set("status", filterParams.status)
   }
-  if (filterParams.urgency) params.set("urgency", filterParams.urgency)
+  /**
+   * Urgency precedence mirrors status: an explicit operator selection in More
+   * filters wins; otherwise fall through to whatever the sidebar `?filter=`
+   * declares (e.g. `?filter=urgent` → urgency=alta,critica).
+   */
+  if (urgencyFilter !== "all") {
+    params.set("urgency", urgencyFilter)
+  } else if (filterParams.urgency) {
+    params.set("urgency", filterParams.urgency)
+  }
   if (channel !== "all") params.set("channel", channel)
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
   if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
@@ -866,7 +883,7 @@ function InboxPageContent() {
     })
   }, [status, conversations, inboxTerminalRescueActive, sidebarFilter])
 
-  const filterKey = `${debouncedSearch}|${status}|${channel}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
+  const filterKey = `${debouncedSearch}|${status}|${channel}|${urgencyFilter}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
@@ -3251,6 +3268,8 @@ function InboxPageContent() {
             status={status}
             statusOptions={statusFilterOptions}
             onStatusChange={handleListStatusFilterChange}
+            urgencyFilter={urgencyFilter}
+            onUrgencyFilterChange={setUrgencyFilter}
             intentStatusFilter={intentStatusFilter}
             onIntentStatusFilterChange={setIntentStatusFilter}
             senderFilter={senderFilter}

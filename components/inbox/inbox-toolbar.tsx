@@ -91,6 +91,13 @@ interface InboxToolbarProps {
   status: string
   statusOptions: Array<{ value: string; label: string }>
   onStatusChange: (value: string) => void
+  /**
+   * Priority/urgency filter. UI label is "Priority" (operator-friendly) but the
+   * values are the canonical `Conversation.urgency` strings
+   * (critica/alta/media/baja); "all" clears it. Single-select.
+   */
+  urgencyFilter?: string
+  onUrgencyFilterChange?: (value: string) => void
   intentStatusFilter?: "all" | "open" | "done"
   onIntentStatusFilterChange?: (value: "all" | "open" | "done") => void
   senderFilter?: string
@@ -120,6 +127,20 @@ const WORK_FILTERS = [
   { value: "done", label: "Done" },
 ] as const
 
+/**
+ * Priority filter options. UI labels are operator-friendly; values are the
+ * canonical `Conversation.urgency` strings the API already understands (see
+ * `mapSidebarFilter` / `listConversations`). Fixed vocabulary (NOT workspace
+ * taxonomy), so it's safe to keep inline here like WORK_FILTERS.
+ */
+const PRIORITY_FILTERS = [
+  { value: "all", label: "Any priority" },
+  { value: "critica", label: "Critical" },
+  { value: "alta", label: "High" },
+  { value: "media", label: "Medium" },
+  { value: "baja", label: "Low" },
+] as const
+
 export function InboxToolbar({
   search,
   onSearchChange,
@@ -136,6 +157,8 @@ export function InboxToolbar({
   status,
   statusOptions,
   onStatusChange,
+  urgencyFilter = "all",
+  onUrgencyFilterChange,
   intentStatusFilter = "all",
   onIntentStatusFilterChange,
   senderFilter = "all",
@@ -149,6 +172,7 @@ export function InboxToolbar({
     senderFilter !== "all" ||
     assignmentFilter !== "all" ||
     status !== "all" ||
+    urgencyFilter !== "all" ||
     intentStatusFilter !== "all"
 
   const [channelOpen, setChannelOpen] = useState(false)
@@ -470,6 +494,33 @@ export function InboxToolbar({
                 </SelectContent>
               </Select>
             </div>
+
+            {onUrgencyFilterChange ? (
+              <div className="min-w-0">
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                  Priority
+                </label>
+                <Select value={urgencyFilter} onValueChange={onUrgencyFilterChange}>
+                  <SelectTrigger
+                    className={cn(
+                      FILTER_TRIGGER_BASE,
+                      urgencyFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                    )}
+                    aria-label="Priority filter"
+                    title="Filter by conversation priority / urgency"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_FILTERS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             {onIntentStatusFilterChange ? (
               <div className="min-w-0">
