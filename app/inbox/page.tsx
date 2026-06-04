@@ -279,6 +279,14 @@ const DESKTOP_INBOX_GRID =
   "xl:grid xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)] xl:grid-rows-[minmax(0,1fr)]"
 
 /**
+ * Cadence for the visible-only interval auto-sync (Phase 1). 4 min pairs with
+ * the server's 2-min auto-sync cooldown so a tick that lands just after the
+ * cron or a tab-resume is a cheap no-op, while an idle-but-open Inbox still
+ * pulls new mail without the operator pressing "Sync now".
+ */
+const AUTO_SYNC_INTERVAL_MS = 4 * 60 * 1000
+
+/**
  * Infer the intent status of a conversation as a whole, based on the most recent inbound
  * (non-internal) message's `metadata.intentStatus`. Returns "done" when explicitly marked,
  * "open" otherwise (including "no metadata" / "no inbound" — the default before any operator
@@ -558,6 +566,16 @@ function InboxPageContent() {
     return () => clearTimeout(tid)
   }, [fetchFeedback])
   const initialSyncDoneRef = useRef(false)
+  /**
+   * Phase 1 auto-sync plumbing. `isTabVisible` pauses list polling + auto-sync
+   * while the tab is hidden; `autoSyncInFlightRef` prevents overlapping auto
+   * syncs; `fetchingEmailsRef` mirrors the manual-fetch flag so an auto-sync
+   * never overlaps an explicit "Sync now". The server-side cooldown
+   * (`/api/inbox/fetch` with `auto:true`) is the real concurrency guard.
+   */
+  const [isTabVisible, setIsTabVisible] = useState(true)
+  const autoSyncInFlightRef = useRef(false)
+  const fetchingEmailsRef = useRef(false)
   const lastAutoPopulatedDraftRef = useRef<string | null>(null)
   const activeDraftIdRef = useRef<string | null>(null)
   const replyContentRef = useRef("")
@@ -693,19 +711,77 @@ function InboxPageContent() {
       .catch(() => null)
   }, [])
 
+  /**
+   * Automatic, cooldown-guarded sync. Used by mount, tab-visibility resume and
+   * the visible-only interval. Best-effort and SILENT: a cooldown skip or any
+   * transport/connection error never surfaces a banner (manual "Sync now" owns
+   * the loud feedback). Overlap-protected via refs; the server enforces the
+   * real 2-min cooldown so multiple tabs/triggers can't double-fetch a mailbox.
+   */
+  const runAutoSync = useCallback(async () => {
+    if (autoSyncInFlightRef.current) return
+    if (fetchingEmailsRef.current) return
+    autoSyncInFlightRef.current = true
+    try {
+      const res = await fetch("/api/inbox/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto: true }),
+      })
+      const json = (await res.json().catch(() => null)) as
+        | { success?: boolean; data?: { cooldown?: boolean; count?: number } }
+        | null
+      /** Quiet on cooldown skip or any failure — only react to a real sync. */
+      if (json?.success && json.data && !json.data.cooldown) {
+        setLastSyncedAt(new Date())
+        if ((json.data.count ?? 0) > 0) setRefreshKey((v) => v + 1)
+      }
+    } catch {
+      /* auto-sync is best-effort; never surface errors to the operator */
+    } finally {
+      autoSyncInFlightRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchingEmailsRef.current = fetchingEmails
+  }, [fetchingEmails])
+
   useEffect(() => {
     if (initialSyncDoneRef.current) return
     initialSyncDoneRef.current = true
-    fetch("/api/inbox/fetch", { method: "POST" })
-      .then((r) => r.json())
-      .then((json) => {
-        setLastSyncedAt(new Date())
-        if (json.data?.count > 0) {
-          setRefreshKey((v) => v + 1)
-        }
-      })
-      .catch(() => null)
-  }, [])
+    void runAutoSync()
+  }, [runAutoSync])
+
+  /**
+   * Visibility-aware auto-sync. Pauses list polling (via `isTabVisible` → the
+   * list `useFetch` pollInterval) while hidden, and on resume triggers one
+   * auto-sync (the server cooldown gates how often it actually runs).
+   */
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    const onVisibilityChange = () => {
+      const visible = document.visibilityState === "visible"
+      setIsTabVisible(visible)
+      if (visible) void runAutoSync()
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+  }, [runAutoSync])
+
+  /**
+   * Interval auto-sync — only while the tab is visible. 4 min cadence pairs with
+   * the 2-min server cooldown so a tick that lands right after the cron (or a
+   * resume) is a cheap no-op, while an idle-but-open Inbox still pulls new mail
+   * without the operator touching "Sync now".
+   */
+  useEffect(() => {
+    if (!isTabVisible) return
+    const id = setInterval(() => {
+      void runAutoSync()
+    }, AUTO_SYNC_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [isTabVisible, runAutoSync])
 
   const PAGE_SIZE = 50
 
@@ -779,7 +855,11 @@ function InboxPageContent() {
     error,
     errorCode,
     refetch,
-  } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, { refreshKey, pollInterval: LIST_POLL_INTERVAL })
+  } = useFetch<ConversationListItem[]>(`/api/inbox/conversations?${params.toString()}`, {
+    refreshKey,
+    /** Pause list polling while the tab is hidden (Phase 1 visibility-aware). */
+    pollInterval: isTabVisible ? LIST_POLL_INTERVAL : 0,
+  })
 
   const baseConversations = useMemo(
     () => (Array.isArray(conversationsData) ? conversationsData : []),

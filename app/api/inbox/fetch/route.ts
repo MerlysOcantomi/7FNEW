@@ -7,6 +7,32 @@ import { syncImapConnection } from "@modules/inbox/imap-sync"
 const TAG = "[inbox/fetch]"
 
 /**
+ * Cooldown for AUTOMATIC syncs (mount / visibility / interval triggers that pass
+ * `auto: true`). Mirrors the cron's `RECENT_SYNC_THRESHOLD_MS` (2 min) so the
+ * open-Inbox auto-sync can't overlap-fetch a connection that the cron — or
+ * another tab — synced moments ago. Manual "Sync now" (no `auto` flag) bypasses
+ * this entirely: an explicit click is intentional user intent.
+ *
+ * This is the concurrency guard that makes adding client-side auto-sync safe
+ * without a DB unique constraint / distributed lock: every automatic trigger
+ * funnels through this gate, so the find-then-create dedupe never has to race a
+ * second concurrent sync of the same mailbox within the cooldown window.
+ */
+const AUTO_SYNC_COOLDOWN_MS = 2 * 60 * 1000
+
+/**
+ * Resolve whether this request is an AUTOMATIC sync. Accepts either `?auto=1`
+ * or a JSON body `{ auto: true }`. Manual "Sync now" sends neither, so it stays
+ * a full (cooldown-bypassing) sync exactly as before. Body parsing is defensive
+ * — a missing/!JSON body simply means "not auto".
+ */
+async function resolveAutoFlag(request: NextRequest): Promise<boolean> {
+  if (request.nextUrl.searchParams.get("auto") === "1") return true
+  const body = (await request.json().catch(() => null)) as { auto?: unknown } | null
+  return body?.auto === true
+}
+
+/**
  * POST /api/inbox/fetch
  *
  * Manual fetch trigger from the Inbox UI. Auto-detects the workspace's email connection,
@@ -32,7 +58,9 @@ export async function POST(request: NextRequest) {
   try {
     const { workspaceId } = await requireWriteAccess(request)
 
-    console.log(`${TAG} Fetch requested for workspace=${workspaceId}`)
+    const auto = await resolveAutoFlag(request)
+
+    console.log(`${TAG} Fetch requested for workspace=${workspaceId} auto=${auto}`)
 
     /**
      * Look up *any* email connection first (regardless of status) so we can distinguish
@@ -118,6 +146,35 @@ export async function POST(request: NextRequest) {
         `La conexión "${connection.name}" usa ${connection.provider} (push-based). No requiere fetch manual: los emails llegan automáticamente vía webhook.`,
         400,
       )
+    }
+
+    /**
+     * Cooldown gate for AUTOMATIC syncs only. If the connection was synced within
+     * the cooldown window, we skip the IMAP round-trip and return a structured
+     * "cooldown" response (NOT an error). Keeps the result shape compatible
+     * (count/fetched/ingested = 0) so the client treats it as a quiet no-op.
+     * Manual "Sync now" (`auto === false`) never reaches this branch.
+     */
+    if (
+      auto &&
+      connection.lastSyncAt &&
+      Date.now() - connection.lastSyncAt.getTime() < AUTO_SYNC_COOLDOWN_MS
+    ) {
+      console.log(
+        `${TAG} cooldown skip conn=${connection.id} lastSyncAt=${connection.lastSyncAt.toISOString()} (auto)`,
+      )
+      return successResponse({
+        ok: true,
+        success: true,
+        cooldown: true,
+        count: 0,
+        fetched: 0,
+        ingested: 0,
+        skipped: 0,
+        errors: [],
+        cursorReset: false,
+        connection: connectionSummary,
+      })
     }
 
     console.log(
