@@ -65,6 +65,18 @@ interface ConversationItem {
    * conversations with no pending suggestions.
    */
   proposedTaskCount?: number
+  /**
+   * PR 2 — derived, read-only Smart Action state. Forwarded as-is to
+   * `<ConversationListItem>` → `<ConversationMetaLine>`, which renders a
+   * single subtle pill. `"none"` / `undefined` keeps the row identical.
+   */
+  smartActionState?:
+    | "none"
+    | "failed"
+    | "needs_review"
+    | "draft_ready"
+    | "action_ready"
+    | "task_created"
 }
 
 interface ConversationListProps {
@@ -181,6 +193,7 @@ export function ConversationList({
                   messageCount={item.messageCount}
                   category={item.category}
                   proposedTaskCount={item.proposedTaskCount}
+                  smartActionState={item.smartActionState}
                 />
               ))}
               {hasMore && onLoadMore && (

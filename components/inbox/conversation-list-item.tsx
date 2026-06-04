@@ -62,6 +62,19 @@ interface ConversationListItemProps {
    * for conversations without suggestions.
    */
   proposedTaskCount?: number
+  /**
+   * PR 2 — derived, read-only Smart Action state. Forwarded as-is to
+   * `<ConversationMetaLine>`, which renders a single subtle pill (and
+   * de-dupes against the proposed-task pill). `"none"` / `undefined`
+   * leaves the row visually identical.
+   */
+  smartActionState?:
+    | "none"
+    | "failed"
+    | "needs_review"
+    | "draft_ready"
+    | "action_ready"
+    | "task_created"
 }
 
 export function ConversationListItem({
@@ -87,6 +100,7 @@ export function ConversationListItem({
   messageCount,
   category,
   proposedTaskCount,
+  smartActionState,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
   /**
@@ -252,6 +266,7 @@ export function ConversationListItem({
                 leadScore={leadScore}
                 category={category}
                 proposedTaskCount={proposedTaskCount}
+                smartActionState={smartActionState}
               />
             </div>
           </div>

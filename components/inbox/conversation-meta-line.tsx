@@ -75,6 +75,68 @@ interface ConversationMetaLineProps {
    * their meta line visually identical to its pre-PR state.
    */
   proposedTaskCount?: number
+  /**
+   * PR 2 (Smart Action visibility) — derived, read-only Smart Action state
+   * for this conversation (see `modules/inbox/smart-action-state.ts`). We
+   * render ONE subtle pill summarising where Fanny's work stands, reusing
+   * this existing wrap-line so the row gains no vertical height.
+   *
+   * De-dup rule: when `proposedTaskCount > 0` the "pending decisions" pill
+   * above already conveys the `needs_review` signal, so we suppress the
+   * Smart Action pill for that exact case to avoid a double badge. All other
+   * states (failed / draft_ready / action_ready / task_created, and the rare
+   * suggested-action-only needs_review with no proposed task) render here.
+   * `"none"` / `undefined` renders nothing — row stays pixel-identical.
+   */
+  smartActionState?:
+    | "none"
+    | "failed"
+    | "needs_review"
+    | "draft_ready"
+    | "action_ready"
+    | "task_created"
+}
+
+/**
+ * Subtle, read-only presentation map for the derived Smart Action state.
+ * Colours follow the same restrained semantics used elsewhere in this file:
+ * red = attention/failure, accent = needs a human, info-blue = Fanny prepared
+ * something, green = ready, neutral = informational. Labels are short on
+ * purpose — the narrow list column can't afford long copy.
+ */
+const SMART_ACTION_BADGE: Record<
+  "failed" | "needs_review" | "draft_ready" | "action_ready" | "task_created",
+  { label: string; title: string; className: string }
+> = {
+  failed: {
+    label: "Failed",
+    title: "A Smart Action failed — needs attention",
+    className:
+      "border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] text-[var(--inbox-destructive)]",
+  },
+  needs_review: {
+    label: "Review",
+    title: "Fanny prepared something that needs your review",
+    className:
+      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 text-[var(--inbox-accent)]",
+  },
+  draft_ready: {
+    label: "Draft",
+    title: "Fanny prepared a reply draft",
+    className:
+      "border border-[rgba(147,197,253,0.22)] bg-[rgba(59,130,246,0.1)] text-[#93C5FD]",
+  },
+  action_ready: {
+    label: "Ready",
+    title: "A Smart Action is ready",
+    className:
+      "border border-[rgba(143,198,162,0.28)] bg-[rgba(143,198,162,0.14)] text-[var(--inbox-success)]",
+  },
+  task_created: {
+    label: "Task",
+    title: "A task was created from this conversation",
+    className: "border border-white/[0.1] bg-white/[0.06] text-[var(--inbox-list-text-secondary)]",
+  },
 }
 
 export function ConversationMetaLine({
@@ -87,6 +149,7 @@ export function ConversationMetaLine({
   sectorLabel,
   category,
   proposedTaskCount,
+  smartActionState,
 }: ConversationMetaLineProps) {
   /**
    * Singular / plural copy. PR 11 swapped "Fanny suggestion(s)" for
@@ -107,6 +170,19 @@ export function ConversationMetaLine({
     conversationStatus === "archived" ||
     conversationStatus === "closed" ||
     conversationStatus === "trashed"
+
+  /**
+   * Resolve the Smart Action pill. Suppressed when the state is absent /
+   * "none", and de-duped against the proposed-task pill: a `needs_review`
+   * driven by a proposed task is already shown as "N pending decision(s)"
+   * above, so we don't repeat it. Unknown values degrade to no pill.
+   */
+  const smartActionBadge =
+    smartActionState && smartActionState !== "none"
+      ? smartActionState === "needs_review" && proposedTaskBadge
+        ? null
+        : SMART_ACTION_BADGE[smartActionState] ?? null
+      : null
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -175,6 +251,26 @@ export function ConversationMetaLine({
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
           {proposedTaskBadge}
+        </span>
+      ) : null}
+      {/*
+       * PR 2 — Smart Action state pill. The single SevenF-native signal of
+       * "what did Fanny prepare / what needs review / what is ready". Sits on
+       * the same wrap line as the other chips (no extra row height) and only
+       * appears for actionable states. Read-only: no filter is wired to it
+       * yet — exposing it as a More-filters control is deferred (see PR notes)
+       * because the WorkspaceTask-backed signals can't be filtered via a
+       * Conversation relation without a schema relation.
+       */}
+      {smartActionBadge ? (
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-semibold shadow-none whitespace-nowrap",
+            smartActionBadge.className,
+          )}
+          title={smartActionBadge.title}
+        >
+          {smartActionBadge.label}
         </span>
       ) : null}
     </div>

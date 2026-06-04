@@ -1702,6 +1702,7 @@ function InboxPageContent() {
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
           category: conversation.category ?? null,
           proposedTaskCount: conversation.proposedTaskCount ?? 0,
+          smartActionState: conversation.smartActionState ?? "none",
         }
       } catch (e) {
         if (process.env.NODE_ENV === "development") {
@@ -1725,6 +1726,7 @@ function InboxPageContent() {
           messageCount: conversation.messageCount ?? (conversation.messages?.length || 0),
           category: conversation.category ?? null,
           proposedTaskCount: conversation.proposedTaskCount ?? 0,
+          smartActionState: conversation.smartActionState ?? "none",
         }
       }
     }),
