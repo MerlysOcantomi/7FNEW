@@ -169,7 +169,6 @@ export function InboxToolbar({
   urgencyFilter = "all",
   onUrgencyFilterChange,
   intentStatusFilter = "all",
-  onIntentStatusFilterChange,
   assignmentFilter,
   onAssignmentFilterChange,
   isTodoMode = false,
@@ -191,19 +190,6 @@ export function InboxToolbar({
   useEffect(() => {
     if (advancedHasActiveFilter && !moreOpen) setMoreOpen(true)
   }, [advancedHasActiveFilter, moreOpen])
-
-  /**
-   * Conversation status is now demoted into a collapsed "Advanced" disclosure:
-   * its precise states (lead_detected, archived, converted, closed…) are admin/
-   * specific, not daily filters — the top chips cover the normal flow. Collapsed
-   * by default so the panel doesn't grow; auto-opens when an exact status is
-   * active so the override never hides silently. Behavior/query unchanged.
-   */
-  const statusFilterActive = status !== "all"
-  const [advancedOpen, setAdvancedOpen] = useState(statusFilterActive)
-  useEffect(() => {
-    if (statusFilterActive && !advancedOpen) setAdvancedOpen(true)
-  }, [statusFilterActive, advancedOpen])
 
   const activeChannelLabel =
     channelOptions.find((option) => option.value === channel)?.label ?? "All channels"
@@ -474,20 +460,25 @@ export function InboxToolbar({
       ) : null}
 
       {/*
-       * Row 4 — More filters (advanced). Status / Work intent / Sender are
-       * power-user controls that don't fit the daily work chips. Assignment
-       * (All / Mine / Unassigned) keeps its three-button group layout.
+       * Row 4 — More filters. FLAT single-row layout (no Advanced disclosure).
        *
-       * Visual order — Status, Work intent, Sender, Assignment — matches the
-       * legacy layout the operators are used to. The grid stacks to one
-       * column on narrow viewports.
+       * Canonical control order (current + planned):
+       *   Priority | [Smart Action*] | Assignment | [Relationship*] | Conversation status
+       *   (*) not implemented yet — see the inline slot comments. They will drop
+       *       into their positions without restructuring this grid.
+       *
+       * Currently RENDERED order: Priority | Assignment | Conversation status.
+       * Conversation status used to live in a separate "Advanced" block; it is
+       * now the last compact control on the same row (query/precedence
+       * unchanged). The grid is sized for the full 5-control future
+       * (xl:grid-cols-5) and collapses gracefully on smaller viewports.
        */}
       {!isTodoMode && moreOpen ? (
         <div
           id="inbox-toolbar-more-panel"
           className="border-t border-[var(--inbox-list-border)]/60 px-3 py-2.5 md:px-4"
         >
-          <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {onUrgencyFilterChange ? (
               <div className="min-w-0">
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
@@ -515,41 +506,13 @@ export function InboxToolbar({
               </div>
             ) : null}
 
-            {onIntentStatusFilterChange ? (
-              <div className="min-w-0">
-                {/*
-                 * "Open items" (was "Work intent"): filters on the per-message
-                 * open/done state (`Message.metadata.intentStatus` via
-                 * `inferConversationIntentStatus`), NOT `Conversation.intent`.
-                 * Renamed label-only to remove that confusion; logic unchanged.
-                 */}
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                  Open items
-                </label>
-                <Select
-                  value={intentStatusFilter}
-                  onValueChange={(value) =>
-                    onIntentStatusFilterChange(value as "all" | "open" | "done")
-                  }
-                >
-                  <SelectTrigger
-                    className={cn(
-                      FILTER_TRIGGER_BASE,
-                      intentStatusFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
-                    )}
-                    aria-label="Open items filter"
-                    title="Per-message open / done items"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
+            {/*
+             * [Future slot — position 2] Smart Action state filter. The derived
+             * `smartActionState` (none / failed / needs_review / draft_ready /
+             * action_ready / task_created) is already surfaced as a row badge;
+             * a compact <Select> drops in HERE once the server-side filter
+             * lands, keeping the canonical order intact. No control today.
+             */}
 
             <div className="min-w-0">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
@@ -584,77 +547,48 @@ export function InboxToolbar({
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/*
-           * Advanced disclosure — holds the demoted "Conversation status" select.
-           * Collapsed by default (auto-opens when a status is active) so the panel
-           * stays short and the precise/admin states don't compete with the daily
-           * Priority / Sender / Assignment filters. Query/behavior unchanged.
-           */}
-          <div className="mt-2 border-t border-[var(--inbox-list-border)]/60 pt-1.5">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((open) => !open)}
-              aria-expanded={advancedOpen}
-              aria-controls="inbox-toolbar-advanced-panel"
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
-                advancedOpen
-                  ? "text-[var(--inbox-list-text)]"
-                  : "text-[var(--inbox-list-text-secondary)]/80 hover:text-[var(--inbox-list-text)]",
-              )}
-            >
-              <span>Advanced</span>
-              {statusFilterActive ? (
-                <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold normal-case text-[var(--inbox-accent)]">
-                  on
-                </span>
-              ) : null}
-              {advancedOpen ? (
-                <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
-              ) : (
-                <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
-              )}
-            </button>
+            {/*
+             * [Future slot — position 4] Relationship / contact-type filter.
+             * A medium-width <Select> (taxonomy-driven, once `Contact.tipo` is
+             * normalised) drops in HERE, between Assignment and Conversation
+             * status. No control today.
+             */}
 
-            {advancedOpen ? (
-              <div id="inbox-toolbar-advanced-panel" className="mt-1.5 grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="min-w-0">
-                  <label className="mb-1 flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                    <span>Conversation status</span>
-                    {/*
-                     * Both this and the top work chips (All / Needs attention /
-                     * Waiting / Done) drive the same `status` query param; an
-                     * explicit pick here wins by precedence in the page query
-                     * builder. Surfacing that keeps the override non-silent.
-                     */}
-                    <span className="font-normal normal-case tracking-normal text-[var(--inbox-list-text-secondary)]/55">
-                      overrides the status chips
-                    </span>
-                  </label>
-                  <Select value={status} onValueChange={onStatusChange}>
-                    <SelectTrigger
-                      className={cn(
-                        FILTER_TRIGGER_BASE,
-                        status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
-                      )}
-                      aria-label="Conversation status filter (overrides the status chips)"
-                      title="Exact conversation status — overrides the top status chips"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ) : null}
+            {/*
+             * Conversation status — LAST control on the row (previously a
+             * separate "Advanced" disclosure, now flattened inline). Both this
+             * and the top work chips (All / Needs attention / Waiting / Done)
+             * drive the same `status` query param; an explicit pick here wins by
+             * precedence in the page query builder — query/precedence unchanged.
+             * The "overrides the status chips" note lives in the tooltip
+             * (aria-label/title) so the control adds NO extra row height and
+             * never dominates the panel.
+             */}
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                Conversation status
+              </label>
+              <Select value={status} onValueChange={onStatusChange}>
+                <SelectTrigger
+                  className={cn(
+                    FILTER_TRIGGER_BASE,
+                    status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                  )}
+                  aria-label="Conversation status filter (overrides the status chips)"
+                  title="Exact conversation status — overrides the top status chips"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       ) : null}
