@@ -141,6 +141,18 @@ const PRIORITY_FILTERS = [
   { value: "baja", label: "Low" },
 ] as const
 
+/**
+ * Assignment filter options. Same values/behavior as the previous segmented
+ * three-button group (All / Mine / Unassigned) — only the presentation changes
+ * to a `Select`, so it lines up with Priority / Sender and stops eating a wide
+ * row in the More filters panel. `"all"` is the cleared/idle state.
+ */
+const ASSIGNMENT_FILTERS = [
+  { value: "all", label: "Anyone" },
+  { value: "mine", label: "Mine" },
+  { value: "unassigned", label: "Unassigned" },
+] as const
+
 export function InboxToolbar({
   search,
   onSearchChange,
@@ -480,9 +492,9 @@ export function InboxToolbar({
       {!isTodoMode && moreOpen ? (
         <div
           id="inbox-toolbar-more-panel"
-          className="border-t border-[var(--inbox-list-border)]/60 px-3 py-3 md:px-4"
+          className="border-t border-[var(--inbox-list-border)]/60 px-3 py-2.5 md:px-4"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
             {onUrgencyFilterChange ? (
               <div className="min-w-0">
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
@@ -578,31 +590,34 @@ export function InboxToolbar({
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
                 Assignment
               </label>
-              <div className="grid grid-cols-3 gap-1">
-                {(
-                  [
-                    { value: "all", label: "All" },
-                    { value: "mine", label: "Mine" },
-                    { value: "unassigned", label: "Unassigned" },
-                  ] as const
-                ).map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    size="sm"
-                    variant={assignmentFilter === option.value ? "secondary" : "ghost"}
-                    className={cn(
-                      "h-8 w-full rounded-lg px-2 text-[11px] transition-all whitespace-nowrap",
-                      assignmentFilter === option.value
-                        ? "bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
-                        : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)]",
-                    )}
-                    onClick={() => onAssignmentFilterChange(option.value)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
+              {/*
+               * Was a wide three-button segmented group; now a Select so it
+               * matches Priority / Sender and the panel stays compact. Same
+               * state + handler + values (all / mine / unassigned) — only the
+               * presentation changed.
+               */}
+              <Select
+                value={assignmentFilter}
+                onValueChange={(value) => onAssignmentFilterChange(value as AssignmentFilter)}
+              >
+                <SelectTrigger
+                  className={cn(
+                    FILTER_TRIGGER_BASE,
+                    assignmentFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                  )}
+                  aria-label="Assignment filter"
+                  title="Filter by assignment (anyone / mine / unassigned)"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSIGNMENT_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -612,7 +627,7 @@ export function InboxToolbar({
            * stays short and the precise/admin states don't compete with the daily
            * Priority / Sender / Assignment filters. Query/behavior unchanged.
            */}
-          <div className="mt-2 border-t border-[var(--inbox-list-border)]/60 pt-2">
+          <div className="mt-2 border-t border-[var(--inbox-list-border)]/60 pt-1.5">
             <button
               type="button"
               onClick={() => setAdvancedOpen((open) => !open)}
@@ -639,7 +654,7 @@ export function InboxToolbar({
             </button>
 
             {advancedOpen ? (
-              <div id="inbox-toolbar-advanced-panel" className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div id="inbox-toolbar-advanced-panel" className="mt-1.5 grid gap-x-2 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="min-w-0">
                   <label className="mb-1 flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
                     <span>Conversation status</span>
