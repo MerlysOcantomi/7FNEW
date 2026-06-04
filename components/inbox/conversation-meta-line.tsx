@@ -172,6 +172,15 @@ export function ConversationMetaLine({
     conversationStatus === "trashed"
 
   /**
+   * Urgency is high-signal only when it's actually high. Showing a "Medium" /
+   * "Low" pill on every row was pure noise in the narrow column, so we render
+   * the urgency badge ONLY for high / critical (the cases an operator must not
+   * miss). Medium/low simply omit the pill — no row-height change, less clutter.
+   */
+  const isHighUrgency =
+    urgencyClassName === "urgency-critical" || urgencyClassName === "urgency-high"
+
+  /**
    * Resolve the Smart Action pill. Suppressed when the state is absent /
    * "none", and de-duped against the proposed-task pill: a `needs_review`
    * driven by a proposed task is already shown as "N pending decision(s)"
@@ -202,7 +211,7 @@ export function ConversationMetaLine({
           {statusLabel}
         </Badge>
       ) : null}
-      {!hideTerminal ? (
+      {!hideTerminal && isHighUrgency ? (
         <Badge
           variant={urgencyClassName as BadgeVariant}
           className={cn(
