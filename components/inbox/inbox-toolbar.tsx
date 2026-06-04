@@ -100,9 +100,6 @@ interface InboxToolbarProps {
   onUrgencyFilterChange?: (value: string) => void
   intentStatusFilter?: "all" | "open" | "done"
   onIntentStatusFilterChange?: (value: "all" | "open" | "done") => void
-  senderFilter?: string
-  senderOptions?: Array<{ value: string; label: string }>
-  onSenderFilterChange?: (value: string) => void
   assignmentFilter: AssignmentFilter
   onAssignmentFilterChange: (value: AssignmentFilter) => void
 
@@ -173,15 +170,11 @@ export function InboxToolbar({
   onUrgencyFilterChange,
   intentStatusFilter = "all",
   onIntentStatusFilterChange,
-  senderFilter = "all",
-  senderOptions = [],
-  onSenderFilterChange,
   assignmentFilter,
   onAssignmentFilterChange,
   isTodoMode = false,
 }: InboxToolbarProps) {
   const advancedHasActiveFilter =
-    senderFilter !== "all" ||
     assignmentFilter !== "all" ||
     status !== "all" ||
     urgencyFilter !== "all" ||
@@ -553,34 +546,6 @@ export function InboxToolbar({
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-
-            {onSenderFilterChange && senderOptions.length > 0 ? (
-              <div className="min-w-0">
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                  Sender
-                </label>
-                <Select value={senderFilter} onValueChange={onSenderFilterChange}>
-                  <SelectTrigger
-                    className={cn(
-                      FILTER_TRIGGER_BASE,
-                      senderFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
-                    )}
-                    aria-label="Sender filter"
-                    title="Filter by sender / remitente"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All senders</SelectItem>
-                    {senderOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>

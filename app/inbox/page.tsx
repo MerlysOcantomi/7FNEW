@@ -483,12 +483,6 @@ function InboxPageContent() {
    */
   const [intentStatusFilter] = useState<"all" | "open" | "done">("all")
   /**
-   * Sender / remitente filter. Value is `"all"` or `contact.id`. Options are derived from the
-   * loaded list — when the loaded page has no contacts (empty inbox), the select is hidden
-   * by the ConversationList component to keep the bar uncrowded.
-   */
-  const [senderFilter, setSenderFilter] = useState<string>("all")
-  /**
    * Priority/urgency filter (More filters panel). `"all"` = no filter; other
    * values are the canonical `Conversation.urgency` strings
    * (critica/alta/media/baja). Applied SERVER-SIDE via the `urgency` query
@@ -501,9 +495,9 @@ function InboxPageContent() {
    * `null` means "all categories"; otherwise the value is one of the
    * labels from `Workspace.config.taxonomies.inbox` (sanitised by
    * `core/workspace-taxonomies.ts`). Filtering runs CLIENT-SIDE on the
-   * already loaded page — same pattern as `intentStatusFilter` and
-   * `senderFilter` — to avoid a backend round-trip and to keep the
-   * existing `/api/inbox/conversations` contract unchanged.
+   * already loaded page — same pattern as `intentStatusFilter` — to avoid
+   * a backend round-trip and to keep the existing
+   * `/api/inbox/conversations` contract unchanged.
    */
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -839,46 +833,31 @@ function InboxPageContent() {
    * list (no extra fetch). We dedupe by `contact.id` and prefer name → email → "Unknown" for
    * the visible label. Hidden when the list yields none, so the filter bar stays compact.
    */
-  const senderOptions = useMemo(() => {
-    const seen = new Map<string, { value: string; label: string; sortKey: string }>()
-    for (const c of conversations) {
-      const contact = (c as { contact?: { id?: string | null; nombre?: string | null; email?: string | null } | null }).contact
-      const id = contact?.id ? String(contact.id) : null
-      if (!id) continue
-      if (seen.has(id)) continue
-      const name = typeof contact?.nombre === "string" && contact.nombre.trim() ? contact.nombre.trim() : null
-      const email = typeof contact?.email === "string" && contact.email.trim() ? contact.email.trim() : null
-      const label = name ?? email ?? "Unknown sender"
-      seen.set(id, { value: id, label, sortKey: label.toLowerCase() })
-    }
-    return [...seen.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ value, label }) => ({ value, label }))
-  }, [conversations])
-
   /**
-   * Apply the client-side Work + Sender filters on top of the existing server-side filters.
-   * Both are intentionally client-side: the Work filter depends on `Message.metadata.intentStatus`
-   * (a JSON sub-field that SQLite cannot index efficiently), and Sender filtering is trivially
-   * cheap on the loaded page. A future phase can lift either to the server without breaking
-   * this UI contract.
+   * Apply the client-side Work filter on top of the existing server-side filters.
+   * It's intentionally client-side: the Work filter depends on
+   * `Message.metadata.intentStatus` (a JSON sub-field that SQLite cannot index
+   * efficiently). A future phase can lift it to the server without breaking this
+   * UI contract.
+   *
+   * NOTE: the page-scoped Sender select was retired here — it derived options
+   * only from the loaded page, filtered client-side, and never touched the
+   * server query (misleading at scale). Exact sender lookup now goes through the
+   * server-side "Filter inbox" (`q`), which already matches contact
+   * name/email/company/phone + message content across all pages.
    */
   const conversationsAfterUserFilters = useMemo(() => {
-    if (intentStatusFilter === "all" && senderFilter === "all") {
+    if (intentStatusFilter === "all") {
       return conversationsForList
     }
 
     return conversationsForList.filter((c) => {
-      if (senderFilter !== "all") {
-        const contactId = (c as { contact?: { id?: string | null } | null }).contact?.id ?? null
-        if (contactId !== senderFilter) return false
-      }
-      if (intentStatusFilter !== "all") {
-        const status = inferConversationIntentStatus(c)
-        if (intentStatusFilter === "done" && status !== "done") return false
-        if (intentStatusFilter === "open" && status === "done") return false
-      }
+      const status = inferConversationIntentStatus(c)
+      if (intentStatusFilter === "done" && status !== "done") return false
+      if (intentStatusFilter === "open" && status === "done") return false
       return true
     })
-  }, [conversationsForList, intentStatusFilter, senderFilter])
+  }, [conversationsForList, intentStatusFilter])
 
   /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
   const inboxTerminalRescueActive = useMemo(() => {
@@ -3294,9 +3273,6 @@ function InboxPageContent() {
             onStatusChange={handleListStatusFilterChange}
             urgencyFilter={urgencyFilter}
             onUrgencyFilterChange={setUrgencyFilter}
-            senderFilter={senderFilter}
-            senderOptions={senderOptions}
-            onSenderFilterChange={setSenderFilter}
             assignmentFilter={assignmentFilter}
             onAssignmentFilterChange={setAssignmentFilter}
             isTodoMode={isTodoMode}
