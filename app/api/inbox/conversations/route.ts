@@ -4,6 +4,10 @@ import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { listConversations, parseConversationJsonFields } from "@modules/inbox/service"
 import { listProposedFannyTaskCountsByConversation } from "@modules/inbox/inbox-tasks-read"
+import {
+  deriveSmartActionStatesByConversation,
+  type SmartActionState,
+} from "@modules/inbox/smart-action-state"
 
 const INBOX_LIST_DEBUG =
   process.env.NODE_ENV === "development" || process.env.INBOX_DEBUG_INBOX_LIST === "1"
@@ -109,6 +113,34 @@ export async function GET(request: NextRequest) {
         })
       : new Map<string, number>()
 
+    /**
+     * PR 1 (Smart Action state) — attach a single derived, read-only
+     * `smartActionState` to each visible conversation so the list knows where
+     * Fanny's work stands ("Conversations in. Work done.").
+     *
+     * Same resilience contract as `proposedCounts`: page-scoped ids only (no
+     * N+1), reuses `proposedCounts` for the `needs_review` signal (no extra
+     * proposed-task query), and degrades to `none` everywhere if the derivation
+     * fails. The list must NEVER be blocked by this auxiliary aggregation.
+     *
+     * Read-only: no filter UI is wired in this PR (PR 2 surfaces it).
+     */
+    const smartActionStates = conversationIdsForCounts.length > 0
+      ? await deriveSmartActionStatesByConversation({
+          workspaceId,
+          conversationIds: conversationIdsForCounts,
+          proposedTaskCounts: proposedCounts,
+        }).catch((err: unknown) => {
+          if (INBOX_LIST_DEBUG) {
+            console.warn("[inbox:debug:list] smart action state derivation failed", {
+              workspaceId,
+              message: err instanceof Error ? err.message : String(err),
+            })
+          }
+          return new Map<string, SmartActionState>()
+        })
+      : new Map<string, SmartActionState>()
+
     return successResponse(
       data.map((record) => {
         const parsed = parseConversationJsonFields(record)
@@ -116,6 +148,7 @@ export async function GET(request: NextRequest) {
         return {
           ...parsed,
           proposedTaskCount: id ? proposedCounts.get(id) ?? 0 : 0,
+          smartActionState: id ? smartActionStates.get(id) ?? "none" : "none",
         }
       }),
       {

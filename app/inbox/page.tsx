@@ -111,6 +111,20 @@ interface ConversationListItem {
    * to `0` when missing or when the aggregation degraded silently.
    */
   proposedTaskCount?: number
+  /**
+   * PR 1 (Smart Action state) — single derived, read-only summary of where
+   * Fanny's work on this conversation stands, attached server-side by
+   * `/api/inbox/conversations`. Stable enum: `none | failed | needs_review |
+   * draft_ready | action_ready | task_created`. No filter UI consumes it yet
+   * (PR 2 will); defaults to `"none"` when missing or when derivation degraded.
+   */
+  smartActionState?:
+    | "none"
+    | "failed"
+    | "needs_review"
+    | "draft_ready"
+    | "action_ready"
+    | "task_created"
   contact: {
     id: string
     nombre: string | null
