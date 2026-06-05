@@ -26,6 +26,7 @@ import {
 } from "@/components/inbox/context-panel"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
+import { ComposeRecipientPicker } from "@/components/inbox/compose-recipient-picker"
 import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -3830,11 +3831,9 @@ function InboxPageContent() {
           <div className="space-y-3 py-2">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">To</label>
-              <Input
-                placeholder="Recipient email"
-                type="email"
+              <ComposeRecipientPicker
                 value={composeTo}
-                onChange={(e) => setComposeTo(e.target.value)}
+                onChange={setComposeTo}
                 disabled={composeSending}
                 autoFocus
               />
