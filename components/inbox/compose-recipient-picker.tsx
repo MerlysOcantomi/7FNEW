@@ -189,11 +189,11 @@ export function ComposeRecipientPicker({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-background shadow-md"
+          className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-[var(--surface-overlay-border)] bg-[var(--surface-overlay)] text-[var(--surface-overlay-foreground)] shadow-lg"
         >
-          <div className="max-h-[184px] overflow-y-auto p-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+          <div className="max-h-[184px] overflow-y-auto p-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--surface-overlay-border)] [&::-webkit-scrollbar-track]:bg-transparent">
             {loading && visibleResults.length === 0 ? (
-              <div className="px-2 py-2 text-xs text-muted-foreground">Searching…</div>
+              <div className="px-2 py-2 text-xs text-[var(--surface-overlay-muted)]">Searching…</div>
             ) : null}
 
             {visibleResults.map((c, idx) => {
@@ -217,15 +217,15 @@ export function ComposeRecipientPicker({
                     active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
                   )}
                 >
-                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--surface-overlay-muted)]" aria-hidden="true" />
                   <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
                     <span className="truncate font-medium">{display}</span>
                     {showEmail ? (
-                      <span className="truncate text-xs text-muted-foreground">{c.email}</span>
+                      <span className="truncate text-xs text-[var(--surface-overlay-muted)]">{c.email}</span>
                     ) : null}
                   </span>
                   {secondary ? (
-                    <span className="max-w-[42%] shrink-0 truncate text-[11px] text-muted-foreground">
+                    <span className="max-w-[42%] shrink-0 truncate text-[11px] text-[var(--surface-overlay-muted)]">
                       {secondary}
                     </span>
                   ) : null}
@@ -248,9 +248,9 @@ export function ComposeRecipientPicker({
                     : "hover:bg-accent/50",
                 )}
               >
-                <UserPlus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="truncate text-muted-foreground">
-                  Use new email: <span className="font-medium text-foreground">{trimmed}</span>
+                <UserPlus className="h-3.5 w-3.5 shrink-0 text-[var(--surface-overlay-muted)]" aria-hidden="true" />
+                <span className="truncate text-[var(--surface-overlay-muted)]">
+                  Use new email: <span className="font-medium text-[var(--surface-overlay-foreground)]">{trimmed}</span>
                 </span>
               </button>
             ) : null}
