@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import { Building2, Mail, UserPlus } from "lucide-react"
+import { Mail, UserPlus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -36,6 +36,29 @@ interface ComposeRecipientPickerProps {
 }
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/
+
+/** How many recent contacts to surface in the empty/focused state. */
+const MAX_RECENT = 4
+
+/**
+ * Presentation-only mapping for `Contact.tipo`. The DB stores internal Spanish
+ * values; we never mutate them — this only relabels them in the picker so the
+ * operator doesn't see raw "visitante"/"cliente". Unknown values are title-cased.
+ */
+const TYPE_LABELS: Record<string, string> = {
+  cliente: "Client",
+  visitante: "Visitor",
+  lead: "Lead",
+  proveedor: "Vendor",
+  prospecto: "Prospect",
+}
+
+function formatType(tipo: string | null): string | null {
+  if (!tipo) return null
+  const key = tipo.trim().toLowerCase()
+  if (!key) return null
+  return TYPE_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
+}
 
 export function ComposeRecipientPicker({
   value,
@@ -83,8 +106,15 @@ export function ComposeRecipientPicker({
   )
   const showNewEmail = looksLikeEmail && !hasExactMatch
 
-  /** Flat option list = contacts then (optionally) the "use new email" row. */
-  const optionCount = results.length + (showNewEmail ? 1 : 0)
+  /**
+   * In the empty/focused state we only surface a few recent contacts so the
+   * dropdown stays small; a typed query shows the full result set (capped by the
+   * endpoint) with scroll.
+   */
+  const visibleResults = trimmed.length < 2 ? results.slice(0, MAX_RECENT) : results
+
+  /** Flat option list = visible contacts then (optionally) the "use new email" row. */
+  const optionCount = visibleResults.length + (showNewEmail ? 1 : 0)
 
   function commit(email: string) {
     const next = email.trim()
@@ -118,8 +148,8 @@ export function ComposeRecipientPicker({
     } else if (e.key === "Enter") {
       if (!open || activeIndex < 0) return
       e.preventDefault()
-      if (activeIndex < results.length) {
-        commit(results[activeIndex].email)
+      if (activeIndex < visibleResults.length) {
+        commit(visibleResults[activeIndex].email)
       } else if (showNewEmail) {
         commit(trimmed)
       }
@@ -159,17 +189,19 @@ export function ComposeRecipientPicker({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-[var(--surface-overlay-border)] bg-popover text-popover-foreground shadow-md"
+          className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-background shadow-md"
         >
-          <div className="max-h-64 overflow-y-auto p-1">
-            {loading && results.length === 0 ? (
-              <div className="px-2 py-3 text-xs text-muted-foreground">Searching…</div>
+          <div className="max-h-[184px] overflow-y-auto p-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+            {loading && visibleResults.length === 0 ? (
+              <div className="px-2 py-2 text-xs text-muted-foreground">Searching…</div>
             ) : null}
 
-            {results.map((c, idx) => {
+            {visibleResults.map((c, idx) => {
               const active = idx === activeIndex
               const display = c.nombre?.trim() || c.email
-              const secondary = [c.empresa, c.tipo].filter(Boolean).join(" · ")
+              const typeLabel = formatType(c.tipo)
+              const secondary = [c.empresa?.trim() || null, typeLabel].filter(Boolean).join(" · ")
+              const showEmail = display !== c.email
               return (
                 <button
                   key={c.id}
@@ -181,23 +213,22 @@ export function ComposeRecipientPicker({
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => commit(c.email)}
                   className={cn(
-                    "flex w-full flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm",
-                    active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
+                    active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
                   )}
                 >
-                  <span className="flex w-full items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
                     <span className="truncate font-medium">{display}</span>
-                  </span>
-                  <span className="flex w-full items-center gap-1.5 pl-5 text-xs text-muted-foreground">
-                    <span className="truncate">{c.email}</span>
-                    {secondary ? (
-                      <span className="flex items-center gap-1 truncate">
-                        <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        <span className="truncate">{secondary}</span>
-                      </span>
+                    {showEmail ? (
+                      <span className="truncate text-xs text-muted-foreground">{c.email}</span>
                     ) : null}
                   </span>
+                  {secondary ? (
+                    <span className="max-w-[42%] shrink-0 truncate text-[11px] text-muted-foreground">
+                      {secondary}
+                    </span>
+                  ) : null}
                 </button>
               )
             })}
@@ -206,20 +237,20 @@ export function ComposeRecipientPicker({
               <button
                 type="button"
                 role="option"
-                aria-selected={activeIndex === results.length}
+                aria-selected={activeIndex === visibleResults.length}
                 onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActiveIndex(results.length)}
+                onMouseEnter={() => setActiveIndex(visibleResults.length)}
                 onClick={() => commit(trimmed)}
                 className={cn(
-                  "flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-sm",
-                  activeIndex === results.length
+                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
+                  activeIndex === visibleResults.length
                     ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/60",
+                    : "hover:bg-accent/50",
                 )}
               >
                 <UserPlus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="truncate">
-                  Use new email: <span className="font-medium">{trimmed}</span>
+                <span className="truncate text-muted-foreground">
+                  Use new email: <span className="font-medium text-foreground">{trimmed}</span>
                 </span>
               </button>
             ) : null}
