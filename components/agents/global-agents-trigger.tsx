@@ -7,6 +7,7 @@ import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 
 /**
  * Desktop trigger for the global Agents panel — visual sibling of
@@ -37,6 +38,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
   const { closeAll: closeNew } = useGlobalNew()
   const { closeToday } = useTodayDrawer()
   const { closeSearch } = useGlobalSearch()
+  const { closeAsk } = useAskFanny()
 
   const handleClick = () => {
     const next = !open
@@ -44,6 +46,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
       closeNew()
       closeToday()
       closeSearch()
+      closeAsk()
     }
     setOpen(next)
   }
@@ -98,12 +101,14 @@ export function GlobalAgentsTriggerMobile() {
   const { open, openAgents, available } = useAgentsPanel()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeToday } = useTodayDrawer()
+  const { closeAsk } = useAskFanny()
   const router = useRouter()
 
   const onClick = () => {
     if (available) {
       closeNew()
       closeToday()
+      closeAsk()
       openAgents()
     } else {
       router.push("/agents")

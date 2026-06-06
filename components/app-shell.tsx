@@ -21,6 +21,9 @@ import { AgentsPanelProvider, useAgentsPanel } from "@/components/agents/agents-
 import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome"
 import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger"
 import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome"
+import { AskFannyProvider, useAskFanny } from "@/components/assistant/ask-fanny-provider"
+import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-fanny-trigger"
+import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -45,17 +48,20 @@ interface AppShellProps {
 function AppShellDesktopToolbar({
   hideTodayTrigger,
   hideAgentsTrigger,
+  showAskFanny,
 }: {
   hideTodayTrigger: boolean
   hideAgentsTrigger: boolean
+  showAskFanny: boolean
 }) {
   const { openSearch, searchOpen } = useGlobalSearch()
   const { desktopOpen } = useGlobalNew()
   const { open: todayOpen } = useTodayDrawer()
   const { open: agentsOpen } = useAgentsPanel()
+  const { open: askOpen } = useAskFanny()
   const isMobileViewport = useIsMobile()
   const eitherOpen =
-    desktopOpen || todayOpen || agentsOpen || (searchOpen && !isMobileViewport)
+    desktopOpen || todayOpen || agentsOpen || askOpen || (searchOpen && !isMobileViewport)
 
   return (
     <div className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
@@ -75,14 +81,25 @@ function AppShellDesktopToolbar({
             thing is pure noise).
           */}
           {!hideTodayTrigger && <GlobalTodayTriggerDesktop variant="app" />}
-          <GlobalNewTriggerDesktop variant="app" />
           {/*
-            Agents — fourth global action. Visibility/decision plane over
-            AI work; sits after New (create) and before Search (find).
-            Hidden on /agents itself (operator is already on the canonical
-            surface), mirroring the Today trigger's /today rule.
+            Ask Fanny — assistant entry, sits BETWEEN Today and Agents because
+            it belongs to the AI group (talk to the active assistant). PR1 is
+            Inbox-only, so it renders only on /inbox; route-aware Ask {agent}
+            for other sections is future work. Opens the existing TalkToFanny
+            panel via AskFannyProvider (see GlobalAskFannyChrome).
+          */}
+          {showAskFanny && <GlobalAskFannyTriggerDesktop variant="app" />}
+          {/*
+            Agents — visibility/decision plane over AI work; sits after Ask
+            Fanny and before New. Hidden on /agents itself (operator is already
+            on the canonical surface), mirroring the Today trigger's /today rule.
           */}
           {!hideAgentsTrigger && <GlobalAgentsTriggerDesktop variant="app" />}
+          {/*
+            New — capture surface, moved AFTER Agents to support the
+            assistant-first row order: Today | Ask Fanny | Agents | New | Search.
+          */}
+          <GlobalNewTriggerDesktop variant="app" />
           {/*
             Search trigger — visually part of the global action family.
             It keeps its input-like Ctrl+K affordance (search is a typed,
@@ -156,6 +173,13 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
    * Agents page the operator is already on is pure noise.
    */
   const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/")
+  /**
+   * Ask Fanny (assistant entry) is Inbox-only for PR1: it needs the Inbox's
+   * selected conversation/message scope to be useful, and route-aware
+   * Ask {agent} for other sections is future work. Gating here keeps the
+   * trigger + panel off every non-Inbox page that shares this shell.
+   */
+  const showAskFanny = pathname === "/inbox" || pathname.startsWith("/inbox/")
 
   useEffect(() => {
     if (!loading && !user) {
@@ -185,6 +209,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
       */}
       <TodayDrawerProvider>
       <AgentsPanelProvider>
+      <AskFannyProvider>
       <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
       <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
@@ -196,6 +221,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <AppShellDesktopToolbar
             hideTodayTrigger={hideTodayTrigger}
             hideAgentsTrigger={hideAgentsTrigger}
+            showAskFanny={showAskFanny}
           />
 
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8">
@@ -221,7 +247,15 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           `<main>` (see `AppShellDesktopToolbar` above).
         */}
         <GlobalAgentsChrome />
+
+        {/*
+          Global Ask Fanny panel — controlled by AskFannyProvider, opened from
+          the top action-row trigger. Inbox-only for PR1; reuses the existing
+          TalkToFanny panel + /ask API. Renders nothing until opened.
+        */}
+        {showAskFanny && <GlobalAskFannyChrome />}
       </div>
+      </AskFannyProvider>
       </AgentsPanelProvider>
       </TodayDrawerProvider>
     </SidebarCollapseContext.Provider>

@@ -27,7 +27,7 @@ import {
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { ComposeRecipientPicker } from "@/components/inbox/compose-recipient-picker"
-import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Sheet,
@@ -1976,6 +1976,23 @@ function InboxPageContent() {
   const effectiveSourceMessageId = effectiveSelectedMessageId ?? lastInboundMessageId
 
   /**
+   * Publish the Inbox's selection scope into the AskFannyProvider so the global
+   * "Ask Fanny" trigger (top action row, owned by AppShell) can open the same
+   * assistant panel with the right conversation/message context. Replaces the
+   * old floating FAB which received these as direct props. Pure context handoff
+   * — no change to the /ask API or scope semantics.
+   */
+  const { setAskContext } = useAskFanny()
+  useEffect(() => {
+    setAskContext({
+      conversationId: activeSelectedId,
+      selectedMessageId: effectiveSelectedMessageId,
+      actingOnScope,
+      latestInboundMessageId: lastInboundMessageId,
+    })
+  }, [setAskContext, activeSelectedId, effectiveSelectedMessageId, actingOnScope, lastInboundMessageId])
+
+  /**
    * Ask Fanny / Talk to Fanny — anchor + mode derived from `actingOnScope`.
    *  - "selected" → message mode anchored at the operator's selection (when present).
    *  - "latest"   → message mode anchored at the latest inbound (typed-down auto-track keeps
@@ -3874,17 +3891,6 @@ function InboxPageContent() {
         </DialogContent>
       </Dialog>
 
-      {/*
-       * Talk to Fanny — control de IA a nivel Inbox, separado del composer. El Mic del composer
-       * (tab Voice del AI panel) sigue siendo el dictado de respuesta; este botón es para preguntar
-       * a Fanny sobre mensajes/conversaciones/inbox sin escribir un reply.
-       */}
-      <TalkToFanny
-        conversationId={activeSelectedId}
-        selectedMessageId={effectiveSelectedMessageId}
-        actingOnScope={actingOnScope}
-        latestInboundMessageId={lastInboundMessageId}
-      />
     </AppShell>
   )
 }

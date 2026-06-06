@@ -6,6 +6,7 @@ import { useGlobalNew } from "./global-new-provider"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 
 export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { desktopOpen, setDesktopOpen } = useGlobalNew()
@@ -20,6 +21,7 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
   const { closeToday } = useTodayDrawer()
   const { closeAgents } = useAgentsPanel()
   const { closeSearch } = useGlobalSearch()
+  const { closeAsk } = useAskFanny()
 
   const handleClick = () => {
     const next = !desktopOpen
@@ -27,6 +29,7 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
       closeToday()
       closeAgents()
       closeSearch()
+      closeAsk()
     }
     setDesktopOpen(next)
   }
@@ -66,10 +69,12 @@ export function GlobalNewTriggerMobile() {
    */
   const { closeAgents } = useAgentsPanel()
   const { closeToday } = useTodayDrawer()
+  const { closeAsk } = useAskFanny()
 
   const handleClick = () => {
     closeAgents()
     closeToday()
+    closeAsk()
     setMobileOpen(true)
   }
 

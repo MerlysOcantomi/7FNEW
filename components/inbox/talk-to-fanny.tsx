@@ -33,6 +33,15 @@ interface TalkToFannyProps {
   latestInboundMessageId?: string | null
   /** Override className for outer fixed wrapper (positioning). Defaults to bottom-right floating. */
   className?: string
+  /**
+   * Controlled mode. When `open` is provided, the component is driven by the
+   * parent (e.g. the global Ask Fanny trigger in the top action row) and the
+   * floating launcher FAB is NOT rendered — the panel anchors top-right under
+   * the toolbar instead of bottom-right. When omitted, it stays the legacy
+   * self-contained floating launcher + panel.
+   */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 type Scope = "message" | "conversation" | "inbox"
@@ -67,8 +76,17 @@ const ACTING_ON_LABEL: Record<"latest" | "selected" | "all", { label: string; de
   },
 }
 
-export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId = null, className }: TalkToFannyProps) {
-  const [open, setOpen] = useState(false)
+export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId = null, className, open: controlledOpen, onOpenChange }: TalkToFannyProps) {
+  const isControlled = controlledOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (isControlled) onOpenChange?.(next)
+      else setInternalOpen(next)
+    },
+    [isControlled, onOpenChange],
+  )
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -129,7 +147,7 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [open])
+  }, [open, setOpen])
 
   async function ask() {
     if (!question.trim() || loading || !conversationId) return
@@ -162,10 +180,19 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
   const ScopeIcon = scope === "message" ? Sparkles : scope === "conversation" ? MessageSquare : Inbox
 
   return (
-    <div className={cn("fixed bottom-6 right-6 z-40", className)}>
+    <div
+      className={cn(
+        "fixed z-40",
+        isControlled ? "right-4 top-[58px] md:right-6" : "bottom-6 right-6",
+        className,
+      )}
+    >
       {open && (
         <div
-          className="mb-3 w-[min(380px,calc(100vw-3rem))] overflow-hidden rounded-xl border border-[var(--inbox-border)]/45 bg-[var(--inbox-composer-background)] shadow-[0_10px_40px_rgba(0,0,0,0.45)]"
+          className={cn(
+            "w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[var(--inbox-border)]/45 bg-[var(--inbox-composer-background)] shadow-[0_10px_40px_rgba(0,0,0,0.45)]",
+            !isControlled && "mb-3",
+          )}
           role="dialog"
           aria-label="Talk to Fanny"
         >
@@ -272,24 +299,31 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "group relative grid h-12 w-12 place-items-center rounded-full shadow-[0_8px_24px_rgba(99,102,241,0.35)] transition-all",
-          "bg-[var(--inbox-accent)] text-white hover:scale-105 hover:shadow-[0_10px_32px_rgba(99,102,241,0.5)]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--inbox-chat-background)]",
-          open && "ring-2 ring-[var(--inbox-accent)]/60 ring-offset-2 ring-offset-[var(--inbox-chat-background)]",
-        )}
-        title="Talk to Fanny"
-        aria-label="Talk to Fanny"
-        aria-expanded={open}
-      >
-        <Mic className="h-5 w-5" strokeWidth={2.2} />
-        <span className="pointer-events-none absolute -top-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[8px] font-black text-[var(--inbox-accent)] shadow-sm">
-          F
-        </span>
-      </button>
+      {/*
+        Floating launcher FAB — only in legacy/uncontrolled mode. In controlled
+        mode the global Ask Fanny trigger (top action row) owns launching, so we
+        render only the panel here and never a second floating entry.
+      */}
+      {!isControlled && (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className={cn(
+            "group relative grid h-12 w-12 place-items-center rounded-full shadow-[0_8px_24px_rgba(99,102,241,0.35)] transition-all",
+            "bg-[var(--inbox-accent)] text-white hover:scale-105 hover:shadow-[0_10px_32px_rgba(99,102,241,0.5)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--inbox-chat-background)]",
+            open && "ring-2 ring-[var(--inbox-accent)]/60 ring-offset-2 ring-offset-[var(--inbox-chat-background)]",
+          )}
+          title="Talk to Fanny"
+          aria-label="Talk to Fanny"
+          aria-expanded={open}
+        >
+          <Mic className="h-5 w-5" strokeWidth={2.2} />
+          <span className="pointer-events-none absolute -top-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[8px] font-black text-[var(--inbox-accent)] shadow-sm">
+            F
+          </span>
+        </button>
+      )}
     </div>
   )
 }

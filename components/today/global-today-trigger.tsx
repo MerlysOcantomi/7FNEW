@@ -7,6 +7,7 @@ import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 
 /**
  * Desktop trigger for the global Today surface — visual sibling of
@@ -50,6 +51,7 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
   const { closeSearch } = useGlobalSearch()
+  const { closeAsk } = useAskFanny()
 
   const handleClick = () => {
     const next = !open
@@ -57,6 +59,7 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
       closeNew()
       closeAgents()
       closeSearch()
+      closeAsk()
     }
     setOpen(next)
   }
@@ -124,12 +127,14 @@ export function GlobalTodayTriggerMobile() {
   const { open, openToday, available } = useTodayDrawer()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
+  const { closeAsk } = useAskFanny()
   const router = useRouter()
 
   const onClick = () => {
     if (available) {
       closeNew()
       closeAgents()
+      closeAsk()
       openToday()
     } else {
       router.push("/today")

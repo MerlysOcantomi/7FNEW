@@ -4,10 +4,11 @@ import { useEffect } from "react"
 import { useGlobalSearch } from "@/components/global-search-provider"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 
 /**
- * Closes the per-shell top panels (Today + Agents) when global Search
- * opens — the Search → top-panel half of mutual exclusion.
+ * Closes the per-shell top panels (Today + Agents + Ask Fanny) when global
+ * Search opens — the Search → top-panel half of mutual exclusion.
  *
  * Search is a layout-level provider (mounted in `app/layout.tsx`) and its
  * `openSearch` already closes the global New panel via `closeAll()`. But
@@ -21,13 +22,15 @@ export function CloseTodayWhenGlobalSearchOpen() {
   const { searchOpen } = useGlobalSearch()
   const { closeToday } = useTodayDrawer()
   const { closeAgents } = useAgentsPanel()
+  const { closeAsk } = useAskFanny()
 
   useEffect(() => {
     if (searchOpen) {
       closeToday()
       closeAgents()
+      closeAsk()
     }
-  }, [searchOpen, closeToday, closeAgents])
+  }, [searchOpen, closeToday, closeAgents, closeAsk])
 
   return null
 }

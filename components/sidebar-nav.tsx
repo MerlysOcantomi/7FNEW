@@ -52,6 +52,7 @@ import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigg
 import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
 import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigger";
 import { GlobalAgentsTriggerMobile } from "@/components/agents/global-agents-trigger";
+import { GlobalAskFannyTriggerMobile } from "@/components/assistant/global-ask-fanny-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
@@ -902,6 +903,8 @@ export function MobileSidebarNav() {
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
   /** Same /agents gate as the desktop toolbar — no Agents button on the canonical Agents page. */
   const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/");
+  /** Ask Fanny is Inbox-only for PR1 (mirrors the desktop toolbar gate). */
+  const showAskFanny = pathname === "/inbox" || pathname.startsWith("/inbox/");
 
   return (
     <>
@@ -913,17 +916,18 @@ export function MobileSidebarNav() {
           <span className="text-white font-semibold text-sm">7F</span>
         </div>
         {/*
-          Header action order: Today | New | Agents | Search | Menu — the
-          same global action family (and order) as the desktop toolbar.
-          Today (daily work) goes first so the operator's first tap of the
-          day is one motion; New (capture) follows; Agents (AI visibility)
-          sits before Search (find); Menu closes the row. Today and Agents
-          are hidden on their own canonical routes (/today, /agents).
+          Header action order: Today | Ask Fanny | Agents | New | Search |
+          Menu — the same global action family (and order) as the desktop
+          toolbar. Today (daily work) first; Ask Fanny (talk to the active
+          assistant, Inbox-only PR1) next; Agents (AI visibility) follows;
+          New (capture) after Agents; Search (find) before Menu. Today and
+          Agents are hidden on their own canonical routes (/today, /agents).
         */}
         <div className="flex items-center gap-0.5">
           {!hideTodayTrigger && <GlobalTodayTriggerMobile />}
-          <GlobalNewTriggerMobile />
+          {showAskFanny && <GlobalAskFannyTriggerMobile />}
           {!hideAgentsTrigger && <GlobalAgentsTriggerMobile />}
+          <GlobalNewTriggerMobile />
           <button
             onClick={openSearch}
             className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
