@@ -28,6 +28,7 @@ import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/co
 import { ConversationThread } from "@/components/inbox/conversation-thread"
 import { ComposeRecipientPicker } from "@/components/inbox/compose-recipient-picker"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
+import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Sheet,
@@ -1982,15 +1983,13 @@ function InboxPageContent() {
    * old floating FAB which received these as direct props. Pure context handoff
    * — no change to the /ask API or scope semantics.
    */
-  const { setAskContext } = useAskFanny()
-  useEffect(() => {
-    setAskContext({
-      conversationId: activeSelectedId,
-      selectedMessageId: effectiveSelectedMessageId,
-      actingOnScope,
-      latestInboundMessageId: lastInboundMessageId,
-    })
-  }, [setAskContext, activeSelectedId, effectiveSelectedMessageId, actingOnScope, lastInboundMessageId])
+  /**
+   * Ask Fanny scope is published into the provider from a CHILD of `AppShell`
+   * (`InboxAskFannyBridge`, mounted in the JSX below) — not here. The provider
+   * lives inside `AppShell`, so this component body sits ABOVE it and would only
+   * see the no-op context. Reading/writing Ask state happens in the child
+   * components `InboxAskFannyBridge` / `InboxRightColumn`.
+   */
 
   /**
    * Compute the message id the More panel's message-level actions should target. Mirrors the
@@ -3297,6 +3296,12 @@ function InboxPageContent() {
 
   return (
     <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
+      <InboxAskFannyBridge
+        conversationId={activeSelectedId}
+        selectedMessageId={effectiveSelectedMessageId}
+        actingOnScope={actingOnScope}
+        latestInboundMessageId={lastInboundMessageId}
+      />
       <div className="-mx-4 -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         {process.env.NODE_ENV === "development" ? (
           <div
@@ -3690,18 +3695,15 @@ function InboxPageContent() {
           </div>
 
           <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
-            {showInitialListSkeleton ? (
-              <InboxContextSkeleton />
-            ) : selected ? (
-              <div className="min-h-0 flex-1 overflow-y-auto p-2">{contextPanel}</div>
-            ) : (
-              <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
-                <div className="text-center">
-                  <Sparkles className="mx-auto mb-2 h-8 w-8 text-[var(--inbox-text-secondary)]/30" />
-                  <p className="text-xs text-[var(--inbox-text-secondary)]">Context will appear here</p>
-                </div>
-              </div>
-            )}
+            <InboxRightColumn
+              showInitialListSkeleton={showInitialListSkeleton}
+              selected={Boolean(selected)}
+              contextPanel={contextPanel}
+              conversationId={activeSelectedId}
+              selectedMessageId={effectiveSelectedMessageId}
+              actingOnScope={actingOnScope}
+              latestInboundMessageId={lastInboundMessageId}
+            />
           </div>
           </div>
         </div>
@@ -3867,6 +3869,91 @@ function InboxPageContent() {
       </Dialog>
 
     </AppShell>
+  )
+}
+
+/**
+ * Publishes the current Inbox selection scope into `AskFannyProvider`. Mounted
+ * as a CHILD of `AppShell` (where the provider lives), so unlike the page body
+ * it sees the real provider instead of the no-op context. Drives the scope for
+ * the below-`xl` overlay (and any future consumer); the desktop embedded panel
+ * receives scope directly via props.
+ */
+function InboxAskFannyBridge({
+  conversationId,
+  selectedMessageId,
+  actingOnScope,
+  latestInboundMessageId,
+}: {
+  conversationId: string | null
+  selectedMessageId: string | null
+  actingOnScope?: "latest" | "selected" | "all"
+  latestInboundMessageId: string | null
+}) {
+  const { setAskContext } = useAskFanny()
+  useEffect(() => {
+    setAskContext({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId })
+  }, [setAskContext, conversationId, selectedMessageId, actingOnScope, latestInboundMessageId])
+  return null
+}
+
+/**
+ * Desktop (`xl`+) right Intelligence column. Renders one of three modes:
+ * loading skeleton, Ask Fanny (when `openAsk()` was called — the panel "skin"
+ * that replaces Insights in place, no floating overlay), or Insights
+ * (`contextPanel`). Reads Ask state from the provider directly because it is a
+ * child of `AppShell`.
+ */
+function InboxRightColumn({
+  showInitialListSkeleton,
+  selected,
+  contextPanel,
+  conversationId,
+  selectedMessageId,
+  actingOnScope,
+  latestInboundMessageId,
+}: {
+  showInitialListSkeleton: boolean
+  selected: boolean
+  contextPanel: React.ReactNode
+  conversationId: string | null
+  selectedMessageId: string | null
+  actingOnScope?: "latest" | "selected" | "all"
+  latestInboundMessageId: string | null
+}) {
+  const { open: askOpen, closeAsk } = useAskFanny()
+
+  if (showInitialListSkeleton) {
+    return <InboxContextSkeleton />
+  }
+
+  if (askOpen) {
+    return (
+      <TalkToFanny
+        embedded
+        open
+        onOpenChange={(next) => {
+          if (!next) closeAsk()
+        }}
+        conversationId={conversationId}
+        selectedMessageId={selectedMessageId}
+        actingOnScope={actingOnScope}
+        latestInboundMessageId={latestInboundMessageId}
+      />
+    )
+  }
+
+  if (selected) {
+    return <div className="min-h-0 flex-1 overflow-y-auto p-2">{contextPanel}</div>
+  }
+
+  return (
+    <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
+      <div className="text-center">
+        <Sparkles className="mx-auto mb-2 h-8 w-8 text-[var(--inbox-text-secondary)]/30" />
+        <p className="text-xs text-[var(--inbox-text-secondary)]">Context will appear here</p>
+      </div>
+    </div>
   )
 }
 

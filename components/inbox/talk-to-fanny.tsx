@@ -42,6 +42,14 @@ interface TalkToFannyProps {
    */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /**
+   * Embedded mode. When true the assistant renders INLINE filling its parent
+   * (the Inbox right Intelligence panel) as a "panel mode" — no fixed/overlay
+   * positioning, full-height flex column, header back button returns to
+   * Insights. The parent decides when to mount it (so visibility is owned by
+   * the right column, not this component's `open`).
+   */
+  embedded?: boolean
 }
 
 type Scope = "message" | "conversation" | "inbox"
@@ -76,7 +84,7 @@ const ACTING_ON_LABEL: Record<"latest" | "selected" | "all", { label: string; de
   },
 }
 
-export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId = null, className, open: controlledOpen, onOpenChange }: TalkToFannyProps) {
+export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, latestInboundMessageId = null, className, open: controlledOpen, onOpenChange, embedded = false }: TalkToFannyProps) {
   const isControlled = controlledOpen !== undefined
   const [internalOpen, setInternalOpen] = useState(false)
   const open = isControlled ? controlledOpen : internalOpen
@@ -179,6 +187,126 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
 
   const ScopeIcon = scope === "message" ? Sparkles : scope === "conversation" ? MessageSquare : Inbox
 
+  /** Reusable atoms shared by the floating-overlay and embedded (right-panel) shells. */
+  const scopeChip = (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        hasConversation
+          ? "border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/10 text-[var(--inbox-accent)]"
+          : "border-[var(--inbox-border)]/45 bg-white/[0.04] text-[var(--inbox-text-secondary)]",
+      )}
+      title={scopeMeta.description}
+    >
+      <ScopeIcon className="h-3 w-3" aria-hidden />
+      Scope · {scopeMeta.label}
+    </span>
+  )
+
+  const descriptionEl = (
+    <p className="text-[10px] leading-relaxed text-[var(--inbox-text-secondary)]">{scopeMeta.description}</p>
+  )
+
+  const textareaEl = (
+    <Textarea
+      ref={inputRef}
+      value={question}
+      onChange={(e) => setQuestion(e.target.value)}
+      placeholder={hasConversation ? "Ask Fanny anything about this conversation…" : "Open a conversation first."}
+      rows={3}
+      disabled={!hasConversation || loading}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          void ask()
+        }
+      }}
+      className="min-h-[64px] resize-y rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-[12px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/85 focus-visible:border-[var(--inbox-accent)]/70 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/18"
+    />
+  )
+
+  const errorEl = error ? (
+    <p className="rounded border border-[var(--inbox-warning)]/35 bg-[var(--inbox-warning)]/10 px-2 py-1 text-[11px] text-[var(--inbox-warning)]">
+      {error}
+    </p>
+  ) : null
+
+  const answerEl = answer ? (
+    <div className="rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2.5">
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">Fanny</p>
+      <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-[var(--inbox-text)]">{answer}</p>
+    </div>
+  ) : null
+
+  const askRow = (
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-[10px] text-[var(--inbox-text-secondary)]">Ctrl/⌘+Enter to ask</p>
+      <Button
+        type="button"
+        size="sm"
+        variant="accent"
+        disabled={!hasConversation || !question.trim() || loading}
+        onClick={() => void ask()}
+      >
+        {loading ? (
+          <span className="flex items-center gap-1.5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Thinking…
+          </span>
+        ) : (
+          "Ask Fanny"
+        )}
+      </Button>
+    </div>
+  )
+
+  const header = (
+    <div className="flex items-center justify-between gap-2 border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--inbox-accent)]/20 text-[var(--inbox-accent)]">
+          <Mic className="h-3.5 w-3.5" strokeWidth={2.2} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">Ask Fanny</p>
+          <p className="truncate text-[10px] text-[var(--inbox-text-secondary)]">
+            Ask about messages, conversations, or your inbox.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="rounded-md p-1 text-[var(--inbox-text-secondary)] hover:bg-white/[0.08] hover:text-[var(--inbox-text)]"
+        aria-label={embedded ? "Back to insights" : "Close"}
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+
+  /**
+   * Embedded shell — fills the right Intelligence panel. Header + scrollable
+   * content (scope, answer, error) + pinned input footer so the prompt stays
+   * reachable while long answers scroll above it.
+   */
+  if (embedded) {
+    return (
+      <div className={cn("flex h-full min-h-0 flex-col bg-[var(--inbox-composer-background)]", className)} role="dialog" aria-label="Ask Fanny">
+        {header}
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
+          {scopeChip}
+          {descriptionEl}
+          {answerEl}
+          {errorEl}
+        </div>
+        <div className="flex flex-col gap-2 border-t border-[var(--inbox-border)]/35 p-3">
+          {textareaEl}
+          {askRow}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn(
@@ -196,105 +324,14 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
           role="dialog"
           aria-label="Talk to Fanny"
         >
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--inbox-accent)]/20 text-[var(--inbox-accent)]">
-                <Mic className="h-3.5 w-3.5" strokeWidth={2.2} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-                  Talk to Fanny
-                </p>
-                <p className="truncate text-[10px] text-[var(--inbox-text-secondary)]">
-                  Ask about messages, conversations, or your inbox.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md p-1 text-[var(--inbox-text-secondary)] hover:bg-white/[0.08] hover:text-[var(--inbox-text)]"
-              aria-label="Close"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
+          {header}
           <div className="flex flex-col gap-2 p-3">
-            <span
-              className={cn(
-                "inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                hasConversation
-                  ? "border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/10 text-[var(--inbox-accent)]"
-                  : "border-[var(--inbox-border)]/45 bg-white/[0.04] text-[var(--inbox-text-secondary)]",
-              )}
-              title={scopeMeta.description}
-            >
-              <ScopeIcon className="h-3 w-3" aria-hidden />
-              Scope · {scopeMeta.label}
-            </span>
-            <p className="text-[10px] leading-relaxed text-[var(--inbox-text-secondary)]">
-              {scopeMeta.description}
-            </p>
-
-            <Textarea
-              ref={inputRef}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder={
-                hasConversation
-                  ? "Ask Fanny anything about this conversation…"
-                  : "Open a conversation first."
-              }
-              rows={3}
-              disabled={!hasConversation || loading}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault()
-                  void ask()
-                }
-              }}
-              className="min-h-[64px] resize-y rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-[12px] leading-snug text-[var(--inbox-composer-input-text)] placeholder:text-[var(--inbox-composer-placeholder)]/85 focus-visible:border-[var(--inbox-accent)]/70 focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/18"
-            />
-
-            {error && (
-              <p className="rounded border border-[var(--inbox-warning)]/35 bg-[var(--inbox-warning)]/10 px-2 py-1 text-[11px] text-[var(--inbox-warning)]">
-                {error}
-              </p>
-            )}
-
-            {answer && (
-              <div className="rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2.5">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-                  Fanny
-                </p>
-                <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-[var(--inbox-text)]">
-                  {answer}
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] text-[var(--inbox-text-secondary)]">
-                Ctrl/⌘+Enter to ask
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="accent"
-                disabled={!hasConversation || !question.trim() || loading}
-                onClick={() => void ask()}
-              >
-                {loading ? (
-                  <span className="flex items-center gap-1.5">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Thinking…
-                  </span>
-                ) : (
-                  "Ask Fanny"
-                )}
-              </Button>
-            </div>
+            {scopeChip}
+            {descriptionEl}
+            {textareaEl}
+            {errorEl}
+            {answerEl}
+            {askRow}
           </div>
         </div>
       )}
