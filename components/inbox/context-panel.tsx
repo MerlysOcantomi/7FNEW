@@ -5,14 +5,15 @@ import { InlineTextarea } from "@/components/inline-edit"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Users, ChevronDown, ChevronUp, Loader2,
+  Users, ChevronDown, ChevronUp, ChevronRight, Loader2,
   Mail, Phone, Building2, ArrowRight, CornerUpLeft,
   User, FolderKanban,
   Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
-  Send, Copy, Check, CornerDownLeft, CalendarPlus, X,
+  MessageCircle, CalendarPlus, X,
   BookOpen, Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
 
 /**
@@ -173,11 +174,6 @@ interface ContextPanelProps {
   hasSuggestedDraft?: boolean
   onUseSuggestedDraft?: () => void
   /**
-   * Ask Fanny: callback opcional que el panel invoca cuando el operador pulsa "Insert into reply"
-   * sobre la respuesta. El page.tsx llena el composer; sin este callback el botón se oculta.
-   */
-  onInsertReply?: (text: string) => void
-  /**
    * Phase 2 — invoked when the operator confirms the calendar preview. The page is responsible
    * for calling the action approve+execute pipeline against `selectedMessageInfo.eventHint.actionId`
    * with the `{ event: payload }` override. Resolving = success (panel closes the dialog and
@@ -188,17 +184,6 @@ interface ContextPanelProps {
     actionId: string,
     payload: CreateCalendarEventInput,
   ) => Promise<void>
-  /**
-   * Acting on integration — when provided, Ask Fanny uses these instead of deriving its own
-   * scope from `selectedMessageId`. The page calculates them from `actingOnScope`:
-   *   - "selected" → anchor=selected (or null if none), mode=message
-   *   - "latest"   → anchor=selected ?? lastInbound, mode=message
-   *   - "all"      → anchor=null, mode=conversation
-   * If both are omitted the panel preserves its legacy behaviour (selected ⇒ message,
-   * otherwise conversation), so existing callers don't need to change.
-   */
-  askMode?: "message" | "conversation"
-  askAnchorMessageId?: string | null
   /**
    * Phase 3 To-do capture — Smart Hub "Still needed" items become explicit converters. Each
    * pending item gets a "Convert" affordance that calls this prop with the item's text and an
@@ -262,13 +247,11 @@ export function ContextPanel({
   selectedMessageInfo = null,
   hasSuggestedDraft = false,
   onUseSuggestedDraft,
-  onInsertReply,
   onCreateCalendarEvent,
-  askMode,
-  askAnchorMessageId,
   onCreateTodoFromPendingItem,
   conversationTodoCount,
 }: ContextPanelProps) {
+  const { openAsk } = useAskFanny()
   const [contactExpanded, setContactExpanded] = useState(false)
   /**
    * Phase 3 — local set of pending-item identifiers already converted to To-dos in this
@@ -364,110 +347,6 @@ export function ContextPanel({
       (a) => a.sourceMessageId && a.sourceMessageId === selectedMessageId,
     ).length
   }, [isMessageMode, selectedMessageId, suggestedActions])
-
-  /**
-   * Ask Fanny — interaction is single-shot (one question → one answer). State is intentionally
-   * local: no persistence, no chat history. We reset it whenever the conversation or selected
-   * message changes so the operator never sees a stale answer attached to a different scope.
-   */
-  /**
-   * Reset the in-panel Q&A whenever the *effective* scope changes. We bake askMode and
-   * askAnchorMessageId into the key so toggling Acting on between Latest / Selected / All
-   * doesn't leave a stale answer attached to a different scope.
-   */
-  const askScopeKey = `${selected.id}::${askMode ?? (selectedMessageId ? "message" : "conv")}::${askAnchorMessageId ?? selectedMessageId ?? "none"}`
-  const [askQuestion, setAskQuestion] = useState("")
-  const [askAnswer, setAskAnswer] = useState<string | null>(null)
-  const [askError, setAskError] = useState<string | null>(null)
-  const [askLoading, setAskLoading] = useState(false)
-  const [askCopied, setAskCopied] = useState(false)
-
-  useEffect(() => {
-    setAskQuestion("")
-    setAskAnswer(null)
-    setAskError(null)
-    setAskLoading(false)
-    setAskCopied(false)
-  }, [askScopeKey])
-
-  const handleAskSubmit = async () => {
-    const question = askQuestion.trim()
-    if (!question || askLoading) return
-    setAskLoading(true)
-    setAskError(null)
-    setAskAnswer(null)
-    setAskCopied(false)
-    try {
-      /**
-       * Acting on takes priority when the parent provides explicit askMode/askAnchorMessageId.
-       * That lets the page anchor "Latest" at the lastInbound (without changing the highlighted
-       * message in the thread) and force conversation mode for "All" even if a message is
-       * selected. We fall back to the legacy isMessageMode rule otherwise.
-       */
-      const resolvedMode: "message" | "conversation" =
-        askMode ?? (isMessageMode ? "message" : "conversation")
-      const resolvedMessageId =
-        askAnchorMessageId !== undefined
-          ? (resolvedMode === "message" ? askAnchorMessageId : null)
-          : (isMessageMode ? selectedMessageId : null)
-
-      const res = await fetch(`/api/inbox/conversations/${selected.id}/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question,
-          messageId: resolvedMessageId,
-          mode: resolvedMode,
-        }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok || !json?.success) {
-        const msg =
-          (json && typeof json.error?.message === "string" && json.error.message)
-          || "Could not get an answer. Please try again."
-        setAskError(msg)
-      } else {
-        const answer = typeof json.data?.answer === "string" ? json.data.answer.trim() : ""
-        if (!answer) {
-          setAskError("Empty answer received.")
-        } else {
-          setAskAnswer(answer)
-        }
-      }
-    } catch {
-      setAskError("Network error. Please try again.")
-    } finally {
-      setAskLoading(false)
-    }
-  }
-
-  const handleAskKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    /** Cmd/Ctrl + Enter envía. Enter solo deja salto de línea para preguntas largas. */
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault()
-      void handleAskSubmit()
-    }
-  }
-
-  const handleAskCopy = async () => {
-    if (!askAnswer) return
-    try {
-      await navigator.clipboard.writeText(askAnswer)
-      setAskCopied(true)
-      setTimeout(() => setAskCopied(false), 1500)
-    } catch {
-      /** Silencioso: no todos los navegadores/contextos permiten clipboard. */
-    }
-  }
-
-  const handleAskInsertReply = () => {
-    if (!askAnswer || !onInsertReply) return
-    onInsertReply(askAnswer)
-  }
-
-  const askPlaceholder = isMessageMode
-    ? "Ask Fanny about this message..."
-    : "Ask Fanny about this conversation..."
 
   /**
    * Shared "atoms" — small JSX fragments used by both message and conversation orderings. We
@@ -1453,99 +1332,36 @@ export function ContextPanel({
 
   /** Ask Fanny — single-shot Q&A. Aparece SIEMPRE; el placeholder y el payload (mode + messageId)
    *  cambian según haya selección. Estado local; reset al cambiar de scope (askScopeKey effect). */
+  /**
+   * Ask Fanny — consolidation (PR2): the embedded single-shot Q&A box was
+   * removed. There is now ONE Ask Fanny experience (the global top-row panel),
+   * so the right panel only keeps a compact shortcut that opens it. The global
+   * panel already receives this conversation/message scope via AskFannyProvider
+   * (published by app/inbox/page.tsx), so no scope is wired here.
+   */
   const askFannySection = (
-    <section
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Ask Fanny"
-    >
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Ask Fanny
-        </p>
-      </div>
-
-      <div className="mt-2">
-        <textarea
-          value={askQuestion}
-          onChange={(e) => setAskQuestion(e.target.value)}
-          onKeyDown={handleAskKeyDown}
-          placeholder={askPlaceholder}
-          rows={2}
-          disabled={askLoading}
-          className="w-full resize-none rounded-md border border-[var(--inbox-intelligence-border)] bg-transparent px-2 py-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)]/50 focus:outline-none disabled:opacity-60"
-        />
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <span className="text-[9px] text-[var(--inbox-intelligence-text-secondary)]/80">
-            ⌘/Ctrl + Enter to send
+    <section aria-label="Ask Fanny">
+      <button
+        type="button"
+        onClick={() => openAsk()}
+        className="flex w-full items-center gap-2.5 rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] px-3 py-2.5 text-left transition-colors hover:border-[var(--inbox-accent)]/40 hover:bg-white/[0.04]"
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)]">
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
+            Ask Fanny
           </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="accent"
-            onClick={handleAskSubmit}
-            disabled={askLoading || askQuestion.trim().length === 0}
-            className="h-6 shrink-0 rounded-md px-2 text-[10px]"
-          >
-            {askLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <>
-                <Send className="mr-1 h-3 w-3" /> Ask
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {askError ? (
-        <p
-          role="alert"
-          className="mt-2 text-[10px] leading-snug text-rose-400"
-        >
-          {askError}
-        </p>
-      ) : null}
-
-      {askAnswer ? (
-        <div className="mt-2 space-y-1.5 rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2">
-          <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--inbox-intelligence-text)]">
-            {askAnswer}
-          </p>
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={handleAskCopy}
-              className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-              aria-label="Copy answer"
-            >
-              {askCopied ? (
-                <>
-                  <Check className="mr-1 h-3 w-3" /> Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-1 h-3 w-3" /> Copy
-                </>
-              )}
-            </Button>
-            {onInsertReply ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleAskInsertReply}
-                className={cn("h-6 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                aria-label="Insert answer into reply composer"
-              >
-                <CornerDownLeft className="mr-1 h-3 w-3" /> Insert into reply
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+          <span className="block truncate text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+            Ask about this conversation.
+          </span>
+        </span>
+        <ChevronRight
+          className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]"
+          aria-hidden="true"
+        />
+      </button>
     </section>
   )
 

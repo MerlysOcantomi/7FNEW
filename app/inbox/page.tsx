@@ -1993,21 +1993,6 @@ function InboxPageContent() {
   }, [setAskContext, activeSelectedId, effectiveSelectedMessageId, actingOnScope, lastInboundMessageId])
 
   /**
-   * Ask Fanny / Talk to Fanny — anchor + mode derived from `actingOnScope`.
-   *  - "selected" → message mode anchored at the operator's selection (when present).
-   *  - "latest"   → message mode anchored at the latest inbound (typed-down auto-track keeps
-   *                 selectedMessageId in sync, so we still prefer it when present).
-   *  - "all"      → conversation mode, no anchor (Fanny weighs the recent message itself).
-   * If there's no usable anchor (empty thread, etc.) we degrade to conversation mode.
-   */
-  const askAnchorMessageId: string | null = (() => {
-    if (actingOnScope === "all") return null
-    if (actingOnScope === "selected") return effectiveSelectedMessageId
-    return effectiveSelectedMessageId ?? lastInboundMessageId
-  })()
-  const askMode: "message" | "conversation" = askAnchorMessageId ? "message" : "conversation"
-
-  /**
    * Compute the message id the More panel's message-level actions should target. Mirrors the
    * Acting on rules but drops the "all" case (handled by the conversation panel instead). We
    * also reach into Message.metadata.intentStatus so the button can render disabled when the
@@ -2198,13 +2183,6 @@ function InboxPageContent() {
    * persistido (no hay schema). Limpiamos la ref de draft activo para no marcar como "edited" un
    * draft que en realidad no inspiró este texto.
    */
-  const handleInsertReply = useCallback((text: string) => {
-    if (typeof text !== "string" || text.trim().length === 0) return
-    activeDraftIdRef.current = null
-    setReplyContent(text)
-    setAutoPopulated(true)
-  }, [])
-
   /**
    * Phase 4: handlers conversation-level reusan `handleStatusChange` (sin nuevos endpoints, sin schema).
    * Disparan archive/close/trash sobre la conversación completa; el chip se autodeshabilita si ya
@@ -3311,10 +3289,7 @@ function InboxPageContent() {
       selectedMessageInfo={replyTarget}
       hasSuggestedDraft={Boolean(suggestedDraftForPanel)}
       onUseSuggestedDraft={handleUseSuggestedDraft}
-      onInsertReply={handleInsertReply}
       onCreateCalendarEvent={handleCreateCalendarEvent}
-      askMode={askMode}
-      askAnchorMessageId={askAnchorMessageId}
       onCreateTodoFromPendingItem={handleCreateTodoFromPendingItem}
       conversationTodoCount={conversationTodoCount}
     />
