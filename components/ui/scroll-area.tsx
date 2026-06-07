@@ -18,7 +18,17 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+        /**
+         * `[&>div]:!block [&>div]:!min-w-0`: Radix injects an inner content wrapper with
+         * inline `display:table; min-width:100%`. `display:table` makes that wrapper grow to
+         * its content's intrinsic width (long unbreakable text, long sender names / intent
+         * summaries), so it ignores the parent width and overflows horizontally — which also
+         * defeats any `truncate` on descendants. Forcing the wrapper back to a block that can
+         * shrink to its container restores width containment so `truncate`/`min-w-0` work.
+         * `!important` (the `!` prefix) is required to beat Radix's inline style. No ScrollArea
+         * in the app uses a horizontal scrollbar, so this is safe app-wide.
+         */
+        className="[&>div]:!block [&>div]:!min-w-0 focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
