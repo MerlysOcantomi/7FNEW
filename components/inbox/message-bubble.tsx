@@ -3,7 +3,8 @@
 import type React from "react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { ChevronDown, ChevronUp, Download, FileText, Mail, RotateCcw, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronUp, Mail, RotateCcw, Trash2 } from "lucide-react"
+import { AttachmentPreviews } from "@/components/inbox/attachment-previews"
 
 type MessageTone = "inbound" | "outbound" | "internal" | "system"
 
@@ -348,32 +349,8 @@ export function MessageBubble({
           ) : null}
           <p className="whitespace-pre-wrap break-words">{content}</p>
           {attachments && attachments.length > 0 && (
-            <div className="mt-2 flex flex-col gap-1.5 border-t border-current/10 pt-2">
-              {attachments.map((att) => (
-                <a
-                  key={att.url || att.filename}
-                  href={att.url || undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
-                    att.url
-                      ? "hover:bg-current/10 cursor-pointer"
-                      : "opacity-60 cursor-default",
-                    tone === "outbound" ? "text-white/90" : "text-[var(--inbox-text)]/80",
-                  )}
-                  onClick={att.url ? undefined : (e) => e.preventDefault()}
-                >
-                  <FileText className="h-3.5 w-3.5 shrink-0" />
-                  <span className="max-w-[180px] truncate font-medium">{att.filename}</span>
-                  {att.size != null && (
-                    <span className="text-[10px] opacity-70">
-                      {att.size < 1024 ? `${att.size} B` : att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`}
-                    </span>
-                  )}
-                  {att.url && <Download className="h-3 w-3 shrink-0 opacity-70" />}
-                </a>
-              ))}
+            <div className="mt-2 border-t border-current/10 pt-2">
+              <AttachmentPreviews attachments={attachments} tone={tone} variant="bubble" />
             </div>
           )}
           {showExpandToggle ? (

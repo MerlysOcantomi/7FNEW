@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo } from "react"
 import {
-  Mail, RotateCcw, Trash2, Download, FileText, Paperclip,
+  Mail, RotateCcw, Trash2, Paperclip,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
+import { AttachmentPreviews } from "@/components/inbox/attachment-previews"
 import type { MessageAttachment, MessageEmailMeta } from "@/components/inbox/message-bubble"
 import { cn } from "@/lib/utils"
 
@@ -271,36 +272,11 @@ export function EmailReadingView({
                     Attachments ({currentMessage.attachments.length})
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {currentMessage.attachments.map((att) => (
-                    <a
-                      key={att.url || att.filename}
-                      href={att.url || undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-md border border-[var(--inbox-border)]/50 bg-white/[0.03] px-2 py-1 text-xs transition-colors",
-                        att.url
-                          ? "cursor-pointer text-[var(--inbox-text)] hover:border-[var(--inbox-accent)]/40 hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
-                          : "cursor-default text-[var(--inbox-text-secondary)] opacity-60",
-                      )}
-                      onClick={att.url ? undefined : (e) => e.preventDefault()}
-                    >
-                      <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="max-w-[220px] truncate font-medium">{att.filename}</span>
-                      {att.size != null ? (
-                        <span className="text-[10px] opacity-70">
-                          {att.size < 1024
-                            ? `${att.size} B`
-                            : att.size < 1048576
-                              ? `${Math.round(att.size / 1024)} KB`
-                              : `${(att.size / 1048576).toFixed(1)} MB`}
-                        </span>
-                      ) : null}
-                      {att.url ? <Download className="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" /> : null}
-                    </a>
-                  ))}
-                </div>
+                <AttachmentPreviews
+                  attachments={currentMessage.attachments}
+                  tone={currentMessage.tone}
+                  variant="email"
+                />
               </footer>
             ) : null}
           </article>
