@@ -26,6 +26,8 @@ import {
 } from "@/components/inbox/context-panel"
 import { ReplyComposer, type ComposerAttachment, type EmailSendMode } from "@/components/inbox/reply-composer"
 import { ConversationThread } from "@/components/inbox/conversation-thread"
+import { InboxLayoutSwitcher, type InboxLayoutMode } from "@/components/inbox/inbox-layout-switcher"
+import { InboxContextStrip } from "@/components/inbox/inbox-context-strip"
 import { ComposeRecipientPicker } from "@/components/inbox/compose-recipient-picker"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 import { TalkToFanny } from "@/components/inbox/talk-to-fanny"
@@ -69,7 +71,7 @@ import {
 } from "@/lib/inbox/client-todos"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Sparkles, Send, Loader2, ListPlus, X } from "lucide-react"
+import { Sparkles, Send, Loader2, ListPlus, X, MailOpen } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
@@ -281,6 +283,22 @@ const DESKTOP_INBOX_GRID =
   "xl:grid xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)] xl:grid-rows-[minmax(0,1fr)]"
 
 /**
+ * Layout-mode grid (PR2). The desktop grid keeps a single full-height row and swaps only the
+ * column template per mode. All templates keep `minmax(0,1fr)` on the flexible track and a
+ * fixed `min-w-0`-friendly left list track so the overflow guards from the radar PRs still
+ * hold. Mobile (< xl) ignores this entirely and keeps the existing list↔thread flow.
+ *  - reading: list | message | context        (current three-column behaviour)
+ *  - triage:  list | context                   (message column hidden on desktop)
+ *  - focus:   list | message                   (context panel hidden; compact strip instead)
+ */
+const INBOX_GRID_ROWS_CLASS = "xl:grid xl:grid-rows-[minmax(0,1fr)]"
+const INBOX_GRID_COLS_CLASS: Record<InboxLayoutMode, string> = {
+  reading: "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)]",
+  triage: "xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]",
+  focus: "xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]",
+}
+
+/**
  * Cadence for the visible-only interval auto-sync (Phase 1). 4 min pairs with
  * the server's 2-min auto-sync cooldown so a tick that lands just after the
  * cron or a tab-resume is a cheap no-op, while an idle-but-open Inbox still
@@ -456,6 +474,30 @@ function InboxPageContent() {
     if (typeof window === "undefined") return
     try { window.localStorage.setItem(EMAIL_VIEW_MODE_STORAGE_KEY, mode) }
     catch { /* swallow — toggle still works in-memory for this session */ }
+  }, [])
+  /**
+   * Inbox layout mode (`triage` | `reading` | `focus`) — PR2 foundation. Persisted in
+   * localStorage following the same pattern as `emailViewMode`. Default is `reading`
+   * (NOT the product-preferred `triage`) on purpose: `triage` hides the message/composer
+   * column on desktop, and flipping the default would surprise existing users by hiding
+   * the thread + composer the first time they open the inbox after deploy. Triage is the
+   * intended default direction, but it ships opt-in here until the "Open message" flow and
+   * a server-side per-user preference are in place. Desktop-only (xl+); mobile is unaffected.
+   */
+  const LAYOUT_MODE_STORAGE_KEY = "smart-inbox-layout-mode"
+  const [layoutMode, setLayoutMode] = useState<InboxLayoutMode>("reading")
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const stored = window.localStorage.getItem(LAYOUT_MODE_STORAGE_KEY)
+      if (stored === "triage" || stored === "reading" || stored === "focus") setLayoutMode(stored)
+    } catch { /* localStorage may be unavailable (private mode) — fall back to default */ }
+  }, [])
+  const handleLayoutModeChange = useCallback((mode: InboxLayoutMode) => {
+    setLayoutMode(mode)
+    if (typeof window === "undefined") return
+    try { window.localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, mode) }
+    catch { /* swallow — switch still works in-memory for this session */ }
   }, [])
   /**
    * Acting on scope: controla qué mensaje/contexto usan los tools del composer.
@@ -3382,7 +3424,14 @@ function InboxPageContent() {
               onSelectedChange={setCategoryFilter}
             />
           ) : null}
-          <div className={cn("flex min-h-0 flex-1 flex-col gap-3", DESKTOP_INBOX_GRID)}>
+          {/*
+           * Layout-mode switcher (PR2). Desktop-only (xl+) — layout modes don't apply to the
+           * mobile list↔thread flow. Right-aligned, low-profile chrome above the grid.
+           */}
+          <div className="hidden shrink-0 xl:flex xl:justify-end">
+            <InboxLayoutSwitcher value={layoutMode} onChange={handleLayoutModeChange} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col gap-3", INBOX_GRID_ROWS_CLASS, INBOX_GRID_COLS_CLASS[layoutMode])}>
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
@@ -3530,7 +3579,9 @@ function InboxPageContent() {
           <div
             className={cn(
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
-              "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:min-h-0",
+              "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:h-full xl:min-h-0",
+              /* Triage hides the message/thread column on desktop (opened on demand). */
+              layoutMode === "triage" ? "xl:hidden" : "xl:flex",
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
@@ -3538,6 +3589,25 @@ function InboxPageContent() {
                 <InboxCenterSkeleton />
               ) : (
                 <>
+                  {/*
+                   * Focus context strip — compact one-line context (channel · sender · intent
+                   * · one signal) that stands in for the hidden right Fanny/context panel. Only
+                   * in Focus, only when a conversation is selected.
+                   */}
+                  {layoutMode === "focus" && selected ? (
+                    <InboxContextStrip
+                      channel={selected.channel}
+                      channelLabel={channelLabel(selected.channel, uiLocale)}
+                      senderLabel={selected.contact?.nombre || selected.contact?.email || "Contact"}
+                      intent={selected.intent || selected.summary}
+                      signalLabel={
+                        urgencyBadge(selected.urgency) === "urgency-critical" ||
+                        urgencyBadge(selected.urgency) === "urgency-high"
+                          ? urgencyLabel(selected.urgency, uiLocale)
+                          : null
+                      }
+                    />
+                  ) : null}
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <ConversationThread
                       hasSelectedId={Boolean(activeSelectedId)}
@@ -3714,7 +3784,30 @@ function InboxPageContent() {
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div
+            className={cn(
+              "hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex-col xl:h-full xl:min-h-0",
+              /* Focus hides the heavy Fanny/context panel; the compact strip stands in. */
+              layoutMode === "focus" ? "xl:hidden" : "xl:flex",
+            )}
+          >
+            {/*
+             * Triage "Open message" affordance. In Triage the message/thread column is hidden,
+             * so this slim bar lets the operator pull up the original — minimal version: it
+             * switches to Reading (which reveals the thread + composer). Only on desktop and
+             * only when a conversation is selected.
+             */}
+            {layoutMode === "triage" && selected ? (
+              <button
+                type="button"
+                onClick={() => handleLayoutModeChange("reading")}
+                className="flex shrink-0 items-center justify-center gap-1.5 border-b border-[var(--inbox-divider)] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
+                title="Open the original message (switches to Reading layout)"
+              >
+                <MailOpen className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Open message
+              </button>
+            ) : null}
             <InboxRightColumn
               showInitialListSkeleton={showInitialListSkeleton}
               selected={Boolean(selected)}
