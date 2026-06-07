@@ -122,7 +122,7 @@ export function ConversationList({
   activeSearchTerm,
 }: ConversationListProps) {
   return (
-    <div className="h-full min-h-0 w-full shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden">
+    <div className="h-full min-h-0 w-full min-w-0 shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden">
       <ScrollArea className="min-h-0 flex-1 bg-[var(--inbox-list-background)]">
         <div className="space-y-1 px-3 py-3 md:px-4">
           {loading ? (

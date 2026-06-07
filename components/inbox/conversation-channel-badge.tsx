@@ -51,7 +51,12 @@ export function ConversationChannelBadge({
       aria-label={`Channel: ${label}`}
     >
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-      <span>{label}</span>
+      {/*
+       * The badge stays `shrink-0` (it is the row's first anchor and must not collapse),
+       * but the label itself is capped + truncates so an unexpectedly long channel label
+       * can never push the row past the narrow list column width.
+       */}
+      <span className="max-w-[7rem] truncate">{label}</span>
     </span>
   )
 }

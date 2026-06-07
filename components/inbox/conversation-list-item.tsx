@@ -165,7 +165,7 @@ export function ConversationListItem({
         )}
         aria-hidden="true"
       />
-      <div className="flex items-start gap-1">
+      <div className="flex min-w-0 items-start gap-1">
         {/*
          * Chevron-only expand affordance. The left column is narrow, so we drop
          * the text label entirely (was "Details"/"Signals") to give the sender,
@@ -213,7 +213,7 @@ export function ConversationListItem({
              * radar model), then the sender (single line, truncates), then a subtle unread
              * dot + relative time on the right. `messageCount` only shows when > 1.
              */}
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
               <p
                 className={cn(
@@ -263,7 +263,7 @@ export function ConversationListItem({
              * right context panel. The whole line is omitted when there is nothing to show.
              */}
             {intentSummary || isHighUrgency ? (
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {intentSummary ? (
                   <p
                     className="min-w-0 flex-1 truncate text-[12px] leading-snug text-[var(--inbox-list-text-secondary)]"
@@ -276,7 +276,7 @@ export function ConversationListItem({
                 )}
                 {isHighUrgency ? (
                   <span
-                    className="shrink-0 rounded-md border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-destructive)] whitespace-nowrap"
+                    className="max-w-[7rem] shrink-0 truncate rounded-md border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-destructive)] whitespace-nowrap"
                     title={`Urgency: ${urgencyLabel}`}
                   >
                     {urgencyLabel}

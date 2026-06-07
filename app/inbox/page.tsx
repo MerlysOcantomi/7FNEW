@@ -3386,7 +3386,15 @@ function InboxPageContent() {
           <div
             className={cn(
               mobileView === "thread" && activeSelectedId ? "hidden" : "block",
-              "min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:flex-col",
+              /**
+               * `min-w-0` is REQUIRED here: this is the left grid cell sitting in a
+               * `minmax(260px,300px)` track. Grid items default to `min-width:auto`, so
+               * without this the cell refuses to shrink below its content's min-content
+               * width and long sender names / intent summaries overflow the column. With
+               * `min-w-0` the cell honours the track width and the inner `truncate` chain
+               * (button → row → sender/intent) can ellipsize cleanly.
+               */
+              "min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:h-full xl:flex-col",
             )}
           >
             {showInitialListSkeleton ? (
