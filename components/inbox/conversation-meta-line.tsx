@@ -1,5 +1,22 @@
 "use client"
 
+/**
+ * DEPRECATED for the left conversation list (radar redesign).
+ *
+ * This component used to render the chip cluster (sector, status, urgency, lead score,
+ * category, pending decisions, Smart Action) under each list row. That metadata made the
+ * narrow left column noisy and broke the "left column is a radar, not a database" model,
+ * so the row now shows only channel + sender + time + short intent + at most one critical
+ * signal (see `conversation-list-item.tsx`).
+ *
+ * The component is intentionally KEPT (not deleted) so the same restrained chip rendering
+ * can be reused when this metadata is relocated into the right Fanny/context panel in a
+ * follow-up PR. It currently has no importer.
+ *
+ * TODO(inbox-right-panel): move these signals into the right context panel and either
+ * re-import this component there or fold it into `context-panel.tsx`.
+ */
+
 import { Badge, badgeVariants } from "@/components/ui/badge"
 import type { VariantProps } from "class-variance-authority"
 import { Sparkles } from "lucide-react"

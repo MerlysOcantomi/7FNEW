@@ -37,6 +37,12 @@ interface ConversationItem {
    * list item.
    */
   subject?: string | null
+  /**
+   * Short AI signal for the radar row (thread `intent`, falling back to `summary`).
+   * Forwarded to `<ConversationListItem>` and rendered as a single muted line under
+   * the sender. `null` keeps the row to channel + sender + time only.
+   */
+  intentSummary?: string | null
   sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
@@ -169,6 +175,7 @@ export function ConversationList({
                   key={item.id}
                   channel={item.channel}
                   title={item.title}
+                  intentSummary={item.intentSummary}
                   sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}

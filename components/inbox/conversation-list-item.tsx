@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
-import { ConversationMetaLine } from "@/components/inbox/conversation-meta-line"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -15,13 +14,20 @@ export interface ShortIntentEntry {
 interface ConversationListItemProps {
   title: string
   /**
-   * Collapsed-row philosophy: a sender/contact list, nothing more. We deliberately do NOT
-   * render the email subject, AI intent snippet, or message preview here — those compete
-   * with the sender name for the same narrow column and were the source of the "biting" /
-   * collision the operator saw on `/inbox`. Subject lives in the thread header and Smart
-   * Hub; the latest active intent surfaces in the *expanded* panel below the row when the
-   * operator clicks the chevron. The collapsed row stays scannable: "who is this from".
+   * Collapsed-row philosophy (radar, not a database): the left column exists to scan
+   * "what entered + what needs attention" fast. The row shows ONLY a channel anchor,
+   * the sender, a subtle time, a short AI intent line, and at most ONE critical signal.
+   *
+   * The chip cluster that used to live here (sector, status, urgency, lead score,
+   * category, pending-decisions, Smart Action) was intentionally removed — that deeper
+   * organization metadata belongs in the right Fanny/context panel + thread header,
+   * where it is already surfaced. The props below (`statusLabel`, `leadScore`,
+   * `category`, `proposedTaskCount`, `smartActionState`, etc.) are RETAINED on the
+   * interface so the page→list plumbing and types stay intact for a follow-up PR that
+   * relocates them into the right panel; they are deliberately NOT rendered in the row.
    */
+  /** Short AI signal (thread intent → summary fallback). Rendered as one muted line. */
+  intentSummary?: string | null
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -79,7 +85,7 @@ interface ConversationListItemProps {
 
 export function ConversationListItem({
   title,
-  sectorLabel,
+  intentSummary,
   timeLabel,
   selected,
   isUnread,
@@ -91,16 +97,10 @@ export function ConversationListItem({
   onIntentSelect,
   channel,
   conversationStatus,
-  statusLabel,
-  statusClassName,
   channelLabel,
   urgencyLabel,
   urgencyClassName,
-  leadScore,
   messageCount,
-  category,
-  proposedTaskCount,
-  smartActionState,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
   /**
@@ -132,6 +132,19 @@ export function ConversationListItem({
    */
   const latestActiveIntent = intents && intents.length > 0 ? intents[intents.length - 1] : null
   const olderIntents = intents && intents.length > 1 ? intents.slice(0, -1) : []
+
+  /**
+   * The single critical signal allowed on the radar row. We surface urgency ONLY when it
+   * is high/critical (the case an operator must not miss) and the thread is not terminal
+   * (archived/closed/trashed). Everything else stays off the left column to keep it calm.
+   */
+  const isTerminal =
+    conversationStatus === "archived" ||
+    conversationStatus === "closed" ||
+    conversationStatus === "trashed"
+  const isHighUrgency =
+    !isTerminal &&
+    (urgencyClassName === "urgency-critical" || urgencyClassName === "urgency-high")
 
   return (
     <div
@@ -194,81 +207,83 @@ export function ConversationListItem({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--inbox-list-background)]",
           )}
         >
-          <div className="flex gap-3">
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-start gap-2">
-                  {isUnread && (
-                    <span
-                      className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--inbox-list-selected)] shadow-sm ring-2 ring-[var(--inbox-list-selected)]/20"
-                      aria-hidden="true"
-                    />
+          <div className="min-w-0 flex-1 space-y-1">
+            {/*
+             * Row 1 — the scan line. Channel badge is the FIRST visual anchor (per the
+             * radar model), then the sender (single line, truncates), then a subtle unread
+             * dot + relative time on the right. `messageCount` only shows when > 1.
+             */}
+            <div className="flex items-center gap-2">
+              <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
+              <p
+                className={cn(
+                  "min-w-0 flex-1 truncate text-[15px] leading-tight",
+                  isUnread
+                    ? "font-semibold tracking-tight text-[var(--inbox-list-text)]"
+                    : "font-medium text-[var(--inbox-list-text-secondary)]",
+                )}
+                title={title}
+              >
+                {title}
+              </p>
+              {messageCount > 1 ? (
+                <span
+                  aria-label={`${messageCount} mensajes`}
+                  className={cn(
+                    "shrink-0 text-[10px] font-semibold tabular-nums tracking-tight text-[var(--inbox-list-text-secondary)]",
+                    isUnread && "text-[var(--inbox-list-text)]",
                   )}
-                  <div className="min-w-0 flex-1">
-                    {/**
-                     * Sender / contact name. We allow up to 2 lines (`line-clamp-2`) so a
-                     * full company name or "Surname, Firstname" doesn't get cropped to a
-                     * single letter on the narrow list column; `break-words` covers very
-                     * long unbroken tokens (long emails, no-spaces nicknames). One line
-                     * remains the common case — the second line only kicks in when the
-                     * sender truly needs the room.
-                     */}
-                    <p
-                      className={cn(
-                        "line-clamp-2 break-words text-[15px] leading-tight",
-                        isUnread
-                          ? "font-semibold tracking-tight text-[var(--inbox-list-text)]"
-                          : "font-medium text-[var(--inbox-list-text-secondary)]",
-                      )}
-                      title={title}
-                    >
-                      {title}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-                  <div className="flex shrink-0 items-center justify-end gap-1">
-                    {messageCount > 1 ? (
-                      <span
-                        aria-label={`${messageCount} mensajes`}
-                        className={cn(
-                          "min-w-[1ch] text-right text-[10px] font-semibold tabular-nums tracking-tight text-[var(--inbox-list-text-secondary)]",
-                          isUnread && "text-[var(--inbox-list-text)]",
-                        )}
-                      >
-                        {messageCount}
-                      </span>
-                    ) : null}
-                    <ConversationChannelBadge channel={channel} label={channelLabel} selected={selected} />
-                  </div>
-                  <span
-                    suppressHydrationWarning
-                    className={cn(
-                      "whitespace-nowrap text-[10px] font-medium tabular-nums tracking-tight",
-                      isUnread
-                        ? "font-semibold text-[var(--inbox-list-text)]"
-                        : "text-[var(--inbox-list-text-secondary)]",
-                    )}
-                  >
-                    {timeLabel}
-                  </span>
-                </div>
-              </div>
-
-              <ConversationMetaLine
-                conversationStatus={conversationStatus}
-                sectorLabel={sectorLabel}
-                statusLabel={statusLabel}
-                statusClassName={statusClassName}
-                urgencyLabel={urgencyLabel}
-                urgencyClassName={urgencyClassName}
-                leadScore={leadScore}
-                category={category}
-                proposedTaskCount={proposedTaskCount}
-                smartActionState={smartActionState}
-              />
+                >
+                  {messageCount}
+                </span>
+              ) : null}
+              {isUnread ? (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full bg-[var(--inbox-list-selected)] shadow-sm ring-2 ring-[var(--inbox-list-selected)]/20"
+                  aria-label="Unread"
+                />
+              ) : null}
+              <span
+                suppressHydrationWarning
+                className={cn(
+                  "shrink-0 whitespace-nowrap text-[10px] font-medium tabular-nums tracking-tight",
+                  isUnread
+                    ? "font-semibold text-[var(--inbox-list-text)]"
+                    : "text-[var(--inbox-list-text-secondary)]",
+                )}
+              >
+                {timeLabel}
+              </span>
             </div>
+
+            {/*
+             * Row 2 — the radar signal line. A SHORT AI intent/summary (muted, single line)
+             * plus AT MOST ONE critical signal (high/critical urgency). No status, lead,
+             * category, Smart Action or pending-decision chips here — those live in the
+             * right context panel. The whole line is omitted when there is nothing to show.
+             */}
+            {intentSummary || isHighUrgency ? (
+              <div className="flex items-center gap-2">
+                {intentSummary ? (
+                  <p
+                    className="min-w-0 flex-1 truncate text-[12px] leading-snug text-[var(--inbox-list-text-secondary)]"
+                    title={intentSummary}
+                  >
+                    {intentSummary}
+                  </p>
+                ) : (
+                  <span className="min-w-0 flex-1" aria-hidden="true" />
+                )}
+                {isHighUrgency ? (
+                  <span
+                    className="shrink-0 rounded-md border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-destructive)] whitespace-nowrap"
+                    title={`Urgency: ${urgencyLabel}`}
+                  >
+                    {urgencyLabel}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </button>
       </div>

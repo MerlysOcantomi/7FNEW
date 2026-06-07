@@ -1745,11 +1745,22 @@ function InboxPageContent() {
          */
         const subject = conversation.subject?.trim() || null
 
+        /**
+         * Radar line text for the left list row (PR: slim left column). We surface a SHORT
+         * AI signal — the thread `intent` (operator-facing "what does this need") with a
+         * fallback to `summary` — so the collapsed row answers "who + what" at a glance.
+         * Deeper metadata (status/urgency/lead/category/Smart Action/pending decisions) is
+         * deliberately NOT passed to the radar row anymore; it lives in the right context
+         * panel + thread header. `null` keeps the row to just channel + sender + time.
+         */
+        const intentSummary = conversation.intent?.trim() || conversation.summary?.trim() || null
+
         return {
           id: conversation.id,
           channel: conversation.channel,
           title: primaryTitle,
           subject,
+          intentSummary,
           sectorLabel: conversation.classification?.sector?.trim() || null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -1774,6 +1785,7 @@ function InboxPageContent() {
           channel: conversation.channel,
           title: "Conversation",
           subject: null as string | null,
+          intentSummary: null as string | null,
           sectorLabel: null as string | null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
