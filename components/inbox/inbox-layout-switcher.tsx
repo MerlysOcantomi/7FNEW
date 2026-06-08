@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils"
 /**
  * Inbox layout mode (PR2 foundation):
  *  - `triage`  AI-first: conversation list + Fanny/context panel; the real message/thread
- *              column is hidden on desktop and opened on demand ("Open message" → Reading).
+ *              column is collapsed and opened IN PLACE on demand ("Open / Hide message"),
+ *              without leaving Triage.
  *  - `reading` classic three columns: list + message/thread + Fanny/context panel.
- *  - `focus`   message-first: wide message/thread + composer; the heavy Fanny/context panel
- *              is hidden and replaced by a compact one-line context strip above the thread.
+ *  - `focus`   message + AI: message/thread + composer beside the Fanny/context panel, with
+ *              NO conversation list. A compact one-line context strip sits above the thread.
  *
  * Modes are a DESKTOP (xl+) concern — mobile keeps its existing list↔thread flow. The active
  * mode is persisted per-browser in localStorage by the page (key `smart-inbox-layout-mode`).
@@ -25,7 +26,7 @@ const MODES: ReadonlyArray<{
   {
     mode: "triage",
     label: "Triage",
-    title: "Triage — AI-first: conversation list + Fanny/context (message opened on demand)",
+    title: "Triage — AI-first: conversation list + Fanny/context (open the message in place when needed)",
     Icon: Sparkles,
   },
   {
@@ -37,7 +38,7 @@ const MODES: ReadonlyArray<{
   {
     mode: "focus",
     label: "Focus",
-    title: "Focus — message-first: wide message + composer with a compact context strip",
+    title: "Focus — message + AI: message/thread + Fanny/context, no conversation list",
     Icon: Maximize2,
   },
 ]
