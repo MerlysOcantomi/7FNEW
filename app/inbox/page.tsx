@@ -647,6 +647,20 @@ function InboxPageContent() {
   const sidebarFilter = searchParams.get("filter")
   const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
   /**
+   * Deep-link layout mode (`?layout=triage|reading|focus`). Lets the Daily Overview's
+   * "Open Inbox as" cards drop the operator straight into a chosen layout. When present and
+   * valid it wins over the localStorage default (and `handleLayoutModeChange` persists it),
+   * so the next visit without the param remembers the choice. Runs as an effect so it can
+   * call the persisting setter; the localStorage hydration effect declared earlier runs
+   * first, then this overrides it when the param is set.
+   */
+  const layoutParam = searchParams.get("layout")
+  useEffect(() => {
+    if (layoutParam === "triage" || layoutParam === "reading" || layoutParam === "focus") {
+      handleLayoutModeChange(layoutParam)
+    }
+  }, [layoutParam, handleLayoutModeChange])
+  /**
    * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Even when a
    * legacy URL still carries `?filter=todo`, the page falls back to the normal
    * Inbox conversation list so the right-hand panel stays focused on triage and
