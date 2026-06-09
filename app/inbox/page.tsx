@@ -71,7 +71,7 @@ import {
 } from "@/lib/inbox/client-todos"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Sparkles, Send, Loader2, ListPlus, X, MailOpen, MailX } from "lucide-react"
+import { Sparkles, Send, Loader2, ListPlus, X, Columns3, Maximize2 } from "lucide-react"
 
 interface WorkspaceMemberOption {
   userId: string
@@ -478,13 +478,17 @@ function InboxPageContent() {
     catch { /* swallow — toggle still works in-memory for this session */ }
   }, [])
   /**
-   * Inbox layout mode (`triage` | `reading` | `focus`) — PR2 foundation. Persisted in
-   * localStorage following the same pattern as `emailViewMode`. Default is `reading`
-   * (NOT the product-preferred `triage`) on purpose: `triage` hides the message/composer
-   * column on desktop, and flipping the default would surprise existing users by hiding
-   * the thread + composer the first time they open the inbox after deploy. Triage is the
-   * intended default direction, but it ships opt-in here until the "Open message" flow and
-   * a server-side per-user preference are in place. Desktop-only (xl+); mobile is unaffected.
+   * Inbox layout mode — PR2 foundation. Internal values stay `triage` | `reading` | `focus`
+   * for code stability; user-facing labels are Brief / Read / Handle (see
+   * `inbox-layout-switcher.tsx`). Persisted in localStorage following the same pattern as
+   * `emailViewMode`. Default is `reading` (Read) on purpose: Brief (`triage`) hides the
+   * message/composer column on desktop, and flipping the default would surprise existing
+   * users the first time they open the inbox after deploy. Desktop-only (xl+); mobile is
+   * unaffected.
+   *
+   * Brief has NO message-open substate: it is strictly [list | Fanny/context]. To see the
+   * real message the operator switches to Read or Handle (same setter + persistence path as
+   * the switcher buttons) — there is no confusing in-place "open message" sub-mode.
    */
   const LAYOUT_MODE_STORAGE_KEY = "smart-inbox-layout-mode"
   const [layoutMode, setLayoutMode] = useState<InboxLayoutMode>("reading")
@@ -501,14 +505,6 @@ function InboxPageContent() {
     try { window.localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, mode) }
     catch { /* swallow — switch still works in-memory for this session */ }
   }, [])
-  /**
-   * Triage center toggle. In Triage the real message/thread column is collapsed by default
-   * (AI-first: list + Fanny/context). The operator can reveal the original message in place
-   * with the "Open message" / "Hide message" control WITHOUT leaving Triage — so it goes from
-   * a 2-column (list | context) to a 3-column (list | message | context) desktop grid. Local
-   * UI state only (no persistence); resets to collapsed by default each session.
-   */
-  const [triageMessageOpen, setTriageMessageOpen] = useState(false)
   /**
    * Acting on scope: controla qué mensaje/contexto usan los tools del composer.
    *  - "latest": último mensaje relevante (default)
@@ -656,9 +652,20 @@ function InboxPageContent() {
    */
   const layoutParam = searchParams.get("layout")
   useEffect(() => {
-    if (layoutParam === "triage" || layoutParam === "reading" || layoutParam === "focus") {
-      handleLayoutModeChange(layoutParam)
-    }
+    if (!layoutParam) return
+    /**
+     * Accept BOTH internal values (`triage|reading|focus`, keeps existing links working) and
+     * the user-facing aliases (`brief|read|handle`). Anything else is ignored.
+     */
+    const resolved: InboxLayoutMode | null =
+      layoutParam === "triage" || layoutParam === "brief"
+        ? "triage"
+        : layoutParam === "reading" || layoutParam === "read"
+          ? "reading"
+          : layoutParam === "focus" || layoutParam === "handle"
+            ? "focus"
+            : null
+    if (resolved) handleLayoutModeChange(resolved)
   }, [layoutParam, handleLayoutModeChange])
   /**
    * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Even when a
@@ -3460,13 +3467,14 @@ function InboxPageContent() {
               "flex min-h-0 flex-1 flex-col gap-3",
               INBOX_GRID_ROWS_CLASS,
               /*
-               * Focus drops the list only once a conversation is selected; with nothing
-               * selected we keep the 3-column layout so the operator still has a list to
-               * pick from (otherwise Focus would be a dead-end empty screen).
+               * Brief (triage) is always [list | Fanny/context] — no message-open substate.
+               * Handle (focus) drops the list only once a conversation is selected; with
+               * nothing selected we keep the 3-column layout so the operator still has a list
+               * to pick from (otherwise Handle would be a dead-end empty screen).
                */
               layoutMode === "focus" && activeSelectedId
                 ? INBOX_GRID_COLS_FOCUS
-                : layoutMode === "triage" && !triageMessageOpen
+                : layoutMode === "triage"
                   ? INBOX_GRID_COLS_TRIAGE_CLOSED
                   : INBOX_GRID_COLS_3,
             )}
@@ -3625,8 +3633,8 @@ function InboxPageContent() {
             className={cn(
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
               "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:h-full xl:min-h-0",
-              /* Triage collapses the message/thread column until the operator opens it in place. */
-              layoutMode === "triage" && !triageMessageOpen ? "xl:hidden" : "xl:flex",
+              /* Brief (triage) always hides the message/thread column on desktop — no substate. */
+              layoutMode === "triage" ? "xl:hidden" : "xl:flex",
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
@@ -3831,31 +3839,33 @@ function InboxPageContent() {
 
           <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
             {/*
-             * Triage in-place message toggle. In Triage the message/thread column is collapsed
-             * by default (AI-first); this slim bar reveals/hides the real message WITHOUT
-             * leaving Triage — toggling between a 2-column (list | context) and 3-column
-             * (list | message | context) desktop grid. Only on desktop and only when a
-             * conversation is selected.
+             * Brief (triage) actions. Brief is strictly [list | Fanny/context] with no
+             * message-open substate. When a conversation is selected we offer two clear ways
+             * to see the real message — Read and Handle — that call the SAME layout-mode
+             * setter + persistence path as the switcher buttons (no hidden sub-mode). Desktop
+             * only and only when a conversation is selected.
              */}
             {layoutMode === "triage" && selected ? (
-              <button
-                type="button"
-                onClick={() => setTriageMessageOpen((open) => !open)}
-                aria-pressed={triageMessageOpen}
-                className="flex shrink-0 items-center justify-center gap-1.5 border-b border-[var(--inbox-divider)] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
-                title={
-                  triageMessageOpen
-                    ? "Hide the original message (keeps the AI-first Triage layout)"
-                    : "Open the original message in place (stays in Triage)"
-                }
-              >
-                {triageMessageOpen ? (
-                  <MailX className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                ) : (
-                  <MailOpen className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                )}
-                {triageMessageOpen ? "Hide message" : "Open message"}
-              </button>
+              <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--inbox-divider)] bg-white/[0.03] px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => handleLayoutModeChange("reading")}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--inbox-border)]/45 px-2 py-1 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
+                  title="Read — read the full message with AI context."
+                >
+                  <Columns3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Read
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLayoutModeChange("focus")}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--inbox-border)]/45 px-2 py-1 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
+                  title="Handle — work through one conversation with AI beside you."
+                >
+                  <Maximize2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Handle
+                </button>
+              </div>
             ) : null}
             <InboxRightColumn
               showInitialListSkeleton={showInitialListSkeleton}

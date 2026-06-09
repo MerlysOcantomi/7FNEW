@@ -4,13 +4,15 @@ import { Columns3, Maximize2, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
- * Inbox layout mode (PR2 foundation):
- *  - `triage`  AI-first: conversation list + Fanny/context panel; the real message/thread
- *              column is collapsed and opened IN PLACE on demand ("Open / Hide message"),
- *              without leaving Triage.
- *  - `reading` classic three columns: list + message/thread + Fanny/context panel.
- *  - `focus`   message + AI: message/thread + composer beside the Fanny/context panel, with
- *              NO conversation list. A compact one-line context strip sits above the thread.
+ * Inbox layout mode (PR2 foundation). Internal values are kept stable; user-facing labels are
+ * Brief / Read / Handle:
+ *  - `triage`  → "Brief":  conversation list + Fanny/context panel. Strictly two columns — no
+ *               message-open substate. From here the operator picks Read or Handle to see the
+ *               real message.
+ *  - `reading` → "Read":   classic three columns: list + message/thread + Fanny/context panel.
+ *  - `focus`   → "Handle": message/thread + composer beside the Fanny/context panel, with NO
+ *               conversation list once a conversation is selected. A compact one-line context
+ *               strip sits above the thread.
  *
  * Modes are a DESKTOP (xl+) concern — mobile keeps its existing list↔thread flow. The active
  * mode is persisted per-browser in localStorage by the page (key `smart-inbox-layout-mode`).
@@ -25,20 +27,20 @@ const MODES: ReadonlyArray<{
 }> = [
   {
     mode: "triage",
-    label: "Triage",
-    title: "Triage — AI-first: conversation list + Fanny/context (open the message in place when needed)",
+    label: "Brief",
+    title: "Brief — See who wrote, what matters, and what to do next.",
     Icon: Sparkles,
   },
   {
     mode: "reading",
-    label: "Reading",
-    title: "Reading — three columns: list + message + Fanny/context",
+    label: "Read",
+    title: "Read — Read the full message with AI context.",
     Icon: Columns3,
   },
   {
     mode: "focus",
-    label: "Focus",
-    title: "Focus — message + AI: message/thread + Fanny/context, no conversation list",
+    label: "Handle",
+    title: "Handle — Work through one conversation with AI beside you.",
     Icon: Maximize2,
   },
 ]
