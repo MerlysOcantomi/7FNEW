@@ -1504,7 +1504,7 @@ function getBusinessActionLabel(action: ActionItem): string {
   if (action.status === "approved") return "Continue"
   switch (action.type) {
     case "create_client":
-      return "Add new client"
+      return "Create client profile"
     case "create_project":
       return "Create project"
     case "create_task":
@@ -1532,7 +1532,7 @@ function getActionDescription(action: ActionItem): string | null {
   if (typeof desc === "string" && desc.trim()) return desc.trim()
   switch (action.type) {
     case "create_client":
-      return "Save this contact as a client in your workspace."
+      return "Create a client profile for this contact in your workspace."
     case "create_project":
       return "Start a project linked to this conversation."
     case "create_task":
