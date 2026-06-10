@@ -385,13 +385,6 @@ export function ContextPanel({
   void _triageTodosOpen
 
   /**
-   * Risks count from the handoff payload (best-effort). We do NOT pull
-   * from `classification.risks` because the panel already presents that
-   * stream via `watchOutSection`; counting both would double-count.
-   */
-  const triageRisksOpen = safeStringList(selected.handoff?.risks).length
-
-  /**
    * Priority semantics. We treat `media` (the schema default for a brand
    * new conversation that the AI hasn't analysed) as "no signal" — it
    * shouldn't on its own keep the Triage block visible. Any other value
@@ -403,10 +396,14 @@ export function ContextPanel({
     && selected.urgency !== "media"
   const triagePriority = mapUrgency(selected.urgency)
 
+  /**
+   * Counters in the expanded Details footer. Risks are intentionally NOT counted here —
+   * they already render as visible "Needs attention" notes, and showing them twice
+   * (note + counter) was exactly the kind of repetition this panel is trying to kill.
+   */
   const triageHasCounters =
     triageDraftsOpen > 0
     || triageActionsOpen > 0
-    || triageRisksOpen > 0
 
   const headerSection = (
     <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
@@ -445,11 +442,18 @@ export function ContextPanel({
   /**
    * Dedup gates for the expanded details: the editable Summary (and the AI headline) only
    * render there when they say something the Request block doesn't already show. Rule:
-   * never the same paragraph twice on the first screen.
+   * never the same paragraph twice on the first screen. `similarText` catches near-identical
+   * variants (truncations, punctuation drift) — exact equality was not enough in practice.
+   * A headline that is only a status label ("Recommended manual review") is also dropped,
+   * which keeps the AI-confidence pill from ever rendering next to a status string.
    */
-  const showSummaryInDetails = Boolean(summary) && !sameText(summary, messageNeedText)
+  const showSummaryInDetails = Boolean(summary) && !similarText(summary, messageNeedText)
   const headlineForDetails =
-    handoffHeadline && !sameText(handoffHeadline, messageNeedText) ? handoffHeadline : ""
+    handoffHeadline
+    && !similarText(handoffHeadline, messageNeedText)
+    && !isStatusLabelText(handoffHeadline)
+      ? handoffHeadline
+      : ""
 
   /**
    * Editable conversation summary — lives ONLY inside the expanded contact card details and
@@ -710,12 +714,6 @@ export function ContextPanel({
                   label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
                 />
               ) : null}
-              {triageRisksOpen > 0 ? (
-                <CounterPill
-                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
-                  tone="warning"
-                />
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -741,7 +739,11 @@ export function ContextPanel({
           </span>
         ) : null}
       </div>
-      {isMessageMode && selectedMessageInfo ? (
+      {/* Sender name renders here ONLY when it differs from the contact card directly above
+          (e.g. an internal teammate note inside a client conversation). Same name twice in a
+          row was pure noise. */}
+      {isMessageMode && selectedMessageInfo
+        && !sameText(selectedMessageInfo.authorLabel, contactName) ? (
         <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
           {selectedMessageInfo.authorLabel}
         </div>
@@ -755,7 +757,7 @@ export function ContextPanel({
         </p>
       ) : (
         <p className="mt-1 text-[11px] italic leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny hasn&apos;t worked out what this message needs yet.
+          Fanny hasn&apos;t summarised this message yet.
         </p>
       )}
       {isMessageMode && selectedMessageInfo
@@ -847,10 +849,26 @@ export function ContextPanel({
    * Dedup: if the stored recommendation merely repeats the Request text, we show the
    * honest "still preparing" state instead of the same paragraph twice.
    */
+  const storedRecommendationIsStatusLabel = Boolean(
+    nextRecommendedAction && isStatusLabelText(nextRecommendedAction),
+  )
   const recommendationText =
-    nextRecommendedAction && !sameText(nextRecommendedAction, messageNeedText)
+    nextRecommendedAction
+    && !storedRecommendationIsStatusLabel
+    && !similarText(nextRecommendedAction, messageNeedText)
       ? nextRecommendedAction
       : null
+  /**
+   * Fallback shown when no REAL recommendation exists. A stored status label ("Needs human
+   * review") still means Fanny flagged this for a human, so the fallback turns that signal
+   * into practical advice instead of echoing the status. Plain paragraph on purpose — a
+   * status must never look like an editable recommendation.
+   */
+  const recommendationFallback = storedRecommendationIsStatusLabel
+    ? handoffPendingItems.length > 0
+      ? "Ask for the missing details before preparing your reply."
+      : "Review before replying and send a clear next step."
+    : "Fanny is still preparing the best next step."
   const recommendsSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-1.5">
@@ -869,7 +887,7 @@ export function ContextPanel({
         />
       ) : (
         <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny is still preparing the best next step.
+          {recommendationFallback}
         </p>
       )}
     </section>
@@ -1312,9 +1330,9 @@ export function ContextPanel({
 }
 
 /**
- * Phase B: chip compacto neutro usado dentro de la card "What this message means". El icono
- * es opcional para que el chip de dirección sea solo texto y los binarios (attachments/link)
- * lleven afordancia visual.
+ * Phase B: chip compacto neutro usado dentro de la card "Request". El icono es opcional
+ * para que el chip de dirección sea solo texto y los binarios (attachments/link) lleven
+ * afordancia visual.
  */
 function SignalChip({ label, icon: Icon }: { label: string; icon?: React.ElementType }) {
   return (
@@ -1492,13 +1510,55 @@ function getMessageNeedText(
 }
 
 /**
- * Loose text equality used by the dedup rules (Request vs Summary vs recommendation): the
- * same paragraph must never appear twice on the first screen. Trims and lowercases — we
- * deliberately don't strip punctuation, since "almost the same" texts can still add value.
+ * Exact (case/whitespace-insensitive) text equality. Used for cheap identity checks like
+ * "is the message author the same person as the contact card above?".
  */
 function sameText(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false
   return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+/**
+ * Near-duplicate detection for the dedup rules (Request vs Summary vs headline vs
+ * recommendation): the same paragraph must never appear twice on the first screen.
+ * Normalises case / whitespace / punctuation, then treats the texts as duplicates when
+ * they are equal OR when one contains the other and their lengths are close (covers
+ * truncated snippets and "same sentence plus a trailing word"). Genuinely different
+ * texts — even on the same topic — stay visible.
+ */
+function similarText(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[.,;:!?…"'«»()\[\]]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  const na = normalize(a)
+  const nb = normalize(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na]
+  /** Containment only counts as duplication when the shorter text is a meaningful chunk
+   *  (>= 70%) of the longer one — a short phrase quoted inside a long paragraph is fine. */
+  return longer.includes(shorter) && shorter.length / longer.length >= 0.7
+}
+
+/**
+ * Detects stored strings that are pipeline STATUS labels, not actual recommendations or
+ * headlines ("Needs human review", "Recommended manual review", "revisión manual", ...).
+ * These are signals for the operator, and must never render as the main recommendation,
+ * as an editable field, or as a large heading in the details area.
+ */
+function isStatusLabelText(text: string | null | undefined): boolean {
+  if (!text) return false
+  const trimmed = text.trim()
+  /** Real recommendations are sentences; status labels are short. The length cap keeps a
+   *  legitimate long recommendation that merely MENTIONS a review from being filtered. */
+  if (trimmed.length > 60) return false
+  return /\b(human review|manual review|needs review|review (recommended|required|needed)|recommended manual|revisi[oó]n (manual|humana)|requiere revisi[oó]n)\b/i.test(
+    trimmed,
+  )
 }
 
 /**
