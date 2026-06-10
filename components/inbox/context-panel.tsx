@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Users, ChevronDown, ChevronUp, ChevronRight, Loader2,
-  Mail, Phone, Building2, CornerUpLeft,
+  Phone, Building2, CornerUpLeft,
   User, FolderKanban,
-  Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
+  Paperclip, AlertTriangle, Link2, Sparkles,
   MessageCircle, CalendarPlus, X,
-  BookOpen, Target,
+  Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
@@ -268,13 +268,6 @@ export function ContextPanel({
     setConvertedPendingItemKeys(new Set())
     setConvertingPendingItemKey(null)
   }, [selected.id])
-  /**
-   * Message-mode only: secondary "Conversation context" block (summary + facts + decisions)
-   * is collapsed by default so the operator's eyes go to message-level insight first. We keep
-   * the collapsible state local because it's purely presentational and reset is implicit when
-   * the panel re-renders for a new message.
-   */
-  const [contextDetailsOpen, setContextDetailsOpen] = useState(false)
   /** Phase 1 preview / Phase 2 confirm. Local state owns the dialog lifecycle; the page owns
    *  the network call via `onCreateCalendarEvent` and the post-success refetch. */
   const [calendarPreviewOpen, setCalendarPreviewOpen] = useState(false)
@@ -429,8 +422,125 @@ export function ContextPanel({
     </div>
   )
 
-  /** Always-visible contact card. Initial = avatar + name + small chip line. Expand reveals
-   *  email/phone/company/cliente/proyecto links. Per spec "Always visible at the top". */
+  /**
+   * Request text — the message objective. Computed up-front because the contact card's
+   * expanded details dedupe against it (summary / headline shown there only when they add
+   * something the Request doesn't already say).
+   */
+  const messageNeedText = getMessageNeedText(selected, isMessageMode ? selectedMessageInfo : null)
+
+  /**
+   * Opportunity (human label, no raw metric). Only meaningful scores produce a row in the
+   * expanded details; the numeric score stays in the tooltip for the curious operator.
+   */
+  const opportunityLabel =
+    typeof selected.leadScore === "number"
+      ? selected.leadScore >= 70
+        ? "High"
+        : selected.leadScore >= 40
+          ? "Moderate"
+          : null
+      : null
+
+  /**
+   * Dedup gates for the expanded details: the editable Summary (and the AI headline) only
+   * render there when they say something the Request block doesn't already show. Rule:
+   * never the same paragraph twice on the first screen.
+   */
+  const showSummaryInDetails = Boolean(summary) && !sameText(summary, messageNeedText)
+  const headlineForDetails =
+    handoffHeadline && !sameText(handoffHeadline, messageNeedText) ? handoffHeadline : ""
+
+  /**
+   * Editable conversation summary — lives ONLY inside the expanded contact card details and
+   * only when it adds something beyond the Request text (see dedup gates above). The AI
+   * headline + confidence pill render with it when they differ from the Request too.
+   */
+  const summaryBlock = (
+    <>
+      {headlineForDetails ? (
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold leading-snug text-[var(--inbox-intelligence-text)]">
+            {headlineForDetails}
+          </p>
+          {handoffConfidencePct !== null ? (
+            <span
+              className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+              title="AI confidence in this read"
+              aria-label={`AI confidence ${handoffConfidencePct}%`}
+            >
+              {handoffConfidencePct}%
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {showSummaryInDetails ? (
+        <>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Summary
+          </p>
+          <InlineTextarea
+            value={summary ?? ""}
+            placeholder="Add summary..."
+            className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
+            rows={2}
+            onSave={(value) => updateHandoff({ summary: value })}
+          />
+        </>
+      ) : null}
+      {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
+    </>
+  )
+
+  /**
+   * Facts + Decisions block — general background context, rendered only inside the expanded
+   * top contact card. Renders nothing when both lists are empty.
+   */
+  const factsAndDecisionsBlock = (handoffFacts.length > 0 || handoffDecisions.length > 0) ? (
+    <div className="space-y-2">
+      {handoffFacts.length > 0 && (
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
+          <ul className="mt-1 space-y-0.5">
+            {handoffFacts.map((fact, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                <span>{fact}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {handoffDecisions.length > 0 && (
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
+          <ul className="mt-1 space-y-0.5">
+            {handoffDecisions.map((decision, idx) => (
+              <li
+                key={idx}
+                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
+              >
+                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
+                <span>{decision}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  ) : null
+
+  /**
+   * Top client/contact card — the single home for client context. Compact by default
+   * (name, relationship, channel, category, email); the "Details" affordance expands the
+   * full context: client profile state, company/phone, linked client/project, message
+   * type, priority, opportunity, language, editable summary, facts/decisions and open-work
+   * counters. There is intentionally NO second context block lower in the panel.
+   */
+  const clientProfileState = getClientProfileState(selected)
   const contactSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-3">
@@ -439,59 +549,69 @@ export function ContextPanel({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
-          <div className="mt-0.5 flex items-center gap-2">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
               {getRelationshipLabel(selected)}
             </span>
-            {selected.detectedLanguage && (
-              <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
-                {selected.detectedLanguage.toUpperCase()}
-              </span>
-            )}
             <span className="text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
               {channelLabel(selected.channel)}
             </span>
+            {triageCategory && (
+              <span className="truncate text-[10px] font-medium text-[var(--inbox-accent)]" title={triageCategory}>
+                {triageCategory}
+              </span>
+            )}
           </div>
+          {contactEmail && (
+            <p className="mt-0.5 truncate text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
+              {contactEmail}
+            </p>
+          )}
         </div>
         <button
           type="button"
           onClick={() => setContactExpanded((v) => !v)}
-          className="shrink-0 rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] hover:bg-white/8"
+          className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/8 hover:text-[var(--inbox-intelligence-text)]"
           aria-expanded={contactExpanded}
-          aria-label={contactExpanded ? "Collapse contact details" : "Expand contact details"}
+          aria-label={contactExpanded ? "Hide details" : "Show details"}
         >
-          {contactExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          Details
+          {contactExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
 
       {contactExpanded && (
-        <div className="mt-3 space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
-          {contactEmail && (
-            <div className="flex items-center gap-2 text-xs">
-              <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-              <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
-            </div>
-          )}
-          {contactPhone && (
-            <div className="flex items-center gap-2 text-xs">
-              <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-              <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
-            </div>
-          )}
-          {contactCompany && (
-            <div className="flex items-center gap-2 text-xs">
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-              <span className="text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
-            </div>
-          )}
-          {selected.cliente && (
-            <div className="flex items-center gap-2 text-xs">
-              <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-              <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
-                {selected.cliente.nombre}
+        <div className="mt-3 space-y-3 border-t border-[var(--inbox-intelligence-border)] pt-3">
+          {/* Client profile state + direct profile link. */}
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="flex min-w-0 items-center gap-2">
+              <User
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0",
+                  clientProfileState === "linked"
+                    ? "text-[var(--inbox-accent)]"
+                    : "text-[var(--inbox-intelligence-text-secondary)]",
+                )}
+              />
+              <span
+                className={cn(
+                  clientProfileState === "linked"
+                    ? "text-[var(--inbox-intelligence-text)]"
+                    : "italic text-[var(--inbox-intelligence-text-secondary)]",
+                )}
+              >
+                {clientProfileState === "linked" ? "Client profile linked" : "No client profile yet"}
+              </span>
+            </span>
+            {selected.cliente && (
+              <a
+                href={`/clientes/${selected.cliente.id}`}
+                className="shrink-0 text-[11px] font-medium text-[var(--inbox-accent)] hover:underline"
+              >
+                View client profile
               </a>
-            </div>
-          )}
+            )}
+          </div>
           {selected.proyecto && (
             <div className="flex items-center gap-2 text-xs">
               <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
@@ -505,26 +625,112 @@ export function ContextPanel({
               )}
             </div>
           )}
+          {contactCompany && (
+            <div className="flex items-center gap-2 text-xs">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+              <span className="truncate text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
+            </div>
+          )}
+          {contactPhone && (
+            <div className="flex items-center gap-2 text-xs">
+              <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+              <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
+            </div>
+          )}
+
+          {(triageIntent || triagePriorityIsExplicit || opportunityLabel || selected.detectedLanguage) ? (
+            <div className="space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
+              {triageIntent ? (
+                <TriageRow label="Message type">
+                  <span
+                    className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
+                    title={triageIntent}
+                  >
+                    {triageIntent}
+                  </span>
+                </TriageRow>
+              ) : null}
+              {triagePriorityIsExplicit ? (
+                <TriageRow label="Priority">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
+                    aria-label={`Priority ${triagePriority.label}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "inline-block h-2 w-2 shrink-0 rounded-full",
+                        triagePriority.barClass,
+                      )}
+                    />
+                    <span>{triagePriority.label}</span>
+                  </span>
+                </TriageRow>
+              ) : null}
+              {opportunityLabel ? (
+                <TriageRow label="Opportunity">
+                  <span
+                    className="text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
+                    title={typeof selected.leadScore === "number" ? `Lead score ${selected.leadScore}` : undefined}
+                  >
+                    {opportunityLabel}
+                  </span>
+                </TriageRow>
+              ) : null}
+              {selected.detectedLanguage ? (
+                <TriageRow label="Language">
+                  <span className="text-[12px] uppercase text-[var(--inbox-intelligence-text)]">
+                    {selected.detectedLanguage}
+                  </span>
+                </TriageRow>
+              ) : null}
+            </div>
+          ) : null}
+
+          {(showSummaryInDetails || headlineForDetails) ? (
+            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+              {summaryBlock}
+            </div>
+          ) : null}
+          {factsAndDecisionsBlock ? (
+            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+              {factsAndDecisionsBlock}
+            </div>
+          ) : null}
+
+          {triageHasCounters ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
+              {triageDraftsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
+                />
+              ) : null}
+              {triageActionsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
+                />
+              ) : null}
+              {triageRisksOpen > 0 ? (
+                <CounterPill
+                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
+                  tone="warning"
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
     </section>
   )
-
-  /**
-   * "What they need" — the message objective. In message mode it reads the selected bubble
-   * (author + short intent); in conversation mode it falls back to the AI headline/summary.
-   * Never fabricates content: when no AI signal exists we show an honest empty state.
-   */
-  const messageNeedText = getMessageNeedText(selected, isMessageMode ? selectedMessageInfo : null)
   const messageNeedSection = (
     <section
       className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2.5"
-      aria-label="What they need"
+      aria-label="Request"
     >
       <div className="flex items-center gap-1.5">
         <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-          What they need
+          Request
         </span>
         {isMessageMode && selectedMessageInfo?.timestampLabel ? (
           <span
@@ -572,153 +778,65 @@ export function ContextPanel({
   )
 
   /**
-   * Conversation summary block — used as the conversation-mode "what does this mean" answer
-   * AND as the body of the collapsible "Conversation context" panel in message mode. We keep
-   * the AI headline + confidence pill here since they describe the whole thread, not a single
-   * message. Facts/Decisions are intentionally NOT mixed into this block: the spec calls them
-   * out as separate questions ("what facts? / what decisions?") so they live in their own
-   * sub-sections rendered after the summary in conversation mode and inside the collapsible
-   * in message mode.
+   * Needs attention — practical care before replying: missing information (handoff pending
+   * items), risks, and urgency. Urgency is carried by the tone guidance below (so it isn't
+   * repeated as a bullet AND a tone note). Renders only when there is something useful.
    */
-  const summaryBlock = (
-    <>
-      {handoffHeadline ? (
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold leading-snug text-[var(--inbox-intelligence-text)]">
-            {handoffHeadline}
-          </p>
-          {handoffConfidencePct !== null ? (
-            <span
-              className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-              title="AI confidence in this read"
-              aria-label={`AI confidence ${handoffConfidencePct}%`}
-            >
-              {handoffConfidencePct}%
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Summary
-      </p>
-      {summary ? (
-        <InlineTextarea
-          value={summary}
-          placeholder="Add summary..."
-          className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
-          rows={2}
-          onSave={(value) => updateHandoff({ summary: value })}
-        />
-      ) : (
-        <p className="mt-1.5 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          No summary available yet.
-        </p>
-      )}
-      {handoffState && <p className="mt-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{handoffState}</p>}
-    </>
-  )
+  const attentionNotes: string[] = [...handoffRisks, ...handoffPendingItems]
 
   /**
-   * Facts + Decisions block. In conversation mode this renders right after the summary as its
-   * own "answer" card. In message mode it lives inside the collapsible "Conversation context"
-   * panel. Renders nothing when both lists are empty.
+   * Subtle tone strip — restores the visual tone signal the operators liked, without the
+   * old analytics-style Mood/Urgency/Lead score block. One label, one decorative colored
+   * strip, one practical sentence. Hidden when sentiment is missing/neutral and nothing
+   * (urgency) makes it useful. See `getToneGuidance`.
    */
-  const factsAndDecisionsBlock = (handoffFacts.length > 0 || handoffDecisions.length > 0) ? (
-    <div className="space-y-2">
-      {handoffFacts.length > 0 && (
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
-          <ul className="mt-1 space-y-0.5">
-            {handoffFacts.map((fact, idx) => (
-              <li
-                key={idx}
-                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
-              >
-                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
-                <span>{fact}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {handoffDecisions.length > 0 && (
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
-          <ul className="mt-1 space-y-0.5">
-            {handoffDecisions.map((decision, idx) => (
-              <li
-                key={idx}
-                className="flex gap-1.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text)]"
-              >
-                <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/60" />
-                <span>{decision}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  ) : null
+  const toneGuidance = getToneGuidance(selected)
 
-  /**
-   * "Keep in mind" — human care notes derived from the signals the panel already receives
-   * (urgency, sentiment, lead score, handoff risks). Replaces the old Mood / Urgency /
-   * Lead score analytics bars with plain work language. Only explicit signals produce a
-   * note; a brand-new conversation renders nothing here.
-   */
-  const careNotes: Array<{ text: string; tone: "warning" | "info" }> = []
-  if (selected.urgency === "critica") {
-    careNotes.push({ text: "Needs a reply as soon as possible", tone: "warning" })
-  } else if (selected.urgency === "alta") {
-    careNotes.push({ text: "Needs a reply today", tone: "warning" })
-  }
-  {
-    const sentiment = selected.sentiment?.toLowerCase()
-    if (sentiment === "negative" || sentiment === "negativo") {
-      careNotes.push({ text: "Tone seems tense — reply with care", tone: "warning" })
-    } else if (sentiment === "positive" || sentiment === "positivo") {
-      careNotes.push({ text: "Tone is friendly", tone: "info" })
-    }
-  }
-  if (typeof selected.leadScore === "number") {
-    if (selected.leadScore >= 70) {
-      careNotes.push({ text: "High opportunity — worth prioritising", tone: "info" })
-    } else if (selected.leadScore >= 40) {
-      careNotes.push({ text: "Possible opportunity", tone: "info" })
-    }
-  }
-  for (const risk of handoffRisks) {
-    careNotes.push({ text: risk, tone: "warning" })
-  }
-
-  const careSection = careNotes.length > 0 ? (
+  const needsAttentionSection = (attentionNotes.length > 0 || toneGuidance) ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Things to keep in mind"
+      aria-label="Needs attention"
     >
       <div className="flex items-center gap-1.5">
         <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Keep in mind
+          Needs attention
         </p>
       </div>
-      <ul className="mt-1.5 space-y-1">
-        {careNotes.map((note, idx) => (
-          <li
-            key={idx}
-            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full",
-                note.tone === "warning" ? "bg-amber-500/70" : "bg-[var(--inbox-accent)]/70",
-              )}
-            />
-            <span>{note.text}</span>
-          </li>
-        ))}
-      </ul>
+      {attentionNotes.length > 0 ? (
+        <ul className="mt-1.5 space-y-1">
+          {attentionNotes.map((note, idx) => (
+            <li
+              key={idx}
+              className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+            >
+              <span
+                aria-hidden="true"
+                className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70"
+              />
+              <span>{note}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {toneGuidance ? (
+        <div
+          className={cn(
+            "mt-2.5",
+            attentionNotes.length > 0 && "border-t border-[var(--inbox-intelligence-border)] pt-2.5",
+          )}
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Tone
+          </span>
+          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/8" aria-hidden="true">
+            <div className={cn("h-full w-full rounded-full", toneGuidance.barClass)} />
+          </div>
+          <p className="mt-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]">
+            {toneGuidance.note}
+          </p>
+        </div>
+      ) : null}
     </section>
   ) : null
 
@@ -726,7 +844,13 @@ export function ContextPanel({
    * Fanny recommends — the single recommended next step in plain work language. The text
    * stays operator-editable (same `updateHandoff` flow as before). The actionable cards
    * moved to `actionsSection` below so this block reads as advice, not as a control list.
+   * Dedup: if the stored recommendation merely repeats the Request text, we show the
+   * honest "still preparing" state instead of the same paragraph twice.
    */
+  const recommendationText =
+    nextRecommendedAction && !sameText(nextRecommendedAction, messageNeedText)
+      ? nextRecommendedAction
+      : null
   const recommendsSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-1.5">
@@ -735,9 +859,9 @@ export function ContextPanel({
           Fanny recommends
         </p>
       </div>
-      {nextRecommendedAction ? (
+      {recommendationText ? (
         <InlineTextarea
-          value={nextRecommendedAction}
+          value={recommendationText}
           placeholder="Edit recommendation..."
           className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
           rows={2}
@@ -1055,30 +1179,6 @@ export function ContextPanel({
   void convertingPendingItemKey
   void setConvertedPendingItemKeys
   void setConvertingPendingItemKey
-  const prepareSection = handoffPendingItems.length > 0 ? (
-    <section
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Prep notes for this conversation"
-    >
-      <div className="flex items-center gap-1.5">
-        <ListChecks className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Prepare for this
-        </p>
-      </div>
-      <ul className="mt-1.5 space-y-1">
-        {handoffPendingItems.map((item, idx) => (
-          <li
-            key={idx}
-            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-          >
-            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
-            <span className="flex-1">{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  ) : null
 
   /**
    * Workflow (assign select). Only rendered when the channel supports it (web_chat | portal)
@@ -1155,202 +1255,21 @@ export function ContextPanel({
     </section>
   )
 
-  /**
-   * Client context — the complete reference card, intentionally LAST in the reading order
-   * (the panel solves the message objective first; full context is secondary). Collapsible,
-   * default-collapsed. Holds: linked client / project / company / email / phone, category,
-   * message type, channel, language, the editable conversation summary, facts / decisions,
-   * and the open-work counters. Reuses `contextDetailsOpen` (resets implicitly per render
-   * cycle of a new conversation, same as before).
-   */
-  const hasClientContext = Boolean(
-    selected.cliente
-    || selected.proyecto
-    || contactCompany
-    || contactEmail
-    || contactPhone
-    || triageIntent
-    || triageCategory
-    || summary
-    || handoffHeadline
-    || handoffFacts.length > 0
-    || handoffDecisions.length > 0
-    || triageHasCounters,
-  )
-  const clientContextSection = hasClientContext ? (
-    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
-      <button
-        type="button"
-        onClick={() => setContextDetailsOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
-        aria-expanded={contextDetailsOpen}
-        aria-controls="context-panel-client-context"
-      >
-        <span className="flex items-center gap-1.5">
-          <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Client context
-          </span>
-        </span>
-        {contextDetailsOpen ? (
-          <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-        ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-        )}
-      </button>
-      {contextDetailsOpen ? (
-        <div
-          id="context-panel-client-context"
-          className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
-        >
-          {(selected.cliente || selected.proyecto || contactCompany || contactEmail || contactPhone) ? (
-            <div className="space-y-2">
-              {selected.cliente && (
-                <div className="flex items-center gap-2 text-xs">
-                  <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-                  <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
-                    {selected.cliente.nombre}
-                  </a>
-                </div>
-              )}
-              {selected.proyecto && (
-                <div className="flex items-center gap-2 text-xs">
-                  <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-                  <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
-                    {selected.proyecto.nombre}
-                  </a>
-                  {selected.proyecto.estado && (
-                    <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
-                      {selected.proyecto.estado}
-                    </span>
-                  )}
-                </div>
-              )}
-              {contactCompany && (
-                <div className="flex items-center gap-2 text-xs">
-                  <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                  <span className="truncate text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
-                </div>
-              )}
-              {contactEmail && (
-                <div className="flex items-center gap-2 text-xs">
-                  <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                  <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
-                </div>
-              )}
-              {contactPhone && (
-                <div className="flex items-center gap-2 text-xs">
-                  <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
-                  <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <div className="space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
-            {triageIntent ? (
-              <TriageRow label="Message type">
-                <span
-                  className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
-                  title={triageIntent}
-                >
-                  {triageIntent}
-                </span>
-              </TriageRow>
-            ) : null}
-            {triageCategory ? (
-              <TriageRow label="Category">
-                <span
-                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)]"
-                  title={triageCategory}
-                >
-                  <span className="truncate">{triageCategory}</span>
-                </span>
-              </TriageRow>
-            ) : null}
-            {triagePriorityIsExplicit ? (
-              <TriageRow label="Priority">
-                <span
-                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
-                  aria-label={`Priority ${triagePriority.label}`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "inline-block h-2 w-2 shrink-0 rounded-full",
-                      triagePriority.barClass,
-                    )}
-                  />
-                  <span>{triagePriority.label}</span>
-                </span>
-              </TriageRow>
-            ) : null}
-            <TriageRow label="Channel">
-              <span className="text-[12px] text-[var(--inbox-intelligence-text)]">
-                {channelLabel(selected.channel)}
-              </span>
-            </TriageRow>
-            {selected.detectedLanguage ? (
-              <TriageRow label="Language">
-                <span className="text-[12px] uppercase text-[var(--inbox-intelligence-text)]">
-                  {selected.detectedLanguage}
-                </span>
-              </TriageRow>
-            ) : null}
-          </div>
-
-          {(summary || handoffHeadline) ? (
-            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
-              {summaryBlock}
-            </div>
-          ) : null}
-          {factsAndDecisionsBlock ? (
-            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
-              {factsAndDecisionsBlock}
-            </div>
-          ) : null}
-
-          {triageHasCounters ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
-              {triageDraftsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
-                />
-              ) : null}
-              {triageActionsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
-                />
-              ) : null}
-              {triageRisksOpen > 0 ? (
-                <CounterPill
-                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
-                  tone="warning"
-                />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  ) : null
-
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
         ── Section ordering ──
         One top-down sequence for both modes, built around resolving the message:
-          1. Sender / identity            (who is this)
-          2. What they need               (the message objective)
-          3. Keep in mind                 (care / tone / priority, human language)
+          1. Client/contact card          (identity; expanded = ALL client context)
+          2. Request                      (the message objective)
+          3. Needs attention              (missing info, risks, tone strip)
           4. Fanny recommends             (the advised next step)
           5. Pending decisions + Actions  (visible work cards — the interaction core)
           6. Ask Fanny                    (close to the actions, per product spec)
-          7. Prepare for this             (prep notes from pending items)
-          8. Client context               (complete reference, secondary)
-          9. Workflow                     (assignment, when applicable)
-        Each atom keeps its own data gating, so empty cards never render and we
-        never fabricate content.
+          7. Workflow                     (assignment, when applicable)
+        Each atom keeps its own data gating, so empty cards never render and we never
+        fabricate content. Client context lives ONLY inside the expanded top card — no
+        duplicate block lower in the panel.
 
         Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
         receives `selectedMessageInfo: null` and message-specific affordances fall back to
@@ -1359,13 +1278,11 @@ export function ContextPanel({
       {headerSection}
       {contactSection}
       {messageNeedSection}
-      {careSection}
+      {needsAttentionSection}
       {recommendsSection}
       {pendingDecisionsSection}
       {actionsSection}
       {askFannySection}
-      {prepareSection}
-      {clientContextSection}
       {workflowSection}
 
       {/*
@@ -1551,10 +1468,10 @@ function getActionDescription(action: ActionItem): string | null {
 }
 
 /**
- * "What they need" text — what the sender is asking for in this specific message. Priority:
- * the message-scoped short intent (message mode) → AI headline → message snippet →
- * conversation summary. Returns null when no real signal exists so the UI can render an
- * honest empty state instead of fabricated content.
+ * Request text — what the sender is asking for in this specific message. Source priority
+ * (per product spec): message-scoped short intent → AI headline → conversation summary →
+ * message snippet → handoff summary → classifier summary. Returns null when no real signal
+ * exists so the UI can render an honest empty state instead of fabricated content.
  */
 function getMessageNeedText(
   selected: ContextPanelProps["selected"],
@@ -1563,10 +1480,89 @@ function getMessageNeedText(
   if (selectedMessageInfo?.shortIntent?.trim()) return selectedMessageInfo.shortIntent.trim()
   const headline = selected.handoff?.headline
   if (typeof headline === "string" && headline.trim()) return headline.trim()
+  if (typeof selected.summary === "string" && selected.summary.trim()) return selected.summary.trim()
   if (selectedMessageInfo?.snippet?.trim()) return selectedMessageInfo.snippet.trim()
-  const summary =
-    selected.handoff?.summary || selected.classification?.summary || selected.summary
-  if (typeof summary === "string" && summary.trim()) return summary.trim()
+  const handoffSummary = selected.handoff?.summary
+  if (typeof handoffSummary === "string" && handoffSummary.trim()) return handoffSummary.trim()
+  const classificationSummary = selected.classification?.summary
+  if (typeof classificationSummary === "string" && classificationSummary.trim()) {
+    return classificationSummary.trim()
+  }
+  return null
+}
+
+/**
+ * Loose text equality used by the dedup rules (Request vs Summary vs recommendation): the
+ * same paragraph must never appear twice on the first screen. Trims and lowercases — we
+ * deliberately don't strip punctuation, since "almost the same" texts can still add value.
+ */
+function sameText(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+/**
+ * Client profile state for the expanded contact card. "linked" when the conversation has a
+ * `cliente` record behind it; "none" otherwise. (Linking an existing client is not an action
+ * the panel offers today, so there is deliberately no third state.)
+ */
+function getClientProfileState(selected: ContextPanelProps["selected"]): "linked" | "none" {
+  return selected.cliente ? "linked" : "none"
+}
+
+/**
+ * Tone guidance for the subtle strip inside "Needs attention". Human, work-oriented — never
+ * a raw sentiment enum or a percentage. Derivation:
+ *   1. `selected.sentiment` decides the base tone (positive / negative).
+ *   2. Urgency (`alta`/`critica`) strengthens the note, or carries it alone when sentiment
+ *      is missing/neutral.
+ *   3. A high lead score upgrades the positive note to an opportunity framing.
+ *   4. Neutral/unknown sentiment with no urgency → null (the strip hides; no fabricated
+ *      emotional states).
+ */
+function getToneGuidance(selected: ContextPanelProps["selected"]): {
+  note: string
+  tone: "positive" | "neutral" | "warning" | "danger"
+  barClass: string
+} | null {
+  const sentiment = selected.sentiment?.toLowerCase() ?? ""
+  const isPositive = sentiment === "positive" || sentiment === "positivo"
+  const isNegative = sentiment === "negative" || sentiment === "negativo"
+  const isUrgent = selected.urgency === "alta" || selected.urgency === "critica"
+  const isHighOpportunity = typeof selected.leadScore === "number" && selected.leadScore >= 70
+
+  if (isNegative) {
+    return {
+      note: isUrgent
+        ? "Tense and urgent. Acknowledge their concern and reply today with a concrete next step."
+        : "Tense. Acknowledge their concern and give a clear next step.",
+      tone: "danger",
+      barClass: "bg-gradient-to-r from-rose-500/70 via-rose-400/40 to-transparent",
+    }
+  }
+  if (isPositive) {
+    if (isUrgent) {
+      return {
+        note: "Interested and waiting. Reply today with a concrete answer.",
+        tone: "warning",
+        barClass: "bg-gradient-to-r from-amber-500/70 via-emerald-400/40 to-transparent",
+      }
+    }
+    return {
+      note: isHighOpportunity
+        ? "Interested. Good opportunity for a helpful, direct reply."
+        : "Cordial. A clear, direct answer will land well.",
+      tone: "positive",
+      barClass: "bg-gradient-to-r from-emerald-500/70 via-teal-400/40 to-transparent",
+    }
+  }
+  if (isUrgent) {
+    return {
+      note: "Urgent. Reply with a concrete next step today.",
+      tone: "warning",
+      barClass: "bg-gradient-to-r from-amber-500/70 via-amber-400/40 to-transparent",
+    }
+  }
   return null
 }
 
