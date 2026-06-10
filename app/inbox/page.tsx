@@ -297,11 +297,12 @@ const INBOX_GRID_ROWS_CLASS = "xl:grid xl:grid-rows-[minmax(0,1fr)]"
 const INBOX_GRID_COLS_3 = "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)]"
 /**
  * list | context — Triage (Brief) with the real message hidden. Brief is the AI-first view,
- * so the conversation radar and the Fanny panel get EQUAL visual weight: a true 50/50 split.
- * Both tracks are `minmax(0,1fr)` so each cell can shrink below its content width and the
- * inner `min-w-0` + truncate/scroll chains keep long rows from forcing horizontal overflow.
+ * so the conversation radar and the Fanny panel stay balanced but Fanny gets slightly more
+ * room: a ~45/55 split (0.9fr / 1.1fr). Both tracks keep `minmax(0,...)` so each cell can
+ * shrink below its content width and the inner `min-w-0` + truncate/scroll chains keep long
+ * rows from forcing horizontal overflow.
  */
-const INBOX_GRID_COLS_TRIAGE_CLOSED = "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+const INBOX_GRID_COLS_TRIAGE_CLOSED = "xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
 /** message | context — Focus drops the list and keeps Fanny/context beside the message. */
 const INBOX_GRID_COLS_FOCUS = "xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]"
 
