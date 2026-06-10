@@ -256,7 +256,14 @@ export function ReplyComposer({
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
   const userInterruptedRef = useRef(false)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
+  /**
+   * Single "Details" disclosure. Holds the low-frequency metadata that used to crowd the top
+   * of the composer on every focus: signed-in account, channel badge, request-confirmation
+   * state, and (email only) Subject preview + Forward recipient + CC / BCC. Closed by default
+   * so the textarea is the first thing the operator sees; the fields stay fully editable once
+   * opened. Replaces the previous always-visible header row + the nested CC/BCC `advancedOpen`.
+   */
+  const [detailsOpen, setDetailsOpen] = useState(false)
   /**
    * Collapsed-by-default composer (3-column polish). When the operator isn't
    * actively replying we show only a compact bar (mode chip + textarea +
@@ -715,6 +722,7 @@ export function ReplyComposer({
     speech.listening ||
     composerOverlayOpen ||
     cannedOpen ||
+    detailsOpen ||
     attachments.length > 0 ||
     contentBeforeAssist !== null
 
@@ -750,50 +758,12 @@ export function ReplyComposer({
          * the full toolbar (see `onFocus`).
          */}
         {/*
-         * Composer header: signed-in account (when present) on the left, dynamic channel badge
-         * on the right. The badge replaces the channelLabel that used to live inside the toolbar
-         * row, freeing horizontal space and keeping channel info contextual rather than as a
-         * tool. Rendered when expanded and we have at least one piece of metadata.
+         * The signed-in account, channel badge, confirmation state and email Subject / Forward /
+         * CC / BCC fields no longer crowd the top of the composer on every focus. They now live
+         * inside the collapsible "Details" disclosure below the toolbar (see `detailsOpen`), so
+         * the writing surface is the first thing the operator sees. Behavior is unchanged — the
+         * same fields and handlers are fully editable once Details is opened.
          */}
-        {composerExpandedView && (signedInEmail?.trim() || channel) && (
-          <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
-            {signedInEmail?.trim() ? (
-              <p className="min-w-0 truncate text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Signed in as{" "}
-                <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
-                  {signedInEmail}
-                </span>
-              </p>
-            ) : (
-              <span aria-hidden="true" />
-            )}
-            <div className="flex shrink-0 items-center gap-1.5">
-              {/* Phase 3: confirmation-requested pill. Email-only; click clears the request. */}
-              {channel === "email" && requestConfirmation && (
-                <button
-                  type="button"
-                  onClick={() => onRequestConfirmationChange?.(false)}
-                  title="Confirmation requested — click to remove"
-                  aria-label="Confirmation requested. Click to remove."
-                  className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/20"
-                >
-                  <MailCheck className="h-3 w-3" aria-hidden />
-                  Confirmation requested
-                  <X className="h-2.5 w-2.5 opacity-70" aria-hidden />
-                </button>
-              )}
-              {channel ? (
-                <span
-                  className="inline-flex items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-text-secondary)]"
-                  title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
-                  aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
-                >
-                  {formatChannelBadge(channel, channelLabel)}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )}
 
         {/* ── Internal note banner (privacy reminder) ── */}
         {replyIsInternal && (
@@ -802,70 +772,6 @@ export function ReplyComposer({
             <span className="text-[10px] font-medium leading-tight text-[var(--inbox-warning)]">
               Internal note — private to your team. Not sent to the customer.
             </span>
-          </div>
-        )}
-
-        {/* ── Email metadata (franja mínima) ── */}
-        {composerExpandedView && showEmailOptions && (
-          <div className="space-y-0.5 rounded border border-[var(--inbox-border)]/20 bg-transparent px-1.5 py-0.5">
-            {composerConfig.subjectPreview && (
-              <div className="flex min-h-[1.125rem] items-center gap-1">
-                <Mail className="h-2 w-2 shrink-0 opacity-50 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
-                <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wider text-[var(--inbox-chat-text-secondary)]">
-                  Subject
-                </span>
-                <span className="min-w-0 truncate text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                  {composerConfig.subjectPreview}
-                </span>
-              </div>
-            )}
-            {emailMode === "forward" && (
-              <div className="flex min-h-[1.125rem] items-center gap-1">
-                <Forward className="h-2 w-2 shrink-0 opacity-50 text-[var(--inbox-chat-text-secondary)]" aria-hidden />
-                <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wider text-[var(--inbox-chat-text-secondary)]">
-                  To
-                </span>
-                <Input
-                  type="text"
-                  value={emailForwardTo}
-                  onChange={(e) => onEmailForwardToChange(e.target.value)}
-                  placeholder="Recipient email"
-                  className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
-                />
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              className="flex w-full items-center gap-0.5 py-px text-[8px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:text-[var(--inbox-accent)]"
-            >
-              {advancedOpen ? <ChevronUp className="h-2 w-2 shrink-0 opacity-60" /> : <ChevronDown className="h-2 w-2 shrink-0 opacity-60" />}
-              {advancedOpen ? "Hide CC / BCC" : "CC / BCC"}
-            </button>
-            {advancedOpen && (
-              <div className="space-y-0.5 border-t border-[var(--inbox-divider)]/40 pt-0.5">
-                <div className="flex items-center gap-1">
-                  <span className="w-5 shrink-0 text-[8px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
-                  <Input
-                    type="text"
-                    value={emailCc}
-                    onChange={(e) => onEmailCcChange(e.target.value)}
-                    placeholder="CC (optional)"
-                    className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
-                  />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-5 shrink-0 text-[8px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
-                  <Input
-                    type="text"
-                    value={emailBcc}
-                    onChange={(e) => onEmailBccChange(e.target.value)}
-                    placeholder="BCC (optional)"
-                    className="h-4 flex-1 border-0 bg-transparent p-0 text-[10px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1131,6 +1037,34 @@ export function ReplyComposer({
               >
                 <StickyNote className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
+              {/*
+               * Details disclosure — low-frequency email/account metadata lives here instead of
+               * crowding the top of the composer. Toggle keeps the panel (below the toolbar) in
+               * sync; available whenever there is an account, channel, or email options to show.
+               */}
+              {(signedInEmail?.trim() || channel || showEmailOptions) && (
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((v) => !v)}
+                  className={cn(
+                    "ml-0.5 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                    detailsOpen
+                      ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
+                      : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
+                  )}
+                  title={showEmailOptions ? "Email details — account, subject, CC / BCC" : "Details — account & channel"}
+                  aria-label={showEmailOptions ? "Email details" : "Details"}
+                  aria-expanded={detailsOpen}
+                >
+                  <Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>{showEmailOptions ? "Email details" : "Details"}</span>
+                  {detailsOpen ? (
+                    <ChevronUp className="h-3 w-3 shrink-0 opacity-60" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+                  )}
+                </button>
+              )}
             </div>
             <span
               className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--inbox-divider)] sm:block"
@@ -1239,6 +1173,100 @@ export function ReplyComposer({
 
           </div>
         </div>
+        )}
+
+        {/* ── Email details (collapsible) — account · channel · subject · forward · CC / BCC ── */}
+        {composerExpandedView && detailsOpen && (signedInEmail?.trim() || channel || showEmailOptions) && (
+          <div className="space-y-2 rounded-md border border-[var(--inbox-border)]/35 bg-white/[0.02] px-2.5 py-2">
+            {(signedInEmail?.trim() || channel || (channel === "email" && requestConfirmation)) && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {signedInEmail?.trim() ? (
+                  <p className="min-w-0 truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">
+                    Signed in as{" "}
+                    <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
+                      {signedInEmail}
+                    </span>
+                  </p>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {/* Confirmation-requested pill. Email-only; click clears the request. */}
+                  {channel === "email" && requestConfirmation && (
+                    <button
+                      type="button"
+                      onClick={() => onRequestConfirmationChange?.(false)}
+                      title="Confirmation requested — click to remove"
+                      aria-label="Confirmation requested. Click to remove."
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/20"
+                    >
+                      <MailCheck className="h-3 w-3" aria-hidden />
+                      Confirmation requested
+                      <X className="h-2.5 w-2.5 opacity-70" aria-hidden />
+                    </button>
+                  )}
+                  {channel ? (
+                    <span
+                      className="inline-flex items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-text-secondary)]"
+                      title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                      aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                    >
+                      {formatChannelBadge(channel, channelLabel)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            {showEmailOptions && (
+              <div className="space-y-1.5 border-t border-[var(--inbox-divider)]/40 pt-2">
+                {composerConfig.subjectPreview && (
+                  <div className="flex min-h-[1.25rem] items-center gap-1.5">
+                    <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">
+                      Subject
+                    </span>
+                    <span className="min-w-0 truncate text-[12px] leading-tight text-[var(--inbox-text-secondary)]">
+                      {composerConfig.subjectPreview}
+                    </span>
+                  </div>
+                )}
+                {emailMode === "forward" && (
+                  <div className="flex min-h-[1.25rem] items-center gap-1.5">
+                    <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">
+                      To
+                    </span>
+                    <Input
+                      type="text"
+                      value={emailForwardTo}
+                      onChange={(e) => onEmailForwardToChange(e.target.value)}
+                      placeholder="Recipient email"
+                      className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
+                  <Input
+                    type="text"
+                    value={emailCc}
+                    onChange={(e) => onEmailCcChange(e.target.value)}
+                    placeholder="CC (optional)"
+                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
+                  <Input
+                    type="text"
+                    value={emailBcc}
+                    onChange={(e) => onEmailBccChange(e.target.value)}
+                    placeholder="BCC (optional)"
+                    className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── Intelligence panel (tabbed: Improve / Translate) ── */}
