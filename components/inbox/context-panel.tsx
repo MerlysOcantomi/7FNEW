@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Users, ChevronDown, ChevronUp, ChevronRight, Loader2,
-  Mail, Phone, Building2, ArrowRight, CornerUpLeft,
+  Mail, Phone, Building2, CornerUpLeft,
   User, FolderKanban,
   Paperclip, AlertTriangle, ListChecks, Link2, Sparkles,
   MessageCircle, CalendarPlus, X,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
-import { actionTypeLabel, actionStatusBadge, actionStatusLabel, channelLabel } from "@/lib/inbox-labels"
+import { actionTypeLabel, channelLabel } from "@/lib/inbox-labels"
 
 /**
  * Contrast fix: el variant `ghost` de shadcn aplica `text-foreground` (token global, casi negro
@@ -289,7 +289,6 @@ export function ContextPanel({
 
   const contactName =
     selected.contact?.nombre || selected.cliente?.nombre || "Unknown contact"
-  const contactType = selected.contact?.tipo || "contact"
   const contactEmail = selected.contact?.email || selected.cliente?.email || null
   const contactPhone = selected.contact?.telefono || null
   const contactCompany = selected.contact?.empresa || selected.cliente?.empresa || null
@@ -300,10 +299,7 @@ export function ContextPanel({
     selected.summary ||
     null
 
-  const nextRecommendedAction =
-    selected.handoff?.nextRecommendedAction ||
-    getStringValue(selected.classification?.nextBestAction, ["description", "label", "title", "action"]) ||
-    null
+  const nextRecommendedAction = getRecommendationText(selected)
 
   /**
    * Phase A: handoff signals adicionales. Todo está protegido por `safeStringList` y type guards
@@ -319,9 +315,6 @@ export function ContextPanel({
   const handoffDecisions = safeStringList(selected.handoff?.decisions).slice(0, 4)
   const handoffPendingItems = safeStringList(selected.handoff?.pendingItems).slice(0, 6)
   const handoffRisks = safeStringList(selected.handoff?.risks).slice(0, 6)
-
-  const moodValue = mapSentimentToMood(selected.sentiment)
-  const urgencyValue = mapUrgency(selected.urgency)
 
   const suggestedActions = (selected.actions ?? []).filter((a) => a.status === "suggested" || a.status === "approved")
 
@@ -339,13 +332,6 @@ export function ContextPanel({
       else rest.push(a)
     }
     return [...scoped, ...rest]
-  }, [isMessageMode, selectedMessageId, suggestedActions])
-
-  const messageScopedActionCount = useMemo(() => {
-    if (!isMessageMode || !selectedMessageId) return 0
-    return suggestedActions.filter(
-      (a) => a.sourceMessageId && a.sourceMessageId === selectedMessageId,
-    ).length
   }, [isMessageMode, selectedMessageId, suggestedActions])
 
   /**
@@ -375,14 +361,6 @@ export function ContextPanel({
   const triageIntent =
     pickTriageString(selected.classification?.intent) ?? pickTriageString(selected.intent)
   const triageCategory = pickTriageString(selected.category)
-  const triageNextAction =
-    pickTriageString(selected.handoff?.nextRecommendedAction)
-    ?? getStringValue(selected.classification?.nextBestAction, [
-      "description",
-      "label",
-      "title",
-      "action",
-    ])
 
   /**
    * Drafts count: only the operator-actionable subset. `superseded` /
@@ -437,174 +415,13 @@ export function ContextPanel({
     || triageActionsOpen > 0
     || triageRisksOpen > 0
 
-  /**
-   * Meaningfulness gate. The block hides itself entirely on a brand-new
-   * conversation with nothing to summarise so we don't show a noisy empty
-   * card to the operator. Show as soon as ONE genuinely useful signal
-   * exists.
-   */
-  const triageHasMeaningfulData = Boolean(
-    triageIntent
-    || triageCategory
-    || triageNextAction
-    || triagePriorityIsExplicit
-    || triageHasCounters,
-  )
-
-  /**
-   * Default-open in conversation mode (operator wants the overview),
-   * default-collapsed in message mode (the operator's eyes are on the
-   * selected bubble first; one click reveals the bigger picture). Initial
-   * value only — once the operator toggles it, we keep their choice for
-   * the lifetime of this conversation. Switching to a different
-   * conversation does NOT reset this on purpose: it preserves the user's
-   * "I always want this open/closed" preference within the session.
-   */
-  const [triageOpen, setTriageOpen] = useState(!isMessageMode)
-
-  const triageSummarySection = triageHasMeaningfulData ? (
-    <section
-      role="group"
-      aria-label="Triage summary"
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]"
-    >
-      <button
-        type="button"
-        onClick={() => setTriageOpen((value) => !value)}
-        aria-expanded={triageOpen}
-        aria-controls="context-panel-triage-summary"
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-      >
-        <span className="flex items-center gap-1.5">
-          <Target
-            className="h-3 w-3 text-[var(--inbox-accent)]"
-            aria-hidden="true"
-          />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Triage
-          </span>
-        </span>
-        {triageOpen ? (
-          <ChevronUp
-            className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]"
-            aria-hidden="true"
-          />
-        ) : (
-          <ChevronDown
-            className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]"
-            aria-hidden="true"
-          />
-        )}
-      </button>
-      {triageOpen ? (
-        <div
-          id="context-panel-triage-summary"
-          className="space-y-2 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
-        >
-          {triageIntent ? (
-            <TriageRow label="Intent">
-              <span
-                className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
-                title={triageIntent}
-              >
-                {triageIntent}
-              </span>
-            </TriageRow>
-          ) : null}
-
-          {/*
-            Category row: shows the active workspace category exactly as the
-            operator chose it. Falls back to "Uncategorised" only when the
-            block is already meaningful for other reasons (intent, next
-            action, counters); we never invent a category when nothing else
-            justifies the row.
-          */}
-          {triageCategory ? (
-            <TriageRow label="Category">
-              <span
-                className="inline-flex max-w-full items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)]"
-                title={triageCategory}
-              >
-                <span className="truncate">{triageCategory}</span>
-              </span>
-            </TriageRow>
-          ) : (triageIntent || triageNextAction || triagePriorityIsExplicit || triageHasCounters) ? (
-            <TriageRow label="Category">
-              <span className="text-[11px] italic text-[var(--inbox-intelligence-text-secondary)]">
-                Uncategorised
-              </span>
-            </TriageRow>
-          ) : null}
-
-          {triagePriorityIsExplicit ? (
-            <TriageRow label="Priority">
-              <span
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
-                aria-label={`Priority ${triagePriority.label}`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "inline-block h-2 w-2 shrink-0 rounded-full",
-                    triagePriority.barClass,
-                  )}
-                />
-                <span>{triagePriority.label}</span>
-              </span>
-            </TriageRow>
-          ) : null}
-
-          {triageNextAction ? (
-            <TriageRow label="Next">
-              <span
-                className="block line-clamp-2 text-[12px] leading-snug text-[var(--inbox-intelligence-text)]"
-                title={triageNextAction}
-              >
-                {triageNextAction}
-              </span>
-            </TriageRow>
-          ) : null}
-
-          {triageHasCounters ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
-              {triageDraftsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
-                />
-              ) : null}
-              {triageActionsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
-                />
-              ) : null}
-              {/*
-                TODO(inbox-tasks): The Inbox-specific "to-do" counter was retired
-                — Inbox is conversation triage, not a task store. Tasks live in
-                `/tareas` (global Tasks) and the daily view is `/today`. The
-                `triageTodosOpen` derivation and `conversationTodoCount` prop
-                stay for now to avoid breaking the panel signature; remove in a
-                follow-up cleanup once we drop the legacy plumbing.
-              */}
-              {triageRisksOpen > 0 ? (
-                <CounterPill
-                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
-                  tone="warning"
-                />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  ) : null
-
   const headerSection = (
     <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
         <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
       </div>
       <div className="min-w-0">
-        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Intelligence Hub</h2>
+        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Fanny</h2>
         <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
           {isMessageMode ? "Message insight" : "Conversation overview"}
         </p>
@@ -624,7 +441,7 @@ export function ContextPanel({
           <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
           <div className="mt-0.5 flex items-center gap-2">
             <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
-              {formatContactType(contactType)}
+              {getRelationshipLabel(selected)}
             </span>
             {selected.detectedLanguage && (
               <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">
@@ -693,19 +510,23 @@ export function ContextPanel({
     </section>
   )
 
-  /** Message-mode only: short interpretation of the *selected* bubble. Renders nothing when
-   *  not in message mode (the caller branches between this and `summarySection`). */
-  const whatThisMeansSection = isMessageMode && selectedMessageInfo ? (
+  /**
+   * "What they need" — the message objective. In message mode it reads the selected bubble
+   * (author + short intent); in conversation mode it falls back to the AI headline/summary.
+   * Never fabricates content: when no AI signal exists we show an honest empty state.
+   */
+  const messageNeedText = getMessageNeedText(selected, isMessageMode ? selectedMessageInfo : null)
+  const messageNeedSection = (
     <section
-      className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2"
-      aria-label="What this message means"
+      className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2.5"
+      aria-label="What they need"
     >
       <div className="flex items-center gap-1.5">
         <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-          What this message means
+          What they need
         </span>
-        {selectedMessageInfo.timestampLabel ? (
+        {isMessageMode && selectedMessageInfo?.timestampLabel ? (
           <span
             suppressHydrationWarning
             className="text-[9px] tabular-nums text-[var(--inbox-intelligence-text-secondary)]"
@@ -714,31 +535,27 @@ export function ContextPanel({
           </span>
         ) : null}
       </div>
-      <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
-        {selectedMessageInfo.authorLabel}
-      </div>
-      {selectedMessageInfo.shortIntent ? (
+      {isMessageMode && selectedMessageInfo ? (
+        <div className="mt-0.5 truncate text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
+          {selectedMessageInfo.authorLabel}
+        </div>
+      ) : null}
+      {messageNeedText ? (
         <p
           className="mt-1 text-[12px] font-medium leading-snug text-[var(--inbox-intelligence-text)]"
-          title={selectedMessageInfo.shortIntent}
+          title={messageNeedText}
         >
-          {selectedMessageInfo.shortIntent}
-        </p>
-      ) : selectedMessageInfo.snippet ? (
-        <p
-          className="mt-1 truncate text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]"
-          title={selectedMessageInfo.snippet}
-        >
-          {selectedMessageInfo.snippet}
+          {messageNeedText}
         </p>
       ) : (
         <p className="mt-1 text-[11px] italic leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-          No interpretation available for this message yet.
+          Fanny hasn&apos;t worked out what this message needs yet.
         </p>
       )}
-      {(selectedMessageInfo.direction
-        || selectedMessageInfo.hasAttachments
-        || selectedMessageInfo.hasLinks) && (
+      {isMessageMode && selectedMessageInfo
+        && (selectedMessageInfo.direction
+          || selectedMessageInfo.hasAttachments
+          || selectedMessageInfo.hasLinks) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           {selectedMessageInfo.direction ? (
             <SignalChip label={directionChipLabel(selectedMessageInfo)} />
@@ -752,7 +569,7 @@ export function ContextPanel({
         </div>
       )}
     </section>
-  ) : null
+  )
 
   /**
    * Conversation summary block — used as the conversation-mode "what does this mean" answer
@@ -782,7 +599,7 @@ export function ContextPanel({
         </div>
       ) : null}
       <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        {isMessageMode ? "Conversation summary" : "Summary"}
+        Summary
       </p>
       {summary ? (
         <InlineTextarea
@@ -843,55 +660,81 @@ export function ContextPanel({
     </div>
   ) : null
 
-  /** Signal bars: mood + urgency + lead score. The lead score row only renders when present. */
-  const signalsSection = (
-    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Mood</span>
-            <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{moodValue.label}</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-            <div
-              className={cn("h-full rounded-full transition-all duration-500", moodValue.barClass)}
-              style={{ width: `${moodValue.percent}%` }}
-            />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Urgency</span>
-            <span className="text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)]">{urgencyValue.label}</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-            <div
-              className={cn("h-full rounded-full transition-all duration-500", urgencyValue.barClass)}
-              style={{ width: `${urgencyValue.percent}%` }}
-            />
-          </div>
-        </div>
-        {typeof selected.leadScore === "number" && (
-          <div className="flex items-center justify-between pt-1 border-t border-[var(--inbox-intelligence-border)]">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Lead score</span>
-            <span className="text-xs font-semibold text-[var(--inbox-accent)]">{selected.leadScore}</span>
-          </div>
-        )}
+  /**
+   * "Keep in mind" — human care notes derived from the signals the panel already receives
+   * (urgency, sentiment, lead score, handoff risks). Replaces the old Mood / Urgency /
+   * Lead score analytics bars with plain work language. Only explicit signals produce a
+   * note; a brand-new conversation renders nothing here.
+   */
+  const careNotes: Array<{ text: string; tone: "warning" | "info" }> = []
+  if (selected.urgency === "critica") {
+    careNotes.push({ text: "Needs a reply as soon as possible", tone: "warning" })
+  } else if (selected.urgency === "alta") {
+    careNotes.push({ text: "Needs a reply today", tone: "warning" })
+  }
+  {
+    const sentiment = selected.sentiment?.toLowerCase()
+    if (sentiment === "negative" || sentiment === "negativo") {
+      careNotes.push({ text: "Tone seems tense — reply with care", tone: "warning" })
+    } else if (sentiment === "positive" || sentiment === "positivo") {
+      careNotes.push({ text: "Tone is friendly", tone: "info" })
+    }
+  }
+  if (typeof selected.leadScore === "number") {
+    if (selected.leadScore >= 70) {
+      careNotes.push({ text: "High opportunity — worth prioritising", tone: "info" })
+    } else if (selected.leadScore >= 40) {
+      careNotes.push({ text: "Possible opportunity", tone: "info" })
+    }
+  }
+  for (const risk of handoffRisks) {
+    careNotes.push({ text: risk, tone: "warning" })
+  }
+
+  const careSection = careNotes.length > 0 ? (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Things to keep in mind"
+    >
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Keep in mind
+        </p>
       </div>
+      <ul className="mt-1.5 space-y-1">
+        {careNotes.map((note, idx) => (
+          <li
+            key={idx}
+            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full",
+                note.tone === "warning" ? "bg-amber-500/70" : "bg-[var(--inbox-accent)]/70",
+              )}
+            />
+            <span>{note.text}</span>
+          </li>
+        ))}
+      </ul>
     </section>
-  )
+  ) : null
 
   /**
-   * Recommended next step — single CTA-style card with editable text +
-   * ranked actions list. Title is intentionally identical across
-   * message-mode and conversation-mode (PR 11) so the operator's IA
-   * stays stable when toggling between views.
+   * Fanny recommends — the single recommended next step in plain work language. The text
+   * stays operator-editable (same `updateHandoff` flow as before). The actionable cards
+   * moved to `actionsSection` below so this block reads as advice, not as a control list.
    */
-  const nextMoveSection = (
+  const recommendsSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Smart Action
-      </p>
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Fanny recommends
+        </p>
+      </div>
       {nextRecommendedAction ? (
         <InlineTextarea
           value={nextRecommendedAction}
@@ -902,79 +745,9 @@ export function ContextPanel({
         />
       ) : (
         <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny is still preparing the best next action.
+          Fanny is still preparing the best next step.
         </p>
       )}
-
-      {orderedSuggestedActions.length > 0 && (
-        <div className="mt-3 space-y-1.5 border-t border-[var(--inbox-intelligence-border)] pt-3">
-          {isMessageMode && messageScopedActionCount > 0 ? (
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-accent)]">
-              Actions based on selected message
-            </p>
-          ) : null}
-          {orderedSuggestedActions.slice(0, 3).map((action) => {
-            const title = typeof action.data?.title === "string" && action.data.title.trim()
-              ? action.data.title
-              : actionTypeLabel(action.type)
-            const isPending = pendingActionId === action.id
-            const isMessageScoped = Boolean(
-              isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
-            )
-            return (
-              <div
-                key={action.id}
-                className={cn(
-                  "flex items-center justify-between gap-2 rounded-md transition-colors",
-                  isMessageScoped &&
-                    "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5",
-                )}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <ArrowRight className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" />
-                  <span className="truncate text-xs font-medium text-[var(--inbox-intelligence-text)]">{title}</span>
-                  {isMessageScoped ? (
-                    <span
-                      className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-                      title="This action is anchored to the selected message"
-                    >
-                      For selected
-                    </span>
-                  ) : null}
-                  <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", actionStatusBadge(action.status))}>
-                    {actionStatusLabel(action.status)}
-                  </span>
-                </div>
-                {action.status === "suggested" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleSuggestedAction(action, "approve_and_execute")}
-                    disabled={isPending}
-                    className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                  >
-                    {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run"}
-                  </Button>
-                )}
-                {action.status === "approved" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleSuggestedAction(action, "execute")}
-                    disabled={isPending}
-                    className={cn("h-6 shrink-0 rounded-md px-2 text-[10px]", INBOX_GHOST_BUTTON)}
-                  >
-                    {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Execute"}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-      {actionState && <p className="mt-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>}
     </section>
   )
 
@@ -1007,7 +780,6 @@ export function ContextPanel({
     && (selectedMessageInfo.eventHint.startISO || selectedMessageInfo.eventHint.allDay)
     && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions),
   )
-  const hasSuggestedActionCta = showSuggestedDraftCta || showAddToCalendarCta
   /**
    * TODO(inbox-tasks): the `handleConvert` prop is preserved on the panel
    * surface for now — composer / message-action paths still call it via
@@ -1015,30 +787,74 @@ export function ContextPanel({
    * next-step flow, this prop and the Convert CTAs can go away entirely.
    */
   void handleConvert
-  const smartActionsSection = hasSuggestedActionCta ? (
-    <section
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Suggested"
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Suggested
+  /**
+   * Actions — visible work cards (Today-style): one card per thing the operator can do
+   * right now. No dropdowns, no tiny rows, no technical labels. Every card keeps its
+   * existing backend route:
+   *   - "Review draft"     → `onUseSuggestedDraft` (same draft pipeline as before).
+   *   - "Add to calendar"  → opens the existing preview dialog → approve+execute.
+   *   - suggested actions  → `handleSuggestedAction(action, "approve_and_execute")`.
+   *   - approved actions   → `handleSuggestedAction(action, "execute")` with a
+   *     "Continue" label (approval already happened; we're finishing the work).
+   * Hidden entirely when there is nothing actionable — we never fake actions.
+   */
+  const hasAnyActionCard =
+    showSuggestedDraftCta || showAddToCalendarCta || orderedSuggestedActions.length > 0
+  const actionsSection = hasAnyActionCard ? (
+    <section aria-label="Actions" className="space-y-1.5">
+      <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        Actions
       </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {showSuggestedDraftCta ? (
-          <ActionButton
-            label="Reply with AI draft"
-            icon={Sparkles}
-            onClick={onUseSuggestedDraft}
+      {showSuggestedDraftCta ? (
+        <WorkActionCard
+          title="Review draft"
+          description="Fanny prepared a reply for this message. Review it before sending."
+          ctaLabel="Review draft"
+          icon={Sparkles}
+          onAction={onUseSuggestedDraft}
+        />
+      ) : null}
+      {showAddToCalendarCta ? (
+        <WorkActionCard
+          title="Add to calendar"
+          description={
+            selectedMessageInfo?.eventHint?.title
+              ? `Fanny detected an event: ${selectedMessageInfo.eventHint.title}`
+              : "Fanny detected an event in this message."
+          }
+          ctaLabel="Add to calendar"
+          icon={CalendarPlus}
+          onAction={() => setCalendarPreviewOpen(true)}
+        />
+      ) : null}
+      {orderedSuggestedActions.slice(0, 4).map((action) => {
+        const title = typeof action.data?.title === "string" && action.data.title.trim()
+          ? action.data.title
+          : actionTypeLabel(action.type)
+        const isPending = pendingActionId === action.id
+        const isMessageScoped = Boolean(
+          isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
+        )
+        return (
+          <WorkActionCard
+            key={action.id}
+            title={title}
+            description={getActionDescription(action)}
+            ctaLabel={getBusinessActionLabel(action)}
+            badge={isMessageScoped ? "For this message" : null}
+            pending={isPending}
+            onAction={() =>
+              handleSuggestedAction(
+                action,
+                action.status === "approved" ? "execute" : "approve_and_execute",
+              )
+            }
           />
-        ) : null}
-        {showAddToCalendarCta ? (
-          <ActionButton
-            label="Add to calendar"
-            icon={CalendarPlus}
-            onClick={() => setCalendarPreviewOpen(true)}
-          />
-        ) : null}
-      </div>
+        )
+      })}
+      {actionState ? (
+        <p className="px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>
+      ) : null}
     </section>
   ) : null
 
@@ -1126,14 +942,14 @@ export function ContextPanel({
            * Primary CTA label tracks the linked action's lifecycle so the
            * operator always sees the next concrete step:
            *   - suggested → "Create task" (approve + execute will run).
-           *   - approved  → "Execute" (approve already happened, e.g. a
-           *     prior execute failed and we're retrying just the run).
+           *   - approved  → "Continue" (approve already happened, e.g. a
+           *     prior execute failed and we're finishing the run).
            * Both routes call `approve_and_execute`; `approveConversationAction`
            * is idempotent on `approved` so the re-approve is a no-op write
            * and the execute is what does the real work.
            */
           const primaryCtaLabel =
-            linkedAction?.status === "approved" ? "Execute" : "Create task"
+            linkedAction?.status === "approved" ? "Continue" : "Create task"
           return (
             <li
               key={task.id}
@@ -1239,15 +1055,15 @@ export function ContextPanel({
   void convertingPendingItemKey
   void setConvertedPendingItemKeys
   void setConvertingPendingItemKey
-  const stillNeededSection = handoffPendingItems.length > 0 ? (
+  const prepareSection = handoffPendingItems.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Pending items needed to move forward"
+      aria-label="Prep notes for this conversation"
     >
       <div className="flex items-center gap-1.5">
         <ListChecks className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Still needed
+          Prepare for this
         </p>
       </div>
       <ul className="mt-1.5 space-y-1">
@@ -1258,32 +1074,6 @@ export function ContextPanel({
           >
             <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--inbox-intelligence-text-secondary)]/70" />
             <span className="flex-1">{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  ) : null
-
-  /** Risks — "what to watch?" Hidden when empty so we don't show an empty warning card. */
-  const watchOutSection = handoffRisks.length > 0 ? (
-    <section
-      className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
-      aria-label="Risks to watch in this conversation"
-    >
-      <div className="flex items-center gap-1.5">
-        <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/90">
-          Watch out
-        </p>
-      </div>
-      <ul className="mt-1.5 space-y-1">
-        {handoffRisks.map((risk, idx) => (
-          <li
-            key={idx}
-            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-          >
-            <span aria-hidden="true" className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70" />
-            <span>{risk}</span>
           </li>
         ))}
       </ul>
@@ -1366,188 +1156,217 @@ export function ContextPanel({
   )
 
   /**
-   * Narrative reorder (right-column polish). The panel now reads top-down as a
-   * single story: Who is writing → What is happening → Smart Action → More
-   * context → Ask Fanny. We only REGROUP + reorder the existing section atoms
-   * (no data/contract changes); each atom keeps its own data gating so empty
-   * cards still never render.
-   *
-   * - Smart Action and Ask Fanny are NOT given an extra group heading: their
-   *   cards already carry self-titles ("Smart Action" / "Ask Fanny"), so a
-   *   duplicate label would be noise.
-   * - "More context" is gated on having at least one child (risks / facts /
-   *   decisions / workflow / conversation-context) so we never render a lonely
-   *   heading. Ask Fanny still sits right after it, easy to reach.
+   * Client context — the complete reference card, intentionally LAST in the reading order
+   * (the panel solves the message objective first; full context is secondary). Collapsible,
+   * default-collapsed. Holds: linked client / project / company / email / phone, category,
+   * message type, channel, language, the editable conversation summary, facts / decisions,
+   * and the open-work counters. Reuses `contextDetailsOpen` (resets implicitly per render
+   * cycle of a new conversation, same as before).
    */
-  const narrativeHeadingClass =
-    "px-0.5 pt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--inbox-intelligence-text-secondary)]/75"
-  const hasMoreContextConversation =
-    handoffRisks.length > 0 ||
-    handoffFacts.length > 0 ||
-    handoffDecisions.length > 0 ||
-    showWorkflow
-  const hasMoreContextMessage =
-    handoffRisks.length > 0 ||
-    Boolean(summary) ||
-    handoffFacts.length > 0 ||
-    handoffDecisions.length > 0 ||
-    Boolean(handoffHeadline)
+  const hasClientContext = Boolean(
+    selected.cliente
+    || selected.proyecto
+    || contactCompany
+    || contactEmail
+    || contactPhone
+    || triageIntent
+    || triageCategory
+    || summary
+    || handoffHeadline
+    || handoffFacts.length > 0
+    || handoffDecisions.length > 0
+    || triageHasCounters,
+  )
+  const clientContextSection = hasClientContext ? (
+    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
+      <button
+        type="button"
+        onClick={() => setContextDetailsOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        aria-expanded={contextDetailsOpen}
+        aria-controls="context-panel-client-context"
+      >
+        <span className="flex items-center gap-1.5">
+          <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Client context
+          </span>
+        </span>
+        {contextDetailsOpen ? (
+          <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
+        )}
+      </button>
+      {contextDetailsOpen ? (
+        <div
+          id="context-panel-client-context"
+          className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
+        >
+          {(selected.cliente || selected.proyecto || contactCompany || contactEmail || contactPhone) ? (
+            <div className="space-y-2">
+              {selected.cliente && (
+                <div className="flex items-center gap-2 text-xs">
+                  <User className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+                  <a href={`/clientes/${selected.cliente.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                    {selected.cliente.nombre}
+                  </a>
+                </div>
+              )}
+              {selected.proyecto && (
+                <div className="flex items-center gap-2 text-xs">
+                  <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
+                  <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+                    {selected.proyecto.nombre}
+                  </a>
+                  {selected.proyecto.estado && (
+                    <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+                      {selected.proyecto.estado}
+                    </span>
+                  )}
+                </div>
+              )}
+              {contactCompany && (
+                <div className="flex items-center gap-2 text-xs">
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                  <span className="truncate text-[var(--inbox-intelligence-text)]">{contactCompany}</span>
+                </div>
+              )}
+              {contactEmail && (
+                <div className="flex items-center gap-2 text-xs">
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                  <span className="truncate text-[var(--inbox-intelligence-text)]">{contactEmail}</span>
+                </div>
+              )}
+              {contactPhone && (
+                <div className="flex items-center gap-2 text-xs">
+                  <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-intelligence-text-secondary)]" />
+                  <span className="text-[var(--inbox-intelligence-text)]">{contactPhone}</span>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
+            {triageIntent ? (
+              <TriageRow label="Message type">
+                <span
+                  className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
+                  title={triageIntent}
+                >
+                  {triageIntent}
+                </span>
+              </TriageRow>
+            ) : null}
+            {triageCategory ? (
+              <TriageRow label="Category">
+                <span
+                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-[var(--inbox-accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)]"
+                  title={triageCategory}
+                >
+                  <span className="truncate">{triageCategory}</span>
+                </span>
+              </TriageRow>
+            ) : null}
+            {triagePriorityIsExplicit ? (
+              <TriageRow label="Priority">
+                <span
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
+                  aria-label={`Priority ${triagePriority.label}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "inline-block h-2 w-2 shrink-0 rounded-full",
+                      triagePriority.barClass,
+                    )}
+                  />
+                  <span>{triagePriority.label}</span>
+                </span>
+              </TriageRow>
+            ) : null}
+            <TriageRow label="Channel">
+              <span className="text-[12px] text-[var(--inbox-intelligence-text)]">
+                {channelLabel(selected.channel)}
+              </span>
+            </TriageRow>
+            {selected.detectedLanguage ? (
+              <TriageRow label="Language">
+                <span className="text-[12px] uppercase text-[var(--inbox-intelligence-text)]">
+                  {selected.detectedLanguage}
+                </span>
+              </TriageRow>
+            ) : null}
+          </div>
+
+          {(summary || handoffHeadline) ? (
+            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+              {summaryBlock}
+            </div>
+          ) : null}
+          {factsAndDecisionsBlock ? (
+            <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
+              {factsAndDecisionsBlock}
+            </div>
+          ) : null}
+
+          {triageHasCounters ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
+              {triageDraftsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
+                />
+              ) : null}
+              {triageActionsOpen > 0 ? (
+                <CounterPill
+                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
+                />
+              ) : null}
+              {triageRisksOpen > 0 ? (
+                <CounterPill
+                  label={`${triageRisksOpen} ${triageRisksOpen === 1 ? "risk" : "risks"}`}
+                  tone="warning"
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  ) : null
 
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
         ── Section ordering ──
-        Two distinct top-down sequences depending on mode. Each "atom" above is gated on its
-        own data, so empty cards never render — that's how we honor the spec rule "If no AI
-        data exists: show clean empty states, do NOT fabricate content".
-
-        Message mode  → message insight first, conversation context as a collapsible at the end.
-        Conversation  → summary + facts/decisions up front, no message-specific cards.
+        One top-down sequence for both modes, built around resolving the message:
+          1. Sender / identity            (who is this)
+          2. What they need               (the message objective)
+          3. Keep in mind                 (care / tone / priority, human language)
+          4. Fanny recommends             (the advised next step)
+          5. Pending decisions + Actions  (visible work cards — the interaction core)
+          6. Ask Fanny                    (close to the actions, per product spec)
+          7. Prepare for this             (prep notes from pending items)
+          8. Client context               (complete reference, secondary)
+          9. Workflow                     (assignment, when applicable)
+        Each atom keeps its own data gating, so empty cards never render and we
+        never fabricate content.
 
         Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
-        receives `selectedMessageInfo: null` and the message-mode branch falls back to the
-        conversation branch automatically. No extra logic needed here.
+        receives `selectedMessageInfo: null` and message-specific affordances fall back to
+        conversation-level data automatically. No extra logic needed here.
       */}
       {headerSection}
-
-      {isMessageMode ? (
-        <>
-          {/* 1. Who is writing — stable sender/contact identity. */}
-          <div className="space-y-2">
-            <p className={narrativeHeadingClass}>Who is writing</p>
-            {contactSection}
-          </div>
-
-          {/*
-            2. What is happening — dynamic conversation state: triage overview
-            (intent / category / priority), what the selected message means,
-            mood / urgency / lead signals, and what's still needed to move
-            forward. Mood lives HERE (current state), not under the sender.
-          */}
-          <div className="space-y-2">
-            <p className={narrativeHeadingClass}>What is happening</p>
-            {triageSummarySection}
-            {whatThisMeansSection}
-            {signalsSection}
-            {stillNeededSection}
-          </div>
-
-          {/*
-            3. Smart Action — Fanny's main recommended next step (self-titled
-            card, so no extra group heading). Pending decisions + suggested
-            shortcuts follow as secondary execution affordances.
-          */}
-          <div className="space-y-2">
-            {nextMoveSection}
-            {pendingDecisionsSection}
-            {smartActionsSection}
-          </div>
-
-          {/*
-            4. More context — risks to watch + the collapsible Conversation
-            context (summary + facts + decisions of the whole thread). Gated
-            so the heading never renders alone.
-          */}
-          {hasMoreContextMessage ? (
-            <div className="space-y-2">
-              <p className={narrativeHeadingClass}>More context</p>
-              {watchOutSection}
-              {(summary || handoffFacts.length > 0 || handoffDecisions.length > 0 || handoffHeadline) ? (
-                <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)]">
-                  <button
-                    type="button"
-                    onClick={() => setContextDetailsOpen((v) => !v)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left"
-                    aria-expanded={contextDetailsOpen}
-                    aria-controls="context-panel-conversation-context"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <BookOpen className="h-3 w-3 text-[var(--inbox-intelligence-text-secondary)]" aria-hidden="true" />
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-                        Conversation context
-                      </span>
-                    </span>
-                    {contextDetailsOpen ? (
-                      <ChevronUp className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-[var(--inbox-intelligence-text-secondary)]" />
-                    )}
-                  </button>
-                  {contextDetailsOpen ? (
-                    <div
-                      id="context-panel-conversation-context"
-                      className="space-y-3 border-t border-[var(--inbox-intelligence-border)] px-4 py-3"
-                    >
-                      {summaryBlock}
-                      {factsAndDecisionsBlock ? (
-                        <div className="border-t border-[var(--inbox-intelligence-border)] pt-3">
-                          {factsAndDecisionsBlock}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </section>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* 5. Ask Fanny — free-form Q&A, self-titled, always last. */}
-          {askFannySection}
-        </>
-      ) : (
-        <>
-          {/* 1. Who is writing — stable sender/contact identity. */}
-          <div className="space-y-2">
-            <p className={narrativeHeadingClass}>Who is writing</p>
-            {contactSection}
-          </div>
-
-          {/*
-            2. What is happening — dynamic conversation state: triage overview,
-            thread summary, mood / urgency / lead signals, and what's still
-            needed. Mood lives HERE (current state), not under the sender.
-          */}
-          <div className="space-y-2">
-            <p className={narrativeHeadingClass}>What is happening</p>
-            {triageSummarySection}
-            <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-              {summaryBlock}
-            </section>
-            {signalsSection}
-            {stillNeededSection}
-          </div>
-
-          {/*
-            3. Smart Action — Fanny's main recommended next step (self-titled
-            card). Pending decisions + suggested shortcuts follow as secondary.
-          */}
-          <div className="space-y-2">
-            {nextMoveSection}
-            {pendingDecisionsSection}
-            {smartActionsSection}
-          </div>
-
-          {/*
-            4. More context — risks to watch, facts / decisions, and workflow
-            (assign). Gated so the heading never renders alone.
-          */}
-          {hasMoreContextConversation ? (
-            <div className="space-y-2">
-              <p className={narrativeHeadingClass}>More context</p>
-              {watchOutSection}
-              {factsAndDecisionsBlock ? (
-                <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-                  {factsAndDecisionsBlock}
-                </section>
-              ) : null}
-              {workflowSection}
-            </div>
-          ) : null}
-
-          {/* 5. Ask Fanny — free-form Q&A, self-titled, always last. */}
-          {askFannySection}
-        </>
-      )}
+      {contactSection}
+      {messageNeedSection}
+      {careSection}
+      {recommendsSection}
+      {pendingDecisionsSection}
+      {actionsSection}
+      {askFannySection}
+      {prepareSection}
+      {clientContextSection}
+      {workflowSection}
 
       {/*
         Phase 2 calendar preview/confirm dialog — pre-fills fields from the structured
@@ -1606,23 +1425,167 @@ function directionChipLabel(info: SelectedMessageInfo): string {
   return dir ? dir.charAt(0).toUpperCase() + dir.slice(1) : "Message"
 }
 
-function ActionButton({ label, icon: Icon, onClick }: { label: string; icon: React.ElementType; onClick?: () => void }) {
+/**
+ * Visible work card (Today-style) used by the Actions section. One card = one piece of real
+ * work the operator can do now: a title in business language, an optional one-line
+ * description, and a single always-visible CTA. No dropdowns, no hidden rows.
+ */
+function WorkActionCard({
+  title,
+  description,
+  ctaLabel,
+  onAction,
+  pending = false,
+  badge = null,
+  icon: Icon,
+}: {
+  title: string
+  description?: string | null
+  ctaLabel: string
+  onAction?: () => void
+  pending?: boolean
+  badge?: string | null
+  icon?: React.ElementType
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-intelligence-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors",
-        onClick
-          ? "text-[var(--inbox-intelligence-text)] hover:bg-white/8 hover:text-[var(--inbox-accent)]"
-          : "text-[var(--inbox-intelligence-text-secondary)]/50 cursor-default",
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </button>
+    <div className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-3">
+      <div className="flex items-start gap-2.5">
+        {Icon ? (
+          <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]">
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-xs font-semibold text-[var(--inbox-intelligence-text)]">{title}</p>
+            {badge ? (
+              <span
+                className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
+                title="This action is anchored to the selected message"
+              >
+                {badge}
+              </span>
+            ) : null}
+          </div>
+          {description ? (
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
+              {description}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-2.5 flex justify-end">
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={!onAction || pending}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors",
+            onAction && !pending
+              ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent)]/22"
+              : "border-[var(--inbox-intelligence-border)] bg-black/25 text-[var(--inbox-intelligence-text-secondary)] opacity-70",
+          )}
+        >
+          {pending ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : null}
+          {ctaLabel}
+        </button>
+      </div>
+    </div>
   )
+}
+
+/**
+ * Business label for the primary CTA of a suggested / approved ConversationAction. Replaces
+ * the old technical "Run" / "Execute" copy. For `approved` actions the approval already
+ * happened (e.g. a prior execute failed), so "Continue" tells the operator we're finishing
+ * the same piece of work rather than starting a new one.
+ */
+function getBusinessActionLabel(action: ActionItem): string {
+  if (action.status === "approved") return "Continue"
+  switch (action.type) {
+    case "create_client":
+      return "Add new client"
+    case "create_project":
+      return "Create project"
+    case "create_task":
+      return "Create task"
+    case "schedule_followup":
+      return "Create follow-up"
+    case "assign_operator":
+      return "Assign owner"
+    case "generate_proposal":
+      return "Prepare proposal"
+    case "create_event":
+      return "Add to calendar"
+    default:
+      return actionTypeLabel(action.type)
+  }
+}
+
+/**
+ * One-line human description of what the action will actually do. Prefers the AI-provided
+ * `data.description` when present; otherwise falls back to a generic per-type sentence that
+ * only describes behaviour the backend really implements (no overpromising).
+ */
+function getActionDescription(action: ActionItem): string | null {
+  const desc = action.data?.description
+  if (typeof desc === "string" && desc.trim()) return desc.trim()
+  switch (action.type) {
+    case "create_client":
+      return "Save this contact as a client in your workspace."
+    case "create_project":
+      return "Start a project linked to this conversation."
+    case "create_task":
+      return "Add this as a task so it shows up in your work."
+    case "schedule_followup":
+      return "Set a follow-up so this doesn't slip."
+    case "assign_operator":
+      return "Hand this conversation to a teammate."
+    case "generate_proposal":
+      return "Prepare a proposal based on this conversation."
+    case "create_event":
+      return "Add the detected meeting to your calendar."
+    default:
+      return null
+  }
+}
+
+/**
+ * "What they need" text — what the sender is asking for in this specific message. Priority:
+ * the message-scoped short intent (message mode) → AI headline → message snippet →
+ * conversation summary. Returns null when no real signal exists so the UI can render an
+ * honest empty state instead of fabricated content.
+ */
+function getMessageNeedText(
+  selected: ContextPanelProps["selected"],
+  selectedMessageInfo: SelectedMessageInfo | null,
+): string | null {
+  if (selectedMessageInfo?.shortIntent?.trim()) return selectedMessageInfo.shortIntent.trim()
+  const headline = selected.handoff?.headline
+  if (typeof headline === "string" && headline.trim()) return headline.trim()
+  if (selectedMessageInfo?.snippet?.trim()) return selectedMessageInfo.snippet.trim()
+  const summary =
+    selected.handoff?.summary || selected.classification?.summary || selected.summary
+  if (typeof summary === "string" && summary.trim()) return summary.trim()
+  return null
+}
+
+/** Fanny's recommended next step, from the handoff first and the classifier as fallback. */
+function getRecommendationText(selected: ContextPanelProps["selected"]): string | null {
+  return (
+    selected.handoff?.nextRecommendedAction ||
+    getStringValue(selected.classification?.nextBestAction, ["description", "label", "title", "action"]) ||
+    null
+  )
+}
+
+/**
+ * Relationship label for the sender chip. A linked `cliente` record is the strongest signal
+ * ("Client"); otherwise we fall back to the contact's own type (Lead / Supplier / ...).
+ */
+function getRelationshipLabel(selected: ContextPanelProps["selected"]): string {
+  if (selected.cliente) return "Client"
+  return formatContactType(selected.contact?.tipo || "contact")
 }
 
 function formatContactType(tipo: string) {
@@ -1745,21 +1708,6 @@ function readConfidencePct(metadata: Record<string, unknown> | null | undefined)
   if (raw <= 1 && raw >= 0) return Math.round(raw * 100)
   if (raw > 1 && raw <= 100) return Math.round(raw)
   return null
-}
-
-function mapSentimentToMood(sentiment?: string | null) {
-  switch (sentiment?.toLowerCase()) {
-    case "positive":
-    case "positivo":
-      return { label: "Positive", percent: 85, barClass: "bg-emerald-500" }
-    case "negative":
-    case "negativo":
-      return { label: "Negative", percent: 30, barClass: "bg-rose-500" }
-    case "neutral":
-      return { label: "Neutral", percent: 55, barClass: "bg-sky-400" }
-    default:
-      return { label: "Unknown", percent: 50, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
-  }
 }
 
 function mapUrgency(urgency?: string | null) {
