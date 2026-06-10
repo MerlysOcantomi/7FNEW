@@ -295,8 +295,13 @@ const DESKTOP_INBOX_GRID =
 const INBOX_GRID_ROWS_CLASS = "xl:grid xl:grid-rows-[minmax(0,1fr)]"
 /** list | message | context — used by Reading and Triage-with-message-open. */
 const INBOX_GRID_COLS_3 = "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(300px,360px)]"
-/** list | context — Triage with the real message hidden. */
-const INBOX_GRID_COLS_TRIAGE_CLOSED = "xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]"
+/**
+ * list | context — Triage (Brief) with the real message hidden. Brief is the AI-first view,
+ * so the conversation radar and the Fanny panel get EQUAL visual weight: a true 50/50 split.
+ * Both tracks are `minmax(0,1fr)` so each cell can shrink below its content width and the
+ * inner `min-w-0` + truncate/scroll chains keep long rows from forcing horizontal overflow.
+ */
+const INBOX_GRID_COLS_TRIAGE_CLOSED = "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
 /** message | context — Focus drops the list and keeps Fanny/context beside the message. */
 const INBOX_GRID_COLS_FOCUS = "xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]"
 
@@ -3837,7 +3842,7 @@ function InboxPageContent() {
             </div>
           </div>
 
-          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-intelligence-background)] shadow-[var(--app-shadow-subtle)] xl:flex xl:flex-col xl:h-full xl:min-h-0">
             {/*
              * Brief (triage) actions. Brief is strictly [list | Fanny/context] with no
              * message-open substate. When a conversation is selected we offer two clear ways
