@@ -454,6 +454,9 @@ export function ContextPanel({
     && !isStatusLabelText(handoffHeadline)
       ? handoffHeadline
       : ""
+  /** Message type row hides when the classifier intent just restates the Request text. */
+  const messageTypeForDetails =
+    triageIntent && !similarText(triageIntent, messageNeedText) ? triageIntent : null
 
   /**
    * Editable conversation summary — lives ONLY inside the expanded contact card details and
@@ -619,11 +622,18 @@ export function ContextPanel({
           {selected.proyecto && (
             <div className="flex items-center gap-2 text-xs">
               <FolderKanban className="h-3.5 w-3.5 shrink-0 text-[var(--inbox-accent)]" />
-              <a href={`/proyectos/${selected.proyecto.id}`} className="font-medium text-[var(--inbox-accent)] hover:underline">
+              {/* Single truncated line, always: some projects carry a whole AI summary as
+                  their `nombre`, and rendering it in full duplicated the Summary paragraph
+                  right above it. The full name stays available via the title tooltip. */}
+              <a
+                href={`/proyectos/${selected.proyecto.id}`}
+                className="min-w-0 flex-1 truncate font-medium text-[var(--inbox-accent)] hover:underline"
+                title={selected.proyecto.nombre}
+              >
                 {selected.proyecto.nombre}
               </a>
               {selected.proyecto.estado && (
-                <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
+                <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] text-[var(--inbox-intelligence-text-secondary)]">
                   {selected.proyecto.estado}
                 </span>
               )}
@@ -642,15 +652,15 @@ export function ContextPanel({
             </div>
           )}
 
-          {(triageIntent || triagePriorityIsExplicit || opportunityLabel || selected.detectedLanguage) ? (
+          {(messageTypeForDetails || triagePriorityIsExplicit || opportunityLabel || selected.detectedLanguage) ? (
             <div className="space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
-              {triageIntent ? (
+              {messageTypeForDetails ? (
                 <TriageRow label="Message type">
                   <span
                     className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
-                    title={triageIntent}
+                    title={messageTypeForDetails}
                   >
-                    {triageIntent}
+                    {messageTypeForDetails}
                   </span>
                 </TriageRow>
               ) : null}
