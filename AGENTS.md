@@ -1,5 +1,24 @@
 # 7F — Agent guidance
 
+## Ways of working (read first)
+
+The permanent operating contract for building 7F — workflow, product principles,
+canonical architecture decisions, product surface map, no-fake-product rule,
+language rule, and the scalability/market lens for every decision:
+
+**→ [docs/ways-of-working.md](docs/ways-of-working.md)**
+
+Summary:
+
+- **Audit → propose → (approval) → minimal change → checks → commit → push →
+  summary → next smart move.** Small, single-objective PRs only.
+- **Do not duplicate surfaces** (Home, Inbox, Inbox Briefing, Today, Calendar,
+  Dashboard, Work Queue); each answers one clear question.
+- **Canonical:** multi-tenant `workspaceId`; `WorkspaceTask` for confirmed/proposed
+  work; `InboxTodo` legacy; `Conversation.intent` ≠ `Conversation.category`; Fanny
+  in Inbox; Forte as future vertical orchestrator; verticals from clean core + config.
+- **No fake product;** speak Spanish, write the repo in English.
+
 ## App shell (authenticated workspace)
 
 All work on layout, scroll, or viewport behavior for **authenticated** routes must follow the **App Shell Contract**:
