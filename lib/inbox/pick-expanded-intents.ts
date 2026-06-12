@@ -1,7 +1,17 @@
 import { filterConsecutiveDuplicateIntents } from "@/lib/inbox/filter-consecutive-intent-duplicates"
 
-/** Max intents shown in the expanded inbox row (Phase 4). */
-export const MAX_EXPANDED_INTENTS = 3
+/**
+ * Max recent inbound requests kept for the expanded inbox row.
+ *
+ * This caps the recent-progression window picked from the thread. The collapsed
+ * row already shows the most recent one (the "current request"), and the
+ * expanded panel renders the rest as "Earlier requests", so this value is
+ * effectively "current + up to (MAX - 1) earlier requests". Raised from 3 to 11
+ * (≈10 earlier) now that earlier requests list directly without a "view more"
+ * toggle — there is vertical room for the full recent history. The source API
+ * (`listMessageShortIntents`) returns every message, so this is the only cap.
+ */
+export const MAX_EXPANDED_INTENTS = 11
 
 /**
  * Normalización solo para comparar igualdad trivial (sin NLP).

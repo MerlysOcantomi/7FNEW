@@ -207,7 +207,8 @@ export function ConversationListItem({
           onClick={onClick}
           aria-pressed={selected}
           className={cn(
-            "min-w-0 flex-1 rounded-md px-1 py-0 text-left transition-colors",
+            "min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors",
+            "hover:bg-[var(--inbox-list-selected-bg)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--inbox-list-background)]",
           )}
         >
