@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -26,7 +26,7 @@ interface ConversationListItemProps {
    * interface so the page→list plumbing and types stay intact for a follow-up PR that
    * relocates them into the right panel; they are deliberately NOT rendered in the row.
    */
-  /** Short AI signal (thread intent → summary fallback). Rendered as one muted line. */
+  /** Short AI request summary (thread intent → summary fallback). Rendered as one muted block of up to 3 lines. */
   intentSummary?: string | null
   sectorLabel?: string | null
   timeLabel: string
@@ -103,22 +103,11 @@ export function ConversationListItem({
   messageCount,
 }: ConversationListItemProps) {
   const itemRef = useRef<HTMLDivElement | null>(null)
-  /**
-   * Local toggle for the "View N more intents" link inside the expanded panel. Kept as
-   * component-local state (not lifted) because it's a purely presentational, per-row affordance
-   * with no impact on selection, URL params, or fetching. Reset implicitly when the row collapses
-   * via the useEffect below.
-   */
-  const [showOlderIntents, setShowOlderIntents] = useState(false)
 
   useEffect(() => {
     if (!selected) return
     itemRef.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
-
-  useEffect(() => {
-    if (!expanded) setShowOlderIntents(false)
-  }, [expanded])
 
   /** `undefined` = aún no cargado; `[]` = cargado sin intents activos (todo done/trash/etc.). */
   const intentPanelVisible =
@@ -257,16 +246,18 @@ export function ConversationListItem({
             </div>
 
             {/*
-             * Row 2 — the radar signal line. A SHORT AI intent/summary (muted, single line)
-             * plus AT MOST ONE critical signal (high/critical urgency). No status, lead,
-             * category, Smart Action or pending-decision chips here — those live in the
-             * right context panel. The whole line is omitted when there is nothing to show.
+             * Row 2 — the radar signal line. The short AI request summary (muted, up to
+             * 3 lines — the narrow Reading-mode column needs vertical room to stay
+             * readable instead of an aggressive one-line ellipsis) plus AT MOST ONE
+             * critical signal (high/critical urgency). No status, lead, category,
+             * Smart Action or pending-decision chips here — those live in the right
+             * context panel. The whole line is omitted when there is nothing to show.
              */}
             {intentSummary || isHighUrgency ? (
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 {intentSummary ? (
                   <p
-                    className="min-w-0 flex-1 truncate text-[12px] leading-snug text-[var(--inbox-list-text-secondary)]"
+                    className="min-w-0 flex-1 line-clamp-3 text-[12px] leading-snug text-[var(--inbox-list-text-secondary)]"
                     title={intentSummary}
                   >
                     {intentSummary}
@@ -293,15 +284,18 @@ export function ConversationListItem({
           {intentsLoading ? (
             <div className="flex items-center gap-2 py-0.5 text-[var(--inbox-list-text-secondary)]">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
-              <span className="text-[11px]">Loading intents…</span>
+              <span className="text-[11px]">Loading requests…</span>
             </div>
           ) : latestActiveIntent ? (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {/*
-                Headline: the single most recent active intent. Rendered prominently so the
-                operator gets a one-glance answer to "what does this thread need next?" without
-                scanning a list. Click → seleccionar el Message correspondiente.
+                Headline: the most recent active request. Rendered prominently so the
+                operator gets a one-glance answer to "what does this thread need next?".
+                Click → select the corresponding Message in the center column.
               */}
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-list-text-secondary)]">
+                Request
+              </p>
               <button
                 type="button"
                 onClick={(e) => {
@@ -309,7 +303,7 @@ export function ConversationListItem({
                   onIntentSelect?.(latestActiveIntent.messageId)
                 }}
                 title={latestActiveIntent.text}
-                aria-label={`Open latest active intent: ${latestActiveIntent.text}`}
+                aria-label={`Open message: ${latestActiveIntent.text}`}
                 className={cn(
                   "block w-full border-l-2 border-[var(--inbox-list-selected)] pl-2 text-left text-[12px] leading-snug text-[var(--inbox-list-text)] [overflow-wrap:anywhere]",
                   "rounded-r-md transition-colors hover:bg-[var(--inbox-list-selected-bg)]",
@@ -319,55 +313,45 @@ export function ConversationListItem({
                 {latestActiveIntent.text}
               </button>
 
+              {/*
+                Earlier requests render directly as a clean list (most recent first).
+                The old second-level "View more" toggle was removed: hiding work behind
+                a tiny control read as technical and cost an extra click. Each row keeps
+                the same message-level navigation as the headline.
+              */}
               {olderIntents.length > 0 ? (
                 <>
-                  <button
-                    type="button"
-                    aria-expanded={showOlderIntents}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setShowOlderIntents((prev) => !prev)
-                    }}
-                    className={cn(
-                      "ml-2 inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10.5px] font-medium text-[var(--inbox-list-text-secondary)] transition-colors",
-                      "hover:text-[var(--inbox-list-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
-                    )}
-                  >
-                    {showOlderIntents
-                      ? "Hide older intents"
-                      : `View ${olderIntents.length} more ${olderIntents.length === 1 ? "intent" : "intents"}`}
-                  </button>
-
-                  {showOlderIntents ? (
-                    <ul className="space-y-1 pt-0.5" role="list">
-                      {[...olderIntents].reverse().map((intent, idx) => (
-                        <li key={`${intent.messageId}-${idx}`}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onIntentSelect?.(intent.messageId)
-                            }}
-                            title={intent.text}
-                            aria-label={`Open message: ${intent.text}`}
-                            className={cn(
-                              "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
-                              "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
-                            )}
-                          >
-                            {intent.text}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  <p className="pt-1 text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-list-text-secondary)]">
+                    Earlier requests
+                  </p>
+                  <ul className="space-y-1" role="list">
+                    {[...olderIntents].reverse().map((intent, idx) => (
+                      <li key={`${intent.messageId}-${idx}`}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onIntentSelect?.(intent.messageId)
+                          }}
+                          title={intent.text}
+                          aria-label={`Open message: ${intent.text}`}
+                          className={cn(
+                            "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
+                            "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                          )}
+                        >
+                          {intent.text}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               ) : null}
             </div>
           ) : (
             <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
-              No pending intents.
+              Nothing waiting in this thread.
             </p>
           )}
         </div>
