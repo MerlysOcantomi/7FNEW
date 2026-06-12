@@ -63,6 +63,7 @@ import {
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
+import { currentRequestFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import {
   createTodoOnServer,
   detectInternalNoteTodo,
@@ -1825,14 +1826,22 @@ function InboxPageContent() {
         const subject = conversation.subject?.trim() || null
 
         /**
-         * Radar line text for the left list row (PR: slim left column). We surface a SHORT
-         * AI signal — the thread `intent` (operator-facing "what does this need") with a
-         * fallback to `summary` — so the collapsed row answers "who + what" at a glance.
+         * Radar line text for the left list row. The collapsed row must describe the
+         * CURRENT email, so we prefer the `shortIntent` of the most recent ACTIVE inbound
+         * message (already shipped in the list payload's last-5 `messages`) and keep its
+         * `messageId` so the row click can anchor the center column to that exact email.
+         * Thread-level `intent` / `summary` remain as fallback ONLY when no analyzed
+         * inbound message exists yet — in that case `currentMessageId` stays null and the
+         * row click selects the conversation without a message anchor (no fake navigation).
          * Deeper metadata (status/urgency/lead/category/Smart Action/pending decisions) is
-         * deliberately NOT passed to the radar row anymore; it lives in the right context
-         * panel + thread header. `null` keeps the row to just channel + sender + time.
+         * deliberately NOT passed to the radar row; it lives in the right context panel.
          */
-        const intentSummary = conversation.intent?.trim() || conversation.summary?.trim() || null
+        const currentRequest = currentRequestFromRecentMessages(conversation.messages)
+        const intentSummary =
+          currentRequest?.text
+          || conversation.intent?.trim()
+          || conversation.summary?.trim()
+          || null
 
         return {
           id: conversation.id,
@@ -1840,6 +1849,7 @@ function InboxPageContent() {
           title: primaryTitle,
           subject,
           intentSummary,
+          currentMessageId: currentRequest?.messageId ?? null,
           sectorLabel: conversation.classification?.sector?.trim() || null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -1865,6 +1875,7 @@ function InboxPageContent() {
           title: "Conversation",
           subject: null as string | null,
           intentSummary: null as string | null,
+          currentMessageId: null as string | null,
           sectorLabel: null as string | null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -2678,12 +2689,6 @@ function InboxPageContent() {
     })
   }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selected])
 
-  function handleSelectConversation(id: string) {
-    setSelectedId(id)
-    setMobileView("thread")
-    setPendingActionInput(null)
-  }
-
   /**
    * Load To-dos when the operator switches to the To-do view. We use `status=open,waiting` (the
    * MVP slice — neither `done` nor `dismissed` are surfaced) and bail early in non-todo mode to
@@ -2895,6 +2900,28 @@ function InboxPageContent() {
     [activeSelectedId, pathname, router, searchParams],
   )
 
+  /**
+   * Row click — selects the conversation and, when the row carries the id of the
+   * current request's email, anchors the center column to that message via the
+   * same `handleSelectIntent` wiring the expanded request list uses. This is what
+   * lets the operator come BACK to the current email after visiting an earlier
+   * request: re-clicking the row restores `selectedMessageId` to the current
+   * message instead of leaving it stuck on the earlier one. Without an anchor
+   * the behavior is exactly the pre-existing conversation-only selection.
+   * Declared after `handleSelectIntent` (its only reactive capture) on purpose.
+   */
+  const handleSelectConversation = useCallback(
+    (id: string, currentMessageId?: string | null) => {
+      setSelectedId(id)
+      setMobileView("thread")
+      setPendingActionInput(null)
+      if (currentMessageId) {
+        handleSelectIntent(id, currentMessageId)
+      }
+    },
+    [handleSelectIntent],
+  )
+
   /** Click directo en una burbuja del hilo central. */
   const handleSelectMessageInThread = useCallback((messageId: string) => {
     setSelectedMessageId((prev) => (prev === messageId ? prev : messageId))
@@ -3062,7 +3089,7 @@ function InboxPageContent() {
     } finally {
       setComposeSending(false)
     }
-  }, [composeTo, composeSubject, composeBody, refetch])
+  }, [composeTo, composeSubject, composeBody, refetch, handleSelectConversation])
 
   /**
    * Pulls the latest emails from the workspace's email connection and surfaces a diagnostic
@@ -3272,7 +3299,7 @@ function InboxPageContent() {
         handler: () => sendReplyRef.current(),
       },
     ],
-    [activeSelectedId, cannedOpen, contextSheetOpen, handleInboxEscape, navigateConversation, requestComposerFocus],
+    [activeSelectedId, cannedOpen, contextSheetOpen, handleInboxEscape, handleSelectConversation, navigateConversation, requestComposerFocus],
   )
 
   useKeyboardShortcuts(inboxShortcuts, { scope: "page" })

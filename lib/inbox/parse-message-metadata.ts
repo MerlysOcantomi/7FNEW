@@ -67,3 +67,63 @@ export function firstShortIntentFromRecentMessages(
   }
   return null
 }
+
+export interface CurrentRequestRef {
+  messageId: string
+  text: string
+}
+
+/**
+ * Resolves the "current request" for a conversation row: the most recent ACTIVE
+ * inbound message that already carries an AI `shortIntent`, together with its
+ * `messageId` so the collapsed row can anchor to the real email in the thread.
+ *
+ * Mirrors the activity filters used by the expanded request list in
+ * `app/inbox/page.tsx` (`parseResponse`): outbound replies, internal notes,
+ * system events, soft-trashed messages and intents marked done never represent
+ * the current request. Returns `null` when no qualifying message exists — the
+ * caller must then fall back to thread-level text and render no anchor (no
+ * fake navigation).
+ */
+export function currentRequestFromRecentMessages(
+  messages:
+    | Array<{
+        id?: string
+        direction?: string
+        role?: string
+        isInternal?: boolean
+        createdAt?: string
+        metadata?: string | Record<string, unknown> | null
+      }>
+    | undefined
+    | null,
+): CurrentRequestRef | null {
+  if (!messages?.length) return null
+  const sorted = [...messages].sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : NaN
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : NaN
+    const safeA = Number.isFinite(ta) ? ta : 0
+    const safeB = Number.isFinite(tb) ? tb : 0
+    return safeB - safeA
+  })
+  for (const m of sorted) {
+    if (!m.id) continue
+    if (m.direction !== "inbound") continue
+    if (m.isInternal === true) continue
+    if (m.role === "system") continue
+    const meta =
+      m.metadata == null
+        ? null
+        : typeof m.metadata === "string"
+          ? parseMessageMetadataRecord(m.metadata)
+          : typeof m.metadata === "object" && !Array.isArray(m.metadata)
+            ? (m.metadata as Record<string, unknown>)
+            : null
+    if (meta && typeof meta.trashedAt === "string" && meta.trashedAt.length > 0) continue
+    if (meta && meta.intentStatus === "done") continue
+    const text = getShortIntentFromMetadataRecord(meta)
+    if (!text) continue
+    return { messageId: m.id, text }
+  }
+  return null
+}

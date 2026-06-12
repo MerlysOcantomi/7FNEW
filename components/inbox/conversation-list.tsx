@@ -38,11 +38,20 @@ interface ConversationItem {
    */
   subject?: string | null
   /**
-   * Short AI signal for the radar row (thread `intent`, falling back to `summary`).
-   * Forwarded to `<ConversationListItem>` and rendered as a single muted line under
-   * the sender. `null` keeps the row to channel + sender + time only.
+   * Short AI request summary for the radar row — the CURRENT email's `shortIntent`
+   * when available, falling back to thread `intent` / `summary`. Forwarded to
+   * `<ConversationListItem>` and rendered under the sender (up to 3 lines).
+   * `null` keeps the row to channel + sender + time only.
    */
   intentSummary?: string | null
+  /**
+   * Id of the message behind `intentSummary` (the current request's email).
+   * Used for two things: the row click anchors the center column to this
+   * message, and the expanded panel excludes it so it lists ONLY earlier
+   * requests. `null` = no analyzed inbound message yet; the row click then
+   * selects the conversation without a message anchor.
+   */
+  currentMessageId?: string | null
   sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
@@ -97,7 +106,8 @@ interface ConversationListProps {
   /** Click en un intent expandido (panel de la izquierda) → seleccionar conversación + mensaje. */
   onIntentSelect?: (conversationId: string, messageId: string) => void
   assignmentFilter: AssignmentFilter
-  onSelect: (id: string) => void
+  /** Row click — second arg lets the parent anchor the current request's message. */
+  onSelect: (id: string, currentMessageId?: string | null) => void
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
@@ -176,11 +186,12 @@ export function ConversationList({
                   channel={item.channel}
                   title={item.title}
                   intentSummary={item.intentSummary}
+                  currentMessageId={item.currentMessageId}
                   sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}
                   isUnread={item.isUnread}
-                  onClick={() => onSelect(item.id)}
+                  onClick={() => onSelect(item.id, item.currentMessageId ?? null)}
                   expanded={expandedConversationId === item.id}
                   onToggleExpand={() => onToggleConversationExpand(item.id)}
                   intents={messageShortIntentsById[item.id]}

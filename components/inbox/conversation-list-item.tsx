@@ -26,8 +26,18 @@ interface ConversationListItemProps {
    * interface so the page→list plumbing and types stay intact for a follow-up PR that
    * relocates them into the right panel; they are deliberately NOT rendered in the row.
    */
-  /** Short AI request summary (thread intent → summary fallback). Rendered as one muted block of up to 3 lines. */
+  /**
+   * Short AI request summary for the CURRENT email (thread intent → summary
+   * fallback). Rendered as one muted block of up to 3 lines.
+   */
   intentSummary?: string | null
+  /**
+   * Id of the current request's email (the message behind `intentSummary`).
+   * The expanded panel filters it out so it lists ONLY earlier requests —
+   * the current one is already visible in the collapsed row. `null` = no
+   * anchor; the expanded panel then lists every active request.
+   */
+  currentMessageId?: string | null
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -86,6 +96,7 @@ interface ConversationListItemProps {
 export function ConversationListItem({
   title,
   intentSummary,
+  currentMessageId,
   timeLabel,
   selected,
   isUnread,
@@ -115,12 +126,16 @@ export function ConversationListItem({
 
   /**
    * `intents` ya viene filtrado y deduplicado por el parent (pickExpandedIntents + done/trash
-   * filters). Tomamos la última posición como "latest active intent" porque la lista respeta
-   * orden cronológico ascendente — la dedup del helper es last-wins, así que la entrada más
-   * reciente queda al final.
+   * filters), en orden cronológico ascendente. The CURRENT request already lives in the
+   * collapsed row (`intentSummary` + `currentMessageId`), so the expanded panel lists ONLY
+   * earlier requests: we drop the entry matching `currentMessageId`. When the row has no
+   * anchor (legacy/unanalyzed threads) we keep every entry rather than guessing.
    */
-  const latestActiveIntent = intents && intents.length > 0 ? intents[intents.length - 1] : null
-  const olderIntents = intents && intents.length > 1 ? intents.slice(0, -1) : []
+  const earlierIntents = intents
+    ? currentMessageId
+      ? intents.filter((intent) => intent.messageId !== currentMessageId)
+      : intents
+    : []
 
   /**
    * The single critical signal allowed on the radar row. We surface urgency ONLY when it
@@ -286,72 +301,43 @@ export function ConversationListItem({
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
               <span className="text-[11px]">Loading requests…</span>
             </div>
-          ) : latestActiveIntent ? (
+          ) : earlierIntents.length > 0 ? (
             <div className="space-y-1.5">
               {/*
-                Headline: the most recent active request. Rendered prominently so the
-                operator gets a one-glance answer to "what does this thread need next?".
-                Click → select the corresponding Message in the center column.
+                Earlier requests ONLY — the current request already lives in the collapsed
+                row, so the expanded panel never repeats it. Entries render directly as a
+                clean list (most recent first); the old "View more" toggle was removed.
+                Each row keeps message-level navigation to the center column.
               */}
               <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-list-text-secondary)]">
-                Request
+                Earlier requests
               </p>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onIntentSelect?.(latestActiveIntent.messageId)
-                }}
-                title={latestActiveIntent.text}
-                aria-label={`Open message: ${latestActiveIntent.text}`}
-                className={cn(
-                  "block w-full border-l-2 border-[var(--inbox-list-selected)] pl-2 text-left text-[12px] leading-snug text-[var(--inbox-list-text)] [overflow-wrap:anywhere]",
-                  "rounded-r-md transition-colors hover:bg-[var(--inbox-list-selected-bg)]",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
-                )}
-              >
-                {latestActiveIntent.text}
-              </button>
-
-              {/*
-                Earlier requests render directly as a clean list (most recent first).
-                The old second-level "View more" toggle was removed: hiding work behind
-                a tiny control read as technical and cost an extra click. Each row keeps
-                the same message-level navigation as the headline.
-              */}
-              {olderIntents.length > 0 ? (
-                <>
-                  <p className="pt-1 text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-list-text-secondary)]">
-                    Earlier requests
-                  </p>
-                  <ul className="space-y-1" role="list">
-                    {[...olderIntents].reverse().map((intent, idx) => (
-                      <li key={`${intent.messageId}-${idx}`}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onIntentSelect?.(intent.messageId)
-                          }}
-                          title={intent.text}
-                          aria-label={`Open message: ${intent.text}`}
-                          className={cn(
-                            "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
-                            "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
-                          )}
-                        >
-                          {intent.text}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
+              <ul className="space-y-1" role="list">
+                {[...earlierIntents].reverse().map((intent, idx) => (
+                  <li key={`${intent.messageId}-${idx}`}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onIntentSelect?.(intent.messageId)
+                      }}
+                      title={intent.text}
+                      aria-label={`Open message: ${intent.text}`}
+                      className={cn(
+                        "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
+                        "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-list-selected)]/30",
+                      )}
+                    >
+                      {intent.text}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : (
             <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
-              Nothing waiting in this thread.
+              No earlier requests in this thread.
             </p>
           )}
         </div>
