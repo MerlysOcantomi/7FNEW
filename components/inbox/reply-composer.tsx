@@ -5,8 +5,8 @@ import {
   Send, Loader2, Mic, MicOff, Paperclip, ChevronDown, ChevronUp,
   Mail, Languages, X, FileText, Forward, Reply, ReplyAll, StickyNote,
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
-  MapPin, Calendar, Link, User, Image, Globe, LayoutTemplate,
-  Receipt, CreditCard, RotateCcw, Keyboard, Wand2,
+  Link, Image,
+  RotateCcw, Keyboard, Wand2,
   Archive, ArchiveRestore, CheckCircle2, Trash2, MoreHorizontal,
   MailOpen, AlertCircle, Target, Layers, MailCheck, ListPlus,
   type LucideIcon,
@@ -351,18 +351,19 @@ export function ReplyComposer({
   const [templateQuery, setTemplateQuery] = useState("")
 
   /**
-   * Toolbox layout v2: en lugar de mostrar todas las categorías en columnas estrechas
-   * (que hacía wrap roto en "Scree/n", "Propo/sal", etc.), las categorías son tabs y
-   * solo se renderizan las acciones de la activa. Default: "attach".
+   * Toolbox categories. Only actions that are REAL today are surfaced — the
+   * composer must not look like a demo full of disabled "coming later" buttons.
+   * Removed stub categories: "From workspace" (client/project/billing insert),
+   * "Show" (screen/reference/landing) and "Generate" (proposal/quote). They will
+   * return one by one when each becomes a real, wired action. "Share" is shown
+   * only on the email channel because its single real action ("Confirm received")
+   * is email-only — on other channels the tab would be empty / fake.
    */
-  type ClipCategoryId = "attach" | "workspace" | "show" | "generate" | "share"
+  type ClipCategoryId = "attach" | "share"
   const [activeClipCategory, setActiveClipCategory] = useState<ClipCategoryId>("attach")
   const clipCategoryTabs: Array<{ id: ClipCategoryId; label: string }> = [
     { id: "attach", label: "Attach" },
-    { id: "workspace", label: "From workspace" },
-    { id: "show", label: "Show" },
-    { id: "generate", label: "Generate" },
-    { id: "share", label: "Share / Schedule" },
+    ...(channel === "email" ? [{ id: "share" as const, label: "Share" }] : []),
   ]
 
   function insertLinkAtCursor() {
@@ -1571,7 +1572,7 @@ export function ReplyComposer({
                         className="inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)] sm:flex-none"
                       >
                         <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        <span className="text-left">Link</span>
+                        <span className="text-left">Insert link</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -1642,110 +1643,26 @@ export function ReplyComposer({
                 </>
               )}
 
-              {activeClipCategory === "workspace" && (
-                <>
-                  <ClipAction
-                    label="Client"
-                    icon={User}
-                    title="Coming later: insert client info into reply"
-                  />
-                  <ClipAction
-                    label="Project"
-                    icon={Briefcase}
-                    title="Coming later: insert project info into reply"
-                  />
-                  <ClipAction
-                    label="Billing"
-                    icon={Receipt}
-                    title="Coming later: insert billing info into reply"
-                  />
-                </>
-              )}
-
-              {activeClipCategory === "show" && (
-                <>
-                  <ClipAction
-                    label="Screen"
-                    icon={Image}
-                    title="Coming later: attach or insert a screenshot"
-                  />
-                  <ClipAction
-                    label="Reference"
-                    icon={Link}
-                    title="Coming later: insert a saved reference"
-                  />
-                  <ClipAction
-                    label="Landing"
-                    icon={Globe}
-                    title="Coming later: share a landing page"
-                  />
-                </>
-              )}
-
-              {activeClipCategory === "generate" && (
-                <>
-                  <ClipAction
-                    label="Proposal"
-                    icon={Sparkles}
-                    title="Coming later: generate a proposal draft"
-                  />
-                  <ClipAction
-                    label="Quote"
-                    icon={Receipt}
-                    title="Coming later: generate a quote"
-                  />
-                  <ClipAction
-                    label="Template"
-                    icon={LayoutTemplate}
-                    title="Use canned responses from the template button above"
-                  />
-                </>
-              )}
-
               {activeClipCategory === "share" && (
-                <>
-                  {/* Phase 3: opt-in receipt confirmation. Email channel only — non-email
-                      channels are disabled with an explanatory tooltip. The active state
-                      reflects the parent flag so the pill in the header stays in sync. */}
-                  <ClipAction
-                    label={requestConfirmation ? "Confirmation requested" : "Confirm received"}
-                    icon={MailCheck}
-                    onClick={
-                      channel === "email" && onRequestConfirmationChange
-                        ? () => onRequestConfirmationChange(!requestConfirmation)
-                        : undefined
-                    }
-                    active={requestConfirmation}
-                    disabled={channel !== "email"}
-                    title={
-                      channel === "email"
-                        ? requestConfirmation
-                          ? "Customer will see a 'Confirm you received this' link. Click to disable."
-                          : "Add a 'Confirm you received this' link to this email."
-                        : "Email only. Other channels use native read receipts when available."
-                    }
-                  />
-                  <ClipAction
-                    label="Contact"
-                    icon={User}
-                    title="Coming later: share a contact card"
-                  />
-                  <ClipAction
-                    label="Location"
-                    icon={MapPin}
-                    title="Coming later: share a location"
-                  />
-                  <ClipAction
-                    label="Meeting"
-                    icon={Calendar}
-                    title="Coming later: schedule or share a meeting link"
-                  />
-                  <ClipAction
-                    label="Payment"
-                    icon={CreditCard}
-                    title="Coming later: share a payment link"
-                  />
-                </>
+                /* Opt-in read-receipt confirmation. Email channel only — this is the
+                   single real Share action today, and the whole tab is hidden on
+                   non-email channels (see `clipCategoryTabs`) so it never shows as a
+                   disabled/fake control. */
+                <ClipAction
+                  label={requestConfirmation ? "Confirmation requested" : "Confirm received"}
+                  icon={MailCheck}
+                  onClick={
+                    onRequestConfirmationChange
+                      ? () => onRequestConfirmationChange(!requestConfirmation)
+                      : undefined
+                  }
+                  active={requestConfirmation}
+                  title={
+                    requestConfirmation
+                      ? "Customer will see a 'Confirm you received this' link. Click to disable."
+                      : "Add a 'Confirm you received this' link to this email."
+                  }
+                />
               )}
             </div>
           </div>
