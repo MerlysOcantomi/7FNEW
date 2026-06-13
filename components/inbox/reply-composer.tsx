@@ -1722,12 +1722,10 @@ export function ReplyComposer({
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                {actingOnScope === "selected" ? "Selected message actions" : "Message actions"}
+                {actingOnScope === "selected" ? "This message" : "Latest message"}
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                {actingOnScope === "selected"
-                  ? "Affects the selected message."
-                  : "Affects the latest relevant message."}
+                Manual fallback — Fanny usually prepares this for you.
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
@@ -1766,35 +1764,18 @@ export function ReplyComposer({
               ) : null}
               {messageActions.onAddToTodo ? (
                 /**
-                 * Phase 3: capture the scoped message as an `InboxTodo`. The page derives the
-                 * title (preferring shortIntent), the description excerpt, and the priority
-                 * (escalated to `high`/`urgent` only when the conversation already carries
-                 * matching urgency). Clicking *does not* mark the message done — explicit
-                 * Done lives one button up so the operator decides when work is closed.
+                 * Manual fallback for task creation. AI-first model: Fanny detects work and
+                 * proposes a `WorkspaceTask` in the right panel ("Pending decisions"), so this
+                 * is NOT the primary way to create work — it's the override for when Fanny
+                 * didn't catch something. Same handler as before (the page still derives the
+                 * title from shortIntent and the priority from conversation urgency); only the
+                 * wording is reframed from the old "Add to To-do" to "Create follow-up".
                  */
                 <MoreMenuItem
                   icon={ListPlus}
-                  label={actingOnScope === "selected" ? "Add selected message to To-do" : "Add latest message to To-do"}
+                  label="Create follow-up"
                   onClick={messageActions.onAddToTodo}
                   onAfterClick={() => setMoreMenuOpen(false)}
-                />
-              ) : null}
-              {messageActions.onTrashMessage ? (
-                /**
-                 * Soft-trash for a single message. The "selected" / "latest" target the More
-                 * panel applies to is always a non-trashed message (the page derivations skip
-                 * trashed entries on purpose, so the operator never trashes a placeholder),
-                 * which means this entry is Trash-only — Restore lives inline on the bubble
-                 * itself via its dedicated Restore CTA. Distinct from the conversation-level
-                 * Move to Trash below: this only hides one bubble inside the thread; the
-                 * conversation stays visible in the inbox.
-                 */
-                <MoreMenuItem
-                  icon={Trash2}
-                  label={actingOnScope === "selected" ? "Trash selected message" : "Trash latest message"}
-                  onClick={messageActions.onTrashMessage}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                  tone="danger"
                 />
               ) : null}
             </div>
@@ -1873,24 +1854,7 @@ export function ReplyComposer({
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
               )}
-              {currentConversationStatus === "trashed" && restoreFromTrashHandler ? (
-                <MoreMenuItem
-                  icon={RotateCcw}
-                  label="Restore to Inbox"
-                  onClick={restoreFromTrashHandler}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                />
-              ) : (
-                <MoreMenuItem
-                  icon={Trash2}
-                  label="Move to Trash"
-                  activeLabel="In Trash"
-                  onClick={trashHandler}
-                  isCurrent={currentConversationStatus === "trashed"}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                  tone="danger"
-                />
-              )}
+              {/* Move to Trash relocated to the dedicated destructive section below. */}
             </div>
           </div>
         )}
@@ -1919,6 +1883,57 @@ export function ReplyComposer({
                 onClick={() => onActingOnScopeChange?.("all")}
                 onAfterClick={() => setMoreMenuOpen(false)}
               />
+            </div>
+          </div>
+        )}
+
+        {/*
+          Destructive actions — kept in their own clearly separated, danger-toned section at
+          the very bottom so they never sit next to benign actions and can't be hit by
+          accident. Holds the per-message trash and the conversation-level trash (with its
+          Restore reverse when already trashed). Same handlers as before; presentation only.
+        */}
+        {moreMenuOpen
+          && ((showMoreMessagePanel && messageActions && messageActions.onTrashMessage)
+            || trashHandler
+            || (currentConversationStatus === "trashed" && restoreFromTrashHandler)) && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-urgency-critical-bg)]/60 bg-[var(--inbox-urgency-critical-bg)]/20">
+            <div className="border-b border-[var(--inbox-urgency-critical-bg)]/50 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-urgency-critical-text)]">
+                Remove
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                Destructive — these can't be undone from here.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              {showMoreMessagePanel && messageActions && messageActions.onTrashMessage ? (
+                <MoreMenuItem
+                  icon={Trash2}
+                  label="Trash this message"
+                  onClick={messageActions.onTrashMessage}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                  tone="danger"
+                />
+              ) : null}
+              {currentConversationStatus === "trashed" && restoreFromTrashHandler ? (
+                <MoreMenuItem
+                  icon={RotateCcw}
+                  label="Restore to Inbox"
+                  onClick={restoreFromTrashHandler}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                />
+              ) : trashHandler ? (
+                <MoreMenuItem
+                  icon={Trash2}
+                  label="Move conversation to Trash"
+                  activeLabel="In Trash"
+                  onClick={trashHandler}
+                  isCurrent={currentConversationStatus === "trashed"}
+                  onAfterClick={() => setMoreMenuOpen(false)}
+                  tone="danger"
+                />
+              ) : null}
             </div>
           </div>
         )}
