@@ -160,6 +160,12 @@ interface ContextPanelProps {
   assignSaving: boolean
   onAssign: (value: string) => void
   /**
+   * Current operator's user id — used ONLY to label the read-only handling strip
+   * ("Assigned to me" vs a teammate name). Optional; when absent the strip falls back
+   * to the resolved member name or a generic "Assigned" label. No write behavior.
+   */
+  currentUserId?: string | null
+  /**
    * Phase 3: cuando llegan ambos, el panel pasa a "message mode": cambia el header,
    * muestra una tarjeta compacta del mensaje y prioriza/etiqueta las acciones cuyo
    * `sourceMessageId === selectedMessageId`.
@@ -243,6 +249,7 @@ export function ContextPanel({
   members,
   assignSaving,
   onAssign,
+  currentUserId = null,
   selectedMessageId = null,
   selectedMessageInfo = null,
   hasSuggestedDraft = false,
@@ -416,6 +423,69 @@ export function ContextPanel({
           {isMessageMode ? "Message insight" : "Conversation overview"}
         </p>
       </div>
+    </div>
+  )
+
+  /**
+   * Handling strip — a compact, READ-ONLY row of responsibility/status chips, derived only
+   * from real persisted data. It never writes and never invents states; in particular it
+   * NEVER shows "Handled by Fanny" at the conversation level because no such ownership
+   * exists in the data model (Conversation.assignedTo is a human userId).
+   *
+   * Sources (all already on `selected` / props):
+   *   - Assignment → `selected.assignedTo` + `currentUserId` + `members`.
+   *   - "Waiting on client" → `selected.status === "awaiting_response"`.
+   *   - "Done" → `selected.status ∈ {resolved, closed}`.
+   *   - "Needs review" → at least one proposed WorkspaceTask OR one suggested ConversationAction.
+   * It stays visually quieter than Pending decisions / Actions (small muted pills).
+   */
+  const assignedMember = selected.assignedTo
+    ? members.find((m) => m.userId === selected.assignedTo)
+    : null
+  const assignmentChip: { label: string; tone: "neutral" | "muted" } =
+    selected.assignedTo
+      ? currentUserId && selected.assignedTo === currentUserId
+        ? { label: "Assigned to me", tone: "neutral" }
+        : {
+            label: assignedMember
+              ? `Assigned to ${assignedMember.nombre?.trim() || assignedMember.email.trim()}`
+              : "Assigned",
+            tone: "neutral",
+          }
+      : { label: "Unassigned", tone: "muted" }
+  const isWaitingOnClient = selected.status === "awaiting_response"
+  const isDone = selected.status === "resolved" || selected.status === "closed"
+  const needsReview =
+    (selected.proposedTasks?.length ?? 0) > 0
+    || (selected.actions ?? []).some((a) => a.status === "suggested")
+
+  const handlingSection = (
+    <div className="flex flex-wrap items-center gap-1.5" aria-label="Handling">
+      <span
+        className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap",
+          assignmentChip.tone === "neutral"
+            ? "border-[var(--inbox-intelligence-border)] bg-white/[0.06] text-[var(--inbox-intelligence-text)]"
+            : "border-[var(--inbox-intelligence-border)] bg-transparent text-[var(--inbox-intelligence-text-secondary)]",
+        )}
+        title={assignmentChip.label}
+      >
+        {assignmentChip.label}
+      </span>
+      {isWaitingOnClient ? (
+        <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400/90 whitespace-nowrap">
+          Waiting on client
+        </span>
+      ) : isDone ? (
+        <span className="inline-flex items-center rounded-md border border-[rgba(143,198,162,0.28)] bg-[rgba(143,198,162,0.14)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-success)] whitespace-nowrap">
+          Done
+        </span>
+      ) : null}
+      {needsReview ? (
+        <span className="inline-flex items-center rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] whitespace-nowrap">
+          Needs review
+        </span>
+      ) : null}
     </div>
   )
 
@@ -1306,6 +1376,7 @@ export function ContextPanel({
         conversation-level data automatically. No extra logic needed here.
       */}
       {headerSection}
+      {handlingSection}
       {pendingDecisionsSection}
       {actionsSection}
       {messageNeedSection}

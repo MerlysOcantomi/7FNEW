@@ -3402,6 +3402,7 @@ function InboxPageContent() {
       members={displayedMembers}
       assignSaving={assignSaving}
       onAssign={handleAssign}
+      currentUserId={currentUserId}
       selectedMessageId={effectiveSelectedMessageId}
       selectedMessageInfo={replyTarget}
       hasSuggestedDraft={Boolean(suggestedDraftForPanel)}
