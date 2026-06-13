@@ -78,7 +78,6 @@ export function ConversationThread({
   statusValue,
   statusOptions,
   onStatusChange,
-  statusBadgeClassName,
   messages,
   selectedMessageId = null,
   onSelectMessage,
@@ -234,29 +233,32 @@ export function ConversationThread({
    * values, options and the `onStatusChange` handler are unchanged.
    */
   const StatusControl = (
-    <div className="flex shrink-0 items-center gap-1.5">
-      <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--inbox-text-secondary)]">
-        Status
-      </span>
-      <Select value={statusValue} onValueChange={(value) => { void onStatusChange(value) }}>
-        <SelectTrigger
-          aria-label="Conversation status"
-          className={cn(
-            "h-6 gap-1 rounded-full border-0 px-2.5 py-0 text-[11px] font-medium shadow-none focus:ring-1 focus:ring-[var(--inbox-accent)]/40",
-            statusBadgeClassName(statusValue),
-          )}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {statusOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value} className="text-xs">
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={statusValue} onValueChange={(value) => { void onStatusChange(value) }}>
+      <SelectTrigger
+        aria-label="Conversation status"
+        className={cn(
+          // Compact, same height/feel as the Chat/Email toggle — light readable text in the
+          // dark theme. No badge tint (the status-* keys are Badge variants, not CSS classes)
+          // and no separate uppercase label; the inline "Status:" prefix keeps it clear.
+          "h-7 w-auto gap-1.5 rounded-lg border border-[var(--inbox-border)] bg-transparent px-2 text-[11px] font-medium text-[var(--inbox-text)] shadow-none",
+          "hover:bg-white/8 hover:text-[var(--inbox-accent)] focus:ring-1 focus:ring-[var(--inbox-accent)]/40",
+        )}
+      >
+        <span className="text-[var(--inbox-text-secondary)]">Status:</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="border-[var(--inbox-border)] bg-[var(--inbox-card)] text-[var(--inbox-text)]">
+        {statusOptions.map((option) => (
+          <SelectItem
+            key={option.value}
+            value={option.value}
+            className="text-xs text-[var(--inbox-text)] focus:bg-white/10 focus:text-[var(--inbox-accent)]"
+          >
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 
   /** Subtle divider so the status control reads as separate from the Chat/Email toggle. */

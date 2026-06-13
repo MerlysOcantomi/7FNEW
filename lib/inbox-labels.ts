@@ -9,37 +9,37 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
     new: "New",
     triaged: "Triaged",
     assigned: "Assigned",
-    awaiting_response: "Awaiting response",
-    lead_detected: "Lead detected",
+    awaiting_response: "Waiting on client",
+    lead_detected: "Possible lead",
     resolved: "Resolved",
     converted: "Converted",
     closed: "Closed",
     archived: "Archived",
-    trashed: "Trash",
+    trashed: "In Trash",
   },
   es: {
     new: "Nuevo",
     triaged: "Clasificado",
     assigned: "Asignado",
-    awaiting_response: "Esperando respuesta",
-    lead_detected: "Lead detectado",
+    awaiting_response: "Esperando al cliente",
+    lead_detected: "Posible lead",
     resolved: "Resuelto",
     converted: "Convertido",
     closed: "Cerrado",
     archived: "Archivado",
-    trashed: "Papelera",
+    trashed: "En papelera",
   },
   de: {
     new: "Neu",
     triaged: "Sortiert",
     assigned: "Zugewiesen",
-    awaiting_response: "Wartet auf Antwort",
-    lead_detected: "Lead erkannt",
+    awaiting_response: "Wartet auf Kunde",
+    lead_detected: "Möglicher Lead",
     resolved: "Erledigt",
     converted: "Konvertiert",
     closed: "Geschlossen",
     archived: "Archiviert",
-    trashed: "Papierkorb",
+    trashed: "Im Papierkorb",
   },
 }
 
@@ -188,9 +188,9 @@ export function statusLabelDisplay(status: string, localeRaw?: string | null): s
   }
   if (status === "trashed") {
     const locale = resolveLocale(localeRaw)
-    if (locale === "es") return "Papelera"
-    if (locale === "de") return "Papierkorb"
-    return "Trash"
+    if (locale === "es") return "En papelera"
+    if (locale === "de") return "Im Papierkorb"
+    return "In Trash"
   }
   return statusLabel(status, localeRaw)
 }
