@@ -1286,30 +1286,32 @@ export function ContextPanel({
   return (
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
-        ── Section ordering ──
-        One top-down sequence for both modes, built around resolving the message:
-          1. Client/contact card          (identity; expanded = ALL client context)
+        ── Section ordering (AI-first: prepared work & decisions first) ──
+        One top-down sequence for both modes, built so the panel reads as
+        "Fanny prepared work — review and approve", not "Fanny explains the message":
+          1. Pending decisions + Actions  (the productive core: approve / dismiss /
+                                           execute, review draft, add to calendar)
           2. Request                      (the message objective)
-          3. Needs attention              (missing info, risks, tone strip)
+          3. Client/contact card          (identity; expanded = ALL client context)
           4. Fanny recommends             (the advised next step)
-          5. Pending decisions + Actions  (visible work cards — the interaction core)
+          5. Needs attention              (missing info, risks, tone strip)
           6. Ask Fanny                    (close to the actions, per product spec)
           7. Workflow                     (assignment, when applicable)
-        Each atom keeps its own data gating, so empty cards never render and we never
-        fabricate content. Client context lives ONLY inside the expanded top card — no
-        duplicate block lower in the panel.
+        Header chrome (the "Fanny" title) stays on top. Each atom keeps its own data
+        gating, so empty cards never render and we never fabricate content. Client
+        context lives ONLY inside the expanded top card — no duplicate block lower.
 
         Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
         receives `selectedMessageInfo: null` and message-specific affordances fall back to
         conversation-level data automatically. No extra logic needed here.
       */}
       {headerSection}
-      {contactSection}
-      {messageNeedSection}
-      {needsAttentionSection}
-      {recommendsSection}
       {pendingDecisionsSection}
       {actionsSection}
+      {messageNeedSection}
+      {contactSection}
+      {recommendsSection}
+      {needsAttentionSection}
       {askFannySection}
       {workflowSection}
 
