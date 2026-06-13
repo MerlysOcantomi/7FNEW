@@ -238,9 +238,11 @@ export function ConversationThread({
         aria-label="Conversation status"
         className={cn(
           // Compact, same height/feel as the Chat/Email toggle — light readable text in the
-          // dark theme. No badge tint (the status-* keys are Badge variants, not CSS classes)
-          // and no separate uppercase label; the inline "Status:" prefix keeps it clear.
-          "h-7 w-auto gap-1.5 rounded-lg border border-[var(--inbox-border)] bg-transparent px-2 text-[11px] font-medium text-[var(--inbox-text)] shadow-none",
+          // dark theme. `!h-7` overrides shadcn's `data-[size]:h-9` (higher CSS specificity)
+          // so the control no longer grows taller than the side buttons. No badge tint (the
+          // status-* keys are Badge variants, not CSS classes) and no separate uppercase label;
+          // the inline "Status:" prefix keeps it clear.
+          "!h-7 w-auto gap-1.5 rounded-md border border-[var(--inbox-border)] bg-transparent px-2 py-0 text-[11px] font-medium text-[var(--inbox-text)] shadow-none",
           "hover:bg-white/8 hover:text-[var(--inbox-accent)] focus:ring-1 focus:ring-[var(--inbox-accent)]/40",
         )}
       >
