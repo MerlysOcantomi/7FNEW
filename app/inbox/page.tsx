@@ -3710,6 +3710,7 @@ function InboxPageContent() {
                       selectedMessageId={selectedMessageId}
                       onSelectMessage={handleSelectMessageInThread}
                       onRestoreMessage={(messageId) => handleTrashMessage(messageId, false)}
+                      onTrashMessage={(messageId) => handleTrashMessage(messageId, true)}
                       onBack={handleBackToList}
                       onOpenContext={() => setContextSheetOpen(true)}
                       emailViewMode={emailViewMode}

@@ -7,7 +7,7 @@ import {
   Sparkles, CheckCheck, AlignLeft, Briefcase, Heart, ArrowRight,
   Link, Image,
   RotateCcw, Keyboard, Wand2,
-  Archive, ArchiveRestore, CheckCircle2, Trash2, MoreHorizontal,
+  Archive, ArchiveRestore, CheckCircle2, MoreHorizontal,
   MailOpen, AlertCircle, Layers, MailCheck, ListPlus,
   type LucideIcon,
 } from "lucide-react"
@@ -1885,32 +1885,11 @@ export function ReplyComposer({
         )}
 
         {/*
-          Remove message — message-scoped soft-trash only. Conversation-level trash/restore was
-          taken out of the composer: it already lives in the conversation header status selector
-          (no capability lost). This single message action stays here until PR-B gives the
-          message bubble its own trash affordance. Same handler; presentation only.
+          Destructive actions intentionally NOT in the composer. Message trash now lives on the
+          message itself (hover affordance on the bubble / button in the email reading view);
+          conversation trash/restore lives in the conversation header status selector. The
+          composer is for writing, sending, attaching, notes, asking Fanny and fallback actions.
         */}
-        {moreMenuOpen && showMoreMessagePanel && messageActions && messageActions.onTrashMessage && (
-          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
-              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                Remove message
-              </p>
-              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Trashes just this message — restore it from the message itself.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-1.5 p-2.5">
-              <MoreMenuItem
-                icon={Trash2}
-                label="Trash this message"
-                onClick={messageActions.onTrashMessage}
-                onAfterClick={() => setMoreMenuOpen(false)}
-                tone="danger"
-              />
-            </div>
-          </div>
-        )}
 
         {/* ── Status / errors ── */}
         {assistError && (

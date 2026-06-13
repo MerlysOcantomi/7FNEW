@@ -59,6 +59,13 @@ interface MessageBubbleProps {
   trashed?: boolean
   /** Click handler for the inline Restore CTA inside the trashed placeholder. */
   onRestore?: () => void
+  /**
+   * Soft-trash THIS message. When provided (and the message isn't a system event or already
+   * trashed), a discreet trash affordance appears on hover in the bubble's meta row. Lives on
+   * the message itself — the composer no longer carries destructive actions. Restore is the
+   * inline CTA above; there is no permanent delete.
+   */
+  onTrash?: () => void
 }
 
 export function MessageBubble({
@@ -80,6 +87,7 @@ export function MessageBubble({
   timestampFull,
   trashed = false,
   onRestore,
+  onTrash,
 }: MessageBubbleProps) {
   const isRightAligned = tone === "outbound"
   const isSystem = tone === "system"
@@ -133,7 +141,7 @@ export function MessageBubble({
       onKeyDown={interactive ? handleKeyDown : undefined}
       aria-pressed={interactive ? selected : undefined}
       className={cn(
-        "flex scroll-mt-24",
+        "group flex scroll-mt-24",
         isSystem ? "justify-center" : isRightAligned ? "justify-end" : "justify-start",
         interactive && "cursor-pointer focus:outline-none",
       )}
@@ -184,6 +192,20 @@ export function MessageBubble({
               Reply all
             </span>
           )}
+          {onTrash && !trashed && !isSystem ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onTrash()
+              }}
+              className="ml-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[var(--inbox-text-secondary)] opacity-0 transition-opacity hover:bg-[var(--inbox-urgency-critical-bg)]/30 hover:text-[var(--inbox-urgency-critical-text)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40 group-hover:opacity-100"
+              title="Trash this message"
+              aria-label="Trash this message"
+            >
+              <Trash2 className="h-3 w-3" aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
 
         {emailMeta?.cc && emailMeta.cc.length > 0 && !trashed && (

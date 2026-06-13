@@ -55,6 +55,8 @@ interface EmailReadingViewProps {
   selectedMessageId: string | null
   onSelectMessage: (messageId: string) => void
   onRestoreMessage?: (messageId: string) => void
+  /** Soft-trash the currently shown email. Optional — when omitted no trash control renders. */
+  onTrashMessage?: (messageId: string) => void
 }
 
 const NAVIGABLE_TONES: ReadonlyArray<EmailReadingMessage["tone"]> = ["inbound", "outbound"]
@@ -121,6 +123,7 @@ export function EmailReadingView({
   selectedMessageId,
   onSelectMessage,
   onRestoreMessage,
+  onTrashMessage,
 }: EmailReadingViewProps) {
   /**
    * Prev/Next + current message resolved by the shared pure helper (also used by the
@@ -216,21 +219,34 @@ export function EmailReadingView({
                 <h1 className="min-w-0 flex-1 break-words text-base font-semibold leading-snug text-[var(--inbox-text)]">
                   {subject}
                 </h1>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                    isInbound &&
-                      "border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]",
-                    isOutbound &&
-                      "border-[var(--inbox-chat-meta-outbound-border)] bg-[var(--inbox-chat-meta-outbound-bg)] text-[var(--inbox-chat-meta-outbound-text)]",
-                    currentMessage.tone === "internal" &&
-                      "border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 text-[var(--inbox-warning)]",
-                    currentMessage.tone === "system" &&
-                      "border-[var(--inbox-border)] bg-white/[0.05] text-[var(--inbox-text-secondary)]",
-                  )}
-                >
-                  {currentMessage.metaLabel}
-                </span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                      isInbound &&
+                        "border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]",
+                      isOutbound &&
+                        "border-[var(--inbox-chat-meta-outbound-border)] bg-[var(--inbox-chat-meta-outbound-bg)] text-[var(--inbox-chat-meta-outbound-text)]",
+                      currentMessage.tone === "internal" &&
+                        "border-[var(--inbox-warning)]/30 bg-[var(--inbox-warning)]/10 text-[var(--inbox-warning)]",
+                      currentMessage.tone === "system" &&
+                        "border-[var(--inbox-border)] bg-white/[0.05] text-[var(--inbox-text-secondary)]",
+                    )}
+                  >
+                    {currentMessage.metaLabel}
+                  </span>
+                  {onTrashMessage ? (
+                    <button
+                      type="button"
+                      onClick={() => onTrashMessage(currentMessage.id)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-urgency-critical-bg)]/30 hover:text-[var(--inbox-urgency-critical-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+                      title="Trash this message"
+                      aria-label="Trash this message"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs leading-snug text-[var(--inbox-text)]/90">
                 <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">From</dt>

@@ -54,6 +54,8 @@ interface ConversationThreadProps {
   onSelectMessage?: (messageId: string) => void
   /** Callback al pulsar Restore dentro de un bubble soft-trasheado. */
   onRestoreMessage?: (messageId: string) => void
+  /** Callback al pulsar Trash en un mensaje (soft-trash de ese mensaje). */
+  onTrashMessage?: (messageId: string) => void
   onBack?: () => void
   onOpenContext?: () => void
   /**
@@ -81,6 +83,7 @@ export function ConversationThread({
   selectedMessageId = null,
   onSelectMessage,
   onRestoreMessage,
+  onTrashMessage,
   onBack,
   onOpenContext,
   emailViewMode = "chat",
@@ -323,6 +326,7 @@ export function ConversationThread({
           selectedMessageId={selectedMessageId ?? null}
           onSelectMessage={(id) => onSelectMessage?.(id)}
           onRestoreMessage={onRestoreMessage}
+          onTrashMessage={onTrashMessage}
         />
       ) : (
       <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
@@ -361,6 +365,7 @@ export function ConversationThread({
                   timestampFull={message.timestampFull}
                   trashed={message.trashed}
                   onRestore={message.trashed && onRestoreMessage ? () => onRestoreMessage(message.id) : undefined}
+                  onTrash={!message.trashed && onTrashMessage ? () => onTrashMessage(message.id) : undefined}
                 />
               </div>
             ))
@@ -381,6 +386,7 @@ export function ConversationThread({
                   onSelect={onSelectMessage ? () => onSelectMessage(message.id) : undefined}
                   trashed={message.trashed}
                   onRestore={message.trashed && onRestoreMessage ? () => onRestoreMessage(message.id) : undefined}
+                  onTrash={!message.trashed && onTrashMessage ? () => onTrashMessage(message.id) : undefined}
                 />
               </div>
             ))
