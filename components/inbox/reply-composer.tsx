@@ -955,7 +955,14 @@ export function ReplyComposer({
             {onClearReplyTarget ? (
               <button
                 type="button"
-                onClick={onClearReplyTarget}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  // Clear the per-message selection AND force scope back to its default in
+                  // the same gesture, so the chip always dismisses regardless of effect
+                  // timing (don't rely solely on the parent's selection→scope auto-sync).
+                  onClearReplyTarget()
+                  onActingOnScopeChange?.("latest")
+                }}
                 className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
                 title="Reply to the whole conversation instead"
                 aria-label="Stop replying to this message"
@@ -973,7 +980,10 @@ export function ReplyComposer({
             {onActingOnScopeChange ? (
               <button
                 type="button"
-                onClick={() => onActingOnScopeChange("latest")}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onActingOnScopeChange("latest")
+                }}
                 className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
                 title="Use the latest message instead"
                 aria-label="Stop using the whole conversation"
@@ -1177,6 +1187,8 @@ export function ReplyComposer({
             )}
 
             {morePanelHasContent ? (
+              /* Labelled (not icon-only) so the menu that holds message / conversation /
+                 context actions is easy to find — a bare ⋯ icon was too easy to miss. */
               <button
                 type="button"
                 onClick={() => {
@@ -1186,14 +1198,17 @@ export function ReplyComposer({
                   setMoreMenuOpen((v) => !v)
                 }}
                 className={cn(
-                  SHELL_TOOLBAR_ICON,
-                  moreMenuOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
+                  "ml-0.5 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
+                  moreMenuOpen && !micCapturesChrome
+                    ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
+                    : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
                 )}
-                title="More actions"
+                title="More actions — message, conversation & context"
                 aria-label="More actions"
                 aria-expanded={moreMenuOpen}
               >
-                <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
+                <MoreHorizontal className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span>More</span>
               </button>
             ) : null}
             </div>
