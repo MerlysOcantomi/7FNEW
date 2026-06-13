@@ -315,6 +315,16 @@ export function ReplyComposer({
    * sobre el composer; ahora vive como icono en la toolbar para liberar espacio vertical.
    */
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  /**
+   * Local-only disclosure for the collapsed "Advanced actions" group inside More
+   * (message + conversation actions). Collapsed by default so the composer reads as
+   * AI-first rather than a manual control panel; reset to collapsed whenever More closes.
+   * Pure UI state — no URL, no global state, no handler/scope impact.
+   */
+  const [advancedActionsOpen, setAdvancedActionsOpen] = useState(false)
+  useEffect(() => {
+    if (!moreMenuOpen) setAdvancedActionsOpen(false)
+  }, [moreMenuOpen])
 
   /**
    * Context scope is selection-driven: selecting a message in the thread flips the
@@ -1680,15 +1690,60 @@ export function ReplyComposer({
         )}
 
 
+        {/* Context (whole-conversation toggle) — the single scope control, kept visible. */}
+        {moreMenuOpen && showContextScopeToggle && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                Context
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                What the AI and tools use as context.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              <MoreMenuItem
+                icon={Layers}
+                label={
+                  actingOnScope === "all"
+                    ? "Use latest message instead"
+                    : "Use whole conversation as context"
+                }
+                onClick={() =>
+                  onActingOnScopeChange?.(actingOnScope === "all" ? "latest" : "all")
+                }
+                onAfterClick={() => setMoreMenuOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Advanced actions — manual message/conversation actions, collapsed by default so the
+            composer reads AI-first (Fanny prepares work; these are fallback/override). The
+            disclosure is local UI state only; it does not change handlers or scope. */}
+        {moreMenuOpen && (showMoreMessagePanel || showMoreConversationPanel) && (
+          <button
+            type="button"
+            onClick={() => setAdvancedActionsOpen((v) => !v)}
+            aria-expanded={advancedActionsOpen}
+            className="flex w-full items-center justify-between rounded-md border border-[var(--inbox-border)]/40 bg-transparent px-2.5 py-1.5 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+          >
+            <span>Advanced actions</span>
+            <ChevronDown
+              className={cn("h-3.5 w-3.5 shrink-0 transition-transform", advancedActionsOpen && "rotate-180")}
+              aria-hidden="true"
+            />
+          </button>
+        )}
+
         {/*
-          Scope-aware More actions panel — additive layout:
-          - Conversation actions (Mark resolved + Archive / Close / Trash) always render when
-            the conversation handlers are wired. The operator must always be able to
-            archive/close/trash a thread, regardless of the current Acting on scope.
-          - Message actions (Mark done + Add internal note) render *additionally* on top when
+          Scope-aware More actions panel — additive layout, nested under "Advanced actions":
+          - Conversation actions (Mark resolved + Archive / Close) render when their handlers
+            are wired.
+          - Message actions (Mark done + Add internal note + Create follow-up) render when the
             scope is Latest or Selected and the parent reports the scope is usable.
         */}
-        {moreMenuOpen && showMoreMessagePanel && messageActions && (
+        {moreMenuOpen && advancedActionsOpen && showMoreMessagePanel && messageActions && (
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
@@ -1752,7 +1807,7 @@ export function ReplyComposer({
           </div>
         )}
 
-        {moreMenuOpen && showMoreConversationPanel && (
+        {moreMenuOpen && advancedActionsOpen && showMoreConversationPanel && (
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
@@ -1825,38 +1880,6 @@ export function ReplyComposer({
                 />
               )}
               {/* Move to Trash relocated to the dedicated destructive section below. */}
-            </div>
-          </div>
-        )}
-
-        {/*
-          Context scope — the one manual scope override now lives here (Latest/Selected are
-          selection-driven). Toggling "whole conversation" sets `actingOnScope` to "all"; when
-          already active it renders as current and is reverted from the context chip's ✕.
-        */}
-        {moreMenuOpen && showContextScopeToggle && (
-          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
-              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                Context
-              </p>
-              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                What the AI and tools use as context.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-1.5 p-2.5">
-              <MoreMenuItem
-                icon={Layers}
-                label={
-                  actingOnScope === "all"
-                    ? "Use latest message instead"
-                    : "Use whole conversation as context"
-                }
-                onClick={() =>
-                  onActingOnScopeChange?.(actingOnScope === "all" ? "latest" : "all")
-                }
-                onAfterClick={() => setMoreMenuOpen(false)}
-              />
             </div>
           </div>
         )}
