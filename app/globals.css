@@ -3,7 +3,25 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
+/*
+   ════════════════════════════════════════════════════════════════
+   MIDNIGHT — default palette of the 7F "Purple" family (dark).
+   Bound to :root (fallback), .dark (next-themes `class` mode) and
+   [data-theme="midnight"] (future attribute mode) through ONE combined
+   selector, so all three resolve to the SAME Midnight tokens — change a
+   value once, every entry point follows.
+
+   Why :root carries the DARK palette (and not a light base): the app
+   paints its chrome straight from these --app- and --inbox- tokens, and
+   nothing activates `.dark` today (next-themes sets class="light", which
+   has no matching rule), so keeping Midnight on :root is precisely what
+   holds production visually stable. Lavender Mist (the light mode) is
+   defined as a DORMANT override further down — it is never activated in
+   this PR.
+   ════════════════════════════════════════════════════════════════ */
+:root,
+.dark,
+[data-theme="midnight"] {
   /* 7F Copilot — Monochromatic Corporate Blue */
   --background: #F8FAFC;
   --foreground: #0F172A;
@@ -274,6 +292,85 @@
 }
 
 
+
+/*
+   ════════════════════════════════════════════════════════════════
+   LAVENDER MIST — official LIGHT mode of the 7F "Purple" family.
+
+   DORMANT in this PR. next-themes drives the `class` attribute (not
+   `data-theme`) and nothing sets data-theme="lavender-mist", so this
+   block never matches in production — it changes nothing today. It is
+   committed as the prepared light counterpart so a future switcher can
+   flip the whole app from one place.
+
+   It reuses the SAME semantic tokens as Midnight; only values change.
+   Derived tokens (--background, --card, --popover, --inbox-text,
+   --surface-overlay, sidebar/inbox aliases…) cascade automatically
+   because they reference the source tokens overridden here.
+
+   Direction: light lavender canvas (not pure white), violet accent
+   (~#9470FF), dark text, subtle-but-visible borders, opaque floating
+   surfaces. NOTE: surfaces that still use hardcoded white/black Tailwind
+   utilities (bg-white/[0.06], border-white/…, text-white — see audit)
+   must be tokenised before light mode is pixel-perfect; this block makes
+   every TOKEN-DRIVEN surface invert correctly.
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="lavender-mist"] {
+  /* — Surfaces: light lavender ramp (canvas → elevated) — */
+  --app-canvas: #F4F1FB;
+  --app-sidebar: #ECE7F8;
+  --app-surface-dark: #FAF8FE;
+  --app-surface-dark-elevated: #FFFFFF;
+  --app-surface-dark-hover: #EFEAF8;
+
+  /* — Accent: same violet family, deepened a touch for AA on light — */
+  --accent-primary: #9470FF;
+  --accent-primary-hover: #8257F0;
+  --accent-on-dark: #6D3FD4; /* now "accent on LIGHT" — darker for legible text */
+  --accent-muted: rgba(139, 92, 255, 0.14);
+  --accent-soft: #EFEAFF;
+  --accent-rich: #5B21B6;
+
+  /* — Text: flip the *-light tokens to dark tones. The *-dark tokens are
+       already dark and stay correct for light surfaces. — */
+  --text-primary-light: #211B33;
+  --text-secondary-light: #5A5470;
+  --text-tertiary-light: #7C7593;
+
+  /* — Borders: visible but subtle on a light canvas — */
+  --border-dark: rgba(33, 27, 51, 0.10);
+  --border-dark-strong: rgba(33, 27, 51, 0.16);
+
+  /* — Slightly stronger shadow for depth against light surfaces — */
+  --app-shadow-subtle: 0 4px 14px rgba(43, 33, 79, 0.08);
+
+  /* — Status: keep the soft tint backgrounds, deepen text for contrast — */
+  --status-danger-text: #C2454A;
+  --status-warning-text: #B07D24;
+  --status-success-text: #3E8E5E;
+
+  /* — Inbox: invert the dark-baked component tokens (the rest derive) — */
+  --inbox-chat-background: color-mix(in srgb, var(--app-surface-dark) 70%, #FFFFFF 30%);
+  --inbox-composer-input: #FFFFFF;
+  --inbox-composer-toolbar: rgba(33, 27, 51, 0.04);
+  --inbox-chat-meta-outbound-bg: #EFEAFF;
+  --inbox-chat-meta-outbound-border: #D9CEF5;
+  --inbox-chat-meta-outbound-text: #5B21B6;
+  --inbox-border: rgba(33, 27, 51, 0.12);
+  --inbox-divider: rgba(33, 27, 51, 0.08);
+  --inbox-info: #2E6FD6;
+  --inbox-lead: #C8860F;
+  --inbox-urgency: #D14A4F;
+  --inbox-focus: #6D3FD4;
+  --inbox-urgent-color: #D14A4F;
+  --inbox-waiting-color: #9A7B2E;
+  --inbox-done-color: #3E8E5E;
+  --inbox-archive-color: #6F6885;
+  --inbox-unread-color: #7E5BF0;
+  --inbox-destructive: #D14A4F;
+  --inbox-success: #3E8E5E;
+  --inbox-warning: #B07D24;
+}
 
 @theme inline {
   --font-sans: var(--font-inter), 'Geist', 'Geist Fallback';
