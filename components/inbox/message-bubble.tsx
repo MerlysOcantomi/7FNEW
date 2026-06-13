@@ -160,7 +160,7 @@ export function MessageBubble({
           <span className={cn(
             "text-xs font-semibold",
             tone === "inbound"
-              ? "text-[var(--inbox-accent)]"
+              ? "text-[var(--accent-on-dark)]"
               : "text-[var(--text-primary-light)]",
           )}>{authorLabel}</span>
           <span className="text-xs uppercase tracking-wide font-medium text-[var(--inbox-text-secondary)]">

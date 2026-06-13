@@ -233,7 +233,7 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
 
   const answerEl = answer ? (
     <div className="rounded-md border border-[var(--inbox-accent)]/30 bg-white/[0.05] p-2.5">
-      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">Fanny</p>
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">Fanny</p>
       <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-[var(--inbox-text)]">{answer}</p>
     </div>
   ) : null
@@ -267,7 +267,7 @@ export function TalkToFanny({ conversationId, selectedMessageId, actingOnScope, 
           <Mic className="h-3.5 w-3.5" strokeWidth={2.2} />
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">Ask Fanny</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">Ask Fanny</p>
           <p className="truncate text-[10px] text-[var(--inbox-text-secondary)]">
             Ask about messages, conversations, or your inbox.
           </p>

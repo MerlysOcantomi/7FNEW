@@ -46,7 +46,7 @@ export function FannyAssistCard({
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
                   Fanny
                 </span>
                 <span className="rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]">
@@ -104,7 +104,7 @@ export function FannyAssistCard({
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
                     Suggested reply
                   </span>
                   <div className="flex items-center gap-1">

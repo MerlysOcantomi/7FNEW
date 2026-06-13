@@ -477,7 +477,7 @@ export function ContextPanel({
           Waiting on client
         </span>
       ) : isDone ? (
-        <span className="inline-flex items-center rounded-md border border-[rgba(143,198,162,0.28)] bg-[rgba(143,198,162,0.14)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-success)] whitespace-nowrap">
+        <span className="inline-flex items-center rounded-md border border-[var(--inbox-success)]/30 bg-[var(--inbox-success-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-success)] whitespace-nowrap">
           Done
         </span>
       ) : null}
@@ -683,7 +683,7 @@ export function ContextPanel({
             {selected.cliente && (
               <a
                 href={`/clientes/${selected.cliente.id}`}
-                className="shrink-0 text-[11px] font-medium text-[var(--inbox-accent)] hover:underline"
+                className="shrink-0 text-[11px] font-medium text-[var(--accent-on-dark)] hover:underline"
               >
                 View client profile
               </a>
@@ -697,7 +697,7 @@ export function ContextPanel({
                   right above it. The full name stays available via the title tooltip. */}
               <a
                 href={`/proyectos/${selected.proyecto.id}`}
-                className="min-w-0 flex-1 truncate font-medium text-[var(--inbox-accent)] hover:underline"
+                className="min-w-0 flex-1 truncate font-medium text-[var(--accent-on-dark)] hover:underline"
                 title={selected.proyecto.nombre}
               >
                 {selected.proyecto.nombre}

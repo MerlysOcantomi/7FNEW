@@ -1435,11 +1435,11 @@ export function ReplyComposer({
               {activeAssistTab === "suggestions" && hasFannySuggestion && (
                 <>
                   {fannySuggestionTitle?.trim() ? (
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
                       Fanny · {fannySuggestionTitle}
                     </p>
                   ) : (
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
                       Fanny · suggested reply
                     </p>
                   )}

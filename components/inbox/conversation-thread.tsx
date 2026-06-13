@@ -249,7 +249,7 @@ export function ConversationThread({
         <span className="text-[var(--inbox-text-secondary)]">Status:</span>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="border-[var(--inbox-border)] bg-[var(--inbox-surface-elevated)]/95 text-[var(--inbox-text)] shadow-lg backdrop-blur-sm">
+      <SelectContent className="border-[var(--inbox-border)] bg-[var(--inbox-surface-elevated)] text-[var(--inbox-text)] shadow-lg backdrop-blur-sm">
         {statusOptions.map((option) => (
           <SelectItem
             key={option.value}

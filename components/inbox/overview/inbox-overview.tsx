@@ -505,7 +505,7 @@ export function InboxOverview() {
                           className={cn(
                             "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
                             urgencyBadge(c.urgency) === "urgency-critical"
-                              ? "border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] text-[var(--status-danger-text)]"
+                              ? "border border-[var(--inbox-urgency)]/30 bg-[var(--inbox-urgency-soft)] text-[var(--inbox-urgency)]"
                               : "border border-[var(--status-warning-text)]/30 bg-[var(--status-warning-bg)]/50 text-[var(--status-warning-text)]",
                           )}
                         >

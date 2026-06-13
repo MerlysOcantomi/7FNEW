@@ -33,13 +33,13 @@ function statusSemanticClasses(status: string): string {
   const s = statusForSemantics(status)
   switch (s) {
     case "awaiting_response":
-      return "!border !border-[rgba(232,111,116,0.32)] !bg-[rgba(232,111,116,0.12)] !text-[var(--inbox-destructive)]"
+      return "!border !border-[var(--inbox-destructive)]/30 !bg-[var(--inbox-destructive-soft)] !text-[var(--inbox-destructive)]"
     case "lead_detected":
-      return "!border !border-[rgba(242,198,109,0.35)] !bg-[rgba(242,198,109,0.14)] !text-[var(--inbox-lead-color)]"
+      return "!border !border-[var(--inbox-lead)]/35 !bg-[var(--inbox-lead-soft)] !text-[var(--inbox-lead)]"
     case "new":
-      return "!border !border-[rgba(147,197,253,0.22)] !bg-[rgba(59,130,246,0.1)] !text-[#93C5FD]"
+      return "!border !border-[var(--inbox-info)]/25 !bg-[var(--inbox-info-soft)] !text-[var(--inbox-info)]"
     case "converted":
-      return "!border !border-[rgba(143,198,162,0.28)] !bg-[rgba(143,198,162,0.14)] !text-[var(--inbox-success)]"
+      return "!border !border-[var(--inbox-success)]/30 !bg-[var(--inbox-success-soft)] !text-[var(--inbox-success)]"
     case "assigned":
       return "!border !border-white/[0.1] !bg-white/[0.06] !text-[var(--inbox-list-text-secondary)]"
     default:
@@ -52,7 +52,7 @@ function urgencySoftClasses(urgencyVariant: string): string {
   switch (urgencyVariant) {
     case "urgency-critical":
     case "urgency-high":
-      return "!border !border-[rgba(232,111,116,0.32)] !bg-[rgba(232,111,116,0.12)] !text-[var(--inbox-destructive)] shadow-none"
+      return "!border !border-[var(--inbox-urgency)]/30 !bg-[var(--inbox-urgency-soft)] !text-[var(--inbox-urgency)] shadow-none"
     case "urgency-medium":
       return "!border !border-white/[0.08] !bg-white/[0.07] !text-[var(--inbox-list-text-secondary)] shadow-none"
     case "urgency-low":
@@ -129,7 +129,7 @@ const SMART_ACTION_BADGE: Record<
     label: "Failed",
     title: "A Smart Action failed — needs attention",
     className:
-      "border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] text-[var(--inbox-destructive)]",
+      "border border-[var(--inbox-destructive)]/30 bg-[var(--inbox-destructive-soft)] text-[var(--inbox-destructive)]",
   },
   needs_review: {
     label: "Review",
@@ -141,13 +141,13 @@ const SMART_ACTION_BADGE: Record<
     label: "Draft",
     title: "Fanny prepared a reply draft",
     className:
-      "border border-[rgba(147,197,253,0.22)] bg-[rgba(59,130,246,0.1)] text-[#93C5FD]",
+      "border border-[var(--inbox-info)]/25 bg-[var(--inbox-info-soft)] text-[var(--inbox-info)]",
   },
   action_ready: {
     label: "Ready",
     title: "A Smart Action is ready",
     className:
-      "border border-[rgba(143,198,162,0.28)] bg-[rgba(143,198,162,0.14)] text-[var(--inbox-success)]",
+      "border border-[var(--inbox-success)]/30 bg-[var(--inbox-success-soft)] text-[var(--inbox-success)]",
   },
   task_created: {
     label: "Task",
@@ -240,7 +240,7 @@ export function ConversationMetaLine({
         </Badge>
       ) : null}
       {typeof leadScore === "number" && (
-        <span className="rounded-md border border-[rgba(242,198,109,0.35)] bg-[rgba(242,198,109,0.12)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--inbox-lead-color)] shadow-none whitespace-nowrap">
+        <span className="rounded-md border border-[var(--inbox-lead)]/35 bg-[var(--inbox-lead-soft)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--inbox-lead)] shadow-none whitespace-nowrap">
           Lead {leadScore}
         </span>
       )}

@@ -49,10 +49,11 @@
      SYSTEM TOKENS — 7F PREMIUM COLOR LANGUAGE
      Base global del SaaS
      ========================================================== */
-  --app-canvas: #241C3A;
-  --app-sidebar: #1E1B2E;
-  --app-surface-dark: #2B2340;
-  --app-surface-dark-elevated: #34294E;
+  --app-canvas: #201A33;
+  --app-sidebar: #1A1529;
+  --app-surface-dark: #2A2342;
+  --app-surface-dark-elevated: #342B50;
+  --app-surface-dark-hover: #3D3360;
 
   --surface-1: #EEEAF7;
   --surface-2: #F3EFFA;
@@ -60,18 +61,22 @@
   --surface-4: #E9E4F3;
 
   --accent-primary: #7C4DFF;
-  --accent-primary-hover: #6E40F0;
+  --accent-primary-hover: #8A5CFF;
+  --accent-on-dark: #B9A3FF;
+  --accent-muted: rgba(124, 77, 255, 0.14);
   --accent-soft: #E9E2FF;
   --accent-rich: #5B21B6;
 
   --text-primary-dark: #1F1B2D;
   --text-secondary-dark: #6F6885;
 
-  --text-primary-light: #E5E7EB;
-  --text-secondary-light: #A1A1AA;
+  --text-primary-light: #ECE9F5;
+  --text-secondary-light: #A79FB8;
+  --text-tertiary-light: #7E7691;
 
   --border-light: #E7E1F0;
   --border-dark: rgba(255, 255, 255, 0.08);
+  --border-dark-strong: rgba(255, 255, 255, 0.14);
 
   --surface-selected: #E6DEFF;
   --surface-hover: #F4F0FB;
@@ -189,13 +194,32 @@
 
   --inbox-accent: var(--accent-primary);
   --inbox-accent-hover: var(--accent-primary-hover);
-  --inbox-accent-soft: var(--accent-soft);
+  /* Dark-surface accent chip bg — translucent purple, not the near-white
+     --accent-soft (which is reserved for LIGHT surfaces). */
+  --inbox-accent-soft: var(--accent-muted);
   --inbox-accent-rich: var(--accent-rich);
   
   /* === COLORES FUNCIONALES PREMIUM === */
-  --inbox-destructive: #E86F74;
-  --inbox-success: #8FC6A2;
+  --inbox-destructive: #F08A8E;
+  --inbox-success: #8FD3A8;
   --inbox-warning: #F2C66D;
+
+  /* ==========================================================
+     SEMANTIC INBOX STATE TOKENS
+     Promote the hardcoded badge/label colors in components/inbox/
+     to named tokens. The solid token is the text/label tone; the
+     matching `*-soft` token is the tinted background fill.
+     ========================================================== */
+  --inbox-info: #9DC3FF;
+  --inbox-info-soft: rgba(96, 165, 250, 0.14);
+  --inbox-success-soft: rgba(143, 198, 162, 0.16);
+  --inbox-lead: #F2C66D;
+  --inbox-lead-soft: rgba(242, 198, 109, 0.16);
+  --inbox-urgency: #F08A8E;
+  --inbox-urgency-soft: rgba(232, 111, 116, 0.14);
+  --inbox-destructive-soft: rgba(232, 111, 116, 0.14);
+  --inbox-focus: #B9A3FF;
+  --inbox-focus-soft: rgba(124, 77, 255, 0.16);
   
   /* === URGENCIA BADGES PREMIUM === */
   --inbox-urgency-critical-bg: rgba(232, 111, 116, 0.14);
@@ -217,7 +241,7 @@
   
   /* === ICONOS COLORIDOS PREMIUM === */
   --inbox-urgent-color: #E86F74;
-  --inbox-lead-color: #F2C66D;
+  --inbox-lead-color: var(--inbox-lead);
   --inbox-unread-color: #9B8EF5;
   --inbox-waiting-color: #C9A86A;
   --inbox-done-color: #8FC6A2;
@@ -227,6 +251,9 @@
   /* === TOKENS GENÉRICOS INBOX === */
   --inbox-surface: var(--inbox-chat-surface);
   --inbox-surface-elevated: var(--inbox-list-surface);
+  /* Formal alias — every card and floating surface resolves to a real,
+     opaque elevated plane. No phantom token, no see-through. */
+  --inbox-card: var(--inbox-surface-elevated);
   /* Chrome / shell text on dark columns (thread header, composer chrome, Fanny, etc.) */
   --inbox-text: var(--text-primary-light);
   --inbox-text-secondary: var(--text-secondary-light);

@@ -64,7 +64,7 @@ export function InboxContextStrip({
       )}
       {signalLabel ? (
         <span
-          className="max-w-[7rem] shrink-0 truncate rounded-md border border-[rgba(232,111,116,0.32)] bg-[rgba(232,111,116,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-destructive)] whitespace-nowrap"
+          className="max-w-[7rem] shrink-0 truncate rounded-md border border-[var(--inbox-urgency)]/30 bg-[var(--inbox-urgency-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-urgency)] whitespace-nowrap"
           title={`Urgency: ${signalLabel}`}
         >
           {signalLabel}
