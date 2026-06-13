@@ -240,7 +240,6 @@ export function ReplyComposer({
   onRemoveAttachment,
   onSend,
   replyTarget,
-  onClearReplyTarget,
   latestActionAnchor,
   conversationActions,
   messageActions,
@@ -934,63 +933,34 @@ export function ReplyComposer({
         )}
 
         {/*
-         * Context chip — shown ONLY when the scope is not the default "latest". It tells the
-         * operator, intuitively, what the composer is acting on, and lets them step out of it.
-         * Default (latest) shows nothing so the composer stays clean. Ungated by the expanded
-         * view so it stays visible even before the operator starts typing.
+         * Context chip — DISPLAY ONLY. It tells the operator what message/request the composer
+         * is currently regarding; it does NOT control scope and has NO dismiss control. The
+         * selected message comes from the left list / thread selection (actions act on it as
+         * before), and the whole-conversation scope is toggled from the More menu. Shown only
+         * when scope ≠ default "latest" so the composer stays clean. Ungated by the expanded
+         * view so it's visible before the operator starts typing. Neutral wording ("Regarding")
+         * because the composer may be in Reply / Forward / Internal note / Ask Fanny / etc.
          */}
         {actingOnScope === "selected" && replyTarget ? (
           <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
-            <Reply className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
-              Replying to{" "}
-              <span className="font-semibold">{replyTarget.authorLabel}</span>
-              {replyTarget.timestampLabel ? (
-                <span suppressHydrationWarning className="text-[var(--inbox-text-secondary)]">
-                  {" · "}
-                  {replyTarget.timestampLabel}
-                </span>
-              ) : null}
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
+              Regarding
             </span>
-            {onClearReplyTarget ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  // Clear the per-message selection AND force scope back to its default in
-                  // the same gesture, so the chip always dismisses regardless of effect
-                  // timing (don't rely solely on the parent's selection→scope auto-sync).
-                  onClearReplyTarget()
-                  onActingOnScopeChange?.("latest")
-                }}
-                className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
-                title="Reply to the whole conversation instead"
-                aria-label="Stop replying to this message"
-              >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            ) : null}
+            <span
+              className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]"
+              title={replyTarget.shortIntent ?? undefined}
+            >
+              {replyTarget.shortIntent?.trim() || "this message"}
+            </span>
           </div>
         ) : actingOnScope === "all" ? (
           <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
-            <Layers className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
-              Using whole conversation
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
+              Regarding
             </span>
-            {onActingOnScopeChange ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onActingOnScopeChange("latest")
-                }}
-                className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
-                title="Use the latest message instead"
-                aria-label="Stop using the whole conversation"
-              >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            ) : null}
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
+              whole conversation
+            </span>
           </div>
         ) : null}
 
@@ -1877,10 +1847,14 @@ export function ReplyComposer({
             <div className="flex flex-wrap gap-1.5 p-2.5">
               <MoreMenuItem
                 icon={Layers}
-                label="Use whole conversation as context"
-                activeLabel="Using whole conversation"
-                isCurrent={actingOnScope === "all"}
-                onClick={() => onActingOnScopeChange?.("all")}
+                label={
+                  actingOnScope === "all"
+                    ? "Use latest message instead"
+                    : "Use whole conversation as context"
+                }
+                onClick={() =>
+                  onActingOnScopeChange?.(actingOnScope === "all" ? "latest" : "all")
+                }
                 onAfterClick={() => setMoreMenuOpen(false)}
               />
             </div>
