@@ -49,30 +49,30 @@
      SYSTEM TOKENS — 7F PREMIUM COLOR LANGUAGE
      Base global del SaaS
      ========================================================== */
-  --app-canvas: #201A33;
-  --app-sidebar: #1A1529;
-  --app-surface-dark: #2A2342;
-  --app-surface-dark-elevated: #342B50;
-  --app-surface-dark-hover: #3D3360;
+  --app-canvas: #16112A;
+  --app-sidebar: #141126;
+  --app-surface-dark: #211A3A;
+  --app-surface-dark-elevated: #2C2448;
+  --app-surface-dark-hover: #382E5C;
 
   --surface-1: #EEEAF7;
   --surface-2: #F3EFFA;
   --surface-3: #F1EDF9;
   --surface-4: #E9E4F3;
 
-  --accent-primary: #7C4DFF;
-  --accent-primary-hover: #8A5CFF;
-  --accent-on-dark: #B9A3FF;
-  --accent-muted: rgba(124, 77, 255, 0.14);
-  --accent-soft: #E9E2FF;
+  --accent-primary: #8B5CFF;
+  --accent-primary-hover: #9A70FF;
+  --accent-on-dark: #C4B2FF;
+  --accent-muted: rgba(139, 92, 255, 0.16);
+  --accent-soft: #EDE7FF;
   --accent-rich: #5B21B6;
 
   --text-primary-dark: #1F1B2D;
   --text-secondary-dark: #6F6885;
 
-  --text-primary-light: #ECE9F5;
-  --text-secondary-light: #A79FB8;
-  --text-tertiary-light: #7E7691;
+  --text-primary-light: #F2EEFF;
+  --text-secondary-light: #B8AED0;
+  --text-tertiary-light: #8B80A3;
 
   --border-light: #E7E1F0;
   --border-dark: rgba(255, 255, 255, 0.08);
@@ -139,7 +139,7 @@
   --accent-foreground: var(--text-primary-dark);
   --border: var(--border-light);
   --input: var(--border-light);
-  --ring: rgba(124, 77, 255, 0.32);
+  --ring: rgba(139, 92, 255, 0.32);
 
   /* ==========================================================
      INBOX TOKENS — MAPEADOS DESDE EL SISTEMA
@@ -161,7 +161,7 @@
   --inbox-list-text: var(--text-primary-light);
   --inbox-list-text-secondary: var(--text-secondary-light);
   --inbox-list-selected: var(--accent-primary);
-  --inbox-list-selected-bg: rgba(124, 77, 255, 0.2);
+  --inbox-list-selected-bg: rgba(139, 92, 255, 0.2);
 
   /* Thread canvas: subtle lift toward elevated surface — stays dark-first */
   --inbox-chat-background: color-mix(in srgb, var(--app-surface-dark) 68%, var(--app-surface-dark-elevated) 32%);
@@ -218,8 +218,8 @@
   --inbox-urgency: #F08A8E;
   --inbox-urgency-soft: rgba(232, 111, 116, 0.14);
   --inbox-destructive-soft: rgba(232, 111, 116, 0.14);
-  --inbox-focus: #B9A3FF;
-  --inbox-focus-soft: rgba(124, 77, 255, 0.16);
+  --inbox-focus: #C4B2FF;
+  --inbox-focus-soft: rgba(139, 92, 255, 0.16);
   
   /* === URGENCIA BADGES PREMIUM === */
   --inbox-urgency-critical-bg: rgba(232, 111, 116, 0.14);
@@ -237,7 +237,7 @@
   --inbox-voice-dictate-border: rgba(232, 111, 116, 0.24);
   --inbox-voice-compose-bg: var(--accent-soft);
   --inbox-voice-compose-text: var(--accent-primary);
-  --inbox-voice-compose-border: rgba(124, 77, 255, 0.22);
+  --inbox-voice-compose-border: rgba(139, 92, 255, 0.22);
   
   /* === ICONOS COLORIDOS PREMIUM === */
   --inbox-urgent-color: #E86F74;
