@@ -1764,14 +1764,14 @@ export function ReplyComposer({
                 messageActions.intentStatus === "done" ? (
                   <MoreMenuItem
                     icon={AlertCircle}
-                    label={actingOnScope === "selected" ? "Mark selected as needs action" : "Mark latest as needs action"}
+                    label="Mark this message as needs action"
                     onClick={messageActions.onMarkDone}
                     onAfterClick={() => setMoreMenuOpen(false)}
                   />
                 ) : (
                   <MoreMenuItem
                     icon={CheckCircle2}
-                    label={actingOnScope === "selected" ? "Mark selected as done" : "Mark latest as done"}
+                    label="Mark this message done"
                     activeLabel="Marked as done"
                     onClick={messageActions.onMarkDone}
                     isCurrent={false}
@@ -1782,7 +1782,7 @@ export function ReplyComposer({
               {messageActions.onAddInternalNote ? (
                 <MoreMenuItem
                   icon={StickyNote}
-                  label={actingOnScope === "selected" ? "Add internal note about selected" : "Add internal note about latest"}
+                  label="Add internal note"
                   onClick={messageActions.onAddInternalNote}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
@@ -2016,8 +2016,8 @@ function MoreMenuItem({
             }
       }
       disabled={disabled}
-      title={isCurrent ? `Already ${activeLabel || label}` : `${label} (whole conversation)`}
-      aria-label={isCurrent ? `${label} (already applied)` : `${label} — affects the whole conversation`}
+      title={isCurrent ? `Already ${activeLabel || label}` : label}
+      aria-label={isCurrent ? `${label} (already applied)` : label}
       className={cn(
         "inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:flex-none",
         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
