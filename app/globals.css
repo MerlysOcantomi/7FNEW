@@ -174,11 +174,8 @@
   --inbox-chat-meta-outbound-border: #3D2F62;
   --inbox-chat-meta-outbound-bg: #2E2548;
   --inbox-chat-meta-outbound-text: #E4DCFA;
-  /* Inbound bubble: SOLID filled surface — one clear step above the chat canvas
-     so a client message reads as a real, opaque card (not translucent glass). */
-  --inbox-chat-bubble-inbound: #352C54;
-  --inbox-chat-bubble-inbound-hover: #3E3563;
-  --inbox-chat-bubble-inbound-border: rgba(255, 255, 255, 0.09);
+  /* Inbound: muted lavender — readable, less paper-white vs chat canvas */
+  --inbox-chat-bubble-inbound: #D8CEEA;
   --inbox-chat-text: var(--text-primary-dark);
   --inbox-chat-text-secondary: var(--text-secondary-dark);
   --inbox-chat-border: rgba(48, 44, 68, 0.38);
