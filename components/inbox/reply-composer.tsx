@@ -1885,52 +1885,29 @@ export function ReplyComposer({
         )}
 
         {/*
-          Destructive actions — kept in their own clearly separated, danger-toned section at
-          the very bottom so they never sit next to benign actions and can't be hit by
-          accident. Holds the per-message trash and the conversation-level trash (with its
-          Restore reverse when already trashed). Same handlers as before; presentation only.
+          Remove message — message-scoped soft-trash only. Conversation-level trash/restore was
+          taken out of the composer: it already lives in the conversation header status selector
+          (no capability lost). This single message action stays here until PR-B gives the
+          message bubble its own trash affordance. Same handler; presentation only.
         */}
-        {moreMenuOpen
-          && ((showMoreMessagePanel && messageActions && messageActions.onTrashMessage)
-            || trashHandler
-            || (currentConversationStatus === "trashed" && restoreFromTrashHandler)) && (
-          <div className="overflow-hidden rounded-lg border border-[var(--inbox-urgency-critical-bg)]/60 bg-[var(--inbox-urgency-critical-bg)]/20">
-            <div className="border-b border-[var(--inbox-urgency-critical-bg)]/50 bg-black/35 px-3 py-1.5">
-              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-urgency-critical-text)]">
-                Remove
+        {moreMenuOpen && showMoreMessagePanel && messageActions && messageActions.onTrashMessage && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                Remove message
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Destructive — these can't be undone from here.
+                Trashes just this message — restore it from the message itself.
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
-              {showMoreMessagePanel && messageActions && messageActions.onTrashMessage ? (
-                <MoreMenuItem
-                  icon={Trash2}
-                  label="Trash this message"
-                  onClick={messageActions.onTrashMessage}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                  tone="danger"
-                />
-              ) : null}
-              {currentConversationStatus === "trashed" && restoreFromTrashHandler ? (
-                <MoreMenuItem
-                  icon={RotateCcw}
-                  label="Restore to Inbox"
-                  onClick={restoreFromTrashHandler}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                />
-              ) : trashHandler ? (
-                <MoreMenuItem
-                  icon={Trash2}
-                  label="Move conversation to Trash"
-                  activeLabel="In Trash"
-                  onClick={trashHandler}
-                  isCurrent={currentConversationStatus === "trashed"}
-                  onAfterClick={() => setMoreMenuOpen(false)}
-                  tone="danger"
-                />
-              ) : null}
+              <MoreMenuItem
+                icon={Trash2}
+                label="Trash this message"
+                onClick={messageActions.onTrashMessage}
+                onAfterClick={() => setMoreMenuOpen(false)}
+                tone="danger"
+              />
             </div>
           </div>
         )}
