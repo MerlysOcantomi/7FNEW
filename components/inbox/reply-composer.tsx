@@ -1599,7 +1599,7 @@ export function ReplyComposer({
                     <PopoverContent
                       align="start"
                       sideOffset={6}
-                      className="w-72 space-y-2 border border-[var(--inbox-border)]/40 bg-[var(--inbox-card)] p-3 text-[var(--inbox-text)]"
+                      className="w-72 space-y-2 border border-[var(--inbox-border)]/40 bg-[var(--inbox-surface-elevated)] p-3 text-[var(--inbox-text)] shadow-lg"
                     >
                       <div className="space-y-1">
                         <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
