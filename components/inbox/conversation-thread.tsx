@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react"
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Mail, MessageSquare, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyState } from "@/components/empty-state"
-import { InlineSelect } from "@/components/inline-edit"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
 import { EmailReadingView, computeEmailNavigation, type EmailReadingMessage } from "@/components/inbox/email-reading-view"
 import { cn } from "@/lib/utils"
@@ -226,6 +226,44 @@ export function ConversationThread({
     </div>
   ) : null
 
+  /**
+   * Conversation workflow status — visually distinct from the Chat/Email view selector
+   * (which only changes how messages are displayed). Uses the dark-themed `Select` (good
+   * contrast in the purple theme) instead of the shared `InlineSelect`'s native `<select>`,
+   * and carries an explicit "Status" label so it never reads as a third view mode. Behavior,
+   * values, options and the `onStatusChange` handler are unchanged.
+   */
+  const StatusControl = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--inbox-text-secondary)]">
+        Status
+      </span>
+      <Select value={statusValue} onValueChange={(value) => { void onStatusChange(value) }}>
+        <SelectTrigger
+          aria-label="Conversation status"
+          className={cn(
+            "h-6 gap-1 rounded-full border-0 px-2.5 py-0 text-[11px] font-medium shadow-none focus:ring-1 focus:ring-[var(--inbox-accent)]/40",
+            statusBadgeClassName(statusValue),
+          )}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {statusOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value} className="text-xs">
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
+  /** Subtle divider so the status control reads as separate from the Chat/Email toggle. */
+  const ControlsDivider = showEmailToggle ? (
+    <span className="h-4 w-px shrink-0 bg-[var(--inbox-divider)]" aria-hidden="true" />
+  ) : null
+
   return (
     <>
       {/* Mobile navigation */}
@@ -253,13 +291,9 @@ export function ConversationThread({
           </Button>
           {EmailNavControls}
           {EmailViewToggle}
-          <div className="ml-auto">
-            <InlineSelect
-              value={statusValue}
-              options={statusOptions}
-              onSave={onStatusChange}
-              badgeClassName={statusBadgeClassName}
-            />
+          <div className="ml-auto flex items-center gap-2">
+            {ControlsDivider}
+            {StatusControl}
           </div>
         </div>
       </div>
@@ -282,12 +316,8 @@ export function ConversationThread({
           <div className="flex shrink-0 items-center gap-2">
             {EmailNavControls}
             {EmailViewToggle}
-            <InlineSelect
-              value={statusValue}
-              options={statusOptions}
-              onSave={onStatusChange}
-              badgeClassName={statusBadgeClassName}
-            />
+            {ControlsDivider}
+            {StatusControl}
           </div>
         </div>
       </div>
