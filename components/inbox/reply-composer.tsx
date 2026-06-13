@@ -8,7 +8,7 @@ import {
   Link, Image,
   RotateCcw, Keyboard, Wand2,
   Archive, ArchiveRestore, CheckCircle2, Trash2, MoreHorizontal,
-  MailOpen, AlertCircle, Target, Layers, MailCheck, ListPlus,
+  MailOpen, AlertCircle, Layers, MailCheck, ListPlus,
   type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -317,28 +317,14 @@ export function ReplyComposer({
    */
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
-  /** Acting on panel: scope picker (Latest / Selected / All). */
-  const [actingOnPanelOpen, setActingOnPanelOpen] = useState(false)
-  const actingOnScopeMeta: Record<"latest" | "selected" | "all", { label: string; icon: LucideIcon; description: string }> = {
-    latest: {
-      label: "Latest",
-      icon: Reply,
-      description: "Use the most recent relevant message.",
-    },
-    selected: {
-      label: "Selected",
-      icon: Target,
-      description: hasSelectedMessage
-        ? "Use the message you selected in the thread."
-        : "Select a message in the thread first.",
-    },
-    all: {
-      label: "All",
-      icon: Layers,
-      description: "Use the whole conversation as context.",
-    },
-  }
-  const currentActingOnLabel = actingOnScopeMeta[actingOnScope].label
+  /**
+   * Context scope is selection-driven: selecting a message in the thread flips the
+   * parent's `actingOnScope` to "selected" automatically, and clearing it returns to
+   * "latest". So the composer no longer needs a labelled scope picker — it shows a
+   * contextual chip only when scope ≠ default, and the one manual override
+   * ("whole conversation") lives inside the More menu. No "Acting on" / "Selected" /
+   * "All" labels are surfaced.
+   */
 
   /**
    * Assist panel layout: mismo patrón que el toolbox (tabs en barra negra + contenido de la activa).
@@ -629,11 +615,18 @@ export function ReplyComposer({
     }
   }, [isProcessing])
 
+  /**
+   * `latestActionAnchor` (the "latest relevant message" preview) used to render inside
+   * the removed scope picker panel. The prop is kept for caller compatibility (page.tsx
+   * still passes it) but is no longer surfaced — the default "latest" scope shows no
+   * chip on purpose. Referenced via void so it doesn't read as dead.
+   */
+  void latestActionAnchor
+
   const closePanelBlocks = useCallback(() => {
     setClipPanelOpen(false)
     setAssistPanelOpen(false)
     setMoreMenuOpen(false)
-    setActingOnPanelOpen(false)
   }, [])
 
   const closeComposerOverlays = useCallback(() => {
@@ -699,11 +692,18 @@ export function ReplyComposer({
   )
   const showMoreMessagePanel = actingOnScope !== "all" && moreMessageActionsAvailable
   const showMoreConversationPanel = hasConversationActions
-  const morePanelHasContent = showMoreMessagePanel || showMoreConversationPanel
+  /**
+   * The "Use whole conversation as context" override always lives in More (it's the one
+   * manual scope choice now that Latest/Selected are selection-driven), so More always has
+   * at least this entry to surface.
+   */
+  const showContextScopeToggle = Boolean(onActingOnScopeChange)
+  const morePanelHasContent =
+    showMoreMessagePanel || showMoreConversationPanel || showContextScopeToggle
 
   /** Un solo icono con chrome “activo”: overlay (paneles/snippets) o mic grabando tienen prioridad sobre modo email/voz */
   const composerOverlayOpen =
-    clipPanelOpen || assistPanelOpen || moreMenuOpen || actingOnPanelOpen
+    clipPanelOpen || assistPanelOpen || moreMenuOpen
   const micCapturesChrome = speech.listening
   const showEmailModeChrome = !composerOverlayOpen && !micCapturesChrome
   const emailToolActive = showEmailModeChrome && !replyIsInternal && !voiceToolbarFocus
@@ -933,34 +933,61 @@ export function ReplyComposer({
           </div>
         )}
 
+        {/*
+         * Context chip — shown ONLY when the scope is not the default "latest". It tells the
+         * operator, intuitively, what the composer is acting on, and lets them step out of it.
+         * Default (latest) shows nothing so the composer stays clean. Ungated by the expanded
+         * view so it stays visible even before the operator starts typing.
+         */}
+        {actingOnScope === "selected" && replyTarget ? (
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
+            <Reply className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
+              Replying to{" "}
+              <span className="font-semibold">{replyTarget.authorLabel}</span>
+              {replyTarget.timestampLabel ? (
+                <span suppressHydrationWarning className="text-[var(--inbox-text-secondary)]">
+                  {" · "}
+                  {replyTarget.timestampLabel}
+                </span>
+              ) : null}
+            </span>
+            {onClearReplyTarget ? (
+              <button
+                type="button"
+                onClick={onClearReplyTarget}
+                className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+                title="Reply to the whole conversation instead"
+                aria-label="Stop replying to this message"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ) : actingOnScope === "all" ? (
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
+            <Layers className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
+              Using whole conversation
+            </span>
+            {onActingOnScopeChange ? (
+              <button
+                type="button"
+                onClick={() => onActingOnScopeChange("latest")}
+                className="shrink-0 rounded-full p-0.5 text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
+                title="Use the latest message instead"
+                aria-label="Stop using the whole conversation"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* ── Barra de iconos (solo tools — Send vive ahora dentro del textarea) ── */}
         {composerExpandedView && (
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-[var(--inbox-border)]/25 pt-0.5">
           <div className="flex min-w-0 flex-wrap items-center gap-y-1">
-            {/* Acting on — first toolbar control, drives scope used by the rest of the toolbar */}
-            <button
-              type="button"
-              onClick={() => {
-                setClipPanelOpen(false)
-                setAssistPanelOpen(false)
-                setMoreMenuOpen(false)
-                onCannedOpenChange(false)
-                setActingOnPanelOpen((v) => !v)
-              }}
-              className={cn(
-                "mr-1 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
-                actingOnPanelOpen
-                  ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
-                  : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
-              )}
-              title={`Acting on: ${currentActingOnLabel} — controls scope used by toolbar`}
-              aria-label={`Acting on: ${currentActingOnLabel}`}
-              aria-expanded={actingOnPanelOpen}
-            >
-              <Target className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="text-[10px]">Acting on:</span>
-              <span className="text-[10px] font-semibold">{currentActingOnLabel}</span>
-            </button>
             <div className="flex flex-wrap items-center gap-0.5">
               <button
                 type="button"
@@ -1155,7 +1182,6 @@ export function ReplyComposer({
                 onClick={() => {
                   setClipPanelOpen(false)
                   setAssistPanelOpen(false)
-                  setActingOnPanelOpen(false)
                   onCannedOpenChange(false)
                   setMoreMenuOpen((v) => !v)
                 }}
@@ -1668,130 +1694,6 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* ── Acting on scope panel ── */}
-        {actingOnPanelOpen && (
-          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
-            {/* Dark header — same visual language as Attach toolbox tab bar */}
-            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
-              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                Acting on
-              </p>
-              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Choose which message context the toolbar uses.
-              </p>
-            </div>
-            <div className="flex flex-col gap-1 p-2.5">
-              {(["latest", "selected", "all"] as const).map((scope) => {
-                const meta = actingOnScopeMeta[scope]
-                const isActive = actingOnScope === scope
-                const isDisabled = scope === "selected" && !hasSelectedMessage
-                return (
-                  <button
-                    key={scope}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={
-                      isDisabled
-                        ? undefined
-                        : () => {
-                            onActingOnScopeChange?.(scope)
-                            setActingOnPanelOpen(false)
-                          }
-                    }
-                    className={cn(
-                      "flex w-full items-start gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
-                      isActive
-                        ? "border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 text-[var(--inbox-text)]"
-                        : isDisabled
-                          ? "cursor-not-allowed border-[var(--inbox-border)]/30 bg-transparent text-[var(--inbox-text-secondary)]/65 opacity-75"
-                          : "border-[var(--inbox-border)]/30 bg-transparent text-[var(--inbox-text)] hover:border-[var(--inbox-accent)]/30 hover:bg-white/[0.06]",
-                    )}
-                    title={isDisabled ? meta.description : `Use ${meta.label.toLowerCase()} scope`}
-                    aria-pressed={isActive}
-                  >
-                    <meta.icon
-                      className={cn(
-                        "mt-0.5 h-3.5 w-3.5 shrink-0",
-                        isActive && "text-[var(--inbox-accent)]",
-                      )}
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          "block text-[12px] font-medium leading-tight",
-                          isActive && "text-[var(--inbox-accent)]",
-                        )}
-                      >
-                        {meta.label}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-[var(--inbox-text-secondary)]">
-                        {meta.description}
-                      </span>
-                      {/* Inline preview when this scope is active and an anchor exists */}
-                      {isActive && scope === "selected" && replyTarget ? (
-                        <span className="mt-1 block">
-                          <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
-                              {replyTarget.authorLabel}
-                            </span>
-                            {replyTarget.timestampLabel ? (
-                              <span
-                                suppressHydrationWarning
-                                className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
-                              >
-                                · {replyTarget.timestampLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                          {replyTarget.snippet ? (
-                            <span
-                              className="mt-0.5 block truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
-                              title={replyTarget.snippet}
-                            >
-                              {replyTarget.snippet}
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : null}
-                      {isActive && scope === "latest" && latestActionAnchor ? (
-                        <span className="mt-1 block">
-                          <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="shrink-0 truncate text-[10px] font-semibold text-[var(--inbox-text)]">
-                              {latestActionAnchor.authorLabel}
-                            </span>
-                            {latestActionAnchor.timestampLabel ? (
-                              <span
-                                suppressHydrationWarning
-                                className="text-[9px] tabular-nums text-[var(--inbox-text-secondary)]"
-                              >
-                                · {latestActionAnchor.timestampLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                          {latestActionAnchor.snippet ? (
-                            <span
-                              className="mt-0.5 block truncate text-[10px] leading-snug text-[var(--inbox-text-secondary)]"
-                              title={latestActionAnchor.snippet}
-                            >
-                              {latestActionAnchor.snippet}
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : null}
-                    </span>
-                    {isActive && (
-                      <span className="mt-0.5 shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
-                        Active
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/*
           Scope-aware More actions panel — additive layout:
@@ -1974,6 +1876,34 @@ export function ReplyComposer({
                   tone="danger"
                 />
               )}
+            </div>
+          </div>
+        )}
+
+        {/*
+          Context scope — the one manual scope override now lives here (Latest/Selected are
+          selection-driven). Toggling "whole conversation" sets `actingOnScope` to "all"; when
+          already active it renders as current and is reverted from the context chip's ✕.
+        */}
+        {moreMenuOpen && showContextScopeToggle && (
+          <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
+            <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
+              <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
+                Context
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
+                What the AI and tools use as context.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5">
+              <MoreMenuItem
+                icon={Layers}
+                label="Use whole conversation as context"
+                activeLabel="Using whole conversation"
+                isCurrent={actingOnScope === "all"}
+                onClick={() => onActingOnScopeChange?.("all")}
+                onAfterClick={() => setMoreMenuOpen(false)}
+              />
             </div>
           </div>
         )}
