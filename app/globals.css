@@ -189,8 +189,12 @@
   --inbox-list-selected: var(--accent-primary);
   --inbox-list-selected-bg: rgba(139, 92, 255, 0.2);
 
-  /* Thread canvas: subtle lift toward elevated surface — stays dark-first */
-  --inbox-chat-background: color-mix(in srgb, var(--app-surface-dark) 68%, var(--app-surface-dark-elevated) 32%);
+  /* ── INBOX COLUMN LAYERING — the contract every theme follows ──
+     Thread = the deepest "content" plane (the reading area recedes); the list +
+     Fanny rails (--inbox-list-background / --inbox-intelligence-background) sit
+     lighter, and cards/bubbles float above. Keep the center clearly DISTINCT
+     from the rails so the three columns read as separate planes. */
+  --inbox-chat-background: var(--app-canvas);
   --inbox-chat-surface: var(--app-surface-dark-elevated);
   /* Outbound bubble: restrained purple — premium, less neon than raw accent ramp */
   --inbox-chat-bubble-outbound: #7A6AE0;
@@ -200,8 +204,12 @@
   --inbox-chat-meta-outbound-border: #3D2F62;
   --inbox-chat-meta-outbound-bg: #2E2548;
   --inbox-chat-meta-outbound-text: #E4DCFA;
-  /* Inbound: muted lavender — readable, less paper-white vs chat canvas */
-  --inbox-chat-bubble-inbound: #D8CEEA;
+  /* Inbound bubble surface — translucent white over the canvas. These equal the
+     literal utilities the bubble used before (white/0.06 fill, /0.10 border,
+     /0.09 hover), so Midnight is unchanged; light themes override with a solid. */
+  --inbox-chat-bubble-inbound: rgba(255, 255, 255, 0.06);
+  --inbox-chat-bubble-inbound-hover: rgba(255, 255, 255, 0.09);
+  --inbox-chat-bubble-inbound-border: rgba(255, 255, 255, 0.10);
   --inbox-chat-text: var(--text-primary-dark);
   --inbox-chat-text-secondary: var(--text-secondary-dark);
   --inbox-chat-border: rgba(48, 44, 68, 0.38);
@@ -363,7 +371,16 @@
   --status-success-text: #3E8E5E;
 
   /* — Inbox: invert the dark-baked component tokens (the rest derive) — */
-  --inbox-chat-background: color-mix(in srgb, var(--app-surface-dark) 70%, #FFFFFF 30%);
+  /* Same column-layering contract as Midnight: the center thread is the deeper
+     lavender "canvas", the list + Fanny rails sit lighter (whiter), so white
+     cards/bubbles float and the three columns read as distinct planes. */
+  --inbox-list-background: #F8F5FD;
+  --inbox-intelligence-background: #F8F5FD;
+  --inbox-chat-background: #EBE5F6;
+  /* Inbound bubble: solid light surface so it pops on the lavender canvas */
+  --inbox-chat-bubble-inbound: #FFFFFF;
+  --inbox-chat-bubble-inbound-hover: #F8F6FD;
+  --inbox-chat-bubble-inbound-border: rgba(33, 27, 51, 0.08);
   --inbox-composer-input: #FFFFFF;
   --inbox-composer-toolbar: rgba(33, 27, 51, 0.04);
   --inbox-chat-meta-outbound-bg: #EFEAFF;

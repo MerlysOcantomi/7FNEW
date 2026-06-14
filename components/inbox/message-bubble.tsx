@@ -261,15 +261,15 @@ export function MessageBubble({
             tone === "outbound" &&
               "rounded-tr-lg border-[var(--inbox-chat-bubble-outbound)]/22 bg-[image:var(--inbox-chat-bubble-outbound-gradient)] text-white shadow-[0_6px_18px_var(--inbox-chat-bubble-outbound-shadow)] hover:shadow-[0_9px_22px_var(--inbox-chat-bubble-outbound-shadow-hover)]",
             /**
-             * Dark theme inbound surface: el token `--inbox-chat-bubble-inbound` resolvía a
-             * `#D8CEEA` (lavanda casi gris) heredado de un diseño previo light-on-dark; sobre el
-             * tema oscuro actual quedaba como un bloque flat gris desconectado del panel. Usamos
-             * un cristal traslúcido sutil con tinte del background (white/0.06) y texto claro,
-             * dejando el outbound como CTA gradiente fuerte y el inbound como superficie discreta.
-             * El ring de selección (`ring-2 accent`) más abajo sigue ganando porque pisa este ring.
+             * Inbound surface is token-driven so it adapts per theme without a
+             * per-component hack. In Midnight the tokens resolve to the SAME
+             * translucent white the bubble always used (white/0.06 fill, /0.10
+             * border, /0.09 hover) — visually unchanged. In Lavender Mist they
+             * resolve to a SOLID light surface so the bubble pops on the soft
+             * lavender thread canvas. The selection ring below still wins.
              */
             tone === "inbound" &&
-              "rounded-tl-lg border-white/[0.10] bg-white/[0.06] text-[var(--inbox-text)] shadow-[var(--inbox-shadow-card)] hover:bg-white/[0.09] hover:shadow-[0_6px_18px_rgba(0,0,0,0.18)]",
+              "rounded-tl-lg border-[var(--inbox-chat-bubble-inbound-border)] bg-[var(--inbox-chat-bubble-inbound)] text-[var(--inbox-text)] shadow-[var(--inbox-shadow-card)] hover:bg-[var(--inbox-chat-bubble-inbound-hover)] hover:shadow-[0_6px_18px_rgba(0,0,0,0.18)]",
             tone === "internal" &&
               "rounded-tl-lg border-[var(--inbox-warning)]/20 bg-[var(--inbox-warning)]/8 text-[var(--inbox-warning)] shadow-[0_4px_20px_rgba(217,119,6,0.10)]",
             tone === "system" &&
