@@ -9,6 +9,7 @@ import {
   KeyRound,
   Loader2,
   LogOut,
+  Palette,
   Settings as SettingsIcon,
   ShieldCheck,
   UserCircle,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react"
 import type { ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import { cn } from "@/lib/utils"
+import { ThemeModeToggle } from "@/components/theme-mode-toggle"
 
 /**
  * Account Center Panel
@@ -563,6 +565,15 @@ export function AccountCenterPanel({
                   </li>
                 ))}
               </ul>
+            </section>
+
+            <section>
+              <SectionHeading icon={Palette}>Appearance</SectionHeading>
+              <ThemeModeToggle />
+              <p className="mt-2 text-[11px] leading-snug text-[var(--text-secondary-light)]">
+                Midnight is the default. Lavender Mist is an in-progress light
+                theme — some areas may still show dark styling.
+              </p>
             </section>
           </div>
         </div>
