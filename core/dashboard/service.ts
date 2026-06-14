@@ -72,7 +72,7 @@ export async function buildDashboardData(auth: WorkspaceAuth): Promise<Dashboard
         {
           id: "open-inbox",
           label: "Open Smart Inbox",
-          href: "/inbox",
+          href: "/inbox/overview",
         },
         {
           id: "view-recommendations",

@@ -42,7 +42,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 // ── Static quick-links (shown when query is empty) ──────────────────
 const quickLinks = [
   { label: "Overview", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
-  { label: "Smart Inbox", href: "/inbox", icon: Inbox, keywords: "inbox messages conversations" },
+  { label: "Smart Inbox", href: "/inbox/overview", icon: Inbox, keywords: "inbox messages conversations overview briefing" },
   { label: "Manual Intake", href: "/entrada", icon: PenLine, keywords: "manual intake capture" },
   { label: "Clients", href: "/clientes", icon: Users, keywords: "clients companies contacts" },
   { label: "Projects", href: "/proyectos", icon: FolderKanban, keywords: "projects work" },

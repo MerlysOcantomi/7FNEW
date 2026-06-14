@@ -126,9 +126,9 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
            * `in_progress`, `urgent`, `needs_reply`, `leads`) are preserved as aliases
            * so external bookmarks keep working.
            *
-           * - "Inbox" subitem (no group) duplicates the parent click target on purpose:
-           *   gives operators an explicit "go back to default view" affordance even
-           *   when they've drilled into a sub-filter.
+           * - Parent "Smart Inbox" opens the Overview briefing (/inbox/overview) — the
+           *   daily doorway. The "Inbox" subitem (no group) is the explicit entry to the
+           *   working message list (/inbox), the default unfiltered view.
            * - The former "To-do" subitem was retired: Inbox no longer owns a
            *   visible To-do mode. Tasks live in the global Tasks/WorkspaceTask
            *   surface and the daily view is `/today`. Legacy bookmarks pointing
@@ -139,7 +139,7 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
            * - Storage is intentionally last (terminal/done/discarded states).
            */
           label: "Smart Inbox",
-          href: "/inbox",
+          href: "/inbox/overview",
           icon: Inbox,
           helper: "by Fanny",
           subitems: [
@@ -215,7 +215,7 @@ const NAV_SECTIONS = buildNavSections();
  */
 function getInboxFocusedItems(): NavItem[] {
   const main = NAV_SECTIONS.find((s) => s.section === "Main");
-  const smartInbox = main?.items.find((i) => i.href === "/inbox");
+  const smartInbox = main?.items.find((i) => i.href === "/inbox/overview");
   return smartInbox?.subitems ?? [];
 }
 
@@ -323,7 +323,12 @@ function NavLinkWithSubitems({
     return pathname === "/inbox" && currentFilter === subFilter;
   });
   const [expanded, setExpanded] = useState(hasActiveSubitem || pathname === href);
-  const isActive = href === "/" ? pathname === "/" : (pathname === href && !currentFilter);
+  const isActive =
+    href === "/"
+      ? pathname === "/"
+      : href.startsWith("/inbox")
+        ? isInboxFocusedPath(pathname) && !currentFilter
+        : pathname === href && !currentFilter;
 
   useEffect(() => {
     if (hasActiveSubitem) {
@@ -692,7 +697,7 @@ function useSectionsWithBadges(): NavSection[] {
     return NAV_SECTIONS.map((section) => ({
       ...section,
       items: section.items.map((item) =>
-        item.href === "/inbox" ? { ...item, badge: inboxBadge } : item
+        item.href === "/inbox/overview" ? { ...item, badge: inboxBadge } : item
       ),
     }));
   }, [inboxBadge]);

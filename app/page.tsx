@@ -179,7 +179,7 @@ export default function Dashboard() {
               actions={
                 <div className="flex flex-wrap gap-2">
                   <Button asChild>
-                    <Link href={hero?.quickActions[0]?.href ?? "/inbox"}>
+                    <Link href={hero?.quickActions[0]?.href ?? "/inbox/overview"}>
                       <Inbox size={14} strokeWidth={1.75} />
                       {hero?.quickActions[0]?.label ?? `Open ${v.inbox.singular}`}
                     </Link>

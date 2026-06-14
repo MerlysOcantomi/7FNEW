@@ -34,7 +34,7 @@ export function TodayEmptyState() {
         Anything that needs your attention will show up here.
       </p>
       <Link
-        href="/inbox"
+        href="/inbox/overview"
         className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
       >
         Or check your Inbox →

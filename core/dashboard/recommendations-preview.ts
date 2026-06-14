@@ -22,7 +22,7 @@ export function getDashboardRecommendationsPreview(input: {
       title: "Smart Inbox",
       helper: "by Fanny",
       description: "Review new conversations, capture demand, and turn messages into next steps.",
-      href: "/inbox",
+      href: "/inbox/overview",
       cta: "Open Smart Inbox",
       source: "module",
       freshness: "static",
