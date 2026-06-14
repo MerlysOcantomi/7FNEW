@@ -82,6 +82,7 @@
   --accent-primary-hover: #9A70FF;
   --accent-on-dark: #C4B2FF;
   --accent-muted: rgba(139, 92, 255, 0.16);
+  --accent-muted-border: rgba(139, 92, 255, 0.36);
   --accent-soft: #EDE7FF;
   --accent-rich: #5B21B6;
 
@@ -344,6 +345,7 @@
   --accent-primary-hover: #8257F0;
   --accent-on-dark: #6D3FD4; /* now "accent on LIGHT" — darker for legible text */
   --accent-muted: rgba(139, 92, 255, 0.14);
+  --accent-muted-border: rgba(139, 92, 255, 0.30);
   --accent-soft: #EFEAFF;
   --accent-rich: #5B21B6;
 
@@ -400,6 +402,23 @@
   --inbox-destructive: #D14A4F;
   --inbox-success: #3E8E5E;
   --inbox-warning: #B07D24;
+}
+
+/* ── Inbox Overview — Fanny presence (decorative orb rings + waveform) ── */
+@keyframes inbox-orb-ring {
+  0% { transform: scale(0.82); opacity: 0.5; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@keyframes inbox-orb-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+@keyframes inbox-wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-inbox-anim] { animation: none !important; }
 }
 
 @theme inline {

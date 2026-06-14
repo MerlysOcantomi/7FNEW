@@ -21,7 +21,7 @@ export default function InboxOverviewPage() {
     <AppShell
       currentSection="inbox"
       breadcrumbs={[{ label: "7F" }, { label: "Inbox", href: "/inbox" }, { label: "Overview" }]}
-      contentClassName="max-w-5xl"
+      contentClassName="max-w-6xl"
     >
       <InboxOverview />
     </AppShell>
