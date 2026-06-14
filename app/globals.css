@@ -335,7 +335,13 @@
 [data-theme="lavender-mist"] {
   /* — Surfaces: light lavender ramp (canvas → elevated) — */
   --app-canvas: #F4F1FB;
-  --app-sidebar: #ECE7F8;
+  /* Sidebar/rail: a deeper, more saturated lavender so the rail keeps identity and
+     depth in light mode (it read too close to white). Still light; the canvas and
+     cards stay lighter so the layers separate. */
+  --app-sidebar: #E5DCF4;
+  /* Raised surface for hover/active nav items — lighter than the rail so the active
+     tile lifts above it (the accent ring + accent icon still mark it active). */
+  --app-sidebar-surface: #F1EBFB;
   --app-surface-dark: #FAF8FE;
   --app-surface-dark-elevated: #FFFFFF;
   --app-surface-dark-hover: #EFEAF8;
