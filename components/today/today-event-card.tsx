@@ -55,7 +55,7 @@ export function TodayEventCard({ item }: { item: TodayItem }) {
           </p>
           {timeChip ? (
             <span
-              className="inline-flex items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-[var(--text-secondary-light)]"
+              className="inline-flex items-center rounded-md bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-[var(--text-secondary-light)]"
               suppressHydrationWarning
             >
               {timeChip}
@@ -68,7 +68,7 @@ export function TodayEventCard({ item }: { item: TodayItem }) {
           </p>
         ) : null}
         <div className="mt-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
             <CalendarDays size={10} className="shrink-0" aria-hidden="true" />
             From Calendar
           </span>

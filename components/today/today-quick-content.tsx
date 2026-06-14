@@ -269,7 +269,7 @@ function TodayQuickLane({
       {accent === "ai" ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-1 h-[2px] rounded-full bg-[linear-gradient(135deg,#2f80ed,#8b5cf6,#ec4899)]"
+          className="pointer-events-none absolute inset-x-0 -top-1 h-[2px] rounded-full bg-[linear-gradient(135deg,var(--accent-primary),var(--accent-on-dark))]"
         />
       ) : null}
 

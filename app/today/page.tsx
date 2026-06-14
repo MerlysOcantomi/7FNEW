@@ -1,7 +1,6 @@
 "use client"
 
 import { AppShell } from "@/components/app-shell"
-import { SectionPage } from "@/components/section-page"
 import { TodayPageClient } from "@/components/today/today-page-client"
 
 /**
@@ -30,13 +29,9 @@ export default function TodayPage() {
       breadcrumbs={[{ label: "7F" }, { label: "Today" }]}
       contentClassName="max-w-7xl"
     >
-      <SectionPage
-        tone="canvas"
-        title="Today"
-        description="Your overdue, due-today, and unscheduled work in one place — across Inbox, projects, and the calendar."
-      >
-        <TodayPageClient />
-      </SectionPage>
+      {/* Header is the workboard's own summary bar (TodayPageClient) — no
+          SectionPage title here, to avoid duplicating "Today" twice. */}
+      <TodayPageClient />
     </AppShell>
   )
 }

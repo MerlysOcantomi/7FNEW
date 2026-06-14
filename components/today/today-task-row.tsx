@@ -153,7 +153,7 @@ export function TodayTaskRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-[var(--text-primary-light)] truncate max-w-full">
+            <p className="text-sm font-semibold text-[var(--text-primary-light)] truncate max-w-full">
               {item.title}
             </p>
             {priorityChip}
@@ -254,8 +254,8 @@ function LaneActionButton({
         "inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-medium transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-60",
         tone === "ai"
-          ? "border-[var(--accent-primary)]/30 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10"
-          : "border-[var(--border-dark)] text-[var(--text-secondary-light)] hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]",
+          ? "border-[var(--accent-muted-border)] bg-[var(--accent-muted)] text-[var(--accent-on-dark)] hover:bg-[var(--accent-primary)]/20"
+          : "border-[var(--border-dark-strong)] bg-[var(--app-surface-hover)] text-[var(--text-primary-light)] hover:bg-[var(--app-surface-active)]",
       )}
     >
       {pending ? (
@@ -289,7 +289,7 @@ function renderDueChip(dueIso: string | null) {
   if (!dueIso) return null
   return (
     <span
-      className="inline-flex items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]"
+      className="inline-flex items-center rounded-md bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]"
       suppressHydrationWarning
     >
       {formatDueShort(dueIso)}
@@ -301,7 +301,7 @@ function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix:
   if (item.source.kind === "inbox") {
     return {
       node: (
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <Inbox size={10} className="shrink-0" aria-hidden="true" />
           From Inbox
         </span>
@@ -313,7 +313,7 @@ function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix:
     const label = item.source.projectName ?? "Project"
     return {
       node: (
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <FolderKanban size={10} className="shrink-0" aria-hidden="true" />
           From {label}
         </span>
@@ -331,7 +331,7 @@ function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix:
      */
     return {
       node: (
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <ListTodo size={10} className="shrink-0" aria-hidden="true" />
           Task
         </span>
@@ -366,7 +366,7 @@ function priorityChipClass(priority: TodayPriority): string {
     case "high":
       return "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
     case "low":
-      return "bg-white/[0.08] text-[var(--text-secondary-light)]"
+      return "bg-[var(--app-surface-active)] text-[var(--text-secondary-light)]"
     case "normal":
     default:
       return "bg-[var(--status-info-bg)] text-[var(--status-info-text)]"

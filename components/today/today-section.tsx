@@ -1,38 +1,42 @@
-import { cn } from "@/lib/utils"
 import type { TodayItem } from "@modules/today/types"
 import { TodayTaskRow } from "./today-task-row"
 import { TodayEventCard } from "./today-event-card"
 
 /**
- * One bucket section in Today: a labelled `<section>` containing a stacked
- * list of task rows + event cards. Per the PR 1 design rule, when `items` is
- * empty the parent should NOT render this component at all — we still bail
- * defensively here so an accidental empty render doesn't show a header with
- * "0 items" underneath.
+ * One bucket section in Today: a labelled `<section>` of task rows + event
+ * cards. When `items` is empty the parent should not render this at all; we
+ * still bail defensively so a stray empty render never shows a "0" header.
  *
- * `tone`:
- *   - `"default"` — Today + Undated.
- *   - `"warning"` — Overdue. Slight tint on the header so the operator can
- *                   visually pick out "this is the bucket I should clear".
+ * `tone` colours the sub-bucket dot + label so the operator can scan priority
+ * without reading: Overdue → urgency, Due today → neutral, Waiting → warning
+ * (amber/lead), No date → muted. All colours are theme tokens so the section
+ * reads correctly in Midnight and Lavender Mist.
  */
+type TodaySectionTone = "urgency" | "neutral" | "warning" | "muted"
+
+const TONE_COLOR: Record<TodaySectionTone, string> = {
+  urgency: "var(--inbox-urgency)",
+  warning: "var(--inbox-lead)",
+  neutral: "var(--text-secondary-light)",
+  muted: "var(--text-tertiary-light)",
+}
+
 export function TodaySection({
   id,
   title,
-  tone = "default",
+  tone = "neutral",
   items,
   onLaneMove,
   onLegacyHandoff,
 }: {
   id: string
   title: string
-  tone?: "default" | "warning"
+  tone?: TodaySectionTone
   items: TodayItem[]
   /**
-   * Forwarded to each `<TodayTaskRow>` so the parent surface (page or
-   * drawer) owns the mutation lifecycle. When omitted, rows render
-   * without the Send-to-AI / Take-over affordances — which is the
-   * right behaviour for any read-only surface that may reuse this
-   * primitive in the future.
+   * Forwarded to each `<TodayTaskRow>` so the parent surface owns the mutation
+   * lifecycle. When omitted, rows render without the Send-to-AI / Take-over
+   * affordances — correct for any read-only reuse of this primitive.
    */
   onLaneMove?: (taskId: string, to: "user" | "ai") => void | Promise<void>
   /** Forwarded to each row for legacy `Tarea` → AI conversion. */
@@ -41,24 +45,20 @@ export function TodaySection({
   if (items.length === 0) return null
 
   const headingId = `${id}-heading`
+  const color = TONE_COLOR[tone]
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2
           id={headingId}
-          className={cn(
-            "text-[10px] font-semibold uppercase tracking-widest",
-            tone === "warning"
-              ? "text-[var(--status-warning-text)]"
-              : "text-[var(--text-secondary-light)]",
-          )}
+          className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest"
+          style={{ color }}
         >
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
           {title}
         </h2>
-        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">
-          {items.length}
-        </span>
+        <span className="text-[10px] tabular-nums text-[var(--text-secondary-light)]/80">{items.length}</span>
       </div>
       <div className="flex flex-col gap-2">
         {items.map((item) =>

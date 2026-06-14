@@ -176,9 +176,12 @@ export function TodayPageClient() {
     return <TodayEmptyState />
   }
 
+  const overdueCount = lanes.mine.overdue.length + lanes.ai.overdue.length
+  const todayCount = lanes.mine.today.length + lanes.ai.today.length
+
   return (
     <div className="flex flex-col gap-6">
-      <TodayWorkboardHeader counts={counts} />
+      <TodaySummaryBar counts={counts} overdueCount={overdueCount} todayCount={todayCount} />
 
       {/*
         Workboard grid — three equal columns on desktop:
@@ -246,66 +249,69 @@ export function TodayPageClient() {
 // ─── Header ────────────────────────────────────────────────────────────────
 
 /**
- * Workboard header. Renders the page title, a short caption, and a
- * compact stat strip with the four counts the operator cares about
- * most: My work, AI work, Schedule, and Waiting / Blocked.
- *
- * Waiting count surfaces even when zero so the absence of blockers
- * itself is informative — many operators ask "is anything stuck?"
- * before they pick up a row.
+ * Slim summary bar — the workboard's single header. The page no longer renders
+ * a SectionPage title, so "Today" is shown once here. Left: Sun halo + "Today" +
+ * the date + a one-line status (overdue / due today / waiting). Right: four
+ * compact count pills; Waiting turns amber when there are blockers.
  */
-function TodayWorkboardHeader({
+function TodaySummaryBar({
   counts,
+  overdueCount,
+  todayCount,
 }: {
   counts: { mine: number; ai: number; schedule: number; waiting: number }
+  overdueCount: number
+  todayCount: number
 }) {
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+  const waitingText = counts.waiting > 0 ? `${counts.waiting} waiting` : "nothing waiting"
+
   return (
-    <header className="flex flex-col gap-3 rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-5">
-      <div className="flex items-start gap-3">
+    <header className="flex flex-col gap-3 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center gap-3">
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
         >
           <Sun size={16} strokeWidth={1.9} />
         </span>
-        <div className="flex-1">
-          <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary-light)]">
-            Today
-          </h1>
-          <p className="text-xs leading-relaxed text-[var(--text-secondary-light)]">
-            Your daily workboard. Hand work to AI, take work back, see what&apos;s on the calendar.
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary-light)]">Today</h1>
+            <span suppressHydrationWarning className="text-[12px] text-[var(--text-secondary-light)]">
+              {dateLabel}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[12px] text-[var(--text-secondary-light)]">
+            <span style={overdueCount > 0 ? { color: "var(--inbox-urgency)" } : undefined}>
+              {overdueCount} overdue
+            </span>{" "}
+            · {todayCount} due today · {waitingText}{" "}
+            · <span className="text-[var(--text-tertiary-light)]">your daily workboard</span>
           </p>
         </div>
       </div>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <StatTile
-          label="My work"
-          value={counts.mine}
-          icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />}
-        />
-        <StatTile
-          label="AI work"
-          value={counts.ai}
-          icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />}
-          tone="ai"
-        />
-        <StatTile
-          label="Schedule"
-          value={counts.schedule}
-          icon={<CalendarClock size={12} strokeWidth={2} aria-hidden="true" />}
-        />
-        <StatTile
+      <div className="flex flex-wrap items-center gap-2">
+        <CountPill label="My work" value={counts.mine} icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />} />
+        <CountPill label="AI work" value={counts.ai} icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />} tone="ai" />
+        <CountPill label="Schedule" value={counts.schedule} icon={<CalendarClock size={12} strokeWidth={2} aria-hidden="true" />} />
+        <CountPill
           label="Waiting"
           value={counts.waiting}
           icon={<PauseCircle size={12} strokeWidth={2} aria-hidden="true" />}
           tone={counts.waiting > 0 ? "warning" : "default"}
         />
-      </dl>
+      </div>
     </header>
   )
 }
 
-function StatTile({
+function CountPill({
   label,
   value,
   icon,
@@ -319,21 +325,28 @@ function StatTile({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 rounded-xl border px-3 py-2",
-        tone === "ai"
-          ? "border-[var(--border-dark)] bg-[linear-gradient(135deg,rgba(47,128,237,0.10),rgba(139,92,246,0.10),rgba(236,72,153,0.10))]"
-          : tone === "warning"
-            ? "border-[var(--status-warning-text)]/30 bg-[var(--status-warning-bg)]/40"
-            : "border-[var(--border-dark)] bg-[var(--app-surface-dark)]",
+        "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5",
+        tone === "warning"
+          ? "border-[var(--status-warning-text)]/30 bg-[var(--status-warning-bg)]"
+          : "border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)]",
       )}
     >
-      <div className="flex items-center gap-1.5 text-[var(--text-secondary-light)]">
-        <span aria-hidden="true">{icon}</span>
-        <dt className="text-[10px] font-semibold uppercase tracking-widest">{label}</dt>
-      </div>
-      <dd className="text-base font-semibold tabular-nums text-[var(--text-primary-light)]">
-        {value}
-      </dd>
+      <span
+        aria-hidden="true"
+        className={cn(
+          tone === "ai"
+            ? "text-[var(--accent-on-dark)]"
+            : tone === "warning"
+              ? "text-[var(--status-warning-text)]"
+              : "text-[var(--text-secondary-light)]",
+        )}
+      >
+        {icon}
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary-light)]">
+        {label}
+      </span>
+      <span className="text-[13px] font-bold tabular-nums text-[var(--text-primary-light)]">{value}</span>
     </div>
   )
 }
@@ -359,7 +372,7 @@ function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"
   return (
     <section
       aria-label="Schedule"
-      className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4"
+      className="relative flex flex-col gap-4 overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4"
     >
       <header className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
@@ -386,7 +399,7 @@ function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"
         <div
           role="status"
           aria-live="polite"
-          className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-6"
+          className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-4 py-6"
         >
           <p className="text-xs font-medium text-[var(--text-primary-light)]">No events today</p>
           <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
@@ -453,13 +466,13 @@ function TodayLaneColumn({
     <section
       aria-label={title}
       className={cn(
-        "relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)]/40 p-4",
+        "relative flex flex-col gap-4 overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4",
       )}
     >
       {accent === "ai" ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(135deg,#2f80ed,#8b5cf6,#ec4899)]"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(135deg,var(--accent-primary),var(--accent-on-dark))]"
         />
       ) : null}
 
@@ -470,8 +483,8 @@ function TodayLaneColumn({
             className={cn(
               "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
               accent === "ai"
-                ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]"
-                : "bg-white/[0.06] text-[var(--text-primary-light)]",
+                ? "bg-[var(--accent-muted)] text-[var(--accent-on-dark)]"
+                : "bg-[var(--app-surface-hover)] text-[var(--text-primary-light)]",
             )}
           >
             {icon}
@@ -494,7 +507,7 @@ function TodayLaneColumn({
         <div
           role="status"
           aria-live="polite"
-          className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-6"
+          className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-4 py-6"
         >
           <p className="text-xs font-medium text-[var(--text-primary-light)]">{emptyTitle}</p>
           <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
@@ -515,7 +528,7 @@ function TodayLaneColumn({
           <TodaySection
             id={`${idPrefix}-overdue`}
             title="Overdue"
-            tone="warning"
+            tone="urgency"
             items={buckets.overdue}
             onLaneMove={onLaneMove}
             onLegacyHandoff={onLegacyHandoff}
@@ -530,6 +543,7 @@ function TodayLaneColumn({
           <TodaySection
             id={`${idPrefix}-waiting`}
             title="Waiting / Blocked"
+            tone="warning"
             items={buckets.waiting}
             onLaneMove={onLaneMove}
             onLegacyHandoff={onLegacyHandoff}
@@ -537,6 +551,7 @@ function TodayLaneColumn({
           <TodaySection
             id={`${idPrefix}-no-date`}
             title="No date"
+            tone="muted"
             items={buckets.undated}
             onLaneMove={onLaneMove}
             onLegacyHandoff={onLegacyHandoff}
