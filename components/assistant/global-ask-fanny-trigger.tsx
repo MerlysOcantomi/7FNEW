@@ -42,7 +42,7 @@ export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "co
 
   const base =
     variant === "app"
-      ? "rounded-lg border border-[var(--border-dark)] bg-white/[0.06] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-white/10"
+      ? "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
       : "rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] shadow-sm hover:bg-[#F1F5F9]"
 
   return (
@@ -57,7 +57,7 @@ export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "co
         base,
         open &&
           (variant === "app"
-            ? "bg-white/10 ring-2 ring-[var(--accent-primary)]/40"
+            ? "bg-[var(--app-surface-active)] ring-2 ring-[var(--accent-primary)]/40"
             : "bg-[#F1F5F9] ring-2 ring-[#3B82F6]/30"),
       )}
     >
@@ -94,8 +94,8 @@ export function GlobalAskFannyTriggerMobile() {
       aria-label="Ask Fanny"
       aria-expanded={open}
       className={cn(
-        "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-white/10 hover:text-white",
-        open && "text-white",
+        "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",
+        open && "text-[var(--text-primary-light)]",
       )}
     >
       <MessageCircle size={22} strokeWidth={2} />

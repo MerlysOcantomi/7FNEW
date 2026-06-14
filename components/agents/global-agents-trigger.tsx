@@ -53,7 +53,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
 
   const base =
     variant === "app"
-      ? "rounded-lg border border-[var(--border-dark)] bg-white/[0.06] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-white/10"
+      ? "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
       : "rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] shadow-sm hover:bg-[#F1F5F9]"
 
   return (
@@ -69,7 +69,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
         base,
         open &&
           (variant === "app"
-            ? "bg-white/10 ring-2 ring-[var(--accent-primary)]/40"
+            ? "bg-[var(--app-surface-active)] ring-2 ring-[var(--accent-primary)]/40"
             : "bg-[#F1F5F9] ring-2 ring-[#3B82F6]/30"),
       )}
     >
@@ -123,8 +123,8 @@ export function GlobalAgentsTriggerMobile() {
       aria-label="Agents"
       aria-expanded={available ? open : undefined}
       className={cn(
-        "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-white/10 hover:text-white",
-        available && open && "text-white",
+        "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",
+        available && open && "text-[var(--text-primary-light)]",
       )}
     >
       <Sparkles size={22} strokeWidth={2} />

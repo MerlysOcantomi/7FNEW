@@ -121,6 +121,14 @@
   --app-control-radius: 8px;
   --app-shadow-subtle: 0 4px 10px rgba(36, 28, 58, 0.06);
 
+  /* Translucent shell overlays (chips, hover, open/active states). Kept as
+     semantic tokens so a light theme can swap white→ink overlays without
+     touching any component. Values here are the Midnight (dark) scale and
+     match the literal Tailwind utilities they replace (white/0.04–0.10). */
+  --app-surface-subtle: rgba(255, 255, 255, 0.04);
+  --app-surface-hover: rgba(255, 255, 255, 0.06);
+  --app-surface-active: rgba(255, 255, 255, 0.10);
+
   /* ==========================================================
      SHARED STATUS TOKENS — Semantic colors for badges & indicators
      Used by Badge variants (urgency, status, action)
@@ -343,6 +351,11 @@
 
   /* — Slightly stronger shadow for depth against light surfaces — */
   --app-shadow-subtle: 0 4px 14px rgba(43, 33, 79, 0.08);
+
+  /* — Shell overlays flip white→ink on light surfaces — */
+  --app-surface-subtle: rgba(33, 27, 51, 0.04);
+  --app-surface-hover: rgba(33, 27, 51, 0.05);
+  --app-surface-active: rgba(33, 27, 51, 0.08);
 
   /* — Status: keep the soft tint backgrounds, deepen text for contrast — */
   --status-danger-text: #C2454A;

@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils"
  *
  *   - Surface          → `bg-[var(--app-shell-bg)]` + `border-[var(--border-dark)]`
  *   - Section labels   → `text-[10px] uppercase tracking-wider text-[var(--text-secondary-light)]`
- *   - Action rows      → 36px icon wrap, title + sub-text, hover `bg-white/[0.06]`
+ *   - Action rows      → 36px icon wrap, title + sub-text, hover `bg-[var(--app-surface-hover)]`
  *   - Icon treatment   → `h-9 w-9 rounded-lg border` chip with `--accent-primary`
  *   - Spacing          → 16–24px gutter, 4px inter-item, 8px column gap
  *
@@ -232,7 +232,7 @@ function ActionRow({
     <>
       <span
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-dark)] bg-white/[0.06]",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)]",
           disabled && "opacity-50",
         )}
       >
@@ -266,7 +266,7 @@ function ActionRow({
     "flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors",
     disabled
       ? "cursor-not-allowed"
-      : "hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50",
+      : "hover:bg-[var(--app-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50",
     className,
   )
 
@@ -312,7 +312,7 @@ function RolePill({ role, accent = false }: { role: string; accent?: boolean }) 
         "shrink-0 rounded-full border px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide",
         accent
           ? "border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
-          : "border-[var(--border-dark)] bg-white/[0.04] text-[var(--text-secondary-light)]",
+          : "border-[var(--border-dark)] bg-[var(--app-surface-subtle)] text-[var(--text-secondary-light)]",
       )}
     >
       {role}
@@ -322,7 +322,7 @@ function RolePill({ role, accent = false }: { role: string; accent?: boolean }) 
 
 function ComingSoonTag() {
   return (
-    <span className="shrink-0 rounded-full border border-[var(--border-dark)] bg-white/[0.04] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-[var(--text-secondary-light)]">
+    <span className="shrink-0 rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-[var(--text-secondary-light)]">
       Soon
     </span>
   )
@@ -365,7 +365,7 @@ export function AccountCenterPanel({
             className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-[var(--border-dark)]"
           />
         ) : (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-sm font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--border-dark)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--app-surface-hover)] text-sm font-medium text-[var(--app-sidebar-text)] ring-1 ring-[var(--border-dark)]">
             {user.initials}
           </div>
         )}
@@ -581,12 +581,12 @@ export function AccountCenterPanel({
           disabled={switchingId !== null || loggingOut}
           className={cn(
             "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium transition-colors",
-            "text-[var(--app-sidebar-text)] hover:bg-white/[0.06]",
+            "text-[var(--app-sidebar-text)] hover:bg-[var(--app-surface-hover)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50",
             "disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-dark)] bg-white/[0.06]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)]">
             {loggingOut ? (
               <Loader2 size={14} className="animate-spin text-[var(--text-secondary-light)]" />
             ) : (

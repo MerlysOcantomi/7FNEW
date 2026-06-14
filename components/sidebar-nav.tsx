@@ -343,7 +343,7 @@ function NavLinkWithSubitems({
           "flex items-center gap-3 rounded-[8px] text-sm font-medium transition-all duration-150 relative group",
           collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
           isActive
-            ? "text-white bg-[var(--app-sidebar-surface)] shadow-[0_0_0_1px_var(--app-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
+            ? "text-[var(--app-sidebar-text)] bg-[var(--app-sidebar-surface)] shadow-[0_0_0_1px_var(--app-accent),0_0_8px_0_rgba(99,102,241,0.18)]"
             : "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60"
         )}
         onClick={() => {
@@ -386,7 +386,7 @@ function NavLinkWithSubitems({
                 e.stopPropagation();
                 setExpanded(!expanded);
               }}
-              className="shrink-0 p-0.5 rounded hover:bg-white/10"
+              className="shrink-0 p-0.5 rounded hover:bg-[var(--app-surface-active)]"
             >
               <ChevronRight
                 size={12}
@@ -552,7 +552,7 @@ function AccordionSection({
             </span>
           ) : null}
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[11px] font-semibold text-[var(--app-sidebar-text)] group-hover:text-white transition-colors tracking-wide">
+            <span className="text-[11px] font-semibold text-[var(--app-sidebar-text)] group-hover:text-[var(--app-sidebar-text)] transition-colors tracking-wide">
               {section}
             </span>
             {subtitle && (
@@ -913,7 +913,7 @@ export function MobileSidebarNav() {
           <div className="w-6 h-6 rounded bg-[var(--app-accent)] flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">7F</span>
           </div>
-          <span className="text-white font-semibold text-sm">7F</span>
+          <span className="text-[var(--app-sidebar-text)] font-semibold text-sm">7F</span>
         </div>
         {/*
           Header action order: Today | Ask Fanny | Agents | New | Search |
@@ -930,14 +930,14 @@ export function MobileSidebarNav() {
           <GlobalNewTriggerMobile />
           <button
             onClick={openSearch}
-            className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
+            className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
             aria-label="Search"
           >
             <Search size={20} />
           </button>
           <button
             onClick={() => setOpen(true)}
-            className="text-[var(--app-sidebar-text-muted)] hover:text-white p-1"
+            className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
             aria-label="Open navigation"
           >
             <Menu size={20} />
@@ -956,11 +956,11 @@ export function MobileSidebarNav() {
               <div className="w-7 h-7 rounded-md bg-[var(--app-accent)] flex items-center justify-center">
                 <span className="text-white text-xs font-bold">7F</span>
               </div>
-              <span className="text-white font-semibold text-sm">7F</span>
+              <span className="text-[var(--app-sidebar-text)] font-semibold text-sm">7F</span>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="text-[#94A3B8] hover:text-white"
+              className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)]"
               aria-label="Close navigation"
             >
               <X size={18} />

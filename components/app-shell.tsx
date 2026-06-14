@@ -104,7 +104,7 @@ function AppShellDesktopToolbar({
             Search trigger — visually part of the global action family.
             It keeps its input-like Ctrl+K affordance (search is a typed,
             focal task) but shares the sibling buttons' surface token
-            (bg-white/[0.06]) and the same open-state ring as Today / New /
+            (--app-surface-hover) and the same open-state ring as Today / New /
             Agents so the four actions read as one row.
           */}
           <button
@@ -114,10 +114,10 @@ function AppShellDesktopToolbar({
             aria-expanded={searchOpen && !isMobileViewport}
             aria-haspopup="dialog"
             className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-white/[0.06] px-3 py-1.5 transition-colors hover:bg-white/10",
+              "flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 transition-colors hover:bg-[var(--app-surface-active)]",
               searchOpen &&
                 !isMobileViewport &&
-                "bg-white/10 ring-2 ring-[var(--accent-primary)]/40",
+                "bg-[var(--app-surface-active)] ring-2 ring-[var(--accent-primary)]/40",
             )}
           >
             <Search className="h-3.5 w-3.5 text-[var(--text-secondary-light)]" />
