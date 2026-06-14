@@ -1,102 +1,157 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowUpRight, Sun, X } from "lucide-react"
+import { ArrowRight, ArrowUpRight, AlertTriangle, Loader2, Sun, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
-import { TodayQuickContent, type TodayQuickTone } from "./today-quick-content"
 import { useTodayQuickData } from "./today-quick-data"
+import type { TodayItem, TodayPriority } from "@modules/today/types"
 
 /**
- * Desktop top chrome for the Today quick view.
+ * Desktop Today "peek" — a compact anchored dropdown.
  *
- * Visual sibling of `GlobalNewDesktopPanel` — both surfaces hang from
- * the workspace toolbar and grow DOWN inside the same `sticky top-0`
- * container. Today is no longer mounted as a sticky-bottom panel
- * inside `<main>`; the previous bottom chrome has been retired so
- * Today and New behave like a single global action family at the top
- * of the shell:
+ * Replaces the previous full-viewport takeover (`h-[calc(100dvh-3rem)]`) that
+ * felt emptier than Full Today. Now a ~520px card hangs under the toolbar's
+ * Today button (first action), with a caret pointing at it and a light scrim
+ * over the page behind. It is a BRIEFING peek — it summarises and links out; it
+ * does not duplicate Full Today (no sub-buckets, no Waiting/Schedule/No-date
+ * lists, no inline actions) and carries no Fanny voice.
  *
- *   ┌──────────────────────────────────────────────────┐
- *   │ Today | New | Search | Notifications  (toolbar)  │
- *   ├──────────────────────────────────────────────────┤
- *   │ New panel        (grid-rows 0fr/1fr)             │
- *   ├──────────────────────────────────────────────────┤
- *   │ Today panel      (grid-rows 0fr/1fr) <-- THIS    │
- *   ├──────────────────────────────────────────────────┤
- *   │ <main> page content                              │
+ * Unchanged on purpose: the trigger (`global-today-trigger.tsx`), provider,
+ * data hook (`today-quick-data.ts`), `/api/today`, lane classification, and the
+ * mobile vaul drawer. `TodayQuickContent` is still the mobile body — it is no
+ * longer used here. Click-outside (mousedown) / Escape / route-change auto-close
+ * and `data-today-trigger` skipping are preserved.
  *
- * Mounting:
- *   The shells (`AppShell`, `ContextShell`) place this component as a
- *   SIBLING of `<GlobalNewDesktopChrome>` inside the same
- *   `sticky top-0 z-30` container. Each chrome owns its own ref +
- *   click-outside listener; mutual exclusion is enforced by the
- *   triggers (`GlobalTodayTriggerDesktop` calls
- *   `useGlobalNew().closeAll()` when opening Today, and the New
- *   trigger calls `useTodayDrawer().closeToday()` when opening New).
- *   With cross-linking, only one panel is ever open at a time —
- *   stacking them inside the same sticky region stays cosmetic.
- *
- *   Hidden on mobile via `hidden md:block` (`useIsMobile` is also
- *   used to gate the data fetch so a CSS-hidden node never
- *   double-fetches against `/api/today`). Mobile uses
- *   `<TodayMobileDrawer>` exclusively.
- *
- * Click-outside / Escape / pathname-change:
- *   Hand-rolled, identical pattern to `GlobalNewDesktopChrome`. The
- *   click-outside listener uses `mousedown` so it fires BEFORE a
- *   row's click handler — row navigation still runs because we close
- *   optimistically. The listener skips clicks on
- *   `[data-today-trigger]` so the trigger itself owns the toggle
- *   without racing the outside-dismiss.
- *
- * Reusability:
- *   `TodayQuickContent` is unchanged; the same component is used by
- *   the mobile vaul drawer. Lane classification, fetch, and data
- *   shape are not touched here.
+ * Theming: surfaces come from the active theme's tokens (Midnight / Lavender),
+ * so the old slate `tone="light"` ContextShell path is gone — no hardcoded hex.
  */
+
+const PANEL_MAX_WIDTH = 520
+
+interface Anchor {
+  top: number
+  left: number
+  width: number
+  caretLeft: number
+  scrimTop: number
+}
+
+/** Measure the visible Today trigger and derive the dropdown placement. */
+function measureAnchor(): Anchor {
+  const vw = window.innerWidth
+  const width = Math.min(PANEL_MAX_WIDTH, vw - 24)
+  const triggers = Array.from(document.querySelectorAll<HTMLElement>("[data-today-trigger]"))
+  // Skip the hidden mobile trigger (0-width); take the visible desktop one.
+  const trigger = triggers.find((el) => el.getBoundingClientRect().width > 0) ?? triggers[0]
+  if (!trigger) {
+    return { top: 56, left: 12, width, caretLeft: 24, scrimTop: 48 }
+  }
+  const r = trigger.getBoundingClientRect()
+  const left = Math.max(12, Math.min(r.left, vw - width - 12))
+  const caretLeft = Math.max(16, Math.min(r.left + r.width / 2 - left - 5, width - 28))
+  return { top: r.bottom + 8, left, width, caretLeft, scrimTop: r.bottom }
+}
+
+function formatDue(iso: string | null): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  const diffDays = Math.round((date.getTime() - Date.now()) / 86_400_000)
+  if (diffDays === 0) {
+    return `Today ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+  }
+  if (diffDays === -1) return "Yesterday"
+  if (diffDays === 1) return "Tomorrow"
+  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
+}
+
+function sourceLabel(item: TodayItem): string {
+  const s = item.source
+  if (s.kind === "inbox") return "Inbox"
+  if (s.kind === "project") return s.projectName ?? "Project"
+  if (s.kind === "calendar") return "Calendar"
+  return "Task"
+}
+
+/** Priority → dot colour token (urgency / neutral / muted). */
+function priorityColor(p: TodayPriority | null): string {
+  if (p === "critical" || p === "high") return "var(--inbox-urgency)"
+  if (p === "low") return "var(--text-tertiary-light)"
+  return "var(--text-secondary-light)"
+}
+
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
+
+function NeedsRow({ item, onNavigate }: { item: TodayItem; onNavigate: () => void }) {
+  const meta = [formatDue(item.dueAt), sourceLabel(item)].filter(Boolean).join(" · ")
+  return (
+    <Link
+      href={item.source.href}
+      onClick={onNavigate}
+      className={cn(
+        "group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--app-surface-dark-hover)]",
+        FOCUS_RING,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: priorityColor(item.priority) }}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12.5px] font-medium text-[var(--text-primary-light)]">{item.title}</p>
+        {meta ? (
+          <p suppressHydrationWarning className="truncate text-[11px] text-[var(--text-tertiary-light)]">
+            {meta}
+          </p>
+        ) : null}
+      </div>
+      <ArrowUpRight
+        size={12}
+        aria-hidden="true"
+        className="shrink-0 text-[var(--text-tertiary-light)] transition-transform group-hover:translate-x-0.5"
+      />
+    </Link>
+  )
+}
+
 export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "context" }) {
   const ref = useRef<HTMLDivElement>(null)
   const { open, setOpen } = useTodayDrawer()
   const isMobile = useIsMobile()
   const pathname = usePathname()
 
-  /**
-   * `isOpenOnDesktop` gates:
-   *   - The data hook → mobile breakpoint never fetches via this
-   *     chrome (the mobile vaul drawer owns its own hook).
-   *   - The click-outside / Escape listeners → idle on mobile so
-   *     they don't close the mobile vaul on outside taps.
-   *
-   * `useIsMobile()` returns `false` during SSR and on the first
-   * client render before mount. That defaults this chrome to
-   * "active on desktop" — which is the right thing because `open`
-   * is also `false` on the first render (provider default), so the
-   * panel is invisible regardless of breakpoint and no listener
-   * fires.
-   */
   const isOpenOnDesktop = open && !isMobile
+  const { loading, error, lanes, counts } = useTodayQuickData(isOpenOnDesktop)
 
-  const { loading, error, lanes, scheduleItems, totalItems } =
-    useTodayQuickData(isOpenOnDesktop)
+  const [anchor, setAnchor] = useState<Anchor | null>(null)
 
-  // ─── Click-outside (mousedown) ────────────────────────────────────
-  //
-  // Listener registered only while the panel is open. Skips clicks
-  // that originate inside any element with `data-today-trigger` so
-  // the toolbar trigger always owns its own toggle (avoids the
-  // "mousedown closes -> onClick reopens" race).
+  // ─── Anchor measurement (on open + resize) ────────────────────────
+  useEffect(() => {
+    if (!isOpenOnDesktop) {
+      setAnchor(null)
+      return
+    }
+    setAnchor(measureAnchor())
+    const onResize = () => setAnchor(measureAnchor())
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [isOpenOnDesktop])
+
+  // ─── Click-outside (mousedown), skips the trigger ─────────────────
   useEffect(() => {
     if (!isOpenOnDesktop) return
     function handle(e: MouseEvent) {
       const target = e.target as Element | null
       if (target?.closest?.("[data-today-trigger]")) return
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener("mousedown", handle)
     return () => document.removeEventListener("mousedown", handle)
@@ -113,178 +168,220 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
   }, [isOpenOnDesktop, setOpen])
 
   // ─── Auto-close on route change ───────────────────────────────────
-  //
-  // Mirrors `GlobalNewProvider`'s pathname effect: navigating away
-  // (e.g. clicking a row that goes to `/clientes/123`) closes the
-  // panel so the operator lands cleanly on the new page.
   useEffect(() => {
     setOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
-  const tone: TodayQuickTone = variant === "app" ? "canvas" : "light"
+  // "Needs you" = actionable items only: overdue first, then due-today,
+  // across both task lanes (mine + ai). No waiting / no-date / schedule.
+  const needs = useMemo(
+    () => [
+      ...lanes.mine.overdue,
+      ...lanes.ai.overdue,
+      ...lanes.mine.today,
+      ...lanes.ai.today,
+    ],
+    [lanes],
+  )
 
-  // ─── Surface tokens per variant ───────────────────────────────────
-  //
-  // Identical to the bottom-chrome implementation we replaced — same
-  // halos, same colours per variant. Only the geometry/border side
-  // changes (border-b on the body now that the panel hangs from the
-  // toolbar instead of standing on the floor).
-  const panelSurface =
-    variant === "app"
-      ? "border-[var(--border-dark)] bg-[var(--app-shell-bg)]"
-      : "border-[#E2E8F0] bg-[#F8FAFC]"
+  if (!isOpenOnDesktop || anchor === null || typeof document === "undefined") return null
 
-  const headerBorder =
-    variant === "app" ? "border-[var(--border-dark)]" : "border-[#E2E8F0]"
-  const headerTitle =
-    variant === "app"
-      ? "text-[var(--text-primary-light)]"
-      : "text-[#0F172A]"
-  const headerSubtitle =
-    variant === "app"
-      ? "text-[var(--text-secondary-light)]"
-      : "text-[#64748B]"
-  const headerCountBg =
-    variant === "app" ? "bg-white/[0.06]" : "bg-[#F1F5F9]"
-  const headerCountText =
-    variant === "app"
-      ? "text-[var(--text-secondary-light)]"
-      : "text-[#64748B]"
-  const headerLinkText =
-    variant === "app" ? "text-[var(--accent-primary)]" : "text-[#2563EB]"
-  const headerLinkHover =
-    variant === "app" ? "hover:bg-white/[0.06]" : "hover:bg-[#F1F5F9]"
-  const headerIconHalo =
-    variant === "app"
-      ? "bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
-      : "bg-[#DBEAFE] text-[#2563EB]"
-  const headerCloseColour =
-    variant === "app"
-      ? "text-[var(--text-secondary-light)] hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
-      : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]"
-  const focusRing =
-    variant === "app"
-      ? "focus-visible:ring-[var(--accent-primary)]/40"
-      : "focus-visible:ring-[#3B82F6]/35"
+  const overdueCount = lanes.mine.overdue.length + lanes.ai.overdue.length
+  const todayCount = lanes.mine.today.length + lanes.ai.today.length
+  const needN = needs.length
+  const visible = needs.slice(0, 5)
+  const moreCount = needN - visible.length
+  const waitingText = counts.waiting > 0 ? `${counts.waiting} waiting` : "nothing waiting"
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
 
-  return (
-    <div
-      ref={ref}
-      id="today-desktop-chrome"
-      className="relative z-30 hidden shrink-0 md:block"
-      data-today-panel
-    >
+  const chips: { label: string; value: number }[] = [
+    { label: "My work", value: counts.mine },
+    { label: "AI", value: counts.ai },
+    { label: "Schedule", value: counts.schedule },
+    { label: "Waiting", value: counts.waiting },
+  ]
+
+  return createPortal(
+    <>
+      {/* Light scrim below the topbar — page stays visible, not a fullscreen takeover. */}
       <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
-          isOpenOnDesktop ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-        )}
-        aria-hidden={!isOpenOnDesktop}
+        aria-hidden="true"
+        className="fixed inset-x-0 bottom-0 z-40"
+        style={{ top: anchor.scrimTop, background: "rgba(8,5,18,0.45)" }}
+      />
+
+      <div
+        ref={ref}
+        id="today-desktop-chrome"
+        role="dialog"
+        aria-label="Today"
+        data-variant={variant}
+        className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.6)] animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150"
+        style={{
+          top: anchor.top,
+          left: anchor.left,
+          width: anchor.width,
+          maxHeight: "min(440px, calc(100dvh - 5rem))",
+        }}
       >
-        <div className="min-h-0 overflow-hidden">
-          {/*
-            border-b (NOT border-t) and shadow-[inset_0_1px_0_...]
-            on the top — same recipe as `GlobalNewDesktopPanel`. The
-            panel reads as "hanging" from the toolbar.
+        {/* Caret pointing up at the trigger */}
+        <span
+          aria-hidden="true"
+          className="absolute -top-[6px] h-3 w-3 rotate-45 border-l border-t border-[var(--border-dark)] bg-[var(--app-surface-dark)]"
+          style={{ left: anchor.caretLeft }}
+        />
 
-            Height fills the viewport below the sticky toolbar (≈3rem
-            tall) so the open panel fully covers the underlying page —
-            no page content peeks below it. The body scrolls internally
-            via `overflow-y-auto`.
-          */}
-          <div
-            className={cn(
-              "flex h-[calc(100dvh-3rem)] flex-col overflow-hidden border-b shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-              panelSurface,
-            )}
-          >
-            <div
-              className={cn(
-                "flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3",
-                headerBorder,
-              )}
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-dark)] px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                    headerIconHalo,
-                  )}
-                >
-                  <Sun size={14} strokeWidth={1.9} />
-                </span>
-                <div className="min-w-0">
-                  <p
-                    className={cn(
-                      "text-sm font-semibold tracking-tight",
-                      headerTitle,
-                    )}
-                  >
-                    Today
-                  </p>
-                  <p className={cn("text-[11px] leading-tight", headerSubtitle)}>
-                    Daily overview · workspace-wide
-                  </p>
-                </div>
-                {!loading && !error && totalItems > 0 ? (
-                  <span
-                    className={cn(
-                      "ml-1 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
-                      headerCountBg,
-                      headerCountText,
-                    )}
-                  >
-                    {totalItems}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Link
-                  href="/today"
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-                    headerLinkText,
-                    headerLinkHover,
-                    "focus-visible:outline-none focus-visible:ring-2",
-                    focusRing,
-                  )}
-                >
-                  Open full Today
-                  <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label="Close Today panel"
-                  className={cn(
-                    "rounded-md p-1 transition-colors",
-                    headerCloseColour,
-                    "focus-visible:outline-none focus-visible:ring-2",
-                    focusRing,
-                  )}
-                >
-                  <X size={14} strokeWidth={2} />
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              <TodayQuickContent
-                loading={loading}
-                error={error}
-                lanes={lanes}
-                scheduleItems={scheduleItems}
-                totalItems={totalItems}
-                tone={tone}
-                onRowNavigate={() => setOpen(false)}
-              />
+              <Sun size={14} strokeWidth={1.9} />
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold text-[var(--text-primary-light)]">Today</span>
+              <span suppressHydrationWarning className="text-[11px] text-[var(--text-secondary-light)]">
+                {dateLabel}
+              </span>
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Link
+              href="/today"
+              onClick={() => setOpen(false)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--accent-on-dark)] transition-colors hover:bg-[var(--app-surface-dark-hover)]",
+                FOCUS_RING,
+              )}
+            >
+              Open full Today
+              <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close Today"
+              className={cn(
+                "rounded-md p-1 text-[var(--text-secondary-light)] transition-colors hover:bg-[var(--app-surface-dark-hover)] hover:text-[var(--text-primary-light)]",
+                FOCUS_RING,
+              )}
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5">
+          {loading ? (
+            <div role="status" aria-live="polite" className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary-light)]" aria-label="Loading Today" />
+            </div>
+          ) : error ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-8 text-center"
+            >
+              <AlertTriangle className="h-6 w-6 text-destructive" strokeWidth={1.5} aria-hidden="true" />
+              <p className="text-[12.5px] text-[var(--text-secondary-light)]">Couldn&apos;t load Today.</p>
+            </div>
+          ) : (
+            <>
+              {/* Status line / empty */}
+              {needN === 0 ? (
+                <div role="status" aria-live="polite" className="flex flex-col items-center gap-2 py-7 text-center">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                    style={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
+                  >
+                    <Sun size={18} strokeWidth={1.9} />
+                  </span>
+                  <p className="text-[13px] font-medium text-[var(--text-primary-light)]">Nothing pending. Nice.</p>
+                  <p className="text-[12px] text-[var(--text-secondary-light)]">
+                    Anything that needs you will show up here.
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-3.5">
+                  <p className="text-[15px] font-semibold text-[var(--text-primary-light)]">
+                    {needN} {needN === 1 ? "thing needs" : "things need"} you today
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-[var(--text-secondary-light)]">
+                    <span style={overdueCount > 0 ? { color: "var(--inbox-urgency)" } : undefined}>
+                      {overdueCount} overdue
+                    </span>{" "}
+                    · {todayCount} due today · {waitingText}
+                  </p>
+                </div>
+              )}
+
+              {/* Count chips */}
+              <div className="grid grid-cols-4 gap-2">
+                {chips.map((c) => (
+                  <div
+                    key={c.label}
+                    className="rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-2.5 py-2"
+                  >
+                    <p className="text-[9.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary-light)]">
+                      {c.label}
+                    </p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-[var(--text-primary-light)]">
+                      {c.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Needs-you list */}
+              {needN > 0 ? (
+                <div className="mt-3 flex flex-col gap-0.5">
+                  {visible.map((item) => (
+                    <NeedsRow key={item.id} item={item} onNavigate={() => setOpen(false)} />
+                  ))}
+                  {moreCount > 0 ? (
+                    <Link
+                      href="/today"
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "mt-1 inline-flex items-center justify-center rounded-lg px-2 py-1.5 text-[11.5px] font-medium text-[var(--accent-on-dark)] transition-colors hover:bg-[var(--app-surface-dark-hover)]",
+                        FOCUS_RING,
+                      )}
+                    >
+                      +{moreCount} more in Today
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-[var(--border-dark)] p-3">
+          <Link
+            href="/today"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-primary-hover)]",
+              FOCUS_RING,
+            )}
+            style={{ background: "var(--accent-primary)" }}
+          >
+            Open full Today
+            <ArrowRight size={15} />
+          </Link>
         </div>
       </div>
-    </div>
+    </>,
+    document.body,
   )
 }
