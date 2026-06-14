@@ -31,6 +31,35 @@ import { TodaySection } from "./today-section"
 import { TodayEmptyState } from "./today-empty-state"
 import { TodayEventCard } from "./today-event-card"
 import { cn } from "@/lib/utils"
+import { useSearchParams } from "next/navigation"
+import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
+import { TodayAppointmentLayout } from "./today-appointment-layout"
+
+/**
+ * Today page entry — resolves the workspace's layout mode and renders the
+ * matching Today. Default is the work-first workboard; appointment-first is
+ * gated behind an internal override (`?todayLayout=appointment_first`) and runs
+ * on demo data until a real appointment source exists, so production is
+ * unaffected. The user never sees a mode name — Mr. Forte sets the operating
+ * model during onboarding and Today simply adapts.
+ */
+export function TodayPageClient() {
+  const searchParams = useSearchParams()
+  const { workspace } = useActiveWorkspace()
+  const mode = resolveTodayLayoutMode({
+    override: searchParams.get("todayLayout"),
+    verticalKey: workspace?.verticalKey,
+    // Stays OFF until a real appointment backend exists — never auto-flip a real
+    // workspace onto demo data based on its vertical alone.
+    enableVerticalAutoSwitch: false,
+  })
+
+  if (mode === "appointment_first") {
+    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} />
+  }
+  return <TodayWorkboardLayout />
+}
 
 /**
  * Today page body — the daily workboard.
@@ -59,7 +88,7 @@ import { cn } from "@/lib/utils"
  * Writes (Send to AI / Take over) keep refetch-on-success + toast-on-
  * error semantics. No optimistic state, per the previous PR's brief.
  */
-export function TodayPageClient() {
+function TodayWorkboardLayout() {
   const [timezone, setTimezone] = useState<string | null>(null)
   const { addToast } = useToast()
 
