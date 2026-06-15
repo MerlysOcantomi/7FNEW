@@ -14,7 +14,8 @@ Related code:
 - work_first body: `TodayWorkboardLayout` (same file) + [`app/api/today/route.ts`](../app/api/today/route.ts) · [`modules/today/aggregator.ts`](../modules/today/aggregator.ts) · [`modules/today/lanes.ts`](../modules/today/lanes.ts)
 - appointment_first: [`components/today/today-appointment-layout.tsx`](../components/today/today-appointment-layout.tsx) · contract [`modules/today/appointments.ts`](../modules/today/appointments.ts) · mock [`components/today/appointments/appointment-mock.ts`](../components/today/appointments/appointment-mock.ts)
 - job_route: [`components/today/today-job-route-layout.tsx`](../components/today/today-job-route-layout.tsx) · contract [`modules/today/jobs.ts`](../modules/today/jobs.ts) · mock [`components/today/jobs/job-mock.ts`](../components/today/jobs/job-mock.ts)
-- Tests: [`modules/today/today-layout-mode.test.ts`](../modules/today/today-layout-mode.test.ts) · [`modules/today/jobs.test.ts`](../modules/today/jobs.test.ts)
+- session_first: [`components/today/today-session-layout.tsx`](../components/today/today-session-layout.tsx) · contract [`modules/today/sessions.ts`](../modules/today/sessions.ts) · mock [`components/today/sessions/session-mock.ts`](../components/today/sessions/session-mock.ts)
+- Tests: [`modules/today/today-layout-mode.test.ts`](../modules/today/today-layout-mode.test.ts) · [`modules/today/jobs.test.ts`](../modules/today/jobs.test.ts) · [`modules/today/sessions.test.ts`](../modules/today/sessions.test.ts)
 
 ---
 
@@ -48,6 +49,20 @@ Use natural, human language instead:
 | work_first | **Today** · "Your daily workboard" |
 | appointment_first | **Today's book** · "Today's schedule" |
 | job_route | **Today's route** · "Jobs today" · "Field work today" |
+| session_first · class | **Today's classes** |
+| session_first · tutor | **Today's sessions** |
+| session_first · care | **Community today** · "Care follow-ups" · "People to follow up" |
+
+### Today vs Vertical Overview
+
+Keep these distinct — do not duplicate them:
+
+- **Today** (this doc) = *daily execution*: what to do / who to see right now.
+- **Vertical Overview** (future, akin to Home in `docs/ways-of-working.md` §4) =
+  *business/vertical health*: trends, totals, how the operation is doing.
+
+A Today mode must not drift into a dashboard, and no full Vertical Overview is
+built here.
 
 ---
 
@@ -58,6 +73,7 @@ Use natural, human language instead:
 | `work_first` | Today / daily workboard | Agencies, consulting, design, marketing, software, deliverable/task work | My work / AI work / Schedule columns + Waiting | AI work column (no separate Fanny rail) | **Real** |
 | `appointment_first` | Today's book | Clinics, salons, barbers, nails, spa, by-appointment services | Day book (multi-staff) / Agenda (single-provider) | Fanny flow: Unconfirmed / Open gaps / Follow-ups | Mock (gated) |
 | `job_route` | Today's route | Cleaning, repair, plumbing, electrical, HVAC, gardening, maintenance, installations, inspections, pest control, small moves, light remodeling | Adaptive: route (abstract map) / timeline / project-sites | Fanny flow: Route risks / Delayed / Payment / Evidence / Follow-ups | Mock (gated) |
+| `session_first` | Today's classes / Today's sessions / Community today | Schools, academies, group classes (music/dance/language/art); 1:1 tutors/coaches/mentors; lightweight people follow-up (pastoral care, small NGOs, gentle wellness) | Protagonist (Up next / Needs you most) + timeline, per variant (class/tutor/care) | Fanny flow per variant (homework / payment / attendance / people / visits / follow-ups) | Mock (gated) |
 
 ### 2.1 work_first — the default
 
@@ -127,12 +143,72 @@ Use natural, human language instead:
 > fleet/dispatch, live driver tracking, and heavy construction Gantt charts. It
 > is the *operative* Today of field work, not logistics.
 
+### 2.4 session_first — continuity (classes / 1:1 / care)
+
+- **Internal name:** `session_first` (operating model: session/continuity).
+- **User-facing language:** "Today's classes" (class) · "Today's sessions"
+  (tutor) · "Community today" / "Care follow-ups" (care).
+- **Business types:** schools, academies and group classes
+  (music/dance/language/art, workshops); private tutors, coaches and mentors
+  (1:1); lightweight people follow-up — pastoral care, small NGOs, mentoring,
+  gentle wellness check-ins.
+- **Main canvas (hybrid, 3 zones):** ordered left list · a **living
+  protagonist** ("Up next" for class/tutor, "Needs you most" for care) + a
+  timeline · a Fanny flow rail. **Three variants** share this shell:
+  - `class` — canvas centres on a GROUP: subject/topic, expected attendance, a
+    "Ready to teach" checklist, Join class / Take attendance.
+  - `tutor` — canvas centres on ONE STUDENT: level, practice progress, today's
+    focus, last session, homework; Start session / Open student / Review
+    homework.
+  - `care` — canvas centres on a PERSON who needs attention: warm situation
+    line, last contact, a short Fanny suggestion; Call / Send a message /
+    Schedule visit. Below: today's visits & calls.
+- **Why it is NOT appointment_first:** session_first reuses time / up-next /
+  no-show / reminder / reschedule ideas, but it is about **continuity** (what
+  happened last time, what to continue, materials, homework, notes, progress,
+  attendance, the ongoing relationship), not **bookings & capacity** (who comes,
+  when, with which resource, what gaps remain).
+- **Right rail / Fanny Flow:** derived per variant — class (Starting soon /
+  Attendance / Materials / Payment / Parent messages / Sessions to summarize),
+  tutor (Homework to review / Payment / Parent messages / Follow-ups), care
+  (People needing attention / Calls / Visits / Waiting reply / Reminders). Each
+  card + **one disabled** action (no fake writes).
+- **Data dependencies:** the `TodaySession` / `TodaySessionDay` contract
+  (`modules/today/sessions.ts`). A real source will draw from sessions,
+  students/participants, attendance, payments, materials, homework, follow-ups
+  and notes (Calendar for times, Clients for people, Finance for payments).
+- **Current activation status:** internal review only via
+  `?todayLayout=session_first` (+ `&variant=class|tutor|care`; invalid/absent
+  variant falls back to `class`).
+- **Mock/gated:** the **only** producer is the isolated demo adapter
+  `session-mock.ts`; vertical auto-switch is gated **off**.
+- **Real today:** nothing real yet — layout + contract are prepared; data is
+  demo.
+
+> **`care` scope boundary (read this).** In this mode `care` is a *lightweight
+> people-follow-up* shape: people to follow up, visits, calls, gentle reminders,
+> waiting replies, notes to capture. It is intentionally NOT:
+> - the **full church/NGO/community operating model** (services, volunteers,
+>   groups, members, donations, event planning, prayer requests, programs,
+>   ministry comms) — that is a future **`community_first` / `ministry_first`**
+>   Today mode / vertical, where `care` may live as a *secondary* shape but never
+>   the primary church/community Today;
+> - a **clinical / therapy product** — no diagnosis, no treatment workflow, no
+>   medical claims. "Urgent" here means "a human should reach out soon", never
+>   medical triage. (A quieter 1:1 *therapy tone* — private notes, no streaks/
+>   scores — is a future preset/tone, not `variant=care`.)
+
 ### Today Peek
 
 The topbar Today Peek currently reflects work_first (My work / AI work /
-Schedule). Per-mode Peek variants (e.g. job_route → next stop / on site / en
-route / remaining) are a **documented follow-up**, not yet built. They will
-branch on the same resolved `TodayLayoutMode`.
+Schedule). Per-mode Peek variants are a **documented follow-up**, not yet built;
+they will branch on the same resolved `TodayLayoutMode` (+ session variant):
+
+- job_route → next stop / on site / en route / remaining.
+- session_first · class → "Today's classes · N sessions · students · unpaid ·
+  follow-ups" + "Needs attention" (send material / parent waiting / payment).
+- session_first · care → "Community today · N follow-ups · visits · urgent" +
+  "Needs attention" (call X before 3 PM / visit Y / waiting reply).
 
 ---
 
@@ -147,9 +223,14 @@ callers. They are **not implemented** — names are reserved for clarity only.
 - **`case_first`** — case/matter work (legal, accounting, support desks,
   retainer agencies, social services). Canvas: caseload by status with
   deadlines/documents. Data: cases / documents / deadlines.
-- **`session_first`** — sessions/classes/attendance (gyms, studios, tutoring,
-  coaching, courses). Canvas: session schedule with attendance/capacity. Data:
-  sessions / attendance.
+- **`community_first` / `ministry_first`** — the full church / NGO / community
+  operating model: services, volunteers, groups, members, donations, event
+  planning, prayer requests, programs, ministry comms. session_first's `care`
+  variant is only a *lightweight follow-up* shape that may live inside this
+  vertical — it is never the whole community Today.
+- **Therapy / clinical 1:1 tone** — a quieter session_first preset (private
+  notes, no streaks/scores, discreet Fanny) for therapists / counselors /
+  spiritual directors. A separate tone, not `variant=care`; no medical claims.
 
 When one is built it MUST follow §4–§8 (gated, isolated mock, additive, tested).
 
@@ -161,8 +242,9 @@ Order of precedence in `resolveTodayLayoutMode()`:
 
 1. **Default = `work_first`.** Unknown/empty input always falls back here.
 2. **Query param = internal review only.** `?todayLayout=<mode>` wins when valid
-   (`work_first` | `appointment_first` | `job_route`, snake or kebab case). This
-   is a reviewer/preview affordance, never advertised to users.
+   (`work_first` | `appointment_first` | `job_route` | `session_first`, snake or
+   kebab case); session_first also reads `&variant=class|tutor|care` (invalid →
+   `class`). This is a reviewer/preview affordance, never advertised to users.
 3. **workspace config / Mr. Forte = future activation.** The intended real path:
    onboarding detects the operating model and persists it on the workspace; the
    resolver reads it. **Not wired yet.**
@@ -181,17 +263,18 @@ the internal query param. This is locked by `today-layout-mode.test.ts`.
 - A layout mode **can** be built and reviewed against an **isolated mock**
   before any backend exists.
 - Mocks **must never** be mixed with production data. Each mock is a single,
-  clearly-named adapter (`appointment-mock.ts`, `job-mock.ts`) that does no I/O,
-  registers no provider, and is imported only by its gated layout.
+  clearly-named adapter (`appointment-mock.ts`, `job-mock.ts`, `session-mock.ts`)
+  that does no I/O, registers no provider, and is imported only by its gated
+  layout.
 - **Real activation requires real domain data** for that mode:
 
   | Mode | Real data required |
   |---|---|
   | `appointment_first` | appointments (client / service / staff / status / time) |
   | `job_route` | jobs / crews / locations / windows / status / payment |
+  | `session_first` | sessions / students-participants / attendance / payments / materials / homework / follow-ups / notes |
   | `order_first` | orders / line items / fulfilment stage |
   | `case_first` | cases / documents / deadlines |
-  | `session_first` | sessions / attendance / capacity |
 
 - Flipping `enableVerticalAutoSwitch` to `true` for a mode is allowed **only
   after** its real source is wired and the mock is removed (see §8 deletion

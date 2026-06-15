@@ -21,6 +21,8 @@ import {
   APPOINTMENT_VERTICAL_KEYS,
   DEFAULT_TODAY_LAYOUT_MODE,
   JOB_ROUTE_VERTICAL_KEYS,
+  SESSION_VERTICAL_KEYS,
+  normalizeSessionVariant,
   resolveTodayLayoutMode,
 } from "./today-layout-mode"
 
@@ -41,6 +43,11 @@ test("override selects appointment_first and work_first", () => {
   assert.equal(resolveTodayLayoutMode({ override: "work_first" }), "work_first")
 })
 
+test("override selects session_first (snake or kebab case)", () => {
+  assert.equal(resolveTodayLayoutMode({ override: "session_first" }), "session_first")
+  assert.equal(resolveTodayLayoutMode({ override: "session-first" }), "session_first")
+})
+
 test("unknown / empty override falls back to work_first", () => {
   assert.equal(resolveTodayLayoutMode({ override: "garbage" }), "work_first")
   assert.equal(resolveTodayLayoutMode({ override: "" }), "work_first")
@@ -48,15 +55,20 @@ test("unknown / empty override falls back to work_first", () => {
   assert.equal(resolveTodayLayoutMode({ override: undefined }), "work_first")
 })
 
-test("CRITICAL: field-service vertical does NOT auto-activate while gate is off", () => {
+test("CRITICAL: field-service / session verticals do NOT auto-activate while gate is off", () => {
   // No flag → default off. A real cleaning/plumbing workspace stays work_first.
   assert.equal(resolveTodayLayoutMode({ verticalKey: "cleaning" }), "work_first")
   assert.equal(
     resolveTodayLayoutMode({ verticalKey: "plumbing", enableVerticalAutoSwitch: false }),
     "work_first",
   )
-  // Same protection for appointment verticals.
+  // Same protection for appointment and session verticals.
   assert.equal(resolveTodayLayoutMode({ verticalKey: "clinic" }), "work_first")
+  assert.equal(resolveTodayLayoutMode({ verticalKey: "school" }), "work_first")
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "tutoring", enableVerticalAutoSwitch: false }),
+    "work_first",
+  )
 })
 
 test("auto-switch resolves verticals only when explicitly enabled", () => {
@@ -72,11 +84,34 @@ test("auto-switch resolves verticals only when explicitly enabled", () => {
     resolveTodayLayoutMode({ verticalKey: "clinic", enableVerticalAutoSwitch: true }),
     "appointment_first",
   )
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "school", enableVerticalAutoSwitch: true }),
+    "session_first",
+  )
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "tutoring", enableVerticalAutoSwitch: true }),
+    "session_first",
+  )
   // An unrecognised vertical still falls back to the default.
   assert.equal(
     resolveTodayLayoutMode({ verticalKey: "agency", enableVerticalAutoSwitch: true }),
     "work_first",
   )
+})
+
+test("normalizeSessionVariant accepts variants + aliases, falls back safely", () => {
+  assert.equal(normalizeSessionVariant("class"), "class")
+  assert.equal(normalizeSessionVariant("tutor"), "tutor")
+  assert.equal(normalizeSessionVariant("care"), "care")
+  // aliases
+  assert.equal(normalizeSessionVariant("classes"), "class")
+  assert.equal(normalizeSessionVariant("sessions"), "tutor")
+  assert.equal(normalizeSessionVariant("community"), "care")
+  // invalid / empty → safe default (class), never throws
+  assert.equal(normalizeSessionVariant("therapy"), "class")
+  assert.equal(normalizeSessionVariant(""), "class")
+  assert.equal(normalizeSessionVariant(null), "class")
+  assert.equal(normalizeSessionVariant(undefined), "class")
 })
 
 test("explicit override beats vertical auto-switch", () => {
@@ -96,5 +131,15 @@ test("field-service vertical keys cover the named trades and stay disjoint from 
   }
   for (const key of JOB_ROUTE_VERTICAL_KEYS) {
     assert.ok(!APPOINTMENT_VERTICAL_KEYS.has(key), `key in both sets: ${key}`)
+  }
+})
+
+test("session vertical keys cover the named verticals and stay disjoint from the other sets", () => {
+  for (const key of ["school", "academy", "tutoring", "coaching", "mentoring", "music", "dance", "language", "arts"]) {
+    assert.ok(SESSION_VERTICAL_KEYS.has(key), `expected session key: ${key}`)
+  }
+  for (const key of SESSION_VERTICAL_KEYS) {
+    assert.ok(!APPOINTMENT_VERTICAL_KEYS.has(key), `session key in appointment set: ${key}`)
+    assert.ok(!JOB_ROUTE_VERTICAL_KEYS.has(key), `session key in job-route set: ${key}`)
   }
 })

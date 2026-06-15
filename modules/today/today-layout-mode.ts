@@ -20,18 +20,37 @@
  *                            inspections, pest control, small moves, light
  *                            remodeling. NOT a maps/dispatch app — the operative
  *                            Today of work that happens at customer locations.
+ *   - "session_first"     → the continuity canvas (ordered people/sessions list
+ *                            + a protagonist "up next / needs you most" + a
+ *                            Fanny flow rail). Three variants (see
+ *                            `SessionVariant`): class (schools/academies/group
+ *                            classes), tutor (1:1 tutoring/coaching/mentoring),
+ *                            care (lightweight people follow-up — pastoral care,
+ *                            small NGOs, gentle wellness check-ins). It is about
+ *                            CONTINUITY (what happened last time, what to
+ *                            continue, materials, homework, notes, attendance),
+ *                            NOT bookings/capacity — it is not appointment_first.
  *
  * Future modes (NOT implemented here — the switch is intentionally open so they
- * can slot in without touching callers): order-first, case-first,
- * session/class-first.
+ * can slot in without touching callers): order-first, case-first, and the full
+ * community/ministry operating model (community_first / ministry_first — for
+ * which session_first's `care` variant is only a lightweight follow-up shape,
+ * never the whole church/NGO Today).
  *
- * Today Peek (topbar dropdown) note: when "appointment_first" is the active mode,
- * the peek should summarise next appointments / unconfirmed / open gaps / booked
- * value; when "job_route" is active it should summarise next stop / on site / en
- * route / remaining instead of My work / AI work / Schedule. Those peek variants
- * are a deliberate follow-up (not built here) and would branch on this same mode.
+ * Today Peek (topbar dropdown) note: each non-default mode wants its own peek
+ * summary (appointment_first → next appointments / unconfirmed / open gaps;
+ * job_route → next stop / on site / en route; session_first → next session /
+ * follow-ups / unpaid, or people / visits / urgent for care) instead of My work
+ * / AI work / Schedule. Those peek variants are a deliberate follow-up (not
+ * built here) and would branch on this same mode.
  */
-export type TodayLayoutMode = "work_first" | "appointment_first" | "job_route"
+import type { SessionVariant } from "./sessions"
+
+export type TodayLayoutMode =
+  | "work_first"
+  | "appointment_first"
+  | "job_route"
+  | "session_first"
 
 export const DEFAULT_TODAY_LAYOUT_MODE: TodayLayoutMode = "work_first"
 
@@ -85,6 +104,61 @@ export const JOB_ROUTE_VERTICAL_KEYS: ReadonlySet<string> = new Set([
   "field_service",
 ])
 
+/**
+ * verticalKeys whose operating model is session/continuity-based: the day turns
+ * around recurring sessions, classes, students/people, progress, attendance,
+ * materials, homework and follow-up. Prepared for when REAL session data exists.
+ * Same gating as the other verticals — we deliberately do NOT auto-switch a real
+ * workspace into session_first yet (the layout renders isolated DEMO data), so
+ * auto-switch stays behind `enableVerticalAutoSwitch`.
+ */
+export const SESSION_VERTICAL_KEYS: ReadonlySet<string> = new Set([
+  "school",
+  "academy",
+  "education",
+  "tutoring",
+  "tutor",
+  "coaching",
+  "coach",
+  "mentoring",
+  "mentor",
+  "music_school",
+  "music",
+  "dance",
+  "language_school",
+  "language",
+  "arts",
+  "classes",
+  "lessons",
+  "care_follow_up",
+])
+
+/** Internal session sub-layouts. Never surfaced to the user as a mode name. */
+export const DEFAULT_SESSION_VARIANT: SessionVariant = "class"
+
+/**
+ * Normalise a `?variant=` override to a valid `SessionVariant`. Accepts the
+ * canonical names plus a few obvious aliases; anything else falls back to the
+ * safe default so `/today` never breaks on a typo.
+ */
+export function normalizeSessionVariant(
+  value: string | null | undefined,
+): SessionVariant {
+  switch (value) {
+    case "class":
+    case "classes":
+      return "class"
+    case "tutor":
+    case "sessions":
+      return "tutor"
+    case "care":
+    case "community":
+      return "care"
+    default:
+      return DEFAULT_SESSION_VARIANT
+  }
+}
+
 function normalizeMode(value: string | null | undefined): TodayLayoutMode | null {
   switch (value) {
     case "appointment_first":
@@ -93,6 +167,9 @@ function normalizeMode(value: string | null | undefined): TodayLayoutMode | null
     case "job_route":
     case "job-route":
       return "job_route"
+    case "session_first":
+    case "session-first":
+      return "session_first"
     case "work_first":
     case "work-first":
       return "work_first"
@@ -110,10 +187,10 @@ export interface ResolveTodayLayoutModeInput {
   /** Active workspace verticalKey (from `useActiveWorkspace`). */
   verticalKey?: string | null
   /**
-   * Flip ON only once a real appointment/field-service data source exists. While
-   * `false` (default), verticalKey never auto-activates appointment_first or
-   * job_route — production stays work_first regardless of vertical, so no real
-   * workspace ever lands on demo data.
+   * Flip ON only once a real data source exists for the target operating model.
+   * While `false` (default), verticalKey never auto-activates appointment_first,
+   * job_route or session_first — production stays work_first regardless of
+   * vertical, so no real workspace ever lands on demo data.
    */
   enableVerticalAutoSwitch?: boolean
 }
@@ -126,8 +203,9 @@ export interface ResolveTodayLayoutModeInput {
  * to the safe default.
  *
  * In production today `enableVerticalAutoSwitch` is `false` everywhere, so the
- * ONLY way to reach appointment_first / job_route is the internal
- * `?todayLayout=` override used for review. Real users always get work_first.
+ * ONLY way to reach appointment_first / job_route / session_first is the
+ * internal `?todayLayout=` override used for review. Real users always get
+ * work_first.
  */
 export function resolveTodayLayoutMode(
   input: ResolveTodayLayoutModeInput = {},
@@ -141,6 +219,9 @@ export function resolveTodayLayoutMode(
     }
     if (JOB_ROUTE_VERTICAL_KEYS.has(input.verticalKey)) {
       return "job_route"
+    }
+    if (SESSION_VERTICAL_KEYS.has(input.verticalKey)) {
+      return "session_first"
     }
   }
 
