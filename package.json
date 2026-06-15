@@ -15,7 +15,10 @@
     "test:agents-activity": "tsx --test modules/agents/activity-classify.test.ts",
     "test:auto-policy": "tsx --test modules/inbox/auto-task-policy.test.ts",
     "test:fanny-pipeline": "tsx --test modules/inbox/auto-task-pipeline.test.ts",
-    "test:workspace-timezone": "tsx --test modules/inbox/workspace-config-timezone.test.ts"
+    "test:workspace-timezone": "tsx --test modules/inbox/workspace-config-timezone.test.ts",
+    "test:today-layout": "tsx --test modules/today/today-layout-mode.test.ts",
+    "test:today-jobs": "tsx --test modules/today/jobs.test.ts",
+    "test:today": "tsx --test modules/today/today-layout-mode.test.ts modules/today/jobs.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

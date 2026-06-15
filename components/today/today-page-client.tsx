@@ -35,14 +35,16 @@ import { useSearchParams } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
+import { TodayJobRouteLayout } from "./today-job-route-layout"
 
 /**
  * Today page entry — resolves the workspace's layout mode and renders the
- * matching Today. Default is the work-first workboard; appointment-first is
- * gated behind an internal override (`?todayLayout=appointment_first`) and runs
- * on demo data until a real appointment source exists, so production is
- * unaffected. The user never sees a mode name — Mr. Forte sets the operating
- * model during onboarding and Today simply adapts.
+ * matching Today. Default is the work-first workboard; appointment-first and
+ * job-route (field-service) are gated behind an internal override
+ * (`?todayLayout=appointment_first` / `?todayLayout=job_route`) and run on demo
+ * data until real sources exist, so production is unaffected. The user never
+ * sees a mode name — Mr. Forte sets the operating model during onboarding and
+ * Today simply adapts.
  */
 export function TodayPageClient() {
   const searchParams = useSearchParams()
@@ -50,13 +52,16 @@ export function TodayPageClient() {
   const mode = resolveTodayLayoutMode({
     override: searchParams.get("todayLayout"),
     verticalKey: workspace?.verticalKey,
-    // Stays OFF until a real appointment backend exists — never auto-flip a real
-    // workspace onto demo data based on its vertical alone.
+    // Stays OFF until a real appointment/field-service backend exists — never
+    // auto-flip a real workspace onto demo data based on its vertical alone.
     enableVerticalAutoSwitch: false,
   })
 
   if (mode === "appointment_first") {
     return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} />
+  }
+  if (mode === "job_route") {
+    return <TodayJobRouteLayout businessName={workspace?.nombre ?? null} />
   }
   return <TodayWorkboardLayout />
 }
