@@ -46,7 +46,7 @@ export function AgentsMobileDrawer({
           <div className="flex min-w-0 items-center gap-2">
             <span
               aria-hidden="true"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent-muted)] text-[var(--accent-on-dark)]"
             >
               <Sparkles size={14} strokeWidth={1.9} />
             </span>

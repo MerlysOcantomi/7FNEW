@@ -50,15 +50,15 @@ const PANEL_LANES: {
 }[] = [
   {
     key: "needs_review",
-    title: "Needs review",
+    title: "Needs your review",
     icon: <ClipboardCheck size={16} strokeWidth={2} aria-hidden="true" />,
     empty: "No proposals waiting.",
   },
   {
     key: "automated",
-    title: "Automated",
+    title: "Recently handled",
     icon: <Zap size={16} strokeWidth={2} aria-hidden="true" />,
-    empty: "Nothing automated yet.",
+    empty: "Nothing handled yet.",
   },
   {
     key: "attention",
@@ -138,7 +138,7 @@ function tokens(tone: AgentsQuickTone): AgentsQuickTokens {
     agentChipBg: "bg-[var(--app-surface-dark)]",
     agentChipText: "text-[var(--text-primary-light)]",
     emptyIconHalo:
-      "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]",
+      "bg-[var(--accent-muted)] text-[var(--accent-on-dark)]",
     emptyHeading: "text-[var(--text-primary-light)]",
     emptyBody: "text-[var(--text-secondary-light)]",
   }

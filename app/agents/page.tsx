@@ -1,29 +1,23 @@
 "use client"
 
 import { AppShell } from "@/components/app-shell"
-import { SectionPage } from "@/components/section-page"
 import { AgentsActivityBoard } from "@/components/agents/agents-activity-board"
 
 /**
- * `/agents` — read-only Global Agents activity surface (PR 1).
+ * `/agents` — the AI Team Control Center.
  *
- * Sibling of New (create) / Today (execute) / Search (find): Agents is
- * the visibility plane over AI work — what Fanny (and, later, the other
- * 7F agents) automated, what is waiting for review, what executed, and
- * what needs human intervention.
+ * An agent-centric LIVE view built on top of the read-only projection
+ * (`/api/agents/activity`): Francis leads from a hero, the six specialists show
+ * what they're doing right now, a stream shows what executed, and a decision
+ * rail surfaces what needs you. Honest by construction — only Fanny is wired
+ * today; the rest are registered and "coming online" (see
+ * `modules/agents/roster.ts`). No new persistence, no writes.
  *
- * NOT to be confused with `/agente` (the static "Francis" business-
- * insights mock) or `/assistant` (the chat). This is a distinct,
- * data-backed operational surface.
- *
- * Layout: AppShell (viewport-bounded `fixed inset-0` per
- * docs/app-shell-contract.md). The page introduces NO `min-h-screen`
- * and NO document/body scroll — `main` inside AppShell owns the
- * scrollport. Widened to `max-w-7xl` so the four lanes have room on
- * desktop (same treatment as Today's workboard).
- *
- * PR 1 scope: page + read-only board. The global toolbar trigger and
- * panel (sibling of New/Today/Search) are intentionally deferred to PR 2.
+ * NOT to be confused with `/agente` (the static "Francis" business-insights
+ * mock) or `/assistant` (the chat). Layout: AppShell (viewport-bounded per
+ * docs/app-shell-contract.md); the board owns its own summary header, so the
+ * page renders it directly (no SectionPage title) to avoid a duplicate "Agents".
+ * Widened to `max-w-7xl` for the roster + decision-rail split.
  */
 export default function AgentsPage() {
   return (
@@ -31,13 +25,7 @@ export default function AgentsPage() {
       breadcrumbs={[{ label: "7F" }, { label: "Agents" }]}
       contentClassName="max-w-7xl"
     >
-      <SectionPage
-        tone="canvas"
-        title="Agents"
-        description="What your AI agents are doing — automated work, proposals awaiting review, executed actions, and anything that needs your attention."
-      >
-        <AgentsActivityBoard />
-      </SectionPage>
+      <AgentsActivityBoard />
     </AppShell>
   )
 }

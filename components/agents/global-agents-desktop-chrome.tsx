@@ -106,7 +106,7 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
     variant === "app" ? "hover:bg-white/[0.06]" : "hover:bg-[#F1F5F9]"
   const headerIconHalo =
     variant === "app"
-      ? "bg-[linear-gradient(135deg,rgba(47,128,237,0.20),rgba(139,92,246,0.20),rgba(236,72,153,0.20))] text-[var(--text-primary-light)]"
+      ? "bg-[var(--accent-muted)] text-[var(--accent-on-dark)]"
       : "bg-[#EEF2FF] text-[#4F46E5]"
   const headerCloseColour =
     variant === "app"

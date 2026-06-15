@@ -255,7 +255,19 @@
   --inbox-destructive-soft: rgba(232, 111, 116, 0.14);
   --inbox-focus: #C4B2FF;
   --inbox-focus-soft: rgba(139, 92, 255, 0.16);
-  
+
+  /* ==========================================================
+     AGENT IDENTITY TOKENS — per-agent accent for the Agents roster.
+     In-family with the semantic palette (info/lead/success/accent);
+     teal = Fiona (relationships), rose = Freya (content). Solid token
+     is the icon/label tone; `*-soft` is the tinted halo fill. NEVER use
+     the blue→pink off-brand gradient for agent identity.
+     ========================================================== */
+  --agent-teal: #7BD7C4;
+  --agent-teal-soft: rgba(123, 215, 196, 0.16);
+  --agent-rose: #F2A7C3;
+  --agent-rose-soft: rgba(242, 167, 195, 0.16);
+
   /* === URGENCIA BADGES PREMIUM === */
   --inbox-urgency-critical-bg: rgba(232, 111, 116, 0.14);
   --inbox-urgency-critical-text: #E86F74;
@@ -408,6 +420,11 @@
   --inbox-destructive: #D14A4F;
   --inbox-success: #3E8E5E;
   --inbox-warning: #B07D24;
+  /* Agent identity (light theme) — darker for legible text on light surfaces. */
+  --agent-teal: #2F8F7A;
+  --agent-teal-soft: rgba(47, 143, 122, 0.12);
+  --agent-rose: #B25C82;
+  --agent-rose-soft: rgba(178, 92, 130, 0.12);
 }
 
 /* ── Inbox Overview — Fanny presence (decorative orb rings + waveform) ── */
