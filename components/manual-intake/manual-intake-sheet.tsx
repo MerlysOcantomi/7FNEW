@@ -23,6 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
 import {
   interpretCapture,
@@ -114,6 +115,16 @@ export function ManualIntakeSheet() {
     () => 1 + (steps.createFollowUp ? 1 : 0) + (steps.addToToday ? 1 : 0),
     [steps],
   )
+
+  // ── Review-state derived values (preview of the Manual item + connect hint) ──
+  const connectName = who.trim() || interp?.suggestedRelations[0] || ""
+  const previewSender = connectName || "Manual capture"
+  const previewSummary = (interp?.summary || text).trim()
+  const previewHint = steps.addToToday
+    ? "Needs follow-up today"
+    : steps.createFollowUp
+      ? "Needs follow-up"
+      : null
 
   async function handleConfirm() {
     if (submitting) return
@@ -316,14 +327,43 @@ export function ManualIntakeSheet() {
                   <span className="rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] capitalize text-[var(--inbox-accent)]">
                     {priority}
                   </span>
-                  {interp?.suggestedRelations.map((rel) => (
-                    <span
-                      key={rel}
-                      className="rounded-md border border-[var(--inbox-border)] bg-white/[0.06] px-2 py-0.5 text-[10px] text-[var(--inbox-text-secondary)]"
-                    >
-                      {rel}
+                </div>
+              </section>
+
+              {/* Connect to — display-only suggestion (real linking is a deferred step). */}
+              {connectName ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-[var(--inbox-text-secondary)]">Connect to</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[11px] text-[var(--inbox-accent)]">
+                    <Users className="h-3 w-3" aria-hidden="true" />
+                    {connectName}
+                    <span className="text-[9px] uppercase tracking-wide text-[var(--inbox-text-secondary)]/80">
+                      new
                     </span>
-                  ))}
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Manual item preview — how it will land in the Smart Inbox. */}
+              <section className="rounded-xl border border-[var(--inbox-border)] bg-[var(--inbox-surface-elevated)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-text-secondary)]">
+                  How it lands in your Inbox
+                </p>
+                <div className="mt-2 flex items-start gap-2">
+                  <ConversationChannelBadge channel="manual" label="Manual" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-[var(--inbox-text)]">
+                      {previewSender}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-[var(--inbox-text-secondary)]">
+                      {previewSummary}
+                    </p>
+                    {previewHint ? (
+                      <p className="mt-1 text-[11px] font-medium text-[var(--inbox-accent)]">
+                        {previewHint}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </section>
 

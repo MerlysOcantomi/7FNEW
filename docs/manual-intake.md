@@ -36,9 +36,12 @@ Today / Agents / Ask Fanny providers). The trigger helpers are no-op-safe via an
 1. **Capture** — source chip (Phone call / In-person / Note / Reminder / Imported),
    a "What happened?" textarea, and optional Who / When details.
 2. **Fanny organized** — a local, deterministic read
-   (`lib/manual-intake/interpret-capture.ts`): summary, intent, priority, suggested
-   relations, suggested next steps. **No external AI call** — this is an honest
-   pre-write read, not a model run.
+   (`lib/manual-intake/interpret-capture.ts`): summary, intent, priority, a
+   **Connect to** hint (extracted name), suggested next steps, and a **preview of
+   how the item lands in the Inbox** (Manual badge · sender · summary · follow-up
+   hint). **No external AI call** — this is an honest pre-write read, not a model
+   run. Intent buckets cover the handoff examples (estimate/site-visit, vendor
+   confirmation, parent follow-up, gentle check-in, phone follow-up, fallback).
 3. **Confirm** — writes real work (see below).
 
 ## Write path status — REAL (not faked)
