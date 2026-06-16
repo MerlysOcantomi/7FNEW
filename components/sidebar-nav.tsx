@@ -111,12 +111,11 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
          */
         { label: "Today", href: "/today", icon: Sun, helper: "Daily focus" },
         /**
-         * Agents — global AI activity surface (read-only). Sibling of
-         * New / Today / Search: shows what agents automated, what awaits
-         * review, what executed, and what needs attention. Distinct from
-         * `/agente` (Francis insights mock) and `/assistant` (chat).
+         * Agents is intentionally NOT a sidebar item: it lives in the top
+         * toolbar (`GlobalAgentsTrigger`, sibling of New / Today / Search) and
+         * navigates to the full `/agents` control center. Kept out of the
+         * sidebar to avoid duplicating the same destination.
          */
-        { label: "Agents", href: "/agents", icon: Sparkles, helper: "AI activity" },
         {
           /**
            * Smart Inbox parent — operational reorganization. Subitems are grouped by
