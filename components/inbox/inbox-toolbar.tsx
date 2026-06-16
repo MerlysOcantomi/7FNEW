@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
+  PenSquare,
   Plus,
   RefreshCw,
   Search,
@@ -13,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -173,6 +175,10 @@ export function InboxToolbar({
   onAssignmentFilterChange,
   isTodoMode = false,
 }: InboxToolbarProps) {
+  // Manual Intake "Capture" entry point. No-op-safe: only shows inside a real
+  // ManualIntakeProvider (mounted in AppShell), so other mounts never get a dead button.
+  const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
+
   const advancedHasActiveFilter =
     assignmentFilter !== "all" ||
     status !== "all" ||
@@ -228,6 +234,21 @@ export function InboxToolbar({
           >
             <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="hidden sm:inline">Compose</span>
+          </Button>
+        ) : null}
+
+        {manualIntakeAvailable ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => openManualIntake()}
+            title="Capture a call, note, request or follow-up"
+            aria-label="Capture manual intake"
+            className="h-8 shrink-0 gap-1.5 rounded-lg border-[var(--inbox-border)] bg-transparent px-2.5 text-xs font-medium text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
+          >
+            <PenSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">Capture</span>
           </Button>
         ) : null}
 

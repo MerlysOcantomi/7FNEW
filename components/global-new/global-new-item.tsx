@@ -11,11 +11,19 @@ export function GlobalNewItem({
   variant,
   tone,
   onNavigate,
+  onSelect,
 }: {
   action: GlobalNewActionDef
   variant: "desktop" | "mobile"
   tone: GlobalNewTone
   onNavigate: () => void
+  /**
+   * Optional handler that takes over the click instead of navigating to `href`.
+   * Used to open in-app surfaces (e.g. the Manual Intake sheet) from Global New
+   * without leaving the page. When provided, the item renders as a button and the
+   * `href` is ignored; when absent, behavior is unchanged (href link or button).
+   */
+  onSelect?: () => void
 }) {
   const Icon = action.icon
 
@@ -65,6 +73,21 @@ export function GlobalNewItem({
       ? "hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
       : "hover:bg-[#F1F5F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35",
   )
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        className={baseClass}
+        onClick={() => {
+          onSelect()
+          onNavigate()
+        }}
+      >
+        {inner}
+      </button>
+    )
+  }
 
   if (action.href) {
     return (

@@ -10,11 +10,13 @@ import {
 } from "@/lib/global-new-config"
 import { GlobalNewItem } from "./global-new-item"
 import { useGlobalNew } from "./global-new-provider"
+import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
 
 const GROUP_ORDER: GlobalNewGroupId[] = ["capture", "work", "assets", "vertical"]
 
 export function GlobalNewMobileSheet() {
   const { mobileOpen, setMobileOpen } = useGlobalNew()
+  const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
   const actions = getVisibleGlobalNewActions()
   const byGroup = actionsByGroup(actions)
 
@@ -68,6 +70,11 @@ export function GlobalNewMobileSheet() {
                           variant="mobile"
                           tone="canvas"
                           onNavigate={close}
+                          onSelect={
+                            action.id === "manual-intake" && manualIntakeAvailable
+                              ? openManualIntake
+                              : undefined
+                          }
                         />
                       </li>
                     ))}

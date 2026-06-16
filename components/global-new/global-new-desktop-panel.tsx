@@ -11,6 +11,7 @@ import {
 } from "@/lib/global-new-config"
 import { GlobalNewItem } from "./global-new-item"
 import { useGlobalNew } from "./global-new-provider"
+import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
 
 const GROUP_ORDER: GlobalNewGroupId[] = ["capture", "work", "assets", "vertical"]
 
@@ -59,6 +60,7 @@ export function GlobalNewDesktopChrome({
 
 export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" }) {
   const { desktopOpen, closeAll } = useGlobalNew()
+  const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
   const actions = getVisibleGlobalNewActions()
   const byGroup = actionsByGroup(actions)
   const tone = variant === "app" ? "canvas" : "light"
@@ -175,6 +177,11 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
                             variant="desktop"
                             tone={tone}
                             onNavigate={closeAll}
+                            onSelect={
+                              action.id === "manual-intake" && manualIntakeAvailable
+                                ? openManualIntake
+                                : undefined
+                            }
                           />
                         </li>
                       ))}

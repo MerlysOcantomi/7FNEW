@@ -24,6 +24,8 @@ import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-des
 import { AskFannyProvider, useAskFanny } from "@/components/assistant/ask-fanny-provider"
 import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-fanny-trigger"
 import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
+import { ManualIntakeProvider } from "@/components/manual-intake/manual-intake-provider"
+import { ManualIntakeSheet } from "@/components/manual-intake/manual-intake-sheet"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -210,6 +212,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
       <TodayDrawerProvider>
       <AgentsPanelProvider>
       <AskFannyProvider>
+      <ManualIntakeProvider>
       <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
       <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
@@ -254,7 +257,15 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           TalkToFanny panel + /ask API. Renders nothing until opened.
         */}
         {showAskFanny && <GlobalAskFannyChrome />}
+
+        {/*
+          Global Manual Intake sheet — controlled by ManualIntakeProvider, opened
+          from the inbox toolbar ("Capture") and Global New. Renders nothing until
+          opened. First-class manual capture (channel="manual"), not a notes app.
+        */}
+        <ManualIntakeSheet />
       </div>
+      </ManualIntakeProvider>
       </AskFannyProvider>
       </AgentsPanelProvider>
       </TodayDrawerProvider>
