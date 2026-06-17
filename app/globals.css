@@ -149,6 +149,24 @@
   --status-notice-bg: rgba(232, 111, 116, 0.08);
   --status-notice-text: #D4888C;
 
+  /* ==========================================================
+     TAB SEMANTIC TOKENS — cross-module accent vocabulary
+     Aliases for the per-section tab/badge/icon colors referenced across
+     project & client tabs, calendar event types, content/status badges,
+     toasts, dept/identity meters, /entrada and /archivos. Mapped to the
+     existing semantic solids by ACTUAL usage (not the token name), so both
+     Midnight and the dormant Lavender Mist resolve correctly — the source
+     tokens are already overridden in the light block, so these cascade for
+     free. Solid colors: safe under Tailwind alpha modifiers (/5–/50).
+     ========================================================== */
+  --tab-info: var(--inbox-info);            /* information / in-progress — blue */
+  --tab-phases: var(--inbox-success);       /* completed / approved — green */
+  --tab-review: var(--inbox-destructive);   /* review / overdue / attention — coral */
+  --tab-billing: var(--inbox-lead);         /* billing / invoices / finance — gold */
+  --tab-tasks: var(--inbox-waiting-color);  /* pending / tasks / waiting — bronze */
+  --tab-ai: var(--accent-primary);          /* AI / Fanny / intelligence — purple */
+  --tab-docs: var(--inbox-archive-color);   /* documents / files — neutral */
+
   /* Shadcn/base tokens remapped to premium system */
   --background: var(--surface-1);
   --foreground: var(--text-primary-dark);
