@@ -12,7 +12,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
  *
  *   1. `<GlobalAgentsDesktopChrome>` — mounted by the shells inside the
  *      same `sticky top-0` container as the New + Today panels. The
- *      canonical desktop surface; tone-aware (`app` / `context`).
+ *      canonical desktop surface; themed from the active theme's tokens
+ *      (the `app` / `context` variant is structural only — no colour fork,
+ *      matching `GlobalTodayDesktopChrome`).
  *
  *   2. This component — mounted as a sibling next to `<main>` by the
  *      shells. It owns ONLY the mobile vaul drawer
