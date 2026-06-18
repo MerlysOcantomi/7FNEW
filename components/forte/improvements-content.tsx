@@ -46,21 +46,21 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
           <>
             <ForteHeader domains={domains} />
 
-            <section className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-6 py-8 text-center">
-              <div className="mx-auto w-12 h-12 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center mb-4">
-                <Inbox size={22} className="text-[#3B82F6]" strokeWidth={1.5} />
+            <section className="bg-muted border border-border rounded-xl px-6 py-8 text-center">
+              <div className="mx-auto w-12 h-12 rounded-xl bg-[var(--tab-info)]/15 border border-transparent flex items-center justify-center mb-4">
+                <Inbox size={22} className="text-[var(--tab-info)]" strokeWidth={1.5} />
               </div>
-              <h2 className="text-base font-semibold text-[#0F172A] mb-1.5">
+              <h2 className="text-base font-semibold text-foreground mb-1.5">
                 Your workspace is just getting started
               </h2>
-              <p className="text-sm text-[#64748B] max-w-md mx-auto leading-relaxed">
+              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
                 Forte doesn&apos;t see any active modules or business signals yet.
                 Start by enabling a few capabilities in your workspace settings,
                 and this page will reflect your real business structure.
               </p>
               <Link
                 href={buildSettingsHandoffUrl({ reason: "empty-workspace" })}
-                className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-[#3B82F6] hover:text-[#1D4ED8] hover:underline transition-colors"
+                className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-[var(--tab-info)] hover:underline transition-colors"
               >
                 Open Workspace Settings
                 <ArrowRight size={14} strokeWidth={2} />
@@ -76,25 +76,25 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
 
             {/* Recommended next move */}
             {nextMove && (
-              <section className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-5 py-5">
+              <section className="bg-[var(--tab-info)]/15 border border-transparent rounded-xl px-5 py-5">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-[#BFDBFE] flex items-center justify-center shrink-0 mt-0.5">
-                    <Lightbulb size={16} className="text-[#2563EB]" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-lg bg-card border border-transparent flex items-center justify-center shrink-0 mt-0.5">
+                    <Lightbulb size={16} className="text-[var(--tab-info)]" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-[#2563EB] uppercase tracking-widest mb-1">
+                    <p className="text-[11px] font-semibold text-[var(--tab-info)] uppercase tracking-widest mb-1">
                       Recommended next move
                     </p>
-                    <p className="text-sm font-semibold text-[#0F172A]">
+                    <p className="text-sm font-semibold text-foreground">
                       {nextMove.label}
                     </p>
-                    <p className="text-sm text-[#475569] mt-1 leading-relaxed">
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                       {nextMove.rationale}
                     </p>
                     {nextMove.availability === "available" && (
                       <Link
                         href={nextMove.href}
-                        className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors"
+                        className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-[var(--tab-info)] hover:underline transition-colors"
                       >
                         {nextMove.label}
                         <ArrowRight size={12} strokeWidth={2.5} />
@@ -109,8 +109,8 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
             {!allGood && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle size={14} className="text-[#D97706]" strokeWidth={2} />
-                  <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
+                  <AlertTriangle size={14} className="text-[var(--status-warning-text)]" strokeWidth={2} />
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                     Start here
                   </h2>
                 </div>
@@ -119,22 +119,22 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
                   {recommendations.map((r, i) => (
                     <div
                       key={`${r.domain}-${r.capabilityId}`}
-                      className="bg-white rounded-xl border border-[#E2E8F0] border-l-[3px] border-l-[#FCD34D] shadow-sm px-4 py-4 flex flex-col gap-2"
+                      className="bg-card rounded-xl border border-border border-l-[3px] border-l-[var(--status-warning-text)] shadow-sm px-4 py-4 flex flex-col gap-2"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-[#FEF3C7] border border-[#FDE68A] flex items-center justify-center text-[10px] font-bold text-[#D97706]">
+                        <span className="w-5 h-5 rounded-full bg-[var(--status-warning-bg)] border border-transparent flex items-center justify-center text-[10px] font-bold text-[var(--status-warning-text)]">
                           {i + 1}
                         </span>
-                        <span className="text-xs font-medium text-[#94A3B8]">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {DOMAIN_LABELS[r.domain] ?? r.domain}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-[#0F172A]">{r.label}</p>
-                      <p className="text-xs text-[#64748B] leading-relaxed">{r.rationale}</p>
+                      <p className="text-sm font-semibold text-foreground">{r.label}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{r.rationale}</p>
                       {r.availability === "available" && (
                         <Link
                           href={r.href}
-                          className="flex items-center gap-1.5 mt-auto pt-1 text-xs font-medium text-[#3B82F6] hover:text-[#1D4ED8] hover:underline transition-colors"
+                          className="flex items-center gap-1.5 mt-auto pt-1 text-xs font-medium text-[var(--tab-info)] hover:underline transition-colors"
                         >
                           {r.label}
                           <ArrowRight size={11} strokeWidth={2.5} />
@@ -148,14 +148,14 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
 
             {/* All good state */}
             {allGood && (
-              <section className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-5 py-5">
+              <section className="bg-[var(--status-success-bg)] border border-transparent rounded-xl px-5 py-5">
                 <div className="flex items-start gap-3">
-                  <TrendingUp size={18} className="text-[#059669] mt-0.5 shrink-0" strokeWidth={2} />
+                  <TrendingUp size={18} className="text-[var(--status-success-text)] mt-0.5 shrink-0" strokeWidth={2} />
                   <div>
-                    <p className="text-sm font-medium text-[#166534]">
+                    <p className="text-sm font-medium text-[var(--status-success-text)]">
                       Your workspace is in good shape.
                     </p>
-                    <p className="text-xs text-[#15803D] mt-1 leading-relaxed">
+                    <p className="text-xs text-[var(--status-success-text)] mt-1 leading-relaxed">
                       All key areas are covered. Consider deepening Intelligence — document analysis would unlock insights from your existing data.
                     </p>
                   </div>
@@ -165,7 +165,7 @@ export function ForteImprovementsContent({ viewModel }: ForteImprovementsContent
 
             {/* Domain cards */}
             <section>
-              <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest mb-4">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
                 Domain by domain
               </h2>
 

@@ -47,32 +47,32 @@ const LEVEL_COLORS: Record<DomainLevel, {
   border: string
 }> = {
   none: {
-    badge: "bg-[#FEE2E2] border-[#FECACA]",
-    text: "text-[#DC2626]",
-    bar: "bg-[#FCA5A5]",
-    track: "bg-[#FEE2E2]",
-    border: "border-l-[#FCA5A5]",
+    badge: "bg-[var(--tab-review)]/15 border-transparent",
+    text: "text-[var(--tab-review)]",
+    bar: "bg-[var(--tab-review)]",
+    track: "bg-[var(--tab-review)]/15",
+    border: "border-l-[var(--tab-review)]",
   },
   basic: {
-    badge: "bg-[#FEF3C7] border-[#FDE68A]",
-    text: "text-[#D97706]",
-    bar: "bg-[#FCD34D]",
-    track: "bg-[#FEF3C7]",
-    border: "border-l-[#FCD34D]",
+    badge: "bg-[var(--tab-billing)]/15 border-transparent",
+    text: "text-[var(--tab-billing)]",
+    bar: "bg-[var(--tab-billing)]",
+    track: "bg-[var(--tab-billing)]/15",
+    border: "border-l-[var(--tab-billing)]",
   },
   intermediate: {
-    badge: "bg-[#DBEAFE] border-[#BFDBFE]",
-    text: "text-[#2563EB]",
-    bar: "bg-[#93C5FD]",
-    track: "bg-[#DBEAFE]",
-    border: "border-l-[#93C5FD]",
+    badge: "bg-[var(--tab-info)]/15 border-transparent",
+    text: "text-[var(--tab-info)]",
+    bar: "bg-[var(--tab-info)]",
+    track: "bg-[var(--tab-info)]/15",
+    border: "border-l-[var(--tab-info)]",
   },
   advanced: {
-    badge: "bg-[#D1FAE5] border-[#A7F3D0]",
-    text: "text-[#059669]",
-    bar: "bg-[#6EE7B7]",
-    track: "bg-[#D1FAE5]",
-    border: "border-l-[#6EE7B7]",
+    badge: "bg-[var(--tab-phases)]/15 border-transparent",
+    text: "text-[var(--tab-phases)]",
+    bar: "bg-[var(--tab-phases)]",
+    track: "bg-[var(--tab-phases)]/15",
+    border: "border-l-[var(--tab-phases)]",
   },
 }
 
@@ -139,16 +139,16 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
   const hasGaps = state.missingCapabilities.length > 0
 
   return (
-    <div className={`bg-white rounded-xl border border-[#E2E8F0] border-l-[3px] ${colors.border} shadow-sm overflow-hidden`}>
+    <div className={`bg-card rounded-xl border border-border border-l-[3px] ${colors.border} shadow-sm overflow-hidden`}>
       {/* Header */}
       <div className="px-5 py-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center">
-            <Icon size={18} className="text-[#64748B]" strokeWidth={1.5} />
+          <div className="w-9 h-9 rounded-lg bg-muted border border-border flex items-center justify-center">
+            <Icon size={18} className="text-muted-foreground" strokeWidth={1.5} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[#0F172A]">{label}</h3>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
+            <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
               {state.supportingModules.length > 0
                 ? `${state.supportingModules.length} module${state.supportingModules.length > 1 ? "s" : ""} active`
                 : state.supportingSignals.length > 0
@@ -167,7 +167,7 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
       {/* Strength bar */}
       <div className="px-5 pb-1">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] text-[#94A3B8] font-medium uppercase tracking-wider">Strength</span>
+          <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Strength</span>
           <span className={`text-[11px] font-semibold ${colors.text}`}>{strengthPct}%</span>
         </div>
         <div className={`h-1.5 w-full rounded-full ${colors.track}`}>
@@ -180,8 +180,8 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
 
       {/* What Forte sees */}
       <div className="px-5 py-4">
-        <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">What Forte sees</p>
-        <p className="text-sm text-[#475569] leading-relaxed">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">What Forte sees</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           {insight}
         </p>
       </div>
@@ -190,7 +190,7 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
       {state.notes && state.notes.length > 0 && (
         <div className="px-5 pb-3">
           {state.notes.map((note, i) => (
-            <p key={i} className="text-xs text-[#64748B] leading-relaxed bg-[#F8FAFC] rounded-md px-3 py-2 border border-[#F1F5F9]">
+            <p key={i} className="text-xs text-muted-foreground leading-relaxed bg-muted rounded-md px-3 py-2 border border-border">
               {note}
             </p>
           ))}
@@ -199,11 +199,11 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
 
       {/* Gaps */}
       {hasGaps && (
-        <div className="px-5 pb-4 border-t border-[#F1F5F9]">
-          <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider pt-4 pb-1">
+        <div className="px-5 pb-4 border-t border-border">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pt-4 pb-1">
             What&apos;s missing
           </p>
-          <div className="divide-y divide-[#F1F5F9]">
+          <div className="divide-y divide-border">
             {state.missingCapabilities.map((cap) => (
               <GapItem key={cap} capabilityId={cap} href={routesByCapability?.[cap]} />
             ))}
@@ -213,17 +213,17 @@ export function DomainCard({ state, routesByCapability }: DomainCardProps) {
 
       {/* Good state */}
       {!hasGaps && (
-        <div className="px-5 pb-4 border-t border-[#F1F5F9]">
+        <div className="px-5 pb-4 border-t border-border">
           <div className="flex items-start gap-2.5 pt-4">
             {state.level === "advanced" ? (
-              <ShieldCheck size={15} className="text-[#059669] mt-0.5 shrink-0" strokeWidth={2} />
+              <ShieldCheck size={15} className="text-[var(--status-success-text)] mt-0.5 shrink-0" strokeWidth={2} />
             ) : (
-              <CheckCircle2 size={15} className="text-[#059669] mt-0.5 shrink-0" strokeWidth={2} />
+              <CheckCircle2 size={15} className="text-[var(--status-success-text)] mt-0.5 shrink-0" strokeWidth={2} />
             )}
             <div>
-              <p className="text-sm font-medium text-[#059669]">All key capabilities are active</p>
+              <p className="text-sm font-medium text-[var(--status-success-text)]">All key capabilities are active</p>
               {state.supportingModules.length > 0 && (
-                <p className="text-xs text-[#64748B] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Powered by {state.supportingModules.join(", ")}
                 </p>
               )}

@@ -67,26 +67,26 @@ export function ForteHeader({ domains }: ForteHeaderProps) {
   const summary = buildForteSummary(domains)
 
   return (
-    <div className="pb-6 border-b border-[#E2E8F0]">
+    <div className="pb-6 border-b border-border">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-7 h-7 rounded-lg bg-[#EFF6FF] flex items-center justify-center">
-          <Sparkles size={14} className="text-[#3B82F6]" strokeWidth={2} />
+        <div className="w-7 h-7 rounded-lg bg-[var(--tab-info)]/15 flex items-center justify-center">
+          <Sparkles size={14} className="text-[var(--tab-info)]" strokeWidth={2} />
         </div>
-        <span className="text-[11px] font-semibold text-[#3B82F6] uppercase tracking-widest">
+        <span className="text-[11px] font-semibold text-[var(--tab-info)] uppercase tracking-widest">
           Forte Analysis
         </span>
       </div>
 
-      <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
+      <h1 className="text-xl font-semibold text-foreground tracking-tight">
         {summary.title}
       </h1>
 
-      <p className="text-sm text-[#64748B] mt-1.5 max-w-2xl leading-relaxed">
+      <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
         {summary.subtitle}
       </p>
 
-      <p className="text-[13px] text-[#475569] mt-3 leading-relaxed">
-        <span className="font-medium text-[#334155]">Forte:</span>{" "}
+      <p className="text-[13px] text-muted-foreground mt-3 leading-relaxed">
+        <span className="font-medium text-foreground">Forte:</span>{" "}
         &ldquo;{summary.forteQuote}&rdquo;
       </p>
     </div>
