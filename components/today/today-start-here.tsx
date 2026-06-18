@@ -72,7 +72,7 @@ export function TodayStartHere({
   return (
     <section
       aria-label="Start here"
-      className="relative flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-5"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[var(--border-dark-strong)] bg-[var(--app-surface-dark-elevated)] p-5 shadow-[var(--app-shadow-subtle)]"
     >
       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-1", badge.bar)} />
       <Eyebrow />
@@ -94,7 +94,7 @@ export function TodayStartHere({
           ) : null}
           {badge.label}
         </span>
-        <span className="text-[11px] text-[var(--text-tertiary-light)]">{sourceLabel(item)}</span>
+        <span className="text-[11px] text-[var(--text-secondary-light)]">{sourceLabel(item)}</span>
       </div>
 
       <h3 className="text-xl font-bold tracking-tight text-[var(--text-primary-light)]">
@@ -110,7 +110,7 @@ export function TodayStartHere({
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <Link
           href={item.source.href}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--primary-foreground)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
         >
           Open task
           <ArrowUpRight size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -121,7 +121,7 @@ export function TodayStartHere({
             onClick={handleSend}
             disabled={pending}
             aria-label="Send to AI"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--accent-muted-border)] bg-[var(--accent-muted)] px-3.5 py-2 text-[13px] font-semibold text-[var(--accent-on-dark)] transition-colors hover:bg-[var(--accent-primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--accent-muted-border)] bg-[var(--accent-muted)] px-3.5 py-2 text-[13px] font-semibold text-[var(--accent-on-dark)] transition-colors hover:bg-[var(--accent-primary)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? (
               <Loader2 size={13} strokeWidth={2} className="animate-spin" aria-hidden="true" />
@@ -152,7 +152,7 @@ const REASON_BADGE: Record<
   overdue: {
     label: "Overdue",
     pill: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
-    bar: "bg-[var(--inbox-urgency)]",
+    bar: "bg-[var(--status-danger-text)]",
     dot: "bg-[var(--status-danger-text)]",
   },
   today: {

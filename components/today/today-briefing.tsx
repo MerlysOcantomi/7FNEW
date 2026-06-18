@@ -29,14 +29,14 @@ export function TodayBriefing({
   return (
     <section
       aria-label="Daily briefing"
-      className="relative overflow-hidden rounded-[18px] border border-[var(--accent-muted-border)] bg-[var(--app-surface-dark-elevated)] p-5"
+      className="relative flex flex-col overflow-hidden rounded-[18px] border border-[var(--accent-muted-border)] bg-[var(--app-surface-dark)] p-5"
     >
       {/* Soft accent glow — decorative, static (no animation). */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-[var(--accent-muted)] blur-2xl"
       />
-      <div className="relative flex flex-col gap-3">
+      <div className="relative flex flex-1 flex-col justify-center gap-3">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"

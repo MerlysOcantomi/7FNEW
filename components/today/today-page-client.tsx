@@ -258,7 +258,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
     }
 
     hero = (
-      <section aria-label="Today briefing" className="grid gap-4 lg:grid-cols-2">
+      <section aria-label="Today briefing" className="grid gap-5 lg:grid-cols-2">
         <TodayBriefing
           line={buildBriefingLine(briefingCounts, partOfDay)}
           partOfDay={partOfDay}
