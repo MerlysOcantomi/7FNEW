@@ -397,3 +397,39 @@ for neutral surfaces / text / borders.**
   --app-accent),…]` (sidebar-nav 283/350/465) — brand accent, and inside a shadow.
 - `rgba(255,255,255,0.04)` white inset highlight inside `shadow-[…]` (account-menu 281)
   — theme-agnostic shadow detail (same policy as other deferred `shadow-*`).
+
+### `refactor(theme): migrate page header and global new to theme tokens`
+Third CAT-1 consumer migration. Like global search, the Global New surfaces carry a
+`variant: "app" | "context"` (a.k.a. `tone: "canvas" | "light"`) split: the **app/
+canvas tone is the dark toolbar surface** (already palette-driven via the project's
+`var(--…)` set — `--border-dark`, `--app-shell-bg`, `--app-surface-hover/active`,
+`--text-primary/secondary-light`, `--accent-primary`, `white/[0.06]` overlays) and was
+left untouched; only the **light "context" tone** carried hardcoded slate/blue.
+
+**Page header — audited, already token-compliant (NOT touched):**
+- `components/page-header.tsx` — `default` tone already uses shadcn light tokens
+  (`border-border bg-background`, `text-foreground`, `text-muted-foreground`); `canvas`
+  tone uses the dark `var(--…)` set. Model implementation; nothing to migrate.
+- `components/app-header.tsx` — pure shadcn semantic utilities throughout
+  (`border-border`, `bg-card`, `bg-background`, `text-foreground`, `text-muted-foreground`,
+  `bg-accent`). 0 hardcoded colors; nothing to migrate.
+
+**Migrated (light/"context" tone neutrals → shadcn light tokens, same set as the
+context-chrome / global-search PRs; 3 files, 12 literals, 1:1 swaps, no layout/behavior/
+copy change):** `components/global-new/global-new-desktop-panel.tsx`,
+`…/global-new-item.tsx`, `…/global-new-trigger.tsx`.
+- `bg-white→bg-card`, `bg-[#F8FAFC]→bg-background`, `bg-[#F1F5F9]→bg-muted`,
+  `border-[#E2E8F0]→border-border`, `text-[#0F172A]/[#334155]→text-foreground`,
+  `text-[#64748B]/[#94A3B8]→text-muted-foreground`. (`bg-white` in `global-new-item`
+  migrated via a targeted edit, not `replace_all`, since it is a substring of the dark
+  tone's `bg-white/[0.06]` overlays; `global-new-trigger`'s lone `bg-white` had no such
+  collision.)
+- Already-tokenized siblings left as-is: `global-new-mobile-sheet.tsx` (var-driven),
+  `global-new-provider.tsx` / `use-global-new.ts` (logic only).
+
+**Deferred (light-tone blue accents — same no-legible-dark-purple-on-light rationale as
+prior PRs):** the New-panel header icon halo (`bg-[#DBEAFE] text-[#2563EB]`), the menu
+item icon (`text-[#2563EB]`), and the focus/open-state rings (`ring-[#3B82F6]/35`,
+`ring-[#3B82F6]/30`). The shared `rgba(255,255,255,0.04)` inset-highlight shadow and
+`shadow-sm` utilities were left (theme-agnostic). The dark app/canvas tone was not
+touched (already tokenized).

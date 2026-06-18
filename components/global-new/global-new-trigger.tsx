@@ -37,7 +37,7 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
   const base =
     variant === "app"
       ? "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
-      : "rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] shadow-sm hover:bg-[#F1F5F9]"
+      : "rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
 
   return (
     <button
@@ -51,7 +51,7 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
         desktopOpen &&
           (variant === "app"
             ? "bg-[var(--app-surface-active)] ring-2 ring-[var(--accent-primary)]/40"
-            : "bg-[#F1F5F9] ring-2 ring-[#3B82F6]/30"),
+            : "bg-muted ring-2 ring-[#3B82F6]/30"),
       )}
     >
       <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />

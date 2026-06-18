@@ -30,15 +30,15 @@ export function GlobalNewItem({
   const titleClass =
     tone === "canvas"
       ? "text-[var(--app-sidebar-text)]"
-      : "text-[#0F172A]"
+      : "text-foreground"
   const descClass =
     tone === "canvas"
       ? "text-[var(--text-secondary-light)]"
-      : "text-[#64748B]"
+      : "text-muted-foreground"
   const iconWrap =
     tone === "canvas"
       ? "border-[var(--border-dark)] bg-white/[0.06]"
-      : "border-[#E2E8F0] bg-white shadow-sm"
+      : "border-border bg-card shadow-sm"
 
   const inner = (
     <>
@@ -71,7 +71,7 @@ export function GlobalNewItem({
     variant === "desktop" ? "py-2" : "py-2.5",
     tone === "canvas"
       ? "hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
-      : "hover:bg-[#F1F5F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35",
+      : "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35",
   )
 
   if (onSelect) {

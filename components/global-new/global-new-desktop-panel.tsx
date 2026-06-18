@@ -74,13 +74,13 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
   const panelSurface =
     variant === "app"
       ? "border-[var(--border-dark)] bg-[var(--app-shell-bg)]"
-      : "border-[#E2E8F0] bg-[#F8FAFC]"
+      : "border-border bg-background"
   const headerBorder =
-    variant === "app" ? "border-[var(--border-dark)]" : "border-[#E2E8F0]"
+    variant === "app" ? "border-[var(--border-dark)]" : "border-border"
   const headerTitle =
-    variant === "app" ? "text-[var(--text-primary-light)]" : "text-[#0F172A]"
+    variant === "app" ? "text-[var(--text-primary-light)]" : "text-foreground"
   const headerSubtitle =
-    variant === "app" ? "text-[var(--text-secondary-light)]" : "text-[#64748B]"
+    variant === "app" ? "text-[var(--text-secondary-light)]" : "text-muted-foreground"
   const headerIconHalo =
     variant === "app"
       ? "bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
@@ -88,7 +88,7 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
   const headerCloseColour =
     variant === "app"
       ? "text-[var(--text-secondary-light)] hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
-      : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+      : "text-muted-foreground hover:bg-muted hover:text-foreground"
   const focusRing =
     variant === "app"
       ? "focus-visible:ring-[var(--accent-primary)]/40"
@@ -164,7 +164,7 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
                         "mb-3 text-[10px] font-semibold uppercase tracking-wider",
                         tone === "canvas"
                           ? "text-[var(--text-secondary-light)]"
-                          : "text-[#94A3B8]",
+                          : "text-muted-foreground",
                       )}
                     >
                       {GLOBAL_NEW_GROUP_LABELS[g]}
