@@ -286,3 +286,42 @@ candidates.
 - Do not delete `styles/globals.css` yet (documented for a later cleanup PR).
 - Templates/`*-skina` + `email-outbound` colors may be intentional (print / email
   client) — confirm before tokenizing.
+
+---
+
+## 11. Migration log
+
+### `refactor(theme): migrate context chrome to theme tokens`
+First CAT-1 consumer migration. Files: `components/copilot-panel.tsx`,
+`components/context-bar.tsx`, `components/context-shell.tsx` (the light copilot /
+context-bar / detail-route shell chrome).
+
+**Migrated (neutrals + dark CTAs + status → tokens; ~40 literals, 1:1 swaps, no
+layout/behavior/copy change):**
+- Neutral surfaces → shadcn light content tokens (theme-aware; they stay light in
+  Midnight today and will follow the eventual 2B dark flip — so these stop being
+  permanent light islands without a dark flip now): `bg-white→bg-card`,
+  `bg-[#F8FAFC]/[#FAFCFF]→bg-background`, `bg-[#F1F5F9]→bg-muted`,
+  `border-[#E2E8F0]/[#CBD5E1]→border-border`, text `#0F172A/#334155→text-foreground`,
+  `#64748B/#94A3B8/#CBD5E1→text-muted-foreground`.
+- Dark CTAs (`bg-[#0F172A] text-white hover:bg-[#1E293B]`) → `bg-foreground
+  text-background hover:bg-foreground/90` (same inversion idiom as the Today/Agents
+  CTAs).
+- Amber "working" dot `#F59E0B` → `var(--status-warning-text)`.
+
+**Deferred (left as hardcoded blue, intentionally):** the blue brand accents —
+active context chip, active tab indicator + underline, links / "View", the AI
+message bubble, focus rings/glows, and the idle status dot
+(`#3B82F6/#2563EB/#1D4ED8/#DBEAFE/#EFF6FF/#BFDBFE/#1E3A5F`, `rgba(59,130,246,…)`).
+**Why:** these surfaces are LIGHT in Midnight, and Midnight has **no legible
+dark-purple-on-light token** — `--accent-primary` (#8B5CFF) on the light surfaces is
+≈2.7:1 (worse than the current `#1D4ED8/#2563EB` at ~5–6.5:1), and `--accent-on-dark`
+is a *light* purple meant for dark surfaces. Revisit when these surfaces flip dark
+(2B) — where `--accent-on-dark` works — or when a dedicated dark-purple-on-light
+token is added. Black modal scrims (`bg-black/30|50`) and Tailwind `shadow-*`
+utilities were left as-is (theme-agnostic; not hardcoded hex).
+
+**The new `--surface*/--border-strong/--shadow-*` tokens were NOT used here:** they
+alias the DARK content plane, so they don't fit these currently-light chrome
+surfaces; the existing shadcn light content tokens were the correct choice (as
+anticipated in §5).

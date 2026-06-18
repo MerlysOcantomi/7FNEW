@@ -87,9 +87,9 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
   };
 
   return (
-    <div className={cn("flex flex-col gap-2.5 px-4 py-3.5 border-b border-[#E2E8F0] bg-[#FAFCFF]", className)}>
+    <div className={cn("flex flex-col gap-2.5 px-4 py-3.5 border-b border-border bg-background", className)}>
       {/* Section label */}
-      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Context</p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Context</p>
 
       {/* Context chips */}
       <div className="flex items-center gap-1 flex-wrap">
@@ -102,7 +102,7 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
               "flex flex-col items-center px-2.5 py-1 rounded-md text-[10px] font-semibold transition-colors leading-tight",
               activeChip === chip
                 ? "bg-[#DBEAFE] text-[#1D4ED8]"
-                : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#3B82F6]"
+                : "bg-muted text-muted-foreground hover:bg-[#EFF6FF] hover:text-[#3B82F6]"
             )}
           >
             {CHIP_LABELS[chip]}
@@ -116,17 +116,17 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
         <div className="relative flex-1 min-w-0">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-[#E2E8F0] bg-white text-xs font-medium text-[#0F172A] hover:border-[#3B82F6] transition-colors"
+            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-border bg-card text-xs font-medium text-foreground hover:border-[#3B82F6] transition-colors"
           >
             <span className="truncate">{selected.label}</span>
             <ChevronDown
               size={12}
-              className={cn("text-[#94A3B8] shrink-0 transition-transform", dropdownOpen && "rotate-180")}
+              className={cn("text-muted-foreground shrink-0 transition-transform", dropdownOpen && "rotate-180")}
             />
           </button>
 
           {dropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-[#E2E8F0] rounded-md shadow-lg overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-card border border-border rounded-md shadow-lg overflow-hidden">
               {entities.map((option, idx) => (
                 <button
                   key={option.label}
@@ -135,7 +135,7 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
                     "w-full text-left px-3 py-2 text-xs transition-colors",
                     selectedIdx === idx
                       ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
-                      : "text-[#334155] hover:bg-[#F8FAFC]"
+                      : "text-foreground hover:bg-muted"
                   )}
                 >
                   {option.label}
@@ -148,7 +148,7 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
         {/* View button */}
         <Link
           href={selected.href}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-[#3B82F6] hover:bg-[#EFF6FF] border border-[#E2E8F0] hover:border-[#BFDBFE] transition-colors whitespace-nowrap"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-[#3B82F6] hover:bg-[#EFF6FF] border border-border hover:border-[#BFDBFE] transition-colors whitespace-nowrap"
           title="View entity"
         >
           View
@@ -158,7 +158,7 @@ export function ContextBar({ className, defaultChip = "Overview" }: ContextBarPr
         {/* Full Screen button */}
         <Link
           href="/assistant"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-[#64748B] hover:bg-[#F1F5F9] border border-[#E2E8F0] transition-colors whitespace-nowrap"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-muted-foreground hover:bg-muted border border-border transition-colors whitespace-nowrap"
           title="Open full screen assistant"
         >
           <Maximize2 size={11} />

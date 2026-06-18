@@ -80,8 +80,8 @@ function ContextShellDesktopToolbar() {
       <GlobalNewDesktopChrome variant="context">
         <div
           className={cn(
-            "flex shrink-0 items-center justify-end gap-2 border-b bg-[#F8FAFC] px-5 py-2.5 transition-colors md:px-8",
-            eitherOpen ? "border-[#CBD5E1]" : "border-transparent",
+            "flex shrink-0 items-center justify-end gap-2 border-b bg-background px-5 py-2.5 transition-colors md:px-8",
+            eitherOpen ? "border-border" : "border-transparent",
           )}
         >
           {/*
@@ -106,15 +106,15 @@ function ContextShellDesktopToolbar() {
             aria-expanded={searchOpen && !isMobileViewport}
             aria-haspopup="dialog"
             className={cn(
-              "hidden cursor-pointer items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm text-[#64748B] shadow-sm transition-colors hover:bg-[#F1F5F9] sm:flex",
+              "hidden cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-muted sm:flex",
               searchOpen &&
                 !isMobileViewport &&
-                "bg-[#F1F5F9] ring-2 ring-[#3B82F6]/30",
+                "bg-muted ring-2 ring-[#3B82F6]/30",
             )}
           >
             <Search className="h-3.5 w-3.5 shrink-0" />
             <span className="w-32 text-left lg:w-48">Search...</span>
-            <kbd className="ml-auto rounded border border-[#E2E8F0] px-1 py-0.5 font-mono text-[10px] text-[#94A3B8]">
+            <kbd className="ml-auto rounded border border-border px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
               Ctrl+K
             </kbd>
           </button>
@@ -175,31 +175,31 @@ export function ContextShell({
         <AgentsPanelProvider>
         <CloseTodayWhenGlobalSearchOpen />
         {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
-        <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[#F8FAFC] font-sans md:flex-row">
+        <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-background font-sans md:flex-row">
           <SidebarNav />
           <MobileSidebarNav />
 
           <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
             <div className="sticky top-0 z-30">
-              <div className="hidden md:block bg-[#F8FAFC]">
+              <div className="hidden md:block bg-background">
                 <ContextShellDesktopToolbar />
               </div>
 
-              <div className="border-b border-[#E2E8F0] bg-[#F8FAFC]/95 backdrop-blur-sm">
+              <div className="border-b border-border bg-background/95 backdrop-blur-sm">
               <div className="px-5 pb-4 pt-5 md:px-8">
                 <nav className="mb-4 flex flex-wrap items-center gap-1.5" aria-label="Breadcrumb">
                   {breadcrumbs.map((crumb, i) => (
                     <span key={i} className="flex items-center gap-1.5">
-                      {i > 0 && <ChevronRight size={11} className="shrink-0 text-[#CBD5E1]" />}
+                      {i > 0 && <ChevronRight size={11} className="shrink-0 text-muted-foreground" />}
                       {crumb.href ? (
                         <Link
                           href={crumb.href}
-                          className="text-xs font-medium text-[#64748B] transition-colors hover:text-[#0F172A]"
+                          className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                           {crumb.label}
                         </Link>
                       ) : (
-                        <span className="max-w-[180px] truncate text-xs font-semibold text-[#0F172A]">
+                        <span className="max-w-[180px] truncate text-xs font-semibold text-foreground">
                           {crumb.label}
                         </span>
                       )}
@@ -231,7 +231,7 @@ export function ContextShell({
                           "relative whitespace-nowrap border-b-2 px-4 py-2.5 text-xs font-medium transition-colors",
                           isActive
                             ? "border-[#3B82F6] text-[#2563EB]"
-                            : "border-transparent text-[#94A3B8] hover:border-[#CBD5E1] hover:text-[#334155]",
+                            : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
                         )}
                         style={isActive ? { boxShadow: "0 1px 0 0 #3B82F6" } : {}}
                         aria-current={isActive ? "page" : undefined}
