@@ -18,9 +18,10 @@
     "test:fanny-pipeline": "tsx --test modules/inbox/auto-task-pipeline.test.ts",
     "test:workspace-timezone": "tsx --test modules/inbox/workspace-config-timezone.test.ts",
     "test:today-layout": "tsx --test modules/today/today-layout-mode.test.ts",
+    "test:today-briefing": "tsx --test modules/today/briefing.test.ts",
     "test:today-jobs": "tsx --test modules/today/jobs.test.ts",
     "test:today-sessions": "tsx --test modules/today/sessions.test.ts",
-    "test:today": "tsx --test modules/today/today-layout-mode.test.ts modules/today/jobs.test.ts modules/today/sessions.test.ts"
+    "test:today": "tsx --test modules/today/today-layout-mode.test.ts modules/today/briefing.test.ts modules/today/jobs.test.ts modules/today/sessions.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

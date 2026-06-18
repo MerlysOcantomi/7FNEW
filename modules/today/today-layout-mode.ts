@@ -10,6 +10,11 @@
  *   - "work_first"        → the default deliverables workboard (My work / AI
  *                            work / Schedule / Waiting). Agencies, consulting,
  *                            design, marketing, software, deliverable businesses.
+ *   - "work_first_v2"     → preview of the work_first workboard with a Fanny
+ *                            morning briefing + "Start Here" protagonist hero
+ *                            mounted above it. Same real /api/today data;
+ *                            override-only (?todayLayout=work_first_v2), never
+ *                            auto-activated.
  *   - "appointment_first" → the booking/agenda canvas (day book / agenda + a
  *                            Fanny flow rail). Clinics, salons, barbers, nails,
  *                            spa, by-appointment services.
@@ -48,6 +53,7 @@ import type { SessionVariant } from "./sessions"
 
 export type TodayLayoutMode =
   | "work_first"
+  | "work_first_v2"
   | "appointment_first"
   | "job_route"
   | "session_first"
@@ -173,6 +179,9 @@ function normalizeMode(value: string | null | undefined): TodayLayoutMode | null
     case "work_first":
     case "work-first":
       return "work_first"
+    case "work_first_v2":
+    case "work-first-v2":
+      return "work_first_v2"
     default:
       return null
   }

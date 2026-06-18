@@ -32,6 +32,24 @@ test("default is work_first", () => {
   assert.equal(resolveTodayLayoutMode({}), "work_first")
 })
 
+test("override selects work_first_v2 hero (snake or kebab case)", () => {
+  assert.equal(resolveTodayLayoutMode({ override: "work_first_v2" }), "work_first_v2")
+  assert.equal(resolveTodayLayoutMode({ override: "work-first-v2" }), "work_first_v2")
+})
+
+test("work_first_v2 is override-only — no vertical ever auto-activates it", () => {
+  // It maps to no vertical key, so even with auto-switch ON a real workspace
+  // resolves to its own vertical mode (or the work_first default), never v2.
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "agency", enableVerticalAutoSwitch: true }),
+    "work_first",
+  )
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "clinic", enableVerticalAutoSwitch: true }),
+    "appointment_first",
+  )
+})
+
 test("override selects job_route (snake or kebab case)", () => {
   assert.equal(resolveTodayLayoutMode({ override: "job_route" }), "job_route")
   assert.equal(resolveTodayLayoutMode({ override: "job-route" }), "job_route")

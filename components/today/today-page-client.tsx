@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
@@ -37,6 +37,13 @@ import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
 import { TodayJobRouteLayout } from "./today-job-route-layout"
 import { TodaySessionLayout } from "./today-session-layout"
+import { TodayBriefing } from "./today-briefing"
+import { TodayStartHere } from "./today-start-here"
+import {
+  buildBriefingLine,
+  getPartOfDay,
+  pickProtagonist,
+} from "@modules/today/briefing"
 
 /**
  * Today page entry — resolves the workspace's layout mode and renders the
@@ -45,6 +52,11 @@ import { TodaySessionLayout } from "./today-session-layout"
  * behind an internal override (`?todayLayout=…`) and run on demo data until real
  * sources exist, so production is unaffected. The user never sees a mode name —
  * Mr. Forte sets the operating model during onboarding and Today simply adapts.
+ *
+ * `work_first_v2` is an additional override-only preview: the same work-first
+ * workboard on the same real data, with a Fanny morning briefing + "Start Here"
+ * protagonist hero mounted above it. Reachable solely via
+ * `?todayLayout=work_first_v2`; the production default stays `work_first`.
  */
 export function TodayPageClient() {
   const searchParams = useSearchParams()
@@ -65,6 +77,9 @@ export function TodayPageClient() {
   }
   if (mode === "session_first") {
     return <TodaySessionLayout businessName={workspace?.nombre ?? null} />
+  }
+  if (mode === "work_first_v2") {
+    return <TodayWorkboardLayout showHero />
   }
   return <TodayWorkboardLayout />
 }
@@ -96,7 +111,7 @@ export function TodayPageClient() {
  * Writes (Send to AI / Take over) keep refetch-on-success + toast-on-
  * error semantics. No optimistic state, per the previous PR's brief.
  */
-function TodayWorkboardLayout() {
+function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
   const [timezone, setTimezone] = useState<string | null>(null)
   const { addToast } = useToast()
 
@@ -209,8 +224,59 @@ function TodayWorkboardLayout() {
     )
   }
 
+  /**
+   * Preview hero (work_first_v2 only) — a Fanny morning briefing + "Start
+   * Here" protagonist mounted ABOVE the unchanged workboard. It reuses the
+   * data already fetched and derived above (no extra request) and is built
+   * only when `showHero` is set, so the default work_first path renders
+   * exactly as before.
+   */
+  let hero: ReactNode = null
+  if (showHero) {
+    const briefingCounts = {
+      overdue: lanes.mine.overdue.length + lanes.ai.overdue.length,
+      dueToday: lanes.mine.today.length + lanes.ai.today.length,
+      waiting: counts.waiting,
+      schedule: counts.schedule,
+      ai: counts.ai,
+    }
+    const partOfDay = getPartOfDay(new Date())
+    const protagonist = pickProtagonist(lanes)
+
+    // Reuse the EXISTING Send-to-AI handlers: canonical `task:` rows go
+    // through the lane-move endpoint, legacy `tarea:` rows through the
+    // conversion endpoint. Anything else hides the button and leaves
+    // "Open task" as the only action.
+    let onSendToAI: (() => void | Promise<void>) | undefined
+    const protagonistId = protagonist?.item.id
+    if (protagonistId?.startsWith("task:")) {
+      const canonicalId = protagonistId.slice("task:".length)
+      onSendToAI = () => handleLaneMove(canonicalId, "ai")
+    } else if (protagonistId?.startsWith("tarea:")) {
+      const tareaId = protagonistId.slice("tarea:".length)
+      onSendToAI = () => handleLegacyHandoff(tareaId)
+    }
+
+    hero = (
+      <section aria-label="Today briefing" className="grid gap-4 lg:grid-cols-2">
+        <TodayBriefing
+          line={buildBriefingLine(briefingCounts, partOfDay)}
+          partOfDay={partOfDay}
+        />
+        <TodayStartHere protagonist={protagonist} onSendToAI={onSendToAI} />
+      </section>
+    )
+  }
+
   if (totalItems === 0) {
-    return <TodayEmptyState />
+    // Default Today keeps its calm empty state; the v2 preview shows the hero
+    // (briefing + "you're all clear" Start Here) so it still reads as a full,
+    // intentional surface with zero work.
+    return showHero ? (
+      <div className="flex flex-col gap-6">{hero}</div>
+    ) : (
+      <TodayEmptyState />
+    )
   }
 
   const overdueCount = lanes.mine.overdue.length + lanes.ai.overdue.length
@@ -218,6 +284,7 @@ function TodayWorkboardLayout() {
 
   return (
     <div className="flex flex-col gap-6">
+      {hero}
       <TodaySummaryBar counts={counts} overdueCount={overdueCount} todayCount={todayCount} />
 
       {/*
