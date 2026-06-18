@@ -788,11 +788,11 @@ function DocumentosTab() {
 
 function DocTypeIcon({ type, large }: { type: string; large?: boolean }) {
   const colors: Record<string, string> = {
-    PDF: "bg-red-100 text-red-600",
-    FIG: "bg-purple-100 text-purple-600",
-    AI: "bg-orange-100 text-orange-600",
-    PNG: "bg-green-100 text-green-600",
-    PPTX: "bg-amber-100 text-amber-600",
+    PDF: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
+    FIG: "bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]",
+    AI: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+    PNG: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+    PPTX: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
   }
   const cls = colors[type] || "bg-muted text-muted-foreground"
   return (

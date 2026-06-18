@@ -52,27 +52,27 @@ const PLATAFORMA_ICON: Record<string, typeof Instagram> = {
 
 const ESTADO_COLOR: Record<string, string> = {
   idea: "bg-muted text-muted-foreground",
-  borrador: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  "en-progreso": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  revision: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  programado: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
-  publicado: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  cancelado: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  borrador: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+  "en-progreso": "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  revision: "bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]",
+  programado: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  publicado: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+  cancelado: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
 }
 
 const CAMPAIGN_ESTADO_COLOR: Record<string, string> = {
   idea: "bg-muted text-muted-foreground",
-  planificacion: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  activa: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  pausada: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  completada: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  cancelada: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  planificacion: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+  activa: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+  pausada: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+  completada: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  cancelada: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
 }
 
 const MARCA_COLOR: Record<string, string> = {
-  skina: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-  "7f": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  cliente: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  skina: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
+  "7f": "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  cliente: "bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]",
   general: "bg-muted text-muted-foreground",
 }
 
@@ -433,7 +433,7 @@ export default function ContenidoPage() {
                       <Lightbulb className="h-4 w-4 text-amber-500 flex-shrink-0" />
                       <p className="text-sm font-medium text-foreground">{idea.titulo}</p>
                     </div>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium flex-shrink-0", idea.estado === "aprobada" ? "bg-emerald-100 text-emerald-700" : idea.estado === "evaluando" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{idea.estado}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium flex-shrink-0", idea.estado === "aprobada" ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]" : idea.estado === "evaluando" ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]" : "bg-muted text-muted-foreground")}>{idea.estado}</span>
                   </div>
                   {idea.descripcion && <p className="text-xs text-muted-foreground line-clamp-3">{idea.descripcion}</p>}
                   {idea.tags && <div className="flex flex-wrap gap-1">{idea.tags.split(",").filter(Boolean).map((t: string, i: number) => <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{t.trim()}</span>)}</div>}

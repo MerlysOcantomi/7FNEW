@@ -214,11 +214,11 @@ const deliverables: Deliverable[] = [
 ]
 
 const thumbnailIcons: Record<string, { bg: string; label: string }> = {
-  logo: { bg: "bg-indigo-100", label: "LOGO" },
-  palette: { bg: "bg-emerald-100", label: "COLOR" },
-  moodboard: { bg: "bg-amber-100", label: "MOOD" },
-  mockup: { bg: "bg-sky-100", label: "WEB" },
-  guide: { bg: "bg-rose-100", label: "GUIDE" },
+  logo: { bg: "bg-[var(--status-accent-bg)]", label: "LOGO" },
+  palette: { bg: "bg-[var(--status-success-bg)]", label: "COLOR" },
+  moodboard: { bg: "bg-[var(--status-warning-bg)]", label: "MOOD" },
+  mockup: { bg: "bg-[var(--status-info-bg)]", label: "WEB" },
+  guide: { bg: "bg-[var(--status-danger-bg)]", label: "GUIDE" },
 }
 
 /* ═══════════════ MAIN EXPORT ═══════════════ */
@@ -771,9 +771,9 @@ function CRStatusIcon({ status }: { status: string }) {
 
 function CRStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pendiente: "bg-amber-100 text-amber-700",
-    "en progreso": "bg-blue-100 text-blue-700",
-    resuelto: "bg-green-100 text-green-700",
+    pendiente: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+    "en progreso": "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+    resuelto: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
   }
   return (
     <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium capitalize flex-shrink-0", map[status] || "bg-muted text-muted-foreground")}>
