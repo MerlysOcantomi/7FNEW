@@ -336,6 +336,35 @@
   --inbox-shadow-subtle: var(--app-shadow-subtle);
   --inbox-panel-shadow: var(--app-shadow-subtle);
   --inbox-panel-shadow-sm: var(--app-shadow-subtle);
+
+  /* ==========================================================
+     7F THEME TOKEN MAP — canonical semantic aliases (ADDITIVE)
+     A small, stable public vocabulary for product surfaces, layered
+     OVER the premium system. The 10 shadcn/base names that already
+     exist (--background, --foreground, --border, --primary,
+     --primary-foreground, --accent, --accent-foreground, --muted,
+     --muted-foreground, --ring) are intentionally LEFT UNTOUCHED and
+     keep their current meaning — in particular --accent stays the
+     shadcn hover/muted BACKGROUND (#EDE7FF), NOT the brand purple.
+     Brand / on-brand purple = --accent-primary (solid), --accent-on-dark
+     (readable text), --accent-muted / --accent-muted-border (fills).
+
+     These aliases reference theme-aware sources, so the dormant Lavender
+     Mist block inverts them for free — no per-theme duplication. Only
+     --shadow-strong is a literal (no existing token was a good fit).
+     Nothing consumes these yet, so adding them is a visual no-op;
+     consume via var(--token) (e.g. bg-[var(--surface)]).
+     ========================================================== */
+  --surface: var(--app-surface-dark);
+  --surface-elevated: var(--app-surface-dark-elevated);
+  --surface-muted: var(--app-canvas);
+  --border-strong: var(--border-dark-strong);
+  --success: var(--status-success-text);
+  --warning: var(--status-warning-text);
+  --danger: var(--status-danger-text);
+  --info: var(--accent-primary);
+  --shadow-soft: var(--app-shadow-subtle);
+  --shadow-strong: 0 18px 40px -20px rgba(0, 0, 0, 0.55);
 }
 
 

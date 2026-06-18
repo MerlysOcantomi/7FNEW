@@ -1,0 +1,288 @@
+# 7F Theme Token Map & Hardcoded-Color Audit
+
+> **Status:** foundation. This document (a) records the canonical 7F semantic token
+> map added in `chore(theme): define global 7F theme token map`, and (b) audits the
+> repo's hardcoded colors and classifies surfaces so the migration to a fully
+> palette-switchable system can proceed in small, safe PRs.
+>
+> **Base:** `master` (foundation PR). **Active theme file:** `app/globals.css`
+> (Tailwind v4 — `@theme inline`, no `tailwind.config.js`; `postcss.config.mjs`).
+>
+> This PR is **foundation only**: it adds 10 additive tokens (zero visual change)
+> and this doc. It does **not** redesign, migrate, delete, flip dark mode, or add a
+> palette switcher.
+
+---
+
+## 1. Executive summary
+
+- The theme **infrastructure already exists and is solid.** `app/globals.css`
+  defines a **Midnight** (dark) palette on `:root, .dark, [data-theme="midnight"]`
+  and a **dormant Lavender Mist** (light) palette on `[data-theme="lavender-mist"]`,
+  both built from the **same semantic tokens** (only values change). A no-FOUC theme
+  bridge in `app/layout.tsx` plus `components/theme-mode-toggle.tsx` already switch
+  `data-theme` from `localStorage` (`7f-theme`) / `?theme=`. So a palette-switch
+  foundation is **present, not missing.**
+- The **blocker** to palette switching is not the token system — it's the **~900+
+  hardcoded color references** still scattered through feature/page components
+  (412 Tailwind `*-[#hex]` utilities, 527 raw 6-digit hex, 53 `rgb/rgba/hsl`, 238
+  inline `style={{…}}` blocks in TS/TSX). Each hardcoded value is frozen to one
+  theme and will **not** invert under Lavender Mist.
+- **Risk level: MEDIUM.** Tokenized surfaces (shared `components/ui`, Smart Inbox
+  shell, Today board, Agents post-tokenization) flip correctly. Un-tokenized zones
+  (Admin, Assistant demo, client portal, auth, Today's quick-content light path,
+  embed widget) would mis-render under the alternate palette.
+- **Readiness verdict:** the app is **ready to define the vocabulary** (this PR) and
+  to **migrate zone-by-zone**. It is **not yet ready** to ship a user-facing palette
+  switch, because un-tokenized zones would break visually in the alternate palette.
+
+---
+
+## 2. Existing theme / token inventory
+
+- **Active globals:** `app/globals.css` — **316** CSS custom properties. Imported by
+  `app/layout.tsx` (`import './globals.css'`).
+- **Dead/legacy globals:** `styles/globals.css` — a v0/shadcn default file using
+  `oklch()` values. **Not imported anywhere** (`rg "styles/globals"` → 0 refs).
+  Recommend deletion in a later cleanup PR (left untouched here).
+- **Tailwind v4:** no `tailwind.config.js`; `postcss.config.mjs` + `@theme inline`
+  inside `app/globals.css` map `--color-*` utilities to the base tokens.
+- **Token families in `app/globals.css`:**
+  - **shadcn base** (remapped to premium): `--background`, `--foreground`, `--card`,
+    `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`,
+    `--border`, `--input`, `--ring`, charts, sidebar.
+  - **Premium system:** `--app-canvas/-sidebar`, `--app-surface-dark/-elevated/-hover`,
+    `--surface-1..4`, `--accent-primary/-hover/-on-dark/-muted/-muted-border/-soft/-rich`,
+    `--text-primary/secondary-dark`, `--text-primary/secondary/tertiary-light`,
+    `--border-light/-dark/-dark-strong`, shell overlays
+    (`--app-surface-subtle/-hover/-active`), `--app-shadow-subtle`.
+  - **Status:** `--status-{danger,warning,info,success,accent,neutral,notice}-{bg,text}`.
+  - **Inbox** (heaviest namespace, ~80 tokens): chat bubbles, composer, intelligence
+    rail, urgency/lead/focus, voice states, geometry, shadows.
+  - **Agent identity:** `--agent-{teal,rose}{,-soft}`.
+  - **Tab aliases:** `--tab-{info,phases,review,billing,tasks,ai,docs}`.
+- **Duplicates / confusing names (audit notes):**
+  - **Two globals files** (active `app/` vs dead `styles/`).
+  - `:root` defines the shadcn base **twice** — an early "Copilot blue" block
+    (`#F8FAFC`, `#0F172A`, …) then a premium remap further down; the **later wins**.
+    Confusing to read.
+  - Near-duplicate semantics: `--inbox-urgency` (`#F08A8E`) vs `--status-danger-text`
+    (`#E86F74`); `--status-info-text` → `--accent-primary` (purple) while
+    `--inbox-info` is blue (`#9DC3FF`). **"info" is overloaded.**
+
+---
+
+## 3. Hardcoded-color findings (real data)
+
+Totals (TS/TSX): **412** Tailwind `*-[#hex]` utilities · **527** raw 6-digit hex ·
+**53** `rgb/rgba/hsl` · **238** inline `style={{…}}`. (`app/globals.css` itself shows
+130 hex — those are the token **definitions**, expected, not a problem.)
+
+Highest-concentration files / zones:
+
+| File | count | zone |
+|---|---|---|
+| `components/administracion-content.tsx` | 69 | System/Admin |
+| `app/assistant/page.tsx` | 45 | Assistant (static demo) |
+| `components/global-search.tsx` | 36 | Shared/core |
+| `app/widget/chat/page.tsx` | 23 | Embed widget |
+| `components/copilot-panel.tsx` | 22 | App shell |
+| `components/today/today-quick-content.tsx` | 21 | Today (light-tone path) |
+| `components/templates/factura-skina.tsx` (+ propuesta 14, reporte 12) | 20 | Print/PDF templates |
+| `components/context-shell.tsx` | 15 | App shell |
+| `components/context-bar.tsx`, `components/qr-code-modal.tsx` | 11 | App shell / shared |
+| `app/cliente/*` (per file) | 3–5 | Client portal (separate tenant) |
+
+Clean / already tokenized: **`components/ui/*` = 0** arbitrary-color utilities;
+Agents ≈ 0 (tokenized); Smart Inbox very low (`message-bubble` 1;
+`modules/inbox/email-outbound.ts` 5 = intentional email-client HTML).
+
+Patterns that should become tokens: repeated slate neutrals (`#0F172A`, `#64748B`,
+`#94A3B8`, `#E2E8F0`, `#F1F5F9`, `#F8FAFC`), the blue brand ramp
+(`#2563EB`/`#3B82F6`/`#1D4ED8`), status coral/gold/green, and inline
+`style={{ background/color }}` on dynamic elements.
+
+---
+
+## 4. Risk assessment
+
+- **Palette-change breakage:** every hardcoded value is fixed → un-tokenized zones
+  mis-render under Lavender Mist (e.g. light slate text on a light canvas).
+- **Low-contrast hazards:** `style={{ color }}` / arbitrary text colors tuned for one
+  background can fail WCAG on the other theme; the 238 inline `style` blocks are the
+  hardest to audit automatically.
+- **Translucent backgrounds:** `bg-white/[0.06]`-style overlays are **correct** on
+  dark (tokenized as `--app-surface-*`) but become invisible on light unless they go
+  through the ink-flip tokens; raw `white/…` literals in components are a risk.
+- **Theme-coupled colors:** anything hardcoded dark-slate or pure-white assumes one
+  theme.
+- **Not light-ready zones:** Admin, Assistant demo, client portal, auth, templates,
+  embed widget, Today quick-content.
+
+---
+
+## 5. Token map added in THIS PR
+
+**Additive only** — the 10 existing shadcn/base tokens are **left untouched**:
+`--background`, `--foreground`, `--border`, `--primary`, `--primary-foreground`,
+`--accent`, `--accent-foreground`, `--muted`, `--muted-foreground`, `--ring`.
+
+Added (10), aliasing theme-aware sources so Lavender Mist inverts for free:
+
+| token | → source | Midnight | Lavender Mist |
+|---|---|---|---|
+| `--surface` | `--app-surface-dark` | `#211A3A` | `#FAF8FE` |
+| `--surface-elevated` | `--app-surface-dark-elevated` | `#2C2448` | `#FFFFFF` |
+| `--surface-muted` | `--app-canvas` | `#16112A` | `#F4F1FB` |
+| `--border-strong` | `--border-dark-strong` | white/0.14 | ink/0.16 |
+| `--success` | `--status-success-text` | `#6FAE87` | `#3E8E5E` |
+| `--warning` | `--status-warning-text` | `#D6A84A` | `#B07D24` |
+| `--danger` | `--status-danger-text` | `#E86F74` | `#C2454A` |
+| `--info` | `--accent-primary` | `#8B5CFF` | `#9470FF` |
+| `--shadow-soft` | `--app-shadow-subtle` | `0 4px 10px …` | `0 4px 14px …` |
+| `--shadow-strong` | literal | `0 18px 40px -20px rgba(0,0,0,.55)` | (same) |
+
+**Why `--accent` is NOT redefined:** today `--accent` = `--accent-soft` (`#EDE7FF`),
+a near-white lavender that shadcn components use as a hover/muted **background**. The
+brand purple is a different role. Re-pointing `--accent` to purple would turn every
+`bg-accent` / `hover:bg-accent` solid purple app-wide. So `--accent` keeps its
+shadcn meaning.
+
+**Use these for brand / on-brand purple instead:**
+- `--accent-primary` (`#8B5CFF` / `#9470FF`) — solid brand purple (icons, accents,
+  primary buttons).
+- `--accent-on-dark` (`#C4B2FF` on dark / `#6D3FD4` on light) — readable accent
+  **text**.
+- `--accent-muted` / `--accent-muted-border` — translucent purple fills/borders.
+- `--info` (= `--accent-primary`) — chosen **on-brand (purple), not blue**; if a
+  literal blue "info" is ever needed, `--inbox-info` exists.
+
+**Consume via** `var(--token)` (e.g. `bg-[var(--surface)]`, `text-[var(--danger)]`,
+`shadow-[var(--shadow-strong)]`). Registering `--color-*` utilities in
+`@theme inline` (so `bg-surface` works) is an **optional later step**, deferred to
+keep this PR a visual no-op (verified: 0 existing consumers of the new names).
+
+---
+
+## 6. Palette direction (approved)
+
+- **Dark (primary): Midnight** — `:root, .dark, [data-theme="midnight"]`.
+- **Light (primary): Lavender Mist** — `[data-theme="lavender-mist"]` (dormant).
+- **Visual family: premium PURPLE** (accent `#8B5CFF`, on-dark `#C4B2FF`) — **not
+  blue**.
+- The goal is not merely dark/light: the same semantic token map must support future
+  **brand modes / per-vertical palettes** by adding new `[data-theme="…"]` blocks
+  that override token **values only** — components never change.
+
+---
+
+## 7. Strategic classification of surfaces
+
+Per product direction. **No deletions or redesigns in this PR** — this is a map for
+future, separate PRs.
+
+### CAT 1 — Shared / core infrastructure (migrate carefully; app-wide blast radius)
+App shell, sidebar, navigation, shared UI, global tokens. These gate every other
+zone, so migrate them deliberately and first.
+- `app/globals.css` (token source), `components/ui/*` (**already 0 hardcodes ✓**),
+  `components/sidebar-nav`, `components/copilot-panel` (22), `components/context-shell`
+  (15), `components/context-bar` (11), `components/page-header`,
+  `components/global-search` (36), `components/global-new/*`, theme provider/toggle.
+- **Action:** careful token migration; highest leverage.
+
+### CAT 2 — Productive / current product (KEEP; gradual migration)
+Live product. Hardcoded colors here are migration candidates, **not** deletion
+candidates.
+- **Smart Inbox** — `app/inbox`, `app/inbox/overview`, `app/entrada`,
+  `components/inbox/*`. **NOT legacy.** (Low hardcode count; mostly tokenized.)
+- **Today** — `app/today` board + the new preview hero. (Keep; do **not** promote
+  `work_first_v2`.)
+- **Agents** — `app/agents`, `app/agente`, `components/agents/*` (tokenized).
+- **CRM modules** — proyectos, clientes, contenido, calendario, facturacion,
+  finanzas, tareas, archivos, biblioteca, departamentos, identidad,
+  forte/improvements, comunicacion, automatizaciones, historial, notificaciones,
+  business-profile.
+- **Admin / System** — `components/administracion-content` (**69 — heavy but keep**),
+  `app/admin/usuarios`, `app/system/*`, `app/usuarios`.
+- **Action:** migrate hardcodes to tokens gradually, zone by zone.
+
+### CAT 3 — Legacy / provisional / demo (don't deep-migrate; redesign from tokens later)
+- **`app/page.tsx` — Home / Overview.** **CONFIRMED provisional:** imports
+  `LegacyTodayChrome`; real `DashboardData` but a legacy chrome; partly superseded by
+  the Today hero direction. → **First safe redesign candidate** (see §9).
+- **`app/assistant/page.tsx` — Assistant.** Static **mock** (hardcoded
+  `INITIAL_MESSAGES`, fake risk text; `LegacyTodayChrome`); 45 hardcodes. The real
+  assistant is Fanny in Inbox/Agents. → **replace**, don't migrate.
+- **Today demo verticals** — `today-appointment/job/session-layout` +
+  `appointments/jobs/sessions/*-mock.ts`, gated behind `?todayLayout=`. Intentional,
+  off in production. → **leave quiet** (mock by design).
+- **`app/widget/chat`** (23) — standalone embed surface. → **review** (real
+  embeddable vs demo unconfirmed).
+
+### CAT 4 — Replace / delete-review candidates (DOCUMENT ONLY — act in a separate PR)
+**Do not delete anything now.**
+- `styles/globals.css` — **dead** (0 refs, `oklch` shadcn default) → delete later.
+- Possible **route duplication** to confirm: `app/projects` vs `app/proyectos`;
+  `app/usuarios` vs `app/admin/usuarios` vs `app/system/users`; `app/administracion`
+  vs `app/admin`.
+- `app/assistant` (static mock) → replace candidate.
+
+### Leave quiet / out of scope (separate tenant or intentional)
+- **Client portal** `app/cliente/*` + `components/client-portal-shell` — separate
+  light tenant UI; **excluded** from this dark/palette migration.
+- **Print/PDF templates** `components/templates/*-skina` — intentional brand colors
+  for documents; evaluate separately.
+- **`modules/inbox/email-outbound`** — email-client HTML inline styles (intentional).
+
+---
+
+## 8. Migration plan (small, safe PRs)
+
+1. `chore(theme): define global 7F theme token map` — **THIS PR** (foundation).
+2. `refactor(theme): migrate app shell to theme tokens` — CAT 1: copilot-panel,
+   context-shell, context-bar, sidebar/nav (`components/ui` already clean).
+3. `refactor(theme): migrate shared UI colors to theme tokens` — global-search,
+   qr-code-modal, global-new panels.
+4. `refactor(theme): migrate smart inbox colors to theme tokens` — small residue
+   (`message-bubble`); leave `email-outbound` HTML intentional.
+5. `refactor(theme): migrate today colors to theme tokens` — `today-quick-content`
+   light-tone path + `global-today-trigger`. **Do NOT touch board logic /
+   `work_first_v2`.**
+6. Heavier CAT 2 zones: Admin (`administracion-content`), then evaluate the rest.
+7. `feat(theme): add midnight and lavender mist palettes` — finalize/extend both
+   palettes once consumers are tokenized.
+8. `feat(theme): add palette switcher foundation` — surface the existing
+   `data-theme` bridge as a user control, **after** tokenization is broad enough.
+9. Cleanup PR: delete dead `styles/globals.css`; de-dup the early shadcn block in
+   `:root`; reconcile `--inbox-urgency` vs `--status-danger` and the "info" overload.
+
+---
+
+## 9. What to migrate / replace / leave — and the first redesign candidate
+
+- **Migrate (token-ize gradually):** CAT 1 (shell/shared) → then CAT 2 (live product,
+  incl. Smart Inbox, Today, Admin).
+- **Replace (rebuild from tokens, don't migrate):** CAT 3 legacy/demo — `app/page.tsx`
+  Home/Overview, `app/assistant` mock.
+- **Leave quiet (for now):** client portal, print templates, email HTML, gated Today
+  demo verticals.
+- **Recommended first safe redesign candidate: `app/page.tsx` (Home / Overview).**
+  It is provisional (`LegacyTodayChrome`), but its data (`DashboardData` via
+  `useFetch`) is real and re-bindable, so a from-scratch token-based rebuild is
+  low-risk and high-value. **The decision to redesign / replace / delete is a
+  separate future PR** — this document only recommends.
+
+---
+
+## 10. What NOT to touch (this and the immediate foundation phase)
+
+- No Today redesign; do not promote `work_first_v2`; no Today↔Tasks mixing.
+- No product-logic, route, or navigation changes.
+- No backend / API / Prisma / schema / behavior changes.
+- No mass color migration in one PR — migrate zone by zone.
+- No user-facing palette switcher before tokenization is broad enough.
+- Do not redefine the 10 existing shadcn tokens (especially `--accent`).
+- Do not edit `@theme inline` utilities or the dormant Lavender Mist block.
+- Do not delete `styles/globals.css` yet (documented for a later cleanup PR).
+- Templates/`*-skina` + `email-outbound` colors may be intentional (print / email
+  client) — confirm before tokenizing.
