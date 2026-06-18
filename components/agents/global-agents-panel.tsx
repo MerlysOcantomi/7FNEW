@@ -18,15 +18,6 @@ import type {
 } from "@modules/agents/types"
 
 /**
- * Tone variants supported by the compact Agents quick view — same
- * vocabulary as `TodayQuickTone`:
- *
- *   - `"canvas"` — dark shell tokens (AppShell + mobile vaul drawer).
- *   - `"light"`  — light slate tokens (ContextShell top chrome).
- */
-export type AgentsQuickTone = "canvas" | "light"
-
-/**
  * Pure presentational body of the compact Agents panel.
  *
  * Shared by `GlobalAgentsDesktopChrome` and `AgentsMobileDrawer`. It does
@@ -96,30 +87,7 @@ interface AgentsQuickTokens {
   emptyBody: string
 }
 
-function tokens(tone: AgentsQuickTone): AgentsQuickTokens {
-  if (tone === "light") {
-    return {
-      laneTitle: "text-[#0F172A]",
-      laneCount: "text-[#94A3B8]",
-      laneIconHalo: "border-[#E2E8F0] bg-white shadow-sm",
-      laneIconColor: "text-[#2563EB]",
-      cardBorder: "border-[#E2E8F0]",
-      cardBg: "bg-white",
-      cardHover: "hover:bg-[#F1F5F9]",
-      cardTitle: "text-[#0F172A]",
-      cardSubtitle: "text-[#64748B]",
-      chipBg: "bg-[#F1F5F9]",
-      chipText: "text-[#64748B]",
-      emptyText: "text-[#94A3B8]",
-      spinner: "text-[#94A3B8]",
-      agentChipBorder: "border-[#E2E8F0]",
-      agentChipBg: "bg-white",
-      agentChipText: "text-[#334155]",
-      emptyIconHalo: "bg-[#EEF2FF] text-[#4F46E5]",
-      emptyHeading: "text-[#0F172A]",
-      emptyBody: "text-[#64748B]",
-    }
-  }
+function tokens(): AgentsQuickTokens {
   return {
     laneTitle: "text-[var(--text-primary-light)]",
     laneCount: "text-[var(--text-secondary-light)]/80",
@@ -150,7 +118,6 @@ export function GlobalAgentsPanel({
   agents,
   lanes,
   totalItems,
-  tone = "canvas",
   onRowNavigate,
 }: {
   loading: boolean
@@ -158,10 +125,9 @@ export function GlobalAgentsPanel({
   agents: AgentSummary[]
   lanes: AgentsActivityLanes
   totalItems: number
-  tone?: AgentsQuickTone
   onRowNavigate?: () => void
 }) {
-  const t = tokens(tone)
+  const t = tokens()
 
   if (loading) {
     return (

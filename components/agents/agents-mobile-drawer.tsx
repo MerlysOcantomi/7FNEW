@@ -91,7 +91,6 @@ export function AgentsMobileDrawer({
             agents={agents}
             lanes={lanes}
             totalItems={totalItems}
-            tone="canvas"
             onRowNavigate={() => onOpenChange(false)}
           />
         </div>

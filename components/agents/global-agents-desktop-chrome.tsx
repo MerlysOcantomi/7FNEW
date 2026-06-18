@@ -7,7 +7,7 @@ import { ArrowUpRight, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
-import { GlobalAgentsPanel, type AgentsQuickTone } from "./global-agents-panel"
+import { GlobalAgentsPanel } from "./global-agents-panel"
 import { useAgentsActivityData } from "./use-agents-activity-data"
 
 /**
@@ -85,42 +85,24 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
-  const tone: AgentsQuickTone = variant === "app" ? "canvas" : "light"
-
-  const panelSurface =
-    variant === "app"
-      ? "border-[var(--border-dark)] bg-[var(--app-shell-bg)]"
-      : "border-[#E2E8F0] bg-[#F8FAFC]"
-  const headerBorder =
-    variant === "app" ? "border-[var(--border-dark)]" : "border-[#E2E8F0]"
-  const headerTitle =
-    variant === "app" ? "text-[var(--text-primary-light)]" : "text-[#0F172A]"
-  const headerSubtitle =
-    variant === "app" ? "text-[var(--text-secondary-light)]" : "text-[#64748B]"
-  const headerCountBg = variant === "app" ? "bg-white/[0.06]" : "bg-[#F1F5F9]"
-  const headerCountText =
-    variant === "app" ? "text-[var(--text-secondary-light)]" : "text-[#64748B]"
-  const headerLinkText =
-    variant === "app" ? "text-[var(--accent-primary)]" : "text-[#2563EB]"
-  const headerLinkHover =
-    variant === "app" ? "hover:bg-white/[0.06]" : "hover:bg-[#F1F5F9]"
-  const headerIconHalo =
-    variant === "app"
-      ? "bg-[var(--accent-muted)] text-[var(--accent-on-dark)]"
-      : "bg-[#EEF2FF] text-[#4F46E5]"
+  const panelSurface = "border-[var(--border-dark)] bg-[var(--app-shell-bg)]"
+  const headerBorder = "border-[var(--border-dark)]"
+  const headerTitle = "text-[var(--text-primary-light)]"
+  const headerSubtitle = "text-[var(--text-secondary-light)]"
+  const headerCountBg = "bg-white/[0.06]"
+  const headerCountText = "text-[var(--text-secondary-light)]"
+  const headerLinkText = "text-[var(--accent-primary)]"
+  const headerLinkHover = "hover:bg-white/[0.06]"
+  const headerIconHalo = "bg-[var(--accent-muted)] text-[var(--accent-on-dark)]"
   const headerCloseColour =
-    variant === "app"
-      ? "text-[var(--text-secondary-light)] hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
-      : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]"
-  const focusRing =
-    variant === "app"
-      ? "focus-visible:ring-[var(--accent-primary)]/40"
-      : "focus-visible:ring-[#3B82F6]/35"
+    "text-[var(--text-secondary-light)] hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
+  const focusRing = "focus-visible:ring-[var(--accent-primary)]/40"
 
   return (
     <div
       ref={ref}
       id="agents-desktop-chrome"
+      data-variant={variant}
       className="relative z-30 hidden shrink-0 md:block"
       data-agents-panel
     >
@@ -218,7 +200,6 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
                 agents={agents}
                 lanes={lanes}
                 totalItems={totalItems}
-                tone={tone}
                 onRowNavigate={() => setOpen(false)}
               />
             </div>
