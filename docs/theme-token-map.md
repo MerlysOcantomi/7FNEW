@@ -384,7 +384,9 @@ and change the colors): `--app-sidebar-bg`, `--app-sidebar-surface`,
 and `--inbox-*` for the inbox status dots. Active/hover/collapsed/mobile-drawer/
 workspace-switcher/account states are all expressed through these — verified: **0**
 hardcoded hex, **0** arbitrary `bg-[#]/text-[#]/border-[#]`, **0** Tailwind named
-palette colors, **0** `bg-white/bg-black` neutral surfaces.
+palette colors, **0** `bg-white/bg-black` neutral surfaces. **No hardcoded neutral
+surfaces, text, or borders need migration — the sidebar is considered palette-ready
+for neutral surfaces / text / borders.**
 
 **Deferred (the only non-var literals; all intentional brand/shadow, left as-is):**
 - `text-white` on `bg-[var(--app-accent)]` **count badges** (sidebar-nav 368/382/479/
