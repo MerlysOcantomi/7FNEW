@@ -365,3 +365,33 @@ dark tone's `bg-white/[0.0x]` overlays.)
 - *Two neutral inset-shadow tints* (`rgba(226,232,240,1)`, `rgba(148,163,184,0.12)`)
   left inside arbitrary `shadow-[…]` values — shadows were out of scope (same policy
   as the Tailwind `shadow-*` deferral above).
+
+### `audit: sidebar navigation already token-compliant` (no code change)
+Audited the main sidebar for the next CAT-1 migration: `components/sidebar-nav.tsx`
+(desktop `SidebarNav` + `MobileSidebarNav`, imported by `app-shell.tsx`) and its
+child `components/sidebar-account-menu.tsx` (the bottom account trigger + left
+Account Center sheet). **Result: nothing to migrate — the sidebar was built
+token-first and is already palette-ready.** No edits made; recorded here so the
+audit isn't repeated. (`components/ui/sidebar.tsx` is an unrelated shadcn primitive
+not used by the main nav — out of scope.)
+
+**Already tokenized** — the sidebar is driven entirely by a dedicated dark-plane
+token set (these cascade with the rest of the system; do **not** churn them onto the
+generic `bg-card`/`text-foreground` tokens — that would invert the dark rail to light
+and change the colors): `--app-sidebar-bg`, `--app-sidebar-surface`,
+`--app-sidebar-border`, `--app-sidebar-text` (26×), `--app-sidebar-text-muted` (24×),
+`--app-accent` (19×), plus `--app-shell-bg`, `--app-surface-active`, `--border-dark`,
+and `--inbox-*` for the inbox status dots. Active/hover/collapsed/mobile-drawer/
+workspace-switcher/account states are all expressed through these — verified: **0**
+hardcoded hex, **0** arbitrary `bg-[#]/text-[#]/border-[#]`, **0** Tailwind named
+palette colors, **0** `bg-white/bg-black` neutral surfaces.
+
+**Deferred (the only non-var literals; all intentional brand/shadow, left as-is):**
+- `text-white` on `bg-[var(--app-accent)]` **count badges** (sidebar-nav 368/382/479/
+  495) — brand-accent badge foreground. No safe token swap: shadcn `--accent-foreground`
+  pairs with the `--accent` hover/muted background, **not** the indigo `--app-accent`.
+- `text-white` on the **"7F" logo** wordmark (sidebar-nav 782/793/918/961) — brand mark.
+- `rgba(99,102,241,0.18)` **active-item accent glow** inside `shadow-[0_0_0_1px_var(
+  --app-accent),…]` (sidebar-nav 283/350/465) — brand accent, and inside a shadow.
+- `rgba(255,255,255,0.04)` white inset highlight inside `shadow-[…]` (account-menu 281)
+  — theme-agnostic shadow detail (same policy as other deferred `shadow-*`).
