@@ -325,3 +325,43 @@ utilities were left as-is (theme-agnostic; not hardcoded hex).
 alias the DARK content plane, so they don't fit these currently-light chrome
 surfaces; the existing shadcn light content tokens were the correct choice (as
 anticipated in §5).
+
+### `refactor(theme): migrate global search to theme tokens`
+Second CAT-1 consumer migration. File: `components/global-search.tsx` (the ⌘K
+workspace search). This component has **two tones**, switched at runtime by
+`toneLight` (true only when the desktop portal mount carries
+`data-search-chrome-variant="context"`, i.e. docked inside the light context shell
+migrated above):
+- **Default dark command-palette tone** — already palette-driven via the project's
+  dark-plane tokens (`var(--text-primary-light)`, `var(--accent-primary)`,
+  `var(--border-dark)`, `var(--app-surface-dark[-elevated])`, `var(--app-shell-bg)`)
+  plus theme-agnostic `white/[0.0x]` overlays and black/white/purple shadow `rgba()`.
+  Nothing hardcoded-neutral to migrate; **left untouched**.
+- **Light `context` tone** — was the only place carrying hardcoded slate/blue
+  literals (sibling of the context shell it docks into).
+
+**Migrated (light-tone neutrals → same shadcn light tokens as the context-chrome PR,
+so the docked search matches its shell; 32 literals, 1:1 swaps, no layout/behavior/
+copy change):** `bg-white→bg-card`, `bg-[#F8FAFC]→bg-background`, `bg-[#F1F5F9]→
+bg-muted`, `bg-[#E2E8F0]/80→bg-border/80`, `border-[#E2E8F0]/[#CBD5E1]→border-border`,
+`ring-[#E2E8F0]/[#CBD5E1]→ring-border`, `ring-offset-[#F8FAFC]→ring-offset-background`,
+text `#0F172A→text-foreground`, `#64748B/#94A3B8→text-muted-foreground`. (`bg-white`
+was migrated via targeted edits, not `replace_all`, because it is a substring of the
+dark tone's `bg-white/[0.0x]` overlays.)
+
+**Deferred:**
+- *Light-tone blue accents* — active result row (`bg-[#3B82F6]/14` + ring/inset),
+  accent icon + intro bar (`#2563EB`), chip hover (`#EFF6FF`/`#3B82F6`), chip focus
+  ring (`#3B82F6`), EmptyState icon. Same family and rationale as the context-chrome
+  PR (no legible dark-purple-on-light token).
+- *Status badges* `estadoChromeColors` (the result-row estado/priority chips) — a
+  Tailwind **named** semantic palette (`emerald/sky/amber/rose/orange-400` at low
+  opacity with `*-200/95` text), tuned for the **dark** plane and applied on both
+  tones. Not hardcoded hex (absent from the grep). A `--status-*` swap is **not** a
+  safe 1:1 here: those tokens are light-surface-tuned (`#6FAE87/#D6A84A/#E86F74`), so
+  applying them would visibly change the dark command-palette chips — a redesign, not
+  a tokenization. Deferred to a dedicated **tone-aware status pass** (needs to read
+  `toneLight` and pick light- vs dark-tuned status values per tone).
+- *Two neutral inset-shadow tints* (`rgba(226,232,240,1)`, `rgba(148,163,184,0.12)`)
+  left inside arbitrary `shadow-[…]` values — shadows were out of scope (same policy
+  as the Tailwind `shadow-*` deferral above).

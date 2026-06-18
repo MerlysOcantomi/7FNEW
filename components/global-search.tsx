@@ -516,16 +516,16 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     useDesktopPortal && portalMount.getAttribute("data-search-chrome-variant") === "context"
 
   const rowResultIdle = toneLight
-    ? "text-[#0F172A] hover:bg-[#F1F5F9]"
+    ? "text-foreground hover:bg-muted"
     : SEARCH_ROW_IDLE
   const rowResultActive = toneLight
-    ? "bg-[#3B82F6]/14 text-[#0F172A] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6]/20"
+    ? "bg-[#3B82F6]/14 text-foreground shadow-[inset_0_0_0_1px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6]/20"
     : SEARCH_ROW_ACTIVE
   const rowQuickNav = toneLight
-    ? "text-[#64748B] hover:bg-[#F1F5F9]/70"
+    ? "text-muted-foreground hover:bg-muted/70"
     : SEARCH_ROW_QUICK_NAV
   const rowQuickNavActive = toneLight
-    ? "bg-[#E2E8F0]/80 text-[#0F172A] shadow-[inset_0_0_0_1px_rgba(226,232,240,1)] ring-1 ring-[#CBD5E1]"
+    ? "bg-border/80 text-foreground shadow-[inset_0_0_0_1px_rgba(226,232,240,1)] ring-1 ring-border"
     : SEARCH_ROW_QUICK_NAV_ACTIVE
 
   // Group results by category for display
@@ -536,9 +536,9 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   }
 
   const accentIcon = toneLight ? "text-[#2563EB]" : "text-[var(--accent-primary)]"
-  const mutedSecondary = toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]"
-  const textPrimaryTone = toneLight ? "text-[#0F172A]" : "text-[var(--text-primary-light)]"
-  const listAreaClass = toneLight ? "bg-[#F8FAFC]" : ""
+  const mutedSecondary = toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]"
+  const textPrimaryTone = toneLight ? "text-foreground" : "text-[var(--text-primary-light)]"
+  const listAreaClass = toneLight ? "bg-background" : ""
   const listAreaStyle =
     toneLight ? undefined : { backgroundColor: "var(--app-surface-dark)" }
 
@@ -549,7 +549,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const outerPanelDesktop = cn(
     "flex h-[calc(100dvh-3rem)] flex-col overflow-hidden border-b rounded-b-xl",
     toneLight
-      ? "border-[#CBD5E1] bg-[#F8FAFC] shadow-[inset_0_1px_0_rgba(148,163,184,0.12)]"
+      ? "border-border bg-background shadow-[inset_0_1px_0_rgba(148,163,184,0.12)]"
       : "border-[var(--border-dark)] bg-[var(--app-shell-bg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
   )
 
@@ -576,7 +576,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         <div
           className={cn(
             "flex items-center gap-3 border-b px-3.5 py-2",
-            toneLight ? "border-[#E2E8F0] bg-white" : "border-[var(--border-dark)]",
+            toneLight ? "border-border bg-card" : "border-[var(--border-dark)]",
           )}
           style={
             toneLight ? undefined : { backgroundColor: "var(--app-surface-dark-elevated)" }
@@ -593,7 +593,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
             className={cn(
               "min-h-0 flex-1 bg-transparent text-[13px] leading-snug outline-none placeholder:opacity-90",
               toneLight
-                ? "text-[#0F172A] placeholder:text-[#64748B]"
+                ? "text-foreground placeholder:text-muted-foreground"
                 : "text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)]",
             )}
           />
@@ -606,7 +606,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
             className={cn(
               "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
               toneLight
-                ? "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-[var(--text-secondary-light)] hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]",
             )}
             aria-label="Close"
@@ -634,7 +634,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                   <div
                     className={cn(
                       "border-b pb-3 pt-1",
-                      toneLight ? "border-[#E2E8F0]" : "border-[var(--border-dark)]",
+                      toneLight ? "border-border" : "border-[var(--border-dark)]",
                     )}
                   >
                   <div className="flex gap-2.5 px-1">
@@ -672,9 +672,9 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                               "max-sm:w-full max-sm:basis-[46%] active:translate-y-px",
                               toneLight
                                 ? cn(
-                                    "border-[#E2E8F0] bg-white text-[#0F172A]",
+                                    "border-border bg-card text-foreground",
                                     "hover:border-[#3B82F6]/35 hover:bg-[#EFF6FF]",
-                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC]",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                                   )
                                 : cn(
                                     "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-primary-light)]",
@@ -697,7 +697,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                   <div className="px-0.5 pt-1">
                     <span className={cn(
                       "text-[10px] font-medium uppercase tracking-[0.14em]",
-                      toneLight ? "text-[#94A3B8]/80" : "text-[var(--text-secondary-light)]/55",
+                      toneLight ? "text-muted-foreground/80" : "text-[var(--text-secondary-light)]/55",
                     )}>
                       Quick navigation
                     </span>
@@ -716,7 +716,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                             i === activeIndex ? rowQuickNavActive : rowQuickNav,
                           )}
                         >
-                          <Icon className={cn("h-3.5 w-3.5 shrink-0 opacity-85", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]/80")} />
+                          <Icon className={cn("h-3.5 w-3.5 shrink-0 opacity-85", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]/80")} />
                           <span>{route.label}</span>
                         </Link>
                       )
@@ -743,7 +743,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                     <div className="px-2 py-1.5">
                       <span className={cn(
                         "text-[10px] font-medium uppercase tracking-[0.12em]",
-                        toneLight ? "text-[#64748B]/90" : "text-[var(--text-secondary-light)]/65",
+                        toneLight ? "text-muted-foreground/90" : "text-[var(--text-secondary-light)]/65",
                       )}>
                         {group}
                       </span>
@@ -774,7 +774,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                             <span className={cn(
                               "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none",
                               item.badgeColor || (toneLight
-                                ? "bg-[#F1F5F9] text-[#64748B] ring-1 ring-[#E2E8F0]"
+                                ? "bg-muted text-muted-foreground ring-1 ring-border"
                                 : "bg-white/[0.07] text-[var(--text-secondary-light)] ring-1 ring-[var(--border-dark)]"),
                             )}>
                               {item.badge.replace("_", " ")}
@@ -782,7 +782,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                           )}
                           <CornerDownLeft className={cn(
                             "h-3 w-3 shrink-0 opacity-0 transition-opacity",
-                            toneLight ? "text-[#94A3B8]" : "text-[var(--text-secondary-light)]",
+                            toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]",
                             idx === activeIndex && "opacity-80",
                           )} aria-hidden />
                         </Link>
@@ -799,37 +799,37 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         <div
           className={cn(
             "flex items-center gap-4 border-t px-3.5 py-1.5 text-[10px]",
-            toneLight ? "border-[#E2E8F0] bg-[#F1F5F9]" : "border-[var(--border-dark)]",
-            !toneLight ? "text-[var(--text-secondary-light)]" : "text-[#64748B]",
+            toneLight ? "border-border bg-muted" : "border-[var(--border-dark)]",
+            !toneLight ? "text-[var(--text-secondary-light)]" : "text-muted-foreground",
           )}
           style={toneLight ? undefined : { backgroundColor: "var(--app-surface-dark-elevated)" }}
         >
-          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]")}>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
-              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+              toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>↑</kbd>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
-              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+              toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>↓</kbd>
             <span>navegar</span>
           </div>
-          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]")}>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
-              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+              toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>↵</kbd>
             <span>abrir</span>
           </div>
-          <div className={cn("flex items-center gap-1.5", toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]")}>
+          <div className={cn("flex items-center gap-1.5", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]")}>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
-              toneLight ? "border-[#E2E8F0] bg-white text-[#64748B]" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
+              toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>esc</kbd>
             <span>close</span>
           </div>
-          <span className={cn("ml-auto tabular-nums", toneLight ? "text-[#64748B]/90" : "text-[var(--text-secondary-light)]/80")}>
+          <span className={cn("ml-auto tabular-nums", toneLight ? "text-muted-foreground/90" : "text-[var(--text-secondary-light)]/80")}>
             {displayMode === "results"
               ? `${results.length} result${results.length !== 1 ? "s" : ""}`
               : `${filteredLinks.length} link${filteredLinks.length !== 1 ? "s" : ""}`
@@ -897,19 +897,19 @@ function EmptyState({ query, toneLight }: { query: string; toneLight?: boolean }
       />
       <p className={cn(
         "text-[13px]",
-        toneLight ? "text-[#64748B]" : "text-[var(--text-secondary-light)]",
+        toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]",
       )}>
         No results for{" "}
         <span className={cn(
           "font-medium",
-          toneLight ? "text-[#0F172A]" : "text-[var(--text-primary-light)]",
+          toneLight ? "text-foreground" : "text-[var(--text-primary-light)]",
         )}>
           &quot;{query}&quot;
         </span>
       </p>
       <p className={cn(
         "mt-1 text-[11px]",
-        toneLight ? "text-[#94A3B8]" : "text-[var(--text-secondary-light)]/80",
+        toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]/80",
       )}>
         Try another search term
       </p>
