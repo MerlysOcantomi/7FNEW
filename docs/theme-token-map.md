@@ -488,3 +488,19 @@ trigger files only, a byte-for-byte repeat of the `global-new-trigger` migration
 neutral bundle, accents/status deferred). **Not yet:** the desktop-chromes/panels/mobile
 drawers (already token-ready), the status/priority dots + warning + global-search status
 chips (one dedicated tone-aware status pass), and all Today/Agents product/page surfaces.
+
+### `refactor(theme): migrate today agents toolbar triggers to theme tokens`
+Executes the smallest step from the toolbar-panel audit above. Migrated the light/
+"context" tone of the two toolbar triggers — `components/today/global-today-trigger.tsx`
+and `components/agents/global-agents-trigger.tsx` — whose context base was byte-identical
+to the already-migrated `global-new-trigger`. The dark `"app"` tone (`var(--border-dark)`,
+`var(--app-surface-hover/active)`, `var(--text-secondary-light)`, `var(--accent-primary)`)
+and the `var()`-driven mobile triggers were left untouched. 3 lines changed, 1:1 swaps,
+no layout/behavior/copy change.
+- `border-[#E2E8F0]→border-border`, `bg-white→bg-card`, `text-[#334155]→text-foreground`,
+  `bg-[#F1F5F9]→bg-muted` (today-trigger's open state `bg-[#F1F5F9]` included).
+- **Deferred:** today-trigger's open-state blue ring `ring-[#3B82F6]/30` (same
+  no-legible-dark-purple-on-light rationale as prior PRs). agents-trigger has no blue
+  ring, so it is now fully neutral-tokenized. `shadow-sm` left (theme-agnostic).
+- Not touched this PR: `today-quick-content` (next PR), the status/priority dots, and all
+  panels/chromes/drawers (already token-ready per the audit).
