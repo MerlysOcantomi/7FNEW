@@ -504,3 +504,27 @@ no layout/behavior/copy change.
   ring, so it is now fully neutral-tokenized. `shadow-sm` left (theme-agnostic).
 - Not touched this PR: `today-quick-content` (next PR), the status/priority dots, and all
   panels/chromes/drawers (already token-ready per the audit).
+
+### `refactor(theme): migrate today quick panel to theme tokens`
+Migrated the light-tone neutral bundle of the Today Quick Panel
+(`components/today/today-quick-content.tsx`). The component is driven by a
+`toneTokens(tone: "canvas" | "light")` helper; only the `"light"` branch held hardcoded
+slate neutrals. The `"canvas"` (dark) branch is fully `var()`-driven and was left
+untouched. 10 lines changed, 1:1 swaps; no layout/behavior/copy/data/route change.
+- Neutral swaps (light branch + the row-link `rowHover`/`rowHoverText`): `text-[#0F172A]→
+  text-foreground`, `text-[#64748B]/[#94A3B8]→text-muted-foreground`, `border-[#E2E8F0]→
+  border-border`, `bg-[#F1F5F9]→bg-muted`, `bg-white→bg-card` (iconHalo + surfaceMuted).
+  The two `bg-white` were migrated via targeted edits, not `replace_all`, because bare
+  `bg-white` is a substring of the canvas tone's `bg-white/[0.06]` overlays (which stay).
+- **Deferred (unchanged):**
+  - *Blue accents* — `accent`/`accentDim` `text-[#2563EB]`(+`/80`), `accentHalo`
+    `bg-[#DBEAFE]`, `focusRing` `ring-[#3B82F6]/35`, and the AI-lane left borders
+    `border-l-[#2563EB]` (rows 439/443). Same no-legible-dark-purple-on-light rationale.
+  - *Warning text* — `warningText` `text-[#B45309]` (the "Waiting" pill).
+  - *Priority/status dots* — `priorityDotClass` light tone `bg-[#DC2626]` (critical),
+    `bg-[#D97706]` (high), `bg-[#94A3B8]/40·/60` (low/normal). These are semantic/status
+    colors; the dark tone already maps them to `--status-danger/warning-text`, so a
+    light-tone swap belongs to the dedicated **tone-aware status pass**, not here.
+  - The whole `"canvas"` tone (already `var()`-driven) and `shadow-sm` (theme-agnostic).
+- Not touched: Today hero / board / layout-mode / `work_first_v2` / data / actions /
+  routes; Today/Agents panels, chromes, and drawers.

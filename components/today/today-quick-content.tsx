@@ -578,21 +578,21 @@ interface ToneTokens {
 function toneTokens(tone: TodayQuickTone): ToneTokens {
   if (tone === "light") {
     return {
-      text: "text-[#0F172A]",
-      textMuted: "text-[#64748B]",
-      textDim: "text-[#94A3B8]",
+      text: "text-foreground",
+      textMuted: "text-muted-foreground",
+      textDim: "text-muted-foreground",
       accent: "text-[#2563EB]",
       accentDim: "text-[#2563EB]/80",
       accentHalo: "bg-[#DBEAFE]",
-      iconHalo: "border-[#E2E8F0] bg-white shadow-sm",
+      iconHalo: "border-border bg-card shadow-sm",
       warningText: "text-[#B45309]",
-      surfaceSubtle: "bg-[#F1F5F9]",
-      surfaceMuted: "bg-white",
-      borderMuted: "border-[#E2E8F0]",
-      chipBg: "bg-[#F1F5F9]",
+      surfaceSubtle: "bg-muted",
+      surfaceMuted: "bg-card",
+      borderMuted: "border-border",
+      chipBg: "bg-muted",
       rowHover:
-        "hover:border-[#E2E8F0] hover:bg-[#F1F5F9]",
-      rowHoverText: "group-hover:text-[#0F172A]",
+        "hover:border-border hover:bg-muted",
+      rowHoverText: "group-hover:text-foreground",
       focusRing:
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/35",
     }
