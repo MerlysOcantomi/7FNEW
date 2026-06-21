@@ -34,8 +34,9 @@ re-inspection shows the debt has **two distinct shapes**, not one:
 **Conclusion / strategy.** Proceed **batch by batch**, smallest-and-safest first, with
 **neutrals migrated first** and **status / brand / legacy / special-case deferred**.
 Concretely: a tiny shared-residue batch, then **Admin neutrals first** (the single
-biggest hex hotspot, almost pure neutral swaps), then System neutrals, then productive
-module residue, then a tone-aware status pass, then a brand/accent decision pass.
+biggest hex hotspot, almost pure neutral swaps), then **productive CRM module residue**
+(System is **not** a neutral batch — its amber control plane is special-case, see §5 F),
+then a tone-aware status pass, then a brand/accent decision pass.
 Legacy/demo surfaces are **replaced, not deep-migrated**; client portal, print
 templates, email HTML, and the embeddable widget are **left on their own contracts**.
 
@@ -159,7 +160,8 @@ Pure neutral swaps; 1:1; theme-stable today and after the dark flip.
 - Shared dialog/QR residue: `qr-code-modal` (16), `saved-qr-codes` (5),
   `workspace-panel-surface` / `workspace-panel-backdrop` (3).
 - `notifications-panel` + `upload-area` — the **neutral/gray** parts only.
-- `app/system/*` + `components/system/*` — the **gray** named-palette → neutral tokens.
+- *(`app/system/*` + `components/system/*` previously listed here — **reclassified to
+  bucket F**: the System control plane is an intentional amber surface, not neutral debt.)*
 - Scattered neutral residue inside productive CRM components.
 
 ### B — Tone-aware status migration
@@ -192,8 +194,8 @@ Do **not** migrate until the §9 decision is made.
 Current product. Migrate via the batches, not in one sweep.
 
 Inbox · Today · Agents · Calendar · Clients · Projects · Finance · Billing · Tasks ·
-**Admin** · **System**. Most are low-residue; **Admin and System are the heavy ones**
-and lead the batch order.
+**Admin**. Most are low-residue; **Admin** was the heavy neutral one and led the batch
+order. *(System is a product surface too, but its amber chrome is special-case — see F.)*
 
 ### E — Legacy / provisional / demo (replace, don't deep-migrate)
 
@@ -216,6 +218,13 @@ Not internal-token surfaces; migrating them into app tokens would break their co
   into print payloads.
 - **Email** `modules/inbox/email-*` — email-client HTML (no app CSS vars).
 - **Widget** `app/widget/chat` — embeddable; fixed external contract.
+- **System Admin control plane** `app/system/*` + `components/system/*` — an
+  **intentional amber** surface (`app/system/layout.tsx:11-18` + footer *"Control plane ·
+  NOT a customer workspace"*); already ships **light + dark** (`dark:bg-amber-950/…`).
+  Named-palette here is **amber identity + status badges**; genuine safe-neutral debt ≈ 0
+  (the few slate/zinc hits are status-badge *default* tones → status pass, not neutral;
+  `bg-white/[α]` are translucent cards on amber). **Do not neutral-migrate** — it would
+  erase a documented control-plane safety signal.
 - **Auth** `login` pages — separate, low priority.
 - Brand logos / wordmarks; theme-agnostic shadows / scrims.
 
@@ -246,14 +255,16 @@ Each batch is its **own** PR: PLAN → implement → verify → push. Ordered sa
 - **Routes:** wherever Admin / `administracion` renders.
 - **Commit:** `refactor(theme): migrate admin neutral surfaces to theme tokens`.
 
-### Batch 3 — System neutral (named-palette gray)
-- **Files:** `app/system/*` + `components/system/*` (workspaces, workspace-plan-editor,
-  allowed-emails-manager, audit, users, …).
-- **Migrate:** **gray** named-palette → neutral tokens.
-- **Defer:** amber/red/emerald (→ Batch 5).
-- **Why careful:** named-palette shape; large, so split by sub-area if a PR gets big.
-- **Routes:** System workspaces list + detail, plan editor, allowed-emails, audit, users.
-- **Commit:** `refactor(theme): migrate system neutral surfaces to theme tokens`.
+### Batch 3 — RESOLVED: System reclassified to special-case *(not a neutral batch)*
+- **Outcome:** on inspection, `/system` is an **intentional amber control plane**
+  (`app/system/layout.tsx:11-18` + footer *"Control plane · NOT a customer workspace"*),
+  already light + dark, with **~0 safe-neutral debt**. Its named-palette is amber
+  identity + status badges, not gray neutrals. Neutral-migrating it would erase a
+  documented safety/UX signal and make the control plane look like a customer workspace.
+- **Decision:** moved to **bucket F (leave quiet / special-case)** — see §5 F. There is
+  **no** System neutral PR. Any status-badge tokenization is deferred to **Batch 5**
+  (status pass), and only if desired; the amber chrome stays as identity.
+- **Next real neutral target:** **Batch 4 — Productive CRM module residue** (below).
 
 ### Batch 4 — Productive CRM module residue
 - **Files:** scattered neutral residue in clientes / proyectos / finanzas / facturacion /
@@ -323,12 +334,18 @@ Batch 6 is **blocked** until (a)/(c)/(e) are answered.
 
 ## 10. Recommended next 3 PRs
 
-1. `refactor(theme): migrate shared dialog and qr surfaces to theme tokens` — **Batch 1**.
-2. `refactor(theme): migrate admin neutral surfaces to theme tokens` — **Batch 2**
-   (`administracion-content` slate neutrals; the prioritized big neutral win).
-3. `refactor(theme): migrate system neutral surfaces to theme tokens` — **Batch 3**.
-   *Alternative for #3:* `refactor(theme): add tone-aware status colors` (**Batch 5**) if
-   clearing status debt is preferred over more neutral coverage.
+Batches 1 & 2 have **landed** (PRs #3, #4). Batch 3 was **resolved as a reclassification**
+(System → special-case, no code PR). The next PRs are:
+
+1. `refactor(theme): migrate crm module neutral residue to theme tokens` — **Batch 4**,
+   the **next real neutral target** (scattered low-per-file residue in clientes / proyectos
+   / finanzas / facturacion / tareas / calendario, e.g. `client-documents-tab`). A scan
+   confirms the larger remaining hex concentrations are special-case `widget/chat` and
+   legacy `assistant` (both excluded), so CRM residue is the genuine next neutral work.
+2. `refactor(theme): add tone-aware status colors` — **Batch 5** (status pass; may also
+   tokenize System status badges if desired).
+3. `refactor(theme): apply brand accent decision` — **Batch 6**, gated on the §9
+   brand/accent decisions.
 
 ---
 
@@ -365,7 +382,7 @@ Per-batch routes:
 - **Batch 1:** dialogs mounting the QR modal / workspace panels; notifications tray; an
   upload surface.
 - **Batch 2:** wherever Admin / `administracion` renders.
-- **Batch 3:** System workspaces (list + detail), plan editor, allowed-emails, audit, users.
+- **Batch 3:** *(reclassified — no migration; System is special-case, see §5 F).*
 - **Batch 4:** the touched CRM module screens (clientes / proyectos / finanzas / etc.).
 - **Batch 5:** every surface whose status chips changed (search results, Today, admin/system).
 
