@@ -169,7 +169,7 @@ function Toggle({
     return (
       <div className="flex items-center gap-1.5">
         <ToggleRight size={22} className="text-[#3B82F6]" strokeWidth={1.5} />
-        <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide whitespace-nowrap">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
           Always on
         </span>
       </div>
@@ -184,7 +184,7 @@ function Toggle({
       {enabled ? (
         <ToggleRight size={22} className="text-[#3B82F6]" strokeWidth={1.5} />
       ) : (
-        <ToggleLeft size={22} className="text-[#CBD5E1] group-hover:text-[#94A3B8]" strokeWidth={1.5} />
+        <ToggleLeft size={22} className="text-muted-foreground/60 group-hover:text-muted-foreground" strokeWidth={1.5} />
       )}
     </button>
   )
@@ -204,11 +204,11 @@ function CapabilityRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between py-3 px-4 border-b border-[#F1F5F9] last:border-0 hover:bg-[#F8FAFC] transition-colors ${
+      className={`flex items-center justify-between py-3 px-4 border-b border-border last:border-0 hover:bg-muted transition-colors ${
         highlighted ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
       }`}
     >
-      <span className={`text-sm ${item.locked ? "text-[#334155] font-medium" : enabled ? "text-[#334155]" : "text-[#94A3B8]"}`}>
+      <span className={`text-sm ${item.locked ? "text-foreground font-medium" : enabled ? "text-foreground" : "text-muted-foreground"}`}>
         {item.label}
       </span>
       <Toggle enabled={item.locked ? true : enabled} locked={item.locked} onToggle={onToggle} />
@@ -231,9 +231,9 @@ function CapabilityGroupBlock({
   highlightId?: string
 }) {
   return (
-    <div className={`rounded-xl overflow-hidden border border-[#E2E8F0] ${bgClass ?? "bg-white"}`}>
-      <div className="px-4 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2">
-        <span className={`text-[11px] font-bold uppercase tracking-widest ${SECTION_COLOR[group.section] ?? "text-[#334155]"}`}>
+    <div className={`rounded-xl overflow-hidden border border-border ${bgClass ?? "bg-card"}`}>
+      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
+        <span className={`text-[11px] font-bold uppercase tracking-widest ${SECTION_COLOR[group.section] ?? "text-foreground"}`}>
           {group.section}
         </span>
       </div>
@@ -443,22 +443,22 @@ export function AdministracionContent({
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC] font-sans overflow-x-hidden">
+        <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
           <main className="flex-1 min-w-0 overflow-y-auto">
 
             {/* Header */}
-            <div className="px-4 md:px-8 pt-7 pb-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="px-4 md:px-8 pt-7 pb-5 border-b border-border bg-background flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
                   Settings
                 </p>
-                <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">
+                <h1 className="text-xl font-semibold text-foreground tracking-tight">
                   Workspace settings
                 </h1>
-                <p className="text-sm text-[#64748B] mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Review core capabilities, optional packs, and advanced upgrades for this workspace.
                 </p>
                 {!isAdmin && (
@@ -467,7 +467,7 @@ export function AdministracionContent({
                   </p>
                 )}
                 {isAdmin && (
-                  <p className="text-xs text-[#475569] mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     <Link href="/administracion/canales" className="font-medium text-[#1D4ED8] hover:underline">
                       Email channels
                     </Link>
@@ -481,8 +481,8 @@ export function AdministracionContent({
                 disabled={!hasChanges || saveStatus === "saving" || !isAdmin}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shrink-0 self-start sm:self-auto ${
                   hasChanges && isAdmin
-                    ? "bg-[#0F172A] text-white hover:bg-[#1E293B]"
-                    : "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
+                    ? "bg-foreground text-background hover:bg-foreground/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {saveStatus === "saving" ? (
@@ -510,27 +510,27 @@ export function AdministracionContent({
               {/* ── Section 1: Core capabilities ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                     Core capabilities
                   </h2>
                 </div>
 
-                <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                   <div className="px-5 py-3.5 bg-[#EFF6FF] border-b border-[#DBEAFE]">
                     <p className="text-xs text-[#1D4ED8] font-medium">
                       Locked items are always enabled. Configurable items reflect your workspace setup.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#F1F5F9]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
                     {CORE_CAPABILITIES.map((group) => (
                       <div key={group.section}>
-                        <div className="px-5 py-2.5 border-b border-[#F1F5F9] bg-[#FAFAFA]">
-                          <span className={`text-[11px] font-bold uppercase tracking-widest ${SECTION_COLOR[group.section] ?? "text-[#334155]"}`}>
+                        <div className="px-5 py-2.5 border-b border-border bg-muted">
+                          <span className={`text-[11px] font-bold uppercase tracking-widest ${SECTION_COLOR[group.section] ?? "text-foreground"}`}>
                             {group.section}
                           </span>
                         </div>
-                        <div className="divide-y divide-[#F1F5F9]">
+                        <div className="divide-y divide-border">
                           {group.items.map((item) => {
                             const configurable = !!getConfigKey(item.id)
                             const isLocked = item.locked || !configurable || !isAdmin
@@ -539,17 +539,17 @@ export function AdministracionContent({
                             return (
                               <div
                                 key={item.id}
-                                className={`flex items-center justify-between py-3 px-5 hover:bg-[#F8FAFC] transition-colors ${
+                                className={`flex items-center justify-between py-3 px-5 hover:bg-muted transition-colors ${
                                   item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
                                 }`}
                               >
-                                <span className={`text-sm ${isLocked ? "text-[#334155] font-medium" : isEnabled ? "text-[#334155]" : "text-[#94A3B8]"}`}>
+                                <span className={`text-sm ${isLocked ? "text-foreground font-medium" : isEnabled ? "text-foreground" : "text-muted-foreground"}`}>
                                   {item.label}
                                 </span>
                                 {isLocked ? (
                                   <div className="flex items-center gap-1.5">
                                     <ToggleRight size={20} className="text-[#3B82F6]" strokeWidth={1.5} />
-                                    <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide hidden sm:block">
+                                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide hidden sm:block">
                                       Always on
                                     </span>
                                   </div>
@@ -572,16 +572,16 @@ export function AdministracionContent({
               {/* ── Section 2: Optional packs ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                     Optional packs
                   </h2>
                 </div>
 
-                <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-[#0F172A]">Selected pack</p>
-                      <p className="text-xs text-[#64748B] mt-0.5">
+                      <p className="text-sm font-semibold text-foreground">Selected pack</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Choose the optional capability pack that best matches this workspace.
                       </p>
                     </div>
@@ -589,13 +589,13 @@ export function AdministracionContent({
                     <div className="relative shrink-0">
                       <button
                         onClick={() => setPackDropdownOpen((v) => !v)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#BFDBFE] text-sm font-medium text-[#0F172A] transition-colors min-w-[180px] justify-between"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-muted hover:border-[#BFDBFE] text-sm font-medium text-foreground transition-colors min-w-[180px] justify-between"
                       >
                         {currentPack.label}
                         <ChevronDown
                           size={14}
                           strokeWidth={2}
-                          className={`text-[#64748B] transition-transform duration-200 ${packDropdownOpen ? "rotate-180" : ""}`}
+                          className={`text-muted-foreground transition-transform duration-200 ${packDropdownOpen ? "rotate-180" : ""}`}
                         />
                       </button>
                       {packDropdownOpen && (
@@ -604,7 +604,7 @@ export function AdministracionContent({
                             className="fixed inset-0 z-10"
                             onClick={() => setPackDropdownOpen(false)}
                           />
-                          <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 overflow-hidden">
+                          <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-lg z-20 overflow-hidden">
                             {(Object.keys(EXTENSION_PACKS) as PackKey[]).map((key) => (
                               <button
                                 key={key}
@@ -615,7 +615,7 @@ export function AdministracionContent({
                                 className={`w-full text-left px-4 py-3 text-sm hover:bg-[#EFF6FF] transition-colors ${
                                   selectedPack === key
                                     ? "bg-[#EFF6FF] text-[#1D4ED8] font-medium"
-                                    : "text-[#334155]"
+                                    : "text-foreground"
                                 }`}
                               >
                                 {EXTENSION_PACKS[key].label}
@@ -629,10 +629,10 @@ export function AdministracionContent({
 
                   {currentPack.groups.length === 0 ? (
                     <div className="px-5 py-10 text-center">
-                      <p className="text-sm text-[#94A3B8]">
+                      <p className="text-sm text-muted-foreground">
                         The standard workspace does not include additional optional packs.
                       </p>
-                      <p className="text-xs text-[#CBD5E1] mt-1">
+                      <p className="text-xs text-muted-foreground/60 mt-1">
                         Select a pack to preview extra capabilities.
                       </p>
                     </div>
@@ -650,7 +650,7 @@ export function AdministracionContent({
                             group={{ ...group, items: group.items.map((i) => ({ ...i, locked: true })) }}
                             enabledMap={extensionEnabled}
                             onToggle={() => {}}
-                            bgClass="bg-[#F8FAFC]"
+                            bgClass="bg-muted"
                             highlightId={highlightId}
                           />
                         ))}
@@ -663,13 +663,13 @@ export function AdministracionContent({
               {/* ── Section 3: Advanced options ── */}
               <section>
                 <div className="mb-4">
-                  <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                     Advanced options
                   </h2>
                 </div>
 
-                <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden max-w-lg">
-                  <div className="divide-y divide-[#F1F5F9]">
+                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden max-w-lg">
+                  <div className="divide-y divide-border">
                     {ADVANCED_ITEMS.map((item) => {
                       const hasRealConfig = !!getConfigKey(item.id)
                       const isLocked = !hasRealConfig
@@ -677,15 +677,15 @@ export function AdministracionContent({
                       return (
                         <div
                           key={item.id}
-                          className={`flex items-center justify-between py-3.5 px-5 hover:bg-[#F8FAFC] transition-colors ${
+                          className={`flex items-center justify-between py-3.5 px-5 hover:bg-muted transition-colors ${
                             item.id === highlightId ? "bg-[#EFF6FF] border-l-[3px] border-l-[#3B82F6]" : ""
                           }`}
                         >
-                          <span className={`text-sm ${isLocked ? "text-[#94A3B8]" : advancedEnabled[item.id] ? "text-[#334155] font-medium" : "text-[#94A3B8]"}`}>
+                          <span className={`text-sm ${isLocked ? "text-muted-foreground" : advancedEnabled[item.id] ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                             {item.label}
                           </span>
                           {isLocked ? (
-                            <span className="text-[10px] font-medium text-[#CBD5E1] uppercase tracking-wide">
+                            <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wide">
                               Coming soon
                             </span>
                           ) : (
@@ -704,11 +704,11 @@ export function AdministracionContent({
 
               {/* ── Bottom save bar (mobile sticky) ── */}
               {hasChanges && isAdmin && (
-                <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 bg-white border-t border-[#E2E8F0] shadow-lg">
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 bg-card border-t border-border shadow-lg">
                   <button
                     onClick={handleSave}
                     disabled={saveStatus === "saving"}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
                   >
                     {saveStatus === "saving" ? (
                       <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
