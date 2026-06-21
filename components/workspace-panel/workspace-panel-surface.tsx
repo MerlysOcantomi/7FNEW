@@ -151,7 +151,7 @@ function resolveSizeStyle(size?: PanelSize): React.CSSProperties {
 
 function toneSurfaceClasses(tone: PanelTone): string {
   if (tone === "light") {
-    return "border-[#E2E8F0] bg-[#FFFFFF] text-[#0F172A]"
+    return "border-border bg-background text-foreground"
   }
   return "border-[var(--border-dark)] bg-[var(--app-shell-bg)] text-[var(--text-primary-light)]"
 }
