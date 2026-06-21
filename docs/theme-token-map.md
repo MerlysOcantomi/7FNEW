@@ -433,3 +433,58 @@ item icon (`text-[#2563EB]`), and the focus/open-state rings (`ring-[#3B82F6]/35
 `ring-[#3B82F6]/30`). The shared `rgba(255,255,255,0.04)` inset-highlight shadow and
 `shadow-sm` utilities were left (theme-agnostic). The dark app/canvas tone was not
 touched (already tokenized).
+
+### `audit: toolbar-panel family token readiness` (no code change)
+Audit-first pass before touching Today/Agents. Mapped the "hangs-from-the-toolbar"
+panel family (the Today + Agents analogs of Global New / Global Search / context
+chrome) to find what is genuinely hardcoded vs already token-ready, so the next
+migration PRs are pre-scoped. **No code changed.** (Product/page surfaces —
+`today-page-client`, `today-briefing`, `today-section/-task-row`, `agents-activity-board`,
+`agent-detail-drawer`, etc. — are out of scope and were not audited here.)
+
+**Already token-ready — leave quiet (0 hardcoded colors):**
+- `today/global-today-chrome.tsx`, `agents/global-agents-chrome.tsx` — structural
+  wrappers, no colors.
+- `agents/global-agents-panel.tsx` (351 ln, fully `var()`-driven), `today/today-mobile-
+  drawer.tsx`, `agents/agents-mobile-drawer.tsx` — fully tokenized.
+- `today/today-drawer-provider.tsx`, `agents/agents-panel-provider.tsx` — logic only.
+- `today/legacy-today-chrome.tsx` — legacy, no colors (leave quiet; do not delete).
+
+**Token-ready except theme-agnostic shadows/scrims — leave quiet:**
+- `today/global-today-desktop-chrome.tsx` — surfaces/text/borders on `var(--…)`; only a
+  modal scrim `rgba(8,5,18,0.45)` (inline style) + drop-shadow `rgba(0,0,0,0.6)` remain.
+- `agents/global-agents-desktop-chrome.tsx` — same; only the inset-highlight
+  `rgba(255,255,255,0.04)` shadow remains. (Same shadow policy as all prior PRs.)
+
+**Safe neutral migration candidates (light/"context" tone only; dark tone already
+`var()`):**
+- `today/global-today-trigger.tsx` + `agents/global-agents-trigger.tsx` — **identical**
+  to the already-migrated `global-new-trigger.tsx`: context base `border-[#E2E8F0]
+  bg-white text-[#334155] shadow-sm hover:bg-[#F1F5F9]` → `border-border bg-card
+  text-foreground shadow-sm hover:bg-muted`. Today-trigger also has the open-state
+  `bg-[#F1F5F9]→bg-muted` + a deferred blue `ring-[#3B82F6]/30`; agents-trigger has no
+  blue ring (pure neutral). ~7 neutral swaps total. Lowest-risk next step.
+- `today/today-quick-content.tsx` (619 ln) — clean `toneTokens(tone: "canvas"|"light")`
+  helper; the `"light"` bundle (lines ~581-597) holds ~9 migratable neutrals
+  (`text-[#0F172A]`→`text-foreground`, `text-[#64748B]/[#94A3B8]`→`text-muted-foreground`,
+  `border-[#E2E8F0]`→`border-border`, `bg-[#F1F5F9]`→`bg-muted`, `bg-white`→`bg-card`).
+  The dark `"canvas"` tone is already `var()`. Larger/more nuanced than the triggers →
+  its own PR.
+
+**Deferred accents/status (do NOT migrate without a dedicated, contrast-checked pass):**
+- Light-tone blue accents in both `today-quick-content` and the triggers: `text-[#2563EB]`
+  (+ `/80`), halo `bg-[#DBEAFE]`, AI-lane `border-l-[#2563EB]`, focus/open rings
+  `ring-[#3B82F6]/35`·`/30` — same no-legible-dark-purple-on-light rationale as prior PRs.
+- `today-quick-content` **status/priority dots** `bg-[#DC2626]` (high), `bg-[#D97706]`
+  (med), `bg-[#94A3B8]/40·/60` (low/none) and **warning text** `text-[#B45309]` — true
+  semantic/status colors; belong to the deferred **tone-aware status pass** (with the
+  global-search `estadoChromeColors`), not a neutral swap.
+
+**Recommended next PR (smallest safe step):**
+`refactor(theme): migrate today/agents toolbar triggers to theme tokens` — the two
+trigger files only, a byte-for-byte repeat of the `global-new-trigger` migration
+(~7 neutral swaps, blue ring deferred). Then, separately,
+`refactor(theme): migrate today quick panel to theme tokens` (the `toneTokens("light")`
+neutral bundle, accents/status deferred). **Not yet:** the desktop-chromes/panels/mobile
+drawers (already token-ready), the status/priority dots + warning + global-search status
+chips (one dedicated tone-aware status pass), and all Today/Agents product/page surfaces.
