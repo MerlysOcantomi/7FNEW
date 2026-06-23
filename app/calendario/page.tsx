@@ -562,12 +562,12 @@ export default function CalendarioPage() {
                       </div>
                     )}
                     {overdueFacturas.length > 0 && (
-                      <div className="flex items-start gap-2 rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2">
-                        <Clock className="h-3.5 w-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex items-start gap-2 rounded-lg border border-[var(--status-warning-text)]/20 bg-[var(--status-warning-bg)] px-3 py-2">
+                        <Clock className="h-3.5 w-3.5 text-[var(--status-warning-text)] mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-[10px] font-medium text-orange-600">{overdueFacturas.length} factura{overdueFacturas.length > 1 ? "s" : ""} vencida{overdueFacturas.length > 1 ? "s" : ""}</p>
+                          <p className="text-[10px] font-medium text-[var(--status-warning-text)]">{overdueFacturas.length} factura{overdueFacturas.length > 1 ? "s" : ""} vencida{overdueFacturas.length > 1 ? "s" : ""}</p>
                           {overdueFacturas.slice(0, 3).map((f) => (
-                            <p key={f.id} className="text-[10px] text-orange-500/70 truncate">{f.title}</p>
+                            <p key={f.id} className="text-[10px] text-[var(--status-warning-text)]/70 truncate">{f.title}</p>
                           ))}
                         </div>
                       </div>
