@@ -27,15 +27,15 @@ interface RequestItem {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  OPEN: { label: "Open", color: "bg-blue-100 text-blue-700", icon: Clock },
-  IN_PROGRESS: { label: "In progress", color: "bg-amber-100 text-amber-700", icon: AlertCircle },
-  DONE: { label: "Completed", color: "bg-green-100 text-green-700", icon: CheckCircle },
+  OPEN: { label: "Open", color: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]", icon: Clock },
+  IN_PROGRESS: { label: "In progress", color: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]", icon: AlertCircle },
+  DONE: { label: "Completed", color: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]", icon: CheckCircle },
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
-  LOW: "text-gray-500",
-  MEDIUM: "text-amber-600",
-  HIGH: "text-red-600",
+  LOW: "text-[var(--status-neutral-text)]",
+  MEDIUM: "text-[var(--status-warning-text)]",
+  HIGH: "text-[var(--status-danger-text)]",
 }
 
 export default function InternalRequestsPage() {
@@ -83,19 +83,19 @@ export default function InternalRequestsPage() {
         <div className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground">Open</p>
-            <p className="mt-1 text-2xl font-semibold text-blue-600">
+            <p className="mt-1 text-2xl font-semibold text-[var(--status-info-text)]">
               {requests.filter((r) => r.status === "OPEN").length}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground">In progress</p>
-            <p className="mt-1 text-2xl font-semibold text-amber-600">
+            <p className="mt-1 text-2xl font-semibold text-[var(--status-warning-text)]">
               {requests.filter((r) => r.status === "IN_PROGRESS").length}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground">Completed</p>
-            <p className="mt-1 text-2xl font-semibold text-green-600">
+            <p className="mt-1 text-2xl font-semibold text-[var(--status-success-text)]">
               {requests.filter((r) => r.status === "DONE").length}
             </p>
           </div>
@@ -156,7 +156,7 @@ export default function InternalRequestsPage() {
                           {cfg.label}
                         </span>
                         <span
-                          className={`text-xs font-medium ${PRIORITY_COLORS[req.priority] || "text-gray-500"}`}
+                          className={`text-xs font-medium ${PRIORITY_COLORS[req.priority] || "text-[var(--status-neutral-text)]"}`}
                         >
                           {req.priority}
                         </span>

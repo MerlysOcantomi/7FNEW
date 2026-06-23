@@ -70,10 +70,10 @@ const typeIcons: Record<string, typeof CheckSquare> = {
 }
 
 const priorityDot: Record<string, string> = {
-  urgente: "bg-red-500",
-  alta: "bg-orange-500",
-  media: "bg-yellow-500",
-  baja: "bg-green-500",
+  urgente: "bg-[var(--status-danger-text)]",
+  alta: "bg-[var(--status-warning-text)]",
+  media: "bg-[var(--status-warning-text)]",
+  baja: "bg-[var(--status-neutral-text)]",
 }
 
 export default function CalendarioPage() {
@@ -324,7 +324,7 @@ export default function CalendarioPage() {
                               className="flex items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-accent/50 transition-colors group"
                             >
                               {item.priority && (
-                                <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", priorityDot[item.priority] ?? "bg-gray-400")} />
+                                <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", priorityDot[item.priority] ?? "bg-[var(--status-neutral-text)]")} />
                               )}
                               <span className="text-[10px] truncate text-foreground leading-tight" style={{ color: typeColors[item.type] }}>
                                 {item.title}
@@ -434,7 +434,7 @@ export default function CalendarioPage() {
                                   )}
                                 >
                                   {item.priority && (
-                                    <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", priorityDot[item.priority] ?? "bg-gray-400")} />
+                                    <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", priorityDot[item.priority] ?? "bg-[var(--status-neutral-text)]")} />
                                   )}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-foreground">{item.title}</p>
