@@ -201,7 +201,7 @@ export default function InternalRequestsPage() {
                       {req.status === "OPEN" && (
                         <button
                           onClick={() => changeStatus(req.id, "IN_PROGRESS")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-[var(--status-warning-bg)] hover:border-[var(--status-warning-text)]/30 hover:text-[var(--status-warning-text)] transition-colors"
                         >
                           <AlertCircle className="h-3.5 w-3.5" />
                           Move to in progress
@@ -210,7 +210,7 @@ export default function InternalRequestsPage() {
                       {req.status !== "DONE" && (
                         <button
                           onClick={() => changeStatus(req.id, "DONE")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-[var(--status-success-bg)] hover:border-[var(--status-success-text)]/30 hover:text-[var(--status-success-text)] transition-colors"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
                           Mark completed
