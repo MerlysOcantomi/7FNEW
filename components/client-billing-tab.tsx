@@ -170,9 +170,9 @@ function formatCurrency(amount: number): string {
 }
 
 const statusConfig: Record<InvoiceStatus, { label: string; bg: string; text: string; icon: typeof CheckCircle2 }> = {
-  pagada: { label: "Paid", bg: "bg-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
-  pendiente: { label: "Pending", bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
-  vencida: { label: "Overdue", bg: "bg-red-100", text: "text-red-700", icon: AlertCircle },
+  pagada: { label: "Paid", bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]", icon: CheckCircle2 },
+  pendiente: { label: "Pending", bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]", icon: Clock },
+  vencida: { label: "Overdue", bg: "bg-[var(--status-danger-bg)]", text: "text-[var(--status-danger-text)]", icon: AlertCircle },
 }
 
 function parseDisplayDate(d: string): string {
@@ -250,19 +250,19 @@ export function ClientBillingTab() {
           label="Paid Billing"
           amount={totalPagado}
           icon={CheckCircle2}
-          accentClass="bg-emerald-100 text-emerald-700"
+          accentClass="bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
         />
         <SummaryCard
           label="Pending Billing"
           amount={totalPendiente}
           icon={Clock}
-          accentClass="bg-amber-100 text-amber-700"
+          accentClass="bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
         />
         <SummaryCard
           label="Overdue Billing"
           amount={totalVencido}
           icon={AlertCircle}
-          accentClass="bg-red-100 text-red-700"
+          accentClass="bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]"
         />
       </div>
 
@@ -673,8 +673,8 @@ function InvoiceDetail({ invoice, onBack }: { invoice: Invoice; onBack: () => vo
           <div className="divide-y divide-border">
             {invoice.payments.map((payment, i) => (
               <div key={i} className="px-5 py-4 flex items-center gap-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 flex-shrink-0">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--status-success-bg)] flex-shrink-0">
+                  <CheckCircle2 className="h-4 w-4 text-[var(--status-success-text)]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">{formatCurrency(payment.amount)}</p>
