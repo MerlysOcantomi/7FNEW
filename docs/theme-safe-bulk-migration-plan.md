@@ -282,6 +282,10 @@ Each batch is its **own** PR: PLAN → implement → verify → push. Ordered sa
 - **Commit:** `refactor(theme): migrate client-requests neutral surfaces to theme tokens`.
 
 ### Batch 5 — Tone-aware status pass
+> **Planned in detail:** see [`theme-status-color-pass-plan.md`](./theme-status-color-pass-plan.md)
+> — inspection found the `--status-*` token system already exists and is widely adopted, so Batch 5
+> is **token adoption** (5a: requests/calendar/billing) not a flat swap; light `*-bg` tuning is a
+> conditional, dark-flip-gated follow-up (5c).
 - **Scope:** `estadoChromeColors`; Today light status dots + warning; the semantic
   amber/red/emerald named-palette across admin/system.
 - **Migrate:** → `var(--status-*-{bg,text})` with **per-tone light/dark tuning**.
