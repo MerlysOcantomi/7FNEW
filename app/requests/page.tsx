@@ -81,20 +81,20 @@ export default function InternalRequestsPage() {
       >
         {/* Stats */}
         <div className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-3">
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">Open</p>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">Open</p>
             <p className="mt-1 text-2xl font-semibold text-blue-600">
               {requests.filter((r) => r.status === "OPEN").length}
             </p>
           </div>
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">In progress</p>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">In progress</p>
             <p className="mt-1 text-2xl font-semibold text-amber-600">
               {requests.filter((r) => r.status === "IN_PROGRESS").length}
             </p>
           </div>
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
-            <p className="text-xs text-gray-500">Completed</p>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">Completed</p>
             <p className="mt-1 text-2xl font-semibold text-green-600">
               {requests.filter((r) => r.status === "DONE").length}
             </p>
@@ -114,8 +114,8 @@ export default function InternalRequestsPage() {
               onClick={() => setFilter(s.key)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 filter === s.key
-                  ? "bg-[#111827] text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               {s.label}
@@ -126,27 +126,27 @@ export default function InternalRequestsPage() {
         {/* List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-[#E2E8F0] bg-white px-6 py-16 text-center">
-            <MessageSquarePlus className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-900">No requests yet</p>
+          <div className="rounded-xl border border-border bg-card px-6 py-16 text-center">
+            <MessageSquarePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+            <p className="text-sm font-medium text-foreground">No requests yet</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden divide-y divide-gray-100">
+          <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
             {filtered.map((req) => {
               const cfg = STATUS_CONFIG[req.status] || STATUS_CONFIG.OPEN
               const StatusIcon = cfg.icon
               return (
                 <div
                   key={req.id}
-                  className="p-4 sm:p-5 hover:bg-gray-50/60 transition-colors"
+                  className="p-4 sm:p-5 hover:bg-muted/60 transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-medium text-gray-900">
+                        <h3 className="text-sm font-medium text-foreground">
                           {req.title}
                         </h3>
                         <span
@@ -162,11 +162,11 @@ export default function InternalRequestsPage() {
                         </span>
                       </div>
                       {req.description && (
-                        <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                        <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                           {req.description}
                         </p>
                       )}
-                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span>
                           {new Date(req.createdAt).toLocaleDateString("en-US", {
                             day: "numeric",
@@ -201,7 +201,7 @@ export default function InternalRequestsPage() {
                       {req.status === "OPEN" && (
                         <button
                           onClick={() => changeStatus(req.id, "IN_PROGRESS")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors"
                         >
                           <AlertCircle className="h-3.5 w-3.5" />
                           Move to in progress
@@ -210,7 +210,7 @@ export default function InternalRequestsPage() {
                       {req.status !== "DONE" && (
                         <button
                           onClick={() => changeStatus(req.id, "DONE")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
                           Mark completed

@@ -266,12 +266,20 @@ Each batch is its **own** PR: PLAN → implement → verify → push. Ordered sa
   (status pass), and only if desired; the amber chrome stays as identity.
 - **Next real neutral target:** **Batch 4 — Productive CRM module residue** (below).
 
-### Batch 4 — Productive CRM module residue
-- **Files:** scattered neutral residue in clientes / proyectos / finanzas / facturacion /
-  tareas / calendario components (e.g. `client-documents-tab`).
-- **Migrate:** neutral residue only.
-- **Why safe:** low per-file count; productive surfaces.
-- **Commit:** `refactor(theme): migrate crm module neutral residue to theme tokens`.
+### Batch 4 — Client-requests neutral surfaces *(narrowed from "CRM residue")*
+- **Inspection outcome:** the internal CRM modules (`clientes` / `proyectos` / `finanzas` /
+  `facturacion` / `tareas` / `calendario` + their forms/tabs) are **already neutral-clean**
+  — they use dark tokens + `bg-white/[α]` translucent overlays. The audit's old hotspots
+  resolve to special-case (client *portal* `app/cliente/*`), status (`priorityDot` maps),
+  or decorative mock (`client-documents-tab` thumbnail swatches). **No CRM-wide batch.**
+- **Real target — `app/requests/page.tsx`:** the one genuine productive neutral debt — a
+  nav-linked, API-backed ("Client requests") **light island**. Migrated its ~32 opaque
+  neutral tokens (`bg-white`→`bg-card`, `border-[#E2E8F0]`→`border-border`,
+  `text-gray-*`→`text-foreground`/`text-muted-foreground`, `bg-gray-100`→`bg-muted`,
+  `#111827` chip→`bg-foreground text-background`).
+- **Deferred (→ Batch 5):** `STATUS_CONFIG`, `PRIORITY_COLORS` (incl. its `text-gray-500`
+  priority tone + fallback), stat-number hues, and the amber/green status hovers.
+- **Commit:** `refactor(theme): migrate client-requests neutral surfaces to theme tokens`.
 
 ### Batch 5 — Tone-aware status pass
 - **Scope:** `estadoChromeColors`; Today light status dots + warning; the semantic
