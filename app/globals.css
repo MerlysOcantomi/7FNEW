@@ -168,22 +168,28 @@
   --tab-docs: var(--inbox-archive-color);   /* documents / files — neutral */
 
   /* Shadcn/base tokens remapped to premium system */
-  --background: var(--surface-1);
-  --foreground: var(--text-primary-dark);
-  --card: var(--surface-card);
-  --card-foreground: var(--surface-card-foreground);
+  /* Palette-aware remap: point shadcn surface/foreground tokens at the 7F --app-*
+     vars, which already flip per theme (dark in :root/Midnight, light overrides in
+     [data-theme="lavender-mist"]). This makes bg-card / bg-background / bg-muted /
+     text-foreground / border-border theme-correct everywhere — dark in Midnight,
+     light in Lavender Mist — with no per-route edits. --popover and --primary
+     already resolve correctly, so they are left unchanged. */
+  --background: var(--app-canvas);
+  --foreground: var(--text-primary-light);
+  --card: var(--app-surface-dark);
+  --card-foreground: var(--text-primary-light);
   --popover: var(--surface-overlay);
   --popover-foreground: var(--surface-overlay-foreground);
   --primary: var(--accent-primary);
   --primary-foreground: #FFFFFF;
-  --secondary: var(--surface-hover);
-  --secondary-foreground: var(--text-primary-dark);
-  --muted: var(--surface-2);
-  --muted-foreground: var(--text-secondary-dark);
-  --accent: var(--accent-soft);
-  --accent-foreground: var(--text-primary-dark);
-  --border: var(--border-light);
-  --input: var(--border-light);
+  --secondary: var(--app-surface-hover);
+  --secondary-foreground: var(--text-primary-light);
+  --muted: var(--app-surface-subtle);
+  --muted-foreground: var(--text-secondary-light);
+  --accent: var(--app-surface-hover);
+  --accent-foreground: var(--text-primary-light);
+  --border: var(--border-dark);
+  --input: var(--border-dark);
   --ring: rgba(139, 92, 255, 0.32);
 
   /* ==========================================================
