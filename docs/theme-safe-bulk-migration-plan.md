@@ -9,6 +9,10 @@
 > classification) and the **per-PR migration log**. Read it first for the token
 > vocabulary; read this for *what to migrate next and in what order*.
 >
+> **Status pass:** [`theme-status-color-pass-plan.md`](./theme-status-color-pass-plan.md) (Batch 5).
+> **Next phase:** [`theme-light-visual-qa-plan.md`](./theme-light-visual-qa-plan.md) — Lavender Mist /
+> light-theme + component/route visual QA, and the `dark:`-variant audit.
+>
 > Base for the inventory below: `master` @ `7268d29` (clean working tree).
 
 ---
