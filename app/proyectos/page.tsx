@@ -153,7 +153,7 @@ export default function ProyectosPage() {
                 subtitle={sub}
                 icon={icon}
                 iconClassName={iconClass}
-                className="bg-accent shadow-sm"
+                tone="canvas"
               />
             ))}
           </div>
