@@ -8,6 +8,19 @@
 > neutral-migration plan; Batches 1–4 landed). This doc is its **Batch 5**.
 >
 > Base for the inventory: `master` @ `39c61f5` (after Batch 4).
+>
+> **Completion status (updated):** Batch 5 is **functionally complete**. **5a** (requests/calendar/
+> billing — #8), **5b** (`tareas/[id]` badges — #9), and **5c** (request + overdue hovers — #10) are
+> **merged**. **5b-2 — `components/global-search.tsx` `estadoChromeColors` is intentionally DEFERRED**
+> (see below) and does **not** block Batch 5 completion. Next phase: light-theme + visual QA — see
+> [`theme-light-visual-qa-plan.md`](./theme-light-visual-qa-plan.md).
+>
+> ### Deferred — `global-search` `estadoChromeColors` (bespoke dark chrome)
+> The command palette / global search is a **sensitive overlay surface**; the proposed token swap
+> **visibly restyles** it (bright pastel text → mid-tone `--status-*-text`; `completado` sky→purple).
+> Its current chrome (`bg-{c}-400/12 text-{c}-200/95 ring-white/[0.06]`) **remains as-is, on purpose**.
+> Revisit during **command-palette polish / dark-flip QA / broader component QA** with a before/after
+> visual diff. Not blocking.
 
 ---
 
