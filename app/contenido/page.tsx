@@ -235,7 +235,7 @@ export default function ContenidoPage() {
             {views.map((v) => {
               const Icon = v.icon
               return (
-                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
+                <button key={v.id} onClick={() => setActiveView(v.id)} className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0", activeView === v.id ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
                   <Icon className="h-4 w-4" /> {v.label}
                 </button>
               )

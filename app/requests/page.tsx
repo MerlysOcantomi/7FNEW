@@ -114,7 +114,7 @@ export default function InternalRequestsPage() {
               onClick={() => setFilter(s.key)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 filter === s.key
-                  ? "bg-foreground text-background"
+                  ? "bg-[var(--app-surface-active)] text-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >

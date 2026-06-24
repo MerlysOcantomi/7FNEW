@@ -168,7 +168,7 @@ export default function IdentidadPage() {
                 onClick={() => setActiveFilter(f)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  activeFilter === f ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  activeFilter === f ? "bg-[var(--app-surface-active)] text-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 {f}
