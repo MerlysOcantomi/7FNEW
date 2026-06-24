@@ -270,7 +270,7 @@ export default function CalendarioPage() {
                   onClick={() => setView(v)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-[10px] sm:text-xs font-medium transition-colors",
-                    view === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                    view === v ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {v === "month" ? "Mes" : v === "week" ? "Semana" : "Dia"}
