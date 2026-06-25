@@ -380,7 +380,7 @@
      --scrollbar-size tunes the thickness from one place.
      The global rules that consume these live in @layer base below.
      ========================================================== */
-  --scrollbar-size: 8px;
+  --scrollbar-size: 7px;
   --scrollbar-track: transparent;
   --scrollbar-thumb: var(--border-dark-strong);
   --scrollbar-thumb-hover: var(--accent-muted-border);
