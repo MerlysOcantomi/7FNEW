@@ -111,6 +111,69 @@ export function summaryCounts(tasks: QueueTask[], now: number): WorkQueueCounts 
   }
 }
 
+// ─── Work lenses (horizontal internal navigation) ────────────────────────────
+
+/** Internal navigation of the Tasks page. Lenses replace the older
+ *  summary-bar + tabs redundancy: a single row of chips drives what the
+ *  work area shows. `risk` is singular here (the lens) and maps to the
+ *  `risks` group below. */
+export type WorkLensKey =
+  | "all"
+  | "attention"
+  | "risk"
+  | "ready"
+  | "fanny"
+  | "suggested"
+  | "done"
+
+export const WORK_LENSES: readonly WorkLensKey[] = [
+  "all",
+  "attention",
+  "risk",
+  "ready",
+  "fanny",
+  "suggested",
+  "done",
+] as const
+
+export interface LensCounts {
+  all: number
+  attention: number
+  risk: number
+  ready: number
+  fanny: number
+  suggested: number
+  done: number
+}
+
+/**
+ * Count badges for each lens. `attention`/`risk`/`ready`/`done` come from the
+ * real grouped tasks. `fanny` (proposals) and `suggested` (system intelligence)
+ * have no legacy backing yet, so they default to 0 — the page renders honest
+ * empty states for them rather than a fabricated number. `all` is the live
+ * open-work total (everything except Done).
+ */
+export function lensCounts<T extends QueueTask>(
+  groups: WorkQueueGroups<T>,
+  extra?: { fanny?: number; suggested?: number },
+): LensCounts {
+  const attention = groups.attention.length
+  const risk = groups.risks.length
+  const ready = groups.ready.length
+  const done = groups.completed.length
+  const fanny = extra?.fanny ?? 0
+  const suggested = extra?.suggested ?? 0
+  return {
+    all: attention + risk + ready + fanny + suggested,
+    attention,
+    risk,
+    ready,
+    fanny,
+    suggested,
+    done,
+  }
+}
+
 const PRIORITY_RANK: Record<string, number> = { urgente: 0, alta: 1, media: 2, baja: 3 }
 
 /** Earlier due date sorts first; missing/invalid dates sort last. */

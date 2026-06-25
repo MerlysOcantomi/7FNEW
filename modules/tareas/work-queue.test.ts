@@ -6,6 +6,7 @@ import {
   groupWorkQueue,
   isDone,
   isOverdue,
+  lensCounts,
   pickCurrentFocus,
   summaryCounts,
   type QueueTask,
@@ -111,4 +112,33 @@ test("pickCurrentFocus falls back to first task when all are done, null when emp
   const allDone = [task({ id: "x", estado: "completada" }), task({ id: "y", estado: "cancelada" })]
   assert.equal(pickCurrentFocus(allDone, NOW)?.task.id, "x")
   assert.equal(pickCurrentFocus([], NOW), null)
+})
+
+test("lensCounts derives from groups and defaults proposals/suggestions to 0", () => {
+  const tasks = [
+    task({ id: "1", prioridad: "urgente" }), // attention
+    task({ id: "2", estado: "revision" }), // risk
+    task({ id: "3", prioridad: "media", fechaLimite: TOMORROW }), // ready
+    task({ id: "4", estado: "completada" }), // done
+  ]
+  const counts = lensCounts(groupWorkQueue(tasks, NOW))
+  assert.equal(counts.attention, 1)
+  assert.equal(counts.risk, 1)
+  assert.equal(counts.ready, 1)
+  assert.equal(counts.done, 1)
+  // No legacy backing yet — must not fabricate.
+  assert.equal(counts.fanny, 0)
+  assert.equal(counts.suggested, 0)
+  // "all" = live open work (attention+risk+ready+fanny+suggested), excludes done.
+  assert.equal(counts.all, 3)
+})
+
+test("lensCounts honours provided fanny/suggested counts", () => {
+  const counts = lensCounts(groupWorkQueue([task({ id: "1", prioridad: "alta" })], NOW), {
+    fanny: 2,
+    suggested: 3,
+  })
+  assert.equal(counts.fanny, 2)
+  assert.equal(counts.suggested, 3)
+  assert.equal(counts.all, 1 + 2 + 3)
 })

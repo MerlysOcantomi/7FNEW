@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ExternalLink, FolderKanban, Loader2, Trash2, Users, X } from "lucide-react"
+import { Cpu, ExternalLink, FolderKanban, Loader2, Sparkles, Trash2, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { apiPatch } from "@/lib/api-client"
@@ -44,6 +44,46 @@ function formatDate(value: string | null | undefined): string {
   } catch {
     return "—"
   }
+}
+
+/**
+ * Honest, data-derived "why this matters" line. No invented reasoning — it
+ * only restates what the visible fields (estado / prioridad / fechaLimite)
+ * already imply. Attributed to 7F because it is system-derived, not a Fanny
+ * conversation insight.
+ */
+function whyThisMatters(task: TaskRecord): string {
+  const estado = (task.estado ?? "").toLowerCase()
+  const prioridad = (task.prioridad ?? "").toLowerCase()
+  const due = task.fechaLimite ? new Date(task.fechaLimite) : null
+  const active = estado !== "completada" && estado !== "cancelada"
+  const overdue = active && due && !isNaN(due.getTime()) && due.getTime() < Date.now()
+  if (overdue) return "Past its due date — clearing it first stops it from holding up the work queued behind it."
+  if (active && (prioridad === "urgente" || prioridad === "alta"))
+    return "High priority and still open — the most valuable thing you can move right now."
+  if (estado === "revision") return "In review — a quick decision here keeps it moving toward done."
+  if (estado === "en_progreso") return "Already in progress — finishing it frees up your queue."
+  if (estado === "completada") return "Completed. Kept here for reference and quick reopen if needed."
+  if (estado === "cancelada") return "Cancelled. Kept for the record; reopen if it comes back."
+  return "Ready to pick up whenever you have a clear block of time."
+}
+
+/**
+ * Contextual actions 7F/Fanny will be able to take on this task. PHASE 1:
+ * these are PREPARED, not wired — rendered as disabled "coming soon" chips so
+ * the surface communicates intent without faking automation. The set is
+ * chosen from the task's real fields.
+ */
+function contextualActions(task: TaskRecord): string[] {
+  const estado = (task.estado ?? "").toLowerCase()
+  const prioridad = (task.prioridad ?? "").toLowerCase()
+  const out: string[] = []
+  if (task.fechaLimite) out.push("Schedule")
+  if (estado === "revision" || prioridad === "urgente" || prioridad === "alta") out.push("Find blockers")
+  out.push("Create checklist")
+  if (task.cliente?.nombre) out.push("Draft client update")
+  out.push("Refine task")
+  return Array.from(new Set(out)).slice(0, 4)
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -119,6 +159,19 @@ export function TaskContextualPanel({
             </div>
           </div>
 
+          {/* Why this matters — data-derived, attributed to 7F */}
+          <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/[0.06] p-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Cpu className="h-3 w-3 text-[var(--accent-primary)]" />
+              <span className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-primary)]">
+                7F · why this matters
+              </span>
+            </div>
+            <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">
+              {whyThisMatters(task)}
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <DetailField label="Project" value={task.proyecto?.nombre ?? "—"} />
             <DetailField label="Client" value={task.cliente?.nombre ?? "—"} />
@@ -133,6 +186,29 @@ export function TaskContextualPanel({
             <p className="text-sm leading-relaxed text-[var(--text-primary-light)]/90">
               {task.descripcion?.trim() || "No description."}
             </p>
+          </div>
+
+          {/* Fanny can — contextual, PREPARED (not wired yet): honest "coming soon" affordances */}
+          <div className="border-t border-[var(--border-dark)] pt-4">
+            <div className="mb-2 flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 text-[var(--accent-primary)]" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent-primary)]">
+                Fanny can
+              </span>
+              <span className="text-[10px] text-[var(--text-secondary-light)]">· coming soon</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {contextualActions(task).map((label) => (
+                <span
+                  key={label}
+                  title="Available soon"
+                  aria-disabled="true"
+                  className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary-light)] opacity-70"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 border-t border-[var(--border-dark)] pt-4">
