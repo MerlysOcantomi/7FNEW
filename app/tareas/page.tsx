@@ -581,23 +581,39 @@ export default function TareasPage() {
 
         {/* ===== BODY: work area + contextual panel ===== */}
         <div className="mt-4 flex min-h-0 flex-1 gap-5 border-t border-[var(--border-dark)] pt-4">
-          <div className="-mr-1 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-2 pr-1">
+          <div className="-mr-1 flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto pb-2 pr-1">
             {renderWorkArea()}
           </div>
 
-          {isWide && panelTask && (
+          {isWide && (
             <aside className="hidden min-h-0 lg:flex lg:w-[372px] lg:shrink-0">
               <div className={cn("flex h-full min-h-0 w-full overflow-hidden", shellCard)}>
-                {/* Always-on master-detail on xl → no close button (revert-to-focus is implicit). */}
-                <TaskContextualPanel
-                  task={panelTask}
-                  onTaskUpdated={() => refetch()}
-                  onEdit={() => {
-                    setEditingItem(panelTask)
-                    setFormOpen(true)
-                  }}
-                  onRequestDelete={() => setDeleteItem(panelTask)}
-                />
+                {panelTask ? (
+                  /* Always-on master-detail on lg+ → no close button (revert-to-focus is implicit). */
+                  <TaskContextualPanel
+                    task={panelTask}
+                    onTaskUpdated={() => refetch()}
+                    onEdit={() => {
+                      setEditingItem(panelTask)
+                      setFormOpen(true)
+                    }}
+                    onRequestDelete={() => setDeleteItem(panelTask)}
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-8 text-center">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-primary)]/12 text-[var(--accent-primary)]">
+                      <Sparkles className="h-5 w-5" />
+                    </span>
+                    <p className={cn("text-sm font-semibold", shellText)}>
+                      {allTasks.length === 0 ? "Nothing to show yet" : "Select a task"}
+                    </p>
+                    <p className={cn("text-[12px] leading-relaxed", shellMuted)}>
+                      {allTasks.length === 0
+                        ? "Create a task to see its work detail and what 7F can do next."
+                        : "Pick a task to see its context, why it matters, and the next action."}
+                    </p>
+                  </div>
+                )}
               </div>
             </aside>
           )}
