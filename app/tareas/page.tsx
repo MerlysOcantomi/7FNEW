@@ -39,7 +39,9 @@ import {
   type WorkQueueSectionKey,
 } from "@modules/tareas/work-queue"
 
-const XL_MEDIA = "(min-width: 1280px)"
+/** Inline master-detail kicks in at lg (≥1024px) so the AI Context panel
+ *  shows on most laptops; below that the detail opens as a Sheet. */
+const WIDE_MEDIA = "(min-width: 1024px)"
 const PHONE_MEDIA = "(max-width: 640px)"
 
 /** Elevated surfaces on shell canvas — same token family as inbox intelligence / app surfaces. */
@@ -296,7 +298,7 @@ function LensEmpty({ icon: Icon, title, body, tone }: { icon: typeof Sparkles; t
 }
 
 export default function TareasPage() {
-  const isXl = useMediaQuery(XL_MEDIA)
+  const isWide = useMediaQuery(WIDE_MEDIA)
   const isPhone = useMediaQuery(PHONE_MEDIA)
 
   const [activeLens, setActiveLens] = useState<WorkLensKey>("all")
@@ -358,7 +360,7 @@ export default function TareasPage() {
     }
   }
 
-  const detailSheetOpen = Boolean(selected && !isXl)
+  const detailSheetOpen = Boolean(selected && !isWide)
 
   /** AI-first lead line — honest summary of the queue, no fabricated data. */
   const summaryLine = (() => {
@@ -583,8 +585,8 @@ export default function TareasPage() {
             {renderWorkArea()}
           </div>
 
-          {isXl && panelTask && (
-            <aside className="hidden min-h-0 xl:flex xl:w-[372px] xl:shrink-0">
+          {isWide && panelTask && (
+            <aside className="hidden min-h-0 lg:flex lg:w-[372px] lg:shrink-0">
               <div className={cn("flex h-full min-h-0 w-full overflow-hidden", shellCard)}>
                 {/* Always-on master-detail on xl → no close button (revert-to-focus is implicit). */}
                 <TaskContextualPanel
