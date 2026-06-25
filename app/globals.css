@@ -371,6 +371,18 @@
   --info: var(--accent-primary);
   --shadow-soft: var(--app-shadow-subtle);
   --shadow-strong: 0 18px 40px -20px rgba(0, 0, 0, 0.55);
+
+  /* ==========================================================
+     SCROLLBAR — global, theme-aware (Midnight / dark scale).
+     Track is invisible; the thumb reuses the subtle white border
+     scale (--border-dark-strong → flips to ink in Lavender Mist) so
+     it reads as part of the surface, never as a solid white/grey bar.
+     Hover lifts it a touch — more visible, still not solid white.
+     The global rules that consume these live in @layer base below.
+     ========================================================== */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: var(--border-dark-strong);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.24);
 }
 
 
@@ -429,6 +441,11 @@
   /* — Borders: visible but subtle on a light canvas — */
   --border-dark: rgba(33, 27, 51, 0.10);
   --border-dark-strong: rgba(33, 27, 51, 0.16);
+
+  /* — Scrollbar (light): track stays transparent and the thumb inherits the
+       ink --border-dark-strong above; only deepen the hover so it reads on
+       the lavender canvas without becoming a heavy dark-grey bar. — */
+  --scrollbar-thumb-hover: rgba(33, 27, 51, 0.30);
 
   /* — Slightly stronger shadow for depth against light surfaces — */
   --app-shadow-subtle: 0 4px 14px rgba(43, 33, 79, 0.08);
@@ -556,5 +573,46 @@
   canvas,
   svg {
     max-width: 100%;
+  }
+}
+
+@layer base {
+  /* ──────────────────────────────────────────────────────────────
+     GLOBAL SCROLLBAR — integrated with the 7F theme, not the browser
+     default. One rule, every scroll container (the AppShell scrollport
+     and any overflow-y-auto region) inherits it.
+
+     • Firefox: scrollbar-width + scrollbar-color (both inherited, set on html).
+     • WebKit/Chromium: the ::-webkit-scrollbar pseudo-elements. The thumb
+       floats inside a transparent inset (border + background-clip) for a
+       slim, premium look and rounds off.
+
+     Containers that deliberately hide their bar keep their inline
+     `scrollbar-width:none` / `[&::-webkit-scrollbar]` utilities — those
+     have higher priority and still win, so this is purely the default.
+     ────────────────────────────────────────────────────────────── */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
