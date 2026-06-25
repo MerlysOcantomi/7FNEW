@@ -328,6 +328,16 @@ export default function TareasPage() {
 
   const selected = allTasks.find((t: any) => t.id === selectedTask) as TaskRecord | undefined
 
+  /**
+   * On xl the AI Context / Work Detail panel is ALWAYS present (master-detail).
+   * When nothing is explicitly selected it defaults to the Current Focus task,
+   * so the panel never starts empty. On < xl it stays a tap-to-open Sheet
+   * (driven by `selected` only — no auto-open).
+   */
+  const focusTask = (focus?.task ?? undefined) as TaskRecord | undefined
+  const panelTask: TaskRecord | undefined = selected ?? focusTask
+  const panelTaskId = panelTask?.id ?? null
+
   const handleRowActivate = useCallback((taskId: string) => {
     setSelectedTask((prev) => (prev === taskId ? null : taskId))
   }, [])
@@ -372,7 +382,7 @@ export default function TareasPage() {
         <SectionHeader label={meta.label} tone={meta.tone} count={items.length} hint={meta.hint} />
         <div className="flex flex-col gap-2">
           {items.map((task: TaskRecord) => (
-            <WorkTaskCard key={task.id} task={task} selected={selectedTask === task.id} now={now} onSelect={handleRowActivate} />
+            <WorkTaskCard key={task.id} task={task} selected={panelTaskId === task.id} now={now} onSelect={handleRowActivate} />
           ))}
         </div>
       </section>
@@ -573,18 +583,18 @@ export default function TareasPage() {
             {renderWorkArea()}
           </div>
 
-          {isXl && selected && (
+          {isXl && panelTask && (
             <aside className="hidden min-h-0 xl:flex xl:w-[372px] xl:shrink-0">
               <div className={cn("flex h-full min-h-0 w-full overflow-hidden", shellCard)}>
+                {/* Always-on master-detail on xl → no close button (revert-to-focus is implicit). */}
                 <TaskContextualPanel
-                  task={selected}
+                  task={panelTask}
                   onTaskUpdated={() => refetch()}
-                  onClose={clearSelection}
                   onEdit={() => {
-                    setEditingItem(selected)
+                    setEditingItem(panelTask)
                     setFormOpen(true)
                   }}
-                  onRequestDelete={() => setDeleteItem(selected)}
+                  onRequestDelete={() => setDeleteItem(panelTask)}
                 />
               </div>
             </aside>
