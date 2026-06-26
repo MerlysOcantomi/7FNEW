@@ -31,8 +31,10 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { ExportCSVButton } from "@/components/export-button"
 import { TAREA_COLUMNS } from "@/lib/export/csv"
+import { PreviewList } from "@/components/ui/preview-list"
 import {
   groupWorkQueue,
+  isOverdue,
   lensCounts,
   pickCurrentFocus,
   type WorkLensKey,
@@ -85,6 +87,13 @@ const SECTION_META: Record<WorkQueueSectionKey, { label: string; tone: Tone; hin
   attention: { label: "Needs attention", tone: "danger", hint: "resolve these first" },
   risks: { label: "Risks & delays", tone: "warning", hint: "overdue or in review" },
   ready: { label: "Ready to do", tone: "success", hint: "clear — no blockers" },
+}
+
+/** "View all <noun>" on the All Work preview → switch to the focused lens. */
+const LANE_MORE: Record<WorkQueueSectionKey, { lens: WorkLensKey; noun: string }> = {
+  attention: { lens: "attention", noun: "attention" },
+  risks: { lens: "risk", noun: "risks" },
+  ready: { lens: "ready", noun: "ready" },
 }
 
 /** Lens chips — internal navigation. `tone` drives the dot/active accent. */
@@ -375,18 +384,39 @@ export default function TareasPage() {
     return focus ? `${lead}. I'd start with “${focus.task.titulo}”.` : `${lead}.`
   })()
 
-  /** Render one swimlane for a section. */
-  const renderLane = (key: WorkQueueSectionKey) => {
+  /** Render one swimlane for a section. In the "All Work" lens (`preview`) we
+   *  show the top few and link to the focused lens; critical rows (overdue /
+   *  high priority) are pinned so they always show. Content Density Guard —
+   *  see docs/content-density-guard.md. */
+  const renderLane = (key: WorkQueueSectionKey, preview = false) => {
     const items = groups[key]
     const meta = SECTION_META[key]
+    const card = (task: TaskRecord) => (
+      <WorkTaskCard key={task.id} task={task} selected={panelTaskId === task.id} now={now} onSelect={handleRowActivate} />
+    )
     return (
       <section key={key}>
         <SectionHeader label={meta.label} tone={meta.tone} count={items.length} hint={meta.hint} />
-        <div className="flex flex-col gap-2">
-          {items.map((task: TaskRecord) => (
-            <WorkTaskCard key={task.id} task={task} selected={panelTaskId === task.id} now={now} onSelect={handleRowActivate} />
-          ))}
-        </div>
+        {preview ? (
+          <PreviewList
+            items={items}
+            previewCount={4}
+            getKey={(task) => task.id}
+            isPinned={
+              key === "ready"
+                ? undefined
+                : (task) =>
+                    isOverdue(task, now) || ["urgente", "alta"].includes((task.prioridad ?? "").toLowerCase())
+            }
+            variant="action"
+            onMore={() => setActiveLens(LANE_MORE[key].lens)}
+            moreLabel={(n) => `View all ${LANE_MORE[key].noun} (${n})`}
+            listClassName="flex flex-col gap-2"
+            renderItem={(task) => card(task)}
+          />
+        ) : (
+          <div className="flex flex-col gap-2">{items.map(card)}</div>
+        )}
       </section>
     )
   }
@@ -415,7 +445,7 @@ export default function TareasPage() {
           (k) => groups[k].length > 0,
         )
         if (lanes.length === 0) return <LensEmpty {...LENS_EMPTY.allClear} />
-        return lanes.map(renderLane)
+        return lanes.map((k) => renderLane(k, true))
       }
       case "attention":
         return groups.attention.length ? renderLane("attention") : <LensEmpty {...LENS_EMPTY.attention} />

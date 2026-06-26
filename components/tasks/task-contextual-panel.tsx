@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Cpu, ExternalLink, FolderKanban, Loader2, Sparkles, Trash2, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ExpandableText } from "@/components/ui/expandable-text"
 import { cn } from "@/lib/utils"
 import { apiPatch } from "@/lib/api-client"
 import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client"
@@ -183,9 +184,13 @@ export function TaskContextualPanel({
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary-light)]">
               Description
             </p>
-            <p className="text-sm leading-relaxed text-[var(--text-primary-light)]/90">
-              {task.descripcion?.trim() || "No description."}
-            </p>
+            {task.descripcion?.trim() ? (
+              <ExpandableText lines={4} textClassName="text-[var(--text-primary-light)]/90">
+                {task.descripcion.trim()}
+              </ExpandableText>
+            ) : (
+              <p className="text-sm leading-relaxed text-[var(--text-secondary-light)]">No description.</p>
+            )}
           </div>
 
           {/* Fanny can — contextual, PREPARED (not wired yet): honest "coming soon" affordances */}
