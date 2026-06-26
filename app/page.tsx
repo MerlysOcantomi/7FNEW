@@ -167,11 +167,11 @@ export default function Dashboard() {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
+        <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
-          <main className="flex-1 min-w-0 overflow-y-auto">
+          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
             <PageHeader
               eyebrow="Workspace"
               title="Overview"

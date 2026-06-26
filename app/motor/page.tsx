@@ -151,11 +151,11 @@ export default function MotorPage() {
   const currentModel = MODEL_OPTIONS.find((m) => m.id === selectedModel)!;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--app-shell-bg)] font-sans overflow-x-hidden">
+    <div className="flex flex-col md:flex-row h-dvh bg-[var(--app-shell-bg)] font-sans overflow-hidden">
       <SidebarNav />
       <MobileSidebarNav />
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
+      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
         {/* Header */}
         <div className="px-5 md:px-8 pt-7 pb-5 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
           <p className="text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-widest mb-1">Advanced · Internal</p>

@@ -523,12 +523,12 @@ export default function AgentePage() {
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
       <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
+        <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
           {/* ── Main ── */}
-          <main className="flex-1 min-w-0 overflow-y-auto">
+          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
 
             {/* Page Header */}
             <div className="px-4 md:px-8 pt-7 pb-5 border-b border-border bg-background">
