@@ -18,13 +18,52 @@ function formatTime(date: string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
 }
 
+function startOfDay(d: Date): number {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x.getTime()
+}
+
+/**
+ * Date-aware primary CTA — Calendar stays time/date-real and routes to the
+ * surface that actually owns the item instead of always bridging to Today:
+ *   • due today        → Open in Today   (today's execution)
+ *   • overdue task     → Open in Tasks   (pending/overdue work)
+ *   • overdue invoice  → Open in Finance (payment-risk context)
+ *   • otherwise (future, or past & not active) → Open date (jump the calendar)
+ * Returns no href for "Open date" → the panel wires it to onOpenDate.
+ */
+function primaryCta(item: CalendarItem, today: Date): { label: string; href?: string } {
+  const itemDay = startOfDay(new Date(item.date))
+  const todayDay = startOfDay(today)
+  if (Number.isNaN(itemDay)) return { label: "Open date" }
+  if (itemDay === todayDay) return { label: "Open in Today", href: "/today" }
+  if (itemDay < todayDay) {
+    if (item.type === "tarea" && item.status !== "completada" && item.status !== "cancelada")
+      return { label: "Open in Tasks", href: "/tareas" }
+    if (item.type === "factura" && item.status !== "pagada" && item.status !== "cancelada")
+      return { label: "Open in Finance", href: "/finanzas" }
+  }
+  return { label: "Open date" }
+}
+
 /**
  * Basic Docked detail panel (PR1). Time-first framing: When → context →
  * "Open in Today" bridge (Calendar hands execution to Today) → "Timing insight"
  * (secondary, real /api/ai). The full 5-mode panel + EventDNA land in PR2.
  * Mount with key={item.id} so AI state resets per item.
  */
-export function CalendarDetailPanel({ item, onClose }: { item: CalendarItem | null; onClose?: () => void }) {
+export function CalendarDetailPanel({
+  item,
+  onClose,
+  today,
+  onOpenDate,
+}: {
+  item: CalendarItem | null
+  onClose?: () => void
+  today: Date
+  onOpenDate?: (iso: string) => void
+}) {
   const [aiLoading, setAiLoading] = useState(false)
   const [insight, setInsight] = useState("")
 
@@ -108,13 +147,22 @@ export function CalendarDetailPanel({ item, onClose }: { item: CalendarItem | nu
 
         {item.extra && <p className="mt-3 text-xs text-muted-foreground">{item.extra}</p>}
 
-        <Link
-          href="/today"
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          Open in Today
-          <ChevronRight className="h-3 w-3" />
-        </Link>
+        {(() => {
+          const cta = primaryCta(item, today)
+          const cls =
+            "mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+          return cta.href ? (
+            <Link href={cta.href} className={cls}>
+              {cta.label}
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          ) : (
+            <button type="button" onClick={() => onOpenDate?.(item.date)} className={cls}>
+              {cta.label}
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          )
+        })()}
 
         <button
           type="button"

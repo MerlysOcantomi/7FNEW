@@ -58,6 +58,14 @@ export function CalendarShell() {
   const selected = items.find((it) => it.id === selectedId) ?? null
   const onSelect = useCallback((it: CalendarItem) => setSelectedId((prev) => (prev === it.id ? prev : it.id)), [])
   const clearSelection = useCallback(() => setSelectedId(null), [])
+  /** "Open date" CTA — jump the calendar to the item's day (Day view). */
+  const openDate = useCallback((iso: string) => {
+    const d = new Date(iso)
+    if (!Number.isNaN(d.getTime())) {
+      setCurrentDate(d)
+      setView("day")
+    }
+  }, [])
 
   const scopeLabel = view === "month" ? "This month" : view === "week" ? `Week ${isoWeek(currentDate)}` : "This day"
   // Time risks — real overdue tareas/facturas in the loaded scope (no mocks).
@@ -152,7 +160,7 @@ export function CalendarShell() {
         {isWide && (
           <aside className="hidden min-h-0 w-[340px] shrink-0 lg:block">
             <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card">
-              <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} onClose={clearSelection} />
+              <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />
             </div>
           </aside>
         )}
@@ -168,7 +176,7 @@ export function CalendarShell() {
           )}
         >
           <SheetTitle className="sr-only">Time detail</SheetTitle>
-          {selected && <CalendarDetailPanel key={selected.id} item={selected} onClose={clearSelection} />}
+          {selected && <CalendarDetailPanel key={selected.id} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />}
         </SheetContent>
       </Sheet>
     </div>
