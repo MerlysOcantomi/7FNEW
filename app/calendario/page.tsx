@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react"
 import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 import { useFetch } from "@/hooks/use-fetch"
 import {
   ChevronLeft,
@@ -32,12 +33,12 @@ interface CalendarItem {
 }
 
 const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ]
-const DAY_NAMES = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
-const DAY_NAMES_SHORT = ["L", "M", "X", "J", "V", "S", "D"]
-const DAY_NAMES_FULL = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+const DAY_NAMES_SHORT = ["M", "T", "W", "T", "F", "S", "S"]
+const DAY_NAMES_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 function formatDateParam(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
@@ -53,6 +54,15 @@ function getMonday(d: Date): Date {
   const diff = (day + 6) % 7
   date.setDate(date.getDate() - diff)
   return date
+}
+
+/** ISO-8601 week number (Mon-based) — used for the time ledger ("Week 26"). */
+function isoWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = (date.getUTCDay() + 6) % 7
+  date.setUTCDate(date.getUTCDate() - dayNum + 3)
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4))
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000))
 }
 
 const typeColors: Record<string, string> = {
@@ -173,12 +183,8 @@ export default function CalendarioPage() {
     setAiLoading(true)
     setAiSuggestion("")
     try {
-      const prompt =
-        item.type === "tarea"
-          ? `Analiza esta tarea: "${item.title}" (estado: ${item.status}, prioridad: ${item.priority ?? "N/A"}, fecha: ${new Date(item.date).toLocaleDateString()}). Sugiere acciones inmediatas.`
-          : item.type === "factura"
-            ? `Analiza esta factura: "${item.title}" (estado: ${item.status}, ${item.extra ?? ""}, vencimiento: ${new Date(item.date).toLocaleDateString()}). Sugiere acciones de cobranza.`
-            : `Analiza el estado de "${item.title}" (tipo: ${item.type}, estado: ${item.status}). Sugiere acciones.`
+      const when = new Date(item.date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })
+      const prompt = `Timing analysis for the calendar item "${item.title}" (${item.type}, status: ${item.status}${item.priority ? `, priority: ${item.priority}` : ""}, date: ${when}). Focus ONLY on timing: the best time/slot, any buffer it needs, scheduling conflicts, and how close it is to its deadline. Give a concise timing recommendation — not a to-do list.`
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -241,11 +247,21 @@ export default function CalendarioPage() {
             const sun = weekDays[6]
             return `${mon.getDate()} ${MONTH_NAMES[mon.getMonth()].slice(0, 3)} — ${sun.getDate()} ${MONTH_NAMES[sun.getMonth()].slice(0, 3)} ${sun.getFullYear()}`
           })()
-        : `${DAY_NAMES_FULL[(currentDate.getDay() + 6) % 7]} ${currentDate.getDate()} de ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+        : `${DAY_NAMES_FULL[(currentDate.getDay() + 6) % 7]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`
+
+  // Time-first ledger inputs — derived from the real feed, no fabricated counts.
+  const now = new Date()
+  const overdueItems = items.filter(
+    (i) =>
+      new Date(i.date) < now &&
+      ((i.type === "tarea" && i.status !== "completada" && i.status !== "cancelada") ||
+        (i.type === "factura" && i.status !== "pagada" && i.status !== "cancelada")),
+  )
+  const scopeLabel = view === "month" ? "This month" : view === "week" ? `Week ${isoWeek(currentDate)}` : "This day"
 
   return (
-    <AppShell currentSection="calendario" breadcrumbs={[{ label: "7F" }, { label: "Calendario" }]}>
-      <SectionPage title="Calendario" description="Vista unificada de tareas, proyectos, facturas y eventos.">
+    <AppShell currentSection="calendario" breadcrumbs={[{ label: "7F" }, { label: "Calendar" }]}>
+      <SectionPage title="Calendar" description="Your time instrument — load, availability, deadlines by date and timing risks across your work.">
 
         {/* Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -261,7 +277,7 @@ export default function CalendarioPage() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={goToday} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors">
-              Hoy
+              Today
             </button>
             <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
               {(["month", "week", "day"] as CalendarView[]).map((v) => (
@@ -273,11 +289,23 @@ export default function CalendarioPage() {
                     view === v ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {v === "month" ? "Mes" : v === "week" ? "Semana" : "Dia"}
+                  {v === "month" ? "Month" : v === "week" ? "Week" : "Day"}
                 </button>
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Time ledger — a TIME-first read of this scope (real feed counts, not a to-do briefing). */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)]" />
+          <span className="font-medium text-foreground">{scopeLabel}</span>
+          <span className="text-muted-foreground">· {items.length} scheduled</span>
+          {overdueItems.length > 0 && (
+            <span className="text-destructive">
+              · {overdueItems.length} time risk{overdueItems.length > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
         <div className="flex gap-4">
@@ -332,7 +360,7 @@ export default function CalendarioPage() {
                             </button>
                           ))}
                           {dayItems.length > 3 && (
-                            <span className="text-[9px] text-muted-foreground px-1">+{dayItems.length - 3} mas</span>
+                            <span className="text-[9px] text-muted-foreground px-1">+{dayItems.length - 3} more</span>
                           )}
                         </div>
                       </div>
@@ -380,7 +408,7 @@ export default function CalendarioPage() {
                           )
                         })}
                         {dayItems.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground/40 text-center mt-4">No items</p>
+                          <p className="text-[10px] text-muted-foreground/40 text-center mt-4">Open</p>
                         )}
                       </div>
                     )
@@ -399,7 +427,7 @@ export default function CalendarioPage() {
                     return (
                       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                         <CalendarIcon className="h-8 w-8 mb-3 opacity-40" />
-                        <p className="text-sm">No items for this day</p>
+                        <p className="text-sm">No events this day</p>
                       </div>
                     )
                   }
@@ -444,7 +472,7 @@ export default function CalendarioPage() {
                                     </div>
                                   </div>
                                   <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                                    {new Date(item.date).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
+                                    {new Date(item.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                                   </span>
                                 </button>
                               ))}
@@ -464,12 +492,12 @@ export default function CalendarioPage() {
             {/* Today's items */}
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                Hoy · {today.getDate()} {MONTH_NAMES[today.getMonth()].slice(0, 3)}
+                Today · {today.getDate()} {MONTH_NAMES[today.getMonth()].slice(0, 3)}
               </p>
               {(() => {
                 const todayItems = getItemsForDate(today)
                 if (todayItems.length === 0) {
-                  return <p className="text-xs text-muted-foreground">No items for today</p>
+                  return <p className="text-xs text-muted-foreground">No events today</p>
                 }
                 return (
                   <div className="flex flex-col gap-1.5">
@@ -495,7 +523,7 @@ export default function CalendarioPage() {
             {selectedItem && (
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Detalle</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time detail</p>
                   <button onClick={() => setSelectedItem(null)} className="text-muted-foreground hover:text-foreground">
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -512,10 +540,17 @@ export default function CalendarioPage() {
                       {selectedItem.priority && <span className="text-[10px] text-muted-foreground">· {selectedItem.priority}</span>}
                     </div>
                     {selectedItem.extra && <p className="text-[10px] text-muted-foreground mt-1">{selectedItem.extra}</p>}
-                    <p className="text-[10px] text-muted-foreground mt-1">{new Date(selectedItem.date).toLocaleDateString("es", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{new Date(selectedItem.date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
                   </div>
                 </div>
 
+                <Link
+                  href="/today"
+                  className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  Open in Today
+                  <ChevronRight className="h-3 w-3" />
+                </Link>
                 <button
                   onClick={() => getAISuggestion(selectedItem)}
                   disabled={aiLoading}
@@ -524,12 +559,12 @@ export default function CalendarioPage() {
                     aiLoading ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground text-background hover:opacity-80"
                   )}
                 >
-                  {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analizando...</> : <><Sparkles className="h-3 w-3" /> Sugerencia IA</>}
+                  {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analyzing…</> : <><Sparkles className="h-3 w-3" /> Timing insight</>}
                 </button>
 
                 {aiSuggestion && (
                   <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">AI workspace</p>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Timing insight</p>
                     <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
                   </div>
                 )}
@@ -538,14 +573,14 @@ export default function CalendarioPage() {
 
             {/* Alerts */}
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Alertas</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Time risks</p>
               {(() => {
                 const now = new Date()
                 const overdueTareas = items.filter((i) => i.type === "tarea" && new Date(i.date) < now && i.status !== "completada" && i.status !== "cancelada")
                 const overdueFacturas = items.filter((i) => i.type === "factura" && new Date(i.date) < now && i.status !== "pagada" && i.status !== "cancelada")
 
                 if (overdueTareas.length === 0 && overdueFacturas.length === 0) {
-                  return <p className="text-xs text-muted-foreground">No active alerts</p>
+                  return <p className="text-xs text-muted-foreground">No time risks</p>
                 }
 
                 return (
@@ -554,7 +589,7 @@ export default function CalendarioPage() {
                       <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">
                         <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-[10px] font-medium text-destructive">{overdueTareas.length} tarea{overdueTareas.length > 1 ? "s" : ""} vencida{overdueTareas.length > 1 ? "s" : ""}</p>
+                          <p className="text-[10px] font-medium text-destructive">{overdueTareas.length} task{overdueTareas.length > 1 ? "s" : ""} past due</p>
                           {overdueTareas.slice(0, 3).map((t) => (
                             <p key={t.id} className="text-[10px] text-destructive/70 truncate">{t.title}</p>
                           ))}
@@ -565,7 +600,7 @@ export default function CalendarioPage() {
                       <div className="flex items-start gap-2 rounded-lg border border-[var(--status-warning-text)]/20 bg-[var(--status-warning-bg)] px-3 py-2">
                         <Clock className="h-3.5 w-3.5 text-[var(--status-warning-text)] mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-[10px] font-medium text-[var(--status-warning-text)]">{overdueFacturas.length} factura{overdueFacturas.length > 1 ? "s" : ""} vencida{overdueFacturas.length > 1 ? "s" : ""}</p>
+                          <p className="text-[10px] font-medium text-[var(--status-warning-text)]">{overdueFacturas.length} invoice{overdueFacturas.length > 1 ? "s" : ""} past due</p>
                           {overdueFacturas.slice(0, 3).map((f) => (
                             <p key={f.id} className="text-[10px] text-[var(--status-warning-text)]/70 truncate">{f.title}</p>
                           ))}
@@ -583,7 +618,7 @@ export default function CalendarioPage() {
         {selectedItem && (
           <div className="lg:hidden rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Detalle</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time detail</p>
               <button onClick={() => setSelectedItem(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -600,9 +635,16 @@ export default function CalendarioPage() {
                   {selectedItem.priority && <span className="text-[10px] text-muted-foreground">· {selectedItem.priority}</span>}
                 </div>
                 {selectedItem.extra && <p className="text-[10px] text-muted-foreground mt-1">{selectedItem.extra}</p>}
-                <p className="text-[10px] text-muted-foreground mt-1">{new Date(selectedItem.date).toLocaleDateString("es", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{new Date(selectedItem.date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
               </div>
             </div>
+            <Link
+              href="/today"
+              className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Open in Today
+              <ChevronRight className="h-3 w-3" />
+            </Link>
             <button
               onClick={() => getAISuggestion(selectedItem)}
               disabled={aiLoading}
@@ -611,11 +653,11 @@ export default function CalendarioPage() {
                 aiLoading ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground text-background hover:opacity-80"
               )}
             >
-              {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analizando...</> : <><Sparkles className="h-3 w-3" /> Sugerencia IA</>}
+              {aiLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Analyzing…</> : <><Sparkles className="h-3 w-3" /> Timing insight</>}
             </button>
             {aiSuggestion && (
               <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">AI workspace</p>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Timing insight</p>
                 <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiSuggestion}</p>
               </div>
             )}
