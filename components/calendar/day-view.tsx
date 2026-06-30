@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { DAY_WINDOW_END, DAY_WINDOW_START, isSameDay, minutesSinceMidnight } from "./grid"
+import { statusLabel } from "./labels"
 import { typeColors, typeIcons } from "./tokens"
 import type { CalendarItem } from "./types"
 
@@ -107,7 +108,7 @@ export function DayView({
                 <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
                 <p className="truncate text-[9px] text-muted-foreground">
                   {start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                  {item.status ? ` · ${item.status}` : ""}
+                  {statusLabel(item) ? ` · ${statusLabel(item)}` : ""}
                 </p>
               </button>
             )

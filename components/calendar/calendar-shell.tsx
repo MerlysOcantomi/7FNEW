@@ -58,7 +58,7 @@ export function CalendarShell() {
   const selected = items.find((it) => it.id === selectedId) ?? null
   const onSelect = useCallback((it: CalendarItem) => setSelectedId((prev) => (prev === it.id ? prev : it.id)), [])
   const clearSelection = useCallback(() => setSelectedId(null), [])
-  /** "Open date" CTA — jump the calendar to the item's day (Day view). */
+  /** "Go to date" CTA — jump the calendar to the item's day (Day view). */
   const openDate = useCallback((iso: string) => {
     const d = new Date(iso)
     if (!Number.isNaN(d.getTime())) {
@@ -82,9 +82,14 @@ export function CalendarShell() {
   const detailSheetOpen = Boolean(selected && !isWide)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-4">
+      {/* ===== MAIN WORKSPACE — header + view live here ONLY; never spans the panel ===== */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* ===== HEADER ===== */}
       <header className="shrink-0">
+        <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">
+          Calendar
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
@@ -143,28 +148,28 @@ export function CalendarShell() {
         </div>
       </header>
 
-      {/* ===== BODY: view + Docked panel ===== */}
-      <div className="mt-4 flex min-h-0 flex-1 gap-4">
-        <div className="min-h-0 min-w-0 flex-1">
-          {view === "day" && (
-            <DayView date={currentDate} items={dayItems} today={today} selectedId={selectedId} onSelect={onSelect} />
-          )}
-          {view === "week" && (
-            <WeekView weekDays={weekDays} getItemsForDate={getItemsForDate} today={today} selectedId={selectedId} onSelect={onSelect} />
-          )}
-          {view === "month" && (
-            <MonthView monthDays={monthDays} getItemsForDate={getItemsForDate} today={today} selectedId={selectedId} onSelect={onSelect} />
-          )}
-        </div>
-
-        {isWide && (
-          <aside className="hidden min-h-0 w-[340px] shrink-0 lg:block">
-            <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card">
-              <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />
-            </div>
-          </aside>
+      {/* ===== BODY: the active view (owns its internal scroll) ===== */}
+      <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col">
+        {view === "day" && (
+          <DayView date={currentDate} items={dayItems} today={today} selectedId={selectedId} onSelect={onSelect} />
+        )}
+        {view === "week" && (
+          <WeekView weekDays={weekDays} getItemsForDate={getItemsForDate} today={today} selectedId={selectedId} onSelect={onSelect} />
+        )}
+        {view === "month" && (
+          <MonthView monthDays={monthDays} getItemsForDate={getItemsForDate} today={today} selectedId={selectedId} onSelect={onSelect} />
         )}
       </div>
+      </div>
+
+      {/* ===== RIGHT PANEL — full-height column beside the workspace (lg+) ===== */}
+      {isWide && (
+        <aside className="hidden min-h-0 w-[340px] shrink-0 lg:block">
+          <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card">
+            <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />
+          </div>
+        </aside>
+      )}
 
       {/* < lg: detail opens as a Sheet (existing pattern). */}
       <Sheet open={detailSheetOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>
@@ -175,7 +180,7 @@ export function CalendarShell() {
             isPhone && "h-[90dvh] max-h-[90dvh] rounded-t-2xl",
           )}
         >
-          <SheetTitle className="sr-only">Time detail</SheetTitle>
+          <SheetTitle className="sr-only">Details</SheetTitle>
           {selected && <CalendarDetailPanel key={selected.id} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />}
         </SheetContent>
       </Sheet>

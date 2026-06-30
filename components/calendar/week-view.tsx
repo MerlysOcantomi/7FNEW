@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { DAY_NAMES, isSameDay } from "./grid"
+import { statusLabel } from "./labels"
 import { typeColors, typeIcons } from "./tokens"
 import type { CalendarItem } from "./types"
 
@@ -67,7 +68,7 @@ export function WeekView({
                         <Icon className="mt-0.5 h-3 w-3 shrink-0" style={{ color: typeColors[item.type] }} />
                         <div className="min-w-0">
                           <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
-                          <p className="text-[9px] text-muted-foreground">{item.status}</p>
+                          <p className="text-[9px] text-muted-foreground">{statusLabel(item)}</p>
                         </div>
                       </button>
                     )
@@ -87,7 +88,7 @@ export function WeekView({
                       <p className="min-w-0 truncate text-[11px] font-medium text-foreground">{item.title}</p>
                     </button>
                   ))}
-                  {dayItems.length === 0 && <p className="mt-4 text-center text-[10px] text-muted-foreground/40">Open</p>}
+                  {dayItems.length === 0 && <p className="mt-4 text-center text-[10px] text-muted-foreground/40">No events</p>}
                 </div>
               </div>
             )

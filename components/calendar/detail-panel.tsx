@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { ChevronRight, Loader2, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { priorityLabel, statusLabel } from "./labels"
 import { typeColors, typeIcons, typeLabel } from "./tokens"
 import type { CalendarItem } from "./types"
 
@@ -30,13 +31,13 @@ function startOfDay(d: Date): number {
  *   • due today        → Open in Today   (today's execution)
  *   • overdue task     → Open in Tasks   (pending/overdue work)
  *   • overdue invoice  → Open in Finance (payment-risk context)
- *   • otherwise (future, or past & not active) → Open date (jump the calendar)
- * Returns no href for "Open date" → the panel wires it to onOpenDate.
+ *   • otherwise (future, or past & not active) → Go to date (jump the calendar)
+ * Returns no href for "Go to date" → the panel wires it to onOpenDate.
  */
 function primaryCta(item: CalendarItem, today: Date): { label: string; href?: string } {
   const itemDay = startOfDay(new Date(item.date))
   const todayDay = startOfDay(today)
-  if (Number.isNaN(itemDay)) return { label: "Open date" }
+  if (Number.isNaN(itemDay)) return { label: "Go to date" }
   if (itemDay === todayDay) return { label: "Open in Today", href: "/today" }
   if (itemDay < todayDay) {
     if (item.type === "tarea" && item.status !== "completada" && item.status !== "cancelada")
@@ -44,7 +45,7 @@ function primaryCta(item: CalendarItem, today: Date): { label: string; href?: st
     if (item.type === "factura" && item.status !== "pagada" && item.status !== "cancelada")
       return { label: "Open in Finance", href: "/finanzas" }
   }
-  return { label: "Open date" }
+  return { label: "Go to date" }
 }
 
 /**
@@ -109,7 +110,7 @@ export function CalendarDetailPanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-        <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Time detail</p>
+        <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Details</p>
         {onClose && (
           <button type="button" onClick={onClose} className="text-muted-foreground transition-colors hover:text-foreground">
             <X className="h-3.5 w-3.5" />
@@ -129,8 +130,10 @@ export function CalendarDetailPanel({
               >
                 {typeLabel[item.type]}
               </span>
-              <span className="text-[10px] text-muted-foreground">{item.status}</span>
-              {item.priority && <span className="text-[10px] text-muted-foreground">· {item.priority}</span>}
+              <span className="text-[10px] text-muted-foreground">{statusLabel(item)}</span>
+              {priorityLabel(item.priority) && (
+                <span className="text-[10px] text-muted-foreground">· {priorityLabel(item.priority)}</span>
+              )}
             </div>
           </div>
         </div>
