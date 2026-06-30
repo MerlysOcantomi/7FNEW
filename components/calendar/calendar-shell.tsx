@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, PanelLeft, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -14,6 +14,8 @@ import {
   navigateDate,
 } from "./grid"
 import { useCalendarFeed } from "./use-calendar-feed"
+import { CalendarLeftNavigator } from "./left-navigator"
+import { LENSES, applyLens, type LensKey } from "./lenses"
 import { DayView } from "./day-view"
 import { WeekView } from "./week-view"
 import { MonthView } from "./month-view"
@@ -21,6 +23,7 @@ import { CalendarDetailPanel } from "./detail-panel"
 import type { CalendarItem, CalendarView } from "./types"
 
 const WIDE_MEDIA = "(min-width: 1024px)"
+const NAV_MEDIA = "(min-width: 1280px)"
 const PHONE_MEDIA = "(max-width: 640px)"
 
 const VIEWS: { key: CalendarView; label: string }[] = [
@@ -30,42 +33,94 @@ const VIEWS: { key: CalendarView; label: string }[] = [
 ]
 
 /**
- * Contained Calendar shell (PR1) — Day/Week/Month on the real feed, a basic
- * Docked detail panel, a time-first ledger strip and Time risks. Contained to
- * the AppShell viewport: header/strip shrink-0, body flex-1 min-h-0, views own
- * their internal scroll — the page/body never scrolls. Left navigator, lenses,
- * the full 5-mode panel, EventDNA and Schedule/Visual arrive in later PRs.
+ * Contained Calendar shell — Day/Week/Month on the real feed, a left navigator
+ * (mini-month + time-named lenses, PR2), a Docked detail panel, a time-first
+ * ledger strip and Time risks. 3-column on desktop: navigator | workspace |
+ * detail. Contained to the AppShell viewport — header/strip shrink-0, body
+ * flex-1 min-h-0, each column owns its internal scroll; the page never scrolls.
+ * The full 5-mode panel, EventDNA and Schedule/Visual arrive in later PRs.
  */
 export function CalendarShell() {
   const isWide = useMediaQuery(WIDE_MEDIA)
+  const isNav = useMediaQuery(NAV_MEDIA)
   const isPhone = useMediaQuery(PHONE_MEDIA)
 
   const [view, setView] = useState<CalendarView>("day")
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeLens, setActiveLens] = useState<LensKey | null>(null)
+  const [navOpen, setNavOpen] = useState(false)
 
   const { items, loading } = useCalendarFeed(view, currentDate)
+  // The navigator overview always needs the month feed; in Month view the active
+  // feed already IS the month, so skip the duplicate request (enabled: false).
+  const monthFeed = useCalendarFeed("month", currentDate, view !== "month")
+  const monthItems = view === "month" ? items : monthFeed.items
   const today = useMemo(() => new Date(), [])
 
+  // Active lens filters the loaded feed (honest + month-scoped — see lenses.ts).
+  const lensedItems = useMemo(() => applyLens(items, activeLens, today), [items, activeLens, today])
+
   const getItemsForDate = useCallback(
-    (d: Date) => items.filter((it) => isSameDay(new Date(it.date), d)),
-    [items],
+    (d: Date) => lensedItems.filter((it) => isSameDay(new Date(it.date), d)),
+    [lensedItems],
   )
   const monthDays = useMemo(() => buildMonthDays(currentDate), [currentDate])
   const weekDays = useMemo(() => buildWeekDays(currentDate), [currentDate])
   const dayItems = useMemo(() => getItemsForDate(currentDate), [getItemsForDate, currentDate])
 
+  // Selection resolves over the UNfiltered feed so an active lens never hides an
+  // already-open item from the detail panel.
   const selected = items.find((it) => it.id === selectedId) ?? null
   const onSelect = useCallback((it: CalendarItem) => setSelectedId((prev) => (prev === it.id ? prev : it.id)), [])
   const clearSelection = useCallback(() => setSelectedId(null), [])
+
+  // Any explicit navigation clears the lens — it's a momentary "show me X across
+  // this month" filter, so we never strand the user on a stale/empty scope.
+  const goPrev = useCallback(() => { setActiveLens(null); setCurrentDate((d) => navigateDate(d, view, -1)) }, [view])
+  const goNext = useCallback(() => { setActiveLens(null); setCurrentDate((d) => navigateDate(d, view, 1)) }, [view])
+  const goToday = useCallback(() => { setActiveLens(null); setCurrentDate(new Date()) }, [])
+  const pickView = useCallback((v: CalendarView) => { setActiveLens(null); setView(v) }, [])
+
   /** "Go to date" CTA — jump the calendar to the item's day (Day view). */
   const openDate = useCallback((iso: string) => {
     const d = new Date(iso)
     if (!Number.isNaN(d.getTime())) {
+      setActiveLens(null)
       setCurrentDate(d)
       setView("day")
     }
   }, [])
+
+  // Mini-month: clicking a day shows that day (Day view); paging ‹ › browses
+  // months. The constructor form avoids the setMonth() day-overflow skip
+  // (e.g. Jan 31 → "Feb" landing in March) and clamps to the month's last day.
+  const selectDay = useCallback((d: Date) => {
+    setActiveLens(null)
+    setCurrentDate(d)
+    setView("day")
+    setNavOpen(false)
+  }, [])
+  const stepMonth = useCallback((delta: number) => {
+    setActiveLens(null)
+    setCurrentDate((d) => {
+      const target = new Date(d.getFullYear(), d.getMonth() + delta, 1)
+      const daysInTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+      target.setDate(Math.min(d.getDate(), daysInTarget))
+      return target
+    })
+  }, [])
+  const prevMonth = useCallback(() => stepMonth(-1), [stepMonth])
+  const nextMonth = useCallback(() => stepMonth(1), [stepMonth])
+
+  // Lens click → filter the month canvas (counts are month-scoped, so the result
+  // belongs on the month view where it matches the navigator badge 1:1).
+  const toggleLens = useCallback((key: LensKey) => {
+    const next = activeLens === key ? null : key
+    setActiveLens(next)
+    if (next) setView("month")
+    setNavOpen(false)
+  }, [activeLens])
 
   const scopeLabel = view === "month" ? "This month" : view === "week" ? `Week ${isoWeek(currentDate)}` : "This day"
   // Time risks — real overdue tareas/facturas in the loaded scope (no mocks).
@@ -80,10 +135,31 @@ export function CalendarShell() {
   }, [items])
 
   const detailSheetOpen = Boolean(selected && !isWide)
+  const activeLensDef = activeLens ? LENSES.find((l) => l.key === activeLens) ?? null : null
+
+  // Single navigator element reused by the persistent column and the Sheet.
+  const navigatorEl = (
+    <CalendarLeftNavigator
+      currentDate={currentDate}
+      today={today}
+      selectedDate={currentDate}
+      monthItems={monthItems}
+      activeLens={activeLens}
+      onLensChange={toggleLens}
+      onSelectDay={selectDay}
+      onPrevMonth={prevMonth}
+      onNextMonth={nextMonth}
+    />
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-4">
-      {/* ===== MAIN WORKSPACE — header + view live here ONLY; never spans the panel ===== */}
+      {/* ===== LEFT NAVIGATOR — persistent full-height column (xl+); Sheet below ===== */}
+      <aside className="hidden min-h-0 shrink-0 overflow-hidden rounded-xl border border-border bg-card xl:flex xl:w-[240px]">
+        {navigatorEl}
+      </aside>
+
+      {/* ===== MAIN WORKSPACE — header + view live here ONLY; never spans the panels ===== */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* ===== HEADER ===== */}
       <header className="shrink-0">
@@ -94,7 +170,15 @@ export function CalendarShell() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setCurrentDate((d) => navigateDate(d, view, -1))}
+              onClick={() => setNavOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground xl:hidden"
+              aria-label="Open navigator"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goPrev}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Previous"
             >
@@ -102,7 +186,7 @@ export function CalendarShell() {
             </button>
             <button
               type="button"
-              onClick={() => setCurrentDate((d) => navigateDate(d, view, 1))}
+              onClick={goNext}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Next"
             >
@@ -114,7 +198,7 @@ export function CalendarShell() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setCurrentDate(new Date())}
+              onClick={goToday}
               className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
             >
               Today
@@ -124,7 +208,7 @@ export function CalendarShell() {
                 <button
                   key={v.key}
                   type="button"
-                  onClick={() => setView(v.key)}
+                  onClick={() => pickView(v.key)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                     view === v.key ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -146,6 +230,25 @@ export function CalendarShell() {
             <span className="text-destructive">· {overdue.length} time risk{overdue.length > 1 ? "s" : ""}</span>
           )}
         </div>
+
+        {/* Active lens — honest, shows the count actually rendered; X to clear. */}
+        {activeLensDef && (
+          <div className="mt-2 flex items-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/10 px-2.5 py-1 text-[11px] font-medium text-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-primary)]" />
+              {activeLensDef.label}
+              <span className="text-muted-foreground">· {lensedItems.length} shown</span>
+              <button
+                type="button"
+                onClick={() => setActiveLens(null)}
+                className="ml-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Clear lens"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+        )}
       </header>
 
       {/* ===== BODY: the active view (owns its internal scroll) ===== */}
@@ -170,6 +273,14 @@ export function CalendarShell() {
           </div>
         </aside>
       )}
+
+      {/* < xl: navigator opens as a left Sheet. */}
+      <Sheet open={navOpen && !isNav} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="w-[280px] max-w-[85vw] border-border bg-card p-0">
+          <SheetTitle className="sr-only">Calendar navigator</SheetTitle>
+          {navigatorEl}
+        </SheetContent>
+      </Sheet>
 
       {/* < lg: detail opens as a Sheet (existing pattern). */}
       <Sheet open={detailSheetOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>

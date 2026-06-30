@@ -59,9 +59,12 @@ export interface UseCalendarFeedResult {
   error: string | null
 }
 
-export function useCalendarFeed(view: CalendarView, currentDate: Date): UseCalendarFeedResult {
+export function useCalendarFeed(view: CalendarView, currentDate: Date, enabled = true): UseCalendarFeedResult {
   const dateParam = formatDateParam(currentDate)
-  const { data, loading, error } = useFetch<unknown>(`/api/calendario/feed?view=${view}&date=${dateParam}`)
+  // `enabled: false` skips the request (useFetch treats a null url as a no-op) —
+  // lets the shell reuse the active feed in Month view instead of double-fetching.
+  const url = enabled ? `/api/calendario/feed?view=${view}&date=${dateParam}` : null
+  const { data, loading, error } = useFetch<unknown>(url)
   const items = useMemo(() => mapFeed(data), [data])
   return { items, loading, error }
 }
