@@ -137,6 +137,11 @@ export function CalendarShell() {
   const detailSheetOpen = Boolean(selected && !isWide)
   const activeLensDef = activeLens ? LENSES.find((l) => l.key === activeLens) ?? null : null
 
+  // Time-intelligence framing line under the title + the focused-day label for
+  // the panel's open-time guidance (both descriptive/real — no fabricated data).
+  const subtitle = view === "day" ? "Your day, hour by hour" : view === "week" ? "Your week, day by day" : "Your month at a glance"
+  const dayLabel = currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+
   // Single navigator element reused by the persistent column and the Sheet.
   const navigatorEl = (
     <CalendarLeftNavigator
@@ -163,9 +168,14 @@ export function CalendarShell() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* ===== HEADER ===== */}
       <header className="shrink-0">
-        <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">
-          Calendar
-        </p>
+        <div className="mb-1.5 flex items-center gap-2">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">
+            Calendar
+          </p>
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-muted-border)] bg-[var(--accent-soft)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--accent-primary)]">
+            <Sparkles className="h-2.5 w-2.5" /> Time Intelligence
+          </span>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
@@ -192,8 +202,13 @@ export function CalendarShell() {
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <h1 className="ml-1 text-xl font-semibold tracking-tight text-foreground">{headerTitle(currentDate, view)}</h1>
-            {loading && <Loader2 className="ml-1 h-4 w-4 animate-spin text-muted-foreground" />}
+            <div className="ml-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{headerTitle(currentDate, view)}</h1>
+                {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -221,13 +236,30 @@ export function CalendarShell() {
           </div>
         </div>
 
-        {/* Time ledger — real feed counts, not a to-do briefing. */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-3 py-2 text-xs">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)]" />
-          <span className="font-medium text-foreground">{scopeLabel}</span>
-          <span className="text-muted-foreground">· {items.length} scheduled</span>
+        {/* Time ledger — segmented, real feed counts only (no to-do briefing). */}
+        <div className="mt-3 flex flex-wrap items-stretch divide-x divide-border overflow-hidden rounded-lg border border-border bg-[var(--app-surface-dark-elevated)] text-xs">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)]" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Scope</span>
+              <span className="text-[12px] font-semibold text-foreground">{scopeLabel}</span>
+            </div>
+          </div>
+          <div className="flex items-center px-3 py-2">
+            <div className="flex flex-col leading-tight">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Scheduled</span>
+              <span className="text-[12px] font-semibold tabular-nums text-foreground">{items.length}</span>
+            </div>
+          </div>
           {overdue.length > 0 && (
-            <span className="text-destructive">· {overdue.length} time risk{overdue.length > 1 ? "s" : ""}</span>
+            <div className="flex items-center px-3 py-2">
+              <div className="flex flex-col leading-tight">
+                <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--status-danger-text)]/80">
+                  Time risk{overdue.length > 1 ? "s" : ""}
+                </span>
+                <span className="text-[12px] font-semibold tabular-nums text-[var(--status-danger-text)]">{overdue.length}</span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -254,7 +286,7 @@ export function CalendarShell() {
       {/* ===== BODY: the active view (owns its internal scroll) ===== */}
       <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col">
         {view === "day" && (
-          <DayView date={currentDate} items={dayItems} today={today} selectedId={selectedId} onSelect={onSelect} />
+          <DayView date={currentDate} items={dayItems} today={today} selectedId={selectedId} onSelect={onSelect} onViewWeek={() => pickView("week")} />
         )}
         {view === "week" && (
           <WeekView weekDays={weekDays} getItemsForDate={getItemsForDate} today={today} selectedId={selectedId} onSelect={onSelect} />
@@ -269,7 +301,7 @@ export function CalendarShell() {
       {isWide && (
         <aside className="hidden min-h-0 w-[340px] shrink-0 lg:block">
           <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card">
-            <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />
+            <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} emptyHint={{ dayCount: dayItems.length, dayLabel }} />
           </div>
         </aside>
       )}

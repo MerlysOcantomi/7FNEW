@@ -1,6 +1,17 @@
 "use client"
 
 import { useMemo } from "react"
+import {
+  AlertTriangle,
+  CalendarCheck,
+  CalendarClock,
+  CalendarRange,
+  History,
+  Hourglass,
+  Megaphone,
+  Repeat,
+  type LucideIcon,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDateParam } from "./grid"
 import { LENSES, lensCounts, type LensKey } from "./lenses"
@@ -10,6 +21,18 @@ import type { CalendarItem, CalendarItemType } from "./types"
 
 /** Canonical dot order so a day's colored dots are stable regardless of feed order. */
 const TYPE_ORDER: CalendarItemType[] = ["evento", "tarea", "factura", "proyecto"]
+
+/** A glyph per lens — turns the list into a recognisable control system. */
+const LENS_ICONS: Record<LensKey, LucideIcon> = {
+  "this-day": CalendarCheck,
+  "next-days": CalendarRange,
+  "planning-horizon": CalendarClock,
+  "time-conflicts": AlertTriangle,
+  "past-events": History,
+  "campaign-cycles": Megaphone,
+  "follow-up-moments": Repeat,
+  "prep-windows": Hourglass,
+}
 
 /** dayKey → up to 3 distinct type colors present that day (real feed, no mocks). */
 function buildDots(items: CalendarItem[]): Map<string, string[]> {
@@ -30,11 +53,15 @@ function buildDots(items: CalendarItem[]): Map<string, string[]> {
   return out
 }
 
+const BACKED_LENSES = LENSES.filter((l) => l.backed)
+const DEFERRED_LENSES = LENSES.filter((l) => !l.backed)
+
 /**
- * Left navigator (PR2) — mini-month picker + time-named lenses, driven entirely
- * by the loaded month feed. Backed lenses show a real, month-scoped count and
- * toggle the active filter; deferred lenses render disabled with an honest
- * "Not tracked yet" note (no fabricated counts, never selectable).
+ * Left navigator — mini-month picker + time-named lenses, driven entirely by the
+ * loaded month feed. Backed lenses are a real control surface: icon + label +
+ * live month-scoped count, with a clear active state. Deferred lenses sit under
+ * a "Coming soon" divider, disabled with an honest "Not tracked yet" note (no
+ * fabricated counts, never selectable).
  */
 export function CalendarLeftNavigator({
   currentDate,
@@ -77,42 +104,60 @@ export function CalendarLeftNavigator({
           Lenses
         </p>
         <div className="flex flex-col gap-0.5">
-          {LENSES.map((lens) =>
-            lens.backed ? (
+          {BACKED_LENSES.map((lens) => {
+            const Icon = LENS_ICONS[lens.key]
+            const active = activeLens === lens.key
+            return (
               <button
                 key={lens.key}
                 type="button"
                 onClick={() => onLensChange(lens.key)}
-                aria-pressed={activeLens === lens.key}
+                aria-pressed={active}
                 className={cn(
-                  "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors",
-                  activeLens === lens.key
-                    ? "bg-[var(--app-surface-active)] font-medium text-foreground"
-                    : "text-foreground/80 hover:bg-accent hover:text-foreground",
+                  "relative flex items-center gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-left text-[12px] transition-colors",
+                  active
+                    ? "bg-[var(--accent-soft)] font-medium text-foreground"
+                    : "text-foreground/80 hover:bg-[var(--app-surface-hover)] hover:text-foreground",
                 )}
               >
-                <span className="truncate">{lens.label}</span>
+                {active && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--accent-primary)]" />}
+                <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-[var(--accent-primary)]" : "text-muted-foreground")} />
+                <span className="flex-1 truncate">{lens.label}</span>
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
-                    activeLens === lens.key ? "bg-background/70 text-foreground" : "bg-muted text-muted-foreground",
+                    active ? "bg-[var(--accent-primary)] text-[var(--accent-on-dark)]" : "bg-muted text-muted-foreground",
                   )}
                 >
                   {counts[lens.key]}
                 </span>
               </button>
-            ) : (
+            )
+          })}
+        </div>
+
+        <div className="mb-2 mt-3 flex items-center gap-2 px-1">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">Coming soon</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          {DEFERRED_LENSES.map((lens) => {
+            const Icon = LENS_ICONS[lens.key]
+            return (
               <div
                 key={lens.key}
                 aria-disabled="true"
                 title="Not tracked yet"
-                className="flex cursor-not-allowed items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[12px] opacity-55"
+                className="flex cursor-not-allowed items-center gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-[12px] opacity-60"
               >
-                <span className="truncate text-muted-foreground">{lens.label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                <span className="flex-1 truncate text-muted-foreground">{lens.label}</span>
                 <span className="shrink-0 text-[9px] italic text-muted-foreground/70">{lens.deferredNote}</span>
               </div>
-            ),
-          )}
+            )
+          })}
         </div>
       </div>
     </div>

@@ -88,23 +88,23 @@ export function MiniMonth({
                   className={cn(
                     "relative mx-auto flex h-6 w-6 flex-col items-center justify-center rounded-md text-[11px] transition-colors",
                     isToday
-                      ? "bg-foreground font-semibold text-background"
+                      ? "bg-foreground font-semibold text-background shadow-sm"
                       : isSelected
-                        ? "bg-[var(--app-surface-active)] font-medium text-foreground"
+                        ? "bg-[var(--accent-soft)] font-semibold text-foreground ring-1 ring-[var(--accent-muted-border)]"
                         : inMonth
-                          ? "text-foreground/80 hover:bg-accent"
-                          : "text-muted-foreground/35 hover:bg-accent",
+                          ? "text-foreground/80 hover:bg-[var(--app-surface-hover)]"
+                          : "text-muted-foreground/35 hover:bg-[var(--app-surface-hover)]",
                   )}
                   aria-label={date.toDateString()}
                   aria-current={isToday ? "date" : undefined}
                 >
                   <span className="leading-none">{date.getDate()}</span>
                   {dayDots.length > 0 && (
-                    <span className="absolute bottom-0.5 flex items-center gap-[1px]">
+                    <span className="absolute bottom-[3px] flex items-center gap-[1.5px]">
                       {dayDots.map((color, di) => (
                         <span
                           key={di}
-                          className="h-[3px] w-[3px] rounded-full"
+                          className="h-[3.5px] w-[3.5px] rounded-full ring-[0.5px] ring-black/5"
                           style={{ backgroundColor: isToday ? "var(--background)" : color }}
                         />
                       ))}

@@ -59,11 +59,14 @@ export function CalendarDetailPanel({
   onClose,
   today,
   onOpenDate,
+  emptyHint,
 }: {
   item: CalendarItem | null
   onClose?: () => void
   today: Date
   onOpenDate?: (iso: string) => void
+  /** Real, focused-day signal for the empty state — never fabricated. */
+  emptyHint?: { dayCount: number; dayLabel: string }
 }) {
   const [aiLoading, setAiLoading] = useState(false)
   const [insight, setInsight] = useState("")
@@ -91,14 +94,33 @@ export function CalendarDetailPanel({
 
   if (!item) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-8 text-center">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-primary)]/12 text-[var(--accent-primary)]">
-          <Sparkles className="h-5 w-5" />
-        </span>
-        <p className="text-sm font-semibold text-foreground">Select an item</p>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">
-          Pick an event or deadline to see its time detail, context and a timing insight.
-        </p>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex shrink-0 items-center border-b border-border px-5 py-4">
+          <p className="flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">
+            <Sparkles className="h-3 w-3" /> Time Intelligence
+          </p>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent-primary)] ring-1 ring-[var(--accent-muted-border)]">
+            <Sparkles className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Select an event</p>
+            <p className="mx-auto mt-1 max-w-[260px] text-[12px] leading-relaxed text-muted-foreground">
+              See its timing, context and the next action — without leaving the calendar.
+            </p>
+          </div>
+          {emptyHint && (
+            <div className="mt-1 w-full max-w-[260px] rounded-lg border border-border bg-[var(--app-surface-dark-elevated)] px-3 py-2.5 text-left">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{emptyHint.dayLabel}</p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">
+                {emptyHint.dayCount === 0
+                  ? "Open time — a clean block to plan deliberately."
+                  : `${emptyHint.dayCount} scheduled — pick one to inspect its timing.`}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     )
   }

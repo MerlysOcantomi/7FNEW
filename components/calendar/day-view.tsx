@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+import { CalendarClock, CalendarRange, CheckSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DAY_WINDOW_END, DAY_WINDOW_START, isSameDay, minutesSinceMidnight } from "./grid"
 import { statusLabel } from "./labels"
@@ -7,22 +9,34 @@ import { typeColors, typeIcons } from "./tokens"
 import type { CalendarItem } from "./types"
 
 const HOUR_PX = 52
+const GUTTER_PX = 48
+/** Off-hours boundaries — hours outside [BIZ_START, BIZ_END) get a faint tint. */
+const BIZ_START = 8
+const BIZ_END = 18
+
+function fmtTime(d: Date): string {
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+}
 
 /** Day: a vertical hour timeline (TIME structure). Timed eventos are placed by
  *  their start/end; all-day items + deadlines (tareas/facturas/proyectos) sit in
- *  a top row. The visible window widens to fit any events outside 07–21. */
+ *  a top row. The visible window widens to fit any events outside 07–21. A left
+ *  time-gutter, faint off-hours tint and per-event accent rail add depth without
+ *  touching the placement math. */
 export function DayView({
   date,
   items,
   today,
   selectedId,
   onSelect,
+  onViewWeek,
 }: {
   date: Date
   items: CalendarItem[]
   today: Date
   selectedId: string | null
   onSelect: (item: CalendarItem) => void
+  onViewWeek: () => void
 }) {
   const timed = items.filter((it) => it.type === "evento" && !it.allDay && !Number.isNaN(new Date(it.date).getTime()))
   const allDay = items.filter((it) => !(it.type === "evento" && !it.allDay))
@@ -42,6 +56,10 @@ export function DayView({
   const totalPx = span * HOUR_PX
   const hours = Array.from({ length: span }, (_, i) => startH + i)
   const nowRatio = isSameDay(date, today) ? (minutesSinceMidnight(today) - startH * 60) / totalMin : -1
+
+  const isEmpty = timed.length === 0 && allDay.length === 0
+  const offTop = Math.min(BIZ_START, endH)
+  const offBottom = Math.max(BIZ_END, startH)
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
@@ -72,54 +90,100 @@ export function DayView({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="relative" style={{ height: totalPx }}>
-          {hours.map((h) => (
-            <div key={h} className="absolute inset-x-0 border-t border-border/60" style={{ top: (h - startH) * HOUR_PX }}>
-              <span className="absolute -top-2 left-1 bg-card px-1 font-mono text-[9px] text-muted-foreground">
-                {String(h).padStart(2, "0")}:00
-              </span>
+        {isEmpty ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent-primary)] ring-1 ring-[var(--accent-muted-border)]">
+              <CalendarClock className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">No events this day</p>
+              <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-relaxed text-muted-foreground">
+                Your day is open — a clean block of time to plan deliberately.
+              </p>
             </div>
-          ))}
-
-          {nowRatio >= 0 && nowRatio <= 1 && (
-            <div className="absolute inset-x-0 z-10 border-t-2 border-[var(--status-danger-text)]" style={{ top: nowRatio * totalPx }}>
-              <span className="absolute -top-[5px] left-10 h-2.5 w-2.5 rounded-full bg-[var(--status-danger-text)]" />
-            </div>
-          )}
-
-          {timed.map((item) => {
-            const start = new Date(item.date)
-            const startMin = minutesSinceMidnight(start) - startH * 60
-            const hasEnd = item.endDate && !Number.isNaN(new Date(item.endDate).getTime())
-            const endMin = hasEnd ? minutesSinceMidnight(new Date(item.endDate as string)) - startH * 60 : startMin + 60
-            const top = (startMin / totalMin) * totalPx
-            const height = Math.max(26, ((endMin - startMin) / totalMin) * totalPx)
-            return (
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
-                key={item.id}
                 type="button"
-                onClick={() => onSelect(item)}
-                className={cn(
-                  "absolute left-12 right-2 overflow-hidden rounded-lg border px-2 py-1 text-left transition-colors",
-                  selectedId === item.id ? "border-border ring-1 ring-ring" : "border-transparent hover:border-border",
-                )}
-                style={{ top, height, backgroundColor: `color-mix(in srgb, ${typeColors[item.type]} 16%, var(--card))` }}
+                onClick={onViewWeek}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
-                <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
-                <p className="truncate text-[9px] text-muted-foreground">
-                  {start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                  {statusLabel(item) ? ` · ${statusLabel(item)}` : ""}
-                </p>
+                <CalendarRange className="h-3.5 w-3.5" /> View week
               </button>
-            )
-          })}
-
-          {timed.length === 0 && allDay.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <p className="text-sm text-muted-foreground/50">No events this day</p>
+              <Link
+                href="/tareas"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <CheckSquare className="h-3.5 w-3.5" /> Open Tasks
+              </Link>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="relative" style={{ height: totalPx }}>
+            {/* Off-hours tint — depth cue for early-morning / evening blocks. */}
+            {startH < BIZ_START && (
+              <div
+                className="absolute inset-x-0 bg-[var(--app-surface-subtle)]"
+                style={{ top: 0, height: (offTop - startH) * HOUR_PX }}
+                aria-hidden
+              />
+            )}
+            {endH > BIZ_END && (
+              <div
+                className="absolute inset-x-0 bg-[var(--app-surface-subtle)]"
+                style={{ top: (offBottom - startH) * HOUR_PX, height: (endH - offBottom) * HOUR_PX }}
+                aria-hidden
+              />
+            )}
+
+            {hours.map((h) => (
+              <div key={h} className="absolute inset-x-0" style={{ top: (h - startH) * HOUR_PX }}>
+                <div className="absolute right-0 border-t border-border/60" style={{ left: GUTTER_PX }} />
+                <span className="absolute -top-[7px] left-0 w-[42px] pr-2 text-right font-mono text-[9px] text-muted-foreground">
+                  {String(h).padStart(2, "0")}:00
+                </span>
+              </div>
+            ))}
+
+            {nowRatio >= 0 && nowRatio <= 1 && (
+              <div
+                className="absolute right-0 z-10 border-t-2 border-[var(--status-danger-text)]"
+                style={{ top: nowRatio * totalPx, left: GUTTER_PX }}
+              >
+                <span className="absolute -left-[4px] -top-[5px] h-2.5 w-2.5 rounded-full bg-[var(--status-danger-text)]" />
+              </div>
+            )}
+
+            {timed.map((item) => {
+              const start = new Date(item.date)
+              const startMin = minutesSinceMidnight(start) - startH * 60
+              const hasEnd = item.endDate && !Number.isNaN(new Date(item.endDate).getTime())
+              const end = hasEnd ? new Date(item.endDate as string) : null
+              const endMin = end ? minutesSinceMidnight(end) - startH * 60 : startMin + 60
+              const top = (startMin / totalMin) * totalPx
+              const height = Math.max(26, ((endMin - startMin) / totalMin) * totalPx)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelect(item)}
+                  className={cn(
+                    "absolute right-2 overflow-hidden rounded-lg border py-1 pl-3 pr-2 text-left transition-colors",
+                    selectedId === item.id ? "border-border ring-1 ring-ring" : "border-transparent hover:border-border",
+                  )}
+                  style={{ top, height, left: GUTTER_PX + 4, backgroundColor: `color-mix(in srgb, ${typeColors[item.type]} 16%, var(--card))` }}
+                >
+                  <span className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: typeColors[item.type] }} aria-hidden />
+                  <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
+                  <p className="truncate text-[9px] text-muted-foreground">
+                    {fmtTime(start)}
+                    {end ? ` – ${fmtTime(end)}` : ""}
+                    {statusLabel(item) ? ` · ${statusLabel(item)}` : ""}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
