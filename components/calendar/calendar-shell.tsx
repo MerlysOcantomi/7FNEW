@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Loader2, PanelLeft, Sparkles, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ChevronLeft, ChevronRight, Loader2, PanelLeft, PanelRight, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   buildMonthDays,
@@ -15,11 +16,14 @@ import {
 } from "./grid"
 import { useCalendarFeed } from "./use-calendar-feed"
 import { CalendarLeftNavigator } from "./left-navigator"
-import { LENSES, applyLens, type LensKey } from "./lenses"
+import { LENSES, applyLens, conflictingEventoIds, type LensKey } from "./lenses"
 import { DayView } from "./day-view"
 import { WeekView } from "./week-view"
 import { MonthView } from "./month-view"
-import { CalendarDetailPanel } from "./detail-panel"
+import { CalendarIntelligencePanel } from "./intelligence-panel"
+import { PanelModeSwitcher } from "./panel-mode-switcher"
+import { DEFAULT_PANEL_MODE, PANEL_MODE_STORAGE_KEY, isPanelMode, type PanelMode } from "./panel-modes"
+import { typeColors } from "./tokens"
 import type { CalendarItem, CalendarView } from "./types"
 
 const WIDE_MEDIA = "(min-width: 1024px)"
@@ -50,6 +54,25 @@ export function CalendarShell() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeLens, setActiveLens] = useState<LensKey | null>(null)
   const [navOpen, setNavOpen] = useState(false)
+  const [panelMode, setPanelMode] = useState<PanelMode>(DEFAULT_PANEL_MODE)
+
+  // Panel mode persists per-browser; read after mount so SSR markup stays stable.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY)
+      if (isPanelMode(saved)) setPanelMode(saved)
+    } catch {
+      /* localStorage unavailable — keep the default */
+    }
+  }, [])
+  const setPanelModePersisted = useCallback((m: PanelMode) => {
+    setPanelMode(m)
+    try {
+      window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, m)
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [])
 
   const { items, loading } = useCalendarFeed(view, currentDate)
   // The navigator overview always needs the month feed; in Month view the active
@@ -72,6 +95,9 @@ export function CalendarShell() {
   // Selection resolves over the UNfiltered feed so an active lens never hides an
   // already-open item from the detail panel.
   const selected = items.find((it) => it.id === selectedId) ?? null
+  // Real time-conflict signal for EventDNA — overlapping TIMED eventos only.
+  const conflictIds = useMemo(() => conflictingEventoIds(items), [items])
+  const selectedInConflict = selected ? conflictIds.has(selected.id) : false
   const onSelect = useCallback((it: CalendarItem) => setSelectedId((prev) => (prev === it.id ? prev : it.id)), [])
   const clearSelection = useCallback(() => setSelectedId(null), [])
 
@@ -144,7 +170,6 @@ export function CalendarShell() {
     )
   }, [items])
 
-  const detailSheetOpen = Boolean(selected && !isWide)
   const activeLensDef = activeLens ? LENSES.find((l) => l.key === activeLens) ?? null : null
 
   // Time-intelligence framing line under the title + the focused-day label for
@@ -154,6 +179,17 @@ export function CalendarShell() {
   // You're "on today" only when the Day view is showing the real current day —
   // that's when the Today button has nothing left to do, so it reads as active.
   const isOnToday = view === "day" && isSameDay(currentDate, today)
+
+  // Empty-state signal for the panel (real focused-day count + active lens context).
+  const emptyHint = {
+    dayCount: dayItems.length,
+    dayLabel,
+    lens: activeLensDef ? { label: activeLensDef.label, count: lensedItems.length } : null,
+  }
+  // Panel container by mode: Docked/Compact/Collapsed live in the right column;
+  // Overlay floats as a Sheet; Expanded as a centered Dialog; mobile/tablet Sheet.
+  const sheetPanelOpen = Boolean(selected) && (!isWide || panelMode === "overlay")
+  const dialogPanelOpen = isWide && panelMode === "expanded" && Boolean(selected)
 
   // Single navigator element reused by the persistent column and the Sheet.
   const navigatorEl = (
@@ -316,11 +352,44 @@ export function CalendarShell() {
       </div>
       </div>
 
-      {/* ===== RIGHT PANEL — full-height column beside the workspace (lg+) ===== */}
-      {isWide && (
-        <aside className="hidden min-h-0 w-[340px] shrink-0 lg:block">
+      {/* ===== RIGHT REGION — Intelligence Panel, mode-aware (lg+) ===== */}
+      {isWide && (panelMode === "docked" || panelMode === "compact") && (
+        <aside className={cn("hidden min-h-0 shrink-0 lg:block", panelMode === "compact" ? "w-[300px]" : "w-[340px]")}>
           <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card">
-            <CalendarDetailPanel key={selected?.id ?? "none"} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} emptyHint={{ dayCount: dayItems.length, dayLabel }} />
+            <CalendarIntelligencePanel
+              key={selected?.id ?? "none"}
+              item={selected}
+              today={today}
+              inConflict={selectedInConflict}
+              onOpenDate={openDate}
+              onClose={selected ? clearSelection : undefined}
+              mode={panelMode}
+              onModeChange={setPanelModePersisted}
+              emptyHint={emptyHint}
+            />
+          </div>
+        </aside>
+      )}
+      {/* Collapsed / Overlay / Expanded → a thin rail keeps the 3-column grid stable. */}
+      {isWide && (panelMode === "collapsed" || panelMode === "overlay" || panelMode === "expanded") && (
+        <aside className="hidden min-h-0 w-[52px] shrink-0 lg:flex">
+          <div className="flex h-full w-full flex-col items-center gap-3 rounded-xl border border-border bg-card py-3">
+            <PanelModeSwitcher value={panelMode} onChange={setPanelModePersisted} />
+            {panelMode === "collapsed" && selected && (
+              <button
+                type="button"
+                onClick={() => setPanelModePersisted("docked")}
+                aria-label="Show details"
+                title="Show details"
+                className="relative flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <PanelRight className="h-3.5 w-3.5" />
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: typeColors[selected.type] }} />
+              </button>
+            )}
+            <span className="mt-auto rotate-180 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50 [writing-mode:vertical-rl]">
+              Time Intelligence
+            </span>
           </div>
         </aside>
       )}
@@ -333,8 +402,9 @@ export function CalendarShell() {
         </SheetContent>
       </Sheet>
 
-      {/* < lg: detail opens as a Sheet (existing pattern). */}
-      <Sheet open={detailSheetOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>
+      {/* Panel as a Sheet — mobile/tablet always, plus desktop Overlay mode.
+          Container owns the close button → closing clears the selection. */}
+      <Sheet open={sheetPanelOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>
         <SheetContent
           side={isPhone ? "bottom" : "right"}
           className={cn(
@@ -342,10 +412,41 @@ export function CalendarShell() {
             isPhone && "h-[90dvh] max-h-[90dvh] rounded-t-2xl",
           )}
         >
-          <SheetTitle className="sr-only">Details</SheetTitle>
-          {selected && <CalendarDetailPanel key={selected.id} item={selected} today={today} onOpenDate={openDate} onClose={clearSelection} />}
+          <SheetTitle className="sr-only">Time Intelligence</SheetTitle>
+          {selected && (
+            <CalendarIntelligencePanel
+              key={selected.id}
+              item={selected}
+              today={today}
+              inConflict={selectedInConflict}
+              onOpenDate={openDate}
+              mode={panelMode}
+              onModeChange={setPanelModePersisted}
+              showSwitcher={isWide}
+              emptyHint={emptyHint}
+            />
+          )}
         </SheetContent>
       </Sheet>
+
+      {/* Desktop Expanded mode → centered Dialog. */}
+      <Dialog open={dialogPanelOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>
+        <DialogContent className="flex h-[80vh] max-w-2xl flex-col overflow-hidden p-0">
+          <DialogTitle className="sr-only">Time Intelligence</DialogTitle>
+          {selected && (
+            <CalendarIntelligencePanel
+              key={selected.id}
+              item={selected}
+              today={today}
+              inConflict={selectedInConflict}
+              onOpenDate={openDate}
+              mode={panelMode}
+              onModeChange={setPanelModePersisted}
+              emptyHint={emptyHint}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

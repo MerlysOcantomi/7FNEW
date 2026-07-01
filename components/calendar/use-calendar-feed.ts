@@ -26,6 +26,7 @@ function mapFeed(data: unknown): CalendarItem[] {
     out.push({
       id: t.id, type: "tarea", title: t.titulo, date: t.fechaLimite, allDay: true,
       status: t.estado, priority: t.prioridad, extra: t.proyecto?.nombre ?? t.cliente?.nombre ?? undefined,
+      clientName: t.cliente?.nombre ?? undefined, projectName: t.proyecto?.nombre ?? undefined,
     })
   }
   for (const p of d.proyectos ?? []) {
@@ -34,6 +35,7 @@ function mapFeed(data: unknown): CalendarItem[] {
     out.push({
       id: p.id, type: "proyecto", title: p.nombre, date, endDate: p.fechaFin ?? null, allDay: true,
       status: p.estado, extra: p.cliente?.nombre ?? undefined,
+      clientName: p.cliente?.nombre ?? undefined,
     })
   }
   for (const f of d.facturas ?? []) {
@@ -41,6 +43,7 @@ function mapFeed(data: unknown): CalendarItem[] {
     out.push({
       id: f.id, type: "factura", title: `Invoice ${f.numero}`, date: f.fechaVencimiento, allDay: true,
       status: f.estado, extra: f.cliente?.nombre ? `${f.cliente.nombre} · $${f.total}` : `$${f.total}`,
+      clientName: f.cliente?.nombre ?? undefined, invoiceTotal: typeof f.total === "number" ? f.total : undefined,
     })
   }
   for (const e of d.eventos ?? []) {
@@ -48,6 +51,7 @@ function mapFeed(data: unknown): CalendarItem[] {
     out.push({
       id: e.id, type: "evento", title: e.titulo, date: e.fechaInicio, endDate: e.fechaFin ?? null,
       allDay: !!e.todoElDia, status: e.tipo, extra: e.cliente?.nombre ?? e.proyecto?.nombre ?? undefined,
+      clientName: e.cliente?.nombre ?? undefined, projectName: e.proyecto?.nombre ?? undefined,
     })
   }
   return out

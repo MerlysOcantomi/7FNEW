@@ -22,4 +22,12 @@ export interface CalendarItem {
   priority?: string
   /** Secondary context line (client · project · amount). */
   extra?: string
+  /**
+   * Structured related context — client-side enrichment mapped in use-calendar-feed
+   * from relations the feed ALREADY includes (no feed-API / schema change). Powers
+   * EventDNA's context rows; absent when the feed carries no relation.
+   */
+  clientName?: string
+  projectName?: string
+  invoiceTotal?: number
 }
