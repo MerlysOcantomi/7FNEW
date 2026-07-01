@@ -79,7 +79,17 @@ export function CalendarShell() {
   // this month" filter, so we never strand the user on a stale/empty scope.
   const goPrev = useCallback(() => { setActiveLens(null); setCurrentDate((d) => navigateDate(d, view, -1)) }, [view])
   const goNext = useCallback(() => { setActiveLens(null); setCurrentDate((d) => navigateDate(d, view, 1)) }, [view])
-  const goToday = useCallback(() => { setActiveLens(null); setCurrentDate(new Date()) }, [])
+  // "Today" — jump to the REAL current day in Day view, drop any active lens, and
+  // drop a selection that isn't on today. (It previously only nudged currentDate
+  // within the active view, so from Week/Month — or when already on the current
+  // period — it produced no visible change and felt broken.)
+  const goToday = useCallback(() => {
+    const now = new Date()
+    setActiveLens(null)
+    setView("day")
+    setCurrentDate(now)
+    if (selected && !isSameDay(new Date(selected.date), now)) setSelectedId(null)
+  }, [selected])
   const pickView = useCallback((v: CalendarView) => { setActiveLens(null); setView(v) }, [])
 
   /** "Go to date" CTA — jump the calendar to the item's day (Day view). */
@@ -141,6 +151,9 @@ export function CalendarShell() {
   // the panel's open-time guidance (both descriptive/real — no fabricated data).
   const subtitle = view === "day" ? "Your day, hour by hour" : view === "week" ? "Your week, day by day" : "Your month at a glance"
   const dayLabel = currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+  // You're "on today" only when the Day view is showing the real current day —
+  // that's when the Today button has nothing left to do, so it reads as active.
+  const isOnToday = view === "day" && isSameDay(currentDate, today)
 
   // Single navigator element reused by the persistent column and the Sheet.
   const navigatorEl = (
@@ -214,7 +227,13 @@ export function CalendarShell() {
             <button
               type="button"
               onClick={goToday}
-              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              aria-pressed={isOnToday}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                isOnToday
+                  ? "border-[var(--accent-muted-border)] bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+                  : "border-border text-foreground hover:bg-accent",
+              )}
             >
               Today
             </button>
