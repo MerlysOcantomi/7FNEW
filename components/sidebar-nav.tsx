@@ -54,6 +54,8 @@ import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigge
 import { GlobalAgentsTriggerMobile } from "@/components/agents/global-agents-trigger";
 import { GlobalAskFannyTriggerMobile } from "@/components/assistant/global-ask-fanny-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
+import { useActiveWorkspace } from "@/hooks/use-active-workspace";
+import { resolveNavProfile, type VerticalNavProfile } from "@core/vertical-packs/nav-profile";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -195,6 +197,57 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
 }
 
 const NAV_SECTIONS = buildNavSections();
+
+// ── Vertical-aware navigation ────────────────────────────────────────────────
+/**
+ * Icon per vertical nav item id. Lives in the sidebar (not in core) so
+ * `core/vertical-packs` never imports an icon library. Unknown ids fall back to
+ * a neutral icon.
+ */
+const VERTICAL_NAV_ICONS: Record<string, React.ElementType> = {
+  today: Sun,
+  agenda: CalendarDays,
+  clientas: Users,
+  mensajes: Inbox,
+  marketing: FileEdit,
+  servicios: Sparkles,
+  cobros: DollarSign,
+  equipo: Building2,
+  forte: Bot,
+  herramientas: BookOpen,
+  notificaciones: Bell,
+};
+
+/**
+ * Build sidebar sections from a vertical nav profile. `primary` items render
+ * flat (the section name "Main" reuses the existing flat-render path in
+ * `AccordionSection`); `more` items collapse under the profile's "Más" group.
+ * Returns the same `NavSection[]` shape as the default nav, so every downstream
+ * renderer (desktop, mobile, collapsed) is unchanged.
+ */
+function buildVerticalNavSections(profile: VerticalNavProfile): NavSection[] {
+  const toNavItem = (item: VerticalNavProfile["items"][number]): NavItem => ({
+    label: item.label,
+    href: item.href,
+    icon: VERTICAL_NAV_ICONS[item.id] ?? LayoutDashboard,
+    helper: item.helper,
+  });
+
+  const primary = profile.items.filter((i) => i.group === "primary").map(toNavItem);
+  const more = profile.items.filter((i) => i.group === "more").map(toNavItem);
+
+  const sections: NavSection[] = [{ section: "Main", subtitle: "", items: primary }];
+  if (more.length > 0) {
+    sections.push({
+      section: profile.moreLabel,
+      subtitle: "",
+      icon: BookOpen,
+      items: more,
+      dividerAbove: true,
+    });
+  }
+  return sections;
+}
 
 // ── Inbox-focused mode ───────────────────────────────────────────────────────
 /**
@@ -689,17 +742,22 @@ function InboxFocusedNav({
   );
 }
 
-function useSectionsWithBadges(): NavSection[] {
+function useSectionsWithBadges(profile?: VerticalNavProfile | null): NavSection[] {
   const inboxBadge = useInboxBadge();
   return useMemo(() => {
-    if (inboxBadge === 0) return NAV_SECTIONS;
-    return NAV_SECTIONS.map((section) => ({
+    // Vertical workspaces render their own nav profile; everything else keeps
+    // the default 7F Core nav byte-for-byte.
+    const base = profile ? buildVerticalNavSections(profile) : NAV_SECTIONS;
+    if (inboxBadge === 0) return base;
+    return base.map((section) => ({
       ...section,
       items: section.items.map((item) =>
-        item.href === "/inbox/overview" ? { ...item, badge: inboxBadge } : item
+        item.href === "/inbox/overview" || item.href === "/inbox"
+          ? { ...item, badge: inboxBadge }
+          : item
       ),
     }));
-  }, [inboxBadge]);
+  }, [inboxBadge, profile]);
 }
 
 // ── Desktop Sidebar ──────────────────────────────────────────────────────────
@@ -707,7 +765,9 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { collapsed, setCollapsed } = useSidebarCollapse();
   const { openSearch } = useGlobalSearch();
-  const sections = useSectionsWithBadges();
+  const { workspace } = useActiveWorkspace();
+  const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
+  const sections = useSectionsWithBadges(verticalProfile);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
@@ -889,7 +949,9 @@ import {
 export function MobileSidebarNav() {
   const pathname = usePathname();
   const { openSearch } = useGlobalSearch();
-  const sections = useSectionsWithBadges();
+  const { workspace } = useActiveWorkspace();
+  const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
+  const sections = useSectionsWithBadges(verticalProfile);
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
