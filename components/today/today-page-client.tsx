@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils"
 import { useSearchParams } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
+import { resolveBeautyTodayConfig } from "@modules/today/beauty-today"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
 import { TodayJobRouteLayout } from "./today-job-route-layout"
 import { TodaySessionLayout } from "./today-session-layout"
@@ -61,16 +62,21 @@ import {
 export function TodayPageClient() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
+
+  // Beauty is the first vertical with a visible verticalized Today. It renders
+  // the appointment layout in Spanish, Finesse-branded, over DEMO data (marked
+  // with a "Vista previa · datos de ejemplo" chip). Only beauty auto-switches;
+  // every other vertical stays on work_first. The `?todayLayout=` override still
+  // works for internal preview of the generic (English) appointment layout.
+  const beauty = resolveBeautyTodayConfig(workspace?.verticalKey)
   const mode = resolveTodayLayoutMode({
     override: searchParams.get("todayLayout"),
     verticalKey: workspace?.verticalKey,
-    // Stays OFF until real backends exist — never auto-flip a real workspace
-    // onto demo data based on its vertical alone.
-    enableVerticalAutoSwitch: false,
+    enableVerticalAutoSwitch: !!beauty,
   })
 
   if (mode === "appointment_first") {
-    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} />
+    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={beauty} />
   }
   if (mode === "job_route") {
     return <TodayJobRouteLayout businessName={workspace?.nombre ?? null} />

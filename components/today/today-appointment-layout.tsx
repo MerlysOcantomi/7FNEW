@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { CalendarClock, Clock, MessageSquare, Send, Sparkles, UserPlus } from "lucide-react"
+import { CalendarClock, CheckCircle2, Clock, Megaphone, MessageSquare, Scissors, Send, Sparkles, UserPlus, Users } from "lucide-react"
 import {
   deriveAppointmentDay,
   type Appointment,
@@ -11,7 +11,13 @@ import {
   type AppointmentGap,
   type AppointmentStatus,
 } from "@modules/today/appointments"
-import { getAppointmentDayMock } from "./appointments/appointment-mock"
+import type { BeautyTodayConfig } from "@modules/today/beauty-today"
+import { getAppointmentDayMock, getBeautyAppointmentDayMock } from "./appointments/appointment-mock"
+
+/** Status label — Spanish/beauty when a beauty config is present, else the generic English. */
+function statusLabelOf(status: AppointmentStatus, beauty?: BeautyTodayConfig | null): string {
+  return beauty ? beauty.statusLabels[status] : STATUS_STYLE[status].label
+}
 
 /**
  * Appointment-first Today layout — the booking/agenda canvas for clinics,
@@ -99,10 +105,20 @@ function fmtHourLabel(h: number): string {
 
 // ─── Entry layout ────────────────────────────────────────────────────────────
 
-export function TodayAppointmentLayout({ businessName }: { businessName: string | null }) {
+export function TodayAppointmentLayout({
+  businessName,
+  beauty = null,
+}: {
+  businessName: string | null
+  /** When present, renders the Spanish, Finesse-branded Beauty "Hoy". */
+  beauty?: BeautyTodayConfig | null
+}) {
   const searchParams = useSearchParams()
   const staffMode = searchParams.get("staff") === "solo" ? "solo" : "multi"
-  const day = useMemo<AppointmentDay>(() => getAppointmentDayMock(staffMode), [staffMode])
+  const day = useMemo<AppointmentDay>(
+    () => (beauty ? getBeautyAppointmentDayMock(staffMode) : getAppointmentDayMock(staffMode)),
+    [staffMode, beauty],
+  )
   const derived = useMemo(() => deriveAppointmentDay(day), [day])
 
   // Live "now" line — gated after mount to avoid SSR/client mismatch.
@@ -124,17 +140,60 @@ export function TodayAppointmentLayout({ businessName }: { businessName: string 
       <AppointmentSummaryBar
         derived={derived}
         businessName={businessName ?? day.businessName}
+        beauty={beauty}
       />
+
+      {beauty ? <FinesseBrief derived={derived} beauty={beauty} /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           {isMulti ? (
-            <DayBook day={day} nowTop={nowTop} />
+            <DayBook day={day} nowTop={nowTop} beauty={beauty} />
           ) : (
-            <Agenda day={day} now={now} />
+            <Agenda day={day} now={now} beauty={beauty} />
           )}
         </div>
-        <FlowRail day={day} />
+        <FlowRail day={day} beauty={beauty} />
+      </div>
+
+      {beauty ? <BeautyExtras beauty={beauty} /> : null}
+    </div>
+  )
+}
+
+// ─── Beauty: Finesse brief ──────────────────────────────────────────────────
+
+function FinesseBrief({
+  derived,
+  beauty,
+}: {
+  derived: AppointmentDerived
+  beauty: BeautyTodayConfig
+}) {
+  return (
+    <div
+      className="flex items-start gap-3 rounded-[18px] border p-4"
+      style={{
+        borderColor: "var(--agent-rose, var(--accent-muted-border))",
+        background: "color-mix(in srgb, var(--agent-rose, var(--accent-primary)) 8%, transparent)",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        style={{ background: "var(--agent-rose-soft, var(--accent-muted))", color: "var(--agent-rose, var(--accent-on-dark))" }}
+      >
+        <Sparkles size={15} strokeWidth={1.9} />
+      </span>
+      <div className="min-w-0">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary-light)]">
+          {beauty.eyebrow}
+        </span>
+        <p className="mt-0.5 text-[13px] text-[var(--text-primary-light)]">
+          Hoy tienes <strong>{derived.appointmentsCount} citas</strong>,{" "}
+          <strong>{derived.unconfirmedCount} sin confirmar</strong> y{" "}
+          <strong>{derived.openGaps} huecos libres</strong>. Te dejo lo importante a mano.
+        </p>
       </div>
     </div>
   )
@@ -145,27 +204,32 @@ export function TodayAppointmentLayout({ businessName }: { businessName: string 
 function AppointmentSummaryBar({
   derived,
   businessName,
+  beauty,
 }: {
   derived: AppointmentDerived
   businessName: string
+  beauty?: BeautyTodayConfig | null
 }) {
-  const dateLabel = new Date().toLocaleDateString(undefined, {
+  const dateLabel = new Date().toLocaleDateString(beauty ? "es-ES" : undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   })
-  const staffOrAppts =
-    derived.staffCount > 1
+  const staffOrAppts = beauty
+    ? derived.staffCount > 1
+      ? `${derived.staffCount} en el equipo`
+      : `${derived.appointmentsCount} citas`
+    : derived.staffCount > 1
       ? `${derived.staffCount} staff`
       : `${derived.appointmentsCount} appointments`
 
-  // Beauty/nails preset (the demo is a salon). A clinic vertical would swap
-  // labels to Patients / Unconfirmed / No-show / Room free — same derived data.
+  const title = beauty ? beauty.brandTitle : "Today"
+  const p = beauty?.ui.pills
   const pills: { label: string; value: string | number; tone?: "lead" | "info" }[] = [
-    { label: "Appointments", value: derived.appointmentsCount },
-    { label: "Unconfirmed", value: derived.unconfirmedCount, tone: derived.unconfirmedCount > 0 ? "lead" : undefined },
-    { label: "Open gap", value: derived.openGaps, tone: "info" },
-    { label: "Booked", value: `$${derived.bookedValue.toLocaleString()}` },
+    { label: p?.appointments ?? "Appointments", value: derived.appointmentsCount },
+    { label: p?.unconfirmed ?? "Unconfirmed", value: derived.unconfirmedCount, tone: derived.unconfirmedCount > 0 ? "lead" : undefined },
+    { label: p?.openGaps ?? "Open gap", value: derived.openGaps, tone: "info" },
+    { label: p?.booked ?? "Booked", value: `$${derived.bookedValue.toLocaleString()}` },
   ]
 
   return (
@@ -180,17 +244,26 @@ function AppointmentSummaryBar({
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-2">
-            <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary-light)]">Today</h1>
+            <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary-light)]">{title}</h1>
             <span suppressHydrationWarning className="text-[12px] text-[var(--text-secondary-light)]">
               {dateLabel}
             </span>
             <span className="text-[12px] text-[var(--text-tertiary-light)]">· {businessName}</span>
+            {beauty ? (
+              <span
+                className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                style={{ borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)", color: "var(--inbox-info)" }}
+                title="Datos de ejemplo mientras conectamos las citas reales."
+              >
+                {beauty.previewChip}
+              </span>
+            ) : null}
           </div>
           <p className="mt-0.5 text-[12px] text-[var(--text-secondary-light)]">
             <span style={derived.unconfirmedCount > 0 ? { color: "var(--inbox-lead)" } : undefined}>
-              {derived.unconfirmedCount} unconfirmed
+              {derived.unconfirmedCount} {beauty ? "sin confirmar" : "unconfirmed"}
             </span>{" "}
-            · {derived.openGaps} open gaps · {staffOrAppts}
+            · {derived.openGaps} {beauty ? "huecos" : "open gaps"} · {staffOrAppts}
           </p>
         </div>
       </div>
@@ -223,7 +296,7 @@ function AppointmentSummaryBar({
 
 // ─── Multi-staff Day Book ────────────────────────────────────────────────
 
-function DayBook({ day, nowTop }: { day: AppointmentDay; nowTop: number | null }) {
+function DayBook({ day, nowTop, beauty }: { day: AppointmentDay; nowTop: number | null; beauty?: BeautyTodayConfig | null }) {
   return (
     <div
       className="overflow-auto rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]"
@@ -272,10 +345,10 @@ function DayBook({ day, nowTop }: { day: AppointmentDay; nowTop: number | null }
                   />
                 ))}
                 {gaps.map((g) => (
-                  <GapBlock key={g.id} gap={g} />
+                  <GapBlock key={g.id} gap={g} beauty={beauty} />
                 ))}
                 {appts.map((a) => (
-                  <AppointmentBlock key={a.id} appt={a} />
+                  <AppointmentBlock key={a.id} appt={a} beauty={beauty} />
                 ))}
                 {nowTop !== null ? <NowLine top={nowTop} /> : null}
               </div>
@@ -287,7 +360,7 @@ function DayBook({ day, nowTop }: { day: AppointmentDay; nowTop: number | null }
   )
 }
 
-function AppointmentBlock({ appt }: { appt: Appointment }) {
+function AppointmentBlock({ appt, beauty }: { appt: Appointment; beauty?: BeautyTodayConfig | null }) {
   const st = STATUS_STYLE[appt.status]
   return (
     <div
@@ -298,7 +371,7 @@ function AppointmentBlock({ appt }: { appt: Appointment }) {
         background: st.bg,
         borderColor: st.border,
       }}
-      title={`${appt.clientName} · ${appt.service} · ${fmtTime(appt.start)} (${st.label})`}
+      title={`${appt.clientName} · ${appt.service} · ${fmtTime(appt.start)} (${statusLabelOf(appt.status, beauty)})`}
     >
       <p className="truncate text-[11px] font-semibold text-[var(--text-primary-light)]">{appt.clientName}</p>
       <p className="truncate text-[10px]" style={{ color: st.text }}>
@@ -308,7 +381,7 @@ function AppointmentBlock({ appt }: { appt: Appointment }) {
   )
 }
 
-function GapBlock({ gap }: { gap: AppointmentGap }) {
+function GapBlock({ gap, beauty }: { gap: AppointmentGap; beauty?: BeautyTodayConfig | null }) {
   return (
     <div
       className="absolute inset-x-1 flex items-center justify-center rounded-md border border-dashed"
@@ -320,7 +393,7 @@ function GapBlock({ gap }: { gap: AppointmentGap }) {
       }}
     >
       <span className="text-[10px] font-medium" style={{ color: GAP_COLOR }}>
-        Open · {fmtTime(gap.start)}
+        {beauty ? beauty.ui.openGap : "Open"} · {fmtTime(gap.start)}
       </span>
     </div>
   )
@@ -345,7 +418,7 @@ type AgendaEntry =
   | { kind: "appt"; start: string; appt: Appointment }
   | { kind: "gap"; start: string; gap: AppointmentGap }
 
-function Agenda({ day, now }: { day: AppointmentDay; now: Date | null }) {
+function Agenda({ day, now, beauty }: { day: AppointmentDay; now: Date | null; beauty?: BeautyTodayConfig | null }) {
   const entries = useMemo<AgendaEntry[]>(() => {
     const merged: AgendaEntry[] = [
       ...day.appointments.map((appt) => ({ kind: "appt" as const, start: appt.start, appt })),
@@ -369,12 +442,12 @@ function Agenda({ day, now }: { day: AppointmentDay; now: Date | null }) {
               <div className="flex items-center gap-2" aria-hidden="true">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
                 <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--accent-primary)" }}>
-                  Now
+                  {beauty ? beauty.ui.now : "Now"}
                 </span>
                 <span className="h-px flex-1" style={{ background: "var(--accent-primary)" }} />
               </div>
             ) : null}
-            {entry.kind === "appt" ? <AgendaApptCard appt={entry.appt} /> : <AgendaGapCard gap={entry.gap} />}
+            {entry.kind === "appt" ? <AgendaApptCard appt={entry.appt} beauty={beauty} /> : <AgendaGapCard gap={entry.gap} beauty={beauty} />}
           </div>
         )
       })}
@@ -382,7 +455,7 @@ function Agenda({ day, now }: { day: AppointmentDay; now: Date | null }) {
   )
 }
 
-function AgendaApptCard({ appt }: { appt: Appointment }) {
+function AgendaApptCard({ appt, beauty }: { appt: Appointment; beauty?: BeautyTodayConfig | null }) {
   const st = STATUS_STYLE[appt.status]
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-4 py-3">
@@ -399,7 +472,7 @@ function AgendaApptCard({ appt }: { appt: Appointment }) {
           className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
           style={{ background: st.bg, color: st.text, borderColor: st.border }}
         >
-          {st.label}
+          {statusLabelOf(appt.status, beauty)}
         </span>
         {typeof appt.price === "number" ? (
           <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">${appt.price}</span>
@@ -409,7 +482,7 @@ function AgendaApptCard({ appt }: { appt: Appointment }) {
   )
 }
 
-function AgendaGapCard({ gap }: { gap: AppointmentGap }) {
+function AgendaGapCard({ gap, beauty }: { gap: AppointmentGap; beauty?: BeautyTodayConfig | null }) {
   return (
     <div
       className="flex items-center gap-3 rounded-xl border border-dashed px-4 py-3"
@@ -417,7 +490,7 @@ function AgendaGapCard({ gap }: { gap: AppointmentGap }) {
     >
       <Clock size={14} className="shrink-0" style={{ color: GAP_COLOR }} aria-hidden="true" />
       <p className="flex-1 text-[12.5px] font-medium" style={{ color: GAP_COLOR }}>
-        Open gap · {fmtTime(gap.start)} – {fmtTime(gap.end)}
+        {beauty ? `${beauty.ui.openGap} · ${fmtTime(gap.start)} – ${fmtTime(gap.end)}` : `Open gap · ${fmtTime(gap.start)} – ${fmtTime(gap.end)}`}
       </p>
     </div>
   )
@@ -425,52 +498,140 @@ function AgendaGapCard({ gap }: { gap: AppointmentGap }) {
 
 // ─── Fanny flow rail ─────────────────────────────────────────────────────────
 
-function FlowRail({ day }: { day: AppointmentDay }) {
+function FlowRail({ day, beauty }: { day: AppointmentDay; beauty?: BeautyTodayConfig | null }) {
   const unconfirmed = day.appointments.filter((a) => a.status === "pending")
   const followUps = day.appointments.filter((a) => a.status === "no_show" || a.status === "cancelled")
+  const g = beauty?.ui.groups
+  const act = beauty?.ui.actions
+  const empty = beauty?.ui.nothingHere ?? "Nothing here."
 
   return (
     <aside className="flex flex-col gap-4 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4">
       <div className="flex items-center gap-2">
         <Sparkles size={14} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-on-dark)]">
-          Fanny flow
+          {beauty ? beauty.ui.railTitle : "Fanny flow"}
         </span>
       </div>
 
-      <FlowGroup label="Unconfirmed" count={unconfirmed.length} tone="lead">
+      <FlowGroup label={g?.unconfirmed ?? "Unconfirmed"} count={unconfirmed.length} tone="lead" emptyLabel={empty}>
         {unconfirmed.map((a) => (
           <FlowCard
             key={a.id}
             title={a.clientName}
             meta={`${a.service} · ${fmtTime(a.start)}`}
-            action={{ icon: Send, label: "Send reminder" }}
+            action={{ icon: Send, label: act?.remind ?? "Send reminder" }}
           />
         ))}
       </FlowGroup>
 
-      <FlowGroup label="Open gaps" count={day.gaps.length} tone="info">
-        {day.gaps.map((g) => (
+      <FlowGroup label={g?.openGaps ?? "Open gaps"} count={day.gaps.length} tone="info" emptyLabel={empty}>
+        {day.gaps.map((gap) => (
           <FlowCard
-            key={g.id}
-            title={`Open · ${fmtTime(g.start)}–${fmtTime(g.end)}`}
-            meta="Could be offered to a waitlist client"
-            action={{ icon: UserPlus, label: "Offer to waitlist" }}
+            key={gap.id}
+            title={`${beauty ? beauty.ui.openGap : "Open"} · ${fmtTime(gap.start)}–${fmtTime(gap.end)}`}
+            meta={beauty ? "Ofrécelo a una clienta frecuente" : "Could be offered to a waitlist client"}
+            action={{ icon: UserPlus, label: act?.waitlist ?? "Offer to waitlist" }}
           />
         ))}
       </FlowGroup>
 
-      <FlowGroup label="Follow-ups" count={followUps.length} tone="urgency">
+      <FlowGroup label={g?.followUps ?? "Follow-ups"} count={followUps.length} tone="urgency" emptyLabel={empty}>
         {followUps.map((a) => (
           <FlowCard
             key={a.id}
             title={a.clientName}
-            meta={`${STATUS_STYLE[a.status].label} · ${a.service}`}
-            action={{ icon: MessageSquare, label: "Draft message" }}
+            meta={`${statusLabelOf(a.status, beauty)} · ${a.service}`}
+            action={{ icon: MessageSquare, label: act?.message ?? "Draft message" }}
           />
         ))}
       </FlowGroup>
+
+      {/* Beauty-only extra flows (static demo content). */}
+      {beauty ? (
+        <>
+          <FlowGroup label={beauty.ui.groups.messages} count={beauty.extras.pendingMessages.length} tone="info" emptyLabel={empty}>
+            {beauty.extras.pendingMessages.map((m, i) => (
+              <FlowCard key={i} title={m.name} meta={m.text} action={{ icon: MessageSquare, label: beauty.ui.actions.message }} />
+            ))}
+          </FlowGroup>
+
+          <FlowGroup label={beauty.ui.groups.care} count={beauty.extras.clientsToCare.length} tone="lead" emptyLabel={empty}>
+            {beauty.extras.clientsToCare.map((c, i) => (
+              <FlowCard key={i} title={c.name} meta={c.meta} action={{ icon: Send, label: beauty.ui.actions.message }} />
+            ))}
+          </FlowGroup>
+
+          <FlowGroup label={beauty.ui.groups.content} count={1} tone="info" emptyLabel={empty}>
+            <FlowCard
+              title={beauty.extras.postIdea.title}
+              meta={beauty.extras.postIdea.meta}
+              action={{ icon: Megaphone, label: "Preparar post" }}
+            />
+          </FlowGroup>
+        </>
+      ) : null}
     </aside>
+  )
+}
+
+// ─── Beauty: extra summary blocks below the day ─────────────────────────────
+
+function BeautyExtras({ beauty }: { beauty: BeautyTodayConfig }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <ExtraCard icon={Users} title="Clientas recientes">
+        <ul className="flex flex-col gap-1">
+          {beauty.extras.recentClients.map((c) => (
+            <li key={c} className="truncate text-[12.5px] text-[var(--text-secondary-light)]">{c}</li>
+          ))}
+        </ul>
+      </ExtraCard>
+
+      <ExtraCard icon={Scissors} title="Servicios destacados">
+        <div className="flex flex-wrap gap-1.5">
+          {beauty.extras.featuredServices.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-secondary-light)]"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      </ExtraCard>
+
+      <ExtraCard icon={CheckCircle2} title="Acciones recomendadas">
+        <ul className="flex flex-col gap-2">
+          {beauty.extras.recommendedActions.map((a) => (
+            <li key={a.title} className="flex flex-col">
+              <span className="truncate text-[12.5px] font-medium text-[var(--text-primary-light)]">{a.title}</span>
+              <span className="truncate text-[11px] text-[var(--text-tertiary-light)]">{a.meta}</span>
+            </li>
+          ))}
+        </ul>
+      </ExtraCard>
+    </div>
+  )
+}
+
+function ExtraCard({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Users
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="flex flex-col gap-2.5 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4">
+      <div className="flex items-center gap-2">
+        <Icon size={13} strokeWidth={1.9} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary-light)]">{title}</span>
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -479,11 +640,13 @@ function FlowGroup({
   count,
   tone,
   children,
+  emptyLabel = "Nothing here.",
 }: {
   label: string
   count: number
   tone: "lead" | "info" | "urgency"
   children: React.ReactNode
+  emptyLabel?: string
 }) {
   const color = tone === "lead" ? "var(--inbox-lead)" : tone === "info" ? "var(--inbox-info)" : "var(--inbox-urgency)"
   return (
@@ -496,7 +659,7 @@ function FlowGroup({
         <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">{count}</span>
       </div>
       {count === 0 ? (
-        <p className="px-1 text-[11px] text-[var(--text-tertiary-light)]">Nothing here.</p>
+        <p className="px-1 text-[11px] text-[var(--text-tertiary-light)]">{emptyLabel}</p>
       ) : (
         <div className="flex flex-col gap-2">{children}</div>
       )}

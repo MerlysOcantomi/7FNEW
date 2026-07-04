@@ -89,3 +89,70 @@ export function getAppointmentDayMock(staffMode: "multi" | "solo" = "multi"): Ap
     gaps: multiGaps(),
   }
 }
+
+// ─── Beauty demo variant (Spanish services) ─────────────────────────────────
+
+const BEAUTY_STAFF_MULTI = [
+  { id: "s1", name: "Lucía" },
+  { id: "s2", name: "Carmen" },
+  { id: "s3", name: "Aisha" },
+]
+const BEAUTY_STAFF_SOLO = [{ id: "s1", name: "Lucía" }]
+
+function beautyMultiAppointments(): Appointment[] {
+  return [
+    { id: "b1", start: at(9, 30), end: at(10, 30), clientName: "Marina Velasco", service: "Manicura semipermanente", staffId: "s1", staffName: "Lucía", status: "confirmed", price: 25 },
+    { id: "b2", start: at(11, 0), end: at(11, 45), clientName: "Nora Díaz", service: "Retirada de esmalte", staffId: "s1", staffName: "Lucía", status: "pending", price: 10 },
+    { id: "b3", start: at(14, 30), end: at(15, 30), clientName: "Laura Méndez", service: "Nail art", staffId: "s1", staffName: "Lucía", status: "confirmed", price: 35 },
+
+    { id: "b4", start: at(10, 0), end: at(11, 0), clientName: "Sofía Cano", service: "Limpieza facial", staffId: "s2", staffName: "Carmen", status: "arrived", price: 40 },
+    { id: "b5", start: at(12, 0), end: at(12, 45), clientName: "Paula Gil", service: "Depilación de cejas", staffId: "s2", staffName: "Carmen", status: "no_show", price: 15 },
+    { id: "b6", start: at(16, 0), end: at(17, 0), clientName: "Claudia Ferrer", service: "Lifting de pestañas", staffId: "s2", staffName: "Carmen", status: "confirmed", price: 45 },
+
+    { id: "b7", start: at(9, 30), end: at(10, 30), clientName: "Carla Pix", service: "Pedicura", staffId: "s3", staffName: "Aisha", status: "pending", price: 28 },
+    { id: "b8", start: at(11, 30), end: at(12, 30), clientName: "Elena Soto", service: "Relleno de uñas", staffId: "s3", staffName: "Aisha", status: "cancelled", price: 30 },
+    { id: "b9", start: at(15, 0), end: at(16, 0), clientName: "Ana Ríos", service: "Manicura semipermanente", staffId: "s3", staffName: "Aisha", status: "confirmed", price: 25 },
+  ]
+}
+
+function beautyMultiGaps(): AppointmentGap[] {
+  return [
+    { id: "bg1", staffId: "s1", start: at(13, 30), end: at(14, 15) },
+    { id: "bg2", staffId: "s2", start: at(14, 0), end: at(15, 30) },
+    { id: "bg3", staffId: "s3", start: at(13, 0), end: at(15, 0) },
+  ]
+}
+
+function beautySoloAppointments(): Appointment[] {
+  return [
+    { id: "b1", start: at(9, 30), end: at(10, 30), clientName: "Marina Velasco", service: "Manicura semipermanente", staffId: "s1", staffName: "Lucía", status: "confirmed", price: 25 },
+    { id: "b2", start: at(11, 0), end: at(11, 45), clientName: "Nora Díaz", service: "Retirada de esmalte", staffId: "s1", staffName: "Lucía", status: "pending", price: 10 },
+    { id: "b3", start: at(13, 0), end: at(14, 0), clientName: "Sofía Cano", service: "Nail art", staffId: "s1", staffName: "Lucía", status: "arrived", price: 35 },
+    { id: "b4", start: at(16, 0), end: at(17, 0), clientName: "Ana Ríos", service: "Pedicura", staffId: "s1", staffName: "Lucía", status: "confirmed", price: 28 },
+  ]
+}
+
+function beautySoloGaps(): AppointmentGap[] {
+  return [
+    { id: "bg1", staffId: "s1", start: at(11, 45), end: at(13, 0) },
+    { id: "bg2", staffId: "s1", start: at(14, 0), end: at(16, 0) },
+  ]
+}
+
+/** Beauty demo day (Spanish services) for the Beauty "Hoy" MVP. */
+export function getBeautyAppointmentDayMock(staffMode: "multi" | "solo" = "multi"): AppointmentDay {
+  if (staffMode === "solo") {
+    return {
+      businessName: "Estudio Bella",
+      staff: BEAUTY_STAFF_SOLO,
+      appointments: beautySoloAppointments(),
+      gaps: beautySoloGaps(),
+    }
+  }
+  return {
+    businessName: "Estudio Bella",
+    staff: BEAUTY_STAFF_MULTI,
+    appointments: beautyMultiAppointments(),
+    gaps: beautyMultiGaps(),
+  }
+}
