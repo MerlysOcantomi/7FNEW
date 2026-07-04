@@ -9,16 +9,14 @@ import { InboxToolbar } from "@/components/inbox/inbox-toolbar"
 import { InboxTaxonomyChips } from "@/components/inbox/inbox-taxonomy-chips"
 import { ConversationCategoryEditor } from "@/components/inbox/conversation-category-editor"
 /**
- * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Keep
- * legacy task plumbing for now because Smart Hub / pending items may
- * still convert suggestions into WorkspaceTask behind the scenes. The
- * `<InboxTodoList>` JSX branch below is gated on `isTodoMode`, which is
- * now hard-wired to `false`, so the import survives only to keep the
- * unreachable branch type-checking. Cleanup (remove branch + handlers
- * + import) belongs to a follow-up PR.
+ * inbox-tasks: Inbox no longer owns a visible To-do mode. The old
+ * `<InboxTodoList>` view branch and its handlers have been removed. The
+ * live task plumbing that survives is the message→To-do *capture* path —
+ * Smart Hub pending-item conversion, the composer's More-actions
+ * "add to To-do", the internal-note suggestion banner, and the per-
+ * conversation triage counter — all of which still write `WorkspaceTask`
+ * rows behind the scenes. See the capture handlers below.
  */
-import { InboxTodoList } from "@/components/inbox/inbox-todo-list"
-import type { ClientInboxTodo } from "@/components/inbox/inbox-todo-list-item"
 import {
   ContextPanel,
   type SelectedMessageInfo,
@@ -675,21 +673,13 @@ function InboxPageContent() {
     if (resolved) handleLayoutModeChange(resolved)
   }, [layoutParam, handleLayoutModeChange])
   /**
-   * TODO(inbox-tasks): Inbox no longer owns a visible To-do mode. Even when a
-   * legacy URL still carries `?filter=todo`, the page falls back to the normal
-   * Inbox conversation list so the right-hand panel stays focused on triage and
-   * the global Tasks/WorkspaceTask + Today surfaces own all task UI.
-   *
-   * `isTodoMode` is forced to `false` so the `<InboxTodoList>` branch never
-   * mounts. We deliberately keep the surrounding state, fetchers, and handlers
-   * (`todos`, `todosLoading`, `setTodosRefreshKey`, `handleSelectTodo`,
-   * `handleToggleTodoDone`, `handleDismissTodo`, `handleRefreshTodos`,
-   * `handleCreateTodoFromPendingItem`, etc.) because Smart Hub pending-item
-   * conversion, the composer's More-actions "add to To-do", and the per-
-   * conversation triage refresh keys still rely on them to write
-   * `WorkspaceTask` rows behind the scenes. Removing those is a follow-up PR.
+   * Inbox no longer owns a visible To-do mode. Even when a legacy URL still
+   * carries `?filter=todo`, the page falls back to the normal Inbox
+   * conversation list so the right-hand panel stays focused on triage and
+   * the global Tasks/WorkspaceTask + Today surfaces own all task UI. The
+   * message→To-do capture path (Smart Hub pending items, composer
+   * More-actions, internal-note suggestion, triage counter) is unaffected.
    */
-  const isTodoMode = false
   const lastDeepLinkRef = useRef<string | null>(null)
 
   /**
@@ -726,23 +716,16 @@ function InboxPageContent() {
   )
 
   /**
-   * To-do list state. Held locally instead of via `useFetch` because we need optimistic
-   * mutations (mark done / dismiss) and a simple `refresh` trigger. Filter is fixed to
-   * `open,waiting` for the MVP — Phase 5 will surface "All / Today / Overdue" sub-tabs.
+   * Manual refresh trigger for the per-conversation To-do counter. Bumped after any
+   * message→To-do capture so the Triage counter re-reads without a full page refetch.
    */
-  const [todos, setTodos] = useState<ClientInboxTodo[]>([])
-  const [todosLoading, setTodosLoading] = useState(false)
-  const [todosError, setTodosError] = useState<string | null>(null)
   const [todosRefreshKey, setTodosRefreshKey] = useState(0)
-  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
-  const [busyTodoId, setBusyTodoId] = useState<string | null>(null)
   /**
-   * Triage Summary: open To-do count for the *currently selected* conversation. We keep this
-   * separate from `todos` (which is only loaded in `isTodoMode`) so the counter stays fresh
-   * regardless of the current view. The fetch is scoped server-side (`?conversationId=...&
-   * status=open,waiting`) so we never load the workspace-wide list just to render a number.
-   * Reset to `0` when no conversation is selected and re-run when `todosRefreshKey` bumps so
-   * creating a To-do from the panel updates the chip without a full refetch.
+   * Triage Summary: open To-do count for the *currently selected* conversation. The fetch is
+   * scoped server-side (`?conversationId=...&status=open,waiting`) so we never load the
+   * workspace-wide list just to render a number. Reset to `0` when no conversation is selected
+   * and re-run when `todosRefreshKey` bumps so creating a To-do from the panel updates the chip
+   * without a full refetch.
    */
   const [conversationTodoCount, setConversationTodoCount] = useState(0)
   /**
@@ -1130,20 +1113,13 @@ function InboxPageContent() {
       }
     }
 
-    /**
-     * Skip the conversation-driven auto-select while in To-do mode: selection is driven by the
-     * todo list there, and snapping to the first conversation in the loaded list would fight the
-     * operator's todo click. The deep-link branch above still resolves `?id=` set by todo clicks.
-     */
-    if (isTodoMode) return
-
     if (!selectedId && conversationsForList.length > 0) {
       setSelectedId(conversationsForList[0].id)
     }
     if (selectedId && !conversationsForList.some((item) => item.id === selectedId)) {
       setSelectedId(conversationsForList[0]?.id ?? null)
     }
-  }, [conversationsForList, selectedId, deepLinkId, isTodoMode, conversations])
+  }, [conversationsForList, selectedId, deepLinkId, conversations])
 
   useEffect(() => {
     setReplyContent("")
@@ -1779,30 +1755,6 @@ function InboxPageContent() {
           },
         ]
       : members
-
-  /**
-   * Lookup map for the To-do view — `<InboxTodoList>` resolves contact + channel labels for each
-   * todo's source conversation. Built off the same loaded conversations so we get full benefit of
-   * the existing fetch and don't double-query. When a todo references a conversation that's not
-   * in the loaded list (rare; archived/closed/trashed) the lookup returns undefined and the row
-   * gracefully degrades to "Linked to a conversation" via the source icon tooltip.
-   */
-  const contactsByConversationId = useMemo(() => {
-    const map: Record<string, { label: string | null; channelLabel: string | null }> = {}
-    for (const conversation of conversations) {
-      const contact = conversation.contact
-      const label =
-        contact?.nombre?.trim()
-        || contact?.empresa?.trim()
-        || contact?.email?.trim()
-        || null
-      map[conversation.id] = {
-        label,
-        channelLabel: channelLabel(conversation.channel, uiLocale),
-      }
-    }
-    return map
-  }, [conversations, uiLocale])
 
   const conversationItems = useMemo(() =>
     conversationsAfterUserFilters.map((conversation) => {
@@ -2466,8 +2418,8 @@ function InboxPageContent() {
    *  - Conversation id is required (the AI signal only exists inside a conversation).
    *  - Priority defaults to `normal` regardless of conversation urgency: the operator already
    *    decided this item is worth tracking, so we don't add urgency noise on top.
-   *  - When the operator is currently inside the To-do view (`isTodoMode`), bump the refresh
-   *    key so the new item appears immediately. Otherwise just show a brief feedback toast.
+   *  - Bumps `todosRefreshKey` so the per-conversation Triage counter reflects the new item,
+   *    and shows a brief feedback toast.
    */
   const handleCreateTodoFromPendingItem = useCallback(
     async (input: { text: string; sourceMessageId: string | null }): Promise<boolean> => {
@@ -2487,10 +2439,8 @@ function InboxPageContent() {
       }
       setTodoCaptureFeedback("To-do created from pending item")
       /**
-       * Bump `todosRefreshKey` unconditionally so the Triage Summary counter (which depends on
-       * it via a per-conversation fetch) refreshes even when the operator is not in
-       * `isTodoMode`. The workspace-wide `todos` loader is still gated by `isTodoMode` itself,
-       * so this bump is cheap when the To-do view isn't active.
+       * Bump `todosRefreshKey` so the Triage Summary counter (which depends on it via a
+       * per-conversation fetch) refreshes to include the new item.
        */
       setTodosRefreshKey((k) => k + 1)
       return true
@@ -2690,53 +2640,6 @@ function InboxPageContent() {
   }, [focusComposerTextarea, isMobileInboxViewport, mobileView, selected])
 
   /**
-   * Load To-dos when the operator switches to the To-do view. We use `status=open,waiting` (the
-   * MVP slice — neither `done` nor `dismissed` are surfaced) and bail early in non-todo mode to
-   * avoid an unnecessary request. `todosRefreshKey` is a manual bump after mutations or when the
-   * user clicks the refresh icon; we don't poll because the list is short-lived per session.
-   */
-  useEffect(() => {
-    if (!isTodoMode) {
-      /** Reset todo selection when leaving the view so we don't reanchor on stale data. */
-      setSelectedTodoId(null)
-      return
-    }
-
-    let cancelled = false
-    setTodosLoading(true)
-    setTodosError(null)
-
-    fetch("/api/inbox/todos?status=open,waiting", { credentials: "same-origin" })
-      .then(async (response) => {
-        const json = await response.json().catch(() => ({}))
-        if (cancelled) return
-        if (!response.ok || !json?.success) {
-          const message =
-            (json && typeof json.error === "string" && json.error)
-            || "Could not load To-dos."
-          setTodosError(message)
-          setTodos([])
-          return
-        }
-        const data = Array.isArray(json.data) ? (json.data as ClientInboxTodo[]) : []
-        setTodos(data)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        const message = err instanceof Error ? err.message : "Could not load To-dos."
-        setTodosError(message)
-        setTodos([])
-      })
-      .finally(() => {
-        if (!cancelled) setTodosLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isTodoMode, todosRefreshKey])
-
-  /**
    * Triage Summary counter — load the per-conversation open To-do count whenever the active
    * conversation changes or `todosRefreshKey` bumps. The query is intentionally narrow
    * (`take=200` + scoped status) so this stays a tiny, idempotent number fetch even on busy
@@ -2772,111 +2675,6 @@ function InboxPageContent() {
       cancelled = true
     }
   }, [activeSelectedId, todosRefreshKey])
-
-  const handleRefreshTodos = useCallback(() => {
-    setTodosRefreshKey((k) => k + 1)
-  }, [])
-
-  /**
-   * Click on a To-do row.
-   *  - Linked to a conversation → push `?id=<conversationId>[&messageId=<sourceMessageId>]` so
-   *    the existing deep-link effect resolves the right pane. We KEEP `?filter=todo` so the
-   *    operator can return to the queue after dealing with one item.
-   *  - No conversation → just highlight the row. Phase 3 will add a detail pane for these.
-   * The optimistic `setSelectedId` keeps the UI snappy even if the source conversation isn't
-   * in the loaded conversations list (e.g. archived); the right pane fetches `/api/inbox/
-   * conversations/[id]` directly so it renders regardless of the list state.
-   */
-  const handleSelectTodo = useCallback(
-    (todo: ClientInboxTodo) => {
-      setSelectedTodoId(todo.id)
-      if (!todo.conversationId) return
-
-      const params = new URLSearchParams(searchParams.toString())
-      params.set("id", todo.conversationId)
-      if (todo.sourceMessageId) {
-        params.set("messageId", todo.sourceMessageId)
-      } else {
-        params.delete("messageId")
-      }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-      setSelectedId(todo.conversationId)
-      setMobileView("thread")
-    },
-    [pathname, router, searchParams],
-  )
-
-  /**
-   * Toggle done ↔ open. We optimistically update `todos` so the checkbox flips immediately;
-   * on failure we revert. Items moved to `done` stay visible until the next refresh — the
-   * operator may want to "undo" without scrolling away.
-   */
-  const handleToggleTodoDone = useCallback(
-    async (todo: ClientInboxTodo) => {
-      const nextStatus: ClientInboxTodo["status"] = todo.status === "done" ? "open" : "done"
-      const previous = todos
-      setBusyTodoId(todo.id)
-      setTodos((items) =>
-        items.map((item) => (item.id === todo.id ? { ...item, status: nextStatus } : item)),
-      )
-
-      try {
-        const response = await fetch(`/api/inbox/todos/${todo.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ status: nextStatus }),
-        })
-        const json = await response.json().catch(() => ({}))
-        if (!response.ok || !json?.success) {
-          throw new Error(typeof json?.error === "string" ? json.error : "Update failed")
-        }
-        if (json.data && typeof json.data === "object") {
-          const updated = json.data as ClientInboxTodo
-          setTodos((items) => items.map((item) => (item.id === updated.id ? updated : item)))
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("[inbox:todo] toggle done failed", err)
-        }
-        setTodos(previous)
-      } finally {
-        setBusyTodoId(null)
-      }
-    },
-    [todos],
-  )
-
-  /**
-   * Dismiss removes the To-do from the local list immediately. The backend keeps the record
-   * (status=dismissed) so it can be audited or undismissed via API later. No UI restore in MVP
-   * — the operator can re-create from the source signal in Phase 3.
-   */
-  const handleDismissTodo = useCallback(async (todo: ClientInboxTodo) => {
-    setBusyTodoId(todo.id)
-    const previous = todos
-    setTodos((items) => items.filter((item) => item.id !== todo.id))
-
-    try {
-      const response = await fetch(`/api/inbox/todos/${todo.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ status: "dismissed" }),
-      })
-      const json = await response.json().catch(() => ({}))
-      if (!response.ok || !json?.success) {
-        throw new Error(typeof json?.error === "string" ? json.error : "Dismiss failed")
-      }
-    } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("[inbox:todo] dismiss failed", err)
-      }
-      setTodos(previous)
-    } finally {
-      setBusyTodoId(null)
-    }
-  }, [todos])
 
   /**
    * Click en un intent expandido (columna izquierda):
@@ -3472,7 +3270,6 @@ function InboxPageContent() {
             onUrgencyFilterChange={setUrgencyFilter}
             assignmentFilter={assignmentFilter}
             onAssignmentFilterChange={setAssignmentFilter}
-            isTodoMode={isTodoMode}
           />
           {/*
            * Workspace taxonomy chips. Renders only when the active workspace
@@ -3483,12 +3280,10 @@ function InboxPageContent() {
            * filters the conversation list by `Conversation.category` (set
            * manually via `<ConversationCategoryEditor>` on the thread).
            */}
-          {!isTodoMode ? (
-            <InboxTaxonomyChips
-              selected={categoryFilter}
-              onSelectedChange={setCategoryFilter}
-            />
-          ) : null}
+          <InboxTaxonomyChips
+            selected={categoryFilter}
+            onSelectedChange={setCategoryFilter}
+          />
           {/*
            * Layout-mode switcher (PR2). Desktop-only (xl+) — layout modes don't apply to the
            * mobile list↔thread flow. Right-aligned, low-profile chrome above the grid.
@@ -3571,8 +3366,7 @@ function InboxPageContent() {
                   /**
                    * Fetch diagnostic banner — replaces the silent toast pattern. Sticky for
                    * error/warning levels (operator must dismiss or run another fetch); auto-
-                   * clears for success/info via the useEffect timer. Always visible regardless
-                   * of `isTodoMode` so the operator sees diagnostics even from the To-do view.
+                   * clears for success/info via the useEffect timer.
                    */
                   <div
                     className={cn(
@@ -3608,7 +3402,7 @@ function InboxPageContent() {
                     </button>
                   </div>
                 ) : null}
-                {inboxTerminalRescueActive && !isTodoMode ? (
+                {inboxTerminalRescueActive ? (
                   <div
                     className="shrink-0 border-b border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-snug text-[var(--inbox-list-text-secondary)]"
                     role="status"
@@ -3627,38 +3421,23 @@ function InboxPageContent() {
                     </span>
                   </div>
                 ) : null}
-                {isTodoMode ? (
-                  <InboxTodoList
-                    todos={todos}
-                    loading={todosLoading}
-                    errorMessage={todosError}
-                    selectedId={selectedTodoId}
-                    contactsByConversationId={contactsByConversationId}
-                    busyTodoId={busyTodoId}
-                    onSelect={handleSelectTodo}
-                    onToggleDone={handleToggleTodoDone}
-                    onDismiss={handleDismissTodo}
-                    onRefresh={handleRefreshTodos}
-                  />
-                ) : (
-                  <ConversationList
-                    loading={loading}
-                    errorMessage={listErrorMessage}
-                    conversations={conversationItems}
-                    selectedId={activeSelectedId}
-                    expandedConversationId={expandedConversationId}
-                    onToggleConversationExpand={handleToggleConversationExpand}
-                    messageShortIntentsById={messageShortIntentsById}
-                    messageIntentsLoadingId={messageIntentsLoadingId}
-                    onIntentSelect={handleSelectIntent}
-                    assignmentFilter={assignmentFilter}
-                    onSelect={handleSelectConversation}
-                    hasMore={hasMore}
-                    loadingMore={loadingMore}
-                    activeSearchTerm={debouncedSearch || undefined}
-                    onLoadMore={loadMore}
-                  />
-                )}
+                <ConversationList
+                  loading={loading}
+                  errorMessage={listErrorMessage}
+                  conversations={conversationItems}
+                  selectedId={activeSelectedId}
+                  expandedConversationId={expandedConversationId}
+                  onToggleConversationExpand={handleToggleConversationExpand}
+                  messageShortIntentsById={messageShortIntentsById}
+                  messageIntentsLoadingId={messageIntentsLoadingId}
+                  onIntentSelect={handleSelectIntent}
+                  assignmentFilter={assignmentFilter}
+                  onSelect={handleSelectConversation}
+                  hasMore={hasMore}
+                  loadingMore={loadingMore}
+                  activeSearchTerm={debouncedSearch || undefined}
+                  onLoadMore={loadMore}
+                />
               </>
             )}
           </div>
