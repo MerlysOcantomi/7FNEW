@@ -20,6 +20,8 @@ import {
 import type { WorkspaceStatus } from "@core/system/workspace-status"
 import { WorkspacePlanEditor } from "@/components/system/workspace-plan-editor"
 import { WorkspaceStatusEditor } from "@/components/system/workspace-status-editor"
+import { WorkspaceVerticalEditor } from "@/components/system/workspace-vertical-editor"
+import { listVerticals } from "@core/verticals"
 
 export const dynamic = "force-dynamic"
 
@@ -58,6 +60,21 @@ export default async function SystemWorkspaceDetailPage({
    * of actions that would silently 403 on submit.
    */
   const canMutate = platformRole === "SUPER_ADMIN" || platformRole === "ADMIN"
+
+  /**
+   * Active verticals for the selector. `vertical` and `verticalKey` are written
+   * together by `setWorkspaceVertical`, so `workspace.vertical` holds the key.
+   * If the current key isn't in the active list (e.g. an unknown/legacy key),
+   * prepend it so the select stays consistent with the actual stored value.
+   */
+  const currentVerticalKey = workspace.vertical ?? "creative-agency"
+  const verticalOptions = (await listVerticals({ activeOnly: true })).map((v) => ({
+    key: v.key,
+    name: v.name,
+  }))
+  if (!verticalOptions.some((o) => o.key === currentVerticalKey)) {
+    verticalOptions.unshift({ key: currentVerticalKey, name: currentVerticalKey })
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -122,6 +139,13 @@ export default async function SystemWorkspaceDetailPage({
         workspaceId={workspace.id}
         plan={plan}
         vertical={workspace.vertical}
+        canMutate={canMutate}
+      />
+
+      <VerticalCard
+        workspaceId={workspace.id}
+        currentVerticalKey={currentVerticalKey}
+        verticals={verticalOptions}
         canMutate={canMutate}
       />
 
@@ -385,6 +409,42 @@ function PlanCard({
         plan no factura ni reasigna módulos automáticamente fuera de su
         nueva definición.
       </p>
+    </section>
+  )
+}
+
+/**
+ * "Vertical & experience" card. Lets a PlatformAdmin change the workspace's
+ * vertical (reusing `setWorkspaceVertical` via `PATCH
+ * /api/system/workspaces/[id]/vertical`) and previews the resolved vertical
+ * experience. Per-workspace module toggles are intentionally NOT here — they
+ * live in `/administracion`.
+ */
+function VerticalCard({
+  workspaceId,
+  currentVerticalKey,
+  verticals,
+  canMutate,
+}: {
+  workspaceId: string
+  currentVerticalKey: string
+  verticals: { key: string; name: string }[]
+  canMutate: boolean
+}) {
+  return (
+    <section className="rounded-lg border border-amber-200/60 bg-white/60 p-4 dark:border-amber-900/30 dark:bg-amber-950/10">
+      <div className="mb-3 flex items-center gap-2 text-amber-900 dark:text-amber-100">
+        <Building2 size={14} />
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide">
+          Vertical &amp; experience
+        </h2>
+      </div>
+      <WorkspaceVerticalEditor
+        workspaceId={workspaceId}
+        currentVerticalKey={currentVerticalKey}
+        verticals={verticals}
+        canMutate={canMutate}
+      />
     </section>
   )
 }

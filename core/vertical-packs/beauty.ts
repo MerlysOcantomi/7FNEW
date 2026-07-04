@@ -100,13 +100,27 @@ export const BEAUTY_LABEL_OVERRIDES: Record<string, string> = {
   "billing.plural": "Cobros",
 }
 
+/** Theme keys for a vertical (data only; the theme foundation maps them to CSS later). */
+export interface VerticalThemeKeys {
+  default: string
+  available: string[]
+}
+
 export interface BeautyPack {
   verticalKey: string
   name: string
+  /** Brand-facing vertical name, e.g. "7F Beauty". */
+  verticalName: string
   description: string
   locale: string
   businessType: string
   navProfileId: string
+  /** Theme keys as DATA — consumed by the future theme foundation, not applied here. */
+  themes: VerticalThemeKeys
+  /** Recommended messaging channels for this vertical (data). */
+  channels: string[]
+  /** Modules this vertical recommends (data; the actual toggle lives in workspace config). */
+  recommendedModules: string[]
   today: {
     /** Declared operating model for Today. */
     mode: "appointment_first"
@@ -133,11 +147,15 @@ export interface BeautyPack {
 export const BEAUTY_PACK: BeautyPack = {
   verticalKey: "beauty",
   name: "Beauty",
+  verticalName: "7F Beauty",
   description:
     "Manicura, estética, peluquería, lashes, masajes, barbería y pequeños salones beauty",
   locale: "es",
   businessType: "beauty",
   navProfileId: "beauty",
+  themes: { default: "rose-nude", available: ["rose-nude", "sage-luxe", "noir-or"] },
+  channels: ["whatsapp", "instagram", "email"],
+  recommendedModules: ["calendar", "clients", "messages", "marketing", "catalog", "services"],
   today: {
     mode: "appointment_first",
     activateRealForRealWorkspaces: false,

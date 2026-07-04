@@ -7,6 +7,7 @@ import {
   type WorkspaceBusinessProfile,
 } from "@core/verticals"
 import { resolveLocaleFromConfig, type SupportedLocale } from "@core/i18n"
+import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 
 // ---------------------------------------------------------------------------
 // Workspace Agent Context — resolved per workspace for Fanny and future agents
@@ -272,7 +273,12 @@ export async function getWorkspaceWithResolvedConfig(workspaceId: string) {
 
   const locale: SupportedLocale = resolveLocaleFromConfig(ws.config)
 
-  return { ...ws, resolvedConfig, locale }
+  // Resolved vertical experience (pure, DB-free) — the shared foundation the
+  // /system selector and a future Mr Forte flow read. Does not enable anything
+  // by itself; todayMode/theme keys are data.
+  const experience = resolveWorkspaceExperience(ws.verticalKey)
+
+  return { ...ws, resolvedConfig, locale, experience }
 }
 
 export async function updateWorkspaceConfig(
