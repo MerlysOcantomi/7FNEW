@@ -495,6 +495,244 @@
   --agent-rose-soft: rgba(178, 92, 130, 0.12);
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   BEAUTY VERTICAL PALETTES — foundation values (v1)
+
+   Dormant, opt-in palettes for the 7F Beauty vertical, added the same way as
+   [data-theme="lavender-mist"]: they override token VALUES ONLY (no new
+   --beauty-* tokens, no @theme changes, no dark: variants). Everything derived
+   (--background, --card, --surface-*, --status-* bg, scrollbar, @theme
+   utilities) cascades for free, so any token-driven surface — including the
+   fully-tokenised Beauty "Hoy" — restyles automatically.
+
+   These HEX are ACCESSIBLE FOUNDATION VALUES (v1), all key text/surface pairs
+   verified ≥ WCAG AA (see docs/theme-token-map.md). They are refinable with
+   Claude Design without touching any component.
+
+   Activation is opt-in ONLY (nothing auto-applies): ?theme=rose-nude |
+   sage-luxe | noir-or, or the theme toggle. Midnight stays the default; #16–#19
+   behavior is unchanged.
+
+   Intent:
+     rose-nude → Beauty / Premium default (warm ivory + dusty rose; --agent-rose
+                 aligned to the palette so Finesse identity moves with it)
+     sage-luxe → wellness / natural / spa / calm (sage + greige, light)
+     noir-or   → luxury / glam / high-end salon (near-black + gold, dark)
+   ════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="rose-nude"] {
+  /* — Surfaces: warm ivory canvas → blush ramp — */
+  --app-canvas: #FBF6F2;
+  --app-sidebar: #EFDED8;
+  --app-sidebar-surface: #F7EAE4;
+  --app-surface-dark: #FDF9F6;
+  --app-surface-dark-elevated: #FFFFFF;
+  --app-surface-dark-hover: #F3E5DF;
+
+  /* — Accent: dusty rose, deepened for AA text on light — */
+  --accent-primary: #C15E7B;
+  --accent-primary-hover: #AC4E6B;
+  --accent-on-dark: #9A3350;
+  --accent-muted: rgba(193, 94, 123, 0.14);
+  --accent-muted-border: rgba(193, 94, 123, 0.32);
+  --accent-soft: #F6E6EB;
+  --accent-rich: #6E2438;
+
+  /* — Text: cocoa / taupe on light — */
+  --text-primary-light: #33262A;
+  --text-secondary-light: #6B565B;
+  --text-tertiary-light: #8F7A7F;
+
+  /* — Borders: champagne line — */
+  --border-dark: rgba(51, 38, 42, 0.10);
+  --border-dark-strong: rgba(51, 38, 42, 0.17);
+  --app-shadow-subtle: 0 4px 14px rgba(88, 42, 55, 0.08);
+
+  /* — Shell overlays flip white→ink on light — */
+  --app-surface-subtle: rgba(51, 38, 42, 0.04);
+  --app-surface-hover: rgba(51, 38, 42, 0.05);
+  --app-surface-active: rgba(51, 38, 42, 0.08);
+
+  /* — Status: deepen text for contrast on light — */
+  --status-danger-text: #C2454A;
+  --status-warning-text: #B07D24;
+  --status-success-text: #3E8E5E;
+
+  /* — Inbox component tokens (the rest derive) — */
+  --inbox-list-background: #FBF3EF;
+  --inbox-intelligence-background: #FBF3EF;
+  --inbox-chat-background: #F2E3DD;
+  --inbox-chat-bubble-inbound: #FFFFFF;
+  --inbox-chat-bubble-inbound-hover: #FBF4F1;
+  --inbox-chat-bubble-inbound-border: rgba(51, 38, 42, 0.08);
+  --inbox-composer-input: #FFFFFF;
+  --inbox-composer-toolbar: rgba(51, 38, 42, 0.04);
+  --inbox-chat-meta-outbound-bg: #F6E6EB;
+  --inbox-chat-meta-outbound-border: #E6C9D2;
+  --inbox-chat-meta-outbound-text: #6E2438;
+  --inbox-border: rgba(51, 38, 42, 0.12);
+  --inbox-divider: rgba(51, 38, 42, 0.08);
+  --inbox-info: #2E6FD6;
+  --inbox-lead: #C8860F;
+  --inbox-urgency: #D14A4F;
+  --inbox-focus: #9A3350;
+  --inbox-urgent-color: #D14A4F;
+  --inbox-waiting-color: #9A7B2E;
+  --inbox-done-color: #3E8E5E;
+  --inbox-archive-color: #8A6F75;
+  --inbox-unread-color: #C15E7B;
+  --inbox-destructive: #D14A4F;
+  --inbox-success: #3E8E5E;
+  --inbox-warning: #B07D24;
+
+  /* — Agent identity: align --agent-rose with the Rose Nude accent — */
+  --agent-teal: #2F8F7A;
+  --agent-teal-soft: rgba(47, 143, 122, 0.12);
+  --agent-rose: #B4536E;
+  --agent-rose-soft: rgba(180, 83, 110, 0.14);
+}
+
+[data-theme="sage-luxe"] {
+  /* — Surfaces: sage / greige ramp (wellness, calm) — */
+  --app-canvas: #F3F5F0;
+  --app-sidebar: #DBE4D7;
+  --app-sidebar-surface: #E9EFE5;
+  --app-surface-dark: #F8FAF6;
+  --app-surface-dark-elevated: #FFFFFF;
+  --app-surface-dark-hover: #E6EDE1;
+
+  /* — Accent: sage green, deepened for AA text on light — */
+  --accent-primary: #5E8C5E;
+  --accent-primary-hover: #4F7C50;
+  --accent-on-dark: #3B6B43;
+  --accent-muted: rgba(94, 140, 94, 0.14);
+  --accent-muted-border: rgba(94, 140, 94, 0.32);
+  --accent-soft: #E6F0E4;
+  --accent-rich: #2F5233;
+
+  /* — Text: green-charcoal on light — */
+  --text-primary-light: #24302A;
+  --text-secondary-light: #52605A;
+  --text-tertiary-light: #7A857F;
+
+  /* — Borders — */
+  --border-dark: rgba(36, 48, 42, 0.10);
+  --border-dark-strong: rgba(36, 48, 42, 0.17);
+  --app-shadow-subtle: 0 4px 14px rgba(40, 60, 45, 0.08);
+
+  --app-surface-subtle: rgba(36, 48, 42, 0.04);
+  --app-surface-hover: rgba(36, 48, 42, 0.05);
+  --app-surface-active: rgba(36, 48, 42, 0.08);
+
+  --status-danger-text: #C2454A;
+  --status-warning-text: #B07D24;
+  --status-success-text: #3E8E5E;
+
+  --inbox-list-background: #F6F8F3;
+  --inbox-intelligence-background: #F6F8F3;
+  --inbox-chat-background: #E8EFE4;
+  --inbox-chat-bubble-inbound: #FFFFFF;
+  --inbox-chat-bubble-inbound-hover: #F4F8F1;
+  --inbox-chat-bubble-inbound-border: rgba(36, 48, 42, 0.08);
+  --inbox-composer-input: #FFFFFF;
+  --inbox-composer-toolbar: rgba(36, 48, 42, 0.04);
+  --inbox-chat-meta-outbound-bg: #E6F0E4;
+  --inbox-chat-meta-outbound-border: #CFE0CC;
+  --inbox-chat-meta-outbound-text: #2F5233;
+  --inbox-border: rgba(36, 48, 42, 0.12);
+  --inbox-divider: rgba(36, 48, 42, 0.08);
+  --inbox-info: #2E6FD6;
+  --inbox-lead: #C8860F;
+  --inbox-urgency: #D14A4F;
+  --inbox-focus: #3B6B43;
+  --inbox-urgent-color: #D14A4F;
+  --inbox-waiting-color: #9A7B2E;
+  --inbox-done-color: #3E8E5E;
+  --inbox-archive-color: #6F7A70;
+  --inbox-unread-color: #5E8C5E;
+  --inbox-destructive: #D14A4F;
+  --inbox-success: #3E8E5E;
+  --inbox-warning: #B07D24;
+
+  /* — Agent identity (light) — */
+  --agent-teal: #2F8F7A;
+  --agent-teal-soft: rgba(47, 143, 122, 0.12);
+  --agent-rose: #B25C82;
+  --agent-rose-soft: rgba(178, 92, 130, 0.12);
+}
+
+[data-theme="noir-or"] {
+  /* — Surfaces: near-black warm ramp (luxury, dark) — */
+  --app-canvas: #14110D;
+  --app-sidebar: #1B1712;
+  --app-sidebar-surface: #241E17;
+  --app-surface-dark: #1A160F;
+  --app-surface-dark-elevated: #221C14;
+  --app-surface-dark-hover: #2A2218;
+
+  /* — Accent: gold / champagne on dark — */
+  --accent-primary: #C9A24B;
+  --accent-primary-hover: #D8B45B;
+  --accent-on-dark: #E7C878;
+  --accent-muted: rgba(201, 162, 75, 0.16);
+  --accent-muted-border: rgba(201, 162, 75, 0.34);
+  --accent-soft: #2A2214;
+  --accent-rich: #E7C878;
+
+  /* — Text: warm champagne on dark (the *-light tokens stay light here) — */
+  --text-primary-light: #F4ECDA;
+  --text-secondary-light: #CBBDA1;
+  --text-tertiary-light: #9C8F76;
+
+  /* — Borders: warm gold-tinted, subtle on dark — */
+  --border-dark: rgba(233, 219, 190, 0.12);
+  --border-dark-strong: rgba(233, 219, 190, 0.20);
+  --app-shadow-subtle: 0 8px 28px rgba(0, 0, 0, 0.5);
+
+  /* — Shell overlays: white on dark — */
+  --app-surface-subtle: rgba(255, 255, 255, 0.04);
+  --app-surface-hover: rgba(255, 255, 255, 0.06);
+  --app-surface-active: rgba(255, 255, 255, 0.10);
+
+  /* — Status: bright tones legible on dark — */
+  --status-danger-text: #E5807F;
+  --status-warning-text: #E0B84D;
+  --status-success-text: #7FBF97;
+
+  /* — Inbox: dark warm surfaces — */
+  --inbox-list-background: #17130D;
+  --inbox-intelligence-background: #17130D;
+  --inbox-chat-background: #14110D;
+  --inbox-chat-bubble-inbound: #221C14;
+  --inbox-chat-bubble-inbound-hover: #2A2218;
+  --inbox-chat-bubble-inbound-border: rgba(233, 219, 190, 0.10);
+  --inbox-composer-input: #221C14;
+  --inbox-composer-toolbar: rgba(255, 255, 255, 0.04);
+  --inbox-chat-meta-outbound-bg: #2A2214;
+  --inbox-chat-meta-outbound-border: rgba(201, 162, 75, 0.30);
+  --inbox-chat-meta-outbound-text: #E7C878;
+  --inbox-border: rgba(233, 219, 190, 0.12);
+  --inbox-divider: rgba(233, 219, 190, 0.08);
+  --inbox-info: #7FA8E6;
+  --inbox-lead: #E0B84D;
+  --inbox-urgency: #E5807F;
+  --inbox-focus: #E7C878;
+  --inbox-urgent-color: #E5807F;
+  --inbox-waiting-color: #D9B968;
+  --inbox-done-color: #7FBF97;
+  --inbox-archive-color: #9C8F76;
+  --inbox-unread-color: #E7C878;
+  --inbox-destructive: #E5807F;
+  --inbox-success: #7FBF97;
+  --inbox-warning: #E0B84D;
+
+  /* — Agent identity (dark) — */
+  --agent-teal: #5FC7AE;
+  --agent-teal-soft: rgba(95, 199, 174, 0.16);
+  --agent-rose: #E79FB8;
+  --agent-rose-soft: rgba(231, 159, 184, 0.16);
+}
+
 /* ── Inbox Overview — Fanny presence (decorative orb rings + waveform) ── */
 @keyframes inbox-orb-ring {
   0% { transform: scale(0.82); opacity: 0.5; }
