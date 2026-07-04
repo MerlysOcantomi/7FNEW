@@ -1,15 +1,23 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
-import { requireAdminInWorkspace } from "@/lib/auth/workspace-auth"
+import { requirePlatformAdmin } from "@/lib/auth/platform-auth"
 import { getWorkspaceWithResolvedConfig, updateWorkspaceConfig } from "@/lib/workspace"
 import { parseJsonConfig } from "@/lib/verticals"
 
 type Params = { params: Promise<{ id: string }> }
 
+/**
+ * Enable/disable a workspace module.
+ *
+ * Governance: module enablement is a PLATFORM-ADMIN control (plan/billing-gated
+ * structural config), never a tenant self-service switch. A workspace admin
+ * consumes what their plan enables; they cannot flip modules here. Guarded by
+ * `requirePlatformAdmin()`.
+ */
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    await requireAdminInWorkspace(id)
+    await requirePlatformAdmin()
 
     const body = await request.json()
     const { moduleKey, enabled } = body as { moduleKey?: string; enabled?: boolean }
