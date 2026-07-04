@@ -68,10 +68,15 @@ export function TodayPageClient() {
   // with a "Vista previa · datos de ejemplo" chip). Only beauty auto-switches;
   // every other vertical stays on work_first. The `?todayLayout=` override still
   // works for internal preview of the generic (English) appointment layout.
-  const beauty = resolveBeautyTodayConfig(workspace?.verticalKey)
+  // Preview override: `?vertical=beauty` forces the Beauty "Hoy" on any
+  // workspace, so the screen is demoable on a Vercel preview without flipping a
+  // workspace's verticalKey first. Real behavior still comes from the workspace.
+  const forcedBeauty = searchParams.get("vertical") === "beauty"
+  const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
+  const beauty = resolveBeautyTodayConfig(effectiveVerticalKey)
   const mode = resolveTodayLayoutMode({
     override: searchParams.get("todayLayout"),
-    verticalKey: workspace?.verticalKey,
+    verticalKey: effectiveVerticalKey,
     enableVerticalAutoSwitch: !!beauty,
   })
 
