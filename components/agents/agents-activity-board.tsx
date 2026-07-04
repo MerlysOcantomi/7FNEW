@@ -24,10 +24,16 @@ import {
   AGENT_ROSTER,
   SPECIALIST_ROSTER,
   autonomyLabel,
+  getVerticalSpecialists,
   projectAgentLiveStates,
   type AgentLiveState,
   type AgentRosterEntry,
 } from "@modules/agents/roster"
+import {
+  resolveVerticalSpecialist,
+  type VerticalSpecialistAgent,
+} from "@core/vertical-packs/specialists"
+import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { ACCENT, agentIcon, fmtClock, relativeTime, statusVisual } from "./agent-visuals"
 import { AgentDetailDrawer } from "./agent-detail-drawer"
 
@@ -73,7 +79,18 @@ export function AgentsActivityBoard() {
     [liveStates],
   )
 
-  const openEntry = openId ? AGENT_ROSTER.find((a) => a.id === openId) ?? null : null
+  // Vertical specialist (e.g. Finesse for beauty) — leads the vertical, layered
+  // in additively per workspace, never part of AGENT_ROSTER.
+  const { workspace } = useActiveWorkspace()
+  const verticalKey = workspace?.verticalKey ?? null
+  const specialist = useMemo(() => resolveVerticalSpecialist(verticalKey), [verticalKey])
+  const specialistEntries = useMemo(() => getVerticalSpecialists(verticalKey), [verticalKey])
+
+  const openEntry = openId
+    ? AGENT_ROSTER.find((a) => a.id === openId) ??
+      specialistEntries.find((a) => a.id === openId) ??
+      null
+    : null
 
   const scrollToRail = useCallback(() => {
     document.getElementById("agents-decision-rail")?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -104,7 +121,14 @@ export function AgentsActivityBoard() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <RosterGrid liveStates={liveStates} now={now} onOpen={setOpenId} onReview={scrollToRail} />
+          <RosterGrid
+            liveStates={liveStates}
+            now={now}
+            onOpen={setOpenId}
+            onReview={scrollToRail}
+            specialists={specialistEntries}
+            brand={specialist}
+          />
           <LiveActivity items={lanes.executed} now={now} />
         </div>
         <DecisionRail lanes={lanes} counts={counts} />
@@ -310,18 +334,41 @@ function RosterGrid({
   now,
   onOpen,
   onReview,
+  specialists,
+  brand,
 }: {
   liveStates: Record<string, AgentLiveState>
   now: Date | null
   onOpen: (id: string) => void
   onReview: () => void
+  /** Vertical specialists that lead this workspace's vertical (0 or 1 today). */
+  specialists: AgentRosterEntry[]
+  /** The vertical specialist spec, for the brand line (e.g. Finesse for beauty). */
+  brand: VerticalSpecialistAgent | null
 }) {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary-light)]">Your agents · live</span>
-        <span className="text-[11px] text-[var(--text-tertiary-light)]">6 specialists + Francis</span>
+        <span className="text-[11px] text-[var(--text-tertiary-light)]">
+          {brand ? brand.tagline : "6 specialists + Francis"}
+        </span>
       </div>
+      {specialists.length > 0 ? (
+        <div className="mb-3 flex flex-col gap-3">
+          {specialists.map((entry) => (
+            <AgentCard
+              key={entry.id}
+              entry={entry}
+              live={liveStates[entry.id] ?? FALLBACK_LIVE}
+              now={now}
+              onOpen={() => onOpen(entry.id)}
+              onReview={onReview}
+              lead
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {SPECIALIST_ROSTER.map((entry) => (
           <AgentCard
@@ -344,17 +391,21 @@ function AgentCard({
   now,
   onOpen,
   onReview,
+  lead = false,
 }: {
   entry: AgentRosterEntry
   live: AgentLiveState
   now: Date | null
   onOpen: () => void
   onReview: () => void
+  /** Vertical lead (e.g. Finesse) — emphasized accent without implying "working". */
+  lead?: boolean
 }) {
   const tokens = ACCENT[entry.accent]
   const Icon = agentIcon(entry.id)
   const sv = statusVisual(live.status)
   const working = live.status === "working"
+  const emphasize = working || lead
 
   return (
     <article
@@ -372,9 +423,9 @@ function AgentCard({
         "group relative cursor-pointer overflow-hidden rounded-[15px] border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
         working ? "bg-[var(--app-surface-dark-hover)]" : "bg-[var(--app-surface-dark)] hover:bg-[var(--app-surface-dark-elevated)]",
       )}
-      style={{ borderColor: working ? tokens.border : "var(--border-dark)" }}
+      style={{ borderColor: emphasize ? tokens.border : "var(--border-dark)" }}
     >
-      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[2px]" style={{ background: tokens.fg, opacity: working ? 0.9 : 0.35 }} />
+      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[2px]" style={{ background: tokens.fg, opacity: emphasize ? 0.9 : 0.35 }} />
 
       <div className="flex items-start gap-3">
         <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]" style={{ background: tokens.soft, color: tokens.fg }}>

@@ -35,5 +35,6 @@ export type BusinessType =
   | "clinic"
   | "creator"
   | "service"
+  | "beauty"
 
 export type VocabularyOverrides = Partial<Record<EntityKey, Partial<EntityLabel>>>

@@ -1,5 +1,6 @@
 import { PrismaLibSql } from "@prisma/adapter-libsql"
 import { PrismaClient } from "../generated/prisma/client"
+import { buildBeautyDefaultConfig } from "../core/vertical-packs/beauty"
 
 const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
 if (!dbUrl) throw new Error("DATABASE_URL or TURSO_DATABASE_URL must be set")
@@ -133,6 +134,16 @@ async function seedVerticals() {
           },
         },
       }),
+    },
+    {
+      // 7F Beauty vertical pack. defaultConfig is built from the single source
+      // of truth in core/vertical-packs/beauty.ts so the DB row and the in-code
+      // pack can never drift.
+      key: "beauty",
+      name: "Beauty",
+      description:
+        "Manicura, estética, peluquería, lashes, masajes, barbería y pequeños salones beauty",
+      defaultConfig: buildBeautyDefaultConfig(),
     },
   ]
 

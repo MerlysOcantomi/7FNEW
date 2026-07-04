@@ -98,6 +98,14 @@ const VERTICAL_KEY_TO_BUSINESS_TYPE: Record<string, BusinessType> = {
   school: "school",
   clinic: "clinic",
   service: "service",
+  beauty: "beauty",
+  salon: "beauty",
+  nails: "beauty",
+  barber: "beauty",
+  barbershop: "beauty",
+  spa: "beauty",
+  lashes: "beauty",
+  estetica: "beauty",
 }
 
 export function mapVerticalKeyToBusinessType(verticalKey: string): BusinessType {

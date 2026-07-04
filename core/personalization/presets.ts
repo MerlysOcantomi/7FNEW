@@ -49,4 +49,23 @@ export const BUSINESS_PRESETS: Record<BusinessType, VocabularyOverrides> = {
     invoice:    { singular: "Invoice",    plural: "Invoices" },
     campaign:   { singular: "Initiative", plural: "Initiatives" },
   },
+
+  /**
+   * Beauty — salons, nails, lashes, aesthetics, barbershops. Spanish (España)
+   * first, because 7F Beauty launches in Spain. Feminine "Clienta/Clientas"
+   * matches the sector; a barbershop workspace can still override via
+   * VerticalConfig.ui.labels.
+   */
+  beauty: {
+    client:     { singular: "Clienta",  plural: "Clientas" },
+    project:    { singular: "Servicio", plural: "Servicios" },
+    task:       { singular: "Pendiente", plural: "Pendientes" },
+    invoice:    { singular: "Cobro",    plural: "Cobros" },
+    billing:    { singular: "Cobro",    plural: "Cobros" },
+    document:   { singular: "Foto",     plural: "Fotos" },
+    campaign:   { singular: "Promoción", plural: "Promociones" },
+    member:     { singular: "Equipo",   plural: "Equipo" },
+    calendar:   { singular: "Agenda",   plural: "Agenda" },
+    inbox:      { singular: "Mensajes", plural: "Mensajes" },
+  },
 }
