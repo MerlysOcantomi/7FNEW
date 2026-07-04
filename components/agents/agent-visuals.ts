@@ -1,6 +1,7 @@
 import {
   Boxes,
   DollarSign,
+  Gem,
   type LucideIcon,
   MessageSquare,
   Megaphone,
@@ -65,6 +66,8 @@ export const AGENT_ICON: Record<string, LucideIcon> = {
   fiona: Users,
   felix: DollarSign,
   fathom: Telescope,
+  // Vertical specialists
+  finesse: Gem,
 }
 
 export function agentIcon(id: string): LucideIcon {

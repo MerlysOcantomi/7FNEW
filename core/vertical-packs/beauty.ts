@@ -19,6 +19,8 @@
  *     appointment backend exists. No real operator is shown demo bookings.
  */
 
+import { BEAUTY_SPECIALIST_AGENT, type VerticalSpecialistAgent } from "./specialists"
+
 /** A seed service for the Beauty service catalog (duration/price added later). */
 export interface BeautyServiceSeed {
   name: string
@@ -120,6 +122,12 @@ export interface BeautyPack {
   labels: Record<string, string>
   serviceCatalog: BeautyServiceSeed[]
   appointmentStateLabels: Record<string, string>
+  /**
+   * The vertical specialist that leads this vertical's experience (Finesse for
+   * Beauty). Optional so existing consumers/tests stay valid. Branding only —
+   * not serialized into `Vertical.defaultConfig` (like `name`/`description`).
+   */
+  specialistAgent?: VerticalSpecialistAgent
 }
 
 export const BEAUTY_PACK: BeautyPack = {
@@ -138,6 +146,7 @@ export const BEAUTY_PACK: BeautyPack = {
   labels: BEAUTY_LABEL_OVERRIDES,
   serviceCatalog: BEAUTY_SERVICE_CATALOG_SEED,
   appointmentStateLabels: BEAUTY_APPOINTMENT_STATE_LABELS,
+  specialistAgent: BEAUTY_SPECIALIST_AGENT,
 }
 
 /**

@@ -18,6 +18,10 @@ import {
   BEAUTY_SERVICE_CATALOG_SEED,
   type BeautyServiceSeed,
 } from "@core/vertical-packs/beauty"
+import {
+  BEAUTY_SPECIALIST_AGENT,
+  type VerticalSpecialistAgent,
+} from "@core/vertical-packs/specialists"
 
 /** How autonomous a proposed step is allowed to be. */
 export type ForteAutonomy =
@@ -58,6 +62,11 @@ export interface ForteVerticalPlaybook {
   steps: ForteStep[]
   /** Guidance strings Forte uses to stay calm and non-overwhelming. */
   principles: string[]
+  /**
+   * The vertical specialist that leads this vertical (Finesse for Beauty).
+   * Optional so the registry/resolver in `index.ts` stay untouched.
+   */
+  specialistAgent?: VerticalSpecialistAgent
 }
 
 export const BEAUTY_FORTE_PLAYBOOK: ForteVerticalPlaybook = {
@@ -140,5 +149,8 @@ export const BEAUTY_FORTE_PLAYBOOK: ForteVerticalPlaybook = {
     "Adaptarse si el usuario se atasca: ofrecer valores por defecto y continuar.",
     "Solo componer desde el catálogo declarado; nunca inventar módulos ni escribir código libre.",
     "No mostrar datos de ejemplo (mock) a una usuaria real como si fueran suyos.",
+    "Finesse lidera y contextualiza Beauty y coordina con los agentes core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) sin reemplazarlos: cada acción de un agente core sigue mostrando ese agente.",
   ],
+
+  specialistAgent: BEAUTY_SPECIALIST_AGENT,
 }

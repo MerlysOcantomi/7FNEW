@@ -1,4 +1,9 @@
 import type { AgentActivityItem, AgentsActivityLanes } from "./types"
+import {
+  resolveVerticalSpecialist,
+  VERTICAL_SPECIALISTS,
+  type VerticalSpecialistAgent,
+} from "@core/vertical-packs/specialists"
 
 /**
  * Agent roster — the static 7F AI team registry that the live `/agents`
@@ -47,6 +52,17 @@ export interface AgentRosterEntry {
   watching: string[]
   /** Static collaboration note (drawer "Works with the team"). */
   collaborationNote: string
+  /**
+   * Set only for a VERTICAL SPECIALIST (e.g. Finesse for beauty) — never on the
+   * 7 core agents. The specialist is layered in per workspace vertical, not part
+   * of `AGENT_ROSTER`.
+   */
+  verticalKey?: string
+  /**
+   * True for a vertical specialist that LEADS its vertical (distinct from
+   * `isLead`, which is Francis, the global lead).
+   */
+  isVerticalLead?: boolean
 }
 
 export const AGENT_ROSTER: readonly AgentRosterEntry[] = [
@@ -149,6 +165,50 @@ export const SPECIALIST_ROSTER: readonly AgentRosterEntry[] = AGENT_ROSTER.filte
 
 export function getRosterEntry(id: string): AgentRosterEntry | undefined {
   return AGENT_ROSTER.find((a) => a.id === id)
+}
+
+// ─── Vertical specialists (additive — the 7 core agents above never change) ───
+
+/**
+ * Map a vertical specialist spec (data owned by `core/vertical-packs`) into a
+ * roster entry so the agents surface can render it alongside — but separate
+ * from — the 7 core agents. `isVerticalLead` marks it as the leader of its
+ * vertical without touching the global lead (Francis) or `AGENT_ROSTER`.
+ */
+function specialistToRosterEntry(spec: VerticalSpecialistAgent): AgentRosterEntry {
+  return {
+    id: spec.id,
+    name: spec.name,
+    role: spec.shortLabel,
+    description: spec.description,
+    accent: spec.accent as AgentAccent,
+    autonomy: "suggest",
+    section: { label: "Hoy", href: "/today" },
+    active: false,
+    isLead: false,
+    isVerticalLead: true,
+    verticalKey: spec.verticalKey,
+    watching: ["El día del negocio", "Qué necesita tu atención", "Coordinación con el equipo"],
+    collaborationNote: spec.description,
+  }
+}
+
+/**
+ * Vertical specialist roster entries keyed by canonical verticalKey. Built from
+ * the `VERTICAL_SPECIALISTS` registry; adding a vertical there surfaces its
+ * specialist here with no change to the core roster.
+ */
+export const VERTICAL_SPECIALIST_ROSTER: Record<string, AgentRosterEntry[]> = Object.fromEntries(
+  Object.entries(VERTICAL_SPECIALISTS).map(([key, spec]) => [key, [specialistToRosterEntry(spec)]]),
+)
+
+/**
+ * The vertical specialists to show for a workspace's vertical (alias-aware, e.g.
+ * salon/nails → Finesse), or `[]` when the vertical has none.
+ */
+export function getVerticalSpecialists(verticalKey: string | null | undefined): AgentRosterEntry[] {
+  const spec = resolveVerticalSpecialist(verticalKey)
+  return spec ? [specialistToRosterEntry(spec)] : []
 }
 
 /** Product-facing autonomy chip label. */
