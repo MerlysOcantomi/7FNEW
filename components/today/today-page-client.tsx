@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils"
 import { useSearchParams } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
+import { resolveBeautyTodayConfig } from "@modules/today/beauty-today"
+import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
 import { TodayJobRouteLayout } from "./today-job-route-layout"
 import { TodaySessionLayout } from "./today-session-layout"
@@ -61,16 +63,33 @@ import {
 export function TodayPageClient() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
+
+  // Beauty is the first vertical with a visible verticalized Today. The REAL
+  // source of truth is the workspace: `workspace.verticalKey` →
+  // `resolveWorkspaceExperience(...)` (the foundation from PR #17). When its
+  // declared `todayMode` is "appointment_first" (only Beauty today), Today
+  // renders the Spanish, Finesse-branded Beauty "Hoy" over DEMO data (marked
+  // with a "Vista previa · datos de ejemplo" chip). Every other vertical stays
+  // on work_first — Today normal is unchanged.
+  //
+  // `?vertical=beauty` is a preview/dev-only helper (clearly isolated) so the
+  // screen is demoable on a Vercel preview without flipping a workspace first;
+  // production behavior derives solely from the workspace's verticalKey.
+  const forcedBeauty = searchParams.get("vertical") === "beauty"
+  const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
+  const experience = resolveWorkspaceExperience(effectiveVerticalKey)
+  const beauty =
+    experience.todayMode === "appointment_first"
+      ? resolveBeautyTodayConfig(effectiveVerticalKey)
+      : null
   const mode = resolveTodayLayoutMode({
     override: searchParams.get("todayLayout"),
-    verticalKey: workspace?.verticalKey,
-    // Stays OFF until real backends exist — never auto-flip a real workspace
-    // onto demo data based on its vertical alone.
-    enableVerticalAutoSwitch: false,
+    verticalKey: effectiveVerticalKey,
+    enableVerticalAutoSwitch: !!beauty,
   })
 
   if (mode === "appointment_first") {
-    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} />
+    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={beauty} />
   }
   if (mode === "job_route") {
     return <TodayJobRouteLayout businessName={workspace?.nombre ?? null} />
