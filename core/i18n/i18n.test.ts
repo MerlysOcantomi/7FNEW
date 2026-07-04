@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { parseLocale, getTranslations, resolveLocaleFromConfig, isValidLocale, SUPPORTED_LOCALES } from "./index"
+import { enNamespaces } from "./index"
 import { resolveAckEmailConfig, escapeHtml, wrapEmailHtml } from "../email-templates"
 
 // ─── parseLocale() ───────────────────────────────────────────────────────────
@@ -345,6 +346,42 @@ test("full sim: locale es + override heading only", () => {
 test("full sim: no contact name → greeting without name", () => {
   const r = simulateAckEmail(JSON.stringify({ locale: "de" }), "Firma", null, "Anfrage")
   assert.equal(r.greeting, "Hallo,")
+})
+
+// ─── English namespace scaffolding (PR-I18N-2) ───────────────────────────────
+// These verify the additive per-namespace English scaffolding exists and stays
+// English-only. They must NOT affect the existing monolithic dictionary above.
+
+test("enNamespaces: exposes the scaffolded namespaces", () => {
+  assert.deepEqual(
+    Object.keys(enNamespaces).sort(),
+    ["billing", "calendar", "clients", "common", "nav", "settings", "today"],
+  )
+})
+
+test("enNamespaces: static English strings present", () => {
+  assert.equal(enNamespaces.nav.today, "Today")
+  assert.equal(enNamespaces.nav.inbox.title, "Smart Inbox")
+  assert.equal(enNamespaces.clients.title, "Clients")
+  assert.equal(enNamespaces.settings.language.appLabel, "App language")
+  assert.equal(enNamespaces.common.save, "Save")
+})
+
+test("enNamespaces: interpolation functions compose vocabulary and counts", () => {
+  assert.equal(
+    enNamespaces.clients.searchPlaceholder({ clientPlural: "clients" }),
+    "Search clients, company, or email…",
+  )
+  assert.equal(enNamespaces.clients.count(3, "clients"), "3 clients")
+  assert.equal(enNamespaces.common.itemCount(1, "item", "items"), "1 item")
+  assert.equal(enNamespaces.common.itemCount(2, "item", "items"), "2 items")
+})
+
+test("enNamespaces: scaffolding does not touch the monolithic TranslationSet", () => {
+  // The existing email dictionary is unchanged and still resolves en/es/de.
+  assert.equal(getTranslations("en").email.ack.subjectLabel, "Subject")
+  assert.equal(getTranslations("es").email.ack.subjectLabel, "Asunto")
+  assert.equal(getTranslations("de").email.ack.subjectLabel, "Betreff")
 })
 
 // ─── Priority verification ──────────────────────────────────────────────────

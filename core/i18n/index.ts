@@ -1,6 +1,14 @@
 export type { TranslationSet } from "./types"
 export { SUPPORTED_LOCALES, DEFAULT_LOCALE, type SupportedLocale } from "./types"
 
+// English-only namespace scaffolding (PR-I18N-2). Additive — the existing
+// monolithic TranslationSet exports above are unchanged. Not yet consumed by
+// any UI. See docs/i18n-localization-architecture.md §4, §10, §14 (PR 2).
+// NOTE: explicit `/index` path — the existing monolithic locales/en.ts would
+// otherwise shadow the locales/en/ namespace directory in module resolution.
+export { enNamespaces } from "./locales/en/index"
+export type { NamespacedTranslations, NamespaceKey } from "./locales/en/index"
+
 import type { SupportedLocale, TranslationSet } from "./types"
 import { DEFAULT_LOCALE } from "./types"
 import { en } from "./locales/en"
