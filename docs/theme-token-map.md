@@ -528,3 +528,56 @@ untouched. 10 lines changed, 1:1 swaps; no layout/behavior/copy/data/route chang
   - The whole `"canvas"` tone (already `var()`-driven) and `shadow-sm` (theme-agnostic).
 - Not touched: Today hero / board / layout-mode / `work_first_v2` / data / actions /
   routes; Today/Agents panels, chromes, and drawers.
+
+---
+
+## Beauty vertical palettes — foundation values (v1)
+
+Three opt-in palettes for the 7F Beauty vertical, added exactly like
+`[data-theme="lavender-mist"]`: new `[data-theme="…"]` blocks in `app/globals.css`
+(right after Lavender Mist) that **override token VALUES only**. No `--beauty-*`
+tokens, no `@theme inline` change, no base-shadcn redefinition, no `dark:` variants,
+no parallel system. Every derived token cascades, so any token-driven surface —
+including the fully-tokenised Beauty "Hoy" (`today-appointment-layout.tsx`) — restyles
+automatically.
+
+| Palette | Plane | Intent | Accent | Notes |
+|---|---|---|---|---|
+| `rose-nude` | light | Beauty / Premium **default** | Dusty Rose | `--agent-rose` aligned to the palette so Finesse identity moves with it |
+| `sage-luxe` | light | Wellness / natural / spa / calm | Sage green | — |
+| `noir-or` | dark | Luxury / glam / high-end salon | Gold / champagne | dark plane; `--text-*-light` stay light |
+
+**Overridden source tokens** (same set as Lavender Mist): the surface ramp
+(`--app-canvas`, `--app-sidebar(-surface)`, `--app-surface-dark(-elevated/-hover)`),
+`--accent-*`, `--text-*-light`, `--border-dark(-strong)`, `--app-shadow-subtle`, the
+shell overlays (`--app-surface-subtle/-hover/-active`), the deepened
+`--status-{danger,warning,success}-text`, the baked `--inbox-*` component/semantic
+tokens, and `--agent-teal/-rose` (+ `-soft`).
+
+**Activation (opt-in only — nothing auto-applies):** `?theme=rose-nude | sage-luxe |
+noir-or` on any route, or the theme toggle (`components/theme-mode-toggle.tsx`). The
+pre-paint allow-list in `app/layout.tsx` and the toggle share the list
+`[midnight, lavender-mist, rose-nude, sage-luxe, noir-or]`. **Midnight stays the
+default; Lavender Mist and North Sea (data-only placeholder) are unchanged.** No
+per-workspace/vertical auto-theming here (that is a later step, tied to Beauty Home).
+
+**Accessibility — key pairs verified ≥ WCAG AA** (normal text ≥ 4.5, large/UI ≥ 3.0):
+
+| Pair | rose-nude | sage-luxe | noir-or |
+|---|---|---|---|
+| text-primary / canvas | 13.5 | 12.5 | 16.0 |
+| text-secondary / canvas | 6.3 | 6.0 | 10.2 |
+| text-tertiary / canvas (≥3) | 3.7 | 3.5 | 5.9 |
+| accent-on-dark (accent text) / canvas | 6.6 | 5.7 | 11.6 |
+| accent-primary (UI) / canvas (≥3) | 3.8 | 3.6 | 7.9 |
+
+**These HEX are FOUNDATION VALUES (v1) and refinable with Claude Design** without
+touching any component — only the `[data-theme]` blocks change.
+
+**Out of scope (follow-ups):** Beauty Home / Overview; per-vertical auto-theming
+(reading `experience.defaultThemeKey`); migrating the frozen hardcoded surfaces so
+they follow a palette — `components/administracion-content.tsx` (blue ramp), the
+app-wide deferred blue accents, `/system` (intentional amber control plane),
+`app/cliente/*` portal navy, `components/templates/*-skina` print/PDF, and legacy/demo
+pages. None block these palettes; they simply won't switch until their existing
+hardcoded-color debt is migrated in the already-planned batches.

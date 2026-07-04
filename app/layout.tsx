@@ -45,16 +45,17 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         {/**
          * Theme bridge (no-FOUC). Sets data-theme on <html> before paint from
-         * localStorage `7f-theme` (or a ?theme=midnight|lavender-mist override,
-         * handy for Vercel review). Default is `midnight`. This is a
-         * side-channel to next-themes: next-themes keeps owning `class`/`.dark`;
-         * we only drive the data-theme attribute that activates the dormant
-         * [data-theme="lavender-mist"] block. Keep the storage key in sync with
-         * components/theme-mode-toggle.tsx.
+         * localStorage `7f-theme` (or a ?theme=<name> override, handy for Vercel
+         * review). Allowed values: midnight (default) | lavender-mist |
+         * rose-nude | sage-luxe | noir-or — anything else falls back to midnight.
+         * This is a side-channel to next-themes: next-themes keeps owning
+         * `class`/`.dark`; we only drive the data-theme attribute that activates
+         * the dormant [data-theme="…"] palette blocks in app/globals.css. Keep
+         * the allow-list in sync with components/theme-mode-toggle.tsx.
          */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='7f-theme';var q=new URLSearchParams(location.search).get('theme');if(q==='midnight'||q==='lavender-mist'){localStorage.setItem(k,q);}var t=localStorage.getItem(k);document.documentElement.setAttribute('data-theme',t==='lavender-mist'?'lavender-mist':'midnight');}catch(e){document.documentElement.setAttribute('data-theme','midnight');}})();`,
+            __html: `(function(){try{var k='7f-theme';var A=['midnight','lavender-mist','rose-nude','sage-luxe','noir-or'];var q=new URLSearchParams(location.search).get('theme');if(q&&A.indexOf(q)>-1){localStorage.setItem(k,q);}var t=localStorage.getItem(k);document.documentElement.setAttribute('data-theme',A.indexOf(t)>-1?t:'midnight');}catch(e){document.documentElement.setAttribute('data-theme','midnight');}})();`,
           }}
         />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

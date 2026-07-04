@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Moon, Sun } from "lucide-react"
+import { Flower2, Gem, Leaf, Moon, Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
@@ -22,13 +22,15 @@ import { cn } from "@/lib/utils"
  * flash. KEEP THE KEY IN SYNC with that script if you ever change it.
  */
 const THEME_KEY = "7f-theme"
-type ThemeMode = "midnight" | "lavender-mist"
+type ThemeMode = "midnight" | "lavender-mist" | "rose-nude" | "sage-luxe" | "noir-or"
+
+/** Allowed palette values — keep in sync with the pre-paint script in app/layout.tsx. */
+const VALID_THEMES: ThemeMode[] = ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or"]
 
 function readStored(): ThemeMode {
   if (typeof window === "undefined") return "midnight"
-  return window.localStorage.getItem(THEME_KEY) === "lavender-mist"
-    ? "lavender-mist"
-    : "midnight"
+  const v = window.localStorage.getItem(THEME_KEY)
+  return v && (VALID_THEMES as string[]).includes(v) ? (v as ThemeMode) : "midnight"
 }
 
 function applyMode(mode: ThemeMode) {
@@ -45,6 +47,10 @@ function applyMode(mode: ThemeMode) {
 const OPTIONS: { mode: ThemeMode; label: string; icon: typeof Moon }[] = [
   { mode: "midnight", label: "Midnight", icon: Moon },
   { mode: "lavender-mist", label: "Lavender Mist", icon: Sun },
+  // Beauty vertical palettes (foundation v1) — opt-in, dormant by default.
+  { mode: "rose-nude", label: "Rose Nude", icon: Flower2 },
+  { mode: "sage-luxe", label: "Sage Luxe", icon: Leaf },
+  { mode: "noir-or", label: "Noir Or", icon: Gem },
 ]
 
 export function ThemeModeToggle() {
@@ -70,7 +76,7 @@ export function ThemeModeToggle() {
     <div
       role="group"
       aria-label="Theme"
-      className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
+      className="flex flex-wrap gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
     >
       {OPTIONS.map(({ mode: m, label, icon: Icon }) => {
         const active = mounted && mode === m
