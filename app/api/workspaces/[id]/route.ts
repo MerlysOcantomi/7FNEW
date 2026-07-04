@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { requireViewerInWorkspace, requireAdminInWorkspace } from "@/lib/auth/workspace-auth"
-import { getWorkspaceWithResolvedConfig, setWorkspaceVertical, updateWorkspaceConfig } from "@/lib/workspace"
-import { getVerticalByKey, parseJsonConfig, type VerticalConfig } from "@/lib/verticals"
+import { getWorkspaceWithResolvedConfig, updateWorkspaceConfig } from "@/lib/workspace"
+import { parseJsonConfig, type VerticalConfig } from "@/lib/verticals"
+import { sanitizeTenantConfig } from "@core/auth/workspace-governance"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ id: string }> }
@@ -44,6 +45,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       config?: Partial<VerticalConfig>
     }
 
+    // Governance: a workspace admin cannot change the vertical — that is a
+    // platform-admin control via `/system` (setWorkspaceVertical there).
+    if (verticalKey !== undefined) {
+      return errorResponse(
+        "FORBIDDEN",
+        "La vertical del workspace se cambia solo desde la administración de 7F (/system).",
+        403,
+      )
+    }
+
     const updateData: Record<string, unknown> = {}
 
     if (nombre) updateData.nombre = nombre
@@ -56,17 +67,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       updateData.slug = slugClean
     }
 
-    if (verticalKey) {
-      const vertical = await getVerticalByKey(verticalKey)
-      if (!vertical || !vertical.isActive) {
-        return errorResponse("VALIDATION_ERROR", `Vertical "${verticalKey}" no existe o no está activa`)
-      }
-      const result = await setWorkspaceVertical(id, verticalKey)
-      if (!result) return errorResponse("NOT_FOUND", "Workspace no encontrado", 404)
-    }
-
     if (config) {
-      await updateWorkspaceConfig(id, config)
+      // Governance: strip privileged keys (e.g. `modules`) — module enablement
+      // is platform-admin / plan-gated, never set via this tenant endpoint.
+      const { config: safeConfig } = sanitizeTenantConfig(config)
+      if (Object.keys(safeConfig).length > 0) {
+        await updateWorkspaceConfig(id, safeConfig)
+      }
     }
 
     if (Object.keys(updateData).length > 0) {

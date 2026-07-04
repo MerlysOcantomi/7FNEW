@@ -344,6 +344,10 @@ export function AdministracionContent({
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const isAdmin = wsRole === "ADMIN" || wsRole === "OWNER"
+  // Governance: module enablement is a PLATFORM-ADMIN control (via /system),
+  // plan/billing-gated — never a tenant self-service switch. Modules render
+  // read-only here regardless of workspace role; the API enforces the same.
+  const canEditModules: boolean = false
 
   const [originalModuleState] = useState(() => buildInitialModuleState(moduleConfig))
   const [moduleState, setModuleState] = useState(() => buildInitialModuleState(moduleConfig))
@@ -374,16 +378,16 @@ export function AdministracionContent({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
 
   const toggleModule = useCallback((itemId: string) => {
-    if (!isAdmin) return
+    if (!canEditModules) return
     setModuleState((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
     setSaveStatus("idle")
-  }, [isAdmin])
+  }, [canEditModules])
 
   const toggleExtension = (id: string) => {
     setExtensionEnabled((prev) => ({ ...prev, [id]: !prev[id] }))
   }
   const toggleAdvanced = (id: string) => {
-    if (id === "automatizaciones" && !isAdmin) return
+    if (id === "automatizaciones" && !canEditModules) return
     setAdvancedEnabled((prev) => ({ ...prev, [id]: !prev[id] }))
     setSaveStatus("idle")
   }
@@ -476,24 +480,26 @@ export function AdministracionContent({
                   </p>
                 )}
               </div>
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges || saveStatus === "saving" || !isAdmin}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shrink-0 self-start sm:self-auto ${
-                  hasChanges && isAdmin
-                    ? "bg-foreground text-background hover:bg-foreground/90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {saveStatus === "saving" ? (
-                  <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
-                ) : saveStatus === "saved" ? (
-                  <Check size={14} strokeWidth={1.75} />
-                ) : (
-                  <Save size={14} strokeWidth={1.75} />
-                )}
-                {saveLabel}
-              </button>
+              {canEditModules && (
+                <button
+                  onClick={handleSave}
+                  disabled={!hasChanges || saveStatus === "saving"}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shrink-0 self-start sm:self-auto ${
+                    hasChanges
+                      ? "bg-foreground text-background hover:bg-foreground/90"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  }`}
+                >
+                  {saveStatus === "saving" ? (
+                    <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+                  ) : saveStatus === "saved" ? (
+                    <Check size={14} strokeWidth={1.75} />
+                  ) : (
+                    <Save size={14} strokeWidth={1.75} />
+                  )}
+                  {saveLabel}
+                </button>
+              )}
             </div>
 
             {/* Body */}
@@ -518,7 +524,12 @@ export function AdministracionContent({
                 <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                   <div className="px-5 py-3.5 bg-[#EFF6FF] border-b border-[#DBEAFE]">
                     <p className="text-xs text-[#1D4ED8] font-medium">
-                      Locked items are always enabled. Configurable items reflect your workspace setup.
+                      Los módulos de tu workspace los gestiona 7F según tu plan. Aquí ves lo que está
+                      disponible; para activar o preparar un módulo,{" "}
+                      <Link href="/forte/improvements" className="underline hover:text-[#1D4ED8]">
+                        habla con Mr. Forte
+                      </Link>
+                      .
                     </p>
                   </div>
 
@@ -533,7 +544,7 @@ export function AdministracionContent({
                         <div className="divide-y divide-border">
                           {group.items.map((item) => {
                             const configurable = !!getConfigKey(item.id)
-                            const isLocked = item.locked || !configurable || !isAdmin
+                            const isLocked = item.locked || !configurable || !canEditModules
                             const isEnabled = isLocked ? true : (allModuleEnabled[item.id] ?? true)
 
                             return (
@@ -691,7 +702,7 @@ export function AdministracionContent({
                           ) : (
                             <Toggle
                               enabled={advancedEnabled[item.id] ?? false}
-                              locked={!isAdmin}
+                              locked={!canEditModules}
                               onToggle={() => toggleAdvanced(item.id)}
                             />
                           )}
