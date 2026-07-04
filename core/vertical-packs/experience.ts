@@ -25,7 +25,16 @@ import { resolveNavProfile } from "./nav-profile"
 import { resolveVerticalSpecialist, type VerticalSpecialistAgent } from "./specialists"
 import { BEAUTY_PACK } from "./beauty"
 
+/**
+ * Whether the vertical has a real, fully-built experience pack or only falls
+ * back to the default. Prevents confusing "registered in seed" (e.g. construction,
+ * clinic, law, florals) with "actually built" (beauty).
+ */
+export type ExperienceState = "complete" | "default"
+
 export interface WorkspaceExperience {
+  /** "complete" = has a real vertical pack; "default" = seeded but no pack yet. */
+  experienceState: ExperienceState
   businessType: string
   verticalKey: string
   verticalName: string | null
@@ -65,6 +74,7 @@ export function resolveWorkspaceExperience(
   // Beauty (covers aliases salon/nails/… via businessType).
   if (businessType === "beauty") {
     return {
+      experienceState: "complete",
       businessType,
       verticalKey: key,
       verticalName: BEAUTY_PACK.verticalName,
@@ -80,8 +90,10 @@ export function resolveWorkspaceExperience(
     }
   }
 
-  // Default / agency / unknown.
+  // Default / agency / unknown, and seeded-but-unbuilt verticals
+  // (construction, clinic, law, florals) — all resolve to the default experience.
   return {
+    experienceState: "default",
     businessType,
     verticalKey: key,
     verticalName: null,

@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { AlertTriangle, Check, Loader2, X } from "lucide-react"
-import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
+import {
+  resolveWorkspaceExperience,
+  type ExperienceState,
+} from "@core/vertical-packs/experience"
 
 /**
  * Inline vertical selector for the /system workspace detail page.
@@ -122,9 +125,12 @@ export function WorkspaceVerticalEditor({
 
       {/* Read-only "Vertical experience" preview from the pure resolver. */}
       <div className="flex flex-col gap-1.5 rounded-md border border-amber-200/60 bg-white/60 p-3 text-[11px] dark:border-amber-900/30 dark:bg-amber-950/20">
-        <span className="font-semibold uppercase tracking-wide text-amber-900/70 dark:text-amber-100/60">
-          Vertical experience{dirty ? " (previsualización)" : ""}
-        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold uppercase tracking-wide text-amber-900/70 dark:text-amber-100/60">
+            Vertical experience{dirty ? " (previsualización)" : ""}
+          </span>
+          <ExperienceStateBadge state={preview.experienceState} />
+        </div>
         <ExperienceRow label="Business type" value={preview.businessType} />
         <ExperienceRow label="Vertical" value={preview.verticalName ?? preview.verticalKey} />
         <ExperienceRow
@@ -179,6 +185,30 @@ export function WorkspaceVerticalEditor({
         </p>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * State badge that makes it unambiguous whether a vertical is fully built
+ * ("completa") or merely registered in seed with no pack yet ("default ·
+ * pendiente de pack"). Prevents mistaking a seeded key (construction, clinic,
+ * law, florals) for an available vertical.
+ */
+function ExperienceStateBadge({ state }: { state: ExperienceState }) {
+  if (state === "complete") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-emerald-300/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-700/40 dark:text-emerald-300">
+        Experiencia: completa
+      </span>
+    )
+  }
+  return (
+    <span
+      title="Vertical registrada en seed pero sin pack propio todavía; usa la experiencia por defecto."
+      className="inline-flex items-center rounded-full border border-amber-400/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700/40 dark:text-amber-300"
+    >
+      Experiencia: default · pendiente de pack
+    </span>
   )
 }
 

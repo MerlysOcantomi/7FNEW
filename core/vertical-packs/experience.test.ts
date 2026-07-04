@@ -5,9 +5,10 @@ import { buildBeautyDefaultConfig } from "./beauty"
 
 // ─── Default / agency ────────────────────────────────────────────────────────
 
-test("default/agency: no Finesse, no beauty nav, standard Today", () => {
+test("default/agency: no Finesse, no beauty nav, standard Today, default state", () => {
   const e = resolveWorkspaceExperience("creative-agency")
   assert.equal(e.verticalKey, "creative-agency")
+  assert.equal(e.experienceState, "default")
   assert.equal(e.specialistAgent, null)
   assert.equal(e.specialistAgentId, null)
   assert.equal(e.brandLine, null)
@@ -25,11 +26,20 @@ test("empty / unknown verticalKey → safe default experience (no crash)", () =>
   }
 })
 
+test("seeded-but-unbuilt verticals resolve to default experience state", () => {
+  // Registered in seed (prisma/seed.ts) but no pack yet → must read as "default",
+  // never as a complete/available vertical.
+  for (const key of ["construction", "clinic", "law", "florals"]) {
+    assert.equal(resolveWorkspaceExperience(key).experienceState, "default", key)
+  }
+})
+
 // ─── Beauty ──────────────────────────────────────────────────────────────────
 
 test("beauty: full resolved experience", () => {
   const e = resolveWorkspaceExperience("beauty")
   assert.equal(e.verticalKey, "beauty")
+  assert.equal(e.experienceState, "complete")
   assert.equal(e.businessType, "beauty")
   assert.equal(e.verticalName, "7F Beauty")
   assert.equal(e.specialistAgentId, "finesse")
