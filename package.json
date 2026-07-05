@@ -18,6 +18,7 @@
     "test:agents-activity": "tsx --test modules/agents/activity-classify.test.ts",
     "test:agents-roster": "tsx --test modules/agents/roster.test.ts",
     "test:auto-policy": "tsx --test modules/inbox/auto-task-policy.test.ts",
+    "test:inbox-derivation": "tsx --test modules/inbox/list-derivation.test.ts",
     "test:fanny-pipeline": "tsx --test modules/inbox/auto-task-pipeline.test.ts",
     "test:workspace-timezone": "tsx --test modules/inbox/workspace-config-timezone.test.ts",
     "test:today-layout": "tsx --test modules/today/today-layout-mode.test.ts",

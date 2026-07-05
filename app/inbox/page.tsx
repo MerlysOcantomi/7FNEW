@@ -52,7 +52,6 @@ import {
   formatRelativeDate,
   formatRelativeDateCompact,
   statusBadgeDisplay,
-  statusLabel,
   statusLabelDisplay,
   urgencyBadge,
   urgencyLabel,
@@ -68,6 +67,19 @@ import {
   priorityFromUrgency,
   truncateForTitle,
 } from "@/lib/inbox/client-todos"
+import {
+  CHANNEL_OPTIONS,
+  mapSidebarFilter,
+  resolvePrimaryWorkFilter,
+  type PrimaryWorkFilter,
+  isMessageTrashed,
+  selectSidebarConversations,
+  selectListConversations,
+  applyIntentStatusFilter,
+  computeTerminalRescueActive,
+  buildStatusFilterOptions,
+  buildStatusEditOptions,
+} from "@modules/inbox/list-derivation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, Send, Loader2, ListPlus, X, Columns3, Maximize2 } from "lucide-react"
@@ -251,20 +263,6 @@ interface ConversationDetail extends ConversationListItem {
   }>
 }
 
-const STATUS_OPTIONS = [
-  "all",
-  "new",
-  "triaged",
-  "assigned",
-  "awaiting_response",
-  "lead_detected",
-  "resolved",
-  "converted",
-  "closed",
-  "archived",
-  "trashed",
-]
-const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
 /**
  * Desktop column matrix (xl+):
  *  - left   → minmax(260px, 300px): tight sender list. Was minmax(288px, 30%)
@@ -313,136 +311,6 @@ const INBOX_GRID_COLS_FOCUS = "xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]"
  */
 const AUTO_SYNC_INTERVAL_MS = 4 * 60 * 1000
 
-/**
- * Infer the intent status of a conversation as a whole, based on the most recent inbound
- * (non-internal) message's `metadata.intentStatus`. Returns "done" when explicitly marked,
- * "open" otherwise (including "no metadata" / "no inbound" — the default before any operator
- * action is open work).
- *
- * The helper is shared by the Work filter and could be reused server-side later. We read
- * messages defensively because the list endpoint returns `messages` newest-first (top 5).
- */
-interface IntentStatusMessage {
-  direction?: string | null
-  isInternal?: boolean | null
-  metadata?: string | Record<string, unknown> | null
-  createdAt?: string | Date | null
-}
-
-/**
- * Best-effort metadata parser for client-side reads. Returns an object form regardless of
- * whether the source already pre-parsed it or left it as a JSON string. We never throw — a
- * corrupted blob is treated as "no metadata", which keeps the UI in a safe default state.
- */
-function readMessageMetadata(
-  raw: string | Record<string, unknown> | null | undefined,
-): Record<string, unknown> | null {
-  if (!raw) return null
-  if (typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>
-  if (typeof raw !== "string" || raw.length === 0) return null
-  try {
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null
-  } catch {
-    return null
-  }
-}
-
-/** True when a message has been soft-trashed via Message.metadata.trashedAt. */
-function isMessageTrashed(meta: string | Record<string, unknown> | null | undefined): boolean {
-  const parsed = readMessageMetadata(meta)
-  if (!parsed) return false
-  return typeof parsed.trashedAt === "string" && parsed.trashedAt.length > 0
-}
-
-function inferConversationIntentStatus(
-  conversation: { messages?: ReadonlyArray<IntentStatusMessage> | null },
-): "open" | "done" {
-  const messages = Array.isArray(conversation.messages) ? conversation.messages : []
-  if (messages.length === 0) return "open"
-
-  /** The list endpoint returns messages ordered by createdAt desc, so the first inbound match
-   *  is also the latest one. We tolerate either ordering by tie-breaking on createdAt when
-   *  available — defensive in case some caller passes ascending arrays. Trashed messages are
-   *  skipped: they're invisible to Fanny and the operator's mental model treats them as if
-   *  they were never sent. */
-  let candidate: IntentStatusMessage | null = null
-  let candidateTs = -Infinity
-  for (const m of messages) {
-    if (m.direction !== "inbound") continue
-    if (m.isInternal === true) continue
-    if (isMessageTrashed(m.metadata)) continue
-    const ts = m.createdAt ? new Date(m.createdAt as string | Date).getTime() : 0
-    if (ts > candidateTs) {
-      candidate = m
-      candidateTs = ts
-    }
-  }
-  if (!candidate) return "open"
-
-  const parsed = readMessageMetadata(candidate.metadata)
-  if (!parsed) return "open"
-  return parsed.intentStatus === "done" ? "done" : "open"
-}
-
-/**
- * Map sidebar `?filter=` URL values to the API query shape (`status` + `urgency`). The new
- * operational sidebar (Smart Inbox / Work / Smart views / Storage) drives the labels below;
- * legacy keys (`new`, `in_progress`, `urgent`, `needs_reply`, `leads`) are kept as aliases
- * so existing bookmarks, notifications, and links don't 404 silently. Unknown filters fall
- * through to `{}` (default Inbox view) which is also what `todo` and `scheduled` use today —
- * those are placeholder nav entries for future engines (To-do queue, Scheduled-by-EventHint).
- */
-function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
-  switch (filter) {
-    /** ─ Storage ─ */
-    case "archived": return { status: "archived" }
-    case "closed": return { status: "closed" }
-    case "trash": return { status: "trashed" }
-    /** ─ Work ─ */
-    /**
-     * "Needs action" = conversations where someone on our side has to do something next.
-     * `new` (untouched), `assigned` (operator owns it), `triaged` (AI classified, waiting
-     * for human), `lead_detected` (qualified opportunity that needs follow-up). We
-     * intentionally exclude `awaiting_response` here because that's "we replied, waiting on
-     * them" — surfaced in the Waiting bucket instead.
-     */
-    case "needs_action": return { status: "new,assigned,triaged,lead_detected" }
-    /** "Waiting" = we're waiting on the customer / external party to respond. */
-    case "waiting": return { status: "awaiting_response" }
-    /**
-     * "Done" = work that's finished from the operator's perspective. Includes the new
-     * `resolved` (work done, conversation stays active for follow-ups), `closed` (terminal),
-     * and `converted` (turned into Cliente / Proyecto / Tarea). Storage's "Closed" sub-link
-     * narrows this further to just `closed` for archival browsing.
-     */
-    case "done": return { status: "resolved,closed,converted" }
-    /**
-     * "To-do" is a placeholder for the future action queue. Routes to /inbox so the active
-     * highlight works; `{}` returned here means no extra status filter is applied — the
-     * page falls back to the default Inbox view. Replacing this single arm is all that's
-     * needed when the To-do engine ships.
-     */
-    case "todo": return {}
-    /** ─ Smart views ─ */
-    case "opportunities": return { status: "lead_detected" }
-    /**
-     * "Scheduled" placeholder — will eventually filter by Message.metadata EventHint or by
-     * ConversationAction.type === "create_event". Returning `{}` keeps the active highlight
-     * working without breaking the list.
-     */
-    case "scheduled": return {}
-    /** ─ Legacy aliases (preserve external bookmarks) ─ */
-    case "new": return { status: "new" }
-    case "in_progress": return { status: "assigned,awaiting_response,triaged" }
-    case "urgent": return { urgency: "alta,critica" }
-    case "needs_reply": return { status: "awaiting_response" }
-    case "leads": return { status: "lead_detected" }
-    default: return {}
-  }
-}
 
 function InboxPageContent() {
   const [search, setSearch] = useState("")
@@ -689,14 +557,10 @@ function InboxPageContent() {
    * To-do, Scheduled, Closed, etc.) maps to "other" so no chip is highlighted; the
    * sidebar already shows the operator where they are.
    */
-  type PrimaryWorkFilter = "all" | "needs_action" | "waiting" | "done" | "other"
-  const primaryWorkFilter: PrimaryWorkFilter = useMemo(() => {
-    if (!sidebarFilter || sidebarFilter === "inbox") return "all"
-    if (sidebarFilter === "needs_action") return "needs_action"
-    if (sidebarFilter === "waiting") return "waiting"
-    if (sidebarFilter === "done") return "done"
-    return "other"
-  }, [sidebarFilter])
+  const primaryWorkFilter: PrimaryWorkFilter = useMemo(
+    () => resolvePrimaryWorkFilter(sidebarFilter),
+    [sidebarFilter],
+  )
 
   /**
    * Chip click → URL change. Preserve all other search params (e.g. `?id=`, `?messageId=`)
@@ -945,33 +809,19 @@ function InboxPageContent() {
    * el strip cliente — si no, el operador haría click en "Trash" y vería 0 filas porque
    * estaríamos re-ocultando justo lo que la API acaba de filtrar.
    */
-  const conversationsForSidebar = useMemo(() => {
-    if (status !== "all") return conversations
-    if (filterParams.status) return conversations
-    const filtered = conversations.filter(
-      (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
-    )
-    if (filtered.length === 0 && conversations.length > 0) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[inbox] sidebar rescue: todas las conversaciones son archived/closed/trashed — mostrando lista completa", {
-          total: conversations.length,
-          statuses: [...new Set(conversations.map((c) => c.status))],
-        })
-      }
-      return conversations
-    }
-    return filtered
-  }, [conversations, status, filterParams.status])
+  const conversationsForSidebar = useMemo(
+    () => selectSidebarConversations(conversations, status, filterParams.status),
+    [conversations, status, filterParams.status],
+  )
 
   /**
    * Lista única para pintar/seleccionar/navegar: mismo filtro que `conversationsForSidebar`,
    * pero si ese filtro deja 0 filas y la API sí devolvió datos, degradamos a `conversations`.
    */
-  const conversationsForList = useMemo(() => {
-    if (conversations.length === 0) return []
-    if (conversationsForSidebar.length > 0) return conversationsForSidebar
-    return conversations
-  }, [conversations, conversationsForSidebar])
+  const conversationsForList = useMemo(
+    () => selectListConversations(conversations, conversationsForSidebar),
+    [conversations, conversationsForSidebar],
+  )
 
   /**
    * Sender options for the Sender / remitente filter — derived from the *currently loaded*
@@ -991,27 +841,16 @@ function InboxPageContent() {
    * server-side "Filter inbox" (`q`), which already matches contact
    * name/email/company/phone + message content across all pages.
    */
-  const conversationsAfterUserFilters = useMemo(() => {
-    if (intentStatusFilter === "all") {
-      return conversationsForList
-    }
-
-    return conversationsForList.filter((c) => {
-      const status = inferConversationIntentStatus(c)
-      if (intentStatusFilter === "done" && status !== "done") return false
-      if (intentStatusFilter === "open" && status === "done") return false
-      return true
-    })
-  }, [conversationsForList, intentStatusFilter])
+  const conversationsAfterUserFilters = useMemo(
+    () => applyIntentStatusFilter(conversationsForList, intentStatusFilter),
+    [conversationsForList, intentStatusFilter],
+  )
 
   /** True cuando en "All" ninguna fila pasa el filtro activo (todo archivo/cerrado/papelera) y el rescate muestra la lista completa. */
-  const inboxTerminalRescueActive = useMemo(() => {
-    if (status !== "all" || conversations.length === 0) return false
-    const activeRows = conversations.filter(
-      (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
-    )
-    return activeRows.length === 0
-  }, [conversations, status])
+  const inboxTerminalRescueActive = useMemo(
+    () => computeTerminalRescueActive(conversations, status),
+    [conversations, status],
+  )
 
   /** Temporal (solo dev): distribución real de status en la respuesta de lista cuando la vista es "All". */
   useEffect(() => {
@@ -1674,27 +1513,14 @@ function InboxPageContent() {
   }
 
   const statusFilterOptions = useMemo(
-    () =>
-      STATUS_OPTIONS.filter((s) => s !== "triaged").map((s) => ({
-        value: s,
-        label: s === "all" ? "All statuses" : statusLabel(s, uiLocale),
-      })),
+    () => buildStatusFilterOptions(uiLocale),
     [uiLocale],
   )
 
-  const statusEditOptions = useMemo(() => {
-    if (selected?.status === "trashed") {
-      return [{ value: "triaged", label: statusLabelDisplay("triaged", uiLocale) }]
-    }
-    const base = STATUS_OPTIONS.filter((s) => s !== "all" && s !== "triaged").map((s) => ({
-      value: s,
-      label: statusLabel(s, uiLocale),
-    }))
-    if (selected?.status === "triaged") {
-      return [{ value: "triaged", label: statusLabelDisplay("triaged", uiLocale) }, ...base]
-    }
-    return base
-  }, [selected?.status, uiLocale])
+  const statusEditOptions = useMemo(
+    () => buildStatusEditOptions(selected?.status, uiLocale),
+    [selected?.status, uiLocale],
+  )
 
   const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
     value: option,
