@@ -37,6 +37,7 @@ import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
 import { resolveBeautyTodayConfig } from "@modules/today/beauty-today"
 import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
+import { BeautyStudioOverview } from "./beauty-studio-overview"
 import { TodayJobRouteLayout } from "./today-job-route-layout"
 import { TodaySessionLayout } from "./today-session-layout"
 import { TodayBriefing } from "./today-briefing"
@@ -89,7 +90,13 @@ export function TodayPageClient() {
   })
 
   if (mode === "appointment_first") {
-    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={beauty} />
+    // Beauty renders the native Finesse "Studio" overview (product-app layout);
+    // every other appointment vertical keeps the generic English preview.
+    return beauty ? (
+      <BeautyStudioOverview businessName={workspace?.nombre ?? null} beauty={beauty} />
+    ) : (
+      <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={null} />
+    )
   }
   if (mode === "job_route") {
     return <TodayJobRouteLayout businessName={workspace?.nombre ?? null} />
