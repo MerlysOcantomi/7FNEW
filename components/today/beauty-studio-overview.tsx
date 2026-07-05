@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   ArrowRight,
-  CalendarClock,
-  Clock,
+  Camera,
   Heart,
+  Instagram,
   MessageSquare,
+  Plus,
   Send,
   Sparkles,
   UserPlus,
@@ -25,76 +26,122 @@ import { getBeautyAppointmentDayMock } from "./appointments/appointment-mock"
 
 /**
  * Beauty / Finesse "Studio" overview — the premium product surface a Beauty
- * workspace lands on ("Hoy" / `/today` in appointment_first mode). It is the
- * native, real-product answer to the v0 "Beauty Control Room" mockups: same
- * route, same AppShell, same tokens — NOT a copy of that markup.
+ * workspace lands on ("Hoy" / `/today` in appointment_first mode). Native
+ * implementation of the Claude Design "Finesse Overview" handoff: same route,
+ * same AppShell (its sidebar + mobile nav own navigation — this component
+ * renders ONLY the page content), same tokens. NOT a copy of the mockup markup,
+ * shell, phone frame, bottom nav or local palette.
  *
- * Deliberate product decisions (from the review of the v0 direction):
- *   - Product-app layout, NOT a landing: a compact, LEFT-ALIGNED brand +
- *     day header (no centered hero, no "Beauty Control Room" headline).
- *   - Clear hierarchy: the agenda is the protagonist; Finesse's decisions sit
- *     in a side assistant rail that explains what she is doing.
- *   - Operational, not a metrics wall: one inline stat line, no KPI tiles, no
- *     decorative "pulse" cards.
+ * Layout (product-app, not a landing):
+ *   - Compact LEFT-ALIGNED header: "Hoy en {studio}", a "Finesse · by Sevenef"
+ *     chip, one intro line, date + derived signals, and the primary
+ *     "Preguntar a Finesse" CTA.
+ *   - Agenda de hoy as the protagonist, with the free slot integrated inline.
+ *   - A right rail: Finesse assistant note · Necesita tu decisión · Cuidado de
+ *     clientas · Momento Beauty (one visual opportunity of the day).
+ *   - Stacks to a single column on mobile (AppShell's own mobile nav stays).
  *
- * Discipline honored (same as `TodayAppointmentLayout`, which stays the generic
- * English appointment preview for other verticals):
- *   - COLORS: semantic theme tokens only. No hardcoded hex, no parallel palette.
- *     Renders correctly under any theme and takes its Rose Nude skin for free
- *     when `data-theme="rose-nude"` is active (?theme=rose-nude or the toggle).
- *   - DATA: the isolated demo adapter (`getBeautyAppointmentDayMock`) — no real
- *     appointment backend exists yet, so a "Vista previa · datos de ejemplo"
- *     chip is always shown and every write-ish action is disabled (never
- *     simulates a write). Spanish copy comes from `beauty-today.ts` / the Beauty
- *     pack + the Finesse voice; nothing is hardcoded here beyond presentation.
- *   - No schema changes, no new route, local UI state only.
+ * Discipline:
+ *   - COLORS: semantic theme tokens only — no hardcoded hex, no parallel
+ *     palette. Takes the Rose Nude skin for free under `data-theme="rose-nude"`.
+ *   - DATA: the isolated demo adapter (`getBeautyAppointmentDayMock`) drives the
+ *     agenda over the real appointment contract; the curated narrative cards
+ *     (assistant note, decisions, care, momento) are isolated DEMO content
+ *     (see below), mirroring `appointment-mock.ts`. No real backend exists yet,
+ *     so a "Vista previa · datos de ejemplo" chip is always shown and every
+ *     write-ish action is disabled (never simulates a write). No schema changes.
  */
 
-// ─── Status → tokens (mirrors the sibling appointment layout) ────────────────
+// ─── Curated preview/demo content (Spanish, España) ──────────────────────────
+// Isolated, deletable demo narrative for the gated Beauty preview — never real
+// data. Same spirit as components/today/appointments/appointment-mock.ts.
+// Swap for real sources (agents / CRM / marketing) when they land.
 
-interface StatusTokens {
-  bg: string
-  text: string
-  border: string
+const DEMO_ASSISTANT_NOTE =
+  "Vas bien de día. Antes de la tarde, protege el color VIP de las 16:30 y ofrece el hueco libre a una clienta frecuente."
+
+interface DemoDecision {
+  id: string
+  agent: string
+  kind: string
+  title: string
+  why: string
+  primary: string
+  action: { icon: typeof Send }
 }
 
-const STATUS_TOKENS: Record<AppointmentStatus, StatusTokens> = {
-  confirmed: {
-    bg: "var(--accent-muted)",
-    text: "var(--accent-on-dark)",
-    border: "var(--accent-muted-border)",
+const DEMO_DECISIONS: DemoDecision[] = [
+  {
+    id: "d1",
+    agent: "Francis",
+    kind: "fidelidad VIP",
+    title: "Ofrecer fidelidad 15 % a Camila antes de su color VIP",
+    why: "Clienta VIP · 22 visitas. La mantiene reservando cada mes.",
+    primary: "Confirmar",
+    action: { icon: Send },
   },
-  pending: {
-    bg: "var(--inbox-lead-soft)",
-    text: "var(--inbox-lead)",
-    border: "color-mix(in srgb, var(--inbox-lead) 32%, transparent)",
+  {
+    id: "d2",
+    agent: "Fiona",
+    kind: "campaña",
+    title: "Aprobar la campaña de verano para clientas inactivas",
+    why: "14 clientas sin reservar · Freya ya preparó las imágenes.",
+    primary: "Aprobar",
+    action: { icon: MessageSquare },
   },
-  arrived: {
-    bg: "var(--inbox-success-soft)",
-    text: "var(--inbox-success)",
-    border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)",
-  },
-  no_show: {
-    bg: "var(--inbox-urgency-soft)",
-    text: "var(--inbox-urgency)",
-    border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)",
-  },
-  cancelled: {
-    bg: "var(--inbox-urgency-soft)",
-    text: "var(--inbox-urgency)",
-    border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)",
-  },
+]
+
+type CareTone = "vip" | "warn" | "new"
+
+interface DemoCare {
+  name: string
+  ini: string
+  tag: string
+  tone: CareTone
+  note: string
+  action: string
 }
 
-const GAP_COLOR = "var(--inbox-info)"
+const DEMO_CARE: DemoCare[] = [
+  { name: "Camila Ruiz", ini: "CR", tag: "VIP", tone: "vip", note: "Color hoy 16:30 · 22 visitas", action: "Fidelidad" },
+  { name: "Daniela Prats", ini: "DP", tag: "Inactiva", tone: "warn", note: "Sin reservar hace 3 meses", action: "Reactivar" },
+  { name: "Valentina Mora", ini: "VM", tag: "Nueva", tone: "new", note: "1ª visita · dejó 5★", action: "Bienvenida" },
+]
+
+const DEMO_MOMENTO = {
+  channel: "Instagram · antes/después",
+  title: "El Rose Nude Chrome de María quedó para enseñar.",
+  note: "Finesse vio un trabajo perfecto para publicar hoy. Freya ya preparó un pie de foto.",
+  primary: "Preparar publicación",
+  secondary: "Otra idea",
+  link: "Subir más fotos · ver todo en Marketing",
+}
+
+// Tone → semantic tokens (accent for VIP, lead/amber for warn, info for new).
+const CARE_TONE: Record<CareTone, { bg: string; text: string }> = {
+  vip: { bg: "var(--accent-muted)", text: "var(--accent-on-dark)" },
+  warn: { bg: "var(--inbox-lead-soft)", text: "var(--inbox-lead)" },
+  new: { bg: "var(--inbox-info-soft)", text: "var(--inbox-info)" },
+}
+
+// ─── Appointment status → tokens (mirrors the sibling appointment layout) ─────
+
+const STATUS_TOKENS: Record<AppointmentStatus, { bg: string; text: string; border: string }> = {
+  confirmed: { bg: "var(--accent-muted)", text: "var(--accent-on-dark)", border: "var(--accent-muted-border)" },
+  pending: { bg: "var(--inbox-lead-soft)", text: "var(--inbox-lead)", border: "color-mix(in srgb, var(--inbox-lead) 32%, transparent)" },
+  arrived: { bg: "var(--inbox-success-soft)", text: "var(--inbox-success)", border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)" },
+  no_show: { bg: "var(--inbox-urgency-soft)", text: "var(--inbox-urgency)", border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)" },
+  cancelled: { bg: "var(--inbox-urgency-soft)", text: "var(--inbox-urgency)", border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)" },
+}
+
+const SLOT_COLOR = "var(--inbox-success)"
+const DISABLED_HINT = "Disponible al conectar las citas reales"
 
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
 }
-
-/** `€213` style, no decimals — a single glance, not a finance report. */
 function fmtEuro(value: number): string {
   return `${value.toLocaleString("es-ES")} €`
 }
@@ -121,220 +168,155 @@ export function BeautyStudioOverview({
     return () => clearInterval(id)
   }, [])
 
+  const studio = businessName ?? day.businessName
+
   return (
     <div className="flex flex-col gap-6">
-      <StudioHeader
-        businessName={businessName ?? day.businessName}
-        beauty={beauty}
-        appointments={derived.appointmentsCount}
-        unconfirmed={derived.unconfirmedCount}
-        openGaps={derived.openGaps}
-        bookedValue={derived.bookedValue}
-      />
+      <StudioHeader studio={studio} beauty={beauty} derived={derived} />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <AgendaPanel day={day} now={now} beauty={beauty} />
-        <FinesseRail day={day} beauty={beauty} />
-      </div>
 
-      <CareSection beauty={beauty} />
+        <div className="flex flex-col gap-6">
+          <FinesseAssistant />
+          <DecisionsSection />
+          <CareSection title={beauty.ui.groups.care} />
+          <MomentoBeauty />
+        </div>
+      </div>
     </div>
   )
 }
 
-// ─── Header: compact, LEFT-ALIGNED brand + day + one inline stat line ─────────
+// ─── Header ──────────────────────────────────────────────────────────────────
 
 function StudioHeader({
-  businessName,
+  studio,
   beauty,
-  appointments,
-  unconfirmed,
-  openGaps,
-  bookedValue,
+  derived,
 }: {
-  businessName: string
+  studio: string
   beauty: BeautyTodayConfig
-  appointments: number
-  unconfirmed: number
-  openGaps: number
-  bookedValue: number
+  derived: ReturnType<typeof deriveAppointmentDay>
 }) {
-  const dateLabel = new Date().toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  })
+  const dateLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })
 
-  const stats: { label: string; value: string; tone?: "lead" | "info" }[] = [
-    { label: "Citas", value: String(appointments) },
-    { label: "Sin confirmar", value: String(unconfirmed), tone: unconfirmed > 0 ? "lead" : undefined },
-    { label: "Huecos", value: String(openGaps), tone: openGaps > 0 ? "info" : undefined },
-    { label: "Ingresos previstos", value: fmtEuro(bookedValue) },
+  const signals: { text: string; dot: string }[] = [
+    { text: `${derived.appointmentsCount} citas`, dot: "var(--accent-primary)" },
+    {
+      text: `${derived.openGaps} ${derived.openGaps === 1 ? "hueco libre" : "huecos libres"}`,
+      dot: "var(--inbox-success)",
+    },
+    { text: `${fmtEuro(derived.bookedValue)} previstos`, dot: "var(--inbox-lead)" },
   ]
 
   return (
-    <header className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        {/* Brand lockup — FINESSE wordmark (Inter, wide tracking) + by Sevenef */}
-        <div className="flex items-center gap-3">
+    <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary-light)]">
+            Hoy en {studio}
+          </h1>
           <span
-            aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--agent-rose, var(--accent-primary)), var(--accent-rich))",
-              color: "#fff",
-            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10.5px] font-semibold"
+            style={{ borderColor: "var(--accent-muted-border)", background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
           >
-            <Sparkles size={17} strokeWidth={1.9} />
+            <Sparkles size={12} strokeWidth={2} aria-hidden="true" />
+            {BEAUTY_SPECIALIST_AGENT.name} · by Sevenef
           </span>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-[15px] font-semibold uppercase leading-none tracking-[0.28em] text-[var(--text-primary-light)]">
-                Finesse
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary-light)]">
-                by Sevenef
-              </span>
-            </div>
-            <p suppressHydrationWarning className="mt-1 text-[12.5px] text-[var(--text-secondary-light)]">
-              <span className="font-medium text-[var(--text-primary-light)]">{businessName}</span>
-              <span className="text-[var(--text-tertiary-light)]"> · {dateLabel}</span>
-            </p>
-          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
-            style={{
-              borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)",
-              color: "var(--inbox-info)",
-            }}
-            title="Datos de ejemplo mientras conectamos las citas reales."
-          >
-            {beauty.previewChip}
+        <p className="mt-2 max-w-xl text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">
+          Finesse tiene lista tu agenda, tus decisiones y una oportunidad visual para hoy.
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span suppressHydrationWarning className="text-[12.5px] capitalize text-[var(--text-secondary-light)]">
+            {dateLabel}
           </span>
-          {/* Finesse entry — disabled until the assistant is wired (no fake action). */}
-          <button
-            type="button"
-            disabled
-            title="Disponible al conectar el asistente"
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium opacity-80"
-            style={{
-              borderColor: "var(--accent-muted-border)",
-              background: "var(--accent-muted)",
-              color: "var(--accent-on-dark)",
-            }}
-          >
-            <Sparkles size={13} strokeWidth={2} aria-hidden="true" />
-            {BEAUTY_SPECIALIST_AGENT.voice.ask}
-          </button>
+          <span className="h-1 w-1 rounded-full bg-[var(--text-tertiary-light)]" aria-hidden="true" />
+          {signals.map((s) => (
+            <span key={s.text} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--text-primary-light)]">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.dot }} aria-hidden="true" />
+              {s.text}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* One operational stat line — figures at a glance, not a KPI wall. */}
-      <div className="flex flex-wrap items-stretch gap-2">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="flex items-center gap-2 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-2"
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary-light)]">
-              {s.label}
-            </span>
-            <span
-              className="text-[14px] font-bold tabular-nums"
-              style={{
-                color:
-                  s.tone === "lead"
-                    ? "var(--inbox-lead)"
-                    : s.tone === "info"
-                      ? "var(--inbox-info)"
-                      : "var(--text-primary-light)",
-              }}
-            >
-              {s.value}
-            </span>
-          </div>
-        ))}
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className="inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+          style={{ borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)", color: "var(--inbox-info)" }}
+          title="Datos de ejemplo mientras conectamos las citas reales."
+        >
+          {beauty.previewChip}
+        </span>
+        {/* Primary CTA — disabled until the Finesse assistant is wired here. */}
+        <button
+          type="button"
+          disabled
+          title="Disponible al conectar el asistente"
+          className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl px-4 py-2.5 text-[12.5px] font-semibold text-white opacity-90"
+          style={{ background: "var(--accent-primary)" }}
+        >
+          <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+          {BEAUTY_SPECIALIST_AGENT.voice.ask}
+        </button>
       </div>
     </header>
   )
 }
 
-// ─── Agenda protagonist ──────────────────────────────────────────────────────
+// ─── Agenda protagonist (free slot integrated inline) ─────────────────────────
 
 type AgendaEntry =
   | { kind: "appt"; start: string; appt: Appointment }
   | { kind: "gap"; start: string; gap: AppointmentGap }
 
-function AgendaPanel({
-  day,
-  now,
-  beauty,
-}: {
-  day: AppointmentDay
-  now: Date | null
-  beauty: BeautyTodayConfig
-}) {
+function AgendaPanel({ day, now, beauty }: { day: AppointmentDay; now: Date | null; beauty: BeautyTodayConfig }) {
   const entries = useMemo<AgendaEntry[]>(() => {
     const merged: AgendaEntry[] = [
       ...day.appointments.map((appt) => ({ kind: "appt" as const, start: appt.start, appt })),
-      ...day.gaps.map((gap) => ({ kind: "gap" as const, start: gap.start, gap })),
+      ...day.gaps.slice(0, 1).map((gap) => ({ kind: "gap" as const, start: gap.start, gap })),
     ]
     return merged.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
   }, [day])
 
   const nowMs = now ? now.getTime() : null
-  const nowLabel = now
-    ? now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
-    : null
+  const nowLabel = now ? now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null
   let nowShown = false
 
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4">
-      <div className="flex items-center gap-2">
-        <CalendarClock size={15} strokeWidth={1.9} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">
-          Agenda de hoy
-        </h2>
-        <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">
+    <section className="min-w-0">
+      <div className="mb-3 flex items-baseline gap-3">
+        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary-light)]">Agenda de hoy</h2>
+        <span className="text-[11.5px] tabular-nums text-[var(--text-tertiary-light)]">
           {day.appointments.length} citas · {day.gaps.length} huecos
         </span>
         {nowLabel ? (
           <span className="ml-auto inline-flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} aria-hidden="true" />
-            <span suppressHydrationWarning className="text-[11px] font-medium tabular-nums" style={{ color: "var(--accent-primary)" }}>
+            <span suppressHydrationWarning className="text-[11.5px] font-medium tabular-nums" style={{ color: "var(--accent-primary)" }}>
               {beauty.ui.now} {nowLabel}
             </span>
           </span>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        {entries.map((entry) => {
+      <div className="overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
+        {entries.map((entry, i) => {
           const startMs = new Date(entry.start).getTime()
           const showNow = nowMs !== null && !nowShown && startMs > nowMs
           if (showNow) nowShown = true
+          const first = i === 0
           return (
-            <div key={entry.kind === "appt" ? entry.appt.id : entry.gap.id} className="flex flex-col gap-2.5">
-              {showNow ? (
-                <div className="flex items-center gap-2" aria-hidden="true">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-widest"
-                    style={{ color: "var(--accent-primary)" }}
-                  >
-                    {beauty.ui.now}
-                  </span>
-                  <span className="h-px flex-1" style={{ background: "var(--accent-primary)" }} />
-                </div>
-              ) : null}
+            <div key={entry.kind === "appt" ? entry.appt.id : entry.gap.id}>
+              {showNow ? <NowDivider label={beauty.ui.now} /> : null}
               {entry.kind === "appt" ? (
-                <AgendaApptRow appt={entry.appt} beauty={beauty} />
+                <AgendaApptRow appt={entry.appt} beauty={beauty} now={now} first={first && !showNow} />
               ) : (
-                <AgendaGapRow gap={entry.gap} beauty={beauty} />
+                <AgendaGapRow gap={entry.gap} beauty={beauty} first={first && !showNow} />
               )}
             </div>
           )
@@ -344,229 +326,299 @@ function AgendaPanel({
   )
 }
 
-function AgendaApptRow({ appt, beauty }: { appt: Appointment; beauty: BeautyTodayConfig }) {
-  const st = STATUS_TOKENS[appt.status]
+function NowDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-3">
-      <div className="flex w-14 shrink-0 flex-col items-start">
-        <span className="text-[13px] font-semibold tabular-nums text-[var(--text-primary-light)]">{fmtTime(appt.start)}</span>
-        <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">{fmtTime(appt.end)}</span>
-      </div>
-      {/* Status accent bar — the color IS the state, at a glance. */}
-      <span className="h-9 w-[3px] shrink-0 rounded-full" style={{ background: st.text }} aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-semibold text-[var(--text-primary-light)]">{appt.clientName}</p>
-        <p className="truncate text-[12px] text-[var(--text-secondary-light)]">{appt.service}</p>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <span
-          className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-          style={{ background: st.bg, color: st.text, borderColor: st.border }}
-        >
-          {beauty.statusLabels[appt.status]}
-        </span>
-        {typeof appt.price === "number" ? (
-          <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">{fmtEuro(appt.price)}</span>
-        ) : null}
-      </div>
+    <div className="flex items-center gap-2 border-t border-[var(--border-dark)] px-4 py-2" aria-hidden="true">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
+      <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--accent-primary)" }}>
+        {label}
+      </span>
+      <span className="h-px flex-1" style={{ background: "color-mix(in srgb, var(--accent-primary) 40%, transparent)" }} />
     </div>
   )
 }
 
-function AgendaGapRow({ gap, beauty }: { gap: AppointmentGap; beauty: BeautyTodayConfig }) {
+function AgendaApptRow({
+  appt,
+  beauty,
+  now,
+  first,
+}: {
+  appt: Appointment
+  beauty: BeautyTodayConfig
+  now: Date | null
+  first: boolean
+}) {
+  const st = STATUS_TOKENS[appt.status]
+  // Past appointments read as "done" — pure presentation, no new status.
+  const past = now ? new Date(appt.end).getTime() < now.getTime() : false
   return (
     <div
-      className="flex items-center gap-3 rounded-xl border border-dashed px-3.5 py-2.5"
+      className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t border-[var(--border-dark)]"} ${past ? "opacity-55" : ""}`}
+    >
+      <div className="flex w-12 shrink-0 flex-col items-start">
+        <span className="text-[13px] font-semibold tabular-nums text-[var(--text-primary-light)]">{fmtTime(appt.start)}</span>
+        <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">{fmtTime(appt.end)}</span>
+      </div>
+      <span className="h-9 w-[3px] shrink-0 rounded-full" style={{ background: st.text }} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[13.5px] font-semibold text-[var(--text-primary-light)]">{appt.clientName}</p>
+          <span
+            className="shrink-0 rounded-full border px-2 py-0.5 text-[9.5px] font-semibold"
+            style={{ background: st.bg, color: st.text, borderColor: st.border }}
+          >
+            {beauty.statusLabels[appt.status]}
+          </span>
+        </div>
+        <p className="truncate text-[12px] text-[var(--text-secondary-light)]">{appt.service}</p>
+      </div>
+      {typeof appt.price === "number" ? (
+        <span className="shrink-0 text-[12.5px] font-semibold tabular-nums" style={{ color: "var(--accent-on-dark)" }}>
+          {fmtEuro(appt.price)}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: BeautyTodayConfig; first: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t"}`}
       style={{
-        borderColor: "color-mix(in srgb, var(--inbox-info) 45%, transparent)",
-        background: "color-mix(in srgb, var(--inbox-info) 6%, transparent)",
+        background: "var(--inbox-success-soft)",
+        borderColor: first ? undefined : "color-mix(in srgb, var(--inbox-success) 20%, transparent)",
       }}
     >
-      <Clock size={14} className="shrink-0" style={{ color: GAP_COLOR }} aria-hidden="true" />
-      <p className="flex-1 text-[12.5px] font-medium" style={{ color: GAP_COLOR }}>
-        {beauty.ui.groups.openGaps} · {fmtTime(gap.start)} – {fmtTime(gap.end)}
-      </p>
-      {/* Disabled until appointment actions are connected (never fakes a write). */}
+      <span className="w-12 shrink-0 text-[11px] tabular-nums" style={{ color: "var(--inbox-success)" }}>
+        {fmtTime(gap.start)}
+      </span>
+      <span
+        aria-hidden="true"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--app-surface-dark-elevated)]"
+        style={{ color: SLOT_COLOR }}
+      >
+        <Plus size={15} strokeWidth={2} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-semibold" style={{ color: "var(--inbox-success)" }}>
+          Hueco libre · {fmtTime(gap.start)} – {fmtTime(gap.end)}
+        </p>
+        <p className="truncate text-[11.5px] text-[var(--text-secondary-light)]">
+          Finesse puede ofrecerlo a tus clientas frecuentes
+        </p>
+      </div>
       <button
         type="button"
         disabled
-        title="Disponible al conectar las citas reales"
-        className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-dashed px-2 py-1 text-[11px] font-medium opacity-80"
-        style={{ borderColor: "color-mix(in srgb, var(--inbox-info) 45%, transparent)", color: GAP_COLOR }}
+        title={DISABLED_HINT}
+        className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-lg border bg-[var(--app-surface-dark-elevated)] px-3 py-1.5 text-[11.5px] font-semibold opacity-85"
+        style={{ borderColor: "color-mix(in srgb, var(--inbox-success) 40%, transparent)", color: "var(--inbox-success)" }}
       >
-        <UserPlus size={11} strokeWidth={2} aria-hidden="true" />
+        <UserPlus size={12} strokeWidth={2} aria-hidden="true" />
         {beauty.ui.actions.waitlist}
       </button>
     </div>
   )
 }
 
-// ─── Finesse rail — the assistant panel: brief + "Necesita tu decisión" ───────
+// ─── Right rail ──────────────────────────────────────────────────────────────
 
-interface Decision {
-  id: string
-  agent: string
-  title: string
-  meta: string
-  action: { icon: typeof Send; label: string }
-}
-
-function FinesseRail({ day, beauty }: { day: AppointmentDay; beauty: BeautyTodayConfig }) {
-  const derived = deriveAppointmentDay(day)
-
-  const decisions: Decision[] = [
-    ...day.appointments
-      .filter((a) => a.status === "pending")
-      .map((a) => ({
-        id: `unc-${a.id}`,
-        agent: "Fanny",
-        title: `Confirmar a ${a.clientName} (${fmtTime(a.start)})`,
-        meta: `${a.service} · sin confirmar`,
-        action: { icon: Send, label: beauty.ui.actions.remind },
-      })),
-    ...day.gaps.slice(0, 1).map((g) => ({
-      id: `gap-${g.id}`,
-      agent: BEAUTY_SPECIALIST_AGENT.name,
-      title: `Llenar el hueco de las ${fmtTime(g.start)}`,
-      meta: "Ofrécelo a clientas frecuentes",
-      action: { icon: UserPlus, label: beauty.ui.actions.waitlist },
-    })),
-    ...day.appointments
-      .filter((a) => a.status === "no_show" || a.status === "cancelled")
-      .map((a) => ({
-        id: `fu-${a.id}`,
-        agent: "Fanny",
-        title: `Recuperar a ${a.clientName}`,
-        meta: `${beauty.statusLabels[a.status]} · ${a.service}`,
-        action: { icon: MessageSquare, label: beauty.ui.actions.message },
-      })),
-  ]
-
+function FinesseAssistant() {
   return (
-    <aside className="flex flex-col gap-4 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4">
-      {/* Finesse identity + brief — she explains what she is doing. */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-on-dark)]">
-            {beauty.eyebrow}
-          </span>
-        </div>
-        <p className="text-[12.5px] leading-relaxed text-[var(--text-primary-light)]">
-          Hoy tienes <strong>{derived.appointmentsCount} citas</strong>,{" "}
-          <strong>{derived.unconfirmedCount} sin confirmar</strong> y{" "}
-          <strong>{derived.openGaps} huecos libres</strong>. Te dejo lo importante a mano.
-        </p>
-      </div>
-
-      <div className="h-px w-full" style={{ background: "var(--border-dark)" }} aria-hidden="true" />
-
-      {/* Necesita tu decisión */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary-light)]">
-            Necesita tu decisión
-          </span>
-          <span
-            className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-white"
-            style={{ background: "var(--accent-primary)" }}
-          >
-            {decisions.length}
-          </span>
-        </div>
-
-        {decisions.length === 0 ? (
-          <p className="text-[11px] text-[var(--text-tertiary-light)]">{beauty.ui.nothingHere}</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {decisions.map((d) => (
-              <DecisionCard key={d.id} decision={d} />
-            ))}
-          </div>
-        )}
-      </div>
-    </aside>
-  )
-}
-
-function DecisionCard({ decision }: { decision: Decision }) {
-  const Icon = decision.action.icon
-  return (
-    <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] p-3">
-      <div className="mb-1.5 flex items-center gap-1.5">
+    <div
+      className="rounded-[18px] border p-4"
+      style={{ borderColor: "color-mix(in srgb, var(--agent-rose, var(--accent-primary)) 30%, transparent)", background: "var(--app-surface-dark)" }}
+    >
+      <div className="mb-2.5 flex items-center gap-2">
         <span
-          className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+          aria-hidden="true"
+          className="flex h-6 w-6 items-center justify-center rounded-lg"
           style={{ background: "var(--agent-rose-soft, var(--accent-muted))", color: "var(--agent-rose, var(--accent-on-dark))" }}
         >
-          {decision.agent}
+          <Sparkles size={13} strokeWidth={2} />
+        </span>
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-on-dark)]">
+          {BEAUTY_SPECIALIST_AGENT.voice.intelligence}
+        </span>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary-light)]">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--inbox-success)" }} aria-hidden="true" />
+          al día
         </span>
       </div>
-      <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">{decision.title}</p>
-      <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary-light)]">{decision.meta}</p>
-      <div className="mt-2.5 flex items-center gap-2">
-        {/* Primary action — disabled until the backend is connected. */}
-        <button
-          type="button"
-          disabled
-          title="Disponible al conectar las citas reales"
-          className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11.5px] font-semibold text-white opacity-80"
-          style={{ background: "var(--accent-primary)" }}
-        >
-          <Icon size={12} strokeWidth={2} aria-hidden="true" />
-          {decision.action.label}
-        </button>
-        <button
-          type="button"
-          disabled
-          title="Disponible al conectar las citas reales"
-          className="inline-flex cursor-not-allowed items-center rounded-md border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-2.5 py-1.5 text-[11.5px] font-medium text-[var(--text-secondary-light)] opacity-80"
-        >
-          Después
-        </button>
-      </div>
+      <p className="text-[12.5px] leading-relaxed text-[var(--text-primary-light)]">{DEMO_ASSISTANT_NOTE}</p>
     </div>
   )
 }
 
-// ─── Cuidado de clientas — supporting, operational ────────────────────────────
-
-function CareSection({ beauty }: { beauty: BeautyTodayConfig }) {
+function DecisionsSection() {
   return (
-    <section className="flex flex-col gap-3 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4">
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">Necesita tu decisión</h2>
+        <span
+          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-white"
+          style={{ background: "var(--accent-primary)" }}
+        >
+          {DEMO_DECISIONS.length}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        {DEMO_DECISIONS.map((d) => {
+          const Icon = d.action.icon
+          return (
+            <div key={d.id} className="rounded-[15px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-3.5">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                  style={{ background: "var(--agent-rose-soft, var(--accent-muted))", color: "var(--agent-rose, var(--accent-on-dark))" }}
+                >
+                  {d.agent}
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary-light)]">· {d.kind}</span>
+              </div>
+              <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">{d.title}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary-light)]">{d.why}</p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled
+                  title={DISABLED_HINT}
+                  className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-semibold text-white opacity-90"
+                  style={{ background: "var(--accent-primary)" }}
+                >
+                  <Icon size={12} strokeWidth={2} aria-hidden="true" />
+                  {d.primary}
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title={DISABLED_HINT}
+                  className="inline-flex cursor-not-allowed items-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-2 text-[11.5px] font-medium text-[var(--text-secondary-light)] opacity-85"
+                >
+                  Después
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function CareSection({ title }: { title: string }) {
+  return (
+    <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Heart size={14} strokeWidth={1.9} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
-        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--text-secondary-light)]">
-          {beauty.ui.groups.care}
-        </h2>
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{title}</h2>
+        <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">{DEMO_CARE.length} hoy</span>
       </div>
-      <div className="grid gap-2.5 md:grid-cols-2">
-        {beauty.extras.clientsToCare.map((c) => (
-          <div
-            key={c.name}
-            className="flex items-center gap-3 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-3"
-          >
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold"
-              style={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
+      <div className="flex flex-col gap-2">
+        {DEMO_CARE.map((c) => {
+          const tone = CARE_TONE[c.tone]
+          return (
+            <div
+              key={c.name}
+              className="flex items-center gap-3 rounded-[14px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3.5 py-3"
             >
-              {c.name.slice(0, 1)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-[var(--text-primary-light)]">{c.name}</p>
-              <p className="truncate text-[11.5px] text-[var(--text-secondary-light)]">{c.meta}</p>
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold"
+                style={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
+              >
+                {c.ini}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-[12.5px] font-semibold text-[var(--text-primary-light)]">{c.name}</p>
+                  <span
+                    className="shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ background: tone.bg, color: tone.text }}
+                  >
+                    {c.tag}
+                  </span>
+                </div>
+                <p className="truncate text-[11px] text-[var(--text-secondary-light)]">{c.note}</p>
+              </div>
+              <button
+                type="button"
+                disabled
+                title="Disponible al conectar el asistente"
+                className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold opacity-85"
+                style={{ borderColor: "var(--accent-muted-border)", background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
+              >
+                {c.action}
+              </button>
             </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function MomentoBeauty() {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">Momento Beauty</h2>
+        <span className="text-[11px] text-[var(--text-tertiary-light)]">idea visual de hoy</span>
+      </div>
+      <div className="overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
+        {/* Photo placeholder — token gradient stands in for the uploaded shot. */}
+        <div
+          className="relative flex h-40 items-end p-3"
+          style={{ background: "linear-gradient(150deg, var(--accent-soft), var(--agent-rose, var(--accent-primary)))" }}
+        >
+          <span
+            className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9.5px] font-semibold text-white"
+            style={{ background: "color-mix(in srgb, var(--plum, #2B2238) 45%, transparent)", backdropFilter: "blur(4px)" }}
+          >
+            <Instagram size={11} strokeWidth={2} aria-hidden="true" />
+            {DEMO_MOMENTO.channel}
+          </span>
+          <span
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium text-[var(--text-secondary-light)]"
+            style={{ background: "var(--app-surface-dark-elevated)" }}
+          >
+            <Camera size={11} strokeWidth={2} aria-hidden="true" />
+            Sube la foto de hoy
+          </span>
+        </div>
+        <div className="p-4">
+          <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">{DEMO_MOMENTO.title}</p>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">{DEMO_MOMENTO.note}</p>
+          <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
               disabled
-              title="Disponible al conectar el asistente"
-              className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-secondary-light)] opacity-80"
+              title="Disponible al conectar Marketing"
+              className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-semibold text-white opacity-90"
+              style={{ background: "var(--accent-primary)" }}
             >
-              {beauty.ui.actions.message}
-              <ArrowRight size={11} strokeWidth={2} aria-hidden="true" />
+              {DEMO_MOMENTO.primary}
+            </button>
+            <button
+              type="button"
+              disabled
+              title="Disponible al conectar Marketing"
+              className="inline-flex cursor-not-allowed items-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-2 text-[11.5px] font-medium text-[var(--text-secondary-light)] opacity-85"
+            >
+              {DEMO_MOMENTO.secondary}
             </button>
           </div>
-        ))}
+          <div
+            className="mt-3 flex items-center justify-center gap-1.5 border-t border-[var(--border-dark)] pt-3 text-[11px] font-semibold"
+            style={{ color: "var(--accent-on-dark)" }}
+          >
+            <Plus size={12} strokeWidth={2} aria-hidden="true" />
+            {DEMO_MOMENTO.link}
+            <ArrowRight size={12} strokeWidth={2} aria-hidden="true" className="opacity-70" />
+          </div>
+        </div>
       </div>
     </section>
   )
