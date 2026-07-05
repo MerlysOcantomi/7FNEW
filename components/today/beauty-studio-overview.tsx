@@ -574,8 +574,8 @@ function MomentoBeauty() {
           style={{ background: "linear-gradient(150deg, var(--accent-soft), var(--agent-rose, var(--accent-primary)))" }}
         >
           <span
-            className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9.5px] font-semibold text-white"
-            style={{ background: "color-mix(in srgb, var(--plum, #2B2238) 45%, transparent)", backdropFilter: "blur(4px)" }}
+            className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9.5px] font-semibold"
+            style={{ background: "var(--app-surface-dark-elevated)", color: "var(--accent-on-dark)" }}
           >
             <Instagram size={11} strokeWidth={2} aria-hidden="true" />
             {DEMO_MOMENTO.channel}
