@@ -13,10 +13,12 @@ export interface WorkspaceBusinessProfile {
 }
 
 export interface WorkspaceServiceCatalogItem {
+  /** Stable id — added by the service-catalog layer so agenda/billing can reference a service later. */
+  id?: string
   name: string
-  description: string
   active: boolean
   category?: string
+  description?: string
   tags?: string[]
 }
 

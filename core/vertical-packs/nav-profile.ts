@@ -60,9 +60,9 @@ export interface VerticalNavProfile {
  * Inventory. Hiding is achieved by NOT listing them — nothing is deleted from
  * the core.
  *
- * `Servicios` points at `/business-profile` (where the service catalog is
- * configured today) on purpose: no new route is created in this pass. A
- * dedicated `/servicios` surface is a later step.
+ * `Servicios` points at `/services` — the generic (core) service-catalog
+ * surface. The catalog itself is core infrastructure; Beauty only contributes
+ * the seed/labels via its vertical pack.
  */
 export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   verticalKey: "beauty",
@@ -74,7 +74,7 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
     { id: "clientas", label: "Clientas", href: "/clientes", group: "primary" },
     { id: "mensajes", label: "Mensajes", href: "/inbox", helper: "por Fanny", group: "primary" },
     { id: "marketing", label: "Marketing", href: "/contenido", helper: "por Fiona", group: "primary" },
-    { id: "servicios", label: "Servicios", href: "/business-profile", group: "primary" },
+    { id: "servicios", label: "Servicios", href: "/services", group: "primary" },
     { id: "cobros", label: "Cobros", href: "/facturacion", helper: "por Felix", group: "more" },
     { id: "equipo", label: "Equipo", href: "/usuarios", group: "more" },
     { id: "forte", label: "Mr Forte", href: "/forte/improvements", helper: "Mejoras", group: "more" },
