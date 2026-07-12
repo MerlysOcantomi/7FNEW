@@ -289,6 +289,14 @@ model User {
   email           String   @unique
   nombre          String?
   avatar          String?
+  /// Personal 7F app-interface language for this user. Controls ONLY the
+  /// internal UI language, independent of `Workspace.config.locale` (business
+  /// defaults / customer-facing output). Null = no explicit personal
+  /// preference (resolution falls back to workspace/browser/default in a later
+  /// phase). Persisted values are canonical codes from `SUPPORTED_LOCALES`
+  /// ("en" | "es" | "de"); regional codes are normalized at resolve time, not
+  /// stored here.
+  locale          String?
   /// @deprecated Legacy global RBAC ("admin" | "editor" | "viewer") used by
   /// `middleware.ts` to gate workspace pages like `/finanzas`, `/admin`, etc.
   /// SHOULD migrate to per-workspace `WorkspaceMember.role` for tenant data
