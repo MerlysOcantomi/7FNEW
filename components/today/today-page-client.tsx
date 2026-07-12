@@ -33,7 +33,10 @@ import { TodayEventCard } from "./today-event-card"
 import { cn } from "@/lib/utils"
 import { useSearchParams } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
-import { resolveTodayLayoutMode } from "@modules/today/today-layout-mode"
+import {
+  resolveTodayLayoutMode,
+  shouldActivateVerticalToday,
+} from "@modules/today/today-layout-mode"
 import { resolveBeautyTodayConfig } from "@modules/today/beauty-today"
 import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
@@ -67,15 +70,16 @@ export function TodayPageClient() {
 
   // Beauty is the first vertical with a visible verticalized Today. The REAL
   // source of truth is the workspace: `workspace.verticalKey` →
-  // `resolveWorkspaceExperience(...)` (the foundation from PR #17). When its
-  // declared `todayMode` is "appointment_first" (only Beauty today), Today
-  // renders the Spanish, Finesse-branded Beauty "Hoy" over DEMO data (marked
-  // with a "Vista previa · datos de ejemplo" chip). Every other vertical stays
-  // on work_first — Today normal is unchanged.
+  // `resolveWorkspaceExperience(...)` (the foundation from PR #17). Beauty
+  // DECLARES `todayMode: "appointment_first"`, but that layout still renders
+  // DEMO bookings, so a REAL Beauty workspace deliberately stays on the safe
+  // work_first Today — see the P0 guardrail below. The Spanish, Finesse-branded
+  // Beauty "Hoy" (marked "Vista previa · datos de ejemplo") is reachable only as
+  // an explicit preview. Every other vertical stays on work_first too — Today
+  // normal is unchanged.
   //
   // `?vertical=beauty` is a preview/dev-only helper (clearly isolated) so the
-  // screen is demoable on a Vercel preview without flipping a workspace first;
-  // production behavior derives solely from the workspace's verticalKey.
+  // screen is demoable on a Vercel preview without flipping a workspace first.
   const forcedBeauty = searchParams.get("vertical") === "beauty"
   const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
   const experience = resolveWorkspaceExperience(effectiveVerticalKey)
@@ -83,10 +87,21 @@ export function TodayPageClient() {
     experience.todayMode === "appointment_first"
       ? resolveBeautyTodayConfig(effectiveVerticalKey)
       : null
+  // P0 guardrail: a REAL Beauty workspace must NOT auto-switch into the
+  // appointment_first layout while it renders demo bookings. Auto-switch is
+  // enabled ONLY for an explicit design-review preview (`?vertical=beauty`) or
+  // once the pack flips its own `activateRealForRealWorkspaces` gate on
+  // (surfaced as `experience.todayActivatesRealWorkspaces`, currently false for
+  // Beauty). The `?todayLayout=…` override is independent — it wins inside
+  // `resolveTodayLayoutMode` regardless of this flag.
+  const enableVerticalAutoSwitch = shouldActivateVerticalToday({
+    isExplicitPreview: forcedBeauty,
+    todayActivatesRealWorkspaces: experience.todayActivatesRealWorkspaces,
+  })
   const mode = resolveTodayLayoutMode({
     override: searchParams.get("todayLayout"),
     verticalKey: effectiveVerticalKey,
-    enableVerticalAutoSwitch: !!beauty,
+    enableVerticalAutoSwitch,
   })
 
   if (mode === "appointment_first") {

@@ -236,3 +236,38 @@ export function resolveTodayLayoutMode(
 
   return DEFAULT_TODAY_LAYOUT_MODE
 }
+
+export interface VerticalTodayActivationInput {
+  /**
+   * The operator explicitly asked to review the vertical Today (e.g. the
+   * `?vertical=beauty` design-review helper). A preview always activates the
+   * declared mode over demo data — it never reaches a real, unprompted operator.
+   */
+  isExplicitPreview: boolean
+  /**
+   * The vertical pack's own gate for REAL workspaces
+   * (`WorkspaceExperience.todayActivatesRealWorkspaces`). `false` means the
+   * declared mode is still preview-only; `true` means a real backend exists and
+   * the mode may auto-activate for real operators.
+   */
+  todayActivatesRealWorkspaces: boolean
+}
+
+/**
+ * P0 guardrail — decide whether a workspace's declared vertical Today mode
+ * should feed `resolveTodayLayoutMode({ enableVerticalAutoSwitch })`.
+ *
+ * The rule, stated once and tested, so it never hides inside a React component:
+ * a REAL workspace activates its vertical Today ONLY when the pack flips its own
+ * `activateRealForRealWorkspaces` gate on. Until then the declared mode
+ * (e.g. Beauty's `appointment_first`, which renders demo bookings) is reachable
+ * only as an explicit preview. The independent `?todayLayout=` override still
+ * wins inside `resolveTodayLayoutMode` regardless of this flag.
+ *
+ * Pure and total: no I/O, no clock — trivially unit-testable.
+ */
+export function shouldActivateVerticalToday(
+  input: VerticalTodayActivationInput,
+): boolean {
+  return input.isExplicitPreview || input.todayActivatesRealWorkspaces
+}

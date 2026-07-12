@@ -24,7 +24,9 @@ import {
   SESSION_VERTICAL_KEYS,
   normalizeSessionVariant,
   resolveTodayLayoutMode,
+  shouldActivateVerticalToday,
 } from "./today-layout-mode"
+import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 
 test("default is work_first", () => {
   assert.equal(DEFAULT_TODAY_LAYOUT_MODE, "work_first")
@@ -113,6 +115,87 @@ test("auto-switch resolves verticals only when explicitly enabled", () => {
   // An unrecognised vertical still falls back to the default.
   assert.equal(
     resolveTodayLayoutMode({ verticalKey: "agency", enableVerticalAutoSwitch: true }),
+    "work_first",
+  )
+})
+
+// ─── P0 guardrail: pack flag decides real-workspace activation ───────────────
+
+test("shouldActivateVerticalToday: real workspace activates only when the pack gate is on", () => {
+  // Real workspace, pack gate off (Beauty today) → NO activation.
+  assert.equal(
+    shouldActivateVerticalToday({ isExplicitPreview: false, todayActivatesRealWorkspaces: false }),
+    false,
+  )
+  // Explicit preview (?vertical=beauty) → activation, even with the gate off.
+  assert.equal(
+    shouldActivateVerticalToday({ isExplicitPreview: true, todayActivatesRealWorkspaces: false }),
+    true,
+  )
+  // Pack gate on (a real backend exists) → activation for real workspaces.
+  assert.equal(
+    shouldActivateVerticalToday({ isExplicitPreview: false, todayActivatesRealWorkspaces: true }),
+    true,
+  )
+})
+
+test("CRITICAL: a REAL Beauty workspace stays on work_first (never demo appointment_first)", () => {
+  const exp = resolveWorkspaceExperience("beauty")
+  // Beauty declares appointment_first but gates real activation off.
+  assert.equal(exp.todayMode, "appointment_first")
+  assert.equal(exp.todayActivatesRealWorkspaces, false)
+
+  // Real workspace path (no explicit preview): the enable flag is derived from
+  // the pack gate → work_first. This is the exact bug the guardrail fixes.
+  const realEnable = shouldActivateVerticalToday({
+    isExplicitPreview: false,
+    todayActivatesRealWorkspaces: exp.todayActivatesRealWorkspaces,
+  })
+  assert.equal(realEnable, false)
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "beauty", enableVerticalAutoSwitch: realEnable }),
+    "work_first",
+  )
+})
+
+test("explicit Beauty preview (?vertical=beauty) DOES render appointment_first", () => {
+  const exp = resolveWorkspaceExperience("beauty")
+  const previewEnable = shouldActivateVerticalToday({
+    isExplicitPreview: true,
+    todayActivatesRealWorkspaces: exp.todayActivatesRealWorkspaces,
+  })
+  assert.equal(previewEnable, true)
+  assert.equal(
+    resolveTodayLayoutMode({ verticalKey: "beauty", enableVerticalAutoSwitch: previewEnable }),
+    "appointment_first",
+  )
+})
+
+test("?todayLayout=appointment_first override reaches the preview regardless of the gate", () => {
+  // The design-review override is independent of the pack gate — it wins.
+  assert.equal(
+    resolveTodayLayoutMode({
+      override: "appointment_first",
+      verticalKey: "beauty",
+      enableVerticalAutoSwitch: false,
+    }),
+    "appointment_first",
+  )
+})
+
+test("non-Beauty verticals are unaffected by the guardrail", () => {
+  // A real agency workspace: work_first, and the gate is off by default.
+  const agency = resolveWorkspaceExperience("agency")
+  assert.equal(agency.todayMode, "work_first")
+  assert.equal(agency.todayActivatesRealWorkspaces, false)
+  assert.equal(
+    resolveTodayLayoutMode({
+      verticalKey: "agency",
+      enableVerticalAutoSwitch: shouldActivateVerticalToday({
+        isExplicitPreview: false,
+        todayActivatesRealWorkspaces: agency.todayActivatesRealWorkspaces,
+      }),
+    }),
     "work_first",
   )
 })

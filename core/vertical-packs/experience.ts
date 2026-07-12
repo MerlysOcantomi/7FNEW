@@ -46,6 +46,18 @@ export interface WorkspaceExperience {
   availableThemeKeys: string[]
   /** Declared operating model (data). Does NOT enable the real Today by itself. */
   todayMode: string
+  /**
+   * Whether a REAL workspace of this vertical should actually ACTIVATE its
+   * declared `todayMode` (vs. staying on the safe `work_first` Today). Driven by
+   * the vertical pack's own gate — for Beauty this is
+   * `BEAUTY_PACK.today.activateRealForRealWorkspaces`. While `false`, the
+   * declared mode (e.g. `appointment_first`) is a design-review PREVIEW only:
+   * it renders demo data and is reachable via an explicit `?vertical=` /
+   * `?todayLayout=` override, so a real operator never auto-lands on demo
+   * bookings. Flip the pack flag on only once a real backend for that mode
+   * exists.
+   */
+  todayActivatesRealWorkspaces: boolean
   navProfileId: string | null
   recommendedChannels: string[]
   recommendedModules: string[]
@@ -84,6 +96,7 @@ export function resolveWorkspaceExperience(
       defaultThemeKey: BEAUTY_PACK.themes.default,
       availableThemeKeys: BEAUTY_PACK.themes.available,
       todayMode: BEAUTY_PACK.today.mode,
+      todayActivatesRealWorkspaces: BEAUTY_PACK.today.activateRealForRealWorkspaces,
       navProfileId: navProfile?.verticalKey ?? BEAUTY_PACK.navProfileId,
       recommendedChannels: BEAUTY_PACK.channels,
       recommendedModules: BEAUTY_PACK.recommendedModules,
@@ -103,6 +116,8 @@ export function resolveWorkspaceExperience(
     defaultThemeKey: DEFAULT_THEME_KEY,
     availableThemeKeys: DEFAULT_AVAILABLE_THEME_KEYS,
     todayMode: "work_first",
+    // work_first is the safe default Today and is always real — no gate needed.
+    todayActivatesRealWorkspaces: false,
     navProfileId: navProfile?.verticalKey ?? null,
     recommendedChannels: [],
     recommendedModules: [],
