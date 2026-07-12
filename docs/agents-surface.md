@@ -69,11 +69,11 @@ rest reuse the semantic palette) — never the old blue→pink gradient.
 
 | Agent | Function | Autonomy | Section | Wired today? |
 |---|---|---|---|---|
-| **Francis** | CEO · Leads the team | — (lead) | — (hero) | Narrative lead |
-| **Mr. Forte** | Verticals · Module architect | Suggests | `/forte` | Coming online |
+| **Francis** | CEO · Operations & Coordination | — (lead) | — (hero) | Narrative lead |
+| **Mr. Forte** | Architecture · Modules · Lab | Suggests | `/forte` | Coming online |
 | **Fanny** | Conversations · Inbox | Auto | `/inbox` | **Yes — the only wired agent** |
-| **Freya** | Content · Marketing | Suggests | `/contenido` | Coming online |
-| **Fiona** | Relationships · CRM | Auto | `/clientes` | Coming online |
+| **Freya** | Creative Studio · Visual | Suggests | `/contenido` | Coming online |
+| **Fiona** | 7F Growth · Marketing | Auto | `/clientes` | Coming online |
 | **Felix** | Finance · Invoices | Suggests | `/finanzas` | Coming online |
 | **Fathom** | Research · Vertical trends | Suggests | — (no route yet) | Coming online |
 

@@ -69,29 +69,37 @@ export const AGENT_ROSTER: readonly AgentRosterEntry[] = [
   {
     id: "francis",
     name: "Francis",
-    role: "CEO · Leads the team",
-    description: "Leads the AI team and keeps the operation on track.",
+    role: "CEO · Operations & Coordination",
+    description: "Leads the company: operations, team, decisions and coordination across the agents.",
     accent: "accent",
     autonomy: null,
     section: null,
     active: false,
     isLead: true,
-    watching: ["The whole operation", "What needs your decision", "How the team is doing"],
+    watching: [
+      "The whole operation",
+      "Team, roles & capacity",
+      "What needs your decision",
+      "Blockers & priorities",
+      "Business health",
+    ],
     collaborationNote:
-      "Francis conducts the team — routing work to the right agent and surfacing only what needs you.",
+      "Francis conducts the team — routing work to the right agent, coordinating people and surfacing only what needs you.",
   },
   {
     id: "forte",
     name: "Mr. Forte",
-    role: "Verticals · Module architect",
-    description: "Proposes which module or vertical adaptation would help your business.",
+    role: "Architecture · Modules · Lab",
+    description:
+      "Designs verticals, modules and backend logic — and runs Forte Lab to build reusable systems.",
     accent: "accent",
     autonomy: "suggest",
     section: { label: "Forte", href: "/forte" },
     active: false,
     isLead: false,
-    watching: ["Repeated business patterns", "Missing modules", "Vertical fit", "Your operating model"],
-    collaborationNote: "Mr. Forte leans on Freya for module design and listens to Fathom's vertical trends.",
+    watching: ["Missing modules", "Vertical fit", "Reusable patterns", "Backend & product logic"],
+    collaborationNote:
+      "Mr. Forte builds the systems Freya dresses visually and Fiona uses commercially; he listens to Fathom's trends.",
   },
   {
     id: "fanny",
@@ -109,28 +117,37 @@ export const AGENT_ROSTER: readonly AgentRosterEntry[] = [
   {
     id: "freya",
     name: "Freya",
-    role: "Content · Marketing",
-    description: "Content, campaigns and design support.",
+    role: "Creative Studio · Visual",
+    description: "Visual content, imagery, video, design, interfaces and creative assets.",
     accent: "rose",
     autonomy: "suggest",
     section: { label: "Content", href: "/contenido" },
     active: false,
     isLead: false,
-    watching: ["Content deadlines", "Campaign tasks", "Module & design support"],
-    collaborationNote: "Freya designs alongside Mr. Forte and turns Fathom's trends into content.",
+    watching: ["Visual content & assets", "Design & interfaces", "Creative pieces for growth & modules"],
+    collaborationNote:
+      "Freya produces the visuals Fiona needs for growth and the interfaces that dress Mr. Forte's modules.",
   },
   {
     id: "fiona",
     name: "Fiona",
-    role: "Relationships · CRM",
-    description: "Clients, relationships and follow-up gaps.",
+    role: "7F Growth · Marketing",
+    description:
+      "Growth: campaigns, CRM, relationships, audiences, email marketing, SEO, AEO and digital presence.",
     accent: "teal",
     autonomy: "auto",
     section: { label: "Clients", href: "/clientes" },
     active: false,
     isLead: false,
-    watching: ["Quiet clients", "Follow-up gaps", "Relationship risks"],
-    collaborationNote: "Fiona syncs notes from Fanny's threads and flags relationship risks for you.",
+    watching: [
+      "Campaigns & funnels",
+      "CRM & relationships",
+      "Audiences & segmentation",
+      "SEO / AEO visibility",
+      "Reactivation opportunities",
+    ],
+    collaborationNote:
+      "Fiona turns Fanny's new contacts and Freya's visuals into campaigns, reactivations and growth.",
   },
   {
     id: "felix",
@@ -156,7 +173,8 @@ export const AGENT_ROSTER: readonly AgentRosterEntry[] = [
     active: false,
     isLead: false,
     watching: ["Market trends", "Vertical opportunities", "Competitor & product signals"],
-    collaborationNote: "Fathom feeds vertical trends to Mr. Forte and content angles to Freya.",
+    collaborationNote:
+      "Fathom feeds vertical trends to Mr. Forte, SEO/AEO & market signals to Fiona, and content angles to Freya.",
   },
 ]
 

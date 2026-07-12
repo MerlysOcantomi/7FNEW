@@ -252,9 +252,9 @@ now), P1 (next), P2 (later).
 | Smart Inbox / Mensajes | `/inbox` | real | `Conversation`/`Message`/… + IMAP | **Fanny (wired)** | Keep. This is the strongest surface. | P1 |
 | Inbox Briefing | `/inbox/overview` | preview | `overview-data.ts` placeholder | Fanny | Wire to real data or keep clearly as briefing stub. Not in Beauty nav. | P2 |
 | Agenda | `/calendario` | real | `Evento` feed | — | Keep. High priority for Beauty. | P1 |
-| Clientas / Clients | `/clientes` | real | `Cliente` | Fiona (declared) | Keep. Make usable for Beauty (§9 phase 2). | P1 |
+| Clientas / Clients | `/clientes` | real | `Cliente` | Fiona (7F Growth · declared) | Keep. Make usable for Beauty (§9 phase 2). | P1 |
 | Servicios / Services | `/services` | real | `Workspace.config.serviceCatalog` JSON + seed | — | Keep. Consider a real model later if agenda/billing reference services. | P1 |
-| Marketing / Contenido | `/contenido` | real | `ContentPiece`/`Campaign`/`ContentIdea` | Freya *or* Fiona (drift — §8) | Keep as visual hook; resolve persona attribution. | P1 |
+| Marketing / Contenido | `/contenido` | real | `ContentPiece`/`Campaign`/`ContentIdea` | **Fiona (7F Growth, owns Marketing)**; Freya supplies the visuals | Keep as visual hook. Attribution **resolved** (§8): Marketing → Fiona; creative pieces → Freya. | P1 |
 | Cobros / Billing | `/facturacion` | real | `Factura` | Felix (declared) | Keep. Fix currency for ES/Beauty (EUR). | P1 |
 | Finance | `/finanzas` | **placeholder** | static `CASHFLOW/FUNDS/…` | Felix (declared) | Hide from primary nav (doctrine already says so). | P0 |
 | Business Profile | `/business-profile` | real | `Workspace.config.businessProfile` JSON | Fanny (context) | Keep. Core infra for Fanny. | P2 |
@@ -318,12 +318,13 @@ without me thinking like an administrator or an influencer."
 |---|---|---|
 | **Fanny** | Operations & messages: triage, drafts, follow-ups, confirmations. | **Real & wired.** The only fully live core agent (AI inbox pipeline + DB-backed activity). |
 | **Finesse** | Beauty specialist / lead voice: interprets context, coordinates the day, presents actions on Beauty surfaces. | **Declared only.** Data + voice strings + resolver; **not yet rendered** as the voice on Hoy/Home/Overview. Branding, not execution. |
-| **Freya** | Content / marketing support (posts, campaigns, design). | **Declared only.** Roster row + `/contenido` link. No engine. |
+| **Freya** | Creative Studio: visual content, imagery, video, design, interfaces and assets (the pieces Fiona needs for growth and that dress Forte's modules). | **Declared only.** Roster row + `/contenido` link. No engine. |
 | **Felix** | Cobros: prepare charges, invoices, payment risk. | **Declared only.** Roster row + finance link. No engine. |
 | **Mr Forte** | Configuration / vertical fit: proposes modules & adaptations, learns the operating model in onboarding. | **Real engine** (deterministic recommendations + DB-derived improvements + approval runtime), wired to `/forte/improvements` & `/api/forte/*` — **but shown as "coming online" on `/agents`** because it emits no live activity lane. |
 
-**Also declared-only** (for honesty): Francis (narrative lead), Fiona
-(CRM/relationships), Fathom (research; no route).
+**Also declared-only** (for honesty): Francis (CEO · operations & coordination),
+Fiona (7F Growth: campaigns, CRM, SEO/AEO, email marketing, relationships),
+Fathom (research; no route).
 
 **Doctrine for the experience:** Finesse *leads the voice*, the core agents keep
 their attributions. Every action that belongs to a core agent shows that agent
@@ -387,10 +388,15 @@ A feature is "real product" in 7F only when **all** of these hold:
    `BEAUTY_PACK.today.activateRealForRealWorkspaces` flag — exactly the kind of
    product decision that must be explicit and doctrine-driven, not implicit in a
    render branch.
-10. **Keep persona→surface attribution single-sourced.** There is live drift:
-    `roster.ts` assigns **Content/Marketing to Freya** and **CRM to Fiona**, but
-    both navs and `vertical-specialist-agents.md` attribute Marketing/`/contenido`
-    to **Fiona** ("por Fiona"). Pick one source of truth.
+10. **Keep persona→surface attribution single-sourced — RESOLVED (frozen doctrine).**
+    The former drift is closed. The agent doctrine is now: **Fiona = 7F Growth**
+    (owns Marketing, campaigns, CRM, relationships, audiences, SEO, AEO/GEO, email
+    marketing and digital presence) and **Freya = Creative Studio** (produces the
+    visual content, imagery, video, interfaces and assets Fiona uses to execute
+    growth). Attributing Marketing/`/contenido` to **Fiona** ("por Fiona") is
+    therefore **correct, not an error** — the navs, `roster.ts` and this document
+    now agree. Freya is *not* the owner of strategic marketing; Fiona is *not*
+    reduced to CRM.
 11. **Doctrine and code must match.** `ways-of-working.md §4` already decided to
     hide the demo stubs from primary nav; the sidebar still shows them. Close
     gaps like this instead of letting them accumulate.
@@ -461,17 +467,19 @@ A feature is "real product" in 7F only when **all** of these hold:
   are hidden or clearly marked "próximamente".
 - *Type:* **implementation** (deferred).
 
-**Move 3 — Single-source the agent→surface attribution.**
+**Move 3 — Single-source the agent→surface attribution. ✅ DONE (frozen doctrine).**
 - *Objective:* resolve Freya-vs-Fiona for Marketing/`/contenido` and align
   `roster.ts`, both navs, and `vertical-specialist-agents.md`.
-- *Why it matters:* inconsistent persona attribution reads as sloppiness and
-  confuses the "who does what" story that is central to 7F's agent value.
-- *Likely files:* `modules/agents/roster.ts`,
-  `core/vertical-packs/nav-profile.ts`, `components/sidebar-nav.tsx`,
-  `docs/vertical-specialist-agents.md`.
-- *Risk:* low — labels/data only.
-- *Success:* one agent owns Marketing everywhere; no contradicting "por X" helper.
-- *Type:* **implementation** (deferred) — trivial, high coherence value.
+- *Resolution:* **Fiona = 7F Growth** owns Marketing (campaigns, CRM, SEO, AEO,
+  email marketing, relationships, growth); **Freya = Creative Studio** produces the
+  visual content, interfaces and assets Fiona uses. The navs already said
+  "por Fiona" / "by Fiona"; `roster.ts` and this doc now match. One agent owns
+  Marketing everywhere; no contradicting "por X" helper remains.
+- *Files touched:* `modules/agents/roster.ts`, `docs/agents-surface.md`,
+  this document. Navigation was intentionally **not** changed (Marketing stays
+  "por Fiona" / "by Fiona"). `vertical-specialist-agents.md` already read
+  consistently (Fiona → campaigns, Freya → creative pieces).
+- *Type:* **implementation** — done, high coherence value.
 
 **Move 4 — Fix the two Beauty-nav soft spots (Herramientas + currency).**
 - *Objective:* repoint or hide Beauty "Herramientas" (`/biblioteca` is demo) and
