@@ -11,7 +11,7 @@
     "test:forte-execution": "tsx --test agents/forte/runtime/approved-execution.test.ts",
     "test:forte-business": "tsx --test agents/forte/runtime/business/domain-resolver.test.ts agents/forte/runtime/business/domain-mapper.test.ts",
     "test:forte": "tsx --test agents/forte/runtime/runtime.test.ts agents/forte/runtime/approved-execution.test.ts agents/forte/runtime/business/domain-resolver.test.ts agents/forte/runtime/business/domain-mapper.test.ts",
-    "test:i18n": "tsx --test core/i18n/i18n.test.ts",
+    "test:i18n": "tsx --test core/i18n/i18n.test.ts core/i18n/ui.test.ts",
     "test:services": "tsx --test core/services/catalog.test.ts",
     "test:governance": "tsx --test core/auth/workspace-governance.test.ts",
     "test:verticals": "tsx --test core/vertical-packs/nav-profile.test.ts core/vertical-packs/beauty-pack.test.ts core/vertical-packs/specialists.test.ts core/vertical-packs/experience.test.ts agents/forte/verticals/beauty.test.ts",
