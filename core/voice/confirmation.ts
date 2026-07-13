@@ -83,7 +83,8 @@ export type ConfirmationOutcome =
 
 /**
  * Injected context so the resolver stays pure/deterministic.
- *   - `now`             → current time as an ISO 8601 string (never `Date.now()`).
+ *   - `now`             → current time as an ISO 8601 string (injected, never
+ *                         read from the system clock).
  *   - `alreadyResolved` → whether this proposal was already confirmed/cancelled
  *                         (idempotency signal held server-side).
  */
@@ -92,19 +93,30 @@ export interface ConfirmationContext {
   alreadyResolved: boolean
 }
 
-/** True when `now` is strictly after the proposal's `expiresAt`. */
-function isExpired(expiresAt: string, now: string): boolean {
-  return new Date(now).getTime() > new Date(expiresAt).getTime()
+/**
+ * Parse an ISO 8601 timestamp to epoch milliseconds, or `null` when it does not
+ * represent a valid instant. Comparison is NUMERIC (not lexicographic) so two
+ * equal instants written with different offsets/formats (e.g. `...12:05:00Z` and
+ * `...13:05:00+01:00`) compare equal. Time is passed in — this never reads the
+ * system clock.
+ */
+function toEpochMs(iso: string): number | null {
+  const ms = new Date(iso).getTime()
+  return Number.isNaN(ms) ? null : ms
 }
 
 /**
  * Resolve a confirmation. Precedence (each check blocks execution before the
  * next is considered):
- *   1. proposalId mismatch      → rejected(invalid)
- *   2. already resolved         → rejected(already_resolved)
- *   3. past expiresAt           → rejected(expired)
- *   4. decision === "cancel"    → rejected(declined)
- *   5. decision === "confirm"   → execute (controlled, server-side)
+ *   1. proposalId mismatch        → rejected(invalid)
+ *   2. already resolved           → rejected(already_resolved)
+ *   3. invalid now / expiresAt    → rejected(invalid)
+ *   4. nowMs >= expiresAtMs       → rejected(expired)   (expired AT the instant)
+ *   5. decision === "cancel"      → rejected(declined)
+ *   6. decision === "confirm"     → execute (controlled, server-side)
+ *
+ * `now` is injected (never read from the system clock) so the function is
+ * deterministic. No invalid-timestamp or expired case can ever reach `execute`.
  */
 export function resolveConfirmation(
   proposal: ActionProposal,
@@ -117,7 +129,12 @@ export function resolveConfirmation(
   if (ctx.alreadyResolved) {
     return { kind: "rejected", proposalId: proposal.id, reason: "already_resolved" }
   }
-  if (isExpired(proposal.expiresAt, ctx.now)) {
+  const nowMs = toEpochMs(ctx.now)
+  const expiresAtMs = toEpochMs(proposal.expiresAt)
+  if (nowMs === null || expiresAtMs === null) {
+    return { kind: "rejected", proposalId: proposal.id, reason: "invalid" }
+  }
+  if (nowMs >= expiresAtMs) {
     return { kind: "rejected", proposalId: proposal.id, reason: "expired" }
   }
   if (confirmation.decision === "cancel") {
