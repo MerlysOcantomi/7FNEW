@@ -18,6 +18,13 @@ export interface TranscriptEntry {
   role: TranscriptRole
   text: string
   status: TranscriptStatus
+  /**
+   * Best-effort: an assistant turn cut short by a barge-in. Only set via
+   * `markInterrupted`, and preserved across later partial/final updates so the
+   * "interrumpido" marker is not lost when a trailing transcript arrives. Never
+   * present on entries that were never interrupted (keeps equality simple).
+   */
+  interrupted?: boolean
 }
 
 export type TranscriptStore = ReadonlyMap<string, TranscriptEntry>
@@ -59,12 +66,30 @@ export function applyTranscript(
   }
 
   const next = new Map(store)
-  next.set(update.id, {
+  const entry: TranscriptEntry = {
     id: update.id,
     role: update.role,
     text: update.text,
     status: update.status,
-  })
+  }
+  // Preserve an interrupted mark across later partial/final updates; never add
+  // the key to entries that were never interrupted.
+  if (existing?.interrupted) entry.interrupted = true
+  next.set(update.id, entry)
+  return next
+}
+
+/**
+ * Mark an existing ASSISTANT entry as interrupted (best-effort barge-in mark).
+ * No-op if the id is unknown or the entry is a user turn. Reliable item↔event
+ * relation is not guaranteed by SDK 0.3.0, so callers pass the last streaming
+ * assistant id; the UI documents this as approximate.
+ */
+export function markInterrupted(store: TranscriptStore, id: string): TranscriptStore {
+  const existing = store.get(id)
+  if (!existing || existing.role !== "assistant" || existing.interrupted) return store
+  const next = new Map(store)
+  next.set(id, { ...existing, interrupted: true })
   return next
 }
 

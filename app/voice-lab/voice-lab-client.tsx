@@ -1,13 +1,20 @@
 "use client"
 
 /**
- * Voice Lab client (CORE-VOICE-0B.1.1) — isolated experiment UI.
+ * Voice Lab client (CORE-VOICE-0B.1.2) — isolated experiment UI, UX readiness.
  *
  * Not part of AppShell / sidebar / top bar. Turns and cost are deduplicated by
  * response id via `SessionAccumulator`; transcript is id-keyed; latency channels
  * with no reliable 0.3.0 event show "no disponible"; `propose_action` opens a
  * simulated confirmation card that NEVER executes. No audio or conversation is
  * persisted.
+ *
+ * This revision makes the seven governed states visually distinguishable (shape +
+ * label + animation, never color alone), adds "mic open"/"te escucho" feedback,
+ * auto-recovers from `interrupted` to `listening`, humanizes the proposal card
+ * (human action label + countdown, never raw ISO), keeps one active proposal at a
+ * time, separates the notice channels, adds soft limit warnings, and hardens the
+ * connect/mic error paths — all inside the lab.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -37,12 +44,41 @@ import {
   emptyTranscriptStore,
   applyTranscript,
   transcriptLines,
+  markInterrupted,
   type TranscriptStore,
 } from "./transcript"
 import { VoiceLabSession } from "./realtime-client"
 import { onProposeAction } from "./propose-bus"
 import { simulateConfirmation } from "./confirmation-sim"
-import type { ActionProposal } from "@core/voice/confirmation"
+import { humanizeActionName } from "./action-labels"
+import { expiryView } from "./expiry"
+import {
+  EMPTY_PROPOSAL_QUEUE,
+  receiveProposal,
+  clearActiveProposal,
+  type ProposalQueueState,
+} from "./proposal-queue"
+import { sessionWarnings } from "./session-warnings"
+import { describeConnectFailure } from "./mic-errors"
+import {
+  EMPTY_NOTICES,
+  withSessionNotice,
+  withConfirmationResult,
+  withError,
+  type LabNotices,
+} from "./notices"
+import {
+  IDLE_ACTIVITY,
+  reduceVoiceActivity,
+  stateIndicator,
+  canCutResponse,
+  interruptRecovery,
+  isNearBottom,
+  transcriptLineView,
+  type VoiceActivity,
+  type StateTone,
+  type StateShape,
+} from "./lab-view"
 import type { VoiceState } from "@core/voice/contracts"
 
 interface TokenResponse {
@@ -53,20 +89,22 @@ interface TokenResponse {
   transcriptionModel: string
 }
 
-const STATE_LABEL: Record<VoiceState, string> = {
-  idle: "Inactivo",
-  connecting: "Conectando…",
-  listening: "Escuchando",
-  thinking: "Pensando…",
-  speaking: "Hablando",
-  interrupted: "Interrumpido",
-  error: "Error",
-}
-
 function ttfaText(s: LatencySummary): string {
   if (!s.available) return "no disponible"
   if (s.count === 0) return "sin datos"
   return `${Math.round(s.p50)}/${Math.round(s.p95)} ms`
+}
+
+// Supplementary color per tone (the visible label + shape are the primary cue).
+const TONE_COLOR: Record<StateTone, string> = {
+  idle: "bg-gray-400",
+  connecting: "bg-amber-500",
+  listening: "bg-blue-600",
+  hearing: "bg-emerald-500",
+  thinking: "bg-violet-600",
+  speaking: "bg-green-600",
+  interrupted: "bg-orange-500",
+  error: "bg-red-600",
 }
 
 export function VoiceLabClient() {
@@ -74,13 +112,14 @@ export function VoiceLabClient() {
   const [model, setModel] = useState<LabModel>(DEFAULT_LAB_MODEL)
   const [voice, setVoice] = useState<LabVoice>(DEFAULT_LAB_VOICE)
   const [store, setStore] = useState<TranscriptStore>(emptyTranscriptStore)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notices, setNotices] = useState<LabNotices>(EMPTY_NOTICES)
   const [turns, setTurns] = useState(0)
   const [estimatedCostUsd, setEstimatedCostUsd] = useState(0)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [errorCount, setErrorCount] = useState(0)
-  const [proposal, setProposal] = useState<ActionProposal | null>(null)
+  const [queue, setQueue] = useState<ProposalQueueState>(EMPTY_PROPOSAL_QUEUE)
+  const [activity, setActivity] = useState<VoiceActivity>(IDLE_ACTIVITY)
+  const [nowMs, setNowMs] = useState(0)
   const [latency, setLatency] = useState({
     model: summarizeLatency([], true),
     audible: summarizeLatency([], true),
@@ -93,8 +132,13 @@ export function VoiceLabClient() {
   const trackerRef = useRef<LatencyTracker | null>(null)
   const startedAtRef = useRef<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const interruptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const modelRef = useRef<LabModel>(model)
   modelRef.current = model
+  const shownWarningsRef = useRef<Set<string>>(new Set())
+  const lastAssistantStreamingIdRef = useRef<string | null>(null)
+  const transcriptRef = useRef<HTMLDivElement | null>(null)
+  const stickToBottomRef = useRef(true)
 
   const connected = state !== "idle"
 
@@ -109,34 +153,74 @@ export function VoiceLabClient() {
     })
   }, [])
 
-  const disconnect = useCallback((why?: string) => {
+  // Full teardown: stop the session, release transport/mic, clear timers, reset
+  // the local sub-states. Idempotent and safe to call from any failure path.
+  const teardown = useCallback((sessionNote?: string) => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+    if (interruptTimerRef.current) {
+      clearTimeout(interruptTimerRef.current)
+      interruptTimerRef.current = null
+    }
     sessionRef.current?.stop()
     sessionRef.current = null
     startedAtRef.current = null
-    if (why) setNotice(why)
+    lastAssistantStreamingIdRef.current = null
+    setActivity(IDLE_ACTIVITY)
+    if (sessionNote !== undefined) setNotices((n) => withSessionNotice(n, sessionNote))
   }, [])
 
-  // Register the propose_action card listener + close on unmount (adjustment 3).
+  const disconnect = useCallback(
+    (why?: string) => {
+      teardown(why)
+    },
+    [teardown],
+  )
+
+  // Register the propose_action card listener + close on unmount.
   useEffect(() => {
-    onProposeAction((p) => setProposal(p))
+    onProposeAction((p) => {
+      setNowMs(Date.now())
+      setQueue((q) => receiveProposal(q, p))
+    })
     return () => {
       onProposeAction(null)
-      disconnect()
+      teardown()
     }
-  }, [disconnect])
+  }, [teardown])
+
+  // Countdown clock — only ticks while a proposal is active.
+  useEffect(() => {
+    if (!queue.active) return
+    setNowMs(Date.now())
+    const id = setInterval(() => setNowMs(Date.now()), 500)
+    return () => clearInterval(id)
+  }, [queue.active])
 
   const handleState = useCallback((next: VoiceState) => {
     setState(next)
     const now = performance.now()
     const t = trackerRef.current
-    if (!t) return
-    if (next === "speaking") t.onAudibleStart(now)
-    if (next === "interrupted") t.onInterrupted(now)
+    if (next === "speaking") {
+      t?.onAudibleStart(now)
+      setActivity((a) => ({ ...a, userSpeaking: false }))
+    }
+    if (next === "thinking") setActivity((a) => ({ ...a, userSpeaking: false }))
     if (next === "error") setErrorCount((c) => c + 1)
+    if (next === "interrupted") {
+      t?.onInterrupted(now)
+      // Best-effort: mark the currently-streaming assistant line interrupted.
+      const id = lastAssistantStreamingIdRef.current
+      if (id) setStore((s) => markInterrupted(s, id))
+      // Show "Interrumpido" briefly, then return to "Escuchando" on its own.
+      const { to, delayMs } = interruptRecovery()
+      if (interruptTimerRef.current) clearTimeout(interruptTimerRef.current)
+      interruptTimerRef.current = setTimeout(() => {
+        setState((prev) => (prev === "interrupted" ? to : prev))
+      }, delayMs)
+    }
   }, [])
 
   const handleRawEvent = useCallback((raw: unknown) => {
@@ -149,9 +233,11 @@ export function VoiceLabClient() {
       switch (ev.kind) {
         case "user_speech_started":
           tracker.onBargeIn(now)
+          setActivity((a) => reduceVoiceActivity(a, { type: "user_speech_started" }))
           break
         case "user_speech_stopped":
           tracker.onEndOfTurn(now)
+          setActivity((a) => reduceVoiceActivity(a, { type: "user_speech_stopped" }))
           break
         case "model_audio_delta":
           tracker.onModelAudioDelta(now)
@@ -175,6 +261,11 @@ export function VoiceLabClient() {
           break
         case "output_transcript":
           if (ev.itemId) {
+            // Track the streaming assistant item so a barge-in can mark it.
+            if (ev.status === "partial") lastAssistantStreamingIdRef.current = ev.itemId
+            else if (ev.status === "final" && lastAssistantStreamingIdRef.current === ev.itemId) {
+              lastAssistantStreamingIdRef.current = null
+            }
             setStore((s) =>
               applyTranscript(s, {
                 id: ev.itemId,
@@ -191,55 +282,79 @@ export function VoiceLabClient() {
   }, [refreshLatency])
 
   const connect = useCallback(async () => {
-    setError(null)
-    setNotice(null)
+    setNotices(EMPTY_NOTICES)
     setStore(emptyTranscriptStore())
     setTurns(0)
     setEstimatedCostUsd(0)
     setElapsedMs(0)
-    setProposal(null)
+    setQueue(EMPTY_PROPOSAL_QUEUE)
+    setActivity(IDLE_ACTIVITY)
+    shownWarningsRef.current = new Set()
+    lastAssistantStreamingIdRef.current = null
     accRef.current = new SessionAccumulator()
     trackerRef.current = new LatencyTracker()
     setState("connecting")
+
+    let res: Response
     try {
-      const res = await fetch("/api/voice/realtime-token", {
+      res = await fetch("/api/voice/realtime-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model, voice }),
       })
-      if (!res.ok) {
-        setState("idle")
-        setError(`No se pudo iniciar (HTTP ${res.status}).`)
-        return
-      }
-      const token = (await res.json()) as TokenResponse
+    } catch (err) {
+      // Network failure before any session existed — nothing to release.
+      const failure = describeConnectFailure(err)
+      setState("idle")
+      setNotices((n) => withError(n, failure.message))
+      return
+    }
+    if (!res.ok) {
+      setState("idle")
+      setNotices((n) => withError(n, describeConnectFailure({ name: "connection" }).message))
+      return
+    }
 
-      const session = new VoiceLabSession({
-        onState: handleState,
-        onError: (message) => setError(message),
-        onRawEvent: handleRawEvent,
-      })
-      sessionRef.current = session
+    const token = (await res.json()) as TokenResponse
+    const session = new VoiceLabSession({
+      onState: handleState,
+      onError: (message) => setNotices((n) => withError(n, message)),
+      onRawEvent: handleRawEvent,
+    })
+    sessionRef.current = session
+
+    try {
       await session.start({ clientSecret: token.clientSecret, model: token.model, voice: token.voice })
       startedAtRef.current = Date.now()
-
+      setActivity((a) => reduceVoiceActivity(a, { type: "session_live" }))
       timerRef.current = setInterval(() => {
         const started = startedAtRef.current
         if (started != null) setElapsedMs(Date.now() - started)
       }, 1000)
     } catch (err) {
-      setState("idle")
-      setError(err instanceof Error ? err.message : "Fallo de conexión")
+      // Partial failure AFTER creating the session (commonly a denied/absent
+      // mic): close it explicitly, release transport/mic, land on "error".
+      const failure = describeConnectFailure(err)
+      teardown()
+      setState("error")
+      setErrorCount((c) => c + 1)
+      setNotices((n) => withError(n, failure.message))
     }
-  }, [model, voice, handleState, handleRawEvent])
+  }, [model, voice, handleState, handleRawEvent, teardown])
 
-  // Enforce hard limits using the REAL estimated cost.
+  // Soft warnings (minute 4 / turn 17 / cost alert) + hard-limit auto-disconnect.
   useEffect(() => {
     if (!connected || startedAtRef.current == null) return
     const status = evaluateSessionLimits(
       { elapsedMs, turns, estimatedCostUsd, activeMinutes: elapsedMs / 60000 },
       LAB_COST_ALERT_PER_ACTIVE_MIN[model],
     )
+    for (const w of sessionWarnings({ elapsedMs, turns, costAlert: status.costAlert })) {
+      if (!shownWarningsRef.current.has(w.kind)) {
+        shownWarningsRef.current.add(w.kind)
+        setNotices((n) => withSessionNotice(n, w.message))
+      }
+    }
     if (status.shouldDisconnect) {
       disconnect(
         status.timeExceeded
@@ -253,17 +368,38 @@ export function VoiceLabClient() {
 
   const lines = useMemo(() => transcriptLines(store), [store])
 
-  const confirmSim = (decision: "confirm" | "cancel") => {
-    if (!proposal) return
-    const result = simulateConfirmation(proposal, decision, new Date().toISOString())
-    setNotice(result.message)
-    setProposal(null)
+  // Auto-scroll to the newest turn, unless the user scrolled up to read history.
+  useEffect(() => {
+    const el = transcriptRef.current
+    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight
+  }, [lines])
+
+  const onTranscriptScroll = useCallback(() => {
+    const el = transcriptRef.current
+    if (el) stickToBottomRef.current = isNearBottom(el)
+  }, [])
+
+  const resolveProposal = (decision: "confirm" | "cancel") => {
+    const active = queue.active
+    if (!active) return
+    const result = simulateConfirmation(active, decision, new Date().toISOString())
+    setNotices((n) => withConfirmationResult(n, { kind: result.kind, message: result.message }))
+    setQueue(clearActiveProposal())
   }
 
+  const indicator = stateIndicator(state, activity)
+  const expiry = queue.active ? expiryView(queue.active.expiresAt, nowMs) : null
+  const showMicPreface = !connected
+
   return (
-    <div className="mx-auto max-w-3xl p-6 font-sans">
-      <h1 className="text-xl font-semibold">7F Voice Lab · experimento aislado</h1>
-      <p className="mt-1 text-sm text-gray-500">
+    <div className="mx-auto max-w-3xl p-6 font-sans text-gray-900">
+      <div className="flex items-center gap-2">
+        <span className="rounded bg-yellow-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-yellow-900">
+          Laboratorio
+        </span>
+        <h1 className="text-xl font-semibold">7F Voice Lab · experimento aislado</h1>
+      </div>
+      <p className="mt-1 text-sm text-gray-600">
         Interfaz de voz de 7F (dentro de Finesse by Sevenef). Solo lectura / simulación · sin
         escrituras · sin persistencia de audio ni conversación · máx{" "}
         {LAB_LIMITS.sessionMaxMs / 60000} min / {LAB_LIMITS.sessionMaxTurns} turnos.
@@ -276,7 +412,7 @@ export function VoiceLabClient() {
             value={model}
             disabled={connected}
             onChange={(e) => setModel(e.target.value as LabModel)}
-            className="rounded border px-2 py-1"
+            className="min-h-[44px] rounded border px-2 py-1"
           >
             {LAB_MODELS.map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -289,7 +425,7 @@ export function VoiceLabClient() {
             value={voice}
             disabled={connected}
             onChange={(e) => setVoice(e.target.value as LabVoice)}
-            className="rounded border px-2 py-1"
+            className="min-h-[44px] rounded border px-2 py-1"
           >
             {LAB_VOICES.map((v) => (
               <option key={v} value={v}>{v}</option>
@@ -297,77 +433,186 @@ export function VoiceLabClient() {
           </select>
         </label>
         {!connected ? (
-          <button onClick={connect} className="rounded bg-black px-4 py-1.5 text-white">
+          <button
+            onClick={connect}
+            className="min-h-[44px] rounded bg-black px-4 py-2 text-white"
+          >
             Conectar
           </button>
         ) : (
           <button
             onClick={() => disconnect("Desconectado manualmente.")}
-            className="rounded bg-red-600 px-4 py-1.5 text-white"
+            className="min-h-[44px] rounded bg-red-700 px-4 py-2 text-white"
           >
             Desconectar
           </button>
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
-          <span
-            className={
-              "h-2.5 w-2.5 rounded-full " +
-              (state === "speaking"
-                ? "bg-green-500"
-                : state === "listening"
-                  ? "bg-blue-500"
-                  : state === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-400")
-            }
-          />
-          {STATE_LABEL[state]}
+      {showMicPreface && (
+        <p className="mt-2 text-sm text-gray-600">
+          El navegador te pedirá permiso para usar el micrófono.
+        </p>
+      )}
+
+      {/* State — visible label + non-color shape + supplementary color. */}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <span
+          role="status"
+          aria-live="polite"
+          aria-label={`Estado: ${indicator.label}`}
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium"
+        >
+          <StateShapeIcon shape={indicator.shape} animate={indicator.animate} tone={indicator.tone} />
+          {indicator.label}
         </span>
         {connected && (
-          <button onClick={() => sessionRef.current?.interrupt()} className="rounded border px-3 py-1 text-sm">
-            Interrumpir
-          </button>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-2.5 py-1 text-xs text-gray-700">
+            <span
+              aria-hidden
+              className={"inline-block h-2 w-2 rounded-full " + (activity.micOpen ? "bg-emerald-500" : "bg-gray-300")}
+            />
+            {activity.micOpen ? "Micrófono abierto" : "Micrófono apagado"}
+          </span>
         )}
+        <button
+          onClick={() => sessionRef.current?.interrupt()}
+          disabled={!canCutResponse(state)}
+          aria-disabled={!canCutResponse(state)}
+          className="min-h-[44px] rounded border px-3 py-2 text-sm font-medium enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Cortar respuesta
+        </button>
       </div>
+      {connected && (
+        <p className="mt-1 text-xs text-gray-600">
+          También puedes empezar a hablar para interrumpir a 7F.
+        </p>
+      )}
 
-      {error && <p className="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      {notice && <p className="mt-3 rounded bg-amber-50 p-2 text-sm text-amber-800">{notice}</p>}
+      {/* Error channel — assertive so it is announced. */}
+      {notices.error && (
+        <p role="alert" aria-live="assertive" className="mt-3 rounded bg-red-50 p-2 text-sm text-red-800">
+          {notices.error}
+        </p>
+      )}
+      {/* Session channel — soft limits / lifecycle. */}
+      {notices.session && (
+        <p aria-live="polite" className="mt-3 rounded bg-amber-50 p-2 text-sm text-amber-900">
+          {notices.session}
+        </p>
+      )}
 
-      {proposal && (
-        <section className="mt-4 rounded-lg border-2 border-indigo-300 p-4">
-          <h3 className="text-sm font-semibold text-indigo-800">Propuesta (simulación)</h3>
-          <p className="mt-1 text-sm"><strong>Acción:</strong> {proposal.toolName}</p>
-          <p className="text-sm"><strong>Resumen:</strong> {proposal.summary.written}</p>
-          <p className="text-sm text-gray-500"><strong>En voz:</strong> {proposal.summary.spoken}</p>
-          <p className="text-xs text-gray-400">Expira: {proposal.expiresAt}</p>
-          <div className="mt-3 flex gap-2">
-            <button onClick={() => confirmSim("cancel")} className="rounded border px-3 py-1 text-sm">
-              Cancelar
-            </button>
-            <button onClick={() => confirmSim("confirm")} className="rounded bg-indigo-600 px-3 py-1 text-sm text-white">
-              Confirmar simulación
-            </button>
+      {/* Active proposal card (simulation). */}
+      {queue.active && expiry && (
+        <section
+          aria-label="Propuesta simulada"
+          className={
+            "mt-4 rounded-lg border-2 p-4 " +
+            (expiry.status === "expired" ? "border-gray-300 bg-gray-50" : "border-indigo-300")
+          }
+        >
+          <h3 className="text-sm font-semibold text-indigo-900">Propuesta (simulación)</h3>
+          <p className="mt-1 text-sm">
+            <strong>Acción:</strong> {humanizeActionName(queue.active.toolName)}
+          </p>
+          <p className="text-sm"><strong>Resumen:</strong> {queue.active.summary.written}</p>
+          <p className="text-sm text-gray-700"><strong>En voz:</strong> {queue.active.summary.spoken}</p>
+          <p
+            className={
+              "mt-1 text-xs font-medium " +
+              (expiry.status === "expired" ? "text-gray-600" : "text-gray-700")
+            }
+            aria-live="polite"
+          >
+            {expiry.status === "expired" ? "⚠ " : "⏳ "}
+            {expiry.label}
+          </p>
+          {queue.hasBlockedIncoming && (
+            <p className="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
+              Hay otra propuesta pendiente. Resuelve esta primero; no se ejecuta ninguna.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {expiry.status === "expired" ? (
+              <button
+                onClick={() => resolveProposal("confirm")}
+                className="min-h-[44px] rounded border px-3 py-2 text-sm font-medium"
+              >
+                Cerrar
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => resolveProposal("cancel")}
+                  className="min-h-[44px] rounded border px-3 py-2 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => resolveProposal("confirm")}
+                  className="min-h-[44px] rounded bg-indigo-700 px-3 py-2 text-sm font-medium text-white"
+                >
+                  Confirmar simulación
+                </button>
+              </>
+            )}
           </div>
+        </section>
+      )}
+
+      {/* Resolved card — the result stays here, not in a generic banner. */}
+      {!queue.active && notices.confirmation && (
+        <section
+          aria-live="polite"
+          className="mt-4 rounded-lg border border-gray-300 bg-gray-50 p-4"
+        >
+          <h3 className="text-sm font-semibold text-gray-800">Resultado de la simulación</h3>
+          <p className="mt-1 text-sm text-gray-800">{notices.confirmation.message}</p>
+          <button
+            onClick={() => setNotices((n) => withConfirmationResult(n, null))}
+            className="mt-3 min-h-[44px] rounded border px-3 py-2 text-sm font-medium"
+          >
+            Entendido
+          </button>
         </section>
       )}
 
       <section className="mt-5">
         <h2 className="text-sm font-semibold">Transcripción</h2>
-        <div className="mt-2 max-h-64 overflow-y-auto rounded border p-3 text-sm">
+        <div
+          ref={transcriptRef}
+          onScroll={onTranscriptScroll}
+          aria-live="polite"
+          className="mt-2 max-h-64 overflow-y-auto rounded border p-3 text-sm"
+        >
           {lines.length === 0 ? (
-            <p className="text-gray-400">Sin transcripción todavía.</p>
+            <p className="text-gray-500">Sin transcripción todavía.</p>
           ) : (
-            lines.map((line) => (
-              <p key={line.id} className={line.role === "user" ? "text-gray-900" : "text-indigo-700"}>
-                <strong>{line.role === "user" ? "Tú" : LAB_SPEAKER_LABEL}:</strong>{" "}
-                {line.status === "unavailable" ? <em className="text-gray-400">(transcripción no disponible)</em> : line.text}
-              </p>
-            ))
+            lines.map((entry) => {
+              const v = transcriptLineView(entry, LAB_SPEAKER_LABEL)
+              const toneClass =
+                v.tone === "user"
+                  ? "text-gray-900"
+                  : v.tone === "assistant"
+                    ? "text-indigo-800"
+                    : v.tone === "interrupted"
+                      ? "text-orange-800"
+                      : "text-gray-500"
+              return (
+                <p key={v.id} className={toneClass + (v.isPartial ? " italic" : "")}>
+                  <strong>{v.speaker}:</strong>{" "}
+                  {v.isUnavailable ? <em className="text-gray-500">{v.text}</em> : v.text}
+                  {v.marker && <span className="ml-1 text-xs text-gray-500">{v.marker}</span>}
+                </p>
+              )
+            })
           )}
         </div>
+        <p className="mt-1 text-xs text-gray-500">
+          El marcado de interrupción es aproximado: el SDK 0.3.0 no relaciona de forma fiable el
+          corte con un turno concreto.
+        </p>
       </section>
 
       <section className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -381,7 +626,7 @@ export function VoiceLabClient() {
         <Metric label="Interrup. percibida" value={ttfaText(latency.perceivedInterruption)} />
       </section>
 
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-gray-600">
         Alcance actual: instrucciones + tools limitadas. Guardrail semántico real: pendiente de
         CORE-VOICE-2. Las acciones con efectos son simulaciones. El coste total no puede
         garantizarse desde el navegador entre sesiones.
@@ -390,10 +635,57 @@ export function VoiceLabClient() {
   )
 }
 
+/** A small non-color shape per state (label + shape together carry the meaning). */
+function StateShapeIcon({
+  shape,
+  animate,
+  tone,
+}: {
+  shape: StateShape
+  animate: boolean
+  tone: StateTone
+}) {
+  const color = TONE_COLOR[tone]
+  if (shape === "cross") {
+    return <span aria-hidden className="text-red-600">✕</span>
+  }
+  if (shape === "spinner") {
+    return (
+      <span
+        aria-hidden
+        className={"inline-block h-3 w-3 rounded-full border-2 border-current border-t-transparent " + (animate ? "animate-spin " : "") + "text-amber-600"}
+      />
+    )
+  }
+  if (shape === "ring") {
+    return <span aria-hidden className="inline-block h-3 w-3 rounded-full border-2 border-blue-600" />
+  }
+  if (shape === "square") {
+    return <span aria-hidden className={"inline-block h-3 w-3 rounded-sm " + color} />
+  }
+  if (shape === "bars" || shape === "wave" || shape === "ellipsis") {
+    return (
+      <span aria-hidden className="inline-flex items-end gap-0.5">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className={"inline-block w-1 rounded-sm " + color + (animate ? " animate-pulse" : "")}
+            style={{ height: shape === "ellipsis" ? "0.4rem" : `${0.35 + i * 0.2}rem` }}
+          />
+        ))}
+      </span>
+    )
+  }
+  // dot
+  return (
+    <span aria-hidden className={"inline-block h-2.5 w-2.5 rounded-full " + color + (animate ? " animate-pulse" : "")} />
+  )
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border p-2">
-      <div className="text-gray-500">{label}</div>
+      <div className="text-gray-600">{label}</div>
       <div className="font-mono">{value}</div>
     </div>
   )

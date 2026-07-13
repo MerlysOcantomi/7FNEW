@@ -15,8 +15,15 @@ import {
 export const SIM_CONFIRMED_MESSAGE =
   "Simulación: confirmación recibida. No se realizó ningún cambio."
 export const SIM_CANCELLED_MESSAGE = "Simulación cancelada. No se realizó ningún cambio."
+export const SIM_EXPIRED_MESSAGE =
+  "La propuesta expiró. Pídele a 7F que la prepare de nuevo."
+
+/** How a simulated confirmation resolved — drives which copy the card shows. */
+export type SimResultKind = "confirmed" | "cancelled" | "expired"
 
 export interface SimulatedConfirmationResult {
+  /** Distinct outcome so the card can show confirmed / cancelled / expired copy. */
+  kind: SimResultKind
   /** What the real contract decided — for display/telemetry only. */
   outcomeKind: "execute" | "rejected"
   /** Whether anything was executed. ALWAYS false: this is a simulation. */
@@ -25,9 +32,12 @@ export interface SimulatedConfirmationResult {
 }
 
 /**
- * Resolve a simulated confirmation. `now` is injected. Cancel → cancelled copy.
- * Confirm → the contract may say `execute`, but we NEVER execute; we show the
- * "confirmation received, nothing changed" copy.
+ * Resolve a simulated confirmation. `now` is injected — nothing ever executes.
+ *   - cancel                 → cancelled copy;
+ *   - confirm & would execute → confirmed copy;
+ *   - confirm but expired     → expired copy (NOT "cancelled", which would lie
+ *                               to a user who pressed confirm);
+ *   - confirm rejected for any other reason → cancelled copy (safe default).
  */
 export function simulateConfirmation(
   proposal: ActionProposal,
@@ -42,13 +52,21 @@ export function simulateConfirmation(
   )
 
   if (decision === "cancel") {
-    return { outcomeKind: outcome.kind, executed: false, message: SIM_CANCELLED_MESSAGE }
+    return {
+      kind: "cancelled",
+      outcomeKind: outcome.kind,
+      executed: false,
+      message: SIM_CANCELLED_MESSAGE,
+    }
   }
-  // Confirm: outcome may be "execute" (fresh) or "rejected" (e.g. expired) —
-  // either way nothing runs. Confirmed copy only when the contract would execute.
-  return {
-    outcomeKind: outcome.kind,
-    executed: false,
-    message: outcome.kind === "execute" ? SIM_CONFIRMED_MESSAGE : SIM_CANCELLED_MESSAGE,
+
+  if (outcome.kind === "execute") {
+    return { kind: "confirmed", outcomeKind: "execute", executed: false, message: SIM_CONFIRMED_MESSAGE }
   }
+
+  // Confirm but rejected. Distinguish an expired proposal from any other reason.
+  if (outcome.reason === "expired") {
+    return { kind: "expired", outcomeKind: "rejected", executed: false, message: SIM_EXPIRED_MESSAGE }
+  }
+  return { kind: "cancelled", outcomeKind: "rejected", executed: false, message: SIM_CANCELLED_MESSAGE }
 }

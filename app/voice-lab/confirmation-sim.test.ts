@@ -4,6 +4,7 @@ import {
   simulateConfirmation,
   SIM_CONFIRMED_MESSAGE,
   SIM_CANCELLED_MESSAGE,
+  SIM_EXPIRED_MESSAGE,
 } from "./confirmation-sim"
 import type { ActionProposal } from "@core/voice/confirmation"
 
@@ -25,6 +26,7 @@ function proposal(expiresAt = "2026-01-01T12:05:00.000Z"): ActionProposal {
 test("confirm → confirmed copy, and NOTHING is executed", () => {
   const r = simulateConfirmation(proposal(), "confirm", NOW)
   assert.equal(r.executed, false)
+  assert.equal(r.kind, "confirmed")
   assert.equal(r.outcomeKind, "execute")
   assert.equal(r.message, SIM_CONFIRMED_MESSAGE)
 })
@@ -32,12 +34,20 @@ test("confirm → confirmed copy, and NOTHING is executed", () => {
 test("cancel → cancelled copy, nothing executed", () => {
   const r = simulateConfirmation(proposal(), "cancel", NOW)
   assert.equal(r.executed, false)
+  assert.equal(r.kind, "cancelled")
   assert.equal(r.message, SIM_CANCELLED_MESSAGE)
 })
 
-test("confirm on an expired proposal → still nothing executed, cancelled copy", () => {
+test("confirm on an expired proposal → expired copy (NOT 'cancelled'), nothing executed", () => {
   const r = simulateConfirmation(proposal("2026-01-01T11:00:00.000Z"), "confirm", NOW)
   assert.equal(r.executed, false)
+  assert.equal(r.kind, "expired")
   assert.equal(r.outcomeKind, "rejected")
-  assert.equal(r.message, SIM_CANCELLED_MESSAGE)
+  assert.equal(r.message, SIM_EXPIRED_MESSAGE)
+})
+
+test("confirmed, cancelled and expired copies are all distinct", () => {
+  assert.notEqual(SIM_CONFIRMED_MESSAGE, SIM_CANCELLED_MESSAGE)
+  assert.notEqual(SIM_CONFIRMED_MESSAGE, SIM_EXPIRED_MESSAGE)
+  assert.notEqual(SIM_CANCELLED_MESSAGE, SIM_EXPIRED_MESSAGE)
 })

@@ -4,6 +4,7 @@ import {
   emptyTranscriptStore,
   applyTranscript,
   transcriptLines,
+  markInterrupted,
 } from "./transcript"
 
 test("partial is replaced by final for the same id", () => {
@@ -40,4 +41,31 @@ test("insertion order is preserved across ids", () => {
   s = applyTranscript(s, { id: "b", role: "assistant", text: "2", status: "final" })
   s = applyTranscript(s, { id: "a", role: "user", text: "1", status: "final" }) // repeat, no move
   assert.deepEqual(transcriptLines(s).map((l) => l.id), ["a", "b"])
+})
+
+test("normal entries never carry an interrupted key (keeps equality simple)", () => {
+  let s = emptyTranscriptStore()
+  s = applyTranscript(s, { id: "i1", role: "assistant", text: "hola", status: "final" })
+  assert.deepEqual(transcriptLines(s)[0], { id: "i1", role: "assistant", text: "hola", status: "final" })
+})
+
+test("markInterrupted marks an assistant line and is a no-op for unknown/user ids", () => {
+  let s = emptyTranscriptStore()
+  s = applyTranscript(s, { id: "a", role: "assistant", text: "respondi", status: "partial" })
+  s = applyTranscript(s, { id: "u", role: "user", text: "espera", status: "final" })
+  s = markInterrupted(s, "a")
+  s = markInterrupted(s, "u") // user turn → ignored
+  s = markInterrupted(s, "missing") // unknown → ignored
+  const byId = Object.fromEntries(transcriptLines(s).map((l) => [l.id, l]))
+  assert.equal(byId.a.interrupted, true)
+  assert.equal(byId.u.interrupted, undefined)
+})
+
+test("interrupted mark survives a later partial/final update to the same id", () => {
+  let s = emptyTranscriptStore()
+  s = applyTranscript(s, { id: "a", role: "assistant", text: "respon", status: "partial" })
+  s = markInterrupted(s, "a")
+  // A trailing transcript for the same id must not erase the interrupted mark.
+  s = applyTranscript(s, { id: "a", role: "assistant", text: "respondiendo", status: "partial" })
+  assert.equal(transcriptLines(s)[0].interrupted, true)
 })

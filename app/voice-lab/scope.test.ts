@@ -19,6 +19,28 @@ test("instructions cast 7F as the interface and Finesse as the product (not a pe
   assert.ok(!/soy finesse/i.test(DOMAIN_INSTRUCTIONS))
 })
 
+test("off-topic redirection is multilingual — no fixed literal Spanish phrase forced", () => {
+  // The old contradiction ("responde exactamente con esta frase" + fixed quote)
+  // is gone: the model may phrase the redirect in the user's own language.
+  assert.ok(!/responde con exactamente|responde exactamente/i.test(DOMAIN_INSTRUCTIONS))
+  assert.ok(
+    !/Ese tema no está relacionado con la gestión de tu negocio en Finesse/.test(DOMAIN_INSTRUCTIONS),
+    "the hardcoded verbatim redirect phrase must be removed",
+  )
+  assert.match(DOMAIN_INSTRUCTIONS, /mismo idioma/i)
+  assert.match(DOMAIN_INSTRUCTIONS, /no uses una frase fija/i)
+})
+
+test("redirection keeps its intent — brief, kind, back to business tasks", () => {
+  assert.match(DOMAIN_INSTRUCTIONS, /breve y\s+amable/i)
+  assert.match(DOMAIN_INSTRUCTIONS, /citas, clientas, servicios, cobros, marketing/i)
+})
+
+test("Schweizerdeutsch is understood and answered in Hochdeutsch", () => {
+  assert.match(DOMAIN_INSTRUCTIONS, /Schweizerdeutsch/)
+  assert.match(DOMAIN_INSTRUCTIONS, /Hochdeutsch/)
+})
+
 test("guardrail is a declared placeholder and never trips (real one deferred to CORE-VOICE-2)", async () => {
   assert.match(scopeGuardrailPlaceholder.name, /placeholder/)
   const result = await scopeGuardrailPlaceholder.execute({} as never)
