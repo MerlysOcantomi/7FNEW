@@ -3,6 +3,8 @@ import test from "node:test"
 import {
   resolveNavProfile,
   BEAUTY_NAV_PROFILE,
+  getVisibleVerticalNavItems,
+  showsTeamOnlyItems,
   type VerticalNavItem,
 } from "./nav-profile"
 
@@ -40,14 +42,13 @@ test("resolveNavProfile: empty/nullish input → null", () => {
 const primaryIds = (items: VerticalNavItem[]) =>
   items.filter((i) => i.group === "primary").map((i) => i.id)
 
-test("Beauty primary menu is Hoy · Agenda · Clientas · Mensajes · Marketing · Servicios, in order", () => {
+test("Beauty primary menu is Hoy · Agenda · Clientas · Mensajes · Marketing, in order", () => {
   assert.deepEqual(primaryIds(BEAUTY_NAV_PROFILE.items), [
     "today",
     "agenda",
     "clientas",
     "mensajes",
     "marketing",
-    "servicios",
   ])
 })
 
@@ -78,4 +79,98 @@ test("Beauty groups items into a 'Más' overflow", () => {
   const more = BEAUTY_NAV_PROFILE.items.filter((i) => i.group === "more")
   assert.ok(more.length > 0)
   assert.ok(more.some((i) => i.id === "cobros"))
+})
+
+// ─── BEAUTY-D1B: final profile shape ─────────────────────────────────────────
+
+const byId = (id: string) => BEAUTY_NAV_PROFILE.items.find((i) => i.id === id)
+
+test("Beauty: Servicios lives in the 'more' group", () => {
+  assert.equal(byId("servicios")?.group, "more")
+})
+
+test("Beauty: Biblioteca/Herramientas is not in the profile", () => {
+  const ids = new Set(BEAUTY_NAV_PROFILE.items.map((i) => i.id))
+  assert.ok(!ids.has("herramientas"))
+  assert.ok(!BEAUTY_NAV_PROFILE.items.some((i) => i.href === "/biblioteca"))
+})
+
+test("Beauty: Notificaciones is not in the profile", () => {
+  const ids = new Set(BEAUTY_NAV_PROFILE.items.map((i) => i.id))
+  assert.ok(!ids.has("notificaciones"))
+  assert.ok(!BEAUTY_NAV_PROFILE.items.some((i) => i.href === "/notificaciones"))
+})
+
+test("Beauty: Equipo is the only teamOnly item", () => {
+  assert.equal(byId("equipo")?.teamOnly, true)
+  const teamOnly = BEAUTY_NAV_PROFILE.items.filter((i) => i.teamOnly === true)
+  assert.deepEqual(teamOnly.map((i) => i.id), ["equipo"])
+})
+
+test("Beauty: helpers describe functions, never agents", () => {
+  const marketing = byId("marketing")?.helper ?? ""
+  assert.ok(!/freya/i.test(marketing), "Marketing helper must not mention Freya")
+  assert.ok(!/fiona/i.test(marketing), "Marketing helper must not mention Fiona")
+
+  const cobros = byId("cobros")?.helper ?? ""
+  assert.ok(!/felix/i.test(cobros), "Cobros helper must not mention Felix")
+
+  // No Beauty helper attributes a section to an agent ("por <Agente>").
+  for (const item of BEAUTY_NAV_PROFILE.items) {
+    if (!item.helper) continue
+    assert.ok(
+      !/\bpor\s+f\w+/i.test(item.helper),
+      `${item.id} helper must not attribute the section to an agent: "${item.helper}"`,
+    )
+  }
+})
+
+test("Beauty: Mr. Forte Lab has the correct label", () => {
+  assert.equal(byId("forte")?.label, "Mr. Forte Lab")
+})
+
+// ─── BEAUTY-D1B: Solo/Team visibility filter (mandatory) ─────────────────────
+
+const visibleIds = (includedSeats: number | null | undefined) =>
+  getVisibleVerticalNavItems(BEAUTY_NAV_PROFILE, { includedSeats }).map((i) => i.id)
+
+const moreIds = (includedSeats: number | null | undefined) =>
+  getVisibleVerticalNavItems(BEAUTY_NAV_PROFILE, { includedSeats })
+    .filter((i) => i.group === "more")
+    .map((i) => i.id)
+
+test("showsTeamOnlyItems: 1 → hide, >1 → show, null → show, undefined → hide", () => {
+  assert.equal(showsTeamOnlyItems(1), false)
+  assert.equal(showsTeamOnlyItems(2), true)
+  assert.equal(showsTeamOnlyItems(10), true)
+  assert.equal(showsTeamOnlyItems(null), true)
+  assert.equal(showsTeamOnlyItems(undefined), false)
+})
+
+test("includedSeats === 1 removes Equipo from the visible items", () => {
+  assert.ok(!visibleIds(1).includes("equipo"))
+})
+
+test("includedSeats === 2 keeps Equipo", () => {
+  assert.ok(visibleIds(2).includes("equipo"))
+})
+
+test("includedSeats === 10 keeps Equipo", () => {
+  assert.ok(visibleIds(10).includes("equipo"))
+})
+
+test("includedSeats === null (unlimited) keeps Equipo", () => {
+  assert.ok(visibleIds(null).includes("equipo"))
+})
+
+test("includedSeats === undefined (loading) removes Equipo", () => {
+  assert.ok(!visibleIds(undefined).includes("equipo"))
+})
+
+test("Solo 'Más' order is Cobros · Servicios · Mr. Forte Lab", () => {
+  assert.deepEqual(moreIds(1), ["cobros", "servicios", "forte"])
+})
+
+test("Team 'Más' order is Cobros · Servicios · Equipo · Mr. Forte Lab", () => {
+  assert.deepEqual(moreIds(2), ["cobros", "servicios", "equipo", "forte"])
 })

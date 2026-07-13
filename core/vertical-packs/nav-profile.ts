@@ -32,10 +32,20 @@ export interface VerticalNavItem {
   label: string
   /** Existing 7F Core route. Never a new/vertical-specific route. */
   href: string
-  /** Optional agent attribution shown under the label (e.g. "por Fanny"). */
+  /**
+   * Optional neutral, FUNCTION-describing subtitle (e.g. "Facturas y pagos").
+   * Never an agent attribution: the sidebar describes what a section does, not
+   * which agent owns it — work attribution belongs to the Agents surface.
+   */
   helper?: string
   /** `primary` renders flat at the top; `more` collapses under the "Más" group. */
   group: VerticalNavGroup
+  /**
+   * Item visible only in Team-capacity workspaces. Filtered out for Solo
+   * (plan `includedSeats === 1`) and while the plan is unresolved, by
+   * `getVisibleVerticalNavItems`. Omitted = always visible.
+   */
+  teamOnly?: boolean
 }
 
 export interface VerticalNavProfile {
@@ -52,13 +62,18 @@ export interface VerticalNavProfile {
 /**
  * 7F Beauty navigation — the target Beauty MVP menu.
  *
- * Primary:  Hoy · Agenda · Clientas · Mensajes · Marketing · Servicios
- * More:     Cobros · Equipo · Mr Forte · Herramientas · Notificaciones
+ * Primary:  Hoy · Agenda · Clientas · Mensajes · Marketing
+ * More:     Cobros · Servicios · Equipo (Team only) · Mr. Forte Lab
  *
- * Hidden by omission (never listed): Business Overview, Inbox Overview, a
- * standalone Tasks page, Projects, advanced Finance, Reports, advanced
- * Inventory. Hiding is achieved by NOT listing them — nothing is deleted from
- * the core.
+ * Hidden by omission (never listed — routes stay live in core): Business
+ * Overview, Inbox Overview, a standalone Tasks page, Projects, advanced
+ * Finance, Reports, advanced Inventory, Biblioteca/Herramientas, and
+ * Notificaciones (which lives in the top-bar bell). Hiding is achieved by NOT
+ * listing them — nothing is deleted from the core.
+ *
+ * Helpers are NEUTRAL function descriptions ("Facturas y pagos"), never agent
+ * attributions: the sidebar says what a section does; who does the work is the
+ * Agents surface's job.
  *
  * `Servicios` points at `/services` — the generic (core) service-catalog
  * surface. The catalog itself is core infrastructure; Beauty only contributes
@@ -69,17 +84,15 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   locale: "es",
   moreLabel: "Más",
   items: [
-    { id: "today", label: "Hoy", href: "/today", helper: "por Fanny", group: "primary" },
+    { id: "today", label: "Hoy", href: "/today", group: "primary" },
     { id: "agenda", label: "Agenda", href: "/calendario", group: "primary" },
     { id: "clientas", label: "Clientas", href: "/clientes", group: "primary" },
-    { id: "mensajes", label: "Mensajes", href: "/inbox", helper: "por Fanny", group: "primary" },
-    { id: "marketing", label: "Marketing", href: "/contenido", helper: "por Fiona", group: "primary" },
-    { id: "servicios", label: "Servicios", href: "/services", group: "primary" },
-    { id: "cobros", label: "Cobros", href: "/facturacion", helper: "por Felix", group: "more" },
-    { id: "equipo", label: "Equipo", href: "/usuarios", group: "more" },
-    { id: "forte", label: "Mr Forte", href: "/forte/improvements", helper: "Mejoras", group: "more" },
-    { id: "herramientas", label: "Herramientas", href: "/biblioteca", group: "more" },
-    { id: "notificaciones", label: "Notificaciones", href: "/notificaciones", group: "more" },
+    { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary" },
+    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "primary" },
+    { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more" },
+    { id: "servicios", label: "Servicios", href: "/services", group: "more" },
+    { id: "equipo", label: "Equipo", href: "/usuarios", group: "more", teamOnly: true },
+    { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helper: "Módulos y mejoras", group: "more" },
   ],
 }
 
@@ -121,4 +134,48 @@ export function resolveNavProfile(
   if (!verticalKey) return null
   if (BEAUTY_NAV_VERTICAL_KEYS.has(verticalKey)) return BEAUTY_NAV_PROFILE
   return null
+}
+
+// ─── Solo / Team visibility (single source of truth) ─────────────────────────
+
+/**
+ * Whether `teamOnly` nav items are visible for a workspace's seat capacity.
+ *
+ * MVP rule (capacity-based, never `memberCount`):
+ *   - `includedSeats === 1`         → Solo → hide Team items
+ *   - `includedSeats > 1`           → Team → show Team items
+ *   - `includedSeats === null`      → unlimited capacity (enterprise) → show
+ *   - `includedSeats === undefined` → plan not resolved yet → hide (no flash)
+ *
+ * Pure: no React, no DB, no clock. `undefined` is deliberately fail-closed so a
+ * Solo workspace never flashes "Equipo" during the workspace/plan load.
+ */
+export function showsTeamOnlyItems(
+  includedSeats: number | null | undefined,
+): boolean {
+  if (includedSeats === undefined) return false
+  if (includedSeats === null) return true
+  return includedSeats > 1
+}
+
+/** Capacity input for `getVisibleVerticalNavItems`. */
+export interface VerticalNavVisibilityInput {
+  /** Plan seat allowance: number, `null` (unlimited), or `undefined` (loading). */
+  includedSeats: number | null | undefined
+}
+
+/**
+ * The vertical nav items visible for a workspace, in DECLARED order.
+ *
+ * This is the ONE place the Solo/Team policy is applied: both the desktop and
+ * mobile sidebars call this so they can never drift. Pure — no React, no DB, no
+ * hooks. `sidebar-nav.tsx` still owns turning items into `NavSection`s and
+ * attaching badges, but it must NOT re-implement the `teamOnly` filter.
+ */
+export function getVisibleVerticalNavItems(
+  profile: VerticalNavProfile,
+  { includedSeats }: VerticalNavVisibilityInput,
+): VerticalNavItem[] {
+  const showTeam = showsTeamOnlyItems(includedSeats)
+  return profile.items.filter((item) => !item.teamOnly || showTeam)
 }

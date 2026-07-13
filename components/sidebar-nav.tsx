@@ -55,7 +55,12 @@ import { GlobalAgentsTriggerMobile } from "@/components/agents/global-agents-tri
 import { GlobalAskFannyTriggerMobile } from "@/components/assistant/global-ask-fanny-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
 import { useActiveWorkspace } from "@/hooks/use-active-workspace";
-import { resolveNavProfile, type VerticalNavProfile } from "@core/vertical-packs/nav-profile";
+import {
+  resolveNavProfile,
+  getVisibleVerticalNavItems,
+  type VerticalNavProfile,
+} from "@core/vertical-packs/nav-profile";
+import { resolveWorkspacePlan } from "@core/system/plans";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -225,7 +230,10 @@ const VERTICAL_NAV_ICONS: Record<string, React.ElementType> = {
  * Returns the same `NavSection[]` shape as the default nav, so every downstream
  * renderer (desktop, mobile, collapsed) is unchanged.
  */
-function buildVerticalNavSections(profile: VerticalNavProfile): NavSection[] {
+function buildVerticalNavSections(
+  profile: VerticalNavProfile,
+  includedSeats: number | null | undefined,
+): NavSection[] {
   const toNavItem = (item: VerticalNavProfile["items"][number]): NavItem => ({
     label: item.label,
     href: item.href,
@@ -233,8 +241,11 @@ function buildVerticalNavSections(profile: VerticalNavProfile): NavSection[] {
     helper: item.helper,
   });
 
-  const primary = profile.items.filter((i) => i.group === "primary").map(toNavItem);
-  const more = profile.items.filter((i) => i.group === "more").map(toNavItem);
+  // Solo/Team visibility is decided ONCE by the shared pure resolver; the
+  // sidebar only maps the already-filtered items into sections.
+  const visibleItems = getVisibleVerticalNavItems(profile, { includedSeats });
+  const primary = visibleItems.filter((i) => i.group === "primary").map(toNavItem);
+  const more = visibleItems.filter((i) => i.group === "more").map(toNavItem);
 
   const sections: NavSection[] = [{ section: "Main", subtitle: "", items: primary }];
   if (more.length > 0) {
@@ -742,12 +753,15 @@ function InboxFocusedNav({
   );
 }
 
-function useSectionsWithBadges(profile?: VerticalNavProfile | null): NavSection[] {
+function useSectionsWithBadges(
+  profile?: VerticalNavProfile | null,
+  includedSeats?: number | null,
+): NavSection[] {
   const inboxBadge = useInboxBadge();
   return useMemo(() => {
     // Vertical workspaces render their own nav profile; everything else keeps
     // the default 7F Core nav byte-for-byte.
-    const base = profile ? buildVerticalNavSections(profile) : NAV_SECTIONS;
+    const base = profile ? buildVerticalNavSections(profile, includedSeats) : NAV_SECTIONS;
     if (inboxBadge === 0) return base;
     return base.map((section) => ({
       ...section,
@@ -757,7 +771,7 @@ function useSectionsWithBadges(profile?: VerticalNavProfile | null): NavSection[
           : item
       ),
     }));
-  }, [inboxBadge, profile]);
+  }, [inboxBadge, profile, includedSeats]);
 }
 
 // ── Desktop Sidebar ──────────────────────────────────────────────────────────
@@ -767,7 +781,13 @@ export function SidebarNav() {
   const { openSearch } = useGlobalSearch();
   const { workspace } = useActiveWorkspace();
   const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
-  const sections = useSectionsWithBadges(verticalProfile);
+  // Seat capacity drives Solo/Team visibility (see `showsTeamOnlyItems`).
+  // `undefined` while the workspace/plan is still loading → Team items stay
+  // hidden so a Solo workspace never flashes "Equipo".
+  const includedSeats = workspace
+    ? resolveWorkspacePlan({ plan: workspace.plan }).limits.includedSeats
+    : undefined;
+  const sections = useSectionsWithBadges(verticalProfile, includedSeats);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
@@ -951,7 +971,13 @@ export function MobileSidebarNav() {
   const { openSearch } = useGlobalSearch();
   const { workspace } = useActiveWorkspace();
   const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
-  const sections = useSectionsWithBadges(verticalProfile);
+  // Seat capacity drives Solo/Team visibility (see `showsTeamOnlyItems`).
+  // `undefined` while the workspace/plan is still loading → Team items stay
+  // hidden so a Solo workspace never flashes "Equipo".
+  const includedSeats = workspace
+    ? resolveWorkspacePlan({ plan: workspace.plan }).limits.includedSeats
+    : undefined;
+  const sections = useSectionsWithBadges(verticalProfile, includedSeats);
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
