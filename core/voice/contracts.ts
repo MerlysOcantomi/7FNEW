@@ -23,8 +23,17 @@
 /** BCP-47 language tag, e.g. "es-ES", "de-DE" (Hochdeutsch), "de-CH". */
 export type BCP47 = string
 
-/** Minimal JSON-Schema stand-in for tool parameter definitions. */
-export type JsonSchema = Record<string, unknown>
+/**
+ * JSON-serializable value types. These are a COMPILE-TIME guard so payloads
+ * that cross the client/server boundary (tool args, tool parameter schemas)
+ * cannot statically hold functions, class instances, `Date`, `Map`, `Set`,
+ * `undefined`, etc. They do NOT replace the runtime validation still required at
+ * every trust boundary (a later concern — not implemented here, no validator
+ * dependency added).
+ */
+export type JsonPrimitive = string | number | boolean | null
+export type JsonObject = { [key: string]: JsonValue }
+export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject
 
 // ─── Session states (adjustment 2 — at least these seven) ────────────────────
 
@@ -136,7 +145,8 @@ export type ToolExecutionPolicy = (typeof TOOL_EXECUTION_POLICIES)[number]
 export interface VoiceToolDef {
   name: string
   description: string
-  parameters: JsonSchema
+  /** JSON-Schema for the tool's parameters — a plain JSON object (serializable). */
+  parameters: JsonObject
   effect: ToolEffect
   /**
    * Execution policy. Derivable from `effect` via `resolveToolExecution` in

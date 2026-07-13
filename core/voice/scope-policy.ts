@@ -76,18 +76,47 @@ export function buildScopeEvaluationInput(
 }
 
 /**
- * Pure: turn a verdict into a `ScopeDecision` by applying the policy —
- * `off_topic` gets the redirection line and no tools; `in_scope`/`contextual`
- * keep the allowed tools. Policy COMPOSITION, not semantic classification: the
- * verdict must come from a `ScopeEvaluator`, not from this function.
+ * Pure: intersect the tools an evaluator REQUESTED with the tools the workspace
+ * has ALREADY AUTHORIZED. Returns only tools present in both, in the requested
+ * order, de-duplicated. It can never add a capability — the evaluator cannot
+ * escalate permissions. `authorized` is the source of truth for what is allowed.
+ */
+export function intersectAllowedTools(
+  requestedTools: readonly string[],
+  authorizedTools: readonly string[],
+): string[] {
+  const authorized = new Set(authorizedTools)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const tool of requestedTools) {
+    if (authorized.has(tool) && !seen.has(tool)) {
+      seen.add(tool)
+      out.push(tool)
+    }
+  }
+  return out
+}
+
+/**
+ * Pure: turn a verdict + the evaluator's REQUESTED tools into a `ScopeDecision`,
+ * applying the policy — `off_topic` gets the redirection line and NO tools;
+ * `in_scope`/`contextual` get the intersection of what the evaluator requested
+ * and what the workspace already authorized (`layers.allowedTools`). The
+ * evaluator can only narrow, never escalate. Policy COMPOSITION, not semantic
+ * classification: the verdict must come from a `ScopeEvaluator`.
  */
 export function applyScopePolicy(
   layers: ScopePolicyLayers,
   verdict: ScopeVerdict,
   reason: string,
+  requestedTools: readonly string[] = [],
 ): ScopeDecision {
   if (verdict === "off_topic") {
     return { verdict, reason, redirect: layers.offTopicResponse, allowedTools: [] }
   }
-  return { verdict, reason, allowedTools: layers.allowedTools }
+  return {
+    verdict,
+    reason,
+    allowedTools: intersectAllowedTools(requestedTools, layers.allowedTools),
+  }
 }

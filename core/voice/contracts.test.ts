@@ -9,6 +9,8 @@ import {
   VOICE_ROUTES,
   type TranscriptSegment,
   type ResponseMetadata,
+  type VoiceToolDef,
+  type JsonObject,
 } from "./contracts"
 
 // ─── State machine (adjustment 2 — the seven states, no lone "processing") ───
@@ -75,4 +77,23 @@ test("TOOL_EXECUTION_POLICIES = immediate | controlled | confirmation_required",
 
 test("VOICE_ROUTES = realtime | controlled", () => {
   assert.deepEqual(VOICE_ROUTES, ["realtime", "controlled"])
+})
+
+// ─── JSON-serializable contracts (adjustment 1) ──────────────────────────────
+
+test("VoiceToolDef.parameters is a JSON object that survives serialization", () => {
+  // Typed as JsonObject — a nested-but-plain JSON value, no functions/Dates.
+  const params: JsonObject = {
+    type: "object",
+    properties: { hora: { type: "string" }, precio: { type: "number" } },
+    required: ["hora"],
+  }
+  const tool: VoiceToolDef = {
+    name: "create_appointment",
+    description: "Create an appointment",
+    parameters: params,
+    effect: "write",
+    execution: "confirmation_required",
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(tool.parameters)), params)
 })

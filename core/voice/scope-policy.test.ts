@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   buildScopeEvaluationInput,
   applyScopePolicy,
+  intersectAllowedTools,
   type ScopePolicyLayers,
   type ScopeEvaluator,
   type ScopeDecision,
@@ -19,6 +20,35 @@ const LAYERS: ScopePolicyLayers = {
     "Puedo ayudarte con citas, clientas, servicios, cobros, marketing y tendencias de belleza.",
 }
 
+// ─── intersectAllowedTools (adjustment 5) ────────────────────────────────────
+
+test("intersectAllowedTools: keeps only tools present in both, requested order", () => {
+  assert.deepEqual(
+    intersectAllowedTools(["propose_action", "get_today_summary"], LAYERS.allowedTools),
+    ["propose_action", "get_today_summary"],
+  )
+})
+
+test("intersectAllowedTools: drops unauthorized tools (no escalation)", () => {
+  assert.deepEqual(
+    intersectAllowedTools(["delete_everything", "get_today_summary"], LAYERS.allowedTools),
+    ["get_today_summary"],
+  )
+})
+
+test("intersectAllowedTools: removes duplicates", () => {
+  assert.deepEqual(
+    intersectAllowedTools(["get_today_summary", "get_today_summary"], LAYERS.allowedTools),
+    ["get_today_summary"],
+  )
+})
+
+test("intersectAllowedTools: never adds a capability that was not authorized", () => {
+  assert.deepEqual(intersectAllowedTools(["delete_everything"], LAYERS.allowedTools), [])
+  // Requesting nothing yields nothing — it can only narrow.
+  assert.deepEqual(intersectAllowedTools([], LAYERS.allowedTools), [])
+})
+
 // ─── Policy composition (pure) ───────────────────────────────────────────────
 
 test("buildScopeEvaluationInput carries the vertical context, tools and permissions", () => {
@@ -30,41 +60,60 @@ test("buildScopeEvaluationInput carries the vertical context, tools and permissi
   assert.deepEqual(input.context, ["prev turn"])
 })
 
-test("applyScopePolicy: off_topic → redirection line + no tools", () => {
-  const d = applyScopePolicy(LAYERS, "off_topic", "unrelated to the business")
+test("applyScopePolicy: off_topic → redirection line + NO tools (even if requested)", () => {
+  const d = applyScopePolicy(LAYERS, "off_topic", "unrelated", ["get_today_summary"])
   assert.equal(d.verdict, "off_topic")
   assert.equal(d.redirect, LAYERS.offTopicResponse)
   assert.deepEqual(d.allowedTools, [])
 })
 
-test("applyScopePolicy: in_scope / contextual → keep allowed tools, no redirect", () => {
-  for (const v of ["in_scope", "contextual"] as ScopeVerdict[]) {
-    const d = applyScopePolicy(LAYERS, v, "business goal")
-    assert.equal(d.verdict, v)
-    assert.equal(d.redirect, undefined)
-    assert.deepEqual(d.allowedTools, LAYERS.allowedTools)
-  }
+test("applyScopePolicy: authorized requested tool is kept", () => {
+  const d = applyScopePolicy(LAYERS, "in_scope", "ok", ["get_today_summary"])
+  assert.deepEqual(d.allowedTools, ["get_today_summary"])
+  assert.equal(d.redirect, undefined)
+})
+
+test("applyScopePolicy: unauthorized requested tool is removed", () => {
+  const d = applyScopePolicy(LAYERS, "contextual", "goal", ["delete_everything"])
+  assert.deepEqual(d.allowedTools, [])
+})
+
+test("applyScopePolicy: mixed request → only the intersection survives", () => {
+  const d = applyScopePolicy(LAYERS, "contextual", "goal", ["get_today_summary", "delete_everything"])
+  assert.deepEqual(d.allowedTools, ["get_today_summary"])
+})
+
+test("applyScopePolicy: contextual cannot escalate beyond authorized tools", () => {
+  const d = applyScopePolicy(LAYERS, "contextual", "goal", [
+    "get_today_summary",
+    "propose_action",
+    "charge_card",
+  ])
+  assert.deepEqual(d.allowedTools, ["get_today_summary", "propose_action"])
 })
 
 // ─── Injectable/async evaluator (fake) — semantics live in a later phase ─────
 
 /**
- * Fake evaluator: NOT a real classifier. It returns a canned verdict per test so
- * we can exercise the composition/redirection/context plumbing without baking any
- * word-based semantics into 0A.
+ * Fake evaluator: NOT a real classifier. Returns a canned verdict + requested
+ * tools per test so we exercise composition/redirection/intersection plumbing
+ * without baking word-based semantics into 0A.
  */
-function fakeEvaluator(verdict: ScopeVerdict, reason: string): ScopeEvaluator {
+function fakeEvaluator(
+  verdict: ScopeVerdict,
+  reason: string,
+  requestedTools: string[],
+): ScopeEvaluator {
   return {
     async evaluate(input): Promise<ScopeDecision> {
-      // Prove the evaluator receives the composed layers + turn.
       assert.ok(input.layers.activeVertical === "beauty")
-      return applyScopePolicy(input.layers, verdict, reason)
+      return applyScopePolicy(input.layers, verdict, reason, requestedTools)
     },
   }
 }
 
-test("ScopeEvaluator is injectable/async and redirects off-topic turns", async () => {
-  const evaluator = fakeEvaluator("off_topic", "elephants are unrelated")
+test("ScopeEvaluator is injectable/async and redirects off-topic (no tools)", async () => {
+  const evaluator = fakeEvaluator("off_topic", "elephants are unrelated", ["get_today_summary"])
   const decision = await evaluator.evaluate(
     buildScopeEvaluationInput(LAYERS, "Háblame de los elefantes"),
   )
@@ -73,12 +122,15 @@ test("ScopeEvaluator is injectable/async and redirects off-topic turns", async (
   assert.deepEqual(decision.allowedTools, [])
 })
 
-test("ScopeEvaluator: contextual business goal keeps tools (no redirect)", async () => {
-  const evaluator = fakeEvaluator("contextual", "campaign is a beauty marketing goal")
+test("ScopeEvaluator: contextual keeps only authorized tools (no permission escalation)", async () => {
+  const evaluator = fakeEvaluator("contextual", "beauty marketing goal", [
+    "get_today_summary",
+    "charge_card",
+  ])
   const decision = await evaluator.evaluate(
     buildScopeEvaluationInput(LAYERS, "Crea una campaña de nails inspirada en elefantes"),
   )
   assert.equal(decision.verdict, "contextual")
   assert.equal(decision.redirect, undefined)
-  assert.deepEqual(decision.allowedTools, LAYERS.allowedTools)
+  assert.deepEqual(decision.allowedTools, ["get_today_summary"])
 })
