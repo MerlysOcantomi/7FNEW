@@ -6,6 +6,13 @@
  * the client, the token endpoint and tests.
  */
 
+// ─── Identity (7F is the product interface; Finesse is the product, not a persona) ──
+
+/** Agent name — 7F, never "Finesse". */
+export const LAB_AGENT_NAME = "7F Voice Lab"
+/** On-screen speaker label for assistant turns. */
+export const LAB_SPEAKER_LABEL = "7F"
+
 // ─── Model allowlist (validated server-side; the browser cannot pick others) ──
 
 export const LAB_MODELS = ["gpt-realtime-2.1", "gpt-realtime-2.1-mini"] as const
@@ -31,6 +38,36 @@ export function isLabVoice(value: unknown): value is LabVoice {
 }
 export function resolveLabVoice(value: unknown): LabVoice | null {
   return isLabVoice(value) ? value : null
+}
+
+/**
+ * Validate a client-supplied model/voice. ABSENT values fall back to the
+ * defaults; values that are PRESENT but not allowlisted are rejected (the
+ * endpoint answers 400) instead of being silently replaced with a default.
+ */
+export type ModelVoiceValidation =
+  | { ok: true; model: LabModel; voice: LabVoice }
+  | { ok: false }
+
+export function validateModelVoice(payload: {
+  model?: unknown
+  voice?: unknown
+}): ModelVoiceValidation {
+  let model: LabModel = DEFAULT_LAB_MODEL
+  if (payload.model !== undefined && payload.model !== null) {
+    const resolved = resolveLabModel(payload.model)
+    if (!resolved) return { ok: false }
+    model = resolved
+  }
+
+  let voice: LabVoice = DEFAULT_LAB_VOICE
+  if (payload.voice !== undefined && payload.voice !== null) {
+    const resolved = resolveLabVoice(payload.voice)
+    if (!resolved) return { ok: false }
+    voice = resolved
+  }
+
+  return { ok: true, model, voice }
 }
 
 // ─── Input-audio transcription (explicitly configured) ────────────────────────

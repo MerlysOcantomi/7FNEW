@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mintEphemeralClientSecret, MintError, type MintParams } from "./mint"
+import {
+  mintEphemeralClientSecret,
+  resolveSafetyIdentifier,
+  MintError,
+  type MintParams,
+} from "./mint"
 
 /** Build a fake fetch that captures the request and returns a canned response. */
 function fakeFetch(
@@ -74,4 +79,18 @@ test("throws MintError (no body echoed) on a non-OK response", async () => {
 test("throws on an unexpected response shape", async () => {
   const fetchImpl = fakeFetch({ ok: true, json: { nope: true } })
   await assert.rejects(() => mintEphemeralClientSecret({ ...BASE, fetchImpl }), MintError)
+})
+
+test("resolveSafetyIdentifier: null when AUTH_SECRET is absent/empty (no signing)", () => {
+  assert.equal(resolveSafetyIdentifier("u1", "ws1", undefined), null)
+  assert.equal(resolveSafetyIdentifier("u1", "ws1", ""), null)
+})
+
+test("resolveSafetyIdentifier: anonymized, deterministic, no PII, prefixed", () => {
+  const id = resolveSafetyIdentifier("u1", "ws1", "secret")
+  assert.ok(id && id.startsWith("anon_"))
+  // Deterministic for the same inputs; never contains the raw ids.
+  assert.equal(id, resolveSafetyIdentifier("u1", "ws1", "secret"))
+  assert.ok(!id.includes("u1"))
+  assert.ok(!id.includes("ws1"))
 })

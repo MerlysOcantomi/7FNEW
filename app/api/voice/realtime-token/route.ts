@@ -1,21 +1,13 @@
 import "server-only"
 import { NextResponse, type NextRequest } from "next/server"
-import { createHmac } from "node:crypto"
 import { requireReadAccess } from "@core/auth/workspace-auth"
 import { resolveLabGate } from "@/app/voice-lab/gate"
-import { mintEphemeralClientSecret } from "@/app/voice-lab/mint"
-import {
-  resolveLabModel,
-  resolveLabVoice,
-  DEFAULT_LAB_MODEL,
-  DEFAULT_LAB_VOICE,
-  LAB_LIMITS,
-  LAB_TRANSCRIPTION_MODEL,
-} from "@/app/voice-lab/config"
+import { mintEphemeralClientSecret, resolveSafetyIdentifier } from "@/app/voice-lab/mint"
+import { validateModelVoice, LAB_LIMITS, LAB_TRANSCRIPTION_MODEL } from "@/app/voice-lab/config"
 import { DOMAIN_INSTRUCTIONS } from "@/app/voice-lab/scope"
 
 /**
- * `POST /api/voice/realtime-token` (CORE-VOICE-0B.1).
+ * `POST /api/voice/realtime-token` (CORE-VOICE-0B.1.1).
  *
  * POST-only, nodejs runtime, Cache-Control: no-store. Same gate as `/voice-lab`.
  * Mints a short-lived ephemeral Realtime credential server-side and returns the
@@ -46,13 +38,6 @@ function rateLimited(key: string): boolean {
   return hits.length > RATE_MAX
 }
 
-/** Anonymized safety identifier (HMAC of user+workspace) — never PII. */
-function anonSafetyId(userId: string, workspaceId: string): string {
-  const secret = process.env.AUTH_SECRET ?? ""
-  const digest = createHmac("sha256", secret).update(`${userId}:${workspaceId}`).digest("hex")
-  return `anon_${digest.slice(0, 32)}`
-}
-
 export async function POST(req: NextRequest) {
   // Same gate as the page. 404 when off/non-admin; 403 when workspace invalid.
   const gate = await resolveLabGate()
@@ -76,13 +61,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: NO_STORE })
   }
 
+  // AUTH_SECRET is required to derive the anonymized safety identifier. If it is
+  // missing we do NOT sign with an empty key and we do NOT call OpenAI — 503.
+  const safetyIdentifier = resolveSafetyIdentifier(userId, workspaceId, process.env.AUTH_SECRET)
+  if (!safetyIdentifier) {
+    return new NextResponse(null, { status: 503, headers: NO_STORE })
+  }
+
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     // Lab enabled without a key — misconfiguration. Generic, no detail.
     return new NextResponse(null, { status: 503, headers: NO_STORE })
   }
 
-  // Validate the client-supplied model/voice against the server allowlist.
+  // Validate the client-supplied model/voice: absent → default; present but not
+  // allowlisted → 400 (never silently replaced with a default).
   let payload: Record<string, unknown> = {}
   try {
     const parsed: unknown = await req.json()
@@ -90,8 +83,11 @@ export async function POST(req: NextRequest) {
   } catch {
     payload = {}
   }
-  const model = resolveLabModel(payload.model) ?? DEFAULT_LAB_MODEL
-  const voice = resolveLabVoice(payload.voice) ?? DEFAULT_LAB_VOICE
+  const validation = validateModelVoice(payload)
+  if (!validation.ok) {
+    return NextResponse.json({ error: "invalid_model_or_voice" }, { status: 400, headers: NO_STORE })
+  }
+  const { model, voice } = validation
 
   try {
     const cred = await mintEphemeralClientSecret({
@@ -100,7 +96,7 @@ export async function POST(req: NextRequest) {
       voice,
       instructions: DOMAIN_INSTRUCTIONS,
       ttlSeconds: LAB_LIMITS.ephemeralTtlSeconds,
-      safetyIdentifier: anonSafetyId(userId, workspaceId),
+      safetyIdentifier,
     })
     return NextResponse.json(
       {

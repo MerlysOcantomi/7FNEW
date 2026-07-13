@@ -5,8 +5,11 @@ import {
   LAB_VOICES,
   resolveLabModel,
   resolveLabVoice,
+  validateModelVoice,
   LAB_TRANSCRIPTION_MODEL,
   LAB_LIMITS,
+  DEFAULT_LAB_MODEL,
+  DEFAULT_LAB_VOICE,
 } from "./config"
 
 test("model allowlist is exactly the two Realtime models", () => {
@@ -38,4 +41,25 @@ test("session limits: TTL short, 5 min session, 20 turns, USD 25 budget", () => 
   assert.equal(LAB_LIMITS.sessionMaxMs, 5 * 60 * 1000)
   assert.equal(LAB_LIMITS.sessionMaxTurns, 20)
   assert.equal(LAB_LIMITS.experimentBudgetUsd, 25)
+})
+
+test("validateModelVoice: absent values fall back to defaults", () => {
+  assert.deepEqual(validateModelVoice({}), {
+    ok: true,
+    model: DEFAULT_LAB_MODEL,
+    voice: DEFAULT_LAB_VOICE,
+  })
+})
+
+test("validateModelVoice: present-but-invalid model → not ok (400), NOT silently defaulted", () => {
+  assert.deepEqual(validateModelVoice({ model: "gpt-4o" }), { ok: false })
+  assert.deepEqual(validateModelVoice({ model: "gpt-realtime-2.1", voice: "hacker" }), { ok: false })
+})
+
+test("validateModelVoice: present + valid passes through", () => {
+  assert.deepEqual(validateModelVoice({ model: "gpt-realtime-2.1-mini", voice: "cedar" }), {
+    ok: true,
+    model: "gpt-realtime-2.1-mini",
+    voice: "cedar",
+  })
 })

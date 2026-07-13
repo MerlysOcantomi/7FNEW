@@ -11,9 +11,25 @@
  * OpenAI for real.
  */
 
+import { createHmac } from "node:crypto"
 import { LAB_TRANSCRIPTION_MODEL, type LabModel, type LabVoice } from "./config"
 
 const OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
+
+/**
+ * Anonymized OpenAI-Safety-Identifier (HMAC of user+workspace) — never PII.
+ * Returns `null` when `AUTH_SECRET` is absent/empty: the caller must then NOT
+ * mint a credential (respond 503) rather than sign with an empty key.
+ */
+export function resolveSafetyIdentifier(
+  userId: string,
+  workspaceId: string,
+  authSecret: string | undefined,
+): string | null {
+  if (!authSecret) return null
+  const digest = createHmac("sha256", authSecret).update(`${userId}:${workspaceId}`).digest("hex")
+  return `anon_${digest.slice(0, 32)}`
+}
 
 /** OpenAI's official response shape for a created client secret. */
 interface OpenAIClientSecretResponse {

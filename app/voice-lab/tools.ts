@@ -10,6 +10,7 @@
 import { tool } from "@openai/agents/realtime"
 import { z } from "zod"
 import type { ActionProposal } from "@core/voice/confirmation"
+import { emitProposeAction } from "./propose-bus"
 
 export const SIMULATION_MESSAGE =
   "Simulación: confirmación recibida. No se realizó ningún cambio."
@@ -55,6 +56,8 @@ export const proposeAction = tool({
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       risk: "low",
     }
+    // Surface the proposal to the UI card (simulated confirm/cancel there).
+    emitProposeAction(proposal)
     // NEVER executes. The proposal is returned for display + simulated confirm.
     return { simulated: true, proposal, message: SIMULATION_MESSAGE }
   },

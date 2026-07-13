@@ -1,27 +1,48 @@
 "use client"
 
 /**
- * Voice Lab client (CORE-VOICE-0B.1) — isolated experiment UI.
+ * Voice Lab client (CORE-VOICE-0B.1.1) — isolated experiment UI.
  *
- * Not part of AppShell / sidebar / top bar. Mints an ephemeral credential from
- * our own endpoint, opens a WebRTC Realtime session, shows state + transcript,
- * enforces session limits (duration / turns) with auto-disconnect, and records
- * local-only metrics. No audio or conversation is persisted.
+ * Not part of AppShell / sidebar / top bar. Turns and cost are deduplicated by
+ * response id via `SessionAccumulator`; transcript is id-keyed; latency channels
+ * with no reliable 0.3.0 event show "no disponible"; `propose_action` opens a
+ * simulated confirmation card that NEVER executes. No audio or conversation is
+ * persisted.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   LAB_MODELS,
   LAB_VOICES,
   DEFAULT_LAB_MODEL,
   DEFAULT_LAB_VOICE,
   LAB_LIMITS,
+  LAB_PRICING,
+  LAB_TRANSCRIPTION_USD_PER_MIN,
   LAB_COST_ALERT_PER_ACTIVE_MIN,
+  LAB_SPEAKER_LABEL,
   type LabModel,
   type LabVoice,
 } from "./config"
-import { summarizeChannel, evaluateSessionLimits } from "./metrics"
+import { evaluateSessionLimits } from "./metrics"
+import {
+  SessionAccumulator,
+  LatencyTracker,
+  summarizeLatency,
+  PERCEIVED_INTERRUPTION_AVAILABLE,
+  type LatencySummary,
+} from "./accumulator"
+import { parseLabEvent } from "./events"
+import {
+  emptyTranscriptStore,
+  applyTranscript,
+  transcriptLines,
+  type TranscriptStore,
+} from "./transcript"
 import { VoiceLabSession } from "./realtime-client"
+import { onProposeAction } from "./propose-bus"
+import { simulateConfirmation } from "./confirmation-sim"
+import type { ActionProposal } from "@core/voice/confirmation"
 import type { VoiceState } from "@core/voice/contracts"
 
 interface TokenResponse {
@@ -30,11 +51,6 @@ interface TokenResponse {
   model: LabModel
   voice: LabVoice
   transcriptionModel: string
-}
-
-interface TranscriptLine {
-  role: "user" | "assistant"
-  text: string
 }
 
 const STATE_LABEL: Record<VoiceState, string> = {
@@ -47,24 +63,51 @@ const STATE_LABEL: Record<VoiceState, string> = {
   error: "Error",
 }
 
+function ttfaText(s: LatencySummary): string {
+  if (!s.available) return "no disponible"
+  if (s.count === 0) return "sin datos"
+  return `${Math.round(s.p50)}/${Math.round(s.p95)} ms`
+}
+
 export function VoiceLabClient() {
   const [state, setState] = useState<VoiceState>("idle")
   const [model, setModel] = useState<LabModel>(DEFAULT_LAB_MODEL)
   const [voice, setVoice] = useState<LabVoice>(DEFAULT_LAB_VOICE)
-  const [transcript, setTranscript] = useState<TranscriptLine[]>([])
+  const [store, setStore] = useState<TranscriptStore>(emptyTranscriptStore)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [turns, setTurns] = useState(0)
+  const [estimatedCostUsd, setEstimatedCostUsd] = useState(0)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const [connectionMs, setConnectionMs] = useState<number[]>([])
-  const [modelTtfaMs, setModelTtfaMs] = useState<number[]>([])
+  const [errorCount, setErrorCount] = useState(0)
+  const [proposal, setProposal] = useState<ActionProposal | null>(null)
+  const [latency, setLatency] = useState({
+    model: summarizeLatency([], true),
+    audible: summarizeLatency([], true),
+    sdkInterruption: summarizeLatency([], true),
+    perceivedInterruption: summarizeLatency([], PERCEIVED_INTERRUPTION_AVAILABLE),
+  })
 
   const sessionRef = useRef<VoiceLabSession | null>(null)
+  const accRef = useRef<SessionAccumulator | null>(null)
+  const trackerRef = useRef<LatencyTracker | null>(null)
   const startedAtRef = useRef<number | null>(null)
-  const thinkingAtRef = useRef<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const modelRef = useRef<LabModel>(model)
+  modelRef.current = model
 
   const connected = state !== "idle"
+
+  const refreshLatency = useCallback(() => {
+    const t = trackerRef.current
+    if (!t) return
+    setLatency({
+      model: summarizeLatency(t.modelTtfaMs, true),
+      audible: summarizeLatency(t.audibleTtfaMs, true),
+      sdkInterruption: summarizeLatency(t.sdkInterruptionMs, true),
+      perceivedInterruption: summarizeLatency([], PERCEIVED_INTERRUPTION_AVAILABLE),
+    })
+  }, [])
 
   const disconnect = useCallback((why?: string) => {
     if (timerRef.current) {
@@ -77,28 +120,86 @@ export function VoiceLabClient() {
     if (why) setNotice(why)
   }, [])
 
-  // Close on unmount (adjustment 3).
-  useEffect(() => () => disconnect(), [disconnect])
+  // Register the propose_action card listener + close on unmount (adjustment 3).
+  useEffect(() => {
+    onProposeAction((p) => setProposal(p))
+    return () => {
+      onProposeAction(null)
+      disconnect()
+    }
+  }, [disconnect])
 
   const handleState = useCallback((next: VoiceState) => {
     setState(next)
-    if (next === "thinking") thinkingAtRef.current = performance.now()
-    if (next === "speaking") {
-      setTurns((t) => t + 1)
-      const started = thinkingAtRef.current
-      if (started != null) {
-        setModelTtfaMs((arr) => [...arr, performance.now() - started])
-        thinkingAtRef.current = null
+    const now = performance.now()
+    const t = trackerRef.current
+    if (!t) return
+    if (next === "speaking") t.onAudibleStart(now)
+    if (next === "interrupted") t.onInterrupted(now)
+    if (next === "error") setErrorCount((c) => c + 1)
+  }, [])
+
+  const handleRawEvent = useCallback((raw: unknown) => {
+    const now = performance.now()
+    const acc = accRef.current
+    const tracker = trackerRef.current
+    if (!acc || !tracker) return
+
+    for (const ev of parseLabEvent(raw)) {
+      switch (ev.kind) {
+        case "user_speech_started":
+          tracker.onBargeIn(now)
+          break
+        case "user_speech_stopped":
+          tracker.onEndOfTurn(now)
+          break
+        case "model_audio_delta":
+          tracker.onModelAudioDelta(now)
+          break
+        case "response_done":
+          if (acc.recordResponseDone(ev.responseId, ev.usage, LAB_PRICING[modelRef.current])) {
+            setTurns(acc.turns)
+            setEstimatedCostUsd(acc.estimatedCostUsd)
+          }
+          break
+        case "transcription_seconds":
+          acc.recordTranscriptionSeconds(ev.seconds, LAB_TRANSCRIPTION_USD_PER_MIN)
+          setEstimatedCostUsd(acc.estimatedCostUsd)
+          break
+        case "input_transcript":
+          if (ev.itemId) {
+            setStore((s) =>
+              applyTranscript(s, { id: ev.itemId, role: "user", text: ev.text, status: ev.status }),
+            )
+          }
+          break
+        case "output_transcript":
+          if (ev.itemId) {
+            setStore((s) =>
+              applyTranscript(s, {
+                id: ev.itemId,
+                role: "assistant",
+                text: ev.text,
+                status: ev.status,
+              }),
+            )
+          }
+          break
       }
     }
-  }, [])
+    refreshLatency()
+  }, [refreshLatency])
 
   const connect = useCallback(async () => {
     setError(null)
     setNotice(null)
-    setTranscript([])
+    setStore(emptyTranscriptStore())
     setTurns(0)
+    setEstimatedCostUsd(0)
     setElapsedMs(0)
+    setProposal(null)
+    accRef.current = new SessionAccumulator()
+    trackerRef.current = new LatencyTracker()
     setState("connecting")
     try {
       const res = await fetch("/api/voice/realtime-token", {
@@ -115,58 +216,57 @@ export function VoiceLabClient() {
 
       const session = new VoiceLabSession({
         onState: handleState,
-        onUserTranscript: (text) =>
-          setTranscript((t) => [...t, { role: "user", text }]),
-        onAssistantTranscript: (text) =>
-          setTranscript((t) => [...t, { role: "assistant", text }]),
         onError: (message) => setError(message),
+        onRawEvent: handleRawEvent,
       })
       sessionRef.current = session
-
-      const t0 = performance.now()
       await session.start({ clientSecret: token.clientSecret, model: token.model, voice: token.voice })
-      setConnectionMs((arr) => [...arr, performance.now() - t0])
       startedAtRef.current = Date.now()
 
-      // Session-limit watchdog: duration + turns → auto-disconnect.
       timerRef.current = setInterval(() => {
         const started = startedAtRef.current
-        if (started == null) return
-        const elapsed = Date.now() - started
-        setElapsedMs(elapsed)
+        if (started != null) setElapsedMs(Date.now() - started)
       }, 1000)
     } catch (err) {
       setState("idle")
       setError(err instanceof Error ? err.message : "Fallo de conexión")
     }
-  }, [model, voice, handleState])
+  }, [model, voice, handleState, handleRawEvent])
 
-  // Enforce hard limits whenever elapsed/turns change.
+  // Enforce hard limits using the REAL estimated cost.
   useEffect(() => {
     if (!connected || startedAtRef.current == null) return
     const status = evaluateSessionLimits(
-      { elapsedMs, turns, estimatedCostUsd: 0, activeMinutes: elapsedMs / 60000 },
+      { elapsedMs, turns, estimatedCostUsd, activeMinutes: elapsedMs / 60000 },
       LAB_COST_ALERT_PER_ACTIVE_MIN[model],
     )
     if (status.shouldDisconnect) {
-      const reason = status.timeExceeded
-        ? "Sesión finalizada: límite de 5 minutos alcanzado."
-        : status.turnsExceeded
-          ? "Sesión finalizada: límite de 20 turnos alcanzado."
-          : "Sesión finalizada: límite de presupuesto alcanzado."
-      disconnect(reason)
+      disconnect(
+        status.timeExceeded
+          ? "Sesión finalizada: límite de 5 minutos alcanzado."
+          : status.turnsExceeded
+            ? "Sesión finalizada: límite de 20 turnos alcanzado."
+            : "Sesión finalizada: límite de presupuesto alcanzado.",
+      )
     }
-  }, [elapsedMs, turns, connected, model, disconnect])
+  }, [elapsedMs, turns, estimatedCostUsd, connected, model, disconnect])
 
-  const conn = summarizeChannel(connectionMs)
-  const ttfa = summarizeChannel(modelTtfaMs)
+  const lines = useMemo(() => transcriptLines(store), [store])
+
+  const confirmSim = (decision: "confirm" | "cancel") => {
+    if (!proposal) return
+    const result = simulateConfirmation(proposal, decision, new Date().toISOString())
+    setNotice(result.message)
+    setProposal(null)
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-6 font-sans">
-      <h1 className="text-xl font-semibold">Voice Lab · experimento aislado</h1>
+      <h1 className="text-xl font-semibold">7F Voice Lab · experimento aislado</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Laboratorio de voz Realtime. Solo lectura / simulación · sin escrituras · sin persistencia
-        de audio ni conversación · máx {LAB_LIMITS.sessionMaxMs / 60000} min / {LAB_LIMITS.sessionMaxTurns} turnos.
+        Interfaz de voz de 7F (dentro de Finesse by Sevenef). Solo lectura / simulación · sin
+        escrituras · sin persistencia de audio ni conversación · máx{" "}
+        {LAB_LIMITS.sessionMaxMs / 60000} min / {LAB_LIMITS.sessionMaxTurns} turnos.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -236,15 +336,34 @@ export function VoiceLabClient() {
       {error && <p className="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
       {notice && <p className="mt-3 rounded bg-amber-50 p-2 text-sm text-amber-800">{notice}</p>}
 
+      {proposal && (
+        <section className="mt-4 rounded-lg border-2 border-indigo-300 p-4">
+          <h3 className="text-sm font-semibold text-indigo-800">Propuesta (simulación)</h3>
+          <p className="mt-1 text-sm"><strong>Acción:</strong> {proposal.toolName}</p>
+          <p className="text-sm"><strong>Resumen:</strong> {proposal.summary.written}</p>
+          <p className="text-sm text-gray-500"><strong>En voz:</strong> {proposal.summary.spoken}</p>
+          <p className="text-xs text-gray-400">Expira: {proposal.expiresAt}</p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => confirmSim("cancel")} className="rounded border px-3 py-1 text-sm">
+              Cancelar
+            </button>
+            <button onClick={() => confirmSim("confirm")} className="rounded bg-indigo-600 px-3 py-1 text-sm text-white">
+              Confirmar simulación
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="mt-5">
         <h2 className="text-sm font-semibold">Transcripción</h2>
         <div className="mt-2 max-h-64 overflow-y-auto rounded border p-3 text-sm">
-          {transcript.length === 0 ? (
+          {lines.length === 0 ? (
             <p className="text-gray-400">Sin transcripción todavía.</p>
           ) : (
-            transcript.map((line, i) => (
-              <p key={i} className={line.role === "user" ? "text-gray-900" : "text-indigo-700"}>
-                <strong>{line.role === "user" ? "Tú" : "Finesse"}:</strong> {line.text}
+            lines.map((line) => (
+              <p key={line.id} className={line.role === "user" ? "text-gray-900" : "text-indigo-700"}>
+                <strong>{line.role === "user" ? "Tú" : LAB_SPEAKER_LABEL}:</strong>{" "}
+                {line.status === "unavailable" ? <em className="text-gray-400">(transcripción no disponible)</em> : line.text}
               </p>
             ))
           )}
@@ -254,13 +373,18 @@ export function VoiceLabClient() {
       <section className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <Metric label="Turnos" value={`${turns} / ${LAB_LIMITS.sessionMaxTurns}`} />
         <Metric label="Tiempo" value={`${Math.floor(elapsedMs / 1000)}s`} />
-        <Metric label="Conexión p50/p95" value={`${Math.round(conn.p50)}/${Math.round(conn.p95)} ms`} />
-        <Metric label="Model TTFA p50/p95" value={`${Math.round(ttfa.p50)}/${Math.round(ttfa.p95)} ms`} />
+        <Metric label="Coste est." value={`$${estimatedCostUsd.toFixed(4)}`} />
+        <Metric label="Errores" value={`${errorCount}`} />
+        <Metric label="Model TTFA p50/p95" value={ttfaText(latency.model)} />
+        <Metric label="Audible TTFA p50/p95" value={ttfaText(latency.audible)} />
+        <Metric label="Interrup. SDK p50/p95" value={ttfaText(latency.sdkInterruption)} />
+        <Metric label="Interrup. percibida" value={ttfaText(latency.perceivedInterruption)} />
       </section>
 
       <p className="mt-4 text-xs text-gray-400">
-        Nota: las acciones con efectos son simulaciones — “Simulación: confirmación recibida. No se
-        realizó ningún cambio.” El coste total no puede garantizarse desde el navegador entre sesiones.
+        Alcance actual: instrucciones + tools limitadas. Guardrail semántico real: pendiente de
+        CORE-VOICE-2. Las acciones con efectos son simulaciones. El coste total no puede
+        garantizarse desde el navegador entre sesiones.
       </p>
     </div>
   )
