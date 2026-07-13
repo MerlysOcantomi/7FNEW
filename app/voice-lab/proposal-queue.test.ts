@@ -4,6 +4,7 @@ import {
   EMPTY_PROPOSAL_QUEUE,
   receiveProposal,
   clearActiveProposal,
+  DISCARDED_INCOMING_MESSAGE,
 } from "./proposal-queue"
 import type { ActionProposal } from "@core/voice/confirmation"
 
@@ -23,21 +24,26 @@ function proposal(id: string): ActionProposal {
 test("first proposal becomes active", () => {
   const s = receiveProposal(EMPTY_PROPOSAL_QUEUE, proposal("a"))
   assert.equal(s.active?.id, "a")
-  assert.equal(s.hasBlockedIncoming, false)
+  assert.equal(s.discardedIncoming, false)
 })
 
-test("a new proposal does NOT silently replace an active one", () => {
+test("a new proposal does NOT silently replace an active one; the second is discarded", () => {
   let s = receiveProposal(EMPTY_PROPOSAL_QUEUE, proposal("a"))
   s = receiveProposal(s, proposal("b"))
   assert.equal(s.active?.id, "a", "the first proposal is kept")
-  assert.equal(s.hasBlockedIncoming, true, "a pending-proposal warning is raised")
+  assert.equal(s.discardedIncoming, true, "the second is flagged as discarded")
+})
+
+test("discarded-proposal copy is honest — it does not claim the second is pending/queued", () => {
+  assert.match(DISCARDED_INCOMING_MESSAGE, /se descartó/i)
+  assert.doesNotMatch(DISCARDED_INCOMING_MESSAGE, /en cola|se ejecutará|quedó pendiente|queda pendiente/i)
 })
 
 test("clearing returns to empty and re-opens the queue", () => {
   let s = receiveProposal(EMPTY_PROPOSAL_QUEUE, proposal("a"))
   s = clearActiveProposal()
   assert.equal(s.active, null)
-  assert.equal(s.hasBlockedIncoming, false)
+  assert.equal(s.discardedIncoming, false)
   s = receiveProposal(s, proposal("c"))
   assert.equal(s.active?.id, "c")
 })

@@ -56,8 +56,14 @@ import {
   EMPTY_PROPOSAL_QUEUE,
   receiveProposal,
   clearActiveProposal,
+  DISCARDED_INCOMING_MESSAGE,
   type ProposalQueueState,
 } from "./proposal-queue"
+import {
+  SESSION_LIVE_INITIAL,
+  nextSessionLive,
+  lifecycleView,
+} from "./session-lifecycle"
 import { sessionWarnings } from "./session-warnings"
 import { describeConnectFailure } from "./mic-errors"
 import {
@@ -118,6 +124,7 @@ export function VoiceLabClient() {
   const [elapsedMs, setElapsedMs] = useState(0)
   const [errorCount, setErrorCount] = useState(0)
   const [queue, setQueue] = useState<ProposalQueueState>(EMPTY_PROPOSAL_QUEUE)
+  const [sessionLive, setSessionLive] = useState<boolean>(SESSION_LIVE_INITIAL)
   const [activity, setActivity] = useState<VoiceActivity>(IDLE_ACTIVITY)
   const [nowMs, setNowMs] = useState(0)
   const [latency, setLatency] = useState({
@@ -140,7 +147,9 @@ export function VoiceLabClient() {
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const stickToBottomRef = useRef(true)
 
-  const connected = state !== "idle"
+  // Source of truth for "a session is really open" — NOT `state !== "idle"`
+  // (error after a failed start also satisfies that, faking a connected UI).
+  const life = lifecycleView(state, sessionLive)
 
   const refreshLatency = useCallback(() => {
     const t = trackerRef.current
@@ -168,6 +177,7 @@ export function VoiceLabClient() {
     sessionRef.current = null
     startedAtRef.current = null
     lastAssistantStreamingIdRef.current = null
+    setSessionLive((p) => nextSessionLive(p, { type: "teardown" }))
     setActivity(IDLE_ACTIVITY)
     if (sessionNote !== undefined) setNotices((n) => withSessionNotice(n, sessionNote))
   }, [])
@@ -289,6 +299,8 @@ export function VoiceLabClient() {
     setElapsedMs(0)
     setQueue(EMPTY_PROPOSAL_QUEUE)
     setActivity(IDLE_ACTIVITY)
+    // Requesting the token is NOT a live session yet.
+    setSessionLive((p) => nextSessionLive(p, { type: "connect_requested" }))
     shownWarningsRef.current = new Set()
     lastAssistantStreamingIdRef.current = null
     accRef.current = new SessionAccumulator()
@@ -305,11 +317,13 @@ export function VoiceLabClient() {
     } catch (err) {
       // Network failure before any session existed — nothing to release.
       const failure = describeConnectFailure(err)
+      setSessionLive((p) => nextSessionLive(p, { type: "connect_failed" }))
       setState("idle")
       setNotices((n) => withError(n, failure.message))
       return
     }
     if (!res.ok) {
+      setSessionLive((p) => nextSessionLive(p, { type: "connect_failed" }))
       setState("idle")
       setNotices((n) => withError(n, describeConnectFailure({ name: "connection" }).message))
       return
@@ -325,6 +339,8 @@ export function VoiceLabClient() {
 
     try {
       await session.start({ clientSecret: token.clientSecret, model: token.model, voice: token.voice })
+      // Session is live ONLY after start() resolves.
+      setSessionLive((p) => nextSessionLive(p, { type: "start_succeeded" }))
       startedAtRef.current = Date.now()
       setActivity((a) => reduceVoiceActivity(a, { type: "session_live" }))
       timerRef.current = setInterval(() => {
@@ -333,7 +349,8 @@ export function VoiceLabClient() {
       }, 1000)
     } catch (err) {
       // Partial failure AFTER creating the session (commonly a denied/absent
-      // mic): close it explicitly, release transport/mic, land on "error".
+      // mic): close it explicitly (teardown clears sessionLive), release
+      // transport/mic, land on "error" with the session genuinely closed.
       const failure = describeConnectFailure(err)
       teardown()
       setState("error")
@@ -344,7 +361,7 @@ export function VoiceLabClient() {
 
   // Soft warnings (minute 4 / turn 17 / cost alert) + hard-limit auto-disconnect.
   useEffect(() => {
-    if (!connected || startedAtRef.current == null) return
+    if (!sessionLive || startedAtRef.current == null) return
     const status = evaluateSessionLimits(
       { elapsedMs, turns, estimatedCostUsd, activeMinutes: elapsedMs / 60000 },
       LAB_COST_ALERT_PER_ACTIVE_MIN[model],
@@ -364,7 +381,7 @@ export function VoiceLabClient() {
             : "Sesión finalizada: límite de presupuesto alcanzado.",
       )
     }
-  }, [elapsedMs, turns, estimatedCostUsd, connected, model, disconnect])
+  }, [elapsedMs, turns, estimatedCostUsd, sessionLive, model, disconnect])
 
   const lines = useMemo(() => transcriptLines(store), [store])
 
@@ -389,7 +406,7 @@ export function VoiceLabClient() {
 
   const indicator = stateIndicator(state, activity)
   const expiry = queue.active ? expiryView(queue.active.expiresAt, nowMs) : null
-  const showMicPreface = !connected
+  const showMicPreface = life.primaryAction === "connect" && !life.connecting
 
   return (
     <div className="mx-auto max-w-3xl p-6 font-sans text-gray-900">
@@ -410,7 +427,7 @@ export function VoiceLabClient() {
           Modelo{" "}
           <select
             value={model}
-            disabled={connected}
+            disabled={life.selectorsDisabled}
             onChange={(e) => setModel(e.target.value as LabModel)}
             className="min-h-[44px] rounded border px-2 py-1"
           >
@@ -423,7 +440,7 @@ export function VoiceLabClient() {
           Voz{" "}
           <select
             value={voice}
-            disabled={connected}
+            disabled={life.selectorsDisabled}
             onChange={(e) => setVoice(e.target.value as LabVoice)}
             className="min-h-[44px] rounded border px-2 py-1"
           >
@@ -432,12 +449,14 @@ export function VoiceLabClient() {
             ))}
           </select>
         </label>
-        {!connected ? (
+        {life.primaryAction === "connect" ? (
           <button
             onClick={connect}
-            className="min-h-[44px] rounded bg-black px-4 py-2 text-white"
+            disabled={life.connectDisabled}
+            aria-disabled={life.connectDisabled}
+            className="min-h-[44px] rounded bg-black px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Conectar
+            {life.connecting ? "Conectando…" : "Conectar"}
           </button>
         ) : (
           <button
@@ -466,7 +485,7 @@ export function VoiceLabClient() {
           <StateShapeIcon shape={indicator.shape} animate={indicator.animate} tone={indicator.tone} />
           {indicator.label}
         </span>
-        {connected && (
+        {life.showMic && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-2.5 py-1 text-xs text-gray-700">
             <span
               aria-hidden
@@ -484,7 +503,7 @@ export function VoiceLabClient() {
           Cortar respuesta
         </button>
       </div>
-      {connected && (
+      {life.sessionLive && (
         <p className="mt-1 text-xs text-gray-600">
           También puedes empezar a hablar para interrumpir a 7F.
         </p>
@@ -528,9 +547,9 @@ export function VoiceLabClient() {
             {expiry.status === "expired" ? "⚠ " : "⏳ "}
             {expiry.label}
           </p>
-          {queue.hasBlockedIncoming && (
+          {queue.discardedIncoming && (
             <p className="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
-              Hay otra propuesta pendiente. Resuelve esta primero; no se ejecuta ninguna.
+              {DISCARDED_INCOMING_MESSAGE}
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
