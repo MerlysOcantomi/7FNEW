@@ -753,6 +753,40 @@ function InboxFocusedNav({
   );
 }
 
+// ── Loading placeholder ──────────────────────────────────────────────────────
+/**
+ * Neutral skeleton rendered while the active workspace is still unknown
+ * (first `/api/workspaces` load of the runtime). Before this existed the
+ * sidebar rendered the default 7F Core nav during that window, so vertical
+ * workspaces (e.g. Beauty) flashed the Core menu before their own profile
+ * resolved. A loading workspace means "we don't know WHICH nav yet" — so we
+ * commit to neither. Subsequent mounts hydrate synchronously from the
+ * module-level cache in `useActiveWorkspace`, so this only shows once.
+ */
+function SidebarNavLoading({ collapsed = false }: { collapsed?: boolean }) {
+  return (
+    <div className="space-y-1" aria-hidden>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            "flex items-center gap-3 rounded-[8px]",
+            collapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
+          )}
+        >
+          <span className="h-[15px] w-[15px] shrink-0 rounded bg-[var(--app-sidebar-surface)] animate-pulse" />
+          {!collapsed && (
+            <span
+              className="h-3 rounded bg-[var(--app-sidebar-surface)] animate-pulse"
+              style={{ width: `${72 + (i % 3) * 20}px` }}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function useSectionsWithBadges(
   profile?: VerticalNavProfile | null,
   includedSeats?: number | null,
@@ -779,8 +813,16 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { collapsed, setCollapsed } = useSidebarCollapse();
   const { openSearch } = useGlobalSearch();
-  const { workspace } = useActiveWorkspace();
+  const { workspace, loading: workspaceLoading } = useActiveWorkspace();
   const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
+  /**
+   * While the workspace is genuinely unknown (first load, nothing cached) we
+   * don't know whether this is a Core or a vertical workspace, so we render
+   * `SidebarNavLoading` instead of committing to the default nav. Once
+   * resolved, a workspace WITHOUT a vertical profile falls through to the
+   * Core nav as before.
+   */
+  const navUnresolved = workspaceLoading && !workspace;
   // Seat capacity drives Solo/Team visibility (see `showsTeamOnlyItems`).
   // `undefined` while the workspace/plan is still loading → Team items stay
   // hidden so a Solo workspace never flashes "Equipo".
@@ -930,6 +972,8 @@ export function SidebarNav() {
       >
         {focused ? (
           <InboxFocusedNav collapsed={collapsed} />
+        ) : navUnresolved ? (
+          <SidebarNavLoading collapsed={collapsed} />
         ) : (
           sections.map(({ section, subtitle, items, dividerAbove }) => (
             <AccordionSection
@@ -969,8 +1013,10 @@ import {
 export function MobileSidebarNav() {
   const pathname = usePathname();
   const { openSearch } = useGlobalSearch();
-  const { workspace } = useActiveWorkspace();
+  const { workspace, loading: workspaceLoading } = useActiveWorkspace();
   const verticalProfile = resolveNavProfile(workspace?.verticalKey ?? null);
+  /** Same first-load gate as desktop — see `SidebarNav`. */
+  const navUnresolved = workspaceLoading && !workspace;
   // Seat capacity drives Solo/Team visibility (see `showsTeamOnlyItems`).
   // `undefined` while the workspace/plan is still loading → Team items stay
   // hidden so a Solo workspace never flashes "Equipo".
@@ -1062,6 +1108,8 @@ export function MobileSidebarNav() {
           <nav className="px-3 pb-3 flex-1 space-y-1 overflow-y-auto">
             {focused ? (
               <InboxFocusedNav onNavClick={() => setOpen(false)} />
+            ) : navUnresolved ? (
+              <SidebarNavLoading />
             ) : (
               sections.map(({ section, subtitle, items, dividerAbove }) => (
                 <AccordionSection
