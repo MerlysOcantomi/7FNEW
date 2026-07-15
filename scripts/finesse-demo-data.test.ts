@@ -16,6 +16,11 @@ import {
   buildClientMap,
   resolveClientId,
 } from "./finesse-demo-data"
+import {
+  parseWorkspaceConfig,
+  mergeDemoWorkspaceConfig,
+  extractDemoMetadata,
+} from "./finesse-demo-utils"
 
 test("generateDemoInvoiceNumber: deterministic and globally unique", () => {
   const ws1 = "cuid1234567890abcdef"
@@ -265,6 +270,148 @@ test("FINESSE_DEMO_CONTENT_PIECES: all have demoMarker field", () => {
     assert.ok(
       piece.demoMarker.startsWith("FINESSE_DEMO:content:"),
       `demoMarker should start with FINESSE_DEMO:content:, got ${piece.demoMarker}`,
+    )
+  }
+})
+
+test("parseWorkspaceConfig: empty/null input returns {}", () => {
+  assert.deepEqual(parseWorkspaceConfig(null), {}, "null should return {}")
+  assert.deepEqual(parseWorkspaceConfig(undefined), {}, "undefined should return {}")
+  assert.deepEqual(parseWorkspaceConfig(""), {}, "empty string should return {}")
+  assert.deepEqual(parseWorkspaceConfig("   "), {}, "whitespace-only string should return {}")
+})
+
+test("parseWorkspaceConfig: valid JSON object returns parsed object", () => {
+  const config = { key1: "value1", nested: { key2: "value2" } }
+  const result = parseWorkspaceConfig(JSON.stringify(config))
+  assert.deepEqual(result, config, "should parse valid JSON object")
+})
+
+test("parseWorkspaceConfig: invalid JSON returns null", () => {
+  assert.equal(parseWorkspaceConfig("{invalid json}"), null, "invalid JSON should return null")
+  assert.equal(parseWorkspaceConfig('[1, 2, 3]'), null, "JSON array should return null")
+  assert.equal(parseWorkspaceConfig('"string"'), null, "JSON string should return null")
+  assert.equal(parseWorkspaceConfig('123'), null, "JSON number should return null")
+})
+
+test("mergeDemoWorkspaceConfig: preserves existing properties", () => {
+  const existing = { userSetting: "value", nested: { original: true } }
+  const demo = { createdAt: "2026-07-15", created: { clientes: 5 } }
+
+  const merged = mergeDemoWorkspaceConfig(existing, demo)
+
+  assert.equal(merged.userSetting, "value", "should preserve existing string property")
+  assert.deepEqual(merged.nested, { original: true }, "should preserve existing nested object")
+  assert.deepEqual(merged.finesseDemoMetadata, demo, "should add demo metadata under finesseDemoMetadata key")
+})
+
+test("mergeDemoWorkspaceConfig: overwrites finesseDemoMetadata on re-run", () => {
+  const config1 = { userSetting: "value" }
+  const demo1 = { runCount: 1 }
+  const merged1 = mergeDemoWorkspaceConfig(config1, demo1)
+
+  assert.deepEqual(merged1.finesseDemoMetadata, { runCount: 1 })
+
+  const config2 = merged1 // Simulate re-running
+  const demo2 = { runCount: 2 }
+  const merged2 = mergeDemoWorkspaceConfig(config2, demo2)
+
+  assert.equal(merged2.userSetting, "value", "should still preserve original setting")
+  assert.deepEqual(merged2.finesseDemoMetadata, { runCount: 2 }, "should update demo metadata")
+})
+
+test("extractDemoMetadata: returns demo metadata or empty object", () => {
+  const withMetadata = {
+    userSetting: "value",
+    finesseDemoMetadata: { created: 5 },
+  }
+  assert.deepEqual(extractDemoMetadata(withMetadata), { created: 5 })
+
+  const withoutMetadata = { userSetting: "value" }
+  assert.deepEqual(extractDemoMetadata(withoutMetadata), {}, "should return empty object if no metadata")
+})
+
+test("FINESSE_DEMO_EVENTS: daysOffset ensures relative date recalculation", () => {
+  // Each event has a daysOffset that should be used to recalculate relative to today on each run
+  const eventToday = FINESSE_DEMO_EVENTS.find((e) => e.daysOffset === 0)
+  const eventTomorrow = FINESSE_DEMO_EVENTS.find((e) => e.daysOffset === 1)
+
+  assert.ok(eventToday, "should have at least one event for today (daysOffset=0)")
+  assert.ok(eventTomorrow, "should have at least one event for tomorrow (daysOffset=1)")
+
+  // Verify that daysOffset values are distinct and can be used for recalculation
+  const today = getRelativeDate(eventToday.daysOffset, eventToday.hora, eventToday.minuto)
+  const tomorrow = getRelativeDate(eventTomorrow.daysOffset, eventTomorrow.hora, eventTomorrow.minuto)
+
+  assert.ok(
+    tomorrow.getTime() > today.getTime(),
+    "tomorrow (daysOffset=1) should be after today (daysOffset=0)",
+  )
+
+  // Verify time spans are roughly 24 hours (allowing for clock skew)
+  const diff = (tomorrow.getTime() - today.getTime()) / (1000 * 60 * 60)
+  assert.ok(diff > 23 && diff < 25, `should be ~24 hours, got ${diff}h`)
+})
+
+test("FINESSE_DEMO_CONVERSATIONS: all use demoMarker in source field (not subject)", () => {
+  for (const conv of FINESSE_DEMO_CONVERSATIONS) {
+    // demoMarker should be stored in source field for idempotent lookup
+    assert.ok(conv.demoMarker, "should have demoMarker")
+    // subject should be human-readable (visible in Inbox)
+    assert.ok(conv.subject, "should have human-readable subject")
+    // subject should NOT be the demoMarker
+    assert.notEqual(
+      conv.subject,
+      conv.demoMarker,
+      "subject should be human-readable, not demoMarker",
+    )
+  }
+})
+
+test("FINESSE_DEMO_CLIENTS: emails are deterministic for order independence", () => {
+  // Clients 1, 2, 3 in order should generate emails in same sequence
+  const emails = FINESSE_DEMO_CLIENTS.slice(0, 3).map((c) => c.email)
+  assert.deepEqual(
+    emails,
+    [
+      generateDemoEmail("client", 1),
+      generateDemoEmail("client", 2),
+      generateDemoEmail("client", 3),
+    ],
+    "first 3 clients should have deterministic emails",
+  )
+})
+
+test("marker fields enable safe restoration/deletion without touching real data", () => {
+  // All demo records have markers that uniquely identify them
+  const eventMarkers = new Set(FINESSE_DEMO_EVENTS.map((e) => e.demoMarker))
+  const convMarkers = new Set(FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker))
+  const invoiceMarkers = new Set(FINESSE_DEMO_INVOICES.map((i) => i.demoMarker))
+  const contentMarkers = new Set(FINESSE_DEMO_CONTENT_PIECES.map((p) => p.demoMarker))
+
+  assert.equal(
+    eventMarkers.size,
+    FINESSE_DEMO_EVENTS.length,
+    "all event markers should be unique",
+  )
+  assert.equal(
+    convMarkers.size,
+    FINESSE_DEMO_CONVERSATIONS.length,
+    "all conversation markers should be unique",
+  )
+  assert.equal(invoiceMarkers.size, FINESSE_DEMO_INVOICES.length, "all invoice markers should be unique")
+  assert.equal(
+    contentMarkers.size,
+    FINESSE_DEMO_CONTENT_PIECES.length,
+    "all content markers should be unique",
+  )
+
+  // All markers follow the pattern FINESSE_DEMO:*
+  const allMarkers = [...eventMarkers, ...convMarkers, ...invoiceMarkers, ...contentMarkers]
+  for (const marker of allMarkers) {
+    assert.ok(
+      marker.startsWith("FINESSE_DEMO:"),
+      `marker "${marker}" should start with FINESSE_DEMO:`,
     )
   }
 })

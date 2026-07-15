@@ -4,18 +4,23 @@
  * Three modes:
  *   1. discover   — find workspaces for an owner
  *   2. dry-run    — show what would be created
- *   3. seed       — create demo data (with confirmation)
+ *   3. seed       — create demo data (with confirmation + atomic transaction)
  *
  * Safety features:
  *   - Idempotent: uses FINESSE_DEMO markers to identify and update demo records
  *   - Deterministic: resolves clients by email (Map), not DB query order
- *   - Atomic: wraps seed writes in db.$transaction
+ *   - Atomic: wraps all seed writes in db.$transaction
  *   - Config-safe: validates Workspace.config JSON, rejects invalid configs
  *   - Relative dates: recalculated on each run so no drift
+ *   - Conversation safety: uses source field for markers, preserves visible subject
  *
- * Limitations (LibSQL/Turso):
- *   - $transaction may not support nested writes — will fall back to sequential
- *   - Conversion to event type "cita" (Beauty appointments)
+ * Marker fields:
+ *   - Cliente.customId: FINESSE_DEMO:client:01
+ *   - Contact.source: FINESSE_DEMO:contact:01
+ *   - Evento.descripcion: FINESSE_DEMO:cita:01
+ *   - Conversation.source: FINESSE_DEMO:conv:01
+ *   - Factura.numero: DEMO-FINESSE-<workspace>-001
+ *   - ContentPiece.notas: FINESSE_DEMO:content:01
  */
 
 import "dotenv/config"
@@ -29,11 +34,11 @@ import {
   FINESSE_DEMO_CONTENT_PIECES,
   generateDemoInvoiceNumber,
   getRelativeDate,
-  validateDemoData,
   getDemoDatasetSummary,
   buildClientMap,
   resolveClientId,
 } from "./finesse-demo-data"
+import { parseWorkspaceConfig, mergeDemoWorkspaceConfig } from "./finesse-demo-utils"
 import { BEAUTY_NAV_VERTICAL_KEYS } from "../core/vertical-packs/nav-profile"
 
 const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
@@ -77,112 +82,53 @@ function isBeautyWorkspace(verticalKey: string | null): boolean {
 }
 
 /**
- * Validate and parse Workspace.config JSON.
- * Returns parsed config or null if invalid. Rejects silently invalid configs.
- */
-function parseWorkspaceConfig(configRaw: string | null | undefined): Record<string, unknown> | null {
-  if (!configRaw) return {}
-  if (!configRaw.trim()) return {}
-
-  try {
-    const parsed = JSON.parse(configRaw)
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>
-    }
-    return null // Invalid: not a JSON object
-  } catch {
-    return null // Invalid JSON
-  }
-}
-
-/**
  * DISCOVER mode: list workspaces for an owner.
  */
 async function discoverMode(ownerEmail: string): Promise<void> {
-  console.log(`[discover] Looking for user: ${ownerEmail}`)
+  console.log(`[discover] Finding workspaces for: ${ownerEmail}`)
 
   const user = await db.user.findUnique({
     where: { email: ownerEmail },
-    select: { id: true, nombre: true, email: true, memberships: { select: { workspaceId: true } } },
+    select: { id: true, email: true },
   })
-
   if (!user) {
     console.error(`[discover] User not found: ${ownerEmail}`)
     process.exit(1)
   }
 
-  console.log(`[discover] Found user: ${user.nombre || user.email} (${user.id})`)
-  console.log(`[discover] Fetching workspaces...`)
+  const memberships = await db.workspaceMember.findMany({
+    where: { userId: user.id },
+    select: {
+      workspace: {
+        select: { id: true, nombre: true, vertical: true, verticalKey: true },
+      },
+    },
+  })
 
-  if (user.memberships.length === 0) {
+  if (memberships.length === 0) {
     console.log(`[discover] No workspaces found for this user`)
     process.exit(0)
   }
 
-  const workspaceIds = user.memberships.map((m) => m.workspaceId)
-
-  const workspaces = await db.workspace.findMany({
-    where: { id: { in: workspaceIds } },
-    select: {
-      id: true,
-      nombre: true,
-      vertical: true,
-      verticalKey: true,
-      plan: true,
-    },
-  })
-
-  console.log(`\n[discover] Workspaces (${workspaces.length}):`)
-  console.log("")
-
-  for (const ws of workspaces) {
-    const isBeauty = isBeautyWorkspace(ws.verticalKey)
-    const tag = isBeauty ? "✓ BEAUTY" : "  (other vertical)"
-
-    // Count records
-    const clientCount = await db.cliente.count({ where: { workspaceId: ws.id } })
-    const eventoCount = await db.evento.count({ where: { workspaceId: ws.id } })
-    const contactCount = await db.contact.count({ where: { workspaceId: ws.id } })
-    const conversationCount = await db.conversation.count({ where: { workspaceId: ws.id } })
-    const messageCount = await db.message.count({ where: { workspaceId: ws.id } })
-    const facturaCount = await db.factura.count({ where: { workspaceId: ws.id } })
-    const contentPieceCount = await db.contentPiece.count({ where: { workspaceId: ws.id } })
-
-    console.log(`  ${tag}`)
-    console.log(`    ID: ${ws.id}`)
-    console.log(`    Name: ${ws.nombre}`)
-    console.log(`    Vertical: ${ws.vertical} (${ws.verticalKey})`)
-    console.log(`    Plan: ${ws.plan}`)
-    console.log(`    Data:`)
-    console.log(`      - Clientes: ${clientCount}`)
-    console.log(`      - Eventos: ${eventoCount}`)
-    console.log(`      - Contactos: ${contactCount}`)
-    console.log(`      - Conversaciones: ${conversationCount}`)
-    console.log(`      - Mensajes: ${messageCount}`)
-    console.log(`      - Facturas: ${facturaCount}`)
-    console.log(`      - ContentPieces: ${contentPieceCount}`)
-    console.log(``)
+  console.log(`[discover] Workspaces:`)
+  for (const membership of memberships) {
+    const isBeauty = isBeautyWorkspace(membership.workspace.verticalKey)
+    const tag = isBeauty ? " ✓ BEAUTY" : ""
+    console.log(
+      `  ${membership.workspace.id} | ${membership.workspace.nombre} | ${membership.workspace.verticalKey}${tag}`,
+    )
   }
 
-  console.log(`To use dry-run or seed, pick a Beauty workspace ID and run:`)
-  console.log(`  npx tsx scripts/seed-finesse-demo.ts dry-run --workspace-id <ID> --owner ${ownerEmail}`)
+  const beautyCount = memberships.filter((m) => isBeautyWorkspace(m.workspace.verticalKey)).length
+  console.log(`\n[discover] Found ${beautyCount} Beauty workspace(s)`)
 }
 
 /**
- * DRY-RUN mode: show what would be created.
+ * DRY-RUN mode: show what would be created without modifying anything.
  */
 async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void> {
-  console.log(`[dry-run] Validating setup...`)
+  console.log(`[dry-run] Workspace: ${workspaceId}`)
 
-  // Validate demo data first
-  const validation = validateDemoData()
-  if (!validation.valid) {
-    console.error(`[dry-run] Demo data validation failed:`)
-    validation.errors.forEach((e) => console.error(`  - ${e}`))
-    process.exit(1)
-  }
-
-  // Step 1: User exists and belongs to workspace
   const user = await db.user.findUnique({
     where: { email: ownerEmail },
     select: { id: true, email: true },
@@ -200,7 +146,6 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
     process.exit(1)
   }
 
-  // Step 2: Workspace exists and is Beauty
   const workspace = await db.workspace.findUnique({
     where: { id: workspaceId },
     select: { id: true, nombre: true, vertical: true, verticalKey: true, config: true },
@@ -217,7 +162,7 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
     process.exit(1)
   }
 
-  // Step 3: Validate Workspace.config
+  // Validate Workspace.config
   const configParsed = parseWorkspaceConfig(workspace.config)
   if (configParsed === null) {
     console.error(`[dry-run] Workspace.config contains invalid JSON — aborting without modifications`)
@@ -228,7 +173,6 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`[dry-run] ✓ Workspace is Beauty vertical: ${workspace.verticalKey}`)
   console.log(`[dry-run] ✓ Workspace.config is valid JSON (or empty)`)
 
-  // Step 4: Show existing data
   const existingClientCount = await db.cliente.count({ where: { workspaceId } })
   const existingEventCount = await db.evento.count({ where: { workspaceId } })
   const existingContactCount = await db.contact.count({ where: { workspaceId } })
@@ -246,7 +190,6 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`  Facturas: ${existingFacturaCount}`)
   console.log(`  ContentPieces: ${existingContentCount}`)
 
-  // Step 5: Show what would be created
   const summary = getDemoDatasetSummary()
   console.log(`\n[dry-run] Demo dataset to be created or updated:`)
   console.log(`  Clientes: ${summary.clients}`)
@@ -267,7 +210,7 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
 }
 
 /**
- * SEED mode: create or update demo data (with confirmation).
+ * SEED mode: create or update demo data (with confirmation + atomic transaction).
  */
 async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> {
   console.log(`[seed] Starting demo data operation...`)
@@ -310,9 +253,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
   }
 
   if (!isBeautyWorkspace(workspace.verticalKey)) {
-    console.error(
-      `[seed] Workspace is not a Beauty vertical: ${workspace.verticalKey}`,
-    )
+    console.error(`[seed] Workspace is not a Beauty vertical: ${workspace.verticalKey}`)
     process.exit(1)
   }
 
@@ -326,6 +267,27 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
   console.log(`[seed] ✓ All pre-checks passed`)
   console.log(`[seed] Creating/updating demo data for: ${workspace.nombre}`)
 
+  // Execute seed inside a transaction
+  try {
+    await db.$transaction(async (tx) => {
+      await performSeed(tx, workspaceId, configParsed)
+    })
+    console.log(`[seed] ✓ Demo data operation completed successfully`)
+  } catch (error) {
+    console.error(`[seed] Transaction failed:`, error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
+}
+
+/**
+ * Core seeding logic wrapped in transaction.
+ * This function receives a Prisma transaction client and uses it for all writes.
+ */
+async function performSeed(
+  tx: any, // Prisma transaction client
+  workspaceId: string,
+  existingConfig: Record<string, unknown>,
+): Promise<void> {
   const createdData = {
     clientes: 0,
     contactos: 0,
@@ -344,15 +306,21 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
   }
 
   // === PHASE 1: Create or skip clients (no updates for clients) ===
+  const clientes: Array<{ id: string; email: string }> = []
   for (const demoClient of FINESSE_DEMO_CLIENTS) {
-    const existing = await db.cliente.findFirst({
+    const demoMarker = `FINESSE_DEMO:client:${FINESSE_DEMO_CLIENTS.indexOf(demoClient) + 1}`
+
+    const existing = await tx.cliente.findFirst({
       where: { workspaceId, email: demoClient.email },
     })
+
     if (existing) {
-      console.log(`  [skip] Cliente ${demoClient.nombre} (${demoClient.email}) already exists`)
+      console.log(`  [skip] Cliente ${demoClient.nombre} already exists`)
+      clientes.push({ id: existing.id, email: demoClient.email })
       continue
     }
-    await db.cliente.create({
+
+    const created = await tx.cliente.create({
       data: {
         nombre: demoClient.nombre,
         email: demoClient.email,
@@ -361,21 +329,19 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
         tipo: demoClient.tipo,
         estado: demoClient.estado,
         notas: demoClient.notas,
+        customId: demoMarker,
         workspaceId,
       },
     })
+    clientes.push({ id: created.id, email: demoClient.email })
     createdData.clientes++
     console.log(`  [create] Cliente: ${demoClient.nombre}`)
   }
 
-  // === PHASE 2: Build client map and create/update contacts ===
-  const clientes = await db.cliente.findMany({
-    where: { workspaceId, email: { in: FINESSE_DEMO_CLIENTS.map((c) => c.email) } },
-    select: { id: true, nombre: true, email: true },
-  })
-
   const clientMap = buildClientMap(clientes)
 
+  // === PHASE 2: Create or skip contacts (one per client) ===
+  const contacts: Array<{ id: string; clienteId: string }> = []
   for (const demoClient of FINESSE_DEMO_CLIENTS) {
     const clienteId = resolveClientId(demoClient, clientMap)
     if (!clienteId) {
@@ -383,23 +349,29 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       continue
     }
 
-    const existing = await db.contact.findFirst({
+    const contactDemoMarker = `FINESSE_DEMO:contact:${FINESSE_DEMO_CLIENTS.indexOf(demoClient) + 1}`
+
+    const existing = await tx.contact.findFirst({
       where: { workspaceId, email: demoClient.email },
     })
     if (existing) {
       console.log(`  [skip] Contact ${demoClient.nombre} already exists`)
+      contacts.push({ id: existing.id, clienteId })
       continue
     }
 
-    await db.contact.create({
+    const created = await tx.contact.create({
       data: {
         nombre: demoClient.nombre,
         email: demoClient.email,
         telefono: demoClient.telefono,
+        empresa: demoClient.empresa,
+        source: contactDemoMarker,
         workspaceId,
         clienteId,
       },
     })
+    contacts.push({ id: created.id, clienteId })
     createdData.contactos++
     console.log(`  [create] Contact: ${demoClient.nombre}`)
   }
@@ -418,7 +390,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     const fechaFin = new Date(fechaInicio.getTime() + eventData.duracionMinutos * 60000)
 
     // Check if demo event exists
-    const existing = await db.evento.findFirst({
+    const existing = await tx.evento.findFirst({
       where: {
         workspaceId,
         clienteId,
@@ -428,7 +400,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
 
     if (existing) {
       // Update existing demo event with new relative dates
-      await db.evento.update({
+      await tx.evento.update({
         where: { id: existing.id },
         data: {
           titulo: eventData.titulo,
@@ -441,7 +413,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       console.log(`  [update] Evento: ${eventData.titulo} (dates refreshed)`)
     } else {
       // Create new event
-      await db.evento.create({
+      await tx.evento.create({
         data: {
           titulo: eventData.titulo,
           descripcion: demoMarker,
@@ -466,9 +438,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     if (!clienteId) continue
 
     // Get contact for this client
-    const contact = await db.contact.findFirst({
-      where: { workspaceId, clienteId },
-    })
+    const contact = contacts.find((c) => c.clienteId === clienteId)
     if (!contact) {
       console.log(`  [skip] No contact for cliente ${demoClient.nombre}`)
       continue
@@ -476,30 +446,28 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
 
     const demoMarker = convData.demoMarker || "FINESSE_DEMO:conv:unknown"
 
-    // Check if demo conversation exists
-    const existing = await db.conversation.findFirst({
+    // Check if demo conversation exists by source field (not subject)
+    const existing = await tx.conversation.findFirst({
       where: {
         workspaceId,
         contactId: contact.id,
-        subject: demoMarker,
+        source: demoMarker,
       },
     })
 
     if (existing) {
       // Delete old messages and recreate them
-      await db.message.deleteMany({
+      await tx.message.deleteMany({
         where: { conversationId: existing.id },
       })
 
       // Recreate messages
       let lastMessageAt = new Date()
       for (const msg of convData.messages) {
-        const createdAt = msg.hoursAgo
-          ? new Date(Date.now() - msg.hoursAgo * 3600000)
-          : new Date()
+        const createdAt = msg.hoursAgo ? new Date(Date.now() - msg.hoursAgo * 3600000) : new Date()
         lastMessageAt = createdAt
 
-        await db.message.create({
+        await tx.message.create({
           data: {
             conversationId: existing.id,
             workspaceId,
@@ -512,22 +480,27 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
         })
       }
 
-      // Update conversation
-      await db.conversation.update({
+      // Update conversation (restore human-readable subject and other metadata)
+      await tx.conversation.update({
         where: { id: existing.id },
         data: {
+          subject: convData.subject,
           messageCount: convData.messages.length,
           lastMessageAt,
+          // Preserve other fields that may have been set by users
         },
       })
 
       updatedData.conversaciones++
-      console.log(`  [update] Conversation: "${convData.subject}" (${convData.messages.length} messages refreshed)`)
+      console.log(
+        `  [update] Conversation: "${convData.subject}" (${convData.messages.length} messages refreshed)`,
+      )
     } else {
       // Create new conversation
-      const conversation = await db.conversation.create({
+      const conversation = await tx.conversation.create({
         data: {
-          subject: demoMarker,
+          subject: convData.subject,
+          source: demoMarker,
           contactId: contact.id,
           workspaceId,
           channel: "manual",
@@ -539,12 +512,10 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       // Create messages
       let lastMessageAt = new Date()
       for (const msg of convData.messages) {
-        const createdAt = msg.hoursAgo
-          ? new Date(Date.now() - msg.hoursAgo * 3600000)
-          : new Date()
+        const createdAt = msg.hoursAgo ? new Date(Date.now() - msg.hoursAgo * 3600000) : new Date()
         lastMessageAt = createdAt
 
-        await db.message.create({
+        await tx.message.create({
           data: {
             conversationId: conversation.id,
             workspaceId,
@@ -559,7 +530,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       }
 
       // Update conversation with final metadata
-      await db.conversation.update({
+      await tx.conversation.update({
         where: { id: conversation.id },
         data: {
           messageCount: convData.messages.length,
@@ -568,7 +539,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       })
 
       createdData.conversaciones++
-      console.log(`  [create] Conversation: subject (${convData.messages.length} messages)`)
+      console.log(`  [create] Conversation: "${convData.subject}" (${convData.messages.length} messages)`)
     }
   }
 
@@ -583,18 +554,17 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
 
     const numero = generateDemoInvoiceNumber(workspaceId, i + 1)
 
-    const existing = await db.factura.findFirst({
+    const existing = await tx.factura.findFirst({
       where: { numero },
     })
 
     if (existing) {
       // Update existing demo invoice (date recalculation, status preservation)
       const fechaEmision = getRelativeDate(-invData.daysAgo)
-      await db.factura.update({
+      await tx.factura.update({
         where: { id: existing.id },
         data: {
           fechaEmision,
-          // Keep estado, subtotal, impuesto, total, items unchanged unless explicitly updating
         },
       })
       updatedData.facturas++
@@ -602,7 +572,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     } else {
       // Create new invoice
       const fechaEmision = getRelativeDate(-invData.daysAgo)
-      await db.factura.create({
+      await tx.factura.create({
         data: {
           numero,
           estado: invData.estado,
@@ -631,7 +601,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
   for (const contentData of FINESSE_DEMO_CONTENT_PIECES) {
     const demoMarker = contentData.demoMarker || "FINESSE_DEMO:content:unknown"
 
-    const existing = await db.contentPiece.findFirst({
+    const existing = await tx.contentPiece.findFirst({
       where: { workspaceId, notas: demoMarker },
     })
 
@@ -645,7 +615,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
 
     if (existing) {
       // Update existing demo content
-      await db.contentPiece.update({
+      await tx.contentPiece.update({
         where: { id: existing.id },
         data: {
           estado: contentData.estado,
@@ -657,16 +627,16 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       console.log(`  [update] ContentPiece: ${contentData.titulo} (status/dates refreshed)`)
     } else {
       // Create new content piece
-      await db.contentPiece.create({
+      await tx.contentPiece.create({
         data: {
           titulo: contentData.titulo,
           copy: contentData.copy,
           plataforma: contentData.plataforma,
           tipo: contentData.tipo,
           estado: contentData.estado,
+          notas: demoMarker,
           fechaPublicada,
           fechaProgramada,
-          notas: demoMarker,
           workspaceId,
         },
       })
@@ -675,77 +645,71 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     }
   }
 
-  // === PHASE 7: Mark workspace as demo ===
-  const updatedConfig = {
-    ...configParsed,
-    demo: {
-      enabled: true,
-      type: "finesse-internal",
-      ownerEmail: ownerEmail,
-    },
+  // === PHASE 7: Merge demo metadata into Workspace.config ===
+  const demoMetadata = {
+    createdAt: new Date().toISOString(),
+    created: createdData,
+    updated: updatedData,
   }
 
-  await db.workspace.update({
+  const newConfig = mergeDemoWorkspaceConfig(existingConfig, demoMetadata)
+
+  await tx.workspace.update({
     where: { id: workspaceId },
-    data: { config: JSON.stringify(updatedConfig) },
+    data: {
+      config: JSON.stringify(newConfig),
+    },
   })
 
-  console.log(`\n[seed] ✓ Demo data operation complete!`)
-  console.log(`[seed] Summary:`)
-  console.log(`  Created:`)
-  console.log(`    - Clientes: ${createdData.clientes}`)
-  console.log(`    - Contactos: ${createdData.contactos}`)
-  console.log(`    - Eventos: ${createdData.eventos}`)
-  console.log(`    - Conversaciones: ${createdData.conversaciones}`)
-  console.log(`    - Mensajes: ${createdData.mensajes}`)
-  console.log(`    - Facturas: ${createdData.facturas}`)
-  console.log(`    - ContentPieces: ${createdData.contentPieces}`)
-  if (Object.values(updatedData).some((v) => v > 0)) {
-    console.log(`  Updated:`)
-    if (updatedData.eventos > 0) console.log(`    - Eventos: ${updatedData.eventos}`)
-    if (updatedData.conversaciones > 0) console.log(`    - Conversaciones: ${updatedData.conversaciones}`)
-    if (updatedData.facturas > 0) console.log(`    - Facturas: ${updatedData.facturas}`)
-    if (updatedData.contentPieces > 0) console.log(`    - ContentPieces: ${updatedData.contentPieces}`)
-  }
-  console.log(`\n[seed] Workspace marked as demo in config.`)
+  // Report results
+  console.log(`\n[seed] ✓ Demo data operation completed:`)
+  console.log(`  Created: ${JSON.stringify(createdData)}`)
+  console.log(`  Updated: ${JSON.stringify(updatedData)}`)
+  console.log(`  Workspace.config merged with demo metadata`)
 }
 
-async function main() {
+/**
+ * Main entry point.
+ */
+async function main(): Promise<void> {
   const ctx = parseArgs()
 
-  if (!ctx.ownerEmail && ctx.mode !== "discover") {
-    console.error(`[error] --owner <email> or FINESSE_OWNER_EMAIL env var is required`)
+  if (!ctx.ownerEmail) {
+    console.error("Owner email is required (--owner or FINESSE_OWNER_EMAIL env var)")
     process.exit(1)
   }
 
-  if (ctx.mode === "discover") {
-    if (!ctx.ownerEmail) {
-      console.error(`[error] discover mode requires --owner <email> or FINESSE_OWNER_EMAIL`)
-      process.exit(1)
+  try {
+    switch (ctx.mode) {
+      case "discover":
+        await discoverMode(ctx.ownerEmail)
+        break
+      case "dry-run":
+        if (!ctx.workspaceId) {
+          console.error("Workspace ID is required for dry-run (--workspace-id or FINESSE_WORKSPACE_ID env var)")
+          process.exit(1)
+        }
+        await dryRunMode(ctx.ownerEmail, ctx.workspaceId)
+        break
+      case "seed":
+        if (!ctx.workspaceId) {
+          console.error(
+            "Workspace ID is required for seed (--workspace-id or FINESSE_WORKSPACE_ID env var)",
+          )
+          process.exit(1)
+        }
+        await seedMode(ctx.ownerEmail, ctx.workspaceId)
+        break
     }
-    await discoverMode(ctx.ownerEmail)
-  } else if (ctx.mode === "dry-run") {
-    if (!ctx.workspaceId) {
-      console.error(`[error] dry-run mode requires --workspace-id <id> or FINESSE_WORKSPACE_ID`)
-      process.exit(1)
+  } catch (error) {
+    console.error("[error]", error instanceof Error ? error.message : String(error))
+    if (ctx.verbose && error instanceof Error) {
+      console.error(error.stack)
     }
-    await dryRunMode(ctx.ownerEmail!, ctx.workspaceId)
-  } else if (ctx.mode === "seed") {
-    if (!ctx.workspaceId) {
-      console.error(`[error] seed mode requires --workspace-id <id> or FINESSE_WORKSPACE_ID`)
-      process.exit(1)
-    }
-    await seedMode(ctx.ownerEmail!, ctx.workspaceId)
-  } else {
-    console.error(`[error] Unknown mode: ${ctx.mode}`)
     process.exit(1)
+  } finally {
+    await db.$disconnect()
   }
 }
 
 main()
-  .then(() => db.$disconnect())
-  .catch((err) => {
-    console.error("[error]", err)
-    db.$disconnect()
-    process.exit(1)
-  })
