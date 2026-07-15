@@ -62,8 +62,8 @@ export interface VerticalNavProfile {
 /**
  * 7F Beauty navigation — the target Beauty MVP menu.
  *
- * Primary:  Hoy · Agenda · Clientas · Mensajes · Marketing
- * More:     Cobros · Servicios · Equipo (Team only) · Mr. Forte Lab
+ * Primary:  Hoy · Agenda · Mensajes · Clientas
+ * More:     Marketing · Cobros · Servicios · Equipo (Team only) · Mr. Forte Lab
  *
  * Hidden by omission (never listed — routes stay live in core): Business
  * Overview, Inbox Overview, a standalone Tasks page, Projects, advanced
@@ -86,9 +86,9 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   items: [
     { id: "today", label: "Hoy", href: "/today", group: "primary" },
     { id: "agenda", label: "Agenda", href: "/calendario", group: "primary" },
-    { id: "clientas", label: "Clientas", href: "/clientes", group: "primary" },
     { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary" },
-    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "primary" },
+    { id: "clientas", label: "Clientas", href: "/clientes", group: "primary" },
+    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "more" },
     { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more" },
     { id: "servicios", label: "Servicios", href: "/services", group: "more" },
     { id: "equipo", label: "Equipo", href: "/usuarios", group: "more", teamOnly: true },

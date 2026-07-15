@@ -42,13 +42,12 @@ test("resolveNavProfile: empty/nullish input → null", () => {
 const primaryIds = (items: VerticalNavItem[]) =>
   items.filter((i) => i.group === "primary").map((i) => i.id)
 
-test("Beauty primary menu is Hoy · Agenda · Clientas · Mensajes · Marketing, in order", () => {
+test("Beauty primary menu is Hoy · Agenda · Mensajes · Clientas, in order", () => {
   assert.deepEqual(primaryIds(BEAUTY_NAV_PROFILE.items), [
     "today",
     "agenda",
-    "clientas",
     "mensajes",
-    "marketing",
+    "clientas",
   ])
 })
 
@@ -167,10 +166,10 @@ test("includedSeats === undefined (loading) removes Equipo", () => {
   assert.ok(!visibleIds(undefined).includes("equipo"))
 })
 
-test("Solo 'Más' order is Cobros · Servicios · Mr. Forte Lab", () => {
-  assert.deepEqual(moreIds(1), ["cobros", "servicios", "forte"])
+test("Solo 'Más' order is Marketing · Cobros · Servicios · Mr. Forte Lab", () => {
+  assert.deepEqual(moreIds(1), ["marketing", "cobros", "servicios", "forte"])
 })
 
-test("Team 'Más' order is Cobros · Servicios · Equipo · Mr. Forte Lab", () => {
-  assert.deepEqual(moreIds(2), ["cobros", "servicios", "equipo", "forte"])
+test("Team 'Más' order is Marketing · Cobros · Servicios · Equipo · Mr. Forte Lab", () => {
+  assert.deepEqual(moreIds(2), ["marketing", "cobros", "servicios", "equipo", "forte"])
 })
