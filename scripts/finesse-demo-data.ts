@@ -157,6 +157,7 @@ export const FINESSE_DEMO_CLIENTS: DemoClientData[] = [
 /**
  * Demo events dataset.
  * Distributed across today + 7 days.
+ * tipo is always "cita" for Beauty appointments.
  */
 export interface DemoEventData {
   clientIndex: number
@@ -165,21 +166,24 @@ export interface DemoEventData {
   hora: number
   minuto: number
   duracionMinutos: number
+  tipo: string
+  /** Demo marker for idempotent updates */
+  demoMarker?: string
 }
 
 export const FINESSE_DEMO_EVENTS: DemoEventData[] = [
-  { clientIndex: 0, titulo: "Manicura + Pedicura", daysOffset: 0, hora: 9, minuto: 30, duracionMinutos: 60 },
-  { clientIndex: 1, titulo: "Gel Nail Art", daysOffset: 0, hora: 11, minuto: 0, duracionMinutos: 90 },
-  { clientIndex: 2, titulo: "Facial rejuvenecedor", daysOffset: 0, hora: 14, minuto: 0, duracionMinutos: 120 },
-  { clientIndex: 3, titulo: "Consulta inicial", daysOffset: 1, hora: 10, minuto: 0, duracionMinutos: 30 },
-  { clientIndex: 0, titulo: "Depilación laser", daysOffset: 2, hora: 15, minuto: 30, duracionMinutos: 45 },
-  { clientIndex: 1, titulo: "Peeling químico", daysOffset: 3, hora: 11, minuto: 0, duracionMinutos: 75 },
-  { clientIndex: 2, titulo: "Masaje relajante", daysOffset: 4, hora: 16, minuto: 0, duracionMinutos: 90 },
-  { clientIndex: 4, titulo: "Revisión pigmentación", daysOffset: 5, hora: 14, minuto: 30, duracionMinutos: 45 },
-  { clientIndex: 3, titulo: "Tratamiento corporal", daysOffset: 6, hora: 10, minuto: 0, duracionMinutos: 120 },
-  { clientIndex: 0, titulo: "Pedicura semipermanente", daysOffset: 7, hora: 13, minuto: 0, duracionMinutos: 60 },
-  { clientIndex: 5, titulo: "Limpieza facial profunda", daysOffset: 1, hora: 16, minuto: 0, duracionMinutos: 75 },
-  { clientIndex: 6, titulo: "Manicura expresss", daysOffset: 2, hora: 9, minuto: 0, duracionMinutos: 30 },
+  { clientIndex: 0, titulo: "Manicura + Pedicura", daysOffset: 0, hora: 9, minuto: 30, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:01" },
+  { clientIndex: 1, titulo: "Gel Nail Art", daysOffset: 0, hora: 11, minuto: 0, duracionMinutos: 90, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:02" },
+  { clientIndex: 2, titulo: "Facial rejuvenecedor", daysOffset: 0, hora: 14, minuto: 0, duracionMinutos: 120, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:03" },
+  { clientIndex: 3, titulo: "Consulta inicial", daysOffset: 1, hora: 10, minuto: 0, duracionMinutos: 30, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:04" },
+  { clientIndex: 0, titulo: "Depilación laser", daysOffset: 2, hora: 15, minuto: 30, duracionMinutos: 45, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:05" },
+  { clientIndex: 1, titulo: "Peeling químico", daysOffset: 3, hora: 11, minuto: 0, duracionMinutos: 75, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:06" },
+  { clientIndex: 2, titulo: "Masaje relajante", daysOffset: 4, hora: 16, minuto: 0, duracionMinutos: 90, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:07" },
+  { clientIndex: 4, titulo: "Revisión pigmentación", daysOffset: 5, hora: 14, minuto: 30, duracionMinutos: 45, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:08" },
+  { clientIndex: 3, titulo: "Tratamiento corporal", daysOffset: 6, hora: 10, minuto: 0, duracionMinutos: 120, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:09" },
+  { clientIndex: 0, titulo: "Pedicura semipermanente", daysOffset: 7, hora: 13, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:10" },
+  { clientIndex: 5, titulo: "Limpieza facial profunda", daysOffset: 1, hora: 16, minuto: 0, duracionMinutos: 75, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:11" },
+  { clientIndex: 6, titulo: "Manicura expresss", daysOffset: 2, hora: 9, minuto: 0, duracionMinutos: 30, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:12" },
 ]
 
 /**
@@ -196,12 +200,15 @@ export interface DemoConversationData {
   clientIndex: number
   subject: string
   messages: DemoConversationMessage[]
+  /** Demo marker for idempotent updates */
+  demoMarker?: string
 }
 
 export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
   {
     clientIndex: 0,
     subject: "Cuándo tengo mi próxima cita?",
+    demoMarker: "FINESSE_DEMO:conv:01",
     messages: [
       {
         direction: "inbound",
@@ -226,6 +233,7 @@ export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
   {
     clientIndex: 1,
     subject: "Qué servicios ofrecen?",
+    demoMarker: "FINESSE_DEMO:conv:02",
     messages: [
       {
         direction: "inbound",
@@ -251,6 +259,7 @@ export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
   {
     clientIndex: 2,
     subject: "Quiero hacer una cita VIP",
+    demoMarker: "FINESSE_DEMO:conv:03",
     messages: [
       {
         direction: "inbound",
@@ -270,6 +279,7 @@ export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
   {
     clientIndex: 3,
     subject: "Promo especial para nuevas clientas",
+    demoMarker: "FINESSE_DEMO:conv:04",
     messages: [
       {
         direction: "outbound",
@@ -288,6 +298,7 @@ export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
   {
     clientIndex: 5,
     subject: "Consulta sobre membresía anual",
+    demoMarker: "FINESSE_DEMO:conv:05",
     messages: [
       {
         direction: "inbound",
@@ -315,6 +326,8 @@ export interface DemoInvoiceData {
   impuesto: number
   descripcion: string
   daysAgo: number
+  /** Demo marker for idempotent updates */
+  demoMarker?: string
 }
 
 export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
@@ -325,6 +338,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 21,
     descripcion: "Manicura + Pedicura",
     daysAgo: 0,
+    demoMarker: "FINESSE_DEMO:invoice:001",
   },
   {
     clientIndex: 1,
@@ -333,6 +347,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 31.5,
     descripcion: "Gel Nail Art",
     daysAgo: 3,
+    demoMarker: "FINESSE_DEMO:invoice:002",
   },
   {
     clientIndex: 2,
@@ -341,6 +356,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 42,
     descripcion: "Facial rejuvenecedor",
     daysAgo: 1,
+    demoMarker: "FINESSE_DEMO:invoice:003",
   },
   {
     clientIndex: 3,
@@ -349,6 +365,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 25.2,
     descripcion: "Consulta + tratamiento",
     daysAgo: 0,
+    demoMarker: "FINESSE_DEMO:invoice:004",
   },
   {
     clientIndex: 4,
@@ -357,6 +374,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 16.8,
     descripcion: "Manicura mantencimiento",
     daysAgo: 15,
+    demoMarker: "FINESSE_DEMO:invoice:005",
   },
 ]
 
@@ -371,6 +389,8 @@ export interface DemoContentPieceData {
   estado: string
   daysAgo?: number
   daysInFuture?: number
+  /** Demo marker for idempotent updates */
+  demoMarker?: string
 }
 
 export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
@@ -381,6 +401,7 @@ export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
     tipo: "post",
     estado: "published",
     daysAgo: 2,
+    demoMarker: "FINESSE_DEMO:content:01",
   },
   {
     titulo: "Ofertas especiales de primavera",
@@ -389,6 +410,7 @@ export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
     tipo: "carousel",
     estado: "scheduled",
     daysInFuture: 1,
+    demoMarker: "FINESSE_DEMO:content:02",
   },
   {
     titulo: "Transición de uñas: antes y después",
@@ -396,6 +418,7 @@ export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
     plataforma: "tiktok",
     tipo: "reel",
     estado: "draft",
+    demoMarker: "FINESSE_DEMO:content:03",
   },
   {
     titulo: "Tips de cuidado en casa",
@@ -403,6 +426,7 @@ export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
     plataforma: "instagram",
     tipo: "post",
     estado: "draft",
+    demoMarker: "FINESSE_DEMO:content:04",
   },
 ]
 
@@ -456,4 +480,33 @@ export function getDemoDatasetSummary() {
     invoices: FINESSE_DEMO_INVOICES.length,
     contentPieces: FINESSE_DEMO_CONTENT_PIECES.length,
   }
+}
+
+/**
+ * Build a deterministic map of clients by email.
+ * Isolates from database query order — the seeder resolves each record
+ * via email, not array index, so results remain idempotent regardless
+ * of how db.cliente.findMany() returns them.
+ */
+export function buildClientMap(
+  clients: Array<{ id: string; email: string | null }>,
+): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const client of clients) {
+    if (client.email) {
+      map.set(client.email, client.id)
+    }
+  }
+  return map
+}
+
+/**
+ * Resolve a demo client to their database ID using deterministic email.
+ * Returns null if the email is not in the map (should not happen in normal flow).
+ */
+export function resolveClientId(
+  demoClient: DemoClientData,
+  clientMap: Map<string, string>,
+): string | null {
+  return clientMap.get(demoClient.email) || null
 }

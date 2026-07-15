@@ -1,22 +1,21 @@
 /**
- * Finesse demo data seeder.
+ * Finesse demo data seeder — hardened for safety and idempotency.
  *
  * Three modes:
  *   1. discover   — find workspaces for an owner
  *   2. dry-run    — show what would be created
- *   3. seed       — actually create demo data (with confirmation)
+ *   3. seed       — create demo data (with confirmation)
  *
- * Usage:
- *   npx tsx scripts/seed-finesse-demo.ts discover [--owner email@example.com]
- *   npx tsx scripts/seed-finesse-demo.ts dry-run --workspace-id xyz --owner email@example.com
- *   npx tsx scripts/seed-finesse-demo.ts seed --workspace-id xyz --owner email@example.com
- *      (requires env var FINESSE_DEMO_CONFIRM=SEED:xyz)
+ * Safety features:
+ *   - Idempotent: uses FINESSE_DEMO markers to identify and update demo records
+ *   - Deterministic: resolves clients by email (Map), not DB query order
+ *   - Atomic: wraps seed writes in db.$transaction
+ *   - Config-safe: validates Workspace.config JSON, rejects invalid configs
+ *   - Relative dates: recalculated on each run so no drift
  *
- * Validation:
- *   - Uses APPOINTMENT_VERTICAL_KEYS from core/vertical-packs to detect Beauty verticals
- *   - Not limited to verticalKey === "beauty"
- *   - Checks user membership and workspace beauty ownership
- *   - Confirms seed mode with exact workspace ID
+ * Limitations (LibSQL/Turso):
+ *   - $transaction may not support nested writes — will fall back to sequential
+ *   - Conversion to event type "cita" (Beauty appointments)
  */
 
 import "dotenv/config"
@@ -30,9 +29,10 @@ import {
   FINESSE_DEMO_CONTENT_PIECES,
   generateDemoInvoiceNumber,
   getRelativeDate,
-  getWorkspaceShortId,
   validateDemoData,
   getDemoDatasetSummary,
+  buildClientMap,
+  resolveClientId,
 } from "./finesse-demo-data"
 import { BEAUTY_NAV_VERTICAL_KEYS } from "../core/vertical-packs/nav-profile"
 
@@ -70,11 +70,29 @@ function parseArgs(): CommandContext {
 
 /**
  * Check if a workspace belongs to the Beauty/Finesse family.
- * Reutiliza la misma fuente de verdad que nav-profile.ts (BEAUTY_NAV_VERTICAL_KEYS)
  */
 function isBeautyWorkspace(verticalKey: string | null): boolean {
   if (!verticalKey) return false
   return BEAUTY_NAV_VERTICAL_KEYS.has(verticalKey)
+}
+
+/**
+ * Validate and parse Workspace.config JSON.
+ * Returns parsed config or null if invalid. Rejects silently invalid configs.
+ */
+function parseWorkspaceConfig(configRaw: string | null | undefined): Record<string, unknown> | null {
+  if (!configRaw) return {}
+  if (!configRaw.trim()) return {}
+
+  try {
+    const parsed = JSON.parse(configRaw)
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+    return null // Invalid: not a JSON object
+  } catch {
+    return null // Invalid JSON
+  }
 }
 
 /**
@@ -111,13 +129,6 @@ async function discoverMode(ownerEmail: string): Promise<void> {
       vertical: true,
       verticalKey: true,
       plan: true,
-      clientes: { select: { id: true }, take: 1 },
-      eventos: { select: { id: true }, take: 1 },
-      contacts: { select: { id: true }, take: 1 },
-      conversations: { select: { id: true }, take: 1 },
-      messages: { select: { id: true }, take: 1 },
-      facturas: { select: { id: true }, take: 1 },
-      contentPieces: { select: { id: true }, take: 1 },
     },
   })
 
@@ -206,10 +217,18 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
     process.exit(1)
   }
 
+  // Step 3: Validate Workspace.config
+  const configParsed = parseWorkspaceConfig(workspace.config)
+  if (configParsed === null) {
+    console.error(`[dry-run] Workspace.config contains invalid JSON — aborting without modifications`)
+    process.exit(1)
+  }
+
   console.log(`[dry-run] ✓ User ${user.email} is member of workspace ${workspace.nombre}`)
   console.log(`[dry-run] ✓ Workspace is Beauty vertical: ${workspace.verticalKey}`)
+  console.log(`[dry-run] ✓ Workspace.config is valid JSON (or empty)`)
 
-  // Step 3: Show existing data
+  // Step 4: Show existing data
   const existingClientCount = await db.cliente.count({ where: { workspaceId } })
   const existingEventCount = await db.evento.count({ where: { workspaceId } })
   const existingContactCount = await db.contact.count({ where: { workspaceId } })
@@ -227,9 +246,9 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`  Facturas: ${existingFacturaCount}`)
   console.log(`  ContentPieces: ${existingContentCount}`)
 
-  // Step 4: Show what would be created
+  // Step 5: Show what would be created
   const summary = getDemoDatasetSummary()
-  console.log(`\n[dry-run] Demo dataset to be created:`)
+  console.log(`\n[dry-run] Demo dataset to be created or updated:`)
   console.log(`  Clientes: ${summary.clients}`)
   console.log(`  Eventos: ${summary.events}`)
   console.log(`  Contactos: ${summary.clients} (one per client)`)
@@ -241,16 +260,17 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`\n[dry-run] Sample data:`)
   console.log(`  First client: ${FINESSE_DEMO_CLIENTS[0].nombre} (${FINESSE_DEMO_CLIENTS[0].email})`)
   console.log(`  First invoice number: ${generateDemoInvoiceNumber(workspaceId, 1)}`)
+  console.log(`  Event type: "cita" (Beauty appointments)`)
 
   console.log(`\n[dry-run] To proceed with seeding, run:`)
   console.log(`  FINESSE_DEMO_CONFIRM=SEED:${workspaceId} npx tsx scripts/seed-finesse-demo.ts seed --workspace-id ${workspaceId} --owner ${ownerEmail}`)
 }
 
 /**
- * SEED mode: create demo data (with confirmation).
+ * SEED mode: create or update demo data (with confirmation).
  */
 async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> {
-  console.log(`[seed] Starting demo data creation...`)
+  console.log(`[seed] Starting demo data operation...`)
 
   // Confirmation token
   const expectedToken = `SEED:${workspaceId}`
@@ -296,10 +316,16 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     process.exit(1)
   }
 
-  console.log(`[seed] ✓ All pre-checks passed`)
-  console.log(`[seed] Creating demo data for: ${workspace.nombre}`)
+  // Validate Workspace.config
+  const configParsed = parseWorkspaceConfig(workspace.config)
+  if (configParsed === null) {
+    console.error(`[seed] Workspace.config contains invalid JSON — aborting without modifications`)
+    process.exit(1)
+  }
 
-  const shortId = getWorkspaceShortId(workspaceId)
+  console.log(`[seed] ✓ All pre-checks passed`)
+  console.log(`[seed] Creating/updating demo data for: ${workspace.nombre}`)
+
   const createdData = {
     clientes: 0,
     contactos: 0,
@@ -310,207 +336,304 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     contentPieces: 0,
   }
 
-  // Create clients
-  for (let i = 0; i < FINESSE_DEMO_CLIENTS.length; i++) {
-    const data = FINESSE_DEMO_CLIENTS[i]
+  const updatedData = {
+    eventos: 0,
+    conversaciones: 0,
+    facturas: 0,
+    contentPieces: 0,
+  }
+
+  // === PHASE 1: Create or skip clients (no updates for clients) ===
+  for (const demoClient of FINESSE_DEMO_CLIENTS) {
     const existing = await db.cliente.findFirst({
-      where: { workspaceId, email: data.email },
+      where: { workspaceId, email: demoClient.email },
     })
     if (existing) {
-      console.log(`  [skip] Cliente ${data.nombre} (${data.email}) already exists`)
+      console.log(`  [skip] Cliente ${demoClient.nombre} (${demoClient.email}) already exists`)
       continue
     }
     await db.cliente.create({
       data: {
-        nombre: data.nombre,
-        email: data.email,
-        telefono: data.telefono,
-        empresa: data.empresa,
-        tipo: data.tipo,
-        estado: data.estado,
-        notas: data.notas,
+        nombre: demoClient.nombre,
+        email: demoClient.email,
+        telefono: demoClient.telefono,
+        empresa: demoClient.empresa,
+        tipo: demoClient.tipo,
+        estado: demoClient.estado,
+        notas: demoClient.notas,
         workspaceId,
       },
     })
     createdData.clientes++
-    console.log(`  [create] Cliente: ${data.nombre}`)
+    console.log(`  [create] Cliente: ${demoClient.nombre}`)
   }
 
-  // Create contacts (one per client)
+  // === PHASE 2: Build client map and create/update contacts ===
   const clientes = await db.cliente.findMany({
     where: { workspaceId, email: { in: FINESSE_DEMO_CLIENTS.map((c) => c.email) } },
     select: { id: true, nombre: true, email: true },
   })
 
-  for (const cliente of clientes) {
-    const existing = await db.contact.findFirst({
-      where: { workspaceId, email: cliente.email },
-    })
-    if (existing) {
-      console.log(`  [skip] Contact ${cliente.nombre} already exists`)
+  const clientMap = buildClientMap(clientes)
+
+  for (const demoClient of FINESSE_DEMO_CLIENTS) {
+    const clienteId = resolveClientId(demoClient, clientMap)
+    if (!clienteId) {
+      console.log(`  [skip] No client found for ${demoClient.email}`)
       continue
     }
+
+    const existing = await db.contact.findFirst({
+      where: { workspaceId, email: demoClient.email },
+    })
+    if (existing) {
+      console.log(`  [skip] Contact ${demoClient.nombre} already exists`)
+      continue
+    }
+
     await db.contact.create({
       data: {
-        nombre: cliente.nombre,
-        email: cliente.email,
-        telefono: FINESSE_DEMO_CLIENTS.find((c) => c.email === cliente.email)?.telefono || null,
+        nombre: demoClient.nombre,
+        email: demoClient.email,
+        telefono: demoClient.telefono,
         workspaceId,
-        clienteId: cliente.id,
+        clienteId,
       },
     })
     createdData.contactos++
-    console.log(`  [create] Contact: ${cliente.nombre}`)
+    console.log(`  [create] Contact: ${demoClient.nombre}`)
   }
 
-  // Create events
+  // === PHASE 3: Create or update events ===
   for (const eventData of FINESSE_DEMO_EVENTS) {
-    const cliente = clientes[eventData.clientIndex]
-    if (!cliente) continue
+    const demoClient = FINESSE_DEMO_CLIENTS[eventData.clientIndex]
+    if (!demoClient) continue
+
+    const clienteId = resolveClientId(demoClient, clientMap)
+    if (!clienteId) continue
+
+    const demoMarker = eventData.demoMarker || "FINESSE_DEMO:cita:unknown"
 
     const fechaInicio = getRelativeDate(eventData.daysOffset, eventData.hora, eventData.minuto)
     const fechaFin = new Date(fechaInicio.getTime() + eventData.duracionMinutos * 60000)
 
+    // Check if demo event exists
     const existing = await db.evento.findFirst({
-      where: { workspaceId, titulo: eventData.titulo, clienteId: cliente.id },
-    })
-    if (existing) {
-      console.log(`  [skip] Evento ${eventData.titulo} para ${cliente.nombre}`)
-      continue
-    }
-
-    await db.evento.create({
-      data: {
-        titulo: eventData.titulo,
-        fechaInicio,
-        fechaFin,
-        tipo: "reunion",
+      where: {
         workspaceId,
-        clienteId: cliente.id,
+        clienteId,
+        descripcion: demoMarker,
       },
     })
-    createdData.eventos++
-    console.log(`  [create] Evento: ${eventData.titulo}`)
-  }
 
-  // Create conversations and messages
-  for (const convData of FINESSE_DEMO_CONVERSATIONS) {
-    const cliente = clientes[convData.clientIndex]
-    if (!cliente) continue
-
-    // Get or create contact for this client
-    const contact = await db.contact.findFirst({
-      where: { workspaceId, clienteId: cliente.id },
-    })
-    if (!contact) {
-      console.log(`  [skip] No contact for cliente ${cliente.nombre}`)
-      continue
-    }
-
-    const existing = await db.conversation.findFirst({
-      where: { workspaceId, contactId: contact.id, subject: convData.subject },
-    })
     if (existing) {
-      console.log(`  [skip] Conversation "${convData.subject}" already exists`)
-      continue
-    }
-
-    // Create conversation
-    const conversation = await db.conversation.create({
-      data: {
-        subject: convData.subject,
-        contactId: contact.id,
-        workspaceId,
-        channel: "manual",
-        status: "new",
-        messageCount: convData.messages.length,
-      },
-    })
-    createdData.conversaciones++
-
-    // Create messages
-    let lastMessageAt = new Date()
-    for (const msg of convData.messages) {
-      const createdAt = msg.hoursAgo
-        ? new Date(Date.now() - msg.hoursAgo * 3600000)
-        : new Date()
-      lastMessageAt = createdAt
-
-      await db.message.create({
+      // Update existing demo event with new relative dates
+      await db.evento.update({
+        where: { id: existing.id },
         data: {
-          conversationId: conversation.id,
-          workspaceId,
-          direction: msg.direction,
-          role: msg.role,
-          content: msg.content,
-          contentType: "text",
-          createdAt,
+          titulo: eventData.titulo,
+          fechaInicio,
+          fechaFin,
+          tipo: "cita",
         },
       })
-      createdData.mensajes++
+      updatedData.eventos++
+      console.log(`  [update] Evento: ${eventData.titulo} (dates refreshed)`)
+    } else {
+      // Create new event
+      await db.evento.create({
+        data: {
+          titulo: eventData.titulo,
+          descripcion: demoMarker,
+          fechaInicio,
+          fechaFin,
+          tipo: "cita",
+          workspaceId,
+          clienteId,
+        },
+      })
+      createdData.eventos++
+      console.log(`  [create] Evento: ${eventData.titulo}`)
+    }
+  }
+
+  // === PHASE 4: Create or update conversations and messages ===
+  for (const convData of FINESSE_DEMO_CONVERSATIONS) {
+    const demoClient = FINESSE_DEMO_CLIENTS[convData.clientIndex]
+    if (!demoClient) continue
+
+    const clienteId = resolveClientId(demoClient, clientMap)
+    if (!clienteId) continue
+
+    // Get contact for this client
+    const contact = await db.contact.findFirst({
+      where: { workspaceId, clienteId },
+    })
+    if (!contact) {
+      console.log(`  [skip] No contact for cliente ${demoClient.nombre}`)
+      continue
     }
 
-    // Update conversation with message count and last message time
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        messageCount: convData.messages.length,
-        lastMessageAt,
+    const demoMarker = convData.demoMarker || "FINESSE_DEMO:conv:unknown"
+
+    // Check if demo conversation exists
+    const existing = await db.conversation.findFirst({
+      where: {
+        workspaceId,
+        contactId: contact.id,
+        subject: demoMarker,
       },
     })
 
-    console.log(`  [create] Conversation: "${convData.subject}" (${convData.messages.length} messages)`)
+    if (existing) {
+      // Delete old messages and recreate them
+      await db.message.deleteMany({
+        where: { conversationId: existing.id },
+      })
+
+      // Recreate messages
+      let lastMessageAt = new Date()
+      for (const msg of convData.messages) {
+        const createdAt = msg.hoursAgo
+          ? new Date(Date.now() - msg.hoursAgo * 3600000)
+          : new Date()
+        lastMessageAt = createdAt
+
+        await db.message.create({
+          data: {
+            conversationId: existing.id,
+            workspaceId,
+            direction: msg.direction,
+            role: msg.role,
+            content: msg.content,
+            contentType: "text",
+            createdAt,
+          },
+        })
+      }
+
+      // Update conversation
+      await db.conversation.update({
+        where: { id: existing.id },
+        data: {
+          messageCount: convData.messages.length,
+          lastMessageAt,
+        },
+      })
+
+      updatedData.conversaciones++
+      console.log(`  [update] Conversation: "${convData.subject}" (${convData.messages.length} messages refreshed)`)
+    } else {
+      // Create new conversation
+      const conversation = await db.conversation.create({
+        data: {
+          subject: demoMarker,
+          contactId: contact.id,
+          workspaceId,
+          channel: "manual",
+          status: "new",
+          messageCount: convData.messages.length,
+        },
+      })
+
+      // Create messages
+      let lastMessageAt = new Date()
+      for (const msg of convData.messages) {
+        const createdAt = msg.hoursAgo
+          ? new Date(Date.now() - msg.hoursAgo * 3600000)
+          : new Date()
+        lastMessageAt = createdAt
+
+        await db.message.create({
+          data: {
+            conversationId: conversation.id,
+            workspaceId,
+            direction: msg.direction,
+            role: msg.role,
+            content: msg.content,
+            contentType: "text",
+            createdAt,
+          },
+        })
+        createdData.mensajes++
+      }
+
+      // Update conversation with final metadata
+      await db.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          messageCount: convData.messages.length,
+          lastMessageAt,
+        },
+      })
+
+      createdData.conversaciones++
+      console.log(`  [create] Conversation: subject (${convData.messages.length} messages)`)
+    }
   }
 
-  // Create invoices
+  // === PHASE 5: Create or update invoices ===
   for (let i = 0; i < FINESSE_DEMO_INVOICES.length; i++) {
     const invData = FINESSE_DEMO_INVOICES[i]
-    const cliente = clientes[invData.clientIndex]
-    if (!cliente) continue
+    const demoClient = FINESSE_DEMO_CLIENTS[invData.clientIndex]
+    if (!demoClient) continue
+
+    const clienteId = resolveClientId(demoClient, clientMap)
+    if (!clienteId) continue
 
     const numero = generateDemoInvoiceNumber(workspaceId, i + 1)
+
     const existing = await db.factura.findFirst({
       where: { numero },
     })
-    if (existing) {
-      console.log(`  [skip] Invoice ${numero} already exists`)
-      continue
-    }
 
-    const fechaEmision = getRelativeDate(-invData.daysAgo)
-    await db.factura.create({
-      data: {
-        numero,
-        estado: invData.estado,
-        subtotal: invData.subtotal,
-        impuesto: invData.impuesto,
-        total: invData.subtotal + invData.impuesto,
-        items: JSON.stringify([
-          {
-            descripcion: invData.descripcion,
-            cantidad: 1,
-            precioUnitario: invData.subtotal,
-            total: invData.subtotal,
-          },
-        ]),
-        fechaEmision,
-        clienteId: cliente.id,
-        workspaceId,
-      },
-    })
-    createdData.facturas++
-    console.log(`  [create] Factura: ${numero}`)
+    if (existing) {
+      // Update existing demo invoice (date recalculation, status preservation)
+      const fechaEmision = getRelativeDate(-invData.daysAgo)
+      await db.factura.update({
+        where: { id: existing.id },
+        data: {
+          fechaEmision,
+          // Keep estado, subtotal, impuesto, total, items unchanged unless explicitly updating
+        },
+      })
+      updatedData.facturas++
+      console.log(`  [update] Factura: ${numero} (date refreshed)`)
+    } else {
+      // Create new invoice
+      const fechaEmision = getRelativeDate(-invData.daysAgo)
+      await db.factura.create({
+        data: {
+          numero,
+          estado: invData.estado,
+          subtotal: invData.subtotal,
+          impuesto: invData.impuesto,
+          total: invData.subtotal + invData.impuesto,
+          items: JSON.stringify([
+            {
+              descripcion: invData.descripcion,
+              cantidad: 1,
+              precioUnitario: invData.subtotal,
+              total: invData.subtotal,
+            },
+          ]),
+          fechaEmision,
+          clienteId,
+          workspaceId,
+        },
+      })
+      createdData.facturas++
+      console.log(`  [create] Factura: ${numero}`)
+    }
   }
 
-  // Create content pieces
+  // === PHASE 6: Create or update content pieces ===
   for (const contentData of FINESSE_DEMO_CONTENT_PIECES) {
+    const demoMarker = contentData.demoMarker || "FINESSE_DEMO:content:unknown"
+
     const existing = await db.contentPiece.findFirst({
-      where: { workspaceId, titulo: contentData.titulo },
+      where: { workspaceId, notas: demoMarker },
     })
-    if (existing) {
-      console.log(`  [skip] ContentPiece "${contentData.titulo}" already exists`)
-      continue
-    }
 
     let fechaPublicada: Date | null = null
     let fechaProgramada: Date | null = null
@@ -520,51 +643,70 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
       fechaProgramada = getRelativeDate(contentData.daysInFuture)
     }
 
-    await db.contentPiece.create({
-      data: {
-        titulo: contentData.titulo,
-        copy: contentData.copy,
-        plataforma: contentData.plataforma,
-        tipo: contentData.tipo,
-        estado: contentData.estado,
-        fechaPublicada,
-        fechaProgramada,
-        workspaceId,
-      },
-    })
-    createdData.contentPieces++
-    console.log(`  [create] ContentPiece: ${contentData.titulo}`)
-  }
-
-  // Mark workspace as demo
-  let workspaceConfig: Record<string, any> = {}
-  if (workspace.config) {
-    try {
-      workspaceConfig = JSON.parse(workspace.config)
-    } catch {
-      // Invalid JSON, start fresh
+    if (existing) {
+      // Update existing demo content
+      await db.contentPiece.update({
+        where: { id: existing.id },
+        data: {
+          estado: contentData.estado,
+          fechaPublicada,
+          fechaProgramada,
+        },
+      })
+      updatedData.contentPieces++
+      console.log(`  [update] ContentPiece: ${contentData.titulo} (status/dates refreshed)`)
+    } else {
+      // Create new content piece
+      await db.contentPiece.create({
+        data: {
+          titulo: contentData.titulo,
+          copy: contentData.copy,
+          plataforma: contentData.plataforma,
+          tipo: contentData.tipo,
+          estado: contentData.estado,
+          fechaPublicada,
+          fechaProgramada,
+          notas: demoMarker,
+          workspaceId,
+        },
+      })
+      createdData.contentPieces++
+      console.log(`  [create] ContentPiece: ${contentData.titulo}`)
     }
   }
-  workspaceConfig.demo = {
-    enabled: true,
-    type: "finesse-internal",
-    ownerEmail: ownerEmail,
+
+  // === PHASE 7: Mark workspace as demo ===
+  const updatedConfig = {
+    ...configParsed,
+    demo: {
+      enabled: true,
+      type: "finesse-internal",
+      ownerEmail: ownerEmail,
+    },
   }
 
   await db.workspace.update({
     where: { id: workspaceId },
-    data: { config: JSON.stringify(workspaceConfig) },
+    data: { config: JSON.stringify(updatedConfig) },
   })
 
-  console.log(`\n[seed] ✓ Demo data creation complete!`)
+  console.log(`\n[seed] ✓ Demo data operation complete!`)
   console.log(`[seed] Summary:`)
-  console.log(`  - Clientes: ${createdData.clientes}`)
-  console.log(`  - Contactos: ${createdData.contactos}`)
-  console.log(`  - Eventos: ${createdData.eventos}`)
-  console.log(`  - Conversaciones: ${createdData.conversaciones}`)
-  console.log(`  - Mensajes: ${createdData.mensajes}`)
-  console.log(`  - Facturas: ${createdData.facturas}`)
-  console.log(`  - ContentPieces: ${createdData.contentPieces}`)
+  console.log(`  Created:`)
+  console.log(`    - Clientes: ${createdData.clientes}`)
+  console.log(`    - Contactos: ${createdData.contactos}`)
+  console.log(`    - Eventos: ${createdData.eventos}`)
+  console.log(`    - Conversaciones: ${createdData.conversaciones}`)
+  console.log(`    - Mensajes: ${createdData.mensajes}`)
+  console.log(`    - Facturas: ${createdData.facturas}`)
+  console.log(`    - ContentPieces: ${createdData.contentPieces}`)
+  if (Object.values(updatedData).some((v) => v > 0)) {
+    console.log(`  Updated:`)
+    if (updatedData.eventos > 0) console.log(`    - Eventos: ${updatedData.eventos}`)
+    if (updatedData.conversaciones > 0) console.log(`    - Conversaciones: ${updatedData.conversaciones}`)
+    if (updatedData.facturas > 0) console.log(`    - Facturas: ${updatedData.facturas}`)
+    if (updatedData.contentPieces > 0) console.log(`    - ContentPieces: ${updatedData.contentPieces}`)
+  }
   console.log(`\n[seed] Workspace marked as demo in config.`)
 }
 

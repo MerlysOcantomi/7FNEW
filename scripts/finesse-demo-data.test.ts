@@ -13,6 +13,8 @@ import {
   FINESSE_DEMO_CONTENT_PIECES,
   validateDemoData,
   getDemoDatasetSummary,
+  buildClientMap,
+  resolveClientId,
 } from "./finesse-demo-data"
 
 test("generateDemoInvoiceNumber: deterministic and globally unique", () => {
@@ -171,5 +173,98 @@ test("FINESSE_DEMO_INVOICES: all have positive amounts", () => {
   for (const inv of FINESSE_DEMO_INVOICES) {
     assert.ok(inv.subtotal > 0, `invoice subtotal should be positive: ${inv.subtotal}`)
     assert.ok(inv.impuesto >= 0, `invoice tax should be non-negative: ${inv.impuesto}`)
+  }
+})
+
+test("buildClientMap: deterministic email-to-ID mapping", () => {
+  const clients = [
+    { id: "client-1", email: "demo-client-01@demo.example.com" },
+    { id: "client-2", email: "demo-client-02@demo.example.com" },
+    { id: "client-3", email: "demo-client-03@demo.example.com" },
+  ]
+
+  const map = buildClientMap(clients)
+
+  assert.equal(map.get("demo-client-01@demo.example.com"), "client-1")
+  assert.equal(map.get("demo-client-02@demo.example.com"), "client-2")
+  assert.equal(map.get("demo-client-03@demo.example.com"), "client-3")
+  assert.equal(map.size, 3, "should have 3 entries")
+})
+
+test("buildClientMap: order independence", () => {
+  const clients1 = [
+    { id: "id-a", email: "email-a@test.com" },
+    { id: "id-b", email: "email-b@test.com" },
+    { id: "id-c", email: "email-c@test.com" },
+  ]
+
+  const clients2 = [
+    { id: "id-c", email: "email-c@test.com" },
+    { id: "id-a", email: "email-a@test.com" },
+    { id: "id-b", email: "email-b@test.com" },
+  ]
+
+  const map1 = buildClientMap(clients1)
+  const map2 = buildClientMap(clients2)
+
+  assert.equal(map1.get("email-a@test.com"), map2.get("email-a@test.com"))
+  assert.equal(map1.get("email-b@test.com"), map2.get("email-b@test.com"))
+  assert.equal(map1.get("email-c@test.com"), map2.get("email-c@test.com"))
+})
+
+test("resolveClientId: returns correct ID or null", () => {
+  const demoClient = { email: "test@example.com" }
+  const map = new Map([
+    ["test@example.com", "resolved-id"],
+    ["other@example.com", "other-id"],
+  ])
+
+  assert.equal(resolveClientId(demoClient, map), "resolved-id")
+  assert.equal(resolveClientId({ email: "missing@example.com" }, map), null)
+})
+
+test("FINESSE_DEMO_EVENTS: all have tipo='cita'", () => {
+  for (const event of FINESSE_DEMO_EVENTS) {
+    assert.equal(event.tipo, "cita", `event tipo should be "cita", got "${event.tipo}"`)
+  }
+})
+
+test("FINESSE_DEMO_EVENTS: all have demoMarker field", () => {
+  for (const event of FINESSE_DEMO_EVENTS) {
+    assert.ok(event.demoMarker, `event should have demoMarker: ${JSON.stringify(event)}`)
+    assert.ok(
+      event.demoMarker.startsWith("FINESSE_DEMO:cita:"),
+      `demoMarker should start with FINESSE_DEMO:cita:, got ${event.demoMarker}`,
+    )
+  }
+})
+
+test("FINESSE_DEMO_CONVERSATIONS: all have demoMarker field", () => {
+  for (const conv of FINESSE_DEMO_CONVERSATIONS) {
+    assert.ok(conv.demoMarker, `conversation should have demoMarker: ${JSON.stringify(conv)}`)
+    assert.ok(
+      conv.demoMarker.startsWith("FINESSE_DEMO:conv:"),
+      `demoMarker should start with FINESSE_DEMO:conv:, got ${conv.demoMarker}`,
+    )
+  }
+})
+
+test("FINESSE_DEMO_INVOICES: all have demoMarker field", () => {
+  for (const inv of FINESSE_DEMO_INVOICES) {
+    assert.ok(inv.demoMarker, `invoice should have demoMarker: ${JSON.stringify(inv)}`)
+    assert.ok(
+      inv.demoMarker.startsWith("FINESSE_DEMO:invoice:"),
+      `demoMarker should start with FINESSE_DEMO:invoice:, got ${inv.demoMarker}`,
+    )
+  }
+})
+
+test("FINESSE_DEMO_CONTENT_PIECES: all have demoMarker field", () => {
+  for (const piece of FINESSE_DEMO_CONTENT_PIECES) {
+    assert.ok(piece.demoMarker, `content piece should have demoMarker: ${JSON.stringify(piece)}`)
+    assert.ok(
+      piece.demoMarker.startsWith("FINESSE_DEMO:content:"),
+      `demoMarker should start with FINESSE_DEMO:content:, got ${piece.demoMarker}`,
+    )
   }
 })
