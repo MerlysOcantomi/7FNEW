@@ -271,6 +271,13 @@ export function ContextPanel({
    */
   const [convertedPendingItemKeys, setConvertedPendingItemKeys] = useState<Set<string>>(() => new Set())
   const [convertingPendingItemKey, setConvertingPendingItemKey] = useState<string | null>(null)
+  /**
+   * "Create client profile" (unregistered contacts). Local pending flag only — the actual
+   * conversion reuses the page's existing `handleConvert("cliente")` route
+   * (`POST /api/inbox/conversations/:id/convert`), which already refetches the detail on
+   * success and surfaces errors through `actionState`.
+   */
+  const [creatingClientProfile, setCreatingClientProfile] = useState(false)
   useEffect(() => {
     setConvertedPendingItemKeys(new Set())
     setConvertingPendingItemKey(null)
@@ -618,6 +625,15 @@ export function ContextPanel({
    * counters. There is intentionally NO second context block lower in the panel.
    */
   const clientProfileState = getClientProfileState(selected)
+  async function handleCreateClientProfile() {
+    if (creatingClientProfile) return
+    setCreatingClientProfile(true)
+    try {
+      await handleConvert("cliente")
+    } finally {
+      setCreatingClientProfile(false)
+    }
+  }
   const contactSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-3">
@@ -680,13 +696,22 @@ export function ContextPanel({
                 {clientProfileState === "linked" ? "Client profile linked" : "No client profile yet"}
               </span>
             </span>
-            {selected.cliente && (
+            {selected.cliente ? (
               <a
                 href={`/clientes/${selected.cliente.id}`}
                 className="shrink-0 text-[11px] font-medium text-[var(--accent-on-dark)] hover:underline"
               >
                 View client profile
               </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCreateClientProfile}
+                disabled={creatingClientProfile}
+                className="shrink-0 text-[11px] font-medium text-[var(--accent-on-dark)] hover:underline disabled:opacity-50"
+              >
+                {creatingClientProfile ? "Creating…" : "Create client profile"}
+              </button>
             )}
           </div>
           {selected.proyecto && (
@@ -803,12 +828,12 @@ export function ContextPanel({
   const messageNeedSection = (
     <section
       className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2.5"
-      aria-label="Request"
+      aria-label={isMessageMode ? "What this message needs" : "What this conversation needs"}
     >
       <div className="flex items-center gap-1.5">
         <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-          Request
+          {isMessageMode ? "What this message needs" : "What this conversation needs"}
         </span>
         {isMessageMode && selectedMessageInfo?.timestampLabel ? (
           <span
@@ -837,7 +862,9 @@ export function ContextPanel({
         </p>
       ) : (
         <p className="mt-1 text-[11px] italic leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny hasn&apos;t summarised this message yet.
+          {isMessageMode
+            ? "Fanny hasn't summarised this message yet."
+            : "Fanny hasn't summarised this conversation yet."}
         </p>
       )}
       {isMessageMode && selectedMessageInfo
@@ -870,11 +897,13 @@ export function ContextPanel({
    * Subtle tone strip — restores the visual tone signal the operators liked, without the
    * old analytics-style Mood/Urgency/Lead score block. One label, one decorative colored
    * strip, one practical sentence. Hidden when sentiment is missing/neutral and nothing
-   * (urgency) makes it useful. See `getToneGuidance`.
+   * (urgency) makes it useful. See `getToneGuidance`. Rendered inside Reply guidance —
+   * tone is advice for the reply, not a problem to fix, so it no longer shares the
+   * "Needs attention" card.
    */
   const toneGuidance = getToneGuidance(selected)
 
-  const needsAttentionSection = (attentionNotes.length > 0 || toneGuidance) ? (
+  const needsAttentionSection = attentionNotes.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
       aria-label="Needs attention"
@@ -885,49 +914,30 @@ export function ContextPanel({
           Needs attention
         </p>
       </div>
-      {attentionNotes.length > 0 ? (
-        <ul className="mt-1.5 space-y-1">
-          {attentionNotes.map((note, idx) => (
-            <li
-              key={idx}
-              className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
-            >
-              <span
-                aria-hidden="true"
-                className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70"
-              />
-              <span>{note}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {toneGuidance ? (
-        <div
-          className={cn(
-            "mt-2.5",
-            attentionNotes.length > 0 && "border-t border-[var(--inbox-intelligence-border)] pt-2.5",
-          )}
-        >
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Tone
-          </span>
-          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/8" aria-hidden="true">
-            <div className={cn("h-full w-full rounded-full", toneGuidance.barClass)} />
-          </div>
-          <p className="mt-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]">
-            {toneGuidance.note}
-          </p>
-        </div>
-      ) : null}
+      <ul className="mt-1.5 space-y-1">
+        {attentionNotes.map((note, idx) => (
+          <li
+            key={idx}
+            className="flex gap-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]"
+          >
+            <span
+              aria-hidden="true"
+              className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-amber-500/70"
+            />
+            <span>{note}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   ) : null
 
   /**
-   * Fanny recommends — the single recommended next step in plain work language. The text
-   * stays operator-editable (same `updateHandoff` flow as before). The actionable cards
-   * moved to `actionsSection` below so this block reads as advice, not as a control list.
-   * Dedup: if the stored recommendation merely repeats the Request text, we show the
-   * honest "still preparing" state instead of the same paragraph twice.
+   * Reply guidance — everything the operator needs BEFORE writing the reply, in one card:
+   * the tone strip (how to say it) and Fanny's recommended next step (what to say). The
+   * recommendation stays operator-editable (same `updateHandoff` flow as before). The
+   * actionable cards live in `actionsSection` below so this block reads as advice, not as
+   * a control list. Dedup: if the stored recommendation merely repeats the Request text,
+   * we show the honest "still preparing" state instead of the same paragraph twice.
    */
   const storedRecommendationIsStatusLabel = Boolean(
     nextRecommendedAction && isStatusLabelText(nextRecommendedAction),
@@ -949,27 +959,53 @@ export function ContextPanel({
       ? "Ask for the missing details before preparing your reply."
       : "Review before replying and send a clear next step."
     : "Fanny is still preparing the best next step."
-  const recommendsSection = (
-    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+  const replyGuidanceSection = (
+    <section
+      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
+      aria-label="Reply guidance"
+    >
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny recommends
+          Reply guidance
         </p>
       </div>
-      {recommendationText ? (
-        <InlineTextarea
-          value={recommendationText}
-          placeholder="Edit recommendation..."
-          className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
-          rows={2}
-          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-        />
-      ) : (
-        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          {recommendationFallback}
-        </p>
-      )}
+      {toneGuidance ? (
+        <div className="mt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+            Tone
+          </span>
+          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/8" aria-hidden="true">
+            <div className={cn("h-full w-full rounded-full", toneGuidance.barClass)} />
+          </div>
+          <p className="mt-1.5 text-xs leading-snug text-[var(--inbox-intelligence-text)]">
+            {toneGuidance.note}
+          </p>
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "mt-2",
+          toneGuidance && "mt-2.5 border-t border-[var(--inbox-intelligence-border)] pt-2.5",
+        )}
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+          Fanny recommends
+        </span>
+        {recommendationText ? (
+          <InlineTextarea
+            value={recommendationText}
+            placeholder="Edit recommendation..."
+            className="mt-1 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
+            rows={2}
+            onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+          />
+        ) : (
+          <p className="mt-1 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+            {recommendationFallback}
+          </p>
+        )}
+      </div>
     </section>
   )
 
@@ -990,10 +1026,7 @@ export function ContextPanel({
    * paths.
    *
    * If neither contextual CTA applies, the section is hidden entirely so the
-   * panel doesn't render an empty card. The section title is dropped to
-   * avoid the "Smart actions" naming the new product spec wants to retire;
-   * if a title is still needed visually we surface "Suggested" only when at
-   * least one CTA is rendered.
+   * panel doesn't render an empty card.
    */
   const showSuggestedDraftCta = Boolean(hasSuggestedDraft && onUseSuggestedDraft)
   const showAddToCalendarCta = Boolean(
@@ -1003,15 +1036,8 @@ export function ContextPanel({
     && !isCreateEventActionExecuted(selectedMessageInfo, selected.actions),
   )
   /**
-   * TODO(inbox-tasks): the `handleConvert` prop is preserved on the panel
-   * surface for now — composer / message-action paths still call it via
-   * other mounts. Once those entry points migrate to the approve/dismiss
-   * next-step flow, this prop and the Convert CTAs can go away entirely.
-   */
-  void handleConvert
-  /**
-   * Actions — visible work cards (Today-style): one card per thing the operator can do
-   * right now. No dropdowns, no tiny rows, no technical labels. Every card keeps its
+   * Smart actions — visible work cards (Today-style): one card per thing the operator can
+   * do right now. No dropdowns, no tiny rows, no technical labels. Every card keeps its
    * existing backend route:
    *   - "Review draft"     → `onUseSuggestedDraft` (same draft pipeline as before).
    *   - "Add to calendar"  → opens the existing preview dialog → approve+execute.
@@ -1023,9 +1049,9 @@ export function ContextPanel({
   const hasAnyActionCard =
     showSuggestedDraftCta || showAddToCalendarCta || orderedSuggestedActions.length > 0
   const actionsSection = hasAnyActionCard ? (
-    <section aria-label="Actions" className="space-y-1.5">
+    <section aria-label="Smart actions" className="space-y-1.5">
       <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Actions
+        Smart actions
       </p>
       {showSuggestedDraftCta ? (
         <WorkActionCard
@@ -1357,18 +1383,13 @@ export function ContextPanel({
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
         ── Section ordering ──
-        Three zones, top-down, matching how an operator reads a request:
-          ZONE 1 — Who & how: who wrote + their data + handling + tone/mood.
-            1. Client/contact card    (sender name, data; expanded = ALL client context)
-            2. Handling strip         (read-only assignment / status chips)
-            3. Needs attention        (tone/mood strip + missing info / risks)
-          ZONE 2 — What the message says:
-            4. Request                (the message objective)
-          ZONE 3 — Actions:
-            5. Fanny recommends       (advised next step — bridges into the decisions)
-            6. Pending decisions      (approve / dismiss proposed WorkspaceTasks)
-            7. Actions                (review draft, add to calendar, action cards)
-          Then: Ask Fanny, Workflow.
+        Guided-work hierarchy, top-down, matching how an operator handles a request:
+          1. Contact / client        (sender card + handling chips; expanded = ALL client context)
+          2. What this conversation needs   (the message objective)
+          3. Needs attention         (missing info / risks — blockers before replying)
+          4. Reply guidance          (tone strip + Fanny's recommended next step)
+          5. Smart actions           (pending decisions to approve/dismiss, then work cards)
+          6. Additional context      (Ask Fanny shortcut, Workflow assign — nothing repeated)
         Header chrome (the "Fanny" title) stays on top. Each atom keeps its own data
         gating, so empty cards never render and we never fabricate content. Client
         context lives ONLY inside the expanded top card — no duplicate block lower.
@@ -1380,9 +1401,9 @@ export function ContextPanel({
       {headerSection}
       {contactSection}
       {handlingSection}
-      {needsAttentionSection}
       {messageNeedSection}
-      {recommendsSection}
+      {needsAttentionSection}
+      {replyGuidanceSection}
       {pendingDecisionsSection}
       {actionsSection}
       {askFannySection}
