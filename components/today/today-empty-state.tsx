@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils"
  *
  * The link to `/inbox` is a soft escape hatch for the operator who lands on
  * Today before any work has accumulated; it's the most common "what next?"
- * destination in the workspace.
+ * destination in the workspace. It must point at the real Smart Inbox
+ * (conversation list), NOT `/inbox/overview` — verticals like Beauty have no
+ * separate Inbox Overview concept, and the operator expects messages here.
  */
 export function TodayEmptyState() {
   return (
@@ -34,7 +36,7 @@ export function TodayEmptyState() {
         Anything that needs your attention will show up here.
       </p>
       <Link
-        href="/inbox/overview"
+        href="/inbox"
         className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
       >
         Or check your Inbox →
