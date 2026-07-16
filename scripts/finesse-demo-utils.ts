@@ -30,18 +30,36 @@ export function parseWorkspaceConfig(
 
 /**
  * Merge demo workspace metadata into existing config.
- * Preserves all existing properties, adds/updates demo metadata.
+ * Preserves all existing properties and marks the workspace as a demo:
+ *   - `demo: { enabled: true, type: "finesse-internal", ownerEmail }`
+ *     (existing `demo` sub-properties are preserved, these three keys win)
+ *   - `finesseDemoMetadata`: execution details of the last seed run
  *
  * @param existingConfig - Current Workspace.config (already parsed)
  * @param demoMetadata - Demo metadata to add
- * @returns New config with demo metadata merged in
+ * @param ownerEmail - Owner email recorded in the demo flag
+ * @returns New config with demo flag and metadata merged in
  */
 export function mergeDemoWorkspaceConfig(
   existingConfig: Record<string, unknown>,
   demoMetadata: Record<string, unknown>,
+  ownerEmail: string,
 ): Record<string, unknown> {
+  const existingDemo =
+    typeof existingConfig.demo === "object" &&
+    existingConfig.demo !== null &&
+    !Array.isArray(existingConfig.demo)
+      ? (existingConfig.demo as Record<string, unknown>)
+      : {}
+
   return {
     ...existingConfig,
+    demo: {
+      ...existingDemo,
+      enabled: true,
+      type: "finesse-internal",
+      ownerEmail,
+    },
     finesseDemoMetadata: demoMetadata,
   }
 }

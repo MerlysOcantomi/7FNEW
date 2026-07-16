@@ -37,6 +37,7 @@ import {
   getDemoDatasetSummary,
   buildClientMap,
   resolveClientId,
+  validateDemoData,
 } from "./finesse-demo-data"
 import { parseWorkspaceConfig, mergeDemoWorkspaceConfig } from "./finesse-demo-utils"
 import { BEAUTY_NAV_VERTICAL_KEYS } from "../core/vertical-packs/nav-profile"
@@ -264,13 +265,21 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     process.exit(1)
   }
 
+  // Validate demo dataset consistency (markers, indices, unique emails)
+  const datasetValidation = validateDemoData()
+  if (!datasetValidation.valid) {
+    console.error(`[seed] Demo dataset is invalid — aborting without modifications:`)
+    for (const err of datasetValidation.errors) console.error(`  - ${err}`)
+    process.exit(1)
+  }
+
   console.log(`[seed] ✓ All pre-checks passed`)
   console.log(`[seed] Creating/updating demo data for: ${workspace.nombre}`)
 
   // Execute seed inside a transaction
   try {
     await db.$transaction(async (tx) => {
-      await performSeed(tx, workspaceId, configParsed)
+      await performSeed(tx, workspaceId, configParsed, ownerEmail)
     })
     console.log(`[seed] ✓ Demo data operation completed successfully`)
   } catch (error) {
@@ -287,6 +296,7 @@ async function performSeed(
   tx: any, // Prisma transaction client
   workspaceId: string,
   existingConfig: Record<string, unknown>,
+  ownerEmail: string,
 ): Promise<void> {
   const createdData = {
     clientes: 0,
@@ -485,9 +495,10 @@ async function performSeed(
         where: { id: existing.id },
         data: {
           subject: convData.subject,
+          clienteId,
           messageCount: convData.messages.length,
           lastMessageAt,
-          // Preserve other fields that may have been set by users
+          // Preserve other fields that may have been set by users (status, channel, category…)
         },
       })
 
@@ -502,6 +513,7 @@ async function performSeed(
           subject: convData.subject,
           source: demoMarker,
           contactId: contact.id,
+          clienteId,
           workspaceId,
           channel: "manual",
           status: "new",
@@ -554,9 +566,17 @@ async function performSeed(
 
     const numero = generateDemoInvoiceNumber(workspaceId, i + 1)
 
+    // numero is globally @unique, so look it up globally and then verify
+    // workspace ownership: never touch an invoice from another workspace.
     const existing = await tx.factura.findFirst({
       where: { numero },
     })
+
+    if (existing && existing.workspaceId !== workspaceId) {
+      throw new Error(
+        `Invoice number collision: ${numero} already exists in another workspace — aborting (transaction will be rolled back)`,
+      )
+    }
 
     if (existing) {
       // Update existing demo invoice (date recalculation, status preservation)
@@ -652,7 +672,7 @@ async function performSeed(
     updated: updatedData,
   }
 
-  const newConfig = mergeDemoWorkspaceConfig(existingConfig, demoMetadata)
+  const newConfig = mergeDemoWorkspaceConfig(existingConfig, demoMetadata, ownerEmail)
 
   await tx.workspace.update({
     where: { id: workspaceId },

@@ -294,11 +294,13 @@ test("parseWorkspaceConfig: invalid JSON returns null", () => {
   assert.equal(parseWorkspaceConfig('123'), null, "JSON number should return null")
 })
 
+const TEST_OWNER_EMAIL = "owner@example.com"
+
 test("mergeDemoWorkspaceConfig: preserves existing properties", () => {
   const existing = { userSetting: "value", nested: { original: true } }
   const demo = { createdAt: "2026-07-15", created: { clientes: 5 } }
 
-  const merged = mergeDemoWorkspaceConfig(existing, demo)
+  const merged = mergeDemoWorkspaceConfig(existing, demo, TEST_OWNER_EMAIL)
 
   assert.equal(merged.userSetting, "value", "should preserve existing string property")
   assert.deepEqual(merged.nested, { original: true }, "should preserve existing nested object")
@@ -308,16 +310,54 @@ test("mergeDemoWorkspaceConfig: preserves existing properties", () => {
 test("mergeDemoWorkspaceConfig: overwrites finesseDemoMetadata on re-run", () => {
   const config1 = { userSetting: "value" }
   const demo1 = { runCount: 1 }
-  const merged1 = mergeDemoWorkspaceConfig(config1, demo1)
+  const merged1 = mergeDemoWorkspaceConfig(config1, demo1, TEST_OWNER_EMAIL)
 
   assert.deepEqual(merged1.finesseDemoMetadata, { runCount: 1 })
 
   const config2 = merged1 // Simulate re-running
   const demo2 = { runCount: 2 }
-  const merged2 = mergeDemoWorkspaceConfig(config2, demo2)
+  const merged2 = mergeDemoWorkspaceConfig(config2, demo2, TEST_OWNER_EMAIL)
 
   assert.equal(merged2.userSetting, "value", "should still preserve original setting")
   assert.deepEqual(merged2.finesseDemoMetadata, { runCount: 2 }, "should update demo metadata")
+})
+
+test("mergeDemoWorkspaceConfig: sets the demo flag with owner email", () => {
+  const merged = mergeDemoWorkspaceConfig({}, { runCount: 1 }, TEST_OWNER_EMAIL)
+
+  assert.deepEqual(
+    merged.demo,
+    { enabled: true, type: "finesse-internal", ownerEmail: TEST_OWNER_EMAIL },
+    "should set demo.enabled/type/ownerEmail",
+  )
+})
+
+test("mergeDemoWorkspaceConfig: preserves extra demo sub-properties, canonical keys win", () => {
+  const existing = {
+    userSetting: "value",
+    demo: { enabled: false, type: "other", ownerEmail: "old@example.com", customFlag: true },
+  }
+
+  const merged = mergeDemoWorkspaceConfig(existing, { runCount: 3 }, TEST_OWNER_EMAIL)
+  const demo = merged.demo as Record<string, unknown>
+
+  assert.equal(demo.customFlag, true, "should preserve unknown demo sub-properties")
+  assert.equal(demo.enabled, true, "enabled must be forced to true")
+  assert.equal(demo.type, "finesse-internal", "type must be forced to finesse-internal")
+  assert.equal(demo.ownerEmail, TEST_OWNER_EMAIL, "ownerEmail must be the current owner")
+  assert.equal(merged.userSetting, "value", "should preserve unrelated properties")
+})
+
+test("mergeDemoWorkspaceConfig: replaces a malformed demo value (non-object)", () => {
+  const existing = { demo: "corrupted-string-value" }
+
+  const merged = mergeDemoWorkspaceConfig(existing, { runCount: 1 }, TEST_OWNER_EMAIL)
+
+  assert.deepEqual(
+    merged.demo,
+    { enabled: true, type: "finesse-internal", ownerEmail: TEST_OWNER_EMAIL },
+    "a non-object demo value should be replaced by the canonical demo flag",
+  )
 })
 
 test("extractDemoMetadata: returns demo metadata or empty object", () => {
