@@ -168,7 +168,7 @@ export interface DemoEventData {
   duracionMinutos: number
   tipo: string
   /** Demo marker for idempotent updates */
-  demoMarker?: string
+  demoMarker: string
 }
 
 export const FINESSE_DEMO_EVENTS: DemoEventData[] = [
@@ -201,7 +201,7 @@ export interface DemoConversationData {
   subject: string
   messages: DemoConversationMessage[]
   /** Demo marker for idempotent updates */
-  demoMarker?: string
+  demoMarker: string
 }
 
 export const FINESSE_DEMO_CONVERSATIONS: DemoConversationData[] = [
@@ -327,7 +327,7 @@ export interface DemoInvoiceData {
   descripcion: string
   daysAgo: number
   /** Demo marker for idempotent updates */
-  demoMarker?: string
+  demoMarker: string
 }
 
 export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
@@ -390,7 +390,7 @@ export interface DemoContentPieceData {
   daysAgo?: number
   daysInFuture?: number
   /** Demo marker for idempotent updates */
-  demoMarker?: string
+  demoMarker: string
 }
 
 export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
@@ -462,6 +462,23 @@ export function validateDemoData(): { valid: boolean; errors: string[] } {
     errors.push("Duplicate emails in clients dataset")
   }
 
+  // Check demo markers: none empty, none duplicated (idempotency depends on them)
+  const allMarkers = [
+    ...FINESSE_DEMO_EVENTS.map((e) => e.demoMarker),
+    ...FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker),
+    ...FINESSE_DEMO_INVOICES.map((i) => i.demoMarker),
+    ...FINESSE_DEMO_CONTENT_PIECES.map((p) => p.demoMarker),
+  ]
+  const seenMarkers = new Set<string>()
+  for (const marker of allMarkers) {
+    if (marker.trim() === "") {
+      errors.push("Empty demoMarker in dataset")
+    } else if (seenMarkers.has(marker)) {
+      errors.push(`Duplicate demoMarker: ${marker}`)
+    }
+    seenMarkers.add(marker)
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -505,7 +522,7 @@ export function buildClientMap(
  * Returns null if the email is not in the map (should not happen in normal flow).
  */
 export function resolveClientId(
-  demoClient: DemoClientData,
+  demoClient: Pick<DemoClientData, "email">,
   clientMap: Map<string, string>,
 ): string | null {
   return clientMap.get(demoClient.email) || null
