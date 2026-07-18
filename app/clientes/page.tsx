@@ -27,14 +27,11 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { ClienteForm } from "@/components/forms/cliente-form";
-import { displayLabel, estadoLabel } from "@/lib/api-client";
+import { useI18n } from "@/components/i18n-provider";
+import { useClientsNouns, capNoun } from "@/hooks/use-clients-nouns";
 
-const ESTADO_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "activo", label: "Active" },
-  { value: "inactivo", label: "Inactive" },
-  { value: "prospecto", label: "Prospect" },
-];
+/** Filter option VALUES only — visible labels come from the clients catalog. */
+const ESTADO_VALUES = ["", "activo", "inactivo", "prospecto"] as const;
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   activo: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
@@ -42,11 +39,13 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   prospecto: { bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
 };
 
-function formatDate(value: string | Date | null | undefined): string {
+function formatDate(value: string | Date | null | undefined, locale: string): string {
   if (!value) return "—";
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d.getTime())
+      ? "—"
+      : d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "—";
   }
@@ -61,14 +60,20 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-function RowActions({ clientId }: { clientId: string }) {
+function RowActions({
+  clientId,
+  labels,
+}: {
+  clientId: string;
+  labels: { aria: string; view: string; newProject: string };
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="p-1.5 rounded-md text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]"
-        aria-label="Client actions"
+        aria-label={labels.aria}
       >
         <MoreHorizontal size={14} />
       </button>
@@ -82,7 +87,7 @@ function RowActions({ clientId }: { clientId: string }) {
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--text-primary-light)] hover:bg-white/[0.06] transition-colors"
             >
               <ArrowUpRight size={13} strokeWidth={1.75} className="text-[var(--text-secondary-light)]" />
-              View client
+              {labels.view}
             </Link>
             <Link
               href="/proyectos"
@@ -90,7 +95,7 @@ function RowActions({ clientId }: { clientId: string }) {
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--text-primary-light)] hover:bg-white/[0.06] transition-colors"
             >
               <FolderKanban size={13} strokeWidth={1.75} className="text-[var(--text-secondary-light)]" />
-              New project
+              {labels.newProject}
             </Link>
           </div>
         </>
@@ -100,6 +105,21 @@ function RowActions({ clientId }: { clientId: string }) {
 }
 
 export default function ClientesPage() {
+  const { t, locale } = useI18n();
+  const nouns = useClientsNouns();
+  const L = t.clients.list;
+  /** Visible label per persisted estado value — raw values never change. */
+  const statusBadge: Record<string, string> = {
+    activo: t.clients.status.active,
+    inactivo: t.clients.status.inactive,
+    prospecto: t.clients.status.prospect,
+  };
+  const filterLabels: Record<string, string> = {
+    "": L.filters.all,
+    activo: L.filters.active,
+    inactivo: L.filters.inactive,
+    prospecto: L.filters.prospect,
+  };
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
@@ -121,12 +141,12 @@ export default function ClientesPage() {
     const inactivos = clientes.filter((c: any) => c.estado === "inactivo").length;
     const prospectos = clientes.filter((c: any) => c.estado === "prospecto").length;
     return [
-      { label: "Total", value: String(clientes.length), sub: "Clients", icon: Users, iconClass: "text-primary" },
-      { label: "Active", value: String(activos), sub: "With activity", icon: CheckCircle2, iconClass: "text-[var(--status-success-text)]" },
-      { label: "Prospects", value: String(prospectos), sub: "To convert", icon: AlertTriangle, iconClass: "text-[var(--status-warning-text)]" },
-      { label: "Inactive", value: String(inactivos), sub: "No activity", icon: Clock, iconClass: "text-muted-foreground" },
+      { label: L.stats.total, value: String(clientes.length), sub: capNoun(nouns.clients), icon: Users, iconClass: "text-primary" },
+      { label: L.filters.active, value: String(activos), sub: L.stats.activeSub, icon: CheckCircle2, iconClass: "text-[var(--status-success-text)]" },
+      { label: L.stats.prospects, value: String(prospectos), sub: L.stats.prospectsSub, icon: AlertTriangle, iconClass: "text-[var(--status-warning-text)]" },
+      { label: L.filters.inactive, value: String(inactivos), sub: L.stats.inactiveSub, icon: Clock, iconClass: "text-muted-foreground" },
     ];
-  }, [clientes]);
+  }, [clientes, L, nouns.clients]);
 
   function handleFormSuccess() {
     setRefreshKey((k) => k + 1);
@@ -140,13 +160,13 @@ export default function ClientesPage() {
 
       <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
         <PageHeader
-          eyebrow="Core"
-          title="Clients"
+          eyebrow={L.eyebrow}
+          title={capNoun(nouns.clients)}
           tone="canvas"
           actions={
             <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />
-              New client
+              {L.newButton({ client: nouns.client })}
             </Button>
           }
         />
@@ -175,7 +195,7 @@ export default function ClientesPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search clients, company, or email..."
+                placeholder={L.searchPlaceholder({ clients: nouns.clients })}
                 className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] focus:outline-none focus:border-[var(--accent-primary)]/50 transition-colors"
               />
             </div>
@@ -184,23 +204,23 @@ export default function ClientesPage() {
                 onClick={() => setStatusOpen(!statusOpen)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)]/45 transition-colors min-w-[130px] justify-between"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
+                <span>{statusFilter ? filterLabels[statusFilter] : L.statusFilterLabel}</span>
                 <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
                 <div className="absolute top-full left-0 mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg overflow-hidden min-w-[130px]">
-                  {ESTADO_OPTIONS.map((opt) => (
+                  {ESTADO_VALUES.map((value) => (
                     <button
-                      key={opt.value || "all"}
-                      onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
+                      key={value || "all"}
+                      onClick={() => { setStatusFilter(value); setStatusOpen(false); }}
                       className={cn(
                         "w-full text-left px-4 py-2 text-sm transition-colors",
-                        statusFilter === opt.value
+                        statusFilter === value
                           ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]"
                           : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
                       )}
                     >
-                      {opt.label}
+                      {filterLabels[value]}
                     </button>
                   ))}
                 </div>
@@ -211,8 +231,8 @@ export default function ClientesPage() {
           {/* Client List */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-widest">All clients</h2>
-              <span className="text-xs text-[var(--text-secondary-light)]">{clientes.length} client{clientes.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-widest">{L.sectionAll({ clients: nouns.clients })}</h2>
+              <span className="text-xs text-[var(--text-secondary-light)]">{L.count(clientes.length, { client: nouns.client, clients: nouns.clients })}</span>
             </div>
 
             {loading ? (
@@ -223,19 +243,19 @@ export default function ClientesPage() {
               <div className="bg-destructive/5 rounded-xl border border-destructive/20 p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3" />
                 <p className="text-sm font-medium text-destructive">{error}</p>
-                <p className="text-xs text-destructive/80 mt-1">Clients could not be loaded</p>
+                <p className="text-xs text-destructive/80 mt-1">{L.loadError({ clients: nouns.clients })}</p>
               </div>
             ) : clientes.length === 0 ? (
               <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-16 text-center">
                 <UserCircle className="mx-auto h-12 w-12 text-[var(--text-secondary-light)] mb-4" />
-                <p className="text-sm font-medium text-[var(--text-primary-light)]">No clients yet</p>
+                <p className="text-sm font-medium text-[var(--text-primary-light)]">{L.empty.title({ clients: nouns.clients })}</p>
                 <p className="text-xs text-[var(--text-secondary-light)] mt-1">
-                  {search || statusFilter ? "No results for the selected filters." : "Create your first client to get started."}
+                  {search || statusFilter ? L.empty.bodyFiltered : L.empty.bodyDefault({ client: nouns.client })}
                 </p>
                 {!search && !statusFilter && (
                   <Button onClick={() => setFormOpen(true)} className="mt-4">
                     <Plus size={14} />
-                    New client
+                    {L.newButton({ client: nouns.client })}
                   </Button>
                 )}
               </div>
@@ -244,12 +264,12 @@ export default function ClientesPage() {
                 {/* Desktop list */}
                 <div className="hidden sm:block rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] overflow-hidden ring-1 ring-white/[0.04] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.45)]">
                   <div className="grid grid-cols-12 px-5 py-2.5 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)]">
-                    <span className="col-span-3 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Client</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Company</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Contact</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Status</span>
-                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Projects</span>
-                    <span className="col-span-1 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">Updated</span>
+                    <span className="col-span-3 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{capNoun(nouns.client)}</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{L.columns.company}</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{L.columns.contact}</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{L.columns.status}</span>
+                    <span className="col-span-2 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{capNoun(nouns.projects)}</span>
+                    <span className="col-span-1 text-[10px] font-semibold text-[var(--text-secondary-light)] uppercase tracking-wider">{L.columns.updated}</span>
                     <span className="col-span-1" />
                   </div>
                   {clientes.map((c: any, i: number) => {
@@ -289,22 +309,29 @@ export default function ClientesPage() {
                         </div>
                         <div className="col-span-1">
                           <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s.bg, s.text)}>
-                            {displayLabel(c.estado, estadoLabel)}
+                            {statusBadge[c.estado] ?? c.estado}
                           </span>
                         </div>
                         <div className="col-span-2 flex items-center gap-1.5">
                           <FolderKanban size={13} className="text-[var(--text-secondary-light)]" strokeWidth={1.75} />
-                          <span className="text-sm text-[var(--text-primary-light)]">{count.proyectos ?? 0} {(count.proyectos ?? 0) !== 1 ? "projects" : "project"}</span>
+                          <span className="text-sm text-[var(--text-primary-light)]">{L.count(count.proyectos ?? 0, { client: nouns.project, clients: nouns.projects })}</span>
                         </div>
-                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(c.updatedAt)}</span>
+                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(c.updatedAt, locale)}</span>
                         <div className="col-span-1 flex items-center justify-end gap-1">
                           <Link
                             href={`/clientes/${c.id}`}
                             className="flex items-center gap-0.5 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85"
                           >
-                            View <ArrowUpRight size={11} />
+                            {L.view} <ArrowUpRight size={11} />
                           </Link>
-                          <RowActions clientId={c.id} />
+                          <RowActions
+                            clientId={c.id}
+                            labels={{
+                              aria: L.rowActionsAria({ client: nouns.client }),
+                              view: L.rowView({ client: nouns.client }),
+                              newProject: t.clients.detail.newProject({ project: nouns.project }),
+                            }}
+                          />
                         </div>
                       </div>
                     );
@@ -329,19 +356,19 @@ export default function ClientesPage() {
                             </div>
                           </div>
                           <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", s.bg, s.text)}>
-                            {displayLabel(c.estado, estadoLabel)}
+                            {statusBadge[c.estado] ?? c.estado}
                           </span>
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--border-dark)] pt-3">
                           <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-xs text-[var(--text-secondary-light)]">{count.proyectos ?? 0} {(count.proyectos ?? 0) !== 1 ? "projects" : "project"}</span>
-                            <span className="text-[10px] text-[var(--text-secondary-light)]">Updated {formatDate(c.updatedAt)}</span>
+                            <span className="text-xs text-[var(--text-secondary-light)]">{L.count(count.proyectos ?? 0, { client: nouns.project, clients: nouns.projects })}</span>
+                            <span className="text-[10px] text-[var(--text-secondary-light)]">{L.updated(formatDate(c.updatedAt, locale))}</span>
                           </div>
                           <Link
                             href={`/clientes/${c.id}`}
                             className="flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85"
                           >
-                            View <ArrowUpRight size={11} />
+                            {L.view} <ArrowUpRight size={11} />
                           </Link>
                         </div>
                       </div>
@@ -354,7 +381,7 @@ export default function ClientesPage() {
         </div>
       </main>
 
-      <CopilotPanel defaultContext="Clients" />
+      <CopilotPanel defaultContext={capNoun(nouns.clients)} />
 
       <LegacyTodayChrome />
 
