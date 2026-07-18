@@ -22,6 +22,7 @@ import {
 } from "@modules/today/appointments"
 import type { BeautyTodayConfig } from "@modules/today/beauty-today"
 import { BEAUTY_SPECIALIST_AGENT } from "@core/vertical-packs/specialists"
+import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import { getBeautyAppointmentDayMock } from "./appointments/appointment-mock"
 
 /**
@@ -170,6 +171,22 @@ export function BeautyStudioOverview({
 
   const studio = businessName ?? day.businessName
 
+  // Publish today's on-screen signals so Ask Finesse answers in context
+  // ("¿qué hago primero?" knows the visible appointment/gap counts).
+  useRegisterFinesseAssistantContext(
+    useMemo(
+      () => ({
+        page: "today" as const,
+        visibleMetrics: {
+          citas: derived.appointmentsCount,
+          huecosLibres: derived.openGaps,
+          valorPrevisto: derived.bookedValue,
+        },
+      }),
+      [derived.appointmentsCount, derived.openGaps, derived.bookedValue],
+    ),
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <StudioHeader studio={studio} beauty={beauty} derived={derived} />
@@ -252,17 +269,12 @@ function StudioHeader({
         >
           {beauty.previewChip}
         </span>
-        {/* Primary CTA — disabled until the Finesse assistant is wired here. */}
-        <button
-          type="button"
-          disabled
-          title="Disponible al conectar el asistente"
-          className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl px-4 py-2.5 text-[12.5px] font-semibold text-white opacity-90"
-          style={{ background: "var(--accent-primary)" }}
-        >
-          <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
-          {BEAUTY_SPECIALIST_AGENT.voice.ask}
-        </button>
+        {/*
+          The former disabled "Preguntar a Finesse" header CTA was retired:
+          the GLOBAL Ask Finesse floating launcher (mounted by AppShell) is
+          now the one persistent assistant entry, and the product rule is to
+          never duplicate it in page headers.
+        */}
       </div>
     </header>
   )

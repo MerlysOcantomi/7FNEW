@@ -8,6 +8,7 @@ import { AppShell } from "@/components/app-shell"
 import { ExportCSVButton } from "@/components/export-button"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { useI18n } from "@/components/i18n-provider"
+import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import type { CSVColumn } from "@/lib/export/csv"
 import {
   buildBeautyOverviewBrief,
@@ -199,6 +200,30 @@ function OverviewContent({
 
   const currency = snapshot.currency
   const kpis = snapshot.kpis
+
+  // Publish the page context so Ask Finesse can ground its answers in what
+  // the user is actually seeing (period + on-screen KPI numbers only —
+  // minimal, serializable, permission-aware by construction).
+  useRegisterFinesseAssistantContext(
+    useMemo(
+      () => ({
+        page: "my-salon" as const,
+        period: {
+          preset: snapshot.period.preset,
+          start: snapshot.period.start,
+          end: snapshot.period.end,
+        },
+        visibleMetrics: {
+          ingresos: snapshot.kpis?.earnings?.current ?? null,
+          visitas: snapshot.kpis?.visits?.current ?? null,
+          clientasNuevas: snapshot.kpis?.newClients?.current ?? null,
+          tasaRetorno: snapshot.kpis?.returningRate?.current ?? null,
+          moneda: snapshot.currency,
+        },
+      }),
+      [snapshot],
+    ),
+  )
   const totalVisits = kpis?.visits?.current ?? null
   const hasComparison = snapshot.dataQuality.comparison
 

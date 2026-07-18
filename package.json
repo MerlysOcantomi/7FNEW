@@ -29,6 +29,7 @@
     "test:beauty-today": "tsx --test modules/today/beauty-today.test.ts",
     "test:marketing": "tsx --test modules/marketing/state.test.ts modules/marketing/i18n.test.ts",
     "test:overview": "tsx --test modules/overview/overview.test.ts",
+    "test:assistant": "tsx --test modules/assistant/finesse-assistant.test.ts",
     "test:tasks-queue": "tsx --test modules/tareas/work-queue.test.ts",
     "test:calendar-grid": "tsx --test components/calendar/grid.test.ts",
     "test:calendar-lenses": "tsx --test components/calendar/lenses.test.ts",

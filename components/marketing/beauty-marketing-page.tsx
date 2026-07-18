@@ -7,6 +7,7 @@ import { ChevronDown, Users } from "lucide-react"
 import { toast } from "sonner"
 import { AppShell } from "@/components/app-shell"
 import { SmartModal } from "@/components/smart-modal"
+import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import { useI18n } from "@/components/i18n-provider"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { formatNumber } from "@core/i18n/format"
@@ -236,6 +237,22 @@ function MarketingContent({
     [snapshot.posts, snapshot.campaigns, now, messages.locale],
   )
   const anyChannelConnected = snapshot.channels.some((c) => c.connected)
+
+  // Publish the Marketing context so Ask Finesse can ground its suggestions
+  // in what's on screen (ready posts / works / campaigns counts only).
+  useRegisterFinesseAssistantContext(
+    useMemo(
+      () => ({
+        page: "marketing" as const,
+        visibleMetrics: {
+          publicacionesListas: summary.readyCount,
+          trabajosSubidos: snapshot.works.length,
+          campanasActivas: snapshot.campaigns.filter((c) => c.status === "activa").length,
+        },
+      }),
+      [summary.readyCount, snapshot.works.length, snapshot.campaigns],
+    ),
+  )
 
   // ── Handlers (pure computation → granular dispatch) ────────────────────────
 
