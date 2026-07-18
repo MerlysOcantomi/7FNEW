@@ -22,6 +22,10 @@ import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome"
 import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger"
 import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome"
 import { AskFannyProvider, useAskFanny } from "@/components/assistant/ask-fanny-provider"
+import { FinesseAssistantProvider } from "@/components/assistant/finesse-assistant-provider"
+import { GlobalFinesseAssistantChrome } from "@/components/assistant/global-finesse-assistant"
+import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { resolveVerticalSpecialist } from "@core/vertical-packs/specialists"
 import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-fanny-trigger"
 import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
 import { ManualIntakeProvider } from "@/components/manual-intake/manual-intake-provider"
@@ -163,6 +167,14 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { user, loading } = useUser()
+  const { workspace } = useActiveWorkspace()
+  /**
+   * Ask Finesse — global assistant for vertical-specialist workspaces
+   * (Beauty → Finesse). When active, the content column gains extra bottom
+   * padding so the floating launcher never covers the last card or its
+   * actions (mission §5/§23). The chrome itself is mounted once, below.
+   */
+  const hasVerticalAssistant = resolveVerticalSpecialist(workspace?.verticalKey) !== null
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   /**
    * Hide the Today trigger on `/today` itself: the operator is already
@@ -214,6 +226,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
       <TodayDrawerProvider>
       <AgentsPanelProvider>
       <AskFannyProvider>
+      <FinesseAssistantProvider>
       <ManualIntakeProvider>
       <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
@@ -229,7 +242,12 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
             showAskFanny={showAskFanny}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8">
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8",
+              hasVerticalAssistant && "pb-24 md:pb-20",
+            )}
+          >
             <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
               {children}
             </div>
@@ -266,8 +284,17 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           opened. First-class manual capture (channel="manual"), not a notes app.
         */}
         <ManualIntakeSheet />
+
+        {/*
+          Global Ask Finesse — floating launcher + contextual panel/sheet.
+          Self-gating: renders only for vertical-specialist workspaces
+          (Beauty → Finesse) or the ?vertical=beauty preview. Mounted ONCE at
+          shell level so every Finesse page gets it without per-page wiring.
+        */}
+        <GlobalFinesseAssistantChrome />
       </div>
       </ManualIntakeProvider>
+      </FinesseAssistantProvider>
       </AskFannyProvider>
       </AgentsPanelProvider>
       </TodayDrawerProvider>

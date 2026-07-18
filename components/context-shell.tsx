@@ -20,6 +20,8 @@ import { GlobalTodayChrome } from "@/components/today/global-today-chrome";
 import { GlobalTodayTriggerDesktop } from "@/components/today/global-today-trigger";
 import { GlobalTodayDesktopChrome } from "@/components/today/global-today-desktop-chrome";
 import { AgentsPanelProvider, useAgentsPanel } from "@/components/agents/agents-panel-provider";
+import { FinesseAssistantProvider } from "@/components/assistant/finesse-assistant-provider";
+import { GlobalFinesseAssistantChrome } from "@/components/assistant/global-finesse-assistant";
 import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome";
 import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger";
 import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome";
@@ -175,6 +177,7 @@ export function ContextShell({
         */}
         <TodayDrawerProvider>
         <AgentsPanelProvider>
+        <FinesseAssistantProvider>
         <CloseTodayWhenGlobalSearchOpen />
         {/* Viewport-locked shell — same geometry as AppShell (see docs/app-shell-contract.md) */}
         <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-background font-sans md:flex-row">
@@ -272,7 +275,15 @@ export function ContextShell({
 
           {/* Global Agents surface — mobile vaul drawer only (desktop is inline above). */}
           <GlobalAgentsChrome />
+
+          {/*
+            Global Ask Finesse — same single mount as AppShell, so Finesse
+            detail pages (client profile, invoices…) keep the assistant.
+            Self-gating by vertical specialist; renders nothing elsewhere.
+          */}
+          <GlobalFinesseAssistantChrome />
         </div>
+        </FinesseAssistantProvider>
         </AgentsPanelProvider>
         </TodayDrawerProvider>
       </CopilotCollapseContext.Provider>
