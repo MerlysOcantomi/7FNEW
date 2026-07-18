@@ -77,7 +77,7 @@ export function GlobalFinesseAssistantChrome() {
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerContent
-            className="bg-[var(--app-surface-dark)] text-[var(--text-primary-light)] data-[vaul-drawer-direction=bottom]:max-h-[88dvh]"
+            className="border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-primary-light)] data-[vaul-drawer-direction=bottom]:max-h-[88dvh] data-[vaul-drawer-direction=bottom]:rounded-t-[24px]"
             aria-describedby={undefined}
             onCloseAutoFocus={focusLauncher}
           >
@@ -104,7 +104,12 @@ export function GlobalFinesseAssistantChrome() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent
             side="right"
-            className="w-full gap-0 border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-0 text-[var(--text-primary-light)] sm:max-w-[420px] [&>button]:hidden"
+            // Floating Finesse card, not a square administrative sheet: inset
+            // from the viewport (top/right/bottom ~12px), 20px radius, soft
+            // accent-tinted shadow. `inset-y-3 right-3 h-auto rounded-[20px]`
+            // override the primitive's `inset-y-0 right-0 h-full` via
+            // tailwind-merge; Radix focus trap / Escape / restore are untouched.
+            className="inset-y-3 right-3 h-auto w-full gap-0 overflow-hidden rounded-[20px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-0 text-[var(--text-primary-light)] shadow-[0_28px_70px_-28px_color-mix(in_srgb,var(--accent-primary)_45%,rgba(0,0,0,0.4))] sm:max-w-[420px] [&>button]:hidden"
             onCloseAutoFocus={focusLauncher}
           >
             <SheetTitle className="sr-only">{COPY.panelTitle}</SheetTitle>

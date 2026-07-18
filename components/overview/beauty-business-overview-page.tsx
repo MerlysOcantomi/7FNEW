@@ -15,6 +15,7 @@ import {
   type BeautyOverviewConfig,
 } from "@modules/overview/beauty-overview"
 import {
+  compareKpi,
   deriveBriefFacts,
   deriveRecommendations,
 } from "@modules/overview/derive"
@@ -201,12 +202,14 @@ function OverviewContent({
   const currency = snapshot.currency
   const kpis = snapshot.kpis
 
-  // Publish the page context so Ask Finesse can ground its answers in what
-  // the user is actually seeing (period + on-screen KPI numbers only —
+  // Publish the page context so Ask Finesse can ground its answers — and the
+  // dynamic suggestion engine can rank prompts — from what the user is
+  // actually seeing (period + on-screen KPI numbers and their deltas only:
   // minimal, serializable, permission-aware by construction).
   useRegisterFinesseAssistantContext(
-    useMemo(
-      () => ({
+    useMemo(() => {
+      const earningsCmp = compareKpi(snapshot.kpis?.earnings ?? null)
+      return {
         page: "my-salon" as const,
         period: {
           preset: snapshot.period.preset,
@@ -215,14 +218,18 @@ function OverviewContent({
         },
         visibleMetrics: {
           ingresos: snapshot.kpis?.earnings?.current ?? null,
+          ingresosDelta: earningsCmp.deltaRatio,
           visitas: snapshot.kpis?.visits?.current ?? null,
           clientasNuevas: snapshot.kpis?.newClients?.current ?? null,
           tasaRetorno: snapshot.kpis?.returningRate?.current ?? null,
+          cobrosPendientes: snapshot.signals.pendingPayments?.amount ?? null,
+          ocupacionDiaPunta: snapshot.signals.peakDayOccupancy,
+          clientasSinVolver: snapshot.signals.inactiveClients,
+          sinComparativa: snapshot.dataQuality.comparison ? 0 : 1,
           moneda: snapshot.currency,
         },
-      }),
-      [snapshot],
-    ),
+      }
+    }, [snapshot]),
   )
   const totalVisits = kpis?.visits?.current ?? null
   const hasComparison = snapshot.dataQuality.comparison

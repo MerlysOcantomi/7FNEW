@@ -1,14 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Loader2, Send, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   FINESSE_ASSISTANT_COPY as COPY,
   FINESSE_MAX_QUESTION_LENGTH,
-  getFinesseSuggestions,
   resolveFinessePageKey,
 } from "@modules/assistant/finesse-assistant"
+import { buildFinesseSuggestions } from "@modules/assistant/finesse-suggestions"
 import { usePathname } from "next/navigation"
 import { useFinesseAssistant } from "./finesse-assistant-provider"
 
@@ -28,7 +28,14 @@ export function FinesseAssistantConversation() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const pageKey = pageContext?.page ?? resolveFinessePageKey(pathname)
-  const suggestions = getFinesseSuggestions(pageKey)
+  // Deterministic, data-aware suggestions: ranked from the metrics the page
+  // registered; static page prompts remain only as fallback. Memoized on the
+  // registered context so they are stable between renders and update exactly
+  // when relevant context changes.
+  const suggestions = useMemo(
+    () => buildFinesseSuggestions({ page: pageKey, context: pageContext }),
+    [pageKey, pageContext],
+  )
   const unavailable = status === "unavailable"
 
   // Keep the newest message in view.
@@ -100,12 +107,12 @@ export function FinesseAssistantConversation() {
             <div className="flex flex-col items-start gap-1.5">
               {suggestions.map((s) => (
                 <button
-                  key={s}
+                  key={s.id}
                   type="button"
-                  onClick={() => submit(s)}
-                  className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-2 text-left text-[12px] text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-muted-border)] hover:bg-[var(--app-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
+                  onClick={() => submit(s.prompt)}
+                  className="rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-2 text-left text-[12px] text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-muted-border)] hover:bg-[var(--app-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
                 >
-                  {s}
+                  {s.label}
                 </button>
               ))}
             </div>
