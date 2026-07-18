@@ -22,7 +22,7 @@ test("getUIMessages: en returns common and nav namespaces", () => {
   assert.equal(t.nav.today, "Today")
 })
 
-test("getUIMessages: english contains no empty strings (deep)", () => {
+test("getUIMessages: english and spanish contain no empty strings (deep)", () => {
   const walk = (value: unknown, path: string) => {
     if (typeof value === "string") {
       assert.ok(value.length > 0, `empty string at ${path}`)
@@ -33,6 +33,34 @@ test("getUIMessages: english contains no empty strings (deep)", () => {
     }
   }
   walk(getUIMessages("en"), "en")
+  walk(getUIMessages("es"), "es")
+})
+
+// ─── en/es catalog parity (P4.1) ───────────────────────────────────────────────
+
+/**
+ * Runtime structural parity: every key path must exist in BOTH catalogs with
+ * the same value kind (string vs function). TypeScript already enforces the
+ * shared interface; this guard additionally catches any future cast that
+ * would silently hide a missing or mistyped key.
+ */
+function catalogShape(value: unknown, path: string, out: string[]): string[] {
+  if (typeof value === "string") out.push(`${path}:string`)
+  else if (typeof value === "function") out.push(`${path}:function`)
+  else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) catalogShape(v, `${path}.${k}`, out)
+  } else {
+    out.push(`${path}:INVALID(${typeof value})`)
+  }
+  return out
+}
+
+test("catalog parity: en and es expose identical key structure and value kinds", () => {
+  const enShape = catalogShape(getUIMessages("en"), "$", []).sort()
+  const esShape = catalogShape(getUIMessages("es"), "$", []).sort()
+  assert.deepEqual(esShape, enShape)
+  assert.ok(enShape.length > 0)
+  assert.ok(!enShape.some((entry) => entry.includes("INVALID")))
 })
 
 // ─── getUIMessages: fallback ───────────────────────────────────────────────────
@@ -51,10 +79,18 @@ test("getUIMessages: en-GB resolves English", () => {
   assert.equal(getUIMessages("en-GB"), getUIMessages("en"))
 })
 
-test("getUIMessages: es/es-MX/de/de-CH fall back to English while locale UI messages are not implemented", () => {
+test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
+  const spanish = getUIMessages("es")
+  assert.notEqual(spanish, getUIMessages("en"))
+  assert.equal(getUIMessages("es-MX"), spanish)
+  assert.equal(spanish.settings.language.appLabel, "Idioma de la aplicación")
+  assert.equal(spanish.settings.accountCenter.languageSection, "Idioma")
+  assert.equal(spanish.settings.language.useWorkspaceLanguage, "Usar el idioma del negocio")
+  assert.equal(spanish.common.saveChanges, "Guardar cambios")
+})
+
+test("getUIMessages: de/de-CH still fall back to English until German content lands", () => {
   const english = getUIMessages("en")
-  assert.equal(getUIMessages("es"), english)
-  assert.equal(getUIMessages("es-MX"), english)
   assert.equal(getUIMessages("de"), english)
   assert.equal(getUIMessages("de-CH"), english)
 })
@@ -117,8 +153,9 @@ test("getNamespace: nav matches getUIMessages(...).nav", () => {
 test("getNamespace: resolves the new namespaces with per-namespace inference", () => {
   assert.equal(getNamespace("en", "settings"), getUIMessages("en").settings)
   assert.equal(getNamespace("en", "billing"), getUIMessages("en").billing)
-  // es/de have no real content yet: namespace resolution falls back to English.
-  assert.equal(getNamespace("es", "today"), getNamespace("en", "today"))
+  // es resolves from the real Spanish catalog (P4.1); de still falls back to English.
+  assert.equal(getNamespace("es", "today"), getUIMessages("es").today)
+  assert.equal(getNamespace("es", "settings"), getUIMessages("es").settings)
   assert.equal(getNamespace("de", "clients"), getNamespace("en", "clients"))
 })
 

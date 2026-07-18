@@ -13,6 +13,7 @@ import { parseLocale } from "../locale"
 import type { SupportedLocale } from "../types"
 import type { UIMessages, UINamespace } from "./types"
 import { en } from "./en"
+import { es } from "./es"
 
 export type { UIMessages, UINamespace } from "./types"
 export type {
@@ -28,15 +29,16 @@ export type {
 /**
  * Locale → UI messages.
  *
- * Partial by design: only `en` has real content in this phase. `es` and `de`
- * intentionally resolve to the English object below — this is a temporary
- * FALLBACK, not finished translation. When Spanish/German UI content lands,
- * replace these aliases with real per-locale namespace objects.
+ * `en` and `es` are real catalogs (P4.1: Spanish is fully translated for
+ * settings/common; the remaining namespaces carry English values until their
+ * surfaces are wired in the Finesse pilot). `de` still resolves to the
+ * English object — a temporary FALLBACK, not finished translation; replace
+ * the alias with a real `./de` catalog when German content lands.
  */
 const UI_MAP: Partial<Record<SupportedLocale, UIMessages>> = {
   en,
-  // Fallback (not translated yet): serve English until es/de content exists.
-  es: en,
+  es,
+  // Fallback (not translated yet): serve English until de content exists.
   de: en,
 }
 
