@@ -4,6 +4,7 @@ import { requireReadAccess } from "@core/auth/workspace-auth"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { mintEphemeralClientSecret, resolveSafetyIdentifier } from "@core/voice/mint"
 import { sanitizeFinesseContext } from "@modules/assistant/finesse-assistant"
+import { getRequestLocale } from "@core/i18n/server"
 import {
   FINESSE_TRANSCRIPTION_MODEL,
   FINESSE_VOICE_LIMITS,
@@ -118,9 +119,13 @@ export async function POST(req: NextRequest) {
   const context = sanitizeFinesseContext(payload.context)
   const conversationSummary = clipConversationSummary(payload.conversationSummary)
 
+  // The voice speaks the USER's effective interface language (User.locale →
+  // Accept-Language → en), never the workspace's customer-facing language.
+  const { locale: effectiveLocale } = await getRequestLocale()
+
   const instructions = buildFinesseVoiceInstructions({
     workspaceName: ws.nombre ?? null,
-    locale: ws.locale,
+    locale: effectiveLocale,
     context,
     conversationSummary,
   })
