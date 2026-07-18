@@ -88,9 +88,16 @@ export const BEAUTY_MODULE_VISIBILITY: Record<string, boolean> = {
  * These complement the `beauty` business-type preset for anything a workspace
  * wants to pin explicitly.
  */
+/**
+ * P4.2.1: neutral Cliente/Clientes is the product decision for standard
+ * Finesse (mixed clienteles). NOTE: these seeds land in Vertical.defaultConfig
+ * ui.labels — vertical DEFAULTS, not workspace personalization. The vocabulary
+ * resolver deliberately ignores them (it reads only the workspace's OWN raw
+ * config labels); language-variant nouns live in LOCALIZED_BUSINESS_PRESETS.
+ */
 export const BEAUTY_LABEL_OVERRIDES: Record<string, string> = {
-  "client.singular": "Clienta",
-  "client.plural": "Clientas",
+  "client.singular": "Cliente",
+  "client.plural": "Clientes",
   "calendar.singular": "Agenda",
   "calendar.plural": "Agenda",
   "inbox.singular": "Mensajes",

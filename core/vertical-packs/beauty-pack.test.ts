@@ -60,13 +60,22 @@ test("beauty verticalKeys map to the beauty business type", () => {
   assert.equal(mapVerticalKeyToBusinessType("nails"), "beauty")
 })
 
-test("beauty vocabulary is Spanish (Clientas / Agenda / Mensajes)", () => {
-  const v = resolveVocabulary("beauty")
-  assert.equal(v.client.plural, "Clientas")
-  assert.equal(v.client.singular, "Clienta")
-  assert.equal(v.calendar.singular, "Agenda")
-  assert.equal(v.inbox.singular, "Mensajes")
-  assert.equal(v.billing.plural, "Cobros")
+test("beauty vocabulary localizes by effective locale (P4.2.1)", () => {
+  // Spanish variant: neutral Cliente/Clientes + Agenda/Mensajes/Cobros.
+  const es = resolveVocabulary("beauty", undefined, "es")
+  assert.equal(es.client.singular, "Cliente")
+  assert.equal(es.client.plural, "Clientes")
+  assert.equal(es.calendar.singular, "Agenda")
+  assert.equal(es.inbox.singular, "Mensajes")
+  assert.equal(es.billing.plural, "Cobros")
+  // English/base variant: no Spanish nouns in an English UI.
+  const en = resolveVocabulary("beauty", undefined, "en")
+  assert.equal(en.client.plural, "Clients")
+  assert.equal(en.calendar.singular, "Calendar")
+  assert.equal(en.inbox.singular, "Messages")
+  assert.equal(en.billing.singular, "Billing")
+  // No locale (legacy callers) behaves as the base/English variant.
+  assert.equal(resolveVocabulary("beauty").inbox.singular, "Messages")
 })
 
 test("NO REGRESSION: existing verticals and defaults are unchanged", () => {

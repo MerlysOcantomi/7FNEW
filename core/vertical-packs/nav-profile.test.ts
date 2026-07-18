@@ -51,13 +51,28 @@ test("Beauty primary menu is Hoy · Agenda · Mensajes · Clientas, in order", (
   ])
 })
 
-test("Beauty labels are Spanish", () => {
+test("Beauty fallback labels are Spanish and client-neutral (P4.2.1)", () => {
+  // These literals are FALLBACKS — the sidebar composes real labels from
+  // entity/nav bindings; standard Finesse never shows "Clientas".
   const byId = Object.fromEntries(BEAUTY_NAV_PROFILE.items.map((i) => [i.id, i.label]))
   assert.equal(byId.today, "Hoy")
   assert.equal(byId.agenda, "Agenda")
-  assert.equal(byId.clientas, "Clientas")
+  assert.equal(byId.clientas, "Clientes")
   assert.equal(byId.mensajes, "Mensajes")
   assert.equal(byId.servicios, "Servicios")
+})
+
+test("Beauty items declare their label source bindings", () => {
+  const byId = Object.fromEntries(BEAUTY_NAV_PROFILE.items.map((i) => [i.id, i]))
+  assert.equal(byId.today.navLabelKey, "today")
+  assert.equal(byId.clientas.entityKey, "client")
+  assert.equal(byId.clientas.entityForm, "plural")
+  assert.equal(byId.agenda.entityKey, "calendar")
+  assert.equal(byId.mensajes.entityKey, "inbox")
+  assert.equal(byId.cobros.entityKey, "billing")
+  // Brand item stays literal on purpose.
+  assert.equal(byId.forte.entityKey, undefined)
+  assert.equal(byId.forte.navLabelKey, undefined)
 })
 
 test("Beauty hides Projects / Reports / advanced Finance by omission", () => {

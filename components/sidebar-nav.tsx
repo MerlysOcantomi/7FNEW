@@ -842,16 +842,18 @@ function useSectionsWithBadges(
   verticalKey?: string | null,
 ): NavSection[] {
   const inboxBadge = useInboxBadge();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   /**
-   * Vocabulary resolved client-side from the vertical preset (pure resolver,
-   * reactive to workspace switching via `verticalKey`). Workspace-level custom
-   * `ui.labels` overrides are not in the client workspace summary yet — the
-   * shell composes DEFAULT → preset, same data the vertical nav used before.
+   * Vocabulary resolved client-side from the LOCALIZED vertical preset (pure
+   * resolver, reactive to workspace switching via `verticalKey` and to locale
+   * changes). Workspace-level custom `ui.labels` overrides are not in the
+   * client workspace summary yet — the shell composes DEFAULT → preset →
+   * locale variant; explicit workspace nouns reach server-rendered surfaces
+   * via `resolveWorkspaceVocabulary`.
    */
   const vocabulary = useMemo(
-    () => resolveVocabulary(mapVerticalKeyToBusinessType(verticalKey ?? "")),
-    [verticalKey],
+    () => resolveVocabulary(mapVerticalKeyToBusinessType(verticalKey ?? ""), undefined, locale),
+    [verticalKey, locale],
   );
   return useMemo(() => {
     // Vertical workspaces render their own nav profile; everything else keeps

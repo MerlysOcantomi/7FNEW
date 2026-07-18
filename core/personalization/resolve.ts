@@ -2,9 +2,18 @@
  * Vocabulary resolver.
  *
  * Resolution order (last wins):
- *   1. DEFAULT_VOCABULARY
- *   2. Business-type preset (if any)
- *   3. Workspace-level overrides from VerticalConfig.ui.labels
+ *   1. DEFAULT_VOCABULARY                      (English base)
+ *   2. Business-type BASE preset               (vertical default, English)
+ *   3. LOCALIZED preset variant for the locale (vertical default, es/…)
+ *   4. Workspace-level overrides from the workspace's OWN
+ *      VerticalConfig.ui.labels                (explicit personalization)
+ *
+ * Layers 2–3 are vertical DEFAULTS chosen by the effective locale; layer 4
+ * is the only layer that represents a deliberate workspace choice and is
+ * locale-independent (a business that renames Clients to "Socios" sees
+ * "Socios" under any UI language). Callers must never feed vertical-default
+ * labels (e.g. a Vertical.defaultConfig ui.labels blob) into layer 4 — that
+ * would disguise a preset as a personalization.
  *
  * The workspace override layer uses flat keys like "client" or
  * "client.plural" to override specific fields. This aligns with
@@ -19,7 +28,7 @@ import type {
   VocabularyOverrides,
 } from "./types"
 import { DEFAULT_VOCABULARY } from "./vocabulary"
-import { BUSINESS_PRESETS } from "./presets"
+import { BUSINESS_PRESETS, LOCALIZED_BUSINESS_PRESETS } from "./presets"
 
 const ENTITY_KEYS = Object.keys(DEFAULT_VOCABULARY) as EntityKey[]
 
@@ -65,11 +74,28 @@ function parseWorkspaceLabels(
   return overrides
 }
 
+/**
+ * Normalize an arbitrary locale string to the canonical prefix used as the
+ * LOCALIZED_BUSINESS_PRESETS key ("es-MX" → "es"). Local on purpose — this
+ * module stays decoupled from @core/i18n.
+ */
+function presetLocaleKey(locale: string | null | undefined): string | null {
+  if (!locale || typeof locale !== "string") return null
+  const prefix = locale.trim().toLowerCase().split(/[-_]/)[0]
+  return prefix || null
+}
+
 export function resolveVocabulary(
   businessType?: BusinessType,
   workspaceLabels?: Record<string, string>,
+  locale?: string | null,
 ): EntityVocabulary {
   const preset = businessType ? BUSINESS_PRESETS[businessType] ?? {} : {}
+  const localeKey = presetLocaleKey(locale)
+  const localized =
+    businessType && localeKey
+      ? LOCALIZED_BUSINESS_PRESETS[businessType]?.[localeKey] ?? {}
+      : {}
   const wsOverrides = workspaceLabels ? parseWorkspaceLabels(workspaceLabels) : {}
 
   const resolved = {} as EntityVocabulary
@@ -77,7 +103,8 @@ export function resolveVocabulary(
   for (const key of ENTITY_KEYS) {
     const base = DEFAULT_VOCABULARY[key]
     const withPreset = mergeLabel(base, preset[key])
-    const withWorkspace = mergeLabel(withPreset, wsOverrides[key])
+    const withLocalized = mergeLabel(withPreset, localized[key])
+    const withWorkspace = mergeLabel(withLocalized, wsOverrides[key])
     resolved[key] = withWorkspace
   }
 

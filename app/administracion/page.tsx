@@ -19,6 +19,7 @@ import { parseSettingsHandoff } from "@/agents/forte/runtime/business/settings-h
 import { AdministracionContent } from "@/components/administracion-content"
 import { resolveWorkspaceVocabulary } from "@core/personalization/resolve-workspace"
 import { DEFAULT_LOCALE, type SupportedLocale } from "@core/i18n"
+import { getRequestLocale } from "@core/i18n/server"
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -54,7 +55,10 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
       workspaceLocale = ws.locale
     }
 
-    vocabulary = await resolveWorkspaceVocabulary(workspaceId)
+    // Vocabulary now localizes by the viewer's effective locale (P4.2.1);
+    // getRequestLocale is per-request cached, so this adds no extra queries.
+    const requestLocale = await getRequestLocale()
+    vocabulary = await resolveWorkspaceVocabulary(workspaceId, requestLocale.locale)
   } catch {
     // If workspace resolution fails, render with empty config + default vocabulary
   }

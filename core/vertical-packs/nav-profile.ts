@@ -108,7 +108,7 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
     { id: "today", label: "Hoy", href: "/today", group: "primary", navLabelKey: "today" },
     { id: "agenda", label: "Agenda", href: "/calendario", group: "primary", entityKey: "calendar", entityForm: "singular" },
     { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
-    { id: "clientas", label: "Clientas", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
+    { id: "clientas", label: "Clientes", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
     { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "more", entityKey: "marketing", entityForm: "singular" },
     { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more", entityKey: "billing", entityForm: "plural" },
     { id: "servicios", label: "Servicios", href: "/services", group: "more", entityKey: "project", entityForm: "plural" },
