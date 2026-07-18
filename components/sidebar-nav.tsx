@@ -46,8 +46,15 @@ import {
 import { useState, createContext, useContext, useMemo, useEffect } from "react";
 import { useGlobalSearch } from "@/components/global-search-provider";
 import { useInboxBadge } from "@/hooks/use-inbox-badge";
-import type { EntityVocabulary } from "@core/personalization";
-import { DEFAULT_VOCABULARY } from "@core/personalization";
+import type { EntityKey, EntityVocabulary } from "@core/personalization";
+import {
+  DEFAULT_VOCABULARY,
+  composeEntityLabel,
+  mapVerticalKeyToBusinessType,
+  resolveVocabulary,
+} from "@core/personalization";
+import { useI18n } from "@/components/i18n-provider";
+import type { NavMessages } from "@core/i18n/ui";
 import { GlobalNewTriggerMobile } from "@/components/global-new/global-new-trigger";
 import { GlobalNewMobileSheet } from "@/components/global-new/global-new-mobile-sheet";
 import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigger";
@@ -230,12 +237,51 @@ const VERTICAL_NAV_ICONS: Record<string, React.ElementType> = {
  * Returns the same `NavSection[]` shape as the default nav, so every downstream
  * renderer (desktop, mobile, collapsed) is unchanged.
  */
+/**
+ * Locale-catalog fallback for an entity nav item — used only when the
+ * workspace vocabulary declares no explicit noun for the entity. Entities the
+ * nav namespace doesn't cover fall back to the profile's literal label.
+ */
+function entityNavFallback(nav: NavMessages, entity: EntityKey, literal: string): string {
+  switch (entity) {
+    case "client": return nav.clients;
+    case "calendar": return nav.calendar;
+    case "inbox": return nav.inbox;
+    case "billing":
+    case "invoice": return nav.billing;
+    case "project": return nav.services;
+    case "member": return nav.team;
+    case "marketing": return nav.marketing;
+    case "task": return nav.tasks;
+    case "finance": return nav.finance;
+    default: return literal;
+  }
+}
+
 function buildVerticalNavSections(
   profile: VerticalNavProfile,
   includedSeats: number | null | undefined,
+  nav: NavMessages,
+  vocabulary: EntityVocabulary,
 ): NavSection[] {
+  /**
+   * Label composition (P4.2): the profile declares the label SOURCE —
+   * entity items render the workspace's vocabulary noun (Clientas/Agenda/
+   * Mensajes/Cobros) with the locale catalog as generic fallback; structural
+   * items (Hoy) come from the nav catalog; items with neither binding keep
+   * their literal (brand names like "Mr. Forte Lab").
+   */
   const toNavItem = (item: VerticalNavProfile["items"][number]): NavItem => ({
-    label: item.label,
+    label: item.entityKey
+      ? composeEntityLabel({
+          vocabulary,
+          entity: item.entityKey,
+          form: item.entityForm ?? "singular",
+          fallback: entityNavFallback(nav, item.entityKey, item.label),
+        })
+      : item.navLabelKey
+        ? nav[item.navLabelKey]
+        : item.label,
     href: item.href,
     icon: VERTICAL_NAV_ICONS[item.id] ?? LayoutDashboard,
     helper: item.helper,
@@ -250,7 +296,8 @@ function buildVerticalNavSections(
   const sections: NavSection[] = [{ section: "Main", subtitle: "", items: primary }];
   if (more.length > 0) {
     sections.push({
-      section: profile.moreLabel,
+      // Locale catalog first; the profile's literal stays as safety net.
+      section: nav.more || profile.moreLabel,
       subtitle: "",
       icon: BookOpen,
       items: more,
@@ -670,6 +717,8 @@ function InboxFocusedNav({
   collapsed?: boolean;
   onNavClick?: () => void;
 }) {
+  /** Only the shared shell exit label localizes here; Inbox naming stays put. */
+  const backToWorkspaceLabel = useI18n().t.nav.backToWorkspace;
   /**
    * When expanded we show Work / Smart views / Storage group separators (matching the
    * global sidebar's submenu). When collapsed, the separators don't fit the icon-only
@@ -736,7 +785,7 @@ function InboxFocusedNav({
       <Link
         href="/"
         onClick={onNavClick}
-        title={collapsed ? "Back to 7F" : undefined}
+        title={collapsed ? backToWorkspaceLabel : undefined}
         className={cn(
           "flex items-center gap-2 rounded-[8px] text-[11px] font-medium transition-colors",
           collapsed ? "justify-center px-2 py-1" : "px-2.5 py-1",
@@ -744,7 +793,7 @@ function InboxFocusedNav({
         )}
       >
         <ArrowLeft size={13} strokeWidth={2} className="shrink-0" />
-        {!collapsed && <span>Back to 7F</span>}
+        {!collapsed && <span>{backToWorkspaceLabel}</span>}
       </Link>
 
       {/** Inbox + Work / Smart views / Storage filters. Shared with the global sidebar's submenu. */}
@@ -790,12 +839,26 @@ function SidebarNavLoading({ collapsed = false }: { collapsed?: boolean }) {
 function useSectionsWithBadges(
   profile?: VerticalNavProfile | null,
   includedSeats?: number | null,
+  verticalKey?: string | null,
 ): NavSection[] {
   const inboxBadge = useInboxBadge();
+  const { t } = useI18n();
+  /**
+   * Vocabulary resolved client-side from the vertical preset (pure resolver,
+   * reactive to workspace switching via `verticalKey`). Workspace-level custom
+   * `ui.labels` overrides are not in the client workspace summary yet — the
+   * shell composes DEFAULT → preset, same data the vertical nav used before.
+   */
+  const vocabulary = useMemo(
+    () => resolveVocabulary(mapVerticalKeyToBusinessType(verticalKey ?? "")),
+    [verticalKey],
+  );
   return useMemo(() => {
     // Vertical workspaces render their own nav profile; everything else keeps
     // the default 7F Core nav byte-for-byte.
-    const base = profile ? buildVerticalNavSections(profile, includedSeats) : NAV_SECTIONS;
+    const base = profile
+      ? buildVerticalNavSections(profile, includedSeats, t.nav, vocabulary)
+      : NAV_SECTIONS;
     if (inboxBadge === 0) return base;
     return base.map((section) => ({
       ...section,
@@ -805,7 +868,7 @@ function useSectionsWithBadges(
           : item
       ),
     }));
-  }, [inboxBadge, profile, includedSeats]);
+  }, [inboxBadge, profile, includedSeats, t.nav, vocabulary]);
 }
 
 // ── Desktop Sidebar ──────────────────────────────────────────────────────────
@@ -829,7 +892,8 @@ export function SidebarNav() {
   const includedSeats = workspace
     ? resolveWorkspacePlan({ plan: workspace.plan }).limits.includedSeats
     : undefined;
-  const sections = useSectionsWithBadges(verticalProfile, includedSeats);
+  const sections = useSectionsWithBadges(verticalProfile, includedSeats, workspace?.verticalKey);
+  const { t } = useI18n();
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
   );
@@ -898,7 +962,7 @@ export function SidebarNav() {
           <Link
             href="/"
             className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40"
-            title={focused ? "Back to 7F" : "7F"}
+            title={focused ? t.nav.backToWorkspace : "7F"}
           >
             <div className="w-8 h-8 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shrink-0 shadow-lg">
               <span className="text-white text-sm font-bold tracking-tight">7F</span>
@@ -910,7 +974,7 @@ export function SidebarNav() {
           <Link
             href="/"
             className="w-8 h-8 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]/40"
-            title={focused ? "Back to 7F" : "7F"}
+            title={focused ? t.nav.backToWorkspace : "7F"}
           >
             <span className="text-white text-sm font-bold tracking-tight">7F</span>
           </Link>
@@ -921,8 +985,8 @@ export function SidebarNav() {
             "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] transition-colors p-1 rounded",
             collapsed && "mt-1"
           )}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? t.nav.expandSidebar : t.nav.collapseSidebar}
+          title={collapsed ? t.nav.expandSidebar : t.nav.collapseSidebar}
         >
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </button>
@@ -951,10 +1015,10 @@ export function SidebarNav() {
                 : "px-3 py-2",
             "text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-surface)]/60",
           )}
-          title="Search (Ctrl+K)"
+          title={`${t.nav.search} (Ctrl+K)`}
         >
           <Search size={15} strokeWidth={1.75} />
-          {!collapsed && <span>Search</span>}
+          {!collapsed && <span>{t.nav.search}</span>}
         </button>
       </div>
 
@@ -1023,7 +1087,8 @@ export function MobileSidebarNav() {
   const includedSeats = workspace
     ? resolveWorkspacePlan({ plan: workspace.plan }).limits.includedSeats
     : undefined;
-  const sections = useSectionsWithBadges(verticalProfile, includedSeats);
+  const sections = useSectionsWithBadges(verticalProfile, includedSeats, workspace?.verticalKey);
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string>(
     pathname === "/" ? "Overview" : getActiveSectionFor(pathname)
@@ -1069,14 +1134,14 @@ export function MobileSidebarNav() {
           <button
             onClick={openSearch}
             className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
-            aria-label="Search"
+            aria-label={t.nav.search}
           >
             <Search size={20} />
           </button>
           <button
             onClick={() => setOpen(true)}
             className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
-            aria-label="Open navigation"
+            aria-label={t.nav.openNavigation}
           >
             <Menu size={20} />
           </button>
@@ -1088,7 +1153,7 @@ export function MobileSidebarNav() {
           side="left"
           className="w-64 p-0 bg-[var(--app-sidebar-bg)] border-r-0 [&>button]:hidden flex flex-col"
         >
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetTitle className="sr-only">{t.nav.navigationTitle}</SheetTitle>
           <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-[var(--app-accent)] flex items-center justify-center">
@@ -1099,7 +1164,7 @@ export function MobileSidebarNav() {
             <button
               onClick={() => setOpen(false)}
               className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)]"
-              aria-label="Close navigation"
+              aria-label={t.nav.closeNavigation}
             >
               <X size={18} />
             </button>
