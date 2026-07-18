@@ -24,8 +24,9 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { ClienteForm } from "@/components/forms/cliente-form";
-import { displayLabel, estadoLabel } from "@/lib/api-client";
 import { useI18n } from "@/components/i18n-provider";
+import { resolveStatusLabel } from "@core/i18n/ui";
+import { formatCurrency } from "@core/i18n/format";
 import { useClientsNouns, capNoun } from "@/hooks/use-clients-nouns";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,9 +64,14 @@ function formatDate(value: string | Date | null | undefined, locale: string): st
   }
 }
 
-function formatCurrency(value: number | null | undefined): string {
+function formatMoney(
+  value: number | null | undefined,
+  locale: string,
+  currency: string | null | undefined,
+): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("es", { style: "currency", currency: "CHF" }).format(value);
+  // Currency comes from the client's own record — never inferred from the language.
+  return formatCurrency(value, { locale, currency: currency || "USD" }) || "—";
 }
 
 function getInitials(name: string): string {
@@ -92,7 +98,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── Tab panels ────────────────────────────────────────────────────────────────
 
 function TabResumen({ client }: { client: any }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const nouns = useClientsNouns();
   const D = t.clients.detail;
   const proyectos = client.proyectos ?? [];
@@ -106,8 +112,8 @@ function TabResumen({ client }: { client: any }) {
 
   const snapshot = [
     { label: D.snapshot.activeProjects({ projects: nouns.projects }), value: String(proyectos.filter((p: any) => p.estado !== "completado" && p.estado !== "cancelado").length) },
-    { label: D.snapshot.billedRevenue, value: formatCurrency(totalFacturado) },
-    { label: D.snapshot.outstandingInvoices({ invoices: nouns.invoices }), value: `${facturasPendientes} (${formatCurrency(totalPendiente)})` },
+    { label: D.snapshot.billedRevenue, value: formatMoney(totalFacturado, locale, client.currency) },
+    { label: D.snapshot.outstandingInvoices({ invoices: nouns.invoices }), value: `${facturasPendientes} (${formatMoney(totalPendiente, locale, client.currency)})` },
     { label: D.snapshot.clientSince({ client: nouns.client }), value: clienteDesde ? String(clienteDesde) : "—" },
   ];
 
@@ -186,7 +192,7 @@ function TabProyectos({ client }: { client: any }) {
                   <Link href={`/proyectos/${p.id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate">
                     {p.nombre}
                   </Link>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", ps)}>{displayLabel(p.estado, estadoLabel)}</span>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", ps)}>{resolveStatusLabel(t.statuses, p.estado)}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 max-w-[200px]">
@@ -257,9 +263,9 @@ function TabFacturacion({ client }: { client: any }) {
               className={cn("grid grid-cols-12 items-center px-5 py-4 hover:bg-background transition-colors", i < facturas.length - 1 && "border-b border-muted")}
             >
               <span className="col-span-4 text-sm font-medium text-primary hover:text-primary/80 transition-colors">#{f.numero}</span>
-              <span className="col-span-3 text-sm font-medium text-foreground">{formatCurrency(f.total)}</span>
+              <span className="col-span-3 text-sm font-medium text-foreground">{formatMoney(f.total, locale, client.currency)}</span>
               <span className="col-span-3 text-sm text-muted-foreground">{formatDate(f.fechaVencimiento, locale)}</span>
-              <span className={cn("col-span-2 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s)}>{displayLabel(f.estado, estadoLabel)}</span>
+              <span className={cn("col-span-2 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s)}>{resolveStatusLabel(t.statuses, f.estado)}</span>
             </Link>
           );
         })}
@@ -272,9 +278,9 @@ function TabFacturacion({ client }: { client: any }) {
             <Link key={f.id} href={`/facturacion/${f.id}`} className="block bg-card rounded-xl border border-border p-4 hover:bg-background">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm font-semibold text-primary">#{f.numero}</span>
-                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s)}>{displayLabel(f.estado, estadoLabel)}</span>
+                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s)}>{resolveStatusLabel(t.statuses, f.estado)}</span>
               </div>
-              <p className="text-sm font-medium text-foreground">{formatCurrency(f.total)}</p>
+              <p className="text-sm font-medium text-foreground">{formatMoney(f.total, locale, client.currency)}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{D.due(formatDate(f.fechaVencimiento, locale))}</p>
             </Link>
           );

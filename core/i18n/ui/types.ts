@@ -463,10 +463,47 @@ export interface UIMessages {
   clients: ClientsMessages
   calendar: CalendarMessages
   billing: BillingMessages
+  statuses: StatusesMessages
   voice: VoiceMessages
 }
 
 /** Union of valid namespace keys. */
+/**
+ * Shared status/priority labels for persisted Spanish enum VALUES (clients,
+ * projects, invoices, tasks, campaigns). The stored values never change —
+ * only these visible labels localize. Replaces the English-only
+ * `estadoLabel`/`prioridadLabel` maps in `tools/api-client.ts` as the display
+ * source (`resolveStatusLabel` in `ui/index.ts` falls back to the raw value).
+ */
+export interface StatusesMessages {
+  estado: {
+    activo: string
+    inactivo: string
+    prospecto: string
+    planificacion: string
+    en_progreso: string
+    revision: string
+    completado: string
+    cancelado: string
+    pendiente: string
+    completada: string
+    cancelada: string
+    borrador: string
+    enviada: string
+    pagada: string
+    vencida: string
+    activa: string
+    pausada: string
+    en_pausa: string
+  }
+  prioridad: {
+    baja: string
+    media: string
+    alta: string
+    urgente: string
+  }
+}
+
 export type UINamespace = keyof UIMessages
 
 /**

@@ -204,7 +204,7 @@ test("getUIMessages: complete catalogs with no empty strings for ALL five locale
 
 // ─── namespace registry (P2) ───────────────────────────────────────────────────
 
-test("getUIMessages: exposes exactly the ten canonical namespaces", () => {
+test("getUIMessages: exposes exactly the canonical namespaces", () => {
   assert.deepEqual(Object.keys(getUIMessages("en")).sort(), [
     "billing",
     "calendar",
@@ -214,6 +214,7 @@ test("getUIMessages: exposes exactly the ten canonical namespaces", () => {
     "globalSearch",
     "nav",
     "settings",
+    "statuses",
     "today",
     "voice",
   ])

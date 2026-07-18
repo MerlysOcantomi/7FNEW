@@ -6,6 +6,7 @@ import { globalNew } from "./global-new"
 import { settings } from "./settings"
 import { today } from "./today"
 import { clients } from "./clients"
+import { statuses } from "./statuses"
 import { voice } from "./voice"
 
 /**
@@ -24,5 +25,6 @@ export const es: LocaleCatalogOverrides = {
   settings,
   today,
   clients,
+  statuses,
   voice,
 }

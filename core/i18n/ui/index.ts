@@ -88,6 +88,20 @@ export function localeHasPendingCoverage(locale: SupportedLocale): boolean {
 }
 
 /**
+ * Localized display label for a persisted status/priority enum VALUE. Falls
+ * back to the raw value for unknown codes (never invents a translation).
+ */
+export function resolveStatusLabel(
+  statuses: UIMessages["statuses"],
+  value: string | null | undefined,
+): string {
+  if (!value) return ""
+  const estado = statuses.estado as Record<string, string>
+  const prioridad = statuses.prioridad as Record<string, string>
+  return estado[value] ?? prioridad[value] ?? value
+}
+
+/**
  * UI locales OFFERED by the personal language selector for a business type
  * (P4.FINESSE-ENES §2). Finesse (beauty) surfaces are fully covered in en/es
  * only, so a beauty workspace temporarily offers just those two — offering

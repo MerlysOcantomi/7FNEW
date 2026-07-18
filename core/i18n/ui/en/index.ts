@@ -8,6 +8,7 @@ import { today } from "./today"
 import { clients } from "./clients"
 import { calendar } from "./calendar"
 import { billing } from "./billing"
+import { statuses } from "./statuses"
 import { voice } from "./voice"
 
 /** Composed English UI messages. */
@@ -21,5 +22,6 @@ export const en: UIMessages = {
   clients,
   calendar,
   billing,
+  statuses,
   voice,
 }
