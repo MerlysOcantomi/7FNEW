@@ -8,10 +8,26 @@ language rule, and the scalability/market lens for every decision:
 
 **→ [docs/ways-of-working.md](docs/ways-of-working.md)**
 
+The canonical execution protocol for planning, branches, pull requests, direct
+integration to `master`, session/prompt numbering, progress updates, and final
+response formatting:
+
+**→ [docs/execution-workflow.md](docs/execution-workflow.md)**
+
+When workflow wording conflicts, `docs/execution-workflow.md` controls execution,
+branch, pull-request, integration, and response-delivery behavior.
+
 Summary:
 
-- **Audit → propose → (approval) → minimal change → checks → commit → push →
-  summary → next smart move.** Small, single-objective PRs only.
+- **Audit → plan → implement one coherent solution → checks → commit → push to
+  `master` → verify → structured final response.**
+- Do not create branches or pull requests by default. Use them only for a concrete
+  risk, preview, protection, or explicit review need, then merge promptly.
+- Before implementing, inspect `master`, open PRs, branches, and unmerged commits so
+  an existing solution is integrated, ported, or discarded before a second version
+  is created.
+- Number every work session and prompt. Deliver prompts and final responses in the
+  copyable format defined by the execution contract.
 - **Do not duplicate surfaces** (Home, Inbox, Inbox Briefing, Today, Calendar,
   Dashboard, Work Queue); each answers one clear question.
 - **Canonical:** multi-tenant `workspaceId`; `WorkspaceTask` for confirmed/proposed
