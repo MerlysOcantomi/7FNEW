@@ -49,8 +49,8 @@ export default async function RootLayout({
    * Falls back to midnight for signed-out/public routes or non-beauty verticals.
    *
    * `getRequestLocale()` resolves the effective UI locale (authenticated:
-   * User.locale → workspace → Accept-Language → en; anonymous: 7f-locale
-   * cookie → Accept-Language → en). Read-only; per-request memoized. Both
+   * User.locale → workspace → en; anonymous: 7f-locale cookie →
+   * Accept-Language → en). Read-only; per-request memoized. Both
    * resolutions are independent, so they run in parallel.
    * `suppressHydrationWarning` remains REQUIRED by the theme system (the
    * no-FOUC script mutates <html data-theme> before hydration) — it is not

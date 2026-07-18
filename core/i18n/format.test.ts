@@ -129,3 +129,66 @@ test("formatters: invalid input returns empty string, never throws", () => {
   assert.equal(formatCurrency(undefined, { locale: "it", currency: "CHF" }), "")
   assert.equal(formatRelativeTime("nope", { locale: "en", now: Date.now() }), "")
 })
+
+// ─── P4.CORE-5L.1 hardening ───────────────────────────────────────────────────
+
+test("dates: only unambiguous ISO 8601 strings are accepted", () => {
+  // Accepted ISO forms render normally.
+  assert.notEqual(formatDate("2026-03-05", { locale: "en" }), "")
+  assert.notEqual(formatDate("2026-03-05T14:30", { locale: "en" }), "")
+  assert.notEqual(formatDate("2026-03-05T14:30:00Z", { locale: "en" }), "")
+  assert.notEqual(formatDate("2026-03-05T14:30:00.123+01:00", { locale: "en" }), "")
+  // Ambiguous regional forms and free text are rejected, never guessed.
+  assert.equal(formatDate("03/04/2026", { locale: "en" }), "")
+  assert.equal(formatDate("04-05-2026", { locale: "en" }), "")
+  assert.equal(formatDate("March 5, 2026", { locale: "en" }), "")
+  assert.equal(formatDate("next tuesday", { locale: "en" }), "")
+  // Out-of-range ISO parses to Invalid Date → "".
+  assert.equal(formatDate("2026-02-30", { locale: "en" }), "")
+  // Invalid Date instances and non-finite timestamps stay rejected.
+  assert.equal(formatDate(new Date("nope"), { locale: "en" }), "")
+  assert.equal(formatDate(Number.POSITIVE_INFINITY, { locale: "en" }), "")
+  assert.equal(formatDateTime("05/03/2026 14:30", { locale: "es" }), "")
+  assert.equal(
+    formatRelativeTime("04-05-2026", { locale: "en", now: new Date(Date.UTC(2026, 2, 5)) }),
+    "",
+  )
+})
+
+test("no-throw: invalid or empty currency codes return empty string", () => {
+  assert.equal(formatCurrency(10, { locale: "es", currency: "EUROS" }), "")
+  assert.equal(formatCurrency(10, { locale: "es", currency: "" }), "")
+  assert.equal(formatCurrency(10, { locale: "es", currency: "€" }), "")
+})
+
+test("no-throw: invalid timezone returns empty string", () => {
+  assert.equal(formatDate(SAMPLE, { locale: "en", timeZone: "Mars/Olympus" }), "")
+  assert.equal(formatTime(SAMPLE, { locale: "en", timeZone: "nope" }), "")
+  assert.equal(formatDateTime(SAMPLE, { locale: "en", timeZone: "UTC+99" }), "")
+})
+
+test("no-throw: out-of-range numeric options return empty string", () => {
+  assert.equal(formatNumber(1.5, { locale: "en", maximumFractionDigits: 999 }), "")
+  assert.equal(formatPercent(0.5, { locale: "en", maximumFractionDigits: -1 }), "")
+})
+
+test("no-throw: malformed regional tags fall back to the base default", () => {
+  assert.equal(toIntlLocale("de-!!"), "de-DE")
+  assert.equal(formatNumber(1234.5, { locale: "de-!!" }),
+    new Intl.NumberFormat("de-DE").format(1234.5))
+})
+
+test("no-throw guarantee: no formatter throws on hostile inputs", () => {
+  const hostileLocales = [null, undefined, "", "zz-ZZ", "de-!!", "😀", "es_"]
+  const now = new Date(Date.UTC(2026, 2, 5))
+  for (const locale of hostileLocales) {
+    const l = locale as unknown as string
+    assert.doesNotThrow(() => formatDate(SAMPLE, { locale: l, timeZone: "Bad/Zone" }))
+    assert.doesNotThrow(() => formatTime(SAMPLE, { locale: l, timeZone: "Bad/Zone" }))
+    assert.doesNotThrow(() => formatDateTime("garbage", { locale: l }))
+    assert.doesNotThrow(() => formatNumber(1, { locale: l, maximumFractionDigits: 999 }))
+    assert.doesNotThrow(() => formatPercent(2, { locale: l, maximumFractionDigits: -5 }))
+    assert.doesNotThrow(() => formatCurrency(1, { locale: l, currency: "NOPE£" }))
+    assert.doesNotThrow(() => formatRelativeTime(SAMPLE, { locale: l, now }))
+  }
+})

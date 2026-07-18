@@ -15,7 +15,15 @@
  *   registry default of the FALLBACK locale (en-GB — never a hardcoded
  *   en-US).
  * - Invalid/ambiguous dates and non-finite numbers return "" so callers
- *   decide their own placeholder; nothing throws during render.
+ *   decide their own placeholder; nothing throws during render. That includes
+ *   Intl RangeErrors caused by external configuration — an invalid currency
+ *   code, timezone, malformed regional tag or out-of-range numeric option
+ *   degrades to "" instead of breaking the page. Programming errors outside
+ *   the Intl calls are NOT swallowed.
+ * - Date strings are accepted only as unambiguous ISO 8601 ("2026-03-05",
+ *   "2026-03-05T14:30:00Z"). Regional forms like "03/04/2026" are rejected
+ *   (returning "") rather than guessed — no regional parsing, and the native
+ *   ECMA-262 timezone semantics of ISO strings are left untouched.
  */
 
 import { LOCALE_REGISTRY, FALLBACK_LOCALE, type SupportedLocale } from "./types"
@@ -47,10 +55,31 @@ export function toIntlLocale(locale: FormatLocale | null | undefined): string {
   return LOCALE_REGISTRY[FALLBACK_LOCALE].intlLocale
 }
 
-/** Validated date input → Date, or null for anything unparseable. */
+/**
+ * Unambiguous ISO 8601: date, or date + "T" time with optional seconds,
+ * fraction and offset. Anything else ("03/04/2026", "04-05-2026", free text)
+ * is ambiguous across regions and rejected.
+ */
+const ISO_8601 =
+  /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
+
+/** Validated date input → Date, or null for invalid/ambiguous values. */
 function toValidDate(value: Date | string | number | null | undefined): Date | null {
   if (value == null) return null
-  const d = value instanceof Date ? value : new Date(value)
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  if (typeof value === "number") return Number.isFinite(value) ? new Date(value) : null
+  const trimmed = value.trim()
+  const m = ISO_8601.exec(trimmed)
+  if (!m) return null
+  // Calendar-validate the fields — engines roll "2026-02-30" over to March
+  // instead of rejecting it, and a silently shifted date is worse than none.
+  const [, year, month, day, hour, minute, second] = m
+  if (Number(month) < 1 || Number(month) > 12) return null
+  const daysInMonth = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate()
+  if (Number(day) < 1 || Number(day) > daysInMonth) return null
+  if (hour !== undefined && (Number(hour) > 23 || Number(minute) > 59 || Number(second ?? 0) > 59))
+    return null
+  const d = new Date(trimmed)
   return Number.isNaN(d.getTime()) ? null : d
 }
 
@@ -66,12 +95,16 @@ export function formatDate(
 ): string {
   const d = toValidDate(value)
   if (!d) return ""
-  return new Intl.DateTimeFormat(toIntlLocale(locale), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone,
-  }).format(d)
+  try {
+    return new Intl.DateTimeFormat(toIntlLocale(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone,
+    }).format(d)
+  } catch {
+    return "" // invalid timeZone/tag from configuration must not break render
+  }
 }
 
 export function formatTime(
@@ -80,11 +113,15 @@ export function formatTime(
 ): string {
   const d = toValidDate(value)
   if (!d) return ""
-  return new Intl.DateTimeFormat(toIntlLocale(locale), {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone,
-  }).format(d)
+  try {
+    return new Intl.DateTimeFormat(toIntlLocale(locale), {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone,
+    }).format(d)
+  } catch {
+    return ""
+  }
 }
 
 export function formatDateTime(
@@ -93,14 +130,18 @@ export function formatDateTime(
 ): string {
   const d = toValidDate(value)
   if (!d) return ""
-  return new Intl.DateTimeFormat(toIntlLocale(locale), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone,
-  }).format(d)
+  try {
+    return new Intl.DateTimeFormat(toIntlLocale(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone,
+    }).format(d)
+  } catch {
+    return ""
+  }
 }
 
 export function formatNumber(
@@ -108,7 +149,11 @@ export function formatNumber(
   { locale, maximumFractionDigits }: { locale: FormatLocale; maximumFractionDigits?: number },
 ): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return ""
-  return new Intl.NumberFormat(toIntlLocale(locale), { maximumFractionDigits }).format(value)
+  try {
+    return new Intl.NumberFormat(toIntlLocale(locale), { maximumFractionDigits }).format(value)
+  } catch {
+    return "" // out-of-range digit options are a config problem, not a crash
+  }
 }
 
 /** `ratio` is 0..1 (0.42 → "42%"), not a pre-multiplied percentage. */
@@ -117,10 +162,14 @@ export function formatPercent(
   { locale, maximumFractionDigits = 0 }: { locale: FormatLocale; maximumFractionDigits?: number },
 ): string {
   if (typeof ratio !== "number" || !Number.isFinite(ratio)) return ""
-  return new Intl.NumberFormat(toIntlLocale(locale), {
-    style: "percent",
-    maximumFractionDigits,
-  }).format(ratio)
+  try {
+    return new Intl.NumberFormat(toIntlLocale(locale), {
+      style: "percent",
+      maximumFractionDigits,
+    }).format(ratio)
+  } catch {
+    return ""
+  }
 }
 
 /**
@@ -133,7 +182,11 @@ export function formatCurrency(
   { locale, currency }: { locale: FormatLocale; currency: string },
 ): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return ""
-  return new Intl.NumberFormat(toIntlLocale(locale), { style: "currency", currency }).format(value)
+  try {
+    return new Intl.NumberFormat(toIntlLocale(locale), { style: "currency", currency }).format(value)
+  } catch {
+    return "" // an invalid/empty ISO 4217 code renders nothing, not a crash
+  }
 }
 
 const RELATIVE_STEPS: Array<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> = [
@@ -157,9 +210,13 @@ export function formatRelativeTime(
   const ref = toValidDate(now)
   if (!d || !ref) return ""
   const delta = d.getTime() - ref.getTime()
-  const rtf = new Intl.RelativeTimeFormat(toIntlLocale(locale), { numeric: "auto" })
-  for (const { unit, ms } of RELATIVE_STEPS) {
-    if (Math.abs(delta) >= ms) return rtf.format(Math.trunc(delta / ms), unit)
+  try {
+    const rtf = new Intl.RelativeTimeFormat(toIntlLocale(locale), { numeric: "auto" })
+    for (const { unit, ms } of RELATIVE_STEPS) {
+      if (Math.abs(delta) >= ms) return rtf.format(Math.trunc(delta / ms), unit)
+    }
+    return rtf.format(Math.trunc(delta / 1000), "second")
+  } catch {
+    return ""
   }
-  return rtf.format(Math.trunc(delta / 1000), "second")
 }

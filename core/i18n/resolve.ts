@@ -3,8 +3,12 @@
  *
  * Two chains, decided in docs/i18n-localization-architecture.md §7:
  *
- *   Authenticated: User.locale → Workspace.config.locale → Accept-Language → en
- *   Anonymous:     cookie 7f-locale → Accept-Language → en
+ *   Authenticated: User.locale → Workspace.config.locale → en (DEFAULT_LOCALE)
+ *   Anonymous:     cookie 7f-locale → Accept-Language → en (DEFAULT_LOCALE)
+ *
+ * Accept-Language matters only BEFORE login: once authenticated, the UI
+ * follows explicit product settings (personal preference, then the business
+ * default) — a device set to fr/de/it never overrides them.
  *
  * The cookie NEVER participates in the authenticated chain — it is a technical
  * mirror of the resolution result, not an authority. `resolveRequestLocale`
@@ -18,7 +22,7 @@
 import { DEFAULT_LOCALE, type SupportedLocale } from "./types"
 import { isValidLocale } from "./locale"
 
-/** Where the effective locale came from. */
+/** Where the effective locale came from. `accept-language` is anonymous-only. */
 export type LocaleSource =
   | "user"
   | "workspace"
@@ -88,7 +92,7 @@ export function parseAcceptLanguage(header: string | null | undefined): Supporte
  * Unlike the legacy `resolveLocaleFromConfig` (which always defaults to "en"),
  * this returns null when the config has no locale — the distinction is what
  * lets `resolveRequestLocale` attribute the source honestly ("workspace" vs
- * "accept-language"/"default").
+ * "default").
  */
 export function readWorkspaceLocaleRaw(configJson: string | null | undefined): string | null {
   if (!configJson) return null
@@ -104,20 +108,20 @@ export function readWorkspaceLocaleRaw(configJson: string | null | undefined): s
   return null
 }
 
-/** Authenticated chain. The cookie is deliberately NOT an input. */
+/**
+ * Authenticated chain. The cookie is deliberately NOT an input — and neither
+ * is Accept-Language: after login only explicit settings decide (personal
+ * preference, then the business default, then DEFAULT_LOCALE).
+ */
 export function resolveAuthenticatedLocale(input: {
   userLocale: string | null | undefined
   workspaceLocale: string | null | undefined
-  acceptLanguage: string | null | undefined
 }): ResolvedLocale {
   const user = pickValid(input.userLocale)
   if (user) return { locale: user, source: "user" }
 
   const workspace = pickValid(input.workspaceLocale)
   if (workspace) return { locale: workspace, source: "workspace" }
-
-  const header = parseAcceptLanguage(input.acceptLanguage)
-  if (header) return { locale: header, source: "accept-language" }
 
   return { locale: DEFAULT_LOCALE, source: "default" }
 }
@@ -167,6 +171,7 @@ export function resolveRequestLocale(input: {
   userLocale: string | null | undefined
   workspaceLocale: string | null | undefined
   cookieLocale: string | null | undefined
+  /** Feeds ONLY the anonymous chain — ignored once authenticated. */
   acceptLanguage: string | null | undefined
 }): RequestLocaleInfo {
   const base = input.authenticated

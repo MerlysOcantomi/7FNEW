@@ -268,7 +268,6 @@ Authenticated user (operator app):
 ```
 User.locale                    — persisted source of truth
   → Workspace.config.locale    — active workspace default
-  → Accept-Language            — via parseLocale (prefix fallback, es-MX → es)
   → English                    — DEFAULT_LOCALE = "en"
 ```
 
@@ -276,9 +275,14 @@ Anonymous visitor (login, future public pages):
 
 ```
 cookie 7f-locale               — previous explicit choice, validated with isValidLocale
-  → Accept-Language
-  → English
+  → Accept-Language            — q-value aware, prefix fallback (es-MX → es)
+  → English                    — DEFAULT_LOCALE = "en"
 ```
+
+**Accept-Language is anonymous-only** (P4.CORE-5L.1): once authenticated, the UI
+follows explicit product settings — personal preference, then the business
+default — and a device set to fr/de/it never overrides them. The parser
+(`parseAcceptLanguage`) stays in place for the anonymous chain.
 
 The cookie is a **technical hint/mirror, never an authority above `User.locale`**: with
 a valid session it does not participate in the decision — it is synchronized to the

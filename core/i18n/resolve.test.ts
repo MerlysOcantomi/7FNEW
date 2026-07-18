@@ -99,16 +99,17 @@ test("case B: workspace locale wins when user has no preference; cookie cannot i
   assert.equal(r.shouldSyncCookie, true)
 })
 
-test("case C: Accept-Language when user and workspace are silent", () => {
+test("case C: authenticated ignores the browser — silent user+workspace → default", () => {
+  // Device set to fr/de/it must NOT leak into an authenticated session.
   const r = resolveRequestLocale({
     authenticated: true,
     userLocale: null,
     workspaceLocale: null,
     cookieLocale: null,
-    acceptLanguage: "de-CH,de;q=0.9,en;q=0.8",
+    acceptLanguage: "fr-FR,fr;q=0.9,de;q=0.8,it;q=0.7",
   })
-  assert.equal(r.locale, "de")
-  assert.equal(r.source, "accept-language")
+  assert.equal(r.locale, "en")
+  assert.equal(r.source, "default")
 })
 
 test("case D: unsupported everything → English default", () => {
@@ -127,10 +128,20 @@ test("authenticated: invalid persisted values are ignored, not repaired", () => 
   const r = resolveAuthenticatedLocale({
     userLocale: "es-MX", // regional codes are not persistable canon
     workspaceLocale: "de",
-    acceptLanguage: null,
   })
   assert.equal(r.locale, "de")
   assert.equal(r.source, "workspace")
+})
+
+test("authenticated: workspace wins over default; user wins over workspace", () => {
+  assert.deepEqual(resolveAuthenticatedLocale({ userLocale: null, workspaceLocale: "it" }), {
+    locale: "it",
+    source: "workspace",
+  })
+  assert.deepEqual(resolveAuthenticatedLocale({ userLocale: "es", workspaceLocale: "it" }), {
+    locale: "es",
+    source: "user",
+  })
 })
 
 // ─── anonymous chain (matrix cases E–G) ────────────────────────────────────────

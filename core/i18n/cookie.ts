@@ -61,7 +61,7 @@ export type LocaleCookieCommand =
  * After `User.locale` persists successfully: a concrete locale mirrors into
  * the cookie; clearing the preference (null) deletes the cookie so the next
  * request re-derives the hint from the effective resolution (workspace /
- * Accept-Language) instead of pinning a stale personal value.
+ * default) instead of pinning a stale personal value.
  */
 export function planLocaleCookieAfterUserUpdate(
   locale: SupportedLocale | null,
