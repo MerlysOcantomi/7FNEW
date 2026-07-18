@@ -45,15 +45,9 @@ export function summarizeChannel(values: readonly number[]): LatencySummaryChann
 
 // ─── Cost (from response.done usage + input transcription usage) ─────────────
 
-export interface TurnUsage {
-  audioInputTokens: number
-  cachedAudioInputTokens: number
-  audioOutputTokens: number
-  textInputTokens: number
-  textOutputTokens: number
-  /** Seconds of audio sent to the input-transcription model (separate cost). */
-  transcribedInputSeconds: number
-}
+// Promoted to the shared voice layer; re-exported to keep the lab import path.
+import type { TurnUsage } from "@core/voice/realtime-events"
+export type { TurnUsage } from "@core/voice/realtime-events"
 
 const PER_M = 1_000_000
 
