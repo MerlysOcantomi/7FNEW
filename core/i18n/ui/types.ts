@@ -124,6 +124,8 @@ export interface SettingsMessages {
     workspaceUpdateErrorTitle: string
     /** Read-only note for members without admin rights on the workspace control. */
     workspaceReadOnly: string
+    /** Discreet hint shown when the selected locale still has pending coverage. */
+    inProgressNote: string
   }
   /** Account Center panel chrome (sections, states, sign-out, settings rows). */
   accountCenter: {

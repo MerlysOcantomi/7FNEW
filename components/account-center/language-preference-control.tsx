@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/i18n-provider"
 import { useToast } from "@/components/toast-provider"
 import { LOCALE_DISPLAY_NAMES } from "@core/i18n/locale"
+import { localeHasPendingCoverage } from "@core/i18n/ui"
 import type { SupportedLocale } from "@core/i18n/types"
 
 export function LanguagePreferenceControl() {
@@ -81,7 +82,7 @@ export function LanguagePreferenceControl() {
       <div
         role="radiogroup"
         aria-label={strings.appLabel}
-        className="flex gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
+        className="flex flex-wrap gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
       >
         {supportedLocales.map((option) => {
           /**
@@ -125,6 +126,11 @@ export function LanguagePreferenceControl() {
         {strings.appDescription}
         {userLocale === null ? ` ${strings.followingDefault}` : ""}
       </p>
+      {localeHasPendingCoverage(userLocale ?? locale) ? (
+        <p className="mt-1 text-[11px] italic leading-snug text-[var(--text-secondary-light)]/85">
+          {strings.inProgressNote}
+        </p>
+      ) : null}
       {userLocale !== null ? (
         <button
           type="button"

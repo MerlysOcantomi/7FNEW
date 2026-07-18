@@ -21,6 +21,7 @@ export const settings: SettingsMessages = {
     workspaceUpdatedToast: "Workspace language updated",
     workspaceUpdateErrorTitle: "Could not save the workspace language",
     workspaceReadOnly: "Only workspace admins can change this.",
+    inProgressNote: "Translation in progress. Some areas may still appear in English.",
   },
   accountCenter: {
     workspacesSection: "Workspaces",

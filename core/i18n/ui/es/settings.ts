@@ -27,6 +27,7 @@ export const settings: SettingsMessages = {
     workspaceUpdatedToast: "Idioma del negocio actualizado",
     workspaceUpdateErrorTitle: "No se pudo guardar el idioma del negocio",
     workspaceReadOnly: "Solo los administradores del workspace pueden cambiarlo.",
+    inProgressNote: "Traducción en progreso. Algunas áreas todavía pueden aparecer en inglés.",
   },
   accountCenter: {
     workspacesSection: "Workspaces",

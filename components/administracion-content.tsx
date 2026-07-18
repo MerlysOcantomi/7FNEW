@@ -12,6 +12,7 @@ import { DEFAULT_VOCABULARY } from "@core/personalization"
 import { useI18n } from "@/components/i18n-provider"
 import { useToast } from "@/components/toast-provider"
 import { LOCALE_DISPLAY_NAMES } from "@core/i18n/locale"
+import { localeHasPendingCoverage } from "@core/i18n/ui"
 import type { SupportedLocale } from "@core/i18n/types"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -406,13 +407,14 @@ function WorkspaceLanguageSection({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {strings.workspaceDescription}
                 {!isAdmin ? ` ${strings.workspaceReadOnly}` : ""}
+                {localeHasPendingCoverage(savedLocale) ? ` ${strings.inProgressNote}` : ""}
               </p>
             </div>
           </div>
           <div
             role="radiogroup"
             aria-label={strings.workspaceLabel}
-            className="flex shrink-0 gap-1 rounded-lg border border-border bg-muted p-1"
+            className="flex shrink-0 flex-wrap gap-1 rounded-lg border border-border bg-muted p-1"
           >
             {supportedLocales.map((option) => {
               const isActive = savedLocale === option
