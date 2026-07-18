@@ -87,7 +87,7 @@ test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
   assert.equal(getUIMessages("es-MX"), spanish)
   assert.equal(spanish.settings.language.appLabel, "Idioma de la aplicación")
   assert.equal(spanish.settings.accountCenter.languageSection, "Idioma")
-  assert.equal(spanish.settings.language.useWorkspaceLanguage, "Usar el idioma del negocio")
+  assert.equal(spanish.settings.language.useDeviceLanguage, "Usar el idioma de mi dispositivo")
   assert.equal(spanish.common.saveChanges, "Guardar cambios")
 })
 

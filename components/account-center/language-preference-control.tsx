@@ -5,31 +5,48 @@
  *
  * Persists ONLY `User.locale` (self-scoped API): it never touches the
  * workspace language or customer-facing communications. Labels come from the
- * `settings.language` UI namespace via `useI18n()` — this is the first real
- * consumer of the typed catalog runtime. Language option names are native
- * proper nouns (English / Español / Deutsch) and are never translated.
+ * `settings.language` UI namespace via `useI18n()`. Language option names are
+ * native proper nouns (English / Español / Deutsch) and are never translated.
+ *
+ * Offered options follow `offeredUiLocales` (P4.FINESSE-ENES §2): a Finesse
+ * (beauty) workspace temporarily offers only English/Español — the locales
+ * fully covered across Finesse — so no selection can produce a mixed-language
+ * app. An already-persisted preference outside the offer stays visible so the
+ * control never hides the user's real state.
  *
  * Success/error presentation lives here (toasts); optimistic state, rollback
  * on failure, request dedupe and `router.refresh()` live in the provider's
  * `setUserLocale`.
  */
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Loader2, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/i18n-provider"
 import { useToast } from "@/components/toast-provider"
+import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { mapVerticalKeyToBusinessType } from "@core/personalization"
 import { LOCALE_DISPLAY_NAMES } from "@core/i18n/locale"
-import { localeHasPendingCoverage } from "@core/i18n/ui"
+import { localeHasPendingCoverage, offeredUiLocales } from "@core/i18n/ui"
 import type { SupportedLocale } from "@core/i18n/types"
 
 export function LanguagePreferenceControl() {
-  const { t, locale, userLocale, supportedLocales, setUserLocale, isChangingLocale } = useI18n()
+  const { t, locale, userLocale, setUserLocale, isChangingLocale } = useI18n()
   const { addToast } = useToast()
+  const { workspace } = useActiveWorkspace()
   const [pendingLocale, setPendingLocale] = useState<SupportedLocale | null>(null)
   const [clearingPreference, setClearingPreference] = useState(false)
 
   const strings = t.settings.language
+
+  const offeredLocales = useMemo(() => {
+    const businessType = workspace?.verticalKey
+      ? mapVerticalKeyToBusinessType(workspace.verticalKey)
+      : null
+    const offered = offeredUiLocales(businessType)
+    // Never hide a persisted preference, even if it is outside today's offer.
+    return userLocale && !offered.includes(userLocale) ? [...offered, userLocale] : offered
+  }, [workspace?.verticalKey, userLocale])
 
   const handleSelect = async (next: SupportedLocale) => {
     if (isChangingLocale || next === userLocale) return
@@ -52,13 +69,13 @@ export function LanguagePreferenceControl() {
   }
 
   /**
-   * "Use the workspace language": clears the personal preference (User.locale
-   * = null via the same self-scoped PUT — the route also deletes the 7f-locale
-   * cookie) so resolution falls back to the workspace. The provider keeps the
-   * current paint until router.refresh() re-resolves server-side, then the UI
-   * adopts the business language. Never touches the workspace's own locale.
+   * "Use my device language": clears the personal preference (User.locale =
+   * null via the same self-scoped PUT — the route also deletes the 7f-locale
+   * cookie) so resolution falls back to the browser's Accept-Language. The
+   * provider keeps the current paint until router.refresh() re-resolves
+   * server-side, then the UI adopts the device language.
    */
-  const handleUseWorkspaceLanguage = async () => {
+  const handleUseDeviceLanguage = async () => {
     if (isChangingLocale || userLocale === null) return
     setClearingPreference(true)
     const ok = await setUserLocale(null)
@@ -84,7 +101,7 @@ export function LanguagePreferenceControl() {
         aria-label={strings.appLabel}
         className="flex flex-wrap gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
       >
-        {supportedLocales.map((option) => {
+        {offeredLocales.map((option) => {
           /**
            * Selected = the persisted personal preference. Without one, the
            * effective locale gets a quiet outline so the user still sees
@@ -134,12 +151,12 @@ export function LanguagePreferenceControl() {
       {userLocale !== null ? (
         <button
           type="button"
-          onClick={handleUseWorkspaceLanguage}
+          onClick={handleUseDeviceLanguage}
           disabled={isChangingLocale}
           className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--accent-primary)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
         >
           {clearingPreference ? <Loader2 size={11} className="animate-spin" /> : null}
-          {strings.useWorkspaceLanguage}
+          {strings.useDeviceLanguage}
         </button>
       ) : null}
     </div>

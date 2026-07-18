@@ -114,8 +114,8 @@ export interface SettingsMessages {
     workspaceDescription: string
     /** Shown when the user has no personal preference and follows the fallback. */
     followingDefault: string
-    /** CTA that clears `User.locale` so the UI follows the workspace again. */
-    useWorkspaceLanguage: string
+    /** CTA that clears `User.locale` so the UI follows the browser language again. */
+    useDeviceLanguage: string
     clearedToast: string
     updatedToast: string
     updateErrorTitle: string

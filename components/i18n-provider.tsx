@@ -45,7 +45,7 @@ import { getUIMessages, type UIMessages } from "@core/i18n/ui"
 export interface I18nContextValue {
   /** Effective UI locale (what is being rendered right now). */
   locale: SupportedLocale
-  /** Which chain step produced `locale` (user/workspace/cookie/accept-language/default). */
+  /** Which chain step produced `locale` (user/cookie/accept-language/default). */
   source: LocaleSource
   /** Typed UI catalogs for `locale` (es/de fall back to English until P4). */
   messages: UIMessages
@@ -145,8 +145,8 @@ export function I18nProvider({
 
       // Optimistic UI: a concrete selection repaints immediately. Clearing
       // the preference only clears `userLocale` — the effective fallback
-      // (workspace/header) is server knowledge, so the paint waits for the
-      // refresh instead of guessing.
+      // (the browser's Accept-Language) is server knowledge, so the paint
+      // waits for the refresh instead of guessing.
       if (next !== null) {
         setLocale(next)
         setSource("user")

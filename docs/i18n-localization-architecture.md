@@ -266,8 +266,8 @@ per-request memoized). Matrix coverage lives in `core/i18n/resolve.test.ts`.
 Authenticated user (operator app):
 
 ```
-User.locale                    — persisted source of truth
-  → Workspace.config.locale    — active workspace default
+User.locale                    — persisted personal source of truth
+  → Accept-Language            — the browser's requested language (first opening)
   → English                    — DEFAULT_LOCALE = "en"
 ```
 
@@ -279,10 +279,14 @@ cookie 7f-locale               — previous explicit choice, validated with isVa
   → English                    — DEFAULT_LOCALE = "en"
 ```
 
-**Accept-Language is anonymous-only** (P4.CORE-5L.1): once authenticated, the UI
-follows explicit product settings — personal preference, then the business
-default — and a device set to fr/de/it never overrides them. The parser
-(`parseAcceptLanguage`) stays in place for the anonymous chain.
+**The workspace language never decides the personal interface**
+(P4.FINESSE-ENES §1.3): `Workspace.config.locale` is a separate setting for
+customer-facing output only — public web, bookings, automatic messages,
+business templates, client communications. An operator can use the app in
+Spanish while the business publishes in German. Without a personal preference,
+the interface follows the browser's supported language (es → Spanish,
+en → English, anything else → English); the personal selector persists
+`User.locale`, which then wins over any browser language.
 
 The cookie is a **technical hint/mirror, never an authority above `User.locale`**: with
 a valid session it does not participate in the decision — it is synchronized to the

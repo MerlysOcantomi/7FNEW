@@ -1,14 +1,17 @@
 /**
  * Pure request-locale resolution — leaf logic, no React, no Prisma, no next/*.
  *
- * Two chains, decided in docs/i18n-localization-architecture.md §7:
+ * Two chains (P4.FINESSE-ENES decision, docs/i18n-localization-architecture.md §7):
  *
- *   Authenticated: User.locale → Workspace.config.locale → en (DEFAULT_LOCALE)
+ *   Authenticated: User.locale → Accept-Language → en (DEFAULT_LOCALE)
  *   Anonymous:     cookie 7f-locale → Accept-Language → en (DEFAULT_LOCALE)
  *
- * Accept-Language matters only BEFORE login: once authenticated, the UI
- * follows explicit product settings (personal preference, then the business
- * default) — a device set to fr/de/it never overrides them.
+ * `Workspace.config.locale` deliberately does NOT participate in the personal
+ * UI chain: the workspace language is a separate setting for customer-facing
+ * output (public web, bookings, automatic messages, business templates,
+ * client communications). An operator can use the app in Spanish while the
+ * business publishes in German. Only the member's own preference — or, absent
+ * one, their browser's requested language — decides what they see.
  *
  * The cookie NEVER participates in the authenticated chain — it is a technical
  * mirror of the resolution result, not an authority. `resolveRequestLocale`
@@ -22,13 +25,8 @@
 import { DEFAULT_LOCALE, type SupportedLocale } from "./types"
 import { isValidLocale } from "./locale"
 
-/** Where the effective locale came from. `accept-language` is anonymous-only. */
-export type LocaleSource =
-  | "user"
-  | "workspace"
-  | "cookie"
-  | "accept-language"
-  | "default"
+/** Where the effective locale came from. `cookie` is anonymous-only. */
+export type LocaleSource = "user" | "cookie" | "accept-language" | "default"
 
 export interface ResolvedLocale {
   locale: SupportedLocale
@@ -89,10 +87,10 @@ export function parseAcceptLanguage(header: string | null | undefined): Supporte
 /**
  * Read the RAW workspace locale from the `Workspace.config` JSON string.
  *
- * Unlike the legacy `resolveLocaleFromConfig` (which always defaults to "en"),
- * this returns null when the config has no locale — the distinction is what
- * lets `resolveRequestLocale` attribute the source honestly ("workspace" vs
- * "default").
+ * NOT part of the personal UI chain — the workspace language only governs
+ * customer-facing output (public web, bookings, automatic messages,
+ * templates). Kept here for those consumers; unlike the legacy
+ * `resolveLocaleFromConfig` it returns null when the config has no locale.
  */
 export function readWorkspaceLocaleRaw(configJson: string | null | undefined): string | null {
   if (!configJson) return null
@@ -109,19 +107,19 @@ export function readWorkspaceLocaleRaw(configJson: string | null | undefined): s
 }
 
 /**
- * Authenticated chain. The cookie is deliberately NOT an input — and neither
- * is Accept-Language: after login only explicit settings decide (personal
- * preference, then the business default, then DEFAULT_LOCALE).
+ * Authenticated chain: personal preference → browser language → English.
+ * The cookie is deliberately NOT an input (technical mirror only), and the
+ * workspace language NEVER decides the personal interface.
  */
 export function resolveAuthenticatedLocale(input: {
   userLocale: string | null | undefined
-  workspaceLocale: string | null | undefined
+  acceptLanguage: string | null | undefined
 }): ResolvedLocale {
   const user = pickValid(input.userLocale)
   if (user) return { locale: user, source: "user" }
 
-  const workspace = pickValid(input.workspaceLocale)
-  if (workspace) return { locale: workspace, source: "workspace" }
+  const header = parseAcceptLanguage(input.acceptLanguage)
+  if (header) return { locale: header, source: "accept-language" }
 
   return { locale: DEFAULT_LOCALE, source: "default" }
 }
@@ -169,9 +167,8 @@ export interface RequestLocaleInfo extends ResolvedLocale {
 export function resolveRequestLocale(input: {
   authenticated: boolean
   userLocale: string | null | undefined
-  workspaceLocale: string | null | undefined
   cookieLocale: string | null | undefined
-  /** Feeds ONLY the anonymous chain — ignored once authenticated. */
+  /** Browser-requested language — the fallback when no personal preference exists. */
   acceptLanguage: string | null | undefined
 }): RequestLocaleInfo {
   const base = input.authenticated

@@ -87,6 +87,19 @@ export function localeHasPendingCoverage(locale: SupportedLocale): boolean {
   return Object.values(UI_NAMESPACE_COVERAGE[locale]).includes("fallback-en")
 }
 
+/**
+ * UI locales OFFERED by the personal language selector for a business type
+ * (P4.FINESSE-ENES §2). Finesse (beauty) surfaces are fully covered in en/es
+ * only, so a beauty workspace temporarily offers just those two — offering
+ * de/fr/it there would produce a mixed-language experience. The Core runtime
+ * keeps all five locales registered; this narrows the OFFER, never the
+ * runtime. Widen per business type as coverage completes.
+ */
+export function offeredUiLocales(businessType: string | null | undefined): SupportedLocale[] {
+  if (businessType === "beauty") return ["en", "es"]
+  return [...SUPPORTED_LOCALES]
+}
+
 /** Resolve the full set of UI messages for a locale (English fallback). */
 export function getUIMessages(locale?: string | null): UIMessages {
   const key = parseLocale(locale)
