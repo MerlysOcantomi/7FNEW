@@ -6,6 +6,7 @@ import { globalNew } from "./global-new"
 import { settings } from "./settings"
 import { today } from "./today"
 import { clients } from "./clients"
+import { voice } from "./voice"
 
 /**
  * Spanish catalog contribution — ONLY really-translated namespaces (each one
@@ -23,4 +24,5 @@ export const es: LocaleCatalogOverrides = {
   settings,
   today,
   clients,
+  voice,
 }

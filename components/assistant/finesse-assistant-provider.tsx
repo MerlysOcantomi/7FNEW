@@ -13,12 +13,20 @@ import { usePathname } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { useI18n } from "@/components/i18n-provider"
 import {
+  applyVoiceMessage,
+  buildVoiceConversationSummary,
+  markVoiceMessageInterrupted,
   resolveFinessePageKey,
   type FinesseAssistantContext,
   type FinesseAssistantMessage,
   type FinesseAssistantPageContext,
   type FinesseAssistantStatus,
+  type VoiceMessageUpdate,
 } from "@modules/assistant/finesse-assistant"
+import {
+  useFinesseVoiceController,
+  type FinesseVoiceHandle,
+} from "./finesse-voice-controller"
 
 /**
  * Global Ask Finesse state — provider + page-context registration.
@@ -43,6 +51,8 @@ interface FinesseAssistantContextValue {
   setOpen: (open: boolean) => void
   openAssistant: () => void
   closeAssistant: () => void
+  /** Open the panel AND start a voice session (launcher hold-to-talk). */
+  openAssistantWithVoice: () => void
   /** Registered page context (or null → derived from route only). */
   pageContext: FinesseAssistantPageContext | null
   registerPageContext: (context: FinesseAssistantPageContext | null) => void
@@ -51,7 +61,23 @@ interface FinesseAssistantContextValue {
   messages: FinesseAssistantMessage[]
   status: FinesseAssistantStatus
   ask: (question: string) => Promise<void>
+  /** Voice session handle — one per provider (see finesse-voice-controller). */
+  voice: FinesseVoiceHandle
   available: boolean
+}
+
+const NOOP_VOICE: FinesseVoiceHandle = {
+  state: "idle",
+  errorKind: null,
+  support: { voiceSupported: false, touchCapable: false, unsupportedReason: "no_media_devices" },
+  entitled: false,
+  everConnected: false,
+  muted: false,
+  active: false,
+  start: async () => {},
+  stop: () => {},
+  interrupt: () => {},
+  toggleMute: () => {},
 }
 
 const noopValue: FinesseAssistantContextValue = {
@@ -59,6 +85,7 @@ const noopValue: FinesseAssistantContextValue = {
   setOpen: () => {},
   openAssistant: () => {},
   closeAssistant: () => {},
+  openAssistantWithVoice: () => {},
   pageContext: null,
   registerPageContext: () => {},
   buildContext: () => ({
@@ -70,6 +97,7 @@ const noopValue: FinesseAssistantContextValue = {
   messages: [],
   status: "idle",
   ask: async () => {},
+  voice: NOOP_VOICE,
   available: false,
 }
 
@@ -137,9 +165,28 @@ export function FinesseAssistantProvider({ children }: { children: React.ReactNo
   }, [workspaceId])
 
   const openAssistant = useCallback(() => setOpen(true), [])
-  const closeAssistant = useCallback(() => setOpen(false), [])
   const registerPageContext = useCallback(
     (context: FinesseAssistantPageContext | null) => setPageContext(context),
+    [],
+  )
+
+  // ── Voice ↔ shared conversation glue ──────────────────────────────────────
+  // Voice turns are keyed by Realtime item id, so a partial transcript is
+  // REPLACED by its final text (never duplicated) and an interrupted answer
+  // stays honestly marked. Finalized entries are immutable except for the
+  // interruption mark.
+  const upsertVoiceMessage = useCallback((update: VoiceMessageUpdate) => {
+    setMessages((prev) => applyVoiceMessage(prev, update))
+  }, [])
+
+  const markAssistantInterrupted = useCallback((id: string) => {
+    setMessages((prev) => markVoiceMessageInterrupted(prev, id))
+  }, [])
+
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  const buildConversationSummary = useCallback(
+    (): string | null => buildVoiceConversationSummary(messagesRef.current),
     [],
   )
 
@@ -191,21 +238,67 @@ export function FinesseAssistantProvider({ children }: { children: React.ReactNo
     [buildContext, status],
   )
 
+  const voice = useFinesseVoiceController({
+    buildContext,
+    buildConversationSummary,
+    upsertVoiceMessage,
+    markAssistantInterrupted,
+  })
+  const voiceStop = voice.stop
+  const voiceActive = voice.active
+  const voiceStart = voice.start
+
+  // Panel close stops the session (audio + billing) — mission §16/§21.
+  const wrappedSetOpen = useCallback(
+    (next: boolean) => {
+      if (!next && voiceActive) voiceStop("user")
+      setOpen(next)
+    },
+    [voiceActive, voiceStop],
+  )
+  const closeAssistantAndVoice = useCallback(() => wrappedSetOpen(false), [wrappedSetOpen])
+
+  // Route change → a live session would keep STALE page instructions; stop it.
+  const lastPathRef = useRef(pathname)
+  useEffect(() => {
+    if (lastPathRef.current !== pathname) {
+      lastPathRef.current = pathname
+      if (voiceActive) voiceStop("context")
+    }
+  }, [pathname, voiceActive, voiceStop])
+
+  // Workspace change → stop immediately; a session must NEVER cross tenants.
+  const lastVoiceWorkspaceRef = useRef<string | null>(workspaceId)
+  useEffect(() => {
+    if (lastVoiceWorkspaceRef.current !== workspaceId) {
+      lastVoiceWorkspaceRef.current = workspaceId
+      voiceStop("teardown")
+    }
+  }, [workspaceId, voiceStop])
+
+  // Launcher hold-to-talk: open the panel and start voice in one gesture.
+  const openAssistantWithVoice = useCallback(() => {
+    setOpen(true)
+    void voiceStart()
+  }, [voiceStart])
+
   const value = useMemo<FinesseAssistantContextValue>(
     () => ({
       open,
-      setOpen,
+      setOpen: wrappedSetOpen,
       openAssistant,
-      closeAssistant,
+      closeAssistant: closeAssistantAndVoice,
+      openAssistantWithVoice,
       pageContext,
       registerPageContext,
       buildContext,
       messages,
       status,
       ask,
+      voice,
       available: true,
     }),
-    [open, openAssistant, closeAssistant, pageContext, registerPageContext, buildContext, messages, status, ask],
+    [open, wrappedSetOpen, openAssistant, closeAssistantAndVoice, openAssistantWithVoice, pageContext, registerPageContext, buildContext, messages, status, ask, voice],
   )
 
   return (

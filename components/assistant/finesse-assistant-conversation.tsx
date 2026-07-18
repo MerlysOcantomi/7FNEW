@@ -10,7 +10,9 @@ import {
 } from "@modules/assistant/finesse-assistant"
 import { buildFinesseSuggestions } from "@modules/assistant/finesse-suggestions"
 import { usePathname } from "next/navigation"
+import { useI18n } from "@/components/i18n-provider"
 import { useFinesseAssistant } from "./finesse-assistant-provider"
+import { FinesseVoiceMicButton, FinesseVoiceStatusBar } from "./finesse-voice-controls"
 
 /**
  * The Ask Finesse conversation body — shared verbatim by the desktop right
@@ -24,6 +26,7 @@ import { useFinesseAssistant } from "./finesse-assistant-provider"
 export function FinesseAssistantConversation() {
   const pathname = usePathname()
   const { pageContext, messages, status, ask } = useFinesseAssistant()
+  const { t } = useI18n()
   const [draft, setDraft] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -131,9 +134,17 @@ export function FinesseAssistantConversation() {
                   m.role === "user"
                     ? "self-end bg-[var(--accent-primary)] text-white"
                     : "self-start border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] text-[var(--text-primary-light)]",
+                  // A streaming voice transcript reads as tentative until final.
+                  m.status === "partial" && "opacity-70",
                 )}
               >
                 {m.content}
+                {m.status === "partial" ? <span aria-hidden="true">…</span> : null}
+                {m.status === "interrupted" ? (
+                  <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    — {t.voice.interruptedMarker}
+                  </span>
+                ) : null}
               </div>
             ))}
 
@@ -163,6 +174,9 @@ export function FinesseAssistantConversation() {
         ) : null}
       </div>
 
+      {/* Voice session status (single polite live region + controls) */}
+      <FinesseVoiceStatusBar />
+
       {/* Composer */}
       <form
         className="flex shrink-0 items-end gap-2 border-t border-[var(--border-dark)] px-4 py-3"
@@ -187,6 +201,7 @@ export function FinesseAssistantConversation() {
           disabled={unavailable}
           className="min-h-[42px] flex-1 resize-none rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-2 text-[12.5px] text-[var(--text-primary-light)] outline-none placeholder:text-[var(--text-tertiary-light)] focus:ring-2 focus:ring-[var(--accent-primary)]/40 disabled:cursor-not-allowed disabled:opacity-60"
         />
+        <FinesseVoiceMicButton />
         <button
           type="submit"
           disabled={unavailable || status === "loading" || draft.trim().length === 0}

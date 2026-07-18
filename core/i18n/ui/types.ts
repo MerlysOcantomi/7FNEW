@@ -322,6 +322,38 @@ export interface BillingMessages {
   empty: string
 }
 
+/**
+ * Ask Finesse voice surface — visible labels only; no voice behavior lives
+ * here. States must never rely on color alone, so every state has a label.
+ */
+export interface VoiceMessages {
+  micStart: string
+  micUnsupported: string
+  stop: string
+  interrupt: string
+  mute: string
+  unmute: string
+  states: {
+    connecting: string
+    listening: string
+    thinking: string
+    speaking: string
+    interrupted: string
+    stopping: string
+    expired: string
+    error: string
+  }
+  micBlocked: string
+  micUnavailableDevice: string
+  unavailable: string
+  rateLimited: string
+  sessionEnded: string
+  contextChanged: string
+  interruptedMarker: string
+  holdToTalk: string
+  voiceStatusRegion: string
+}
+
 /** All UI namespaces available to `getUIMessages` / `getNamespace`. */
 export interface UIMessages {
   common: CommonMessages
@@ -333,6 +365,7 @@ export interface UIMessages {
   clients: ClientsMessages
   calendar: CalendarMessages
   billing: BillingMessages
+  voice: VoiceMessages
 }
 
 /** Union of valid namespace keys. */

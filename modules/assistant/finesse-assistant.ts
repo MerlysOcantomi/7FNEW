@@ -77,6 +77,14 @@ export interface FinesseAssistantMessage {
   id: string
   role: "user" | "assistant"
   content: string
+  /** How the turn originated. Absent = "text" (pre-voice messages). */
+  inputMode?: "text" | "voice"
+  /**
+   * Voice turns stream: `partial` while transcribing, `final` once settled,
+   * `interrupted` when a barge-in cut the assistant short (the partial text is
+   * kept, honestly marked, never presented as a complete answer).
+   */
+  status?: "partial" | "final" | "interrupted" | "error"
 }
 
 export type FinesseAssistantStatus = "idle" | "loading" | "error" | "unavailable"
@@ -202,6 +210,81 @@ export function getFinesseSuggestions(page: FinesseAssistantPageKey): string[] {
 // ─── Question limits (shared client/server) ──────────────────────────────────
 
 export const FINESSE_MAX_QUESTION_LENGTH = 1000
+
+// ─── Voice ↔ conversation merge (pure, id-keyed — one visible conversation) ──
+
+export interface VoiceMessageUpdate {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  status: "partial" | "final" | "interrupted"
+}
+
+/**
+ * Upsert a voice turn into the shared conversation. Keyed by Realtime item id:
+ * a partial transcript is REPLACED by its final text (never duplicated), and a
+ * finalized/interrupted turn is never downgraded by a late partial.
+ */
+export function applyVoiceMessage(
+  messages: FinesseAssistantMessage[],
+  update: VoiceMessageUpdate,
+): FinesseAssistantMessage[] {
+  const index = messages.findIndex((m) => m.id === update.id)
+  if (index === -1) {
+    return [
+      ...messages,
+      {
+        id: update.id,
+        role: update.role,
+        content: update.content,
+        inputMode: "voice",
+        status: update.status,
+      },
+    ]
+  }
+  const existing = messages[index]
+  if (existing.status === "final" || existing.status === "interrupted") return messages
+  if (existing.content === update.content && existing.status === update.status) return messages
+  const next = [...messages]
+  next[index] = { ...existing, content: update.content, status: update.status }
+  return next
+}
+
+/**
+ * Mark a streaming ASSISTANT voice turn as interrupted (barge-in). Its partial
+ * text is kept but honestly marked — never presented as a complete answer.
+ * No-op for user turns, unknown ids, or already-final answers.
+ */
+export function markVoiceMessageInterrupted(
+  messages: FinesseAssistantMessage[],
+  id: string,
+): FinesseAssistantMessage[] {
+  let changed = false
+  const next = messages.map((m) => {
+    if (m.id === id && m.role === "assistant" && m.status !== "final" && m.status !== "interrupted") {
+      changed = true
+      return { ...m, status: "interrupted" as const }
+    }
+    return m
+  })
+  return changed ? next : messages
+}
+
+/**
+ * Short, safe summary of the finalized conversation for a new voice session —
+ * the last few turns, clipped per turn. NEVER the unlimited transcript.
+ */
+export function buildVoiceConversationSummary(
+  messages: FinesseAssistantMessage[],
+  { maxTurns = 4, maxCharsPerTurn = 120 }: { maxTurns?: number; maxCharsPerTurn?: number } = {},
+): string | null {
+  const finalized = messages.filter((m) => m.status !== "partial" && m.content.trim().length > 0)
+  if (finalized.length === 0) return null
+  return finalized
+    .slice(-maxTurns)
+    .map((m) => `${m.role === "user" ? "User" : "Finesse"}: ${m.content.slice(0, maxCharsPerTurn)}`)
+    .join("\n")
+}
 
 // ─── Server-side context sanitation (shared by the text + voice routes) ──────
 
