@@ -20,8 +20,10 @@ import {
   type AppointmentGap,
   type AppointmentStatus,
 } from "@modules/today/appointments"
-import type { BeautyTodayConfig } from "@modules/today/beauty-today"
+import { getBeautyTodayMessages, type BeautyTodayMessages } from "@modules/today/i18n"
 import { BEAUTY_SPECIALIST_AGENT } from "@core/vertical-packs/specialists"
+import { formatCurrency, toIntlLocale } from "@core/i18n/format"
+import { useI18n } from "@/components/i18n-provider"
 import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import { getBeautyAppointmentDayMock } from "./appointments/appointment-mock"
 
@@ -53,69 +55,17 @@ import { getBeautyAppointmentDayMock } from "./appointments/appointment-mock"
  *     write-ish action is disabled (never simulates a write). No schema changes.
  */
 
-// ─── Curated preview/demo content (Spanish, España) ──────────────────────────
-// Isolated, deletable demo narrative for the gated Beauty preview — never real
-// data. Same spirit as components/today/appointments/appointment-mock.ts.
-// Swap for real sources (agents / CRM / marketing) when they land.
-
-const DEMO_ASSISTANT_NOTE =
-  "Vas bien de día. Antes de la tarde, protege el color VIP de las 16:30 y ofrece el hueco libre a una clienta frecuente."
-
-interface DemoDecision {
-  id: string
-  agent: string
-  kind: string
-  title: string
-  why: string
-  primary: string
-  action: { icon: typeof Send }
-}
-
-const DEMO_DECISIONS: DemoDecision[] = [
-  {
-    id: "d1",
-    agent: "Francis",
-    kind: "fidelidad VIP",
-    title: "Ofrecer fidelidad 15 % a Camila antes de su color VIP",
-    why: "Clienta VIP · 22 visitas. La mantiene reservando cada mes.",
-    primary: "Confirmar",
-    action: { icon: Send },
-  },
-  {
-    id: "d2",
-    agent: "Fiona",
-    kind: "campaña",
-    title: "Aprobar la campaña de verano para clientas inactivas",
-    why: "14 clientas sin reservar · Freya ya preparó las imágenes.",
-    primary: "Aprobar",
-    action: { icon: MessageSquare },
-  },
-]
+// ─── Demo narrative content ──────────────────────────────────────────────────
+// The curated preview narrative (assistant note, decisions, care, momento)
+// lives LOCALIZED in `modules/today/i18n` (`messages.demo`) — product-owned
+// sample data that follows the UI language. Never real data.
 
 type CareTone = "vip" | "warn" | "new"
 
-interface DemoCare {
-  name: string
-  ini: string
-  tag: string
-  tone: CareTone
-  note: string
-  action: string
-}
-
-const DEMO_CARE: DemoCare[] = [
-  { name: "Camila Ruiz", ini: "CR", tag: "VIP", tone: "vip", note: "Color hoy 16:30 · 22 visitas", action: "Fidelidad" },
-  { name: "Daniela Prats", ini: "DP", tag: "Inactiva", tone: "warn", note: "Sin reservar hace 3 meses", action: "Reactivar" },
-  { name: "Valentina Mora", ini: "VM", tag: "Nueva", tone: "new", note: "1ª visita · dejó 5★", action: "Bienvenida" },
-]
-
-const DEMO_MOMENTO = {
-  channel: "Instagram · antes/después",
-  title: "El Rose Nude Chrome de María quedó para enseñar.",
-  note: "Finesse vio un trabajo perfecto para publicar hoy. Freya ya preparó un pie de foto.",
-  primary: "Preparar publicación",
-  secondary: "Otra idea",
-  link: "Subir más fotos · ver todo en Marketing",
+/** Per-decision action icons, keyed by demo decision id (structure, not copy). */
+const DECISION_ICONS: Record<string, typeof Send> = {
+  d1: Send,
+  d2: MessageSquare,
 }
 
 // Tone → semantic tokens (accent for VIP, lead/amber for warn, info for new).
@@ -136,29 +86,29 @@ const STATUS_TOKENS: Record<AppointmentStatus, { bg: string; text: string; borde
 }
 
 const SLOT_COLOR = "var(--inbox-success)"
-const DISABLED_HINT = "Disponible al conectar las citas reales"
 
-// ─── Time helpers ────────────────────────────────────────────────────────────
+// ─── Regional format helpers (effective locale, EUR demo currency) ───────────
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+function fmtTime(iso: string, intlLocale: string): string {
+  return new Date(iso).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
 }
-function fmtEuro(value: number): string {
-  return `${value.toLocaleString("es-ES")} €`
+function fmtMoney(value: number, locale: string): string {
+  // Demo currency is EUR; real data will carry the workspace currency.
+  return formatCurrency(value, { locale, currency: "EUR" })
 }
 
 // ─── Entry ───────────────────────────────────────────────────────────────────
 
-export function BeautyStudioOverview({
-  businessName,
-  beauty,
-}: {
-  businessName: string | null
-  beauty: BeautyTodayConfig
-}) {
+export function BeautyStudioOverview({ businessName }: { businessName: string | null }) {
   const searchParams = useSearchParams()
+  const { locale } = useI18n()
+  const beauty = useMemo(() => getBeautyTodayMessages(locale), [locale])
   const staffMode = searchParams.get("staff") === "solo" ? "solo" : "multi"
-  const day = useMemo<AppointmentDay>(() => getBeautyAppointmentDayMock(staffMode), [staffMode])
+  // Demo day regenerates with the catalog's localized service names.
+  const day = useMemo<AppointmentDay>(
+    () => getBeautyAppointmentDayMock(staffMode, beauty.demo.services),
+    [staffMode, beauty.demo.services],
+  )
   const derived = useMemo(() => deriveAppointmentDay(day), [day])
 
   // Live "now" — gated after mount to avoid SSR/client mismatch.
@@ -195,10 +145,10 @@ export function BeautyStudioOverview({
         <AgendaPanel day={day} now={now} beauty={beauty} />
 
         <div className="flex flex-col gap-6">
-          <FinesseAssistant />
-          <DecisionsSection />
-          <CareSection title={beauty.ui.groups.care} />
-          <MomentoBeauty />
+          <FinesseAssistant beauty={beauty} />
+          <DecisionsSection beauty={beauty} />
+          <CareSection beauty={beauty} />
+          <MomentoBeauty beauty={beauty} />
         </div>
       </div>
     </div>
@@ -213,18 +163,23 @@ function StudioHeader({
   derived,
 }: {
   studio: string
-  beauty: BeautyTodayConfig
+  beauty: BeautyTodayMessages
   derived: ReturnType<typeof deriveAppointmentDay>
 }) {
-  const dateLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })
+  const t = beauty.studio
+  const dateLabel = new Date().toLocaleDateString(toIntlLocale(beauty.locale), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  })
 
   const signals: { text: string; dot: string }[] = [
-    { text: `${derived.appointmentsCount} citas`, dot: "var(--accent-primary)" },
+    { text: t.signals.appointments(derived.appointmentsCount), dot: "var(--accent-primary)" },
+    { text: t.signals.openGaps(derived.openGaps), dot: "var(--inbox-success)" },
     {
-      text: `${derived.openGaps} ${derived.openGaps === 1 ? "hueco libre" : "huecos libres"}`,
-      dot: "var(--inbox-success)",
+      text: t.signals.bookedValue(fmtMoney(derived.bookedValue, beauty.locale)),
+      dot: "var(--inbox-lead)",
     },
-    { text: `${fmtEuro(derived.bookedValue)} previstos`, dot: "var(--inbox-lead)" },
   ]
 
   return (
@@ -232,19 +187,19 @@ function StudioHeader({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary-light)]">
-            Hoy en {studio}
+            {t.headerTitle(studio)}
           </h1>
           <span
             className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10.5px] font-semibold"
             style={{ borderColor: "var(--accent-muted-border)", background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
           >
             <Sparkles size={12} strokeWidth={2} aria-hidden="true" />
-            {BEAUTY_SPECIALIST_AGENT.name} · by Sevenef
+            {BEAUTY_SPECIALIST_AGENT.name} {t.bySevenef}
           </span>
         </div>
 
         <p className="mt-2 max-w-xl text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">
-          Finesse tiene lista tu agenda, tus decisiones y una oportunidad visual para hoy.
+          {t.intro}
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -265,7 +220,7 @@ function StudioHeader({
         <span
           className="inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
           style={{ borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)", color: "var(--inbox-info)" }}
-          title="Datos de ejemplo mientras conectamos las citas reales."
+          title={beauty.previewTooltip}
         >
           {beauty.previewChip}
         </span>
@@ -286,7 +241,8 @@ type AgendaEntry =
   | { kind: "appt"; start: string; appt: Appointment }
   | { kind: "gap"; start: string; gap: AppointmentGap }
 
-function AgendaPanel({ day, now, beauty }: { day: AppointmentDay; now: Date | null; beauty: BeautyTodayConfig }) {
+function AgendaPanel({ day, now, beauty }: { day: AppointmentDay; now: Date | null; beauty: BeautyTodayMessages }) {
+  const intlLocale = toIntlLocale(beauty.locale)
   const entries = useMemo<AgendaEntry[]>(() => {
     const merged: AgendaEntry[] = [
       ...day.appointments.map((appt) => ({ kind: "appt" as const, start: appt.start, appt })),
@@ -296,15 +252,17 @@ function AgendaPanel({ day, now, beauty }: { day: AppointmentDay; now: Date | nu
   }, [day])
 
   const nowMs = now ? now.getTime() : null
-  const nowLabel = now ? now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null
+  const nowLabel = now
+    ? now.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
+    : null
   let nowShown = false
 
   return (
     <section className="min-w-0">
       <div className="mb-3 flex items-baseline gap-3">
-        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary-light)]">Agenda de hoy</h2>
+        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary-light)]">{beauty.studio.agendaTitle}</h2>
         <span className="text-[11.5px] tabular-nums text-[var(--text-tertiary-light)]">
-          {day.appointments.length} citas · {day.gaps.length} huecos
+          {beauty.studio.agendaHint(day.appointments.length, day.gaps.length)}
         </span>
         {nowLabel ? (
           <span className="ml-auto inline-flex items-center gap-1.5">
@@ -357,10 +315,11 @@ function AgendaApptRow({
   first,
 }: {
   appt: Appointment
-  beauty: BeautyTodayConfig
+  beauty: BeautyTodayMessages
   now: Date | null
   first: boolean
 }) {
+  const intlLocale = toIntlLocale(beauty.locale)
   const st = STATUS_TOKENS[appt.status]
   // Past appointments read as "done" — pure presentation, no new status.
   const past = now ? new Date(appt.end).getTime() < now.getTime() : false
@@ -369,8 +328,8 @@ function AgendaApptRow({
       className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t border-[var(--border-dark)]"} ${past ? "opacity-55" : ""}`}
     >
       <div className="flex w-12 shrink-0 flex-col items-start">
-        <span className="text-[13px] font-semibold tabular-nums text-[var(--text-primary-light)]">{fmtTime(appt.start)}</span>
-        <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">{fmtTime(appt.end)}</span>
+        <span className="text-[13px] font-semibold tabular-nums text-[var(--text-primary-light)]">{fmtTime(appt.start, intlLocale)}</span>
+        <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">{fmtTime(appt.end, intlLocale)}</span>
       </div>
       <span className="h-9 w-[3px] shrink-0 rounded-full" style={{ background: st.text }} aria-hidden="true" />
       <div className="min-w-0 flex-1">
@@ -387,14 +346,15 @@ function AgendaApptRow({
       </div>
       {typeof appt.price === "number" ? (
         <span className="shrink-0 text-[12.5px] font-semibold tabular-nums" style={{ color: "var(--accent-on-dark)" }}>
-          {fmtEuro(appt.price)}
+          {fmtMoney(appt.price, beauty.locale)}
         </span>
       ) : null}
     </div>
   )
 }
 
-function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: BeautyTodayConfig; first: boolean }) {
+function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: BeautyTodayMessages; first: boolean }) {
+  const intlLocale = toIntlLocale(beauty.locale)
   return (
     <div
       className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t"}`}
@@ -404,7 +364,7 @@ function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: Bea
       }}
     >
       <span className="w-12 shrink-0 text-[11px] tabular-nums" style={{ color: "var(--inbox-success)" }}>
-        {fmtTime(gap.start)}
+        {fmtTime(gap.start, intlLocale)}
       </span>
       <span
         aria-hidden="true"
@@ -415,16 +375,16 @@ function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: Bea
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[12.5px] font-semibold" style={{ color: "var(--inbox-success)" }}>
-          Hueco libre · {fmtTime(gap.start)} – {fmtTime(gap.end)}
+          {beauty.studio.gapRow.title(fmtTime(gap.start, intlLocale), fmtTime(gap.end, intlLocale))}
         </p>
         <p className="truncate text-[11.5px] text-[var(--text-secondary-light)]">
-          Finesse puede ofrecerlo a tus clientas frecuentes
+          {beauty.studio.gapRow.note}
         </p>
       </div>
       <button
         type="button"
         disabled
-        title={DISABLED_HINT}
+        title={beauty.studio.disabledHints.connectAppointments}
         className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-lg border bg-[var(--app-surface-dark-elevated)] px-3 py-1.5 text-[11.5px] font-semibold opacity-85"
         style={{ borderColor: "color-mix(in srgb, var(--inbox-success) 40%, transparent)", color: "var(--inbox-success)" }}
       >
@@ -437,7 +397,7 @@ function AgendaGapRow({ gap, beauty, first }: { gap: AppointmentGap; beauty: Bea
 
 // ─── Right rail ──────────────────────────────────────────────────────────────
 
-function FinesseAssistant() {
+function FinesseAssistant({ beauty }: { beauty: BeautyTodayMessages }) {
   return (
     <div
       className="rounded-[18px] border p-4"
@@ -456,29 +416,29 @@ function FinesseAssistant() {
         </span>
         <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary-light)]">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--inbox-success)" }} aria-hidden="true" />
-          al día
+          {beauty.studio.upToDate}
         </span>
       </div>
-      <p className="text-[12.5px] leading-relaxed text-[var(--text-primary-light)]">{DEMO_ASSISTANT_NOTE}</p>
+      <p className="text-[12.5px] leading-relaxed text-[var(--text-primary-light)]">{beauty.demo.assistantNote}</p>
     </div>
   )
 }
 
-function DecisionsSection() {
+function DecisionsSection({ beauty }: { beauty: BeautyTodayMessages }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">Necesita tu decisión</h2>
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{beauty.studio.decisionsTitle}</h2>
         <span
           className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-white"
           style={{ background: "var(--accent-primary)" }}
         >
-          {DEMO_DECISIONS.length}
+          {beauty.demo.decisions.length}
         </span>
       </div>
       <div className="flex flex-col gap-2.5">
-        {DEMO_DECISIONS.map((d) => {
-          const Icon = d.action.icon
+        {beauty.demo.decisions.map((d) => {
+          const Icon = DECISION_ICONS[d.id] ?? Send
           return (
             <div key={d.id} className="rounded-[15px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-3.5">
               <div className="mb-1.5 flex items-center gap-1.5">
@@ -496,7 +456,7 @@ function DecisionsSection() {
                 <button
                   type="button"
                   disabled
-                  title={DISABLED_HINT}
+                  title={beauty.studio.disabledHints.connectAssistant}
                   className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-semibold text-white opacity-90"
                   style={{ background: "var(--accent-primary)" }}
                 >
@@ -506,10 +466,10 @@ function DecisionsSection() {
                 <button
                   type="button"
                   disabled
-                  title={DISABLED_HINT}
+                  title={beauty.studio.disabledHints.connectAssistant}
                   className="inline-flex cursor-not-allowed items-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-2 text-[11.5px] font-medium text-[var(--text-secondary-light)] opacity-85"
                 >
-                  Después
+                  {beauty.studio.later}
                 </button>
               </div>
             </div>
@@ -520,16 +480,16 @@ function DecisionsSection() {
   )
 }
 
-function CareSection({ title }: { title: string }) {
+function CareSection({ beauty }: { beauty: BeautyTodayMessages }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Heart size={14} strokeWidth={1.9} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{title}</h2>
-        <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">{DEMO_CARE.length} hoy</span>
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{beauty.ui.groups.care}</h2>
+        <span className="text-[11px] tabular-nums text-[var(--text-tertiary-light)]">{beauty.studio.careCountHint(beauty.demo.care.length)}</span>
       </div>
       <div className="flex flex-col gap-2">
-        {DEMO_CARE.map((c) => {
+        {beauty.demo.care.map((c) => {
           const tone = CARE_TONE[c.tone]
           return (
             <div
@@ -558,7 +518,7 @@ function CareSection({ title }: { title: string }) {
               <button
                 type="button"
                 disabled
-                title="Disponible al conectar el asistente"
+                title={beauty.studio.disabledHints.connectAssistant}
                 className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold opacity-85"
                 style={{ borderColor: "var(--accent-muted-border)", background: "var(--accent-muted)", color: "var(--accent-on-dark)" }}
               >
@@ -572,12 +532,13 @@ function CareSection({ title }: { title: string }) {
   )
 }
 
-function MomentoBeauty() {
+function MomentoBeauty({ beauty }: { beauty: BeautyTodayMessages }) {
+  const momento = beauty.demo.momento
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">Momento Beauty</h2>
-        <span className="text-[11px] text-[var(--text-tertiary-light)]">idea visual de hoy</span>
+        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{beauty.studio.momentoTitle}</h2>
+        <span className="text-[11px] text-[var(--text-tertiary-light)]">{beauty.studio.momentoHint}</span>
       </div>
       <div className="overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
         {/* Photo placeholder — token gradient stands in for the uploaded shot. */}
@@ -590,36 +551,36 @@ function MomentoBeauty() {
             style={{ background: "var(--app-surface-dark-elevated)", color: "var(--accent-on-dark)" }}
           >
             <Instagram size={11} strokeWidth={2} aria-hidden="true" />
-            {DEMO_MOMENTO.channel}
+            {momento.channel}
           </span>
           <span
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium text-[var(--text-secondary-light)]"
             style={{ background: "var(--app-surface-dark-elevated)" }}
           >
             <Camera size={11} strokeWidth={2} aria-hidden="true" />
-            Sube la foto de hoy
+            {beauty.studio.uploadPhoto}
           </span>
         </div>
         <div className="p-4">
-          <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">{DEMO_MOMENTO.title}</p>
-          <p className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">{DEMO_MOMENTO.note}</p>
+          <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">{momento.title}</p>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">{momento.note}</p>
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
               disabled
-              title="Disponible al conectar Marketing"
+              title={beauty.studio.disabledHints.connectMarketing}
               className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-semibold text-white opacity-90"
               style={{ background: "var(--accent-primary)" }}
             >
-              {DEMO_MOMENTO.primary}
+              {momento.primary}
             </button>
             <button
               type="button"
               disabled
-              title="Disponible al conectar Marketing"
+              title={beauty.studio.disabledHints.connectMarketing}
               className="inline-flex cursor-not-allowed items-center rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-2 text-[11.5px] font-medium text-[var(--text-secondary-light)] opacity-85"
             >
-              {DEMO_MOMENTO.secondary}
+              {momento.secondary}
             </button>
           </div>
           <div
@@ -627,7 +588,7 @@ function MomentoBeauty() {
             style={{ color: "var(--accent-on-dark)" }}
           >
             <Plus size={12} strokeWidth={2} aria-hidden="true" />
-            {DEMO_MOMENTO.link}
+            {momento.link}
             <ArrowRight size={12} strokeWidth={2} aria-hidden="true" className="opacity-70" />
           </div>
         </div>

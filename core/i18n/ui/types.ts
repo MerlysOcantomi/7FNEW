@@ -200,7 +200,7 @@ export interface SettingsMessages {
   }
 }
 
-/** Today surface — header, empty state and global-chrome frame labels. */
+/** Today surface — header, empty state, global-chrome frame and workboard. */
 export interface TodayMessages {
   title: string
   empty: {
@@ -211,6 +211,69 @@ export interface TodayMessages {
   chrome: {
     openFull: string
     close: string
+  }
+  /**
+   * The work-first daily workboard — the production Today for every vertical
+   * (including real Finesse workspaces). Counted phrases are typed functions;
+   * lane/section labels are structural copy, not entity nouns.
+   */
+  workboard: {
+    loadingAria: string
+    errorNote: string
+    toasts: { sendToAiFailed: string; takeOverFailed: string; tryAgain: string }
+    summary: {
+      overdue: (count: number) => string
+      dueToday: (count: number) => string
+      waiting: (count: number) => string
+      caption: string
+    }
+    pills: { myWork: string; aiWork: string; schedule: string; waiting: string }
+    lanes: {
+      myWork: { title: string; subtitle: string; emptyTitle: string; emptyDescription: string }
+      aiWork: {
+        title: string
+        subtitle: string
+        emptyTitle: string
+        emptyDescription: string
+        emptyActionLabel: string
+      }
+      schedule: { title: string; subtitle: string; emptyTitle: string; emptyDescription: string }
+    }
+    sections: { overdue: string; dueToday: string; waitingBlocked: string; noDate: string }
+    briefingAria: string
+    emptyState: { title: string; body: string; inboxCta: string }
+    row: {
+      sendToAi: string
+      takeOver: string
+      proposed: string
+      proposedByAi: string
+      assignedToMe: string
+      taskChip: string
+      fromInbox: string
+      fromProject: (name: string) => string
+      projectFallback: string
+      fromCalendar: string
+      eventAria: string
+      atTime: (time: string) => string
+      priorities: { critical: string; high: string; low: string; normal: string }
+      due: {
+        todayAt: (time: string) => string
+        yesterday: string
+        tomorrow: string
+        daysAgo: (days: number) => string
+      }
+      a11y: {
+        task: string
+        priorityPrefix: string
+        duePrefix: string
+        noDueDate: string
+        inMyLane: string
+        inAiLane: string
+        fromInbox: string
+        fromProject: (name: string) => string
+        manualTask: string
+      }
+    }
   }
 }
 

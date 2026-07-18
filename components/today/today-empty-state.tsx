@@ -1,6 +1,9 @@
+"use client"
+
 import { CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Empty state for the Today view — shown only when ALL three buckets (Overdue,
@@ -14,6 +17,8 @@ import { cn } from "@/lib/utils"
  * destination in the workspace.
  */
 export function TodayEmptyState() {
+  const { t } = useI18n()
+  const copy = t.today.workboard.emptyState
   return (
     <div
       className={cn(
@@ -28,16 +33,16 @@ export function TodayEmptyState() {
         aria-hidden="true"
       />
       <p className="mt-3 text-sm font-medium text-[var(--text-primary-light)]">
-        Nothing pending. Nice.
+        {copy.title}
       </p>
       <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary-light)]">
-        Anything that needs your attention will show up here.
+        {copy.body}
       </p>
       <Link
         href="/inbox/overview"
         className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
       >
-        Or check your Inbox →
+        {copy.inboxCta}
       </Link>
     </div>
   )

@@ -33,11 +33,13 @@ import { TodayEventCard } from "./today-event-card"
 import { cn } from "@/lib/utils"
 import { useSearchParams } from "next/navigation"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { useI18n } from "@/components/i18n-provider"
 import {
   resolveTodayLayoutMode,
   shouldActivateVerticalToday,
 } from "@modules/today/today-layout-mode"
-import { resolveBeautyTodayConfig } from "@modules/today/beauty-today"
+import { toIntlLocale } from "@core/i18n/format"
+import { isBeautyTodayVertical } from "@modules/today/beauty-today"
 import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
 import { BeautyStudioOverview } from "./beauty-studio-overview"
@@ -84,9 +86,7 @@ export function TodayPageClient() {
   const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
   const experience = resolveWorkspaceExperience(effectiveVerticalKey)
   const beauty =
-    experience.todayMode === "appointment_first"
-      ? resolveBeautyTodayConfig(effectiveVerticalKey)
-      : null
+    experience.todayMode === "appointment_first" && isBeautyTodayVertical(effectiveVerticalKey)
   // P0 guardrail: a REAL Beauty workspace must NOT auto-switch into the
   // appointment_first layout while it renders demo bookings. Auto-switch is
   // enabled ONLY for an explicit design-review preview (`?vertical=beauty`) or
@@ -105,10 +105,11 @@ export function TodayPageClient() {
   })
 
   if (mode === "appointment_first") {
-    // Beauty renders the native Finesse "Studio" overview (product-app layout);
-    // every other appointment vertical keeps the generic English preview.
+    // Beauty renders the native Finesse "Studio" overview (product-app layout,
+    // localized from the effective locale); every other appointment vertical
+    // keeps the generic English preview.
     return beauty ? (
-      <BeautyStudioOverview businessName={workspace?.nombre ?? null} beauty={beauty} />
+      <BeautyStudioOverview businessName={workspace?.nombre ?? null} />
     ) : (
       <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={null} />
     )
@@ -155,6 +156,8 @@ export function TodayPageClient() {
 function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
   const [timezone, setTimezone] = useState<string | null>(null)
   const { addToast } = useToast()
+  const { t } = useI18n()
+  const wb = t.today.workboard
 
   useEffect(() => {
     /**
@@ -183,15 +186,13 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
       } catch (err) {
         addToast({
           type: "error",
-          title: to === "ai" ? "Could not send to AI" : "Could not take over",
+          title: to === "ai" ? wb.toasts.sendToAiFailed : wb.toasts.takeOverFailed,
           description:
-            err instanceof Error && err.message
-              ? err.message
-              : "Please try again in a moment.",
+            err instanceof Error && err.message ? err.message : wb.toasts.tryAgain,
         })
       }
     },
-    [addToast, refetch],
+    [addToast, refetch, wb],
   )
 
   /**
@@ -209,15 +210,13 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
       } catch (err) {
         addToast({
           type: "error",
-          title: "Could not send to AI",
+          title: wb.toasts.sendToAiFailed,
           description:
-            err instanceof Error && err.message
-              ? err.message
-              : "Please try again in a moment.",
+            err instanceof Error && err.message ? err.message : wb.toasts.tryAgain,
         })
       }
     },
-    [addToast, refetch],
+    [addToast, refetch, wb],
   )
 
   /**
@@ -246,7 +245,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
 
   if (showSpinner) {
     return (
-      <div className="flex items-center justify-center py-20" role="status" aria-label="Loading Today">
+      <div className="flex items-center justify-center py-20" role="status" aria-label={wb.loadingAria}>
         <Loader2 className="h-8 w-8 animate-spin text-[var(--text-secondary-light)]" />
       </div>
     )
@@ -260,7 +259,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
       >
         <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-destructive" strokeWidth={1.5} />
         <p className="text-sm font-medium text-destructive">{error}</p>
-        <p className="mt-1 text-xs text-destructive/80">Today could not be loaded.</p>
+        <p className="mt-1 text-xs text-destructive/80">{wb.errorNote}</p>
       </div>
     )
   }
@@ -299,7 +298,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
     }
 
     hero = (
-      <section aria-label="Today briefing" className="grid gap-5 lg:grid-cols-2">
+      <section aria-label={wb.briefingAria} className="grid gap-5 lg:grid-cols-2">
         <TodayBriefing
           line={buildBriefingLine(briefingCounts, partOfDay)}
           partOfDay={partOfDay}
@@ -327,6 +326,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
     <div className="flex flex-col gap-6">
       {hero}
       <TodaySummaryBar counts={counts} overdueCount={overdueCount} todayCount={todayCount} />
+
 
       {/*
         Workboard grid — three equal columns on desktop:
@@ -363,27 +363,29 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <TodayLaneColumn
           idPrefix="today-mine"
-          title="My work"
-          subtitle="Yours, your team's, and anything not yet handed to AI"
+          title={wb.lanes.myWork.title}
+          subtitle={wb.lanes.myWork.subtitle}
           icon={<UserRound size={13} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.mine}
-          emptyTitle="No work for you today"
-          emptyDescription="Tasks you create or take over will land here."
+          emptyTitle={wb.lanes.myWork.emptyTitle}
+          emptyDescription={wb.lanes.myWork.emptyDescription}
           onLaneMove={handleLaneMove}
           onLegacyHandoff={handleLegacyHandoff}
           accent="mine"
+          sections={wb.sections}
         />
         <TodayLaneColumn
           idPrefix="today-ai"
-          title="AI work"
-          subtitle="Proposals from Fanny and anything you handed off to AI"
+          title={wb.lanes.aiWork.title}
+          subtitle={wb.lanes.aiWork.subtitle}
           icon={<Sparkles size={13} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.ai}
-          emptyTitle="No AI work yet"
-          emptyDescription="AI work shows up when Fanny proposes work, or when you hand a task off with “Send to AI” on a My work item."
-          emptyAction={{ href: "/agents", label: "Review Agents" }}
+          emptyTitle={wb.lanes.aiWork.emptyTitle}
+          emptyDescription={wb.lanes.aiWork.emptyDescription}
+          emptyAction={{ href: "/agents", label: wb.lanes.aiWork.emptyActionLabel }}
           onLaneMove={handleLaneMove}
           accent="ai"
+          sections={wb.sections}
         />
         <TodayScheduleColumn items={scheduleItems} />
       </div>
@@ -408,12 +410,14 @@ function TodaySummaryBar({
   overdueCount: number
   todayCount: number
 }) {
-  const dateLabel = new Date().toLocaleDateString(undefined, {
+  const { t, locale } = useI18n()
+  const wb = t.today.workboard
+  const dateLabel = new Date().toLocaleDateString(toIntlLocale(locale), {
     weekday: "long",
     month: "long",
     day: "numeric",
   })
-  const waitingText = counts.waiting > 0 ? `${counts.waiting} waiting` : "nothing waiting"
+  const waitingText = wb.summary.waiting(counts.waiting)
 
   return (
     <header className="flex flex-col gap-3 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 md:flex-row md:items-center md:justify-between">
@@ -427,26 +431,26 @@ function TodaySummaryBar({
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-2">
-            <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary-light)]">Today</h1>
+            <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary-light)]">{t.today.title}</h1>
             <span suppressHydrationWarning className="text-[12px] text-[var(--text-secondary-light)]">
               {dateLabel}
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-[var(--text-secondary-light)]">
             <span style={overdueCount > 0 ? { color: "var(--inbox-urgency)" } : undefined}>
-              {overdueCount} overdue
+              {wb.summary.overdue(overdueCount)}
             </span>{" "}
-            · {todayCount} due today · {waitingText}{" "}
-            · <span className="text-[var(--text-tertiary-light)]">your daily workboard</span>
+            · {wb.summary.dueToday(todayCount)} · {waitingText}{" "}
+            · <span className="text-[var(--text-tertiary-light)]">{wb.summary.caption}</span>
           </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <CountPill label="My work" value={counts.mine} icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />} />
-        <CountPill label="AI work" value={counts.ai} icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />} tone="ai" />
-        <CountPill label="Schedule" value={counts.schedule} icon={<CalendarClock size={12} strokeWidth={2} aria-hidden="true" />} />
+        <CountPill label={wb.pills.myWork} value={counts.mine} icon={<UserRound size={12} strokeWidth={2} aria-hidden="true" />} />
+        <CountPill label={wb.pills.aiWork} value={counts.ai} icon={<Sparkles size={12} strokeWidth={2} aria-hidden="true" />} tone="ai" />
+        <CountPill label={wb.pills.schedule} value={counts.schedule} icon={<CalendarClock size={12} strokeWidth={2} aria-hidden="true" />} />
         <CountPill
-          label="Waiting"
+          label={wb.pills.waiting}
           value={counts.waiting}
           icon={<PauseCircle size={12} strokeWidth={2} aria-hidden="true" />}
           tone={counts.waiting > 0 ? "warning" : "default"}
@@ -514,9 +518,11 @@ function CountPill({
  * three-lane workboard stays stable.
  */
 function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"] }) {
+  const { t } = useI18n()
+  const lane = t.today.workboard.lanes.schedule
   return (
     <section
-      aria-label="Schedule"
+      aria-label={lane.title}
       className="relative flex flex-col gap-4 overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4"
     >
       <header className="flex items-start justify-between gap-2">
@@ -529,10 +535,10 @@ function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"
           </span>
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-              Schedule
+              {lane.title}
             </h2>
             <p className="text-[11px] leading-snug text-[var(--text-secondary-light)]">
-              Calendar events anchored to today
+              {lane.subtitle}
             </p>
           </div>
         </div>
@@ -546,9 +552,9 @@ function TodayScheduleColumn({ items }: { items: TodayPayload["buckets"]["today"
           aria-live="polite"
           className="flex flex-col items-start gap-1 rounded-xl border border-dashed border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-4 py-6"
         >
-          <p className="text-xs font-medium text-[var(--text-primary-light)]">No events today</p>
+          <p className="text-xs font-medium text-[var(--text-primary-light)]">{lane.emptyTitle}</p>
           <p className="text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
-            Scheduled items will appear here.
+            {lane.emptyDescription}
           </p>
         </div>
       ) : (
@@ -586,6 +592,7 @@ function TodayLaneColumn({
   onLaneMove,
   onLegacyHandoff,
   accent,
+  sections,
 }: {
   idPrefix: string
   title: string
@@ -604,6 +611,8 @@ function TodayLaneColumn({
   /** Forwarded to rows for legacy `Tarea` → AI conversion (My work lane). */
   onLegacyHandoff?: (tareaId: string) => void | Promise<void>
   accent: "mine" | "ai"
+  /** Localized sub-bucket labels from the today.workboard catalog. */
+  sections: { overdue: string; dueToday: string; waitingBlocked: string; noDate: string }
 }) {
   const count = countLane(buckets)
 
@@ -672,7 +681,7 @@ function TodayLaneColumn({
         <div className="flex flex-col gap-6">
           <TodaySection
             id={`${idPrefix}-overdue`}
-            title="Overdue"
+            title={sections.overdue}
             tone="urgency"
             items={buckets.overdue}
             onLaneMove={onLaneMove}
@@ -680,14 +689,14 @@ function TodayLaneColumn({
           />
           <TodaySection
             id={`${idPrefix}-due-today`}
-            title="Due today"
+            title={sections.dueToday}
             items={buckets.today}
             onLaneMove={onLaneMove}
             onLegacyHandoff={onLegacyHandoff}
           />
           <TodaySection
             id={`${idPrefix}-waiting`}
-            title="Waiting / Blocked"
+            title={sections.waitingBlocked}
             tone="warning"
             items={buckets.waiting}
             onLaneMove={onLaneMove}
@@ -695,7 +704,7 @@ function TodayLaneColumn({
           />
           <TodaySection
             id={`${idPrefix}-no-date`}
-            title="No date"
+            title={sections.noDate}
             tone="muted"
             items={buckets.undated}
             onLaneMove={onLaneMove}

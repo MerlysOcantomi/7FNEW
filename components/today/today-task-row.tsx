@@ -13,8 +13,13 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
+import type { UIMessages } from "@core/i18n/ui"
 import type { TodayItem, TodayPriority } from "@modules/today/types"
 import { getTodayLane } from "@modules/today/lanes"
+
+type WorkboardRowMessages = UIMessages["today"]["workboard"]["row"]
 
 /**
  * One row in a Today bucket. Used for any task-shaped item in the payload
@@ -63,15 +68,18 @@ export function TodayTaskRow({
   onLegacyHandoff?: (tareaId: string) => void | Promise<void>
 }) {
   const [pending, setPending] = useState(false)
+  const { t, locale } = useI18n()
+  const row = t.today.workboard.row
+  const intlLocale = toIntlLocale(locale)
 
   if (item.kind !== "task") {
     /** Defensive — events go through TodayEventCard, not this row component. */
     return null
   }
 
-  const priorityChip = renderPriorityChip(item.priority)
-  const dueChip = renderDueChip(item.dueAt)
-  const sourceChip = renderSourceChip(item)
+  const priorityChip = renderPriorityChip(item.priority, row)
+  const dueChip = renderDueChip(item.dueAt, row, intlLocale)
+  const sourceChip = renderSourceChip(item, row)
   const lane = getTodayLane(item)
   /**
    * The aggregator prefixes ids by source kind, so we branch on that
@@ -115,13 +123,15 @@ export function TodayTaskRow({
 
   /** Build the screen-reader label up front so the link has a single coherent description. */
   const ariaLabel = [
-    "Task",
+    row.a11y.task,
     item.title,
-    item.priority ? `priority ${item.priority}` : null,
-    item.dueAt ? `due ${formatDueForA11y(item.dueAt)}` : "no due date",
+    item.priority ? `${row.a11y.priorityPrefix} ${item.priority}` : null,
+    item.dueAt
+      ? `${row.a11y.duePrefix} ${formatDueForA11y(item.dueAt, intlLocale)}`
+      : row.a11y.noDueDate,
     sourceChip.ariaSuffix,
-    lane === "ai" ? "in AI lane" : lane === "mine" ? "in my lane" : null,
-    item.isProposed ? "proposed by AI" : null,
+    lane === "ai" ? row.a11y.inAiLane : lane === "mine" ? row.a11y.inMyLane : null,
+    item.isProposed ? row.proposedByAi : null,
   ]
     .filter(Boolean)
     .join(", ")
@@ -160,10 +170,10 @@ export function TodayTaskRow({
             {item.isProposed ? (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-primary)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-primary)]"
-                aria-label="Proposed by AI"
+                aria-label={row.proposedByAi}
               >
                 <Sparkles size={10} strokeWidth={2} className="shrink-0" aria-hidden="true" />
-                Proposed
+                {row.proposed}
               </span>
             ) : null}
           </div>
@@ -177,7 +187,7 @@ export function TodayTaskRow({
             {dueChip}
             {item.assignee?.isCurrentUser ? (
               <span className="inline-flex items-center rounded-full bg-[var(--accent-primary)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-primary)]">
-                Assigned to me
+                {row.assignedToMe}
               </span>
             ) : null}
           </div>
@@ -194,7 +204,7 @@ export function TodayTaskRow({
         <div className="flex shrink-0 items-start pt-0.5">
           {canMoveWorkspaceTask && lane === "mine" ? (
             <LaneActionButton
-              label="Send to AI"
+              label={row.sendToAi}
               icon={<Send size={11} strokeWidth={2} aria-hidden="true" />}
               pending={pending}
               onClick={() => handleAction("ai")}
@@ -203,7 +213,7 @@ export function TodayTaskRow({
           ) : null}
           {canHandoffLegacyTarea ? (
             <LaneActionButton
-              label="Send to AI"
+              label={row.sendToAi}
               icon={<Send size={11} strokeWidth={2} aria-hidden="true" />}
               pending={pending}
               onClick={handleLegacyHandoff}
@@ -212,7 +222,7 @@ export function TodayTaskRow({
           ) : null}
           {canMoveWorkspaceTask && lane === "ai" && !item.isProposed ? (
             <LaneActionButton
-              label="Take over"
+              label={row.takeOver}
               icon={<UserRound size={11} strokeWidth={2} aria-hidden="true" />}
               pending={pending}
               onClick={() => handleAction("user")}
@@ -270,7 +280,7 @@ function LaneActionButton({
 
 // ─── Chips ────────────────────────────────────────────────────────────────────
 
-function renderPriorityChip(priority: TodayPriority | null) {
+function renderPriorityChip(priority: TodayPriority | null, row: WorkboardRowMessages) {
   if (!priority || priority === "normal") return null
   const tone = priorityChipClass(priority)
   return (
@@ -280,45 +290,48 @@ function renderPriorityChip(priority: TodayPriority | null) {
         tone,
       )}
     >
-      {priorityLabel(priority)}
+      {priorityLabel(priority, row)}
     </span>
   )
 }
 
-function renderDueChip(dueIso: string | null) {
+function renderDueChip(dueIso: string | null, row: WorkboardRowMessages, intlLocale: string) {
   if (!dueIso) return null
   return (
     <span
       className="inline-flex items-center rounded-md bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]"
       suppressHydrationWarning
     >
-      {formatDueShort(dueIso)}
+      {formatDueShort(dueIso, row, intlLocale)}
     </span>
   )
 }
 
-function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix: string } {
+function renderSourceChip(
+  item: TodayItem,
+  row: WorkboardRowMessages,
+): { node: React.ReactNode; ariaSuffix: string } {
   if (item.source.kind === "inbox") {
     return {
       node: (
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <Inbox size={10} className="shrink-0" aria-hidden="true" />
-          From Inbox
+          {row.fromInbox}
         </span>
       ),
-      ariaSuffix: "from Inbox",
+      ariaSuffix: row.a11y.fromInbox,
     }
   }
   if (item.source.kind === "project") {
-    const label = item.source.projectName ?? "Project"
+    const label = item.source.projectName ?? row.projectFallback
     return {
       node: (
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <FolderKanban size={10} className="shrink-0" aria-hidden="true" />
-          From {label}
+          {row.fromProject(label)}
         </span>
       ),
-      ariaSuffix: `from project ${label}`,
+      ariaSuffix: row.a11y.fromProject(label),
     }
   }
   if (item.source.kind === "manual") {
@@ -333,10 +346,10 @@ function renderSourceChip(item: TodayItem): { node: React.ReactNode; ariaSuffix:
       node: (
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
           <ListTodo size={10} className="shrink-0" aria-hidden="true" />
-          Task
+          {row.taskChip}
         </span>
       ),
-      ariaSuffix: "manual task",
+      ariaSuffix: row.a11y.manualTask,
     }
   }
   /** Calendar source on a task row would be unusual — keep a fallback so future sources don't crash. */
@@ -373,16 +386,16 @@ function priorityChipClass(priority: TodayPriority): string {
   }
 }
 
-function priorityLabel(priority: TodayPriority): string {
+function priorityLabel(priority: TodayPriority, row: WorkboardRowMessages): string {
   switch (priority) {
     case "critical":
-      return "Urgent"
+      return row.priorities.critical
     case "high":
-      return "High"
+      return row.priorities.high
     case "low":
-      return "Low"
+      return row.priorities.low
     case "normal":
-      return "Normal"
+      return row.priorities.normal
   }
 }
 
@@ -393,7 +406,7 @@ function priorityLabel(priority: TodayPriority): string {
  * the formatting depends on the client locale and timezone, which can differ
  * from the server's during the first paint.
  */
-function formatDueShort(iso: string): string {
+function formatDueShort(iso: string, row: WorkboardRowMessages, intlLocale: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
 
@@ -402,18 +415,20 @@ function formatDueShort(iso: string): string {
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    return `Today ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+    return row.due.todayAt(
+      date.toLocaleTimeString(intlLocale, { hour: "numeric", minute: "2-digit" }),
+    )
   }
-  if (diffDays === -1) return "Yesterday"
-  if (diffDays === 1) return "Tomorrow"
-  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
+  if (diffDays === -1) return row.due.yesterday
+  if (diffDays === 1) return row.due.tomorrow
+  if (diffDays > -7 && diffDays < 0) return row.due.daysAgo(Math.abs(diffDays))
+  return date.toLocaleDateString(intlLocale, { day: "numeric", month: "short" })
 }
 
-function formatDueForA11y(iso: string): string {
+function formatDueForA11y(iso: string, intlLocale: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(intlLocale, {
     day: "numeric",
     month: "short",
     hour: "numeric",

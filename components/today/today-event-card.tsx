@@ -1,6 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { CalendarDays, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
 import type { TodayItem } from "@modules/today/types"
 
 /**
@@ -10,17 +14,19 @@ import type { TodayItem } from "@modules/today/types"
  * `/calendario` view rather than completing/dismissing inline.
  */
 export function TodayEventCard({ item }: { item: TodayItem }) {
+  const { t, locale } = useI18n()
+  const row = t.today.workboard.row
   if (item.kind !== "event" || item.source.kind !== "calendar") {
     /** Defensive — only render the event variant for calendar-sourced rows. */
     return null
   }
 
-  const timeChip = formatEventTime(item.dueAt)
+  const timeChip = formatEventTime(item.dueAt, toIntlLocale(locale))
   const ariaLabel = [
-    "Event",
+    row.eventAria,
     item.title,
-    timeChip ? `at ${timeChip}` : null,
-    "from Calendar",
+    timeChip ? row.atTime(timeChip) : null,
+    row.fromCalendar,
   ]
     .filter(Boolean)
     .join(", ")
@@ -70,7 +76,7 @@ export function TodayEventCard({ item }: { item: TodayItem }) {
         <div className="mt-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--app-surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary-light)]">
             <CalendarDays size={10} className="shrink-0" aria-hidden="true" />
-            From Calendar
+            {row.fromCalendar}
           </span>
         </div>
       </div>
@@ -85,9 +91,9 @@ export function TodayEventCard({ item }: { item: TodayItem }) {
 }
 
 /** "10:30 AM" style time, locale-aware. Returns empty string on bad input. */
-function formatEventTime(iso: string | null): string {
+function formatEventTime(iso: string | null, intlLocale: string): string {
   if (!iso) return ""
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+  return date.toLocaleTimeString(intlLocale, { hour: "numeric", minute: "2-digit" })
 }
