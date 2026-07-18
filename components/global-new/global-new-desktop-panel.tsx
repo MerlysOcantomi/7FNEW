@@ -4,7 +4,6 @@ import { useEffect, useRef, type ReactNode } from "react"
 import { Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  GLOBAL_NEW_GROUP_LABELS,
   actionsByGroup,
   getVisibleGlobalNewActions,
   type GlobalNewGroupId,
@@ -12,6 +11,7 @@ import {
 import { GlobalNewItem } from "./global-new-item"
 import { useGlobalNew } from "./global-new-provider"
 import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 const GROUP_ORDER: GlobalNewGroupId[] = ["capture", "work", "assets", "vertical"]
 
@@ -59,6 +59,7 @@ export function GlobalNewDesktopChrome({
 }
 
 export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" }) {
+  const { t } = useI18n()
   const { desktopOpen, closeAll } = useGlobalNew()
   const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
   const actions = getVisibleGlobalNewActions()
@@ -130,17 +131,17 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
               </span>
               <div className="min-w-0">
                 <p className={cn("text-sm font-semibold tracking-tight", headerTitle)}>
-                  New
+                  {t.globalNew.title}
                 </p>
                 <p className={cn("text-[11px] leading-tight", headerSubtitle)}>
-                  Create across your workspace
+                  {t.globalNew.subtitle}
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={closeAll}
-              aria-label="Close New panel"
+              aria-label={t.globalNew.close}
               className={cn(
                 "rounded-md p-1 transition-colors",
                 headerCloseColour,
@@ -167,7 +168,7 @@ export function GlobalNewDesktopPanel({ variant }: { variant: "app" | "context" 
                           : "text-muted-foreground",
                       )}
                     >
-                      {GLOBAL_NEW_GROUP_LABELS[g]}
+                      {t.globalNew.groups[g]}
                     </p>
                     <ul className="space-y-0.5">
                       {items.map((action) => (

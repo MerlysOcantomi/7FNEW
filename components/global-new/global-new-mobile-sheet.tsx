@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
-  GLOBAL_NEW_GROUP_LABELS,
   actionsByGroup,
   getVisibleGlobalNewActions,
   type GlobalNewGroupId,
@@ -11,10 +10,12 @@ import {
 import { GlobalNewItem } from "./global-new-item"
 import { useGlobalNew } from "./global-new-provider"
 import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 const GROUP_ORDER: GlobalNewGroupId[] = ["capture", "work", "assets", "vertical"]
 
 export function GlobalNewMobileSheet() {
+  const { t } = useI18n()
   const { mobileOpen, setMobileOpen } = useGlobalNew()
   const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
   const actions = getVisibleGlobalNewActions()
@@ -46,10 +47,10 @@ export function GlobalNewMobileSheet() {
             </span>
             <div className="min-w-0">
               <SheetTitle className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-                New
+                {t.globalNew.title}
               </SheetTitle>
               <p className="text-[11px] leading-tight text-[var(--text-secondary-light)]">
-                Create across your workspace
+                {t.globalNew.subtitle}
               </p>
             </div>
           </div>
@@ -60,7 +61,7 @@ export function GlobalNewMobileSheet() {
               return (
                 <div key={g} className="mb-8 last:mb-0">
                   <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">
-                    {GLOBAL_NEW_GROUP_LABELS[g]}
+                    {t.globalNew.groups[g]}
                   </p>
                   <ul className="space-y-0.5">
                     {items.map((action) => (

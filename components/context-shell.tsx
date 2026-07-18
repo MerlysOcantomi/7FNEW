@@ -23,6 +23,7 @@ import { AgentsPanelProvider, useAgentsPanel } from "@/components/agents/agents-
 import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome";
 import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger";
 import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome";
+import { useI18n } from "@/components/i18n-provider";
 
 export interface BreadcrumbItem {
   label: string;
@@ -59,6 +60,7 @@ export interface ContextShellProps {
  */
 function ContextShellDesktopToolbar() {
   const { openSearch, searchOpen } = useGlobalSearch();
+  const { t } = useI18n();
   const { desktopOpen } = useGlobalNew();
   const { open: todayOpen } = useTodayDrawer();
   const { open: agentsOpen } = useAgentsPanel();
@@ -113,7 +115,7 @@ function ContextShellDesktopToolbar() {
             )}
           >
             <Search className="h-3.5 w-3.5 shrink-0" />
-            <span className="w-32 text-left lg:w-48">Search...</span>
+            <span className="w-32 text-left lg:w-48">{`${t.nav.search}...`}</span>
             <kbd className="ml-auto rounded border border-border px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
               Ctrl+K
             </kbd>

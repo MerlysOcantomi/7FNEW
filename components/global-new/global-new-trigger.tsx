@@ -7,9 +7,11 @@ import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { desktopOpen, setDesktopOpen } = useGlobalNew()
+  const { t } = useI18n()
   /**
    * Cross-link with Today + Agents: when the user opens New, we
    * proactively close the Today and Agents panels. New, Today and
@@ -55,13 +57,14 @@ export function GlobalNewTriggerDesktop({ variant }: { variant: "app" | "context
       )}
     >
       <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-      <span>New</span>
+      <span>{t.globalNew.trigger}</span>
     </button>
   )
 }
 
 export function GlobalNewTriggerMobile() {
   const { mobileOpen, setMobileOpen } = useGlobalNew()
+  const { t } = useI18n()
   /**
    * Mobile mutual exclusion: close the Agents + Today vaul drawers
    * before opening the New sheet so two bottom surfaces never stack.
@@ -86,7 +89,7 @@ export function GlobalNewTriggerMobile() {
         "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",
         mobileOpen && "text-[var(--text-primary-light)]",
       )}
-      aria-label="New"
+      aria-label={t.globalNew.trigger}
       aria-expanded={mobileOpen}
     >
       <Plus size={22} strokeWidth={2} />

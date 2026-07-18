@@ -26,12 +26,12 @@ export interface GlobalNewActionDef {
   visible?: () => boolean
 }
 
-export const GLOBAL_NEW_GROUP_LABELS: Record<GlobalNewGroupId, string> = {
-  capture: "Capture",
-  work: "Work",
-  assets: "Assets",
-  vertical: "Vertical",
-}
+/**
+ * Group HEADINGS moved to the i18n catalog (`globalNew.groups` — P4.2); the
+ * panels resolve them by group id via useI18n(), so no label constant lives
+ * here anymore. Item labels below are still literals — they will compose with
+ * entity vocabulary ("New client" → "Nueva clienta") in a later block.
+ */
 
 export const GLOBAL_NEW_ACTIONS: GlobalNewActionDef[] = [
   {

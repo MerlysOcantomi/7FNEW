@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useI18n } from "@/components/i18n-provider"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -123,6 +124,7 @@ function NeedsRow({ item, onNavigate }: { item: TodayItem; onNavigate: () => voi
 }
 
 export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "context" }) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDivElement>(null)
   const { open, setOpen } = useTodayDrawer()
   const isMobile = useIsMobile()
@@ -219,7 +221,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
         ref={ref}
         id="today-desktop-chrome"
         role="dialog"
-        aria-label="Today"
+        aria-label={t.nav.today}
         data-variant={variant}
         className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.6)] animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150"
         style={{
@@ -247,7 +249,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
               <Sun size={14} strokeWidth={1.9} />
             </span>
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold text-[var(--text-primary-light)]">Today</span>
+              <span className="text-sm font-semibold text-[var(--text-primary-light)]">{t.nav.today}</span>
               <span suppressHydrationWarning className="text-[11px] text-[var(--text-secondary-light)]">
                 {dateLabel}
               </span>
@@ -262,13 +264,13 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
                 FOCUS_RING,
               )}
             >
-              Open full Today
+              {t.today.chrome.openFull}
               <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
             </Link>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close Today"
+              aria-label={t.today.chrome.close}
               className={cn(
                 "rounded-md p-1 text-[var(--text-secondary-light)] transition-colors hover:bg-[var(--app-surface-dark-hover)] hover:text-[var(--text-primary-light)]",
                 FOCUS_RING,
@@ -376,7 +378,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
             )}
             style={{ background: "var(--accent-primary)" }}
           >
-            Open full Today
+            {t.today.chrome.openFull}
             <ArrowRight size={15} />
           </Link>
         </div>

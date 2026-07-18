@@ -26,6 +26,7 @@ import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-
 import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
 import { ManualIntakeProvider } from "@/components/manual-intake/manual-intake-provider"
 import { ManualIntakeSheet } from "@/components/manual-intake/manual-intake-sheet"
+import { useI18n } from "@/components/i18n-provider"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -57,6 +58,7 @@ function AppShellDesktopToolbar({
   showAskFanny: boolean
 }) {
   const { openSearch, searchOpen } = useGlobalSearch()
+  const { t } = useI18n()
   const { desktopOpen } = useGlobalNew()
   const { open: todayOpen } = useTodayDrawer()
   const { open: agentsOpen } = useAgentsPanel()
@@ -124,7 +126,7 @@ function AppShellDesktopToolbar({
           >
             <Search className="h-3.5 w-3.5 text-[var(--text-secondary-light)]" />
             <span className="w-32 text-left text-sm text-[var(--text-secondary-light)] lg:w-48">
-              Search...
+              {`${t.nav.search}...`}
             </span>
             <kbd className="ml-auto rounded border border-[var(--border-dark)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary-light)]/60">
               Ctrl+K

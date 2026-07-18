@@ -8,6 +8,7 @@ import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Desktop trigger for the global Today surface — visual sibling of
@@ -48,6 +49,7 @@ import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
  */
 export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { open, setOpen } = useTodayDrawer()
+  const { t } = useI18n()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
   const { closeSearch } = useGlobalSearch()
@@ -87,7 +89,7 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
       )}
     >
       <Sun className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-      <span>Today</span>
+      <span>{t.nav.today}</span>
     </button>
   )
 }
@@ -125,6 +127,7 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
  */
 export function GlobalTodayTriggerMobile() {
   const { open, openToday, available } = useTodayDrawer()
+  const { t } = useI18n()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
   const { closeAsk } = useAskFanny()
@@ -146,7 +149,7 @@ export function GlobalTodayTriggerMobile() {
       type="button"
       onClick={onClick}
       data-today-trigger="true"
-      aria-label="Today"
+      aria-label={t.nav.today}
       aria-expanded={available ? open : undefined}
       className={cn(
         "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",

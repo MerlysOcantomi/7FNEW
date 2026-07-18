@@ -573,6 +573,18 @@ Administración chrome render fully localized, and operators can follow the
 business language again ("Usar el idioma del negocio"). Still pending inside
 `es`: `nav`, `today`, `clients`, `calendar`, `billing` carry English values
 until their surfaces are wired. `de` still falls back to English entirely.
-Next: **P4.2 — the coherent Finesse/Beauty pilot surfaces** (§11: Clientes
-first, composing the Clienta/Clientas vocabulary; then Today and Agenda
-labels), which is when those five namespaces get their real Spanish content.
+P4.2 landed the Finesse SHELL: real Spanish `nav`/`globalSearch`/`globalNew`/
+`today` catalogs, the `composeEntityLabel` bridge in `core/personalization`
+(vocabulary noun wins, locale catalog is the generic fallback — Clientas/
+Agenda/Mensajes/Cobros are never hardcoded in the shared catalog), the
+Beauty nav profile now declares label SOURCES (entity/nav bindings; literals
+are fallback/brand only), and the sidebar (desktop+mobile), search/New/Today
+triggers and panel chromes render from the catalog. Known remaining hardcodes
+(documented, next blocks): the default 7F Core nav (module-baked, non-reactive
+— structural issue reported), global-search dialog interior (result groups,
+quick links, example chips), New ITEM labels (need entity+gender composition,
+e.g. "Nueva clienta"), Today peek body copy, notifications bell, and the
+vertical profile's Spanish `helper` subtitles. Next: **P4.3 — Finesse content
+surfaces** (§11: Clientes first with Clienta/Clientas composition, then Today
+and Agenda labels) which is when `clients`/`calendar`/`billing` get real
+Spanish content.
