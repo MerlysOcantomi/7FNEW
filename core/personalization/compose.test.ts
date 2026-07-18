@@ -35,8 +35,12 @@ test("Finesse en: English nouns — no Spanish leaks into an English UI", () => 
   }
 })
 
-test("Finesse de: full English fallback until P5 (base preset, no es variant)", () => {
+test("Finesse de/fr/it: full English base fallback until reviewed variants exist", () => {
   assert.deepEqual(beautyDe, beautyEn)
+  assert.deepEqual(resolveVocabulary(beautyType, undefined, "fr"), beautyEn)
+  assert.deepEqual(resolveVocabulary(beautyType, undefined, "it"), beautyEn)
+  assert.deepEqual(resolveVocabulary(beautyType, undefined, "fr-CH"), beautyEn)
+  assert.deepEqual(resolveVocabulary(beautyType, undefined, "it-CH"), beautyEn)
 })
 
 test("regional locale variants normalize to the preset locale (es-MX → es)", () => {

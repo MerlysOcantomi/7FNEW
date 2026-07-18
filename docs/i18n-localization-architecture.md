@@ -564,6 +564,99 @@ cookie/header only)*, `components/i18n-provider.tsx`, `core/i18n/server.ts`,
 
 ---
 
+## 16b. Five official locales (P4.CORE-5L)
+
+**7F is multilingual by Core design** — verticals (Finesse, Property, Build,
+Clean, Hospitality, Kontor…) contribute vocabulary and their own namespaces,
+never their own language runtime.
+
+### Registry
+
+`core/i18n/types.ts` → `SupportedLocale = "es" | "en" | "de" | "fr" | "it"`
+(canonical presentation order) plus `LOCALE_REGISTRY` with per-locale
+metadata: native name (Español/English/Deutsch/Français/Italiano — never
+translated), `direction` (all ltr today; contract kept), the default REGIONAL
+**Intl locale** (es-ES / en-GB / de-DE / fr-FR / it-IT) and the catalog
+fallback (en terminal, acyclic — tested). **Translation locale ("de") ≠ format
+locale ("de-CH")**: regional variants share the base catalog but format
+through their own Intl tag.
+
+### Catalog fallback per namespace + coverage
+
+Locale files export `LocaleCatalogOverrides` — ONLY fully-translated
+namespaces, each complete against its typed contract (no `any`, no casts, no
+partial objects, no empty strings, no English copies). `ui/index.ts` composes
+`English base + contribution`, so `getUIMessages` always returns a complete
+`UIMessages` for all five locales and components never check keys.
+`UI_NAMESPACE_COVERAGE` is **derived** from the contributions (cannot lie) and
+`localeHasPendingCoverage` powers the discreet "Translation in progress" hint
+in the language settings. Current real coverage: `en` complete; `es` native
+except `calendar`/`billing`; `de`/`fr`/`it` registered + fully pending
+(honest English fallback). The legacy `TranslationSet` (emails/notifications)
+serves en/es/de natively and fr/it as explicit English fallback whose
+`.locale` states the content language (ack `<html lang>` follows it).
+
+### Regional formatters
+
+`core/i18n/format.ts`: `toIntlLocale`, `formatDate/Time/DateTime`,
+`formatNumber`, `formatPercent`, `formatCurrency`, `formatRelativeTime`.
+Pure, Intl-native, server/client safe. Currency, timezone and `now` are
+EXPLICIT inputs — never inferred from the language (Spanish UI + CHF, German
+UI + EUR, French UI + GBP are first-class). Unknown locales fall back to the
+registry default of `en` (en-GB — never a universal en-US).
+
+### Vocabulary precedence (five layers)
+
+workspace explicit override → localized vertical preset (by effective locale,
+regional variants normalized) → base vertical preset (English) → locale
+catalog fallback → English. `LOCALIZED_BUSINESS_PRESETS` is keyed by
+`SupportedLocale`; validity comes from the single `isValidLocale` source; the
+resolver has no vertical-specific logic. Standard Finesse stays
+Cliente/Clientes (es) / Client/Clients (en); de/fr/it use the English base
+until reviewed sector variants exist. Workspace `ui.labels` overrides win
+under any language (still not visible to the client-side sidebar summary —
+known limitation).
+
+### Three language axes (do not collapse)
+
+1. **User language** (`User.locale`, nullable = follow the business) — the
+   member's private interface.
+2. **Workspace language** (`Workspace.config.locale`) — the business default.
+3. **Client communication language** (future: WhatsApp, reminders, campaigns,
+   email, web, chatbot, voice) — per-client/per-conversation; today only
+   `Conversation.detectedLanguage` exists for AI replies. `Client.locale` is
+   deliberately NOT added yet (no consumer), and the `I18nProvider` locale
+   must never be used as an automatic outbound-communication language.
+
+## 16c. How to add a locale, a namespace, or a vertical
+
+**A locale:** add its `LOCALE_REGISTRY` entry + the `SupportedLocale` union
+member; add a legacy `TranslationSet` when email content is translated (else
+it falls back honestly); create `core/i18n/ui/<code>/` files ONLY for fully
+translated namespaces and register the contribution in `LOCALE_OVERRIDES`;
+run `test:i18n` — registry, parity, coverage and fallback tests enforce the
+rest. Controls pick the new locale up automatically from the registry.
+
+**A namespace:** define its interface in `ui/types.ts`, add the complete
+English file, register it in `UIMessages` + `en/index.ts`; translate per
+locale by adding the file to that locale's contribution (coverage updates
+itself). Nouns come from vocabulary args, never keys; user data is never
+translated; enum persisted values never change.
+
+**A vertical:** map its keys in `mapVerticalKeyToBusinessType`, add a base
+(English) preset in `BUSINESS_PRESETS` and per-locale variants in
+`LOCALIZED_BUSINESS_PRESETS`; surfaces compose nouns via
+`composeEntityLabel`/`useClientsNouns`-style hooks. The Core owns runtime,
+registry, fallback, controls, formatters, types and tests — the vertical only
+brings vocabulary, its namespaces and sector content.
+
+### Known formatting debt (audited P4.CORE-5L)
+
+81 files still call `Intl.*`/`toLocale*` directly; literal locales found:
+52× "en-US", 21× "es-MX", 11× "de-CH", 8× "es-ES" — including Finesse
+Marketing (`components/marketing/*` hardcodes es-ES). Migrate opportunistically
+to `core/i18n/format.ts` (Marketing first: P4.MARKETING-5L).
+
 ## 17. Recommended next step
 
 PRs 1–7 plus P4.1 have landed: the locale runtime is functional end to end, the
