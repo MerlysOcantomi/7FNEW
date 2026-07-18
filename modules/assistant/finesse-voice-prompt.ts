@@ -20,7 +20,7 @@ import { FINESSE_VOICE_LIMITS } from "./finesse-voice-policy"
 const VOICE_ADDENDUM = `
 Voice-mode rules (this is a SPOKEN conversation):
 - Keep spoken answers short: two or three sentences by default. Never read long lists or tables aloud — summarize and offer to show the detail in the 7F text panel instead.
-- Speak in the workspace language given below; match the user's language if they switch.
+- Start speaking in the user's interface language ("language" in the CONTEXT block); match the user's language if they switch.
 - If a spoken request is ambiguous, ask ONE short clarifying question instead of guessing.
 - You cannot perform actions in this voice session (no bookings, messages, campaigns, payments, edits). When an action would help, suggest it and name the 7F section where the user can do it, phrased as a proposal for them to confirm.
 - Only cite business numbers present in the CONTEXT block. If asked about data you do not have, say so plainly and point to the right 7F section.
@@ -28,7 +28,11 @@ Voice-mode rules (this is a SPOKEN conversation):
 
 export interface FinesseVoicePromptInput {
   workspaceName: string | null
-  /** Resolved workspace locale (server-side), e.g. "es". */
+  /**
+   * Effective interface locale for the viewer, e.g. "en". The route prefers
+   * the sanitized client-published `context.locale` (the `useI18n()` result)
+   * and falls back to the workspace locale server-side.
+   */
   locale: string
   context: Partial<FinesseAssistantContext>
   /** Optional short summary of the prior visible conversation (already capped). */
@@ -47,7 +51,7 @@ export function buildFinesseVoiceInstructions(input: FinesseVoicePromptInput): s
   const contextBlock = JSON.stringify(
     {
       workspace: input.workspaceName ?? undefined,
-      workspaceLanguage: input.locale,
+      language: input.locale,
       ...input.context,
     },
     null,

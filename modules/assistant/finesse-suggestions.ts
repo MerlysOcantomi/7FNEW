@@ -1,7 +1,8 @@
 /**
  * Ask Finesse — deterministic, data-aware suggestion engine. Pure functions:
- * no LLM calls, no I/O, no clock — the SAME registered page context always
- * yields the SAME ranked suggestions (stable between renders by construction).
+ * no LLM calls, no I/O, no clock — the SAME registered page context and the
+ * SAME catalog always yield the SAME ranked suggestions (stable between
+ * renders by construction).
  *
  * Pipeline: registered `FinesseAssistantPageContext` → per-page candidate
  * generators (reading ONLY the metrics the page already showed the user —
@@ -11,16 +12,20 @@
  *
  * The visible `label` stays short; the submitted `prompt` carries enough
  * wording for a useful answer. `reason` documents WHY a suggestion surfaced
- * (also handy in tests). Copy follows the assistant's existing Spanish
- * convention (`finesse-assistant.ts`); ids are stable so a future locale
- * migration is mechanical.
+ * (also handy in tests). All copy comes from the localized catalogs under
+ * `./i18n` (resolved by the caller from the effective `useI18n()` locale);
+ * ids stay stable across locales so analytics and tests never depend on
+ * language.
  */
 
 import {
-  getFinesseSuggestions,
   type FinesseAssistantPageContext,
   type FinesseAssistantPageKey,
 } from "./finesse-assistant"
+import type {
+  FinesseAssistantMessages,
+  FinesseDynamicSuggestionMessages,
+} from "./i18n/types"
 
 export type FinesseSuggestionSource =
   | "overview"
@@ -61,7 +66,10 @@ function metricFlag(metrics: Metrics | undefined, key: string): boolean {
 
 // ─── Candidate generators (one per page family) ──────────────────────────────
 
-function overviewCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function overviewCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const delta = metricNumber(m, "ingresosDelta")
@@ -70,8 +78,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (noComparison) {
     out.push({
       id: "overview-first-period",
-      label: "¿Qué vigilo en mi primer mes?",
-      prompt: "Es mi primer periodo con datos, sin comparativa anterior. ¿Qué señales debería vigilar durante mi primer mes?",
+      label: d.overview.firstPeriod.label,
+      prompt: d.overview.firstPeriod.prompt,
       reason: "no comparison period",
       priority: 90,
       source: "overview",
@@ -79,8 +87,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   } else if (delta !== null && delta < -0.005) {
     out.push({
       id: "overview-earnings-drop",
-      label: "¿Por qué bajaron mis ingresos?",
-      prompt: "Mis ingresos han bajado respecto al periodo anterior. ¿Qué pudo causar la caída y qué puedo hacer?",
+      label: d.overview.earningsDrop.label,
+      prompt: d.overview.earningsDrop.prompt,
       reason: "revenue decreased",
       priority: 100,
       source: "overview",
@@ -88,8 +96,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   } else if (delta !== null && delta > 0.005) {
     out.push({
       id: "overview-earnings-growth",
-      label: "¿Qué impulsó el crecimiento?",
-      prompt: "Mis ingresos han crecido respecto al periodo anterior. ¿Qué impulsó ese crecimiento y cómo lo mantengo?",
+      label: d.overview.earningsGrowth.label,
+      prompt: d.overview.earningsGrowth.prompt,
       reason: "revenue increased",
       priority: 80,
       source: "overview",
@@ -100,8 +108,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (retention !== null && retention < 0.6) {
     out.push({
       id: "overview-weak-rebooking",
-      label: "¿Qué clientas deberían volver?",
-      prompt: "Mi tasa de re-reserva está floja. ¿Qué clientas deberían volver pronto y cómo las contacto?",
+      label: d.overview.weakRebooking.label,
+      prompt: d.overview.weakRebooking.prompt,
       reason: "rebooking is weak",
       priority: 85,
       source: "clients",
@@ -112,8 +120,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (pending !== null && pending > 0) {
     out.push({
       id: "overview-pending-payments",
-      label: "¿Qué cobros necesitan atención?",
-      prompt: "Tengo cobros pendientes de visitas ya completadas. ¿Cuáles debería atender primero?",
+      label: d.overview.pendingPayments.label,
+      prompt: d.overview.pendingPayments.prompt,
       reason: "payments pending",
       priority: 75,
       source: "billing",
@@ -124,8 +132,8 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (peak !== null && peak >= 0.85) {
     out.push({
       id: "overview-peak-availability",
-      label: "¿Cómo libero mi día punta?",
-      prompt: "Mi día más ocupado está casi completo. ¿Cómo puedo crear más disponibilidad sin perder clientas?",
+      label: d.overview.peakAvailability.label,
+      prompt: d.overview.peakAvailability.prompt,
       reason: "peak day nearly full",
       priority: 70,
       source: "schedule",
@@ -135,7 +143,10 @@ function overviewCandidates(context: FinesseAssistantPageContext): FinesseSugges
   return out
 }
 
-function todayCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function todayCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const gaps = metricNumber(m, "huecosLibres")
@@ -144,8 +155,8 @@ function todayCandidates(context: FinesseAssistantPageContext): FinesseSuggestio
   if (gaps !== null && gaps > 0) {
     out.push({
       id: "today-fill-gaps",
-      label: "¿Cómo lleno los huecos de hoy?",
-      prompt: `Hoy tengo ${gaps} hueco(s) libre(s) en la agenda. ¿Cómo puedo llenarlos?`,
+      label: d.today.fillGaps.label,
+      prompt: d.today.fillGaps.prompt(gaps),
       reason: "open gaps today",
       priority: 90,
       source: "schedule",
@@ -154,16 +165,16 @@ function todayCandidates(context: FinesseAssistantPageContext): FinesseSuggestio
   if (appointments !== null && appointments > 0) {
     out.push({
       id: "today-first-move",
-      label: "¿Qué hago primero?",
-      prompt: `Tengo ${appointments} citas hoy. ¿Qué debería hacer primero para que el día salga bien?`,
+      label: d.today.firstMove.label,
+      prompt: d.today.firstMove.prompt(appointments),
       reason: "appointments today",
       priority: 80,
       source: "schedule",
     })
     out.push({
       id: "today-summary",
-      label: "Resume mi día",
-      prompt: "Resume mi día de hoy: citas, huecos y lo que necesita mi atención.",
+      label: d.today.summary.label,
+      prompt: d.today.summary.prompt,
       reason: "appointments today",
       priority: 60,
       source: "schedule",
@@ -173,7 +184,10 @@ function todayCandidates(context: FinesseAssistantPageContext): FinesseSuggestio
   return out
 }
 
-function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function agendaCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const gapsTomorrow = metricNumber(m, "huecosManana")
@@ -184,8 +198,8 @@ function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggesti
   if (gapsTomorrow !== null && gapsTomorrow > 0) {
     out.push({
       id: "agenda-fill-tomorrow",
-      label: "¿Cómo lleno los huecos de mañana?",
-      prompt: `Mañana tengo ${gapsTomorrow} hueco(s) libre(s). ¿Cómo puedo llenarlos?`,
+      label: d.agenda.fillTomorrow.label,
+      prompt: d.agenda.fillTomorrow.prompt(gapsTomorrow),
       reason: "gaps tomorrow",
       priority: 90,
       source: "schedule",
@@ -194,8 +208,8 @@ function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggesti
   if (pendingConfirm !== null && pendingConfirm > 0) {
     out.push({
       id: "agenda-pending-confirmation",
-      label: "¿Qué citas faltan por confirmar?",
-      prompt: `Tengo ${pendingConfirm} cita(s) sin confirmar. ¿Cuáles debería confirmar primero?`,
+      label: d.agenda.pendingConfirmation.label,
+      prompt: d.agenda.pendingConfirmation.prompt(pendingConfirm),
       reason: "appointments need confirmation",
       priority: 85,
       source: "schedule",
@@ -204,8 +218,8 @@ function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggesti
   if (cancellations !== null && cancellations > 0) {
     out.push({
       id: "agenda-cancelled-slot",
-      label: "¿Qué hago con el hueco cancelado?",
-      prompt: "Se ha cancelado una cita hoy. ¿Qué puedo hacer con ese hueco?",
+      label: d.agenda.cancelledSlot.label,
+      prompt: d.agenda.cancelledSlot.prompt,
       reason: "cancellation today",
       priority: 80,
       source: "schedule",
@@ -214,8 +228,8 @@ function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggesti
   if (nearlyFull) {
     out.push({
       id: "agenda-fit-urgent",
-      label: "¿Dónde cabe una cita urgente?",
-      prompt: "Mi día está casi completo. ¿Dónde podría encajar una cita urgente sin desordenar la agenda?",
+      label: d.agenda.fitUrgent.label,
+      prompt: d.agenda.fitUrgent.prompt,
       reason: "day nearly full",
       priority: 75,
       source: "schedule",
@@ -225,7 +239,10 @@ function agendaCandidates(context: FinesseAssistantPageContext): FinesseSuggesti
   return out
 }
 
-function clientsCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function clientsCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const overdue = metricNumber(m, "clientasSinVolver")
@@ -233,8 +250,8 @@ function clientsCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   if (context.selectedEntityType === "client" && context.selectedEntityId) {
     out.push({
       id: `clients-selected-summary:${context.selectedEntityId}`,
-      label: "Resume su historial reciente",
-      prompt: "Resume el historial reciente de esta clienta: visitas, servicios y cualquier señal a vigilar.",
+      label: d.clients.selectedSummary.label,
+      prompt: d.clients.selectedSummary.prompt,
       reason: "client selected",
       priority: 95,
       source: "clients",
@@ -243,8 +260,8 @@ function clientsCandidates(context: FinesseAssistantPageContext): FinesseSuggest
     })
     out.push({
       id: `clients-selected-contact:${context.selectedEntityId}`,
-      label: "¿Debería volver a contactarla?",
-      prompt: "¿Debería volver a contactar a esta clienta? ¿Cuándo y con qué mensaje?",
+      label: d.clients.selectedContact.label,
+      prompt: d.clients.selectedContact.prompt,
       reason: "client selected",
       priority: 70,
       source: "clients",
@@ -256,8 +273,8 @@ function clientsCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   if (overdue !== null && overdue > 0) {
     out.push({
       id: "clients-overdue-rebooking",
-      label: "¿A quién contacto esta semana?",
-      prompt: `Hay ${overdue} clientas que llevan tiempo sin volver. ¿A quiénes debería contactar esta semana y cómo?`,
+      label: d.clients.overdueRebooking.label,
+      prompt: d.clients.overdueRebooking.prompt(overdue),
       reason: "clients overdue for rebooking",
       priority: 90,
       source: "clients",
@@ -267,7 +284,10 @@ function clientsCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   return out
 }
 
-function messagesCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function messagesCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const unanswered = metricNumber(m, "mensajesSinResponder")
@@ -275,8 +295,8 @@ function messagesCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (context.selectedEntityType === "conversation" && context.selectedEntityId) {
     out.push({
       id: `messages-selected-summary:${context.selectedEntityId}`,
-      label: "Resume esta conversación",
-      prompt: "Resume esta conversación y dime si queda algo pendiente de responder.",
+      label: d.messages.selectedSummary.label,
+      prompt: d.messages.selectedSummary.prompt,
       reason: "conversation selected",
       priority: 95,
       source: "messages",
@@ -287,8 +307,8 @@ function messagesCandidates(context: FinesseAssistantPageContext): FinesseSugges
   if (unanswered !== null && unanswered > 0) {
     out.push({
       id: "messages-need-reply",
-      label: "¿Qué mensajes respondo primero?",
-      prompt: `Tengo ${unanswered} mensaje(s) sin responder. ¿Cuáles debería responder primero?`,
+      label: d.messages.needReply.label,
+      prompt: d.messages.needReply.prompt(unanswered),
       reason: "unanswered messages",
       priority: 90,
       source: "messages",
@@ -298,7 +318,10 @@ function messagesCandidates(context: FinesseAssistantPageContext): FinesseSugges
   return out
 }
 
-function marketingCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function marketingCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const works = metricNumber(m, "trabajosSubidos")
@@ -307,8 +330,8 @@ function marketingCandidates(context: FinesseAssistantPageContext): FinesseSugge
   if (works !== null && works > 0) {
     out.push({
       id: "marketing-post-latest-work",
-      label: "Crea un post con mi último trabajo",
-      prompt: "Tengo fotos de trabajos recientes sin usar. ¿Cómo preparo una publicación con el último trabajo?",
+      label: d.marketing.postLatestWork.label,
+      prompt: d.marketing.postLatestWork.prompt,
       reason: "recent unused photo",
       priority: 90,
       source: "marketing",
@@ -316,8 +339,8 @@ function marketingCandidates(context: FinesseAssistantPageContext): FinesseSugge
   } else if (works === 0) {
     out.push({
       id: "marketing-no-media",
-      label: "¿Qué contenido creo hoy?",
-      prompt: "Todavía no tengo fotos subidas. ¿Qué contenido debería crear hoy para mi salón?",
+      label: d.marketing.noMedia.label,
+      prompt: d.marketing.noMedia.prompt,
       reason: "no media exists",
       priority: 85,
       source: "marketing",
@@ -326,8 +349,8 @@ function marketingCandidates(context: FinesseAssistantPageContext): FinesseSugge
   if (ready !== null && ready > 0) {
     out.push({
       id: "marketing-review-ready",
-      label: "¿Qué publico primero?",
-      prompt: `Tengo ${ready} publicación(es) preparadas. ¿Cuál debería revisar y publicar primero?`,
+      label: d.marketing.reviewReady.label,
+      prompt: d.marketing.reviewReady.prompt(ready),
       reason: "posts ready for review",
       priority: 80,
       source: "marketing",
@@ -337,7 +360,10 @@ function marketingCandidates(context: FinesseAssistantPageContext): FinesseSugge
   return out
 }
 
-function billingCandidates(context: FinesseAssistantPageContext): FinesseSuggestion[] {
+function billingCandidates(
+  context: FinesseAssistantPageContext,
+  d: FinesseDynamicSuggestionMessages,
+): FinesseSuggestion[] {
   const m = context.visibleMetrics
   const out: FinesseSuggestion[] = []
   const overdue = metricNumber(m, "cobrosPendientes")
@@ -346,8 +372,8 @@ function billingCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   if (overdue !== null && overdue > 0) {
     out.push({
       id: "billing-follow-up",
-      label: "¿Qué cobros persigo primero?",
-      prompt: "Tengo cobros pendientes. ¿Cuáles debería perseguir primero y cómo?",
+      label: d.billing.followUp.label,
+      prompt: d.billing.followUp.prompt,
       reason: "payments overdue",
       priority: 95,
       source: "billing",
@@ -355,8 +381,8 @@ function billingCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   } else if (overdue === 0) {
     out.push({
       id: "billing-collection-health",
-      label: "¿Cómo va mi cobro?",
-      prompt: "No tengo cobros vencidos ahora mismo. ¿Cómo va mi ritmo de cobro en general?",
+      label: d.billing.collectionHealth.label,
+      prompt: d.billing.collectionHealth.prompt,
       reason: "nothing overdue",
       priority: 60,
       source: "billing",
@@ -365,8 +391,8 @@ function billingCandidates(context: FinesseAssistantPageContext): FinesseSuggest
   if (delta !== null && Math.abs(delta) > 0.005) {
     out.push({
       id: "billing-revenue-change",
-      label: "Explica los ingresos del periodo",
-      prompt: "Mis ingresos han cambiado respecto al periodo anterior. Explícame ese cambio.",
+      label: d.billing.revenueChange.label,
+      prompt: d.billing.revenueChange.prompt,
       reason: "revenue changed",
       priority: 80,
       source: "billing",
@@ -377,7 +403,13 @@ function billingCandidates(context: FinesseAssistantPageContext): FinesseSuggest
 }
 
 const GENERATORS: Partial<
-  Record<FinesseAssistantPageKey, (context: FinesseAssistantPageContext) => FinesseSuggestion[]>
+  Record<
+    FinesseAssistantPageKey,
+    (
+      context: FinesseAssistantPageContext,
+      d: FinesseDynamicSuggestionMessages,
+    ) => FinesseSuggestion[]
+  >
 > = {
   "my-salon": overviewCandidates,
   today: todayCandidates,
@@ -397,8 +429,11 @@ export interface FinesseSuggestionInput {
 }
 
 /** Static page suggestions wrapped in the dynamic contract (fallback only). */
-export function fallbackSuggestions(page: FinesseAssistantPageKey): FinesseSuggestion[] {
-  return getFinesseSuggestions(page)
+export function fallbackSuggestions(
+  page: FinesseAssistantPageKey,
+  messages: FinesseAssistantMessages,
+): FinesseSuggestion[] {
+  return messages.staticSuggestions[page]
     .slice(0, MAX_SUGGESTIONS)
     .map((label, i) => ({
       id: `fallback-${page}-${i}`,
@@ -414,14 +449,17 @@ export function fallbackSuggestions(page: FinesseAssistantPageKey): FinesseSugge
  * Rank, dedupe and cap candidates. Deterministic tie-break: priority desc,
  * then id asc — never render order or object identity.
  */
-export function buildFinesseSuggestions(input: FinesseSuggestionInput): FinesseSuggestion[] {
+export function buildFinesseSuggestions(
+  input: FinesseSuggestionInput,
+  messages: FinesseAssistantMessages,
+): FinesseSuggestion[] {
   const generate = GENERATORS[input.page]
   const candidates =
     input.context && generate && input.context.page === input.page
-      ? generate(input.context)
+      ? generate(input.context, messages.dynamicSuggestions)
       : []
 
-  if (candidates.length === 0) return fallbackSuggestions(input.page)
+  if (candidates.length === 0) return fallbackSuggestions(input.page, messages)
 
   const seen = new Set<string>()
   const ranked = [...candidates]
@@ -436,7 +474,7 @@ export function buildFinesseSuggestions(input: FinesseSuggestionInput): FinesseS
   // offers a useful minimum without inventing signals.
   if (ranked.length < 2) {
     const labels = new Set(ranked.map((s) => s.label))
-    for (const fb of fallbackSuggestions(input.page)) {
+    for (const fb of fallbackSuggestions(input.page, messages)) {
       if (ranked.length >= MAX_SUGGESTIONS) break
       if (!labels.has(fb.label)) ranked.push(fb)
     }

@@ -2,27 +2,10 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
-  FINESSE_ASSISTANT_COPY,
   FINESSE_MAX_QUESTION_LENGTH,
-  getFinesseSuggestions,
   resolveFinessePageKey,
   type FinesseAssistantContext,
-  type FinesseAssistantPageKey,
 } from "./finesse-assistant"
-
-const ALL_PAGES: FinesseAssistantPageKey[] = [
-  "my-salon",
-  "today",
-  "agenda",
-  "clients",
-  "messages",
-  "catalog",
-  "marketing",
-  "billing",
-  "team",
-  "settings",
-  "other",
-]
 
 // ─── Route → page key ────────────────────────────────────────────────────────
 
@@ -49,37 +32,9 @@ test("resolveFinessePageKey: unknown routes are an honest 'other'", () => {
   assert.equal(resolveFinessePageKey("/clientesx"), "other")
 })
 
-// ─── Suggestions ─────────────────────────────────────────────────────────────
+// ─── Question limit ──────────────────────────────────────────────────────────
 
-test("every page has at least one Spanish suggestion; keys differ per page", () => {
-  for (const page of ALL_PAGES) {
-    const suggestions = getFinesseSuggestions(page)
-    assert.ok(suggestions.length >= 1, `${page} needs suggestions`)
-    for (const s of suggestions) assert.ok(s.trim().length > 0)
-  }
-  // Page-awareness: My Salon and Agenda must not share the same prompts.
-  assert.notDeepEqual(getFinesseSuggestions("my-salon"), getFinesseSuggestions("agenda"))
-})
-
-test("mission §8 anchor suggestions exist on their pages", () => {
-  assert.ok(getFinesseSuggestions("my-salon").some((s) => s.includes("Explícame")))
-  assert.ok(getFinesseSuggestions("today").some((s) => s.includes("primero")))
-  assert.ok(getFinesseSuggestions("agenda").some((s) => s.toLowerCase().includes("hueco")))
-  assert.ok(getFinesseSuggestions("clients").some((s) => s.toLowerCase().includes("no han vuelto")))
-  assert.ok(getFinesseSuggestions("messages").some((s) => s.toLowerCase().includes("respuesta")))
-  assert.ok(getFinesseSuggestions("catalog").some((s) => s.toLowerCase().includes("servicio")))
-  assert.ok(getFinesseSuggestions("marketing").some((s) => s.toLowerCase().includes("campaña")))
-})
-
-// ─── Copy completeness ───────────────────────────────────────────────────────
-
-test("copy covers every page key (labels + intros), nothing empty", () => {
-  for (const page of ALL_PAGES) {
-    assert.ok(FINESSE_ASSISTANT_COPY.pageLabels[page]?.length > 0, `label for ${page}`)
-    assert.ok(FINESSE_ASSISTANT_COPY.intros[page]?.length > 0, `intro for ${page}`)
-  }
-  assert.ok(FINESSE_ASSISTANT_COPY.honestyNote.length > 0)
-  assert.ok(FINESSE_ASSISTANT_COPY.unavailable.title.length > 0)
+test("question limit is generous enough for suggestion prompts", () => {
   assert.ok(FINESSE_MAX_QUESTION_LENGTH >= 200)
 })
 

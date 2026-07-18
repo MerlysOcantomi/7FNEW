@@ -118,9 +118,12 @@ export async function POST(req: NextRequest) {
   const context = sanitizeFinesseContext(payload.context)
   const conversationSummary = clipConversationSummary(payload.conversationSummary)
 
+  // Voice follows the viewer's interface language: the sanitized context
+  // carries the effective `useI18n()` locale; the workspace locale is only
+  // the server-side fallback (e.g. a tampered/legacy client omitting it).
   const instructions = buildFinesseVoiceInstructions({
     workspaceName: ws.nombre ?? null,
-    locale: ws.locale,
+    locale: context.locale ?? ws.locale,
     context,
     conversationSummary,
   })
