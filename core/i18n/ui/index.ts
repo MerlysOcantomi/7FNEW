@@ -26,6 +26,8 @@ export type {
   ClientsMessages,
   CalendarMessages,
   BillingMessages,
+  ServicesMessages,
+  TeamMessages,
   VoiceMessages,
 } from "./types"
 

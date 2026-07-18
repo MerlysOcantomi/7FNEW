@@ -8,16 +8,14 @@ import { UserCircle, Mail, Building2, FolderKanban, ExternalLink, Pencil, Trash2
 import { UsuarioForm } from "@/components/forms/usuario-form"
 import { ConfirmModal } from "@/components/confirm-modal"
 import { useFetch } from "@/hooks/use-fetch"
-import { estadoLabel, displayLabel, apiDelete } from "@/lib/api-client"
+import { apiDelete } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { toast } from "sonner"
 
-const rolLabel: Record<string, string> = {
-  admin: "Admin",
-  gerente: "Manager",
-  miembro: "Member",
-}
-
 export default function UsuariosPage() {
+  const { t } = useI18n()
+  const T = t.team
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [deleteItem, setDeleteItem] = useState<any>(null)
@@ -32,14 +30,17 @@ export default function UsuariosPage() {
   const activos = users?.filter((u) => u.estado === "activo").length ?? 0
   const rolesUnicos = users ? new Set(users.map((u) => u.rol)).size : 0
 
+  const roleLabel = (rol: string): string =>
+    (T.roles as Record<string, string>)[rol] ?? rol
+
   async function handleDelete() {
     if (!deleteItem) return
     try {
       await apiDelete(`/api/usuarios/${deleteItem.id}`)
-      toast.success("User deleted")
+      toast.success(T.toasts.deleted)
       refetch()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete")
+      toast.error(err instanceof Error && err.message ? err.message : T.toasts.deleteError)
     } finally {
       setDeleteItem(null)
     }
@@ -48,19 +49,16 @@ export default function UsuariosPage() {
   return (
     <AppShell
       currentSection="usuarios"
-      breadcrumbs={[{ label: "7F" }, { label: "Users" }]}
+      breadcrumbs={[{ label: "7F" }, { label: T.title }]}
     >
-      <SectionPage
-        title="Users"
-        description="Manage team members, roles, permissions, and system access."
-      >
+      <SectionPage title={T.title} description={T.description}>
         <div className="flex items-center justify-end">
           <button
             onClick={() => { setEditingItem(null); setFormOpen(true) }}
             className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
           >
             <Plus className="h-3.5 w-3.5" />
-            New user
+            {T.newUser}
           </button>
         </div>
 
@@ -72,15 +70,15 @@ export default function UsuariosPage() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total users</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{T.stats.total}</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : totalUsuarios}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{T.stats.active}</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : activos}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Unique roles</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{T.stats.uniqueRoles}</p>
             <p className="mt-1 text-2xl font-semibold text-card-foreground">{loading ? "—" : rolesUnicos}</p>
           </div>
         </div>
@@ -103,8 +101,8 @@ export default function UsuariosPage() {
         ) : !users?.length ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
             <UserCircle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">No users</p>
-            <p className="text-xs text-muted-foreground mt-1">No users found in the system.</p>
+            <p className="text-sm font-medium text-foreground">{T.empty.title}</p>
+            <p className="text-xs text-muted-foreground mt-1">{T.empty.body}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -116,7 +114,7 @@ export default function UsuariosPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-foreground truncate">{user.nombre}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{displayLabel(user.rol ?? "", rolLabel)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{roleLabel(user.rol ?? "")}</p>
                     <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
                       <Mail className="h-3 w-3" />
                       <span className="truncate">{user.email}</span>
@@ -131,11 +129,11 @@ export default function UsuariosPage() {
                     </Link>
                     <div className="flex items-center gap-3 mt-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${user.estado === "activo" ? "bg-[var(--tab-phases)] text-foreground/70" : "bg-muted text-muted-foreground"}`}>
-                        {displayLabel(user.estado ?? "", estadoLabel)}
+                        {resolveStatusLabel(t.statuses, user.estado)}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <FolderKanban className="h-3 w-3" />
-                        — projects
+                        {T.card.projectsPlaceholder}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
@@ -143,13 +141,13 @@ export default function UsuariosPage() {
                         onClick={() => { setEditingItem(user); setFormOpen(true) }}
                         className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                       >
-                        <Pencil className="h-3 w-3" /> Edit
+                        <Pencil className="h-3 w-3" /> {t.common.edit}
                       </button>
                       <button
                         onClick={() => setDeleteItem(user)}
                         className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-accent transition-colors"
                       >
-                        <Trash2 className="h-3 w-3" /> Delete
+                        <Trash2 className="h-3 w-3" /> {t.common.delete}
                       </button>
                     </div>
                   </div>
@@ -166,9 +164,9 @@ export default function UsuariosPage() {
         />
         <ConfirmModal
           open={!!deleteItem}
-          title="Delete user"
-          description={`Are you sure you want to delete "${deleteItem?.nombre}"? This action cannot be undone.`}
-          confirmLabel="Delete"
+          title={T.deleteDialog.title}
+          description={T.deleteDialog.description(deleteItem?.nombre ?? "")}
+          confirmLabel={T.deleteDialog.confirm}
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteItem(null)}

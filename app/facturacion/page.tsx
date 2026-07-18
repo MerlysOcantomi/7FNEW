@@ -24,17 +24,12 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { FacturaForm } from "@/components/forms/factura-form";
-import { displayLabel, estadoLabel } from "@/lib/api-client";
+import { useI18n } from "@/components/i18n-provider";
+import { resolveStatusLabel } from "@core/i18n/ui";
+import { formatCurrency, formatDate } from "@core/i18n/format";
 
-// API estado: borrador, enviada, pagada, vencida, cancelada
-const ESTADO_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "pagada", label: "Paid" },
-  { value: "enviada", label: "Pending" },
-  { value: "vencida", label: "Overdue" },
-  { value: "borrador", label: "Draft" },
-  { value: "cancelada", label: "Canceled" },
-];
+// API estado VALUES (persisted — labels resolve via the shared `statuses` catalog).
+const ESTADO_VALUES = ["", "pagada", "enviada", "vencida", "borrador", "cancelada"] as const;
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   pagada: { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
@@ -44,22 +39,23 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   cancelada: { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" },
 };
 
-function formatDate(value: string | Date | null | undefined): string {
+// Invoices don't persist a currency of their own yet — the workspace default.
+const INVOICE_CURRENCY = "CHF";
+
+function formatDay(value: string | Date | null | undefined, locale: string): string {
   if (!value) return "—";
-  try {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return "—";
-  }
+  const formatted = formatDate(value instanceof Date ? value : String(value), { locale });
+  return formatted || "—";
 }
 
-function formatCurrency(value: number | null | undefined): string {
+function formatMoney(value: number | null | undefined, locale: string): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "CHF" }).format(value);
+  return formatCurrency(value, { locale, currency: INVOICE_CURRENCY }) || "—";
 }
 
 export default function FacturacionPage() {
+  const { t, locale } = useI18n();
+  const B = t.billing;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [clienteFilter, setClienteFilter] = useState("");
@@ -90,13 +86,14 @@ export default function FacturacionPage() {
     const countPagadas = facturas.filter((f: any) => f.estado === "pagada").length;
     const countPendientes = facturas.filter((f: any) => f.estado === "enviada").length;
     const countVencidas = facturas.filter((f: any) => f.estado === "vencida").length;
+    const stats = B.list.stats;
     return [
-      { label: "Total billed", value: formatCurrency(totalFacturado), sub: "All invoices", icon: DollarSign, iconClass: "text-primary" },
-      { label: "Collected", value: formatCurrency(cobrado), sub: `${countPagadas} paid invoice${countPagadas !== 1 ? "s" : ""}`, icon: CheckCircle2, iconClass: "text-[var(--status-success-text)]" },
-      { label: "Pending", value: formatCurrency(pendiente), sub: `${countPendientes} pending invoice${countPendientes !== 1 ? "s" : ""}`, icon: Clock, iconClass: "text-primary" },
-      { label: "Overdue", value: formatCurrency(vencido), sub: countVencidas > 0 ? `${countVencidas} invoice${countVencidas !== 1 ? "s" : ""} — needs attention` : "No overdue invoices", icon: AlertTriangle, iconClass: "text-destructive" },
+      { label: stats.totalBilled, value: formatMoney(totalFacturado, locale), sub: stats.allInvoices, icon: DollarSign, iconClass: "text-primary" },
+      { label: stats.collected, value: formatMoney(cobrado, locale), sub: stats.paidCount(countPagadas), icon: CheckCircle2, iconClass: "text-[var(--status-success-text)]" },
+      { label: stats.pending, value: formatMoney(pendiente, locale), sub: stats.pendingCount(countPendientes), icon: Clock, iconClass: "text-primary" },
+      { label: stats.overdue, value: formatMoney(vencido, locale), sub: countVencidas > 0 ? stats.overdueCount(countVencidas) : stats.noOverdue, icon: AlertTriangle, iconClass: "text-destructive" },
     ];
-  }, [facturas]);
+  }, [facturas, B, locale]);
 
   const primeraVencida = useMemo(() => {
     return facturas.find((f: any) => f.estado === "vencida");
@@ -114,13 +111,13 @@ export default function FacturacionPage() {
 
       <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
         <PageHeader
-          eyebrow="Revenue"
-          title="Invoices"
+          eyebrow={B.eyebrow}
+          title={B.invoices}
           tone="canvas"
           actions={
             <Button onClick={() => setFormOpen(true)}>
               <Plus size={14} strokeWidth={2} />
-              New invoice
+              {B.newInvoice}
             </Button>
           }
         />
@@ -146,16 +143,21 @@ export default function FacturacionPage() {
             <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
               <AlertTriangle size={15} className="text-destructive mt-0.5 shrink-0" strokeWidth={1.75} />
               <div>
-                <p className="text-sm font-semibold text-destructive">Overdue invoice — action required</p>
+                <p className="text-sm font-semibold text-destructive">{B.list.overdueBanner.title}</p>
                 <p className="text-xs text-destructive/80 mt-0.5">
-                  {primeraVencida.numero} for {primeraVencida.cliente?.nombre ?? "Client"} ({formatCurrency(primeraVencida.total)}) became overdue on {formatDate(primeraVencida.fechaVencimiento)}.
+                  {B.list.overdueBanner.body({
+                    numero: String(primeraVencida.numero),
+                    client: primeraVencida.cliente?.nombre ?? B.list.overdueBanner.clientFallback,
+                    amount: formatMoney(primeraVencida.total, locale),
+                    date: formatDay(primeraVencida.fechaVencimiento, locale),
+                  })}
                 </p>
               </div>
               <Link
                 href={`/facturacion/${primeraVencida.id}`}
                 className="shrink-0 text-xs font-medium text-destructive hover:underline"
               >
-                View invoice
+                {B.list.overdueBanner.viewInvoice}
               </Link>
             </div>
           )}
@@ -168,7 +170,7 @@ export default function FacturacionPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by invoice number..."
+                placeholder={B.list.searchPlaceholder}
                 className="w-full rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary-light)] placeholder:text-[var(--text-secondary-light)] transition-colors focus:border-[var(--accent-primary)]/50 focus:outline-none"
               />
             </div>
@@ -177,23 +179,27 @@ export default function FacturacionPage() {
                 onClick={() => { setClienteOpen(false); setStatusOpen(!statusOpen); }}
                 className="flex w-full lg:w-auto min-w-[130px] items-center justify-between gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-2.5 text-sm text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-primary)]/45"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
+                <span>
+                  {statusFilter
+                    ? resolveStatusLabel(t.statuses, statusFilter)
+                    : B.list.filters.statusFallback}
+                </span>
                 <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
                 <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(60vh,20rem)] min-w-[130px] overflow-hidden overflow-y-auto rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg lg:right-auto">
-                  {ESTADO_OPTIONS.map((opt) => (
+                  {ESTADO_VALUES.map((value) => (
                     <button
-                      key={opt.value || "all"}
-                      onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
+                      key={value || "all"}
+                      onClick={() => { setStatusFilter(value); setStatusOpen(false); }}
                       className={cn(
                         "w-full px-4 py-2 text-left text-sm transition-colors",
-                        statusFilter === opt.value
+                        statusFilter === value
                           ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]"
                           : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
                       )}
                     >
-                      {opt.label}
+                      {value ? resolveStatusLabel(t.statuses, value) : B.list.filters.all}
                     </button>
                   ))}
                 </div>
@@ -204,7 +210,7 @@ export default function FacturacionPage() {
                 onClick={() => { setStatusOpen(false); setClienteOpen(!clienteOpen); }}
                 className="flex w-full lg:w-auto min-w-[140px] items-center justify-between gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-4 py-2.5 text-sm text-[var(--text-primary-light)] transition-colors hover:border-[var(--accent-primary)]/45"
               >
-                <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? "Client") : "Client"}</span>
+                <span>{clienteFilter ? (clientes.find((c: any) => c.id === clienteFilter)?.nombre ?? B.list.filters.clientFallback) : B.list.filters.clientFallback}</span>
                 <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", clienteOpen && "rotate-180")} />
               </button>
               {clienteOpen && (
@@ -216,7 +222,7 @@ export default function FacturacionPage() {
                       !clienteFilter ? "bg-white/[0.08] font-medium text-[var(--accent-primary)]" : "text-[var(--text-primary-light)] hover:bg-white/[0.06]",
                     )}
                   >
-                    All
+                    {B.list.filters.all}
                   </button>
                   {clientes.map((c: any) => (
                     <button
@@ -238,8 +244,8 @@ export default function FacturacionPage() {
           {/* Invoice List */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">All invoices</h2>
-              <span className="text-xs text-[var(--text-secondary-light)]">{facturas.length} invoice{facturas.length !== 1 ? "s" : ""}</span>
+              <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-secondary-light)]">{B.list.heading}</h2>
+              <span className="text-xs text-[var(--text-secondary-light)]">{B.list.count(facturas.length)}</span>
             </div>
 
             {loading ? (
@@ -250,19 +256,19 @@ export default function FacturacionPage() {
               <div className="bg-destructive/5 rounded-xl border border-destructive/20 p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3" />
                 <p className="text-sm font-medium text-destructive">{error}</p>
-                <p className="text-xs text-destructive/80 mt-1">Invoices could not be loaded</p>
+                <p className="text-xs text-destructive/80 mt-1">{B.list.loadErrorNote}</p>
               </div>
             ) : facturas.length === 0 ? (
               <div className="rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-16 text-center">
                 <Receipt className="mx-auto mb-4 h-12 w-12 text-[var(--text-secondary-light)]" />
-                <p className="text-sm font-medium text-[var(--text-primary-light)]">No invoices yet</p>
+                <p className="text-sm font-medium text-[var(--text-primary-light)]">{B.list.empty.title}</p>
                 <p className="mt-1 text-xs text-[var(--text-secondary-light)]">
-                  {search || statusFilter || clienteFilter ? "No results for the selected filters." : "Create your first invoice to get started."}
+                  {search || statusFilter || clienteFilter ? B.list.empty.filtered : B.list.empty.default}
                 </p>
                 {!search && !statusFilter && !clienteFilter && (
                   <Button onClick={() => setFormOpen(true)} className="mt-4">
                     <Plus size={14} />
-                    New invoice
+                    {B.newInvoice}
                   </Button>
                 )}
               </div>
@@ -271,13 +277,13 @@ export default function FacturacionPage() {
                 {/* Desktop list */}
                 <div className="hidden overflow-hidden rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] ring-1 ring-white/[0.04] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.45)] sm:block">
                   <div className="grid grid-cols-12 border-b border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-5 py-2.5">
-                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Invoice</span>
-                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Client</span>
-                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Project</span>
-                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Amount</span>
-                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Issued</span>
-                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Due</span>
-                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">Status</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.invoice}</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.client}</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.project}</span>
+                    <span className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.amount}</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.issued}</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.due}</span>
+                    <span className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary-light)]">{B.list.columns.status}</span>
                     <span className="col-span-1" />
                   </div>
                   {facturas.map((f: any, i: number) => {
@@ -290,15 +296,15 @@ export default function FacturacionPage() {
                         </div>
                         <span className="col-span-2 truncate text-sm text-[var(--text-primary-light)]">{f.cliente?.nombre ?? "—"}</span>
                         <span className="col-span-2 truncate text-xs text-[var(--text-secondary-light)]">{f.proyecto?.nombre ?? "—"}</span>
-                        <span className="col-span-2 text-sm font-medium text-[var(--text-primary-light)]">{formatCurrency(f.total)}</span>
-                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(f.fechaEmision)}</span>
-                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDate(f.fechaVencimiento)}</span>
+                        <span className="col-span-2 text-sm font-medium text-[var(--text-primary-light)]">{formatMoney(f.total, locale)}</span>
+                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDay(f.fechaEmision, locale)}</span>
+                        <span className="col-span-1 text-xs text-[var(--text-secondary-light)]">{formatDay(f.fechaVencimiento, locale)}</span>
                         <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s.bg, s.text)}>
-                          {displayLabel(f.estado, estadoLabel)}
+                          {resolveStatusLabel(t.statuses, f.estado)}
                         </span>
                         <div className="col-span-1 flex justify-end">
                           <Link href={`/facturacion/${f.id}`} className="flex items-center gap-0.5 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:text-[var(--accent-primary)]/85">
-                            View <ArrowUpRight size={11} />
+                            {B.list.view} <ArrowUpRight size={11} />
                           </Link>
                         </div>
                       </div>
@@ -315,14 +321,14 @@ export default function FacturacionPage() {
                         <div className="mb-1.5 flex items-center justify-between">
                           <Link href={`/facturacion/${f.id}`} className="text-sm font-semibold text-[var(--accent-primary)]">#{f.numero}</Link>
                           <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s.bg, s.text)}>
-                            {displayLabel(f.estado, estadoLabel)}
+                            {resolveStatusLabel(t.statuses, f.estado)}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-[var(--text-primary-light)]">{formatCurrency(f.total)}</p>
+                        <p className="text-sm font-medium text-[var(--text-primary-light)]">{formatMoney(f.total, locale)}</p>
                         <p className="mt-0.5 text-xs text-[var(--text-secondary-light)]">{f.cliente?.nombre ?? "—"} · {f.proyecto?.nombre ?? "—"}</p>
                         <p className="mt-0.5 text-[10px] text-[var(--text-secondary-light)]">
-                          Issued {formatDate(f.fechaEmision)}
-                          {f.fechaVencimiento && <> · Due {formatDate(f.fechaVencimiento)}</>}
+                          {B.list.issuedOn(formatDay(f.fechaEmision, locale))}
+                          {f.fechaVencimiento && <> · {B.list.dueOn(formatDay(f.fechaVencimiento, locale))}</>}
                         </p>
                       </div>
                     );

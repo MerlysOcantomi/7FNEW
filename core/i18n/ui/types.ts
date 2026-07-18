@@ -524,11 +524,245 @@ export interface CalendarMessages {
   invoiceTitle: (numero: string | number) => string
 }
 
-/** Billing surface — visible labels only; no finance behavior lives here. */
+/**
+ * Billing surface — the full /facturacion journey (list, detail, invoice
+ * form). Visible labels only; no finance behavior lives here.
+ *
+ * Status VALUE labels (pagada/enviada/vencida/…) resolve through the shared
+ * `statuses` namespace via `resolveStatusLabel` — never duplicated here.
+ * Money/date strings arrive PRE-FORMATTED from `@core/i18n/format` as
+ * interpolation data; this catalog only owns sentence structure. Counted
+ * phrases are typed FUNCTIONS — components never glue plurals.
+ */
 export interface BillingMessages {
   title: string
   newInvoice: string
   empty: string
+  /** Page eyebrow + breadcrumb root ("Revenue" / "Ingresos"). */
+  eyebrow: string
+  /** Surface title + breadcrumb ("Invoices" / "Facturas"). */
+  invoices: string
+  list: {
+    stats: {
+      totalBilled: string
+      allInvoices: string
+      collected: string
+      paidCount: (count: number) => string
+      pending: string
+      pendingCount: (count: number) => string
+      overdue: string
+      overdueCount: (count: number) => string
+      noOverdue: string
+    }
+    overdueBanner: {
+      title: string
+      /** Full sentence — amount/date arrive pre-formatted for the locale. */
+      body: (v: { numero: string; client: string; amount: string; date: string }) => string
+      clientFallback: string
+      viewInvoice: string
+    }
+    searchPlaceholder: string
+    filters: { all: string; statusFallback: string; clientFallback: string }
+    heading: string
+    count: (count: number) => string
+    loadErrorNote: string
+    empty: { title: string; filtered: string; default: string }
+    columns: {
+      invoice: string
+      client: string
+      project: string
+      amount: string
+      issued: string
+      due: string
+      status: string
+    }
+    view: string
+    issuedOn: (date: string) => string
+    dueOn: (date: string) => string
+  }
+  detail: {
+    invoiceTitle: (numero: string) => string
+    downloadPdf: string
+    sendByEmail: string
+    markAsPaid: string
+    toasts: { markedPaid: string; updateError: string }
+    errors: { notFound: string; notFoundBody: string; backToBilling: string }
+    tabs: {
+      summary: string
+      lines: string
+      payments: string
+      files: string
+      notes: string
+      activity: string
+    }
+    overdueAlert: {
+      title: string
+      body: (v: { date: string; client: string }) => string
+      clientFallback: string
+    }
+    summary: {
+      breakdown: string
+      subtotal: string
+      taxes: string
+      total: string
+      collectionStatus: string
+      collectedPct: (pct: number) => string
+      outstanding: (amount: string) => string
+      paid: (amount: string) => string
+      status: string
+      client: string
+      project: string
+      issueDate: string
+      dueDate: string
+      paymentDate: string
+    }
+    lines: {
+      heading: string
+      emptyTitle: string
+      emptyBody: string
+      columns: { concept: string; quantity: string; unitPrice: string; total: string }
+      totalDue: string
+    }
+    payments: {
+      heading: string
+      emptyTitle: string
+      emptyOverdueBody: string
+      emptyPendingBody: string
+      fullPayment: string
+      columns: { date: string; method: string; amount: string }
+      summaryHeading: string
+      totalIssued: string
+      totalCollected: string
+    }
+    files: {
+      heading: string
+      emptyTitle: string
+      emptyBody: string
+      upload: string
+      uploading: string
+      download: string
+      toasts: { uploaded: string; uploadError: string }
+    }
+    notes: {
+      heading: string
+      visibilityNote: string
+      placeholder: string
+      save: string
+      saving: string
+      previous: string
+      empty: string
+      userFallback: string
+      toasts: { added: string; saveError: string }
+    }
+    activity: {
+      heading: string
+      emptyTitle: string
+      emptyBody: string
+      onlyCommentsTitle: string
+      onlyCommentsBody: string
+      /** Display labels for the persisted activity `type` values. */
+      types: { created: string; comment: string; updated: string; deleted: string; statusChange: string }
+      createdDesc: (label: string) => string
+      deletedDesc: string
+      statusChangeDesc: (from: string, to: string) => string
+      systemFallback: string
+    }
+  }
+  form: {
+    titleNew: string
+    titleEdit: string
+    fields: {
+      number: string
+      status: string
+      taxPct: string
+      client: string
+      project: string
+      issueDate: string
+      dueDate: string
+    }
+    /** Sample document id — identical across locales. */
+    numberPlaceholder: string
+    noClient: string
+    noProject: string
+    lineItems: string
+    addItem: string
+    descriptionPlaceholder: string
+    qtyPlaceholder: string
+    pricePlaceholder: string
+    removeItemAria: string
+    subtotal: string
+    taxWithPct: (pct: number) => string
+    total: string
+    saving: string
+    create: string
+    update: string
+    errors: { numberRequired: string; lineRequired: string }
+    toasts: { created: string; updated: string; saveError: string }
+  }
+}
+
+/**
+ * Services surface — the /services catalog editor (same page for every
+ * vertical; verticals only contribute seeds/labels via their pack).
+ * Counted phrases are typed FUNCTIONS.
+ */
+export interface ServicesMessages {
+  title: string
+  description: string
+  loading: { description: string; body: string }
+  add: {
+    heading: string
+    namePlaceholder: string
+    categoryOptionalPlaceholder: string
+    button: string
+  }
+  list: {
+    empty: string
+    /** "3 services · 2 active" — one phrase, both counts. */
+    counts: (total: number, active: number) => string
+    categoryPlaceholder: string
+    active: string
+    inactive: string
+    removeAria: (name: string) => string
+  }
+  save: { button: string; saving: string; saved: string }
+  errors: { load: string; save: string }
+}
+
+/**
+ * Team surface — the /usuarios journey (list, cards, delete dialog, user
+ * form). The surface noun is the locale's generic Team/Equipo (vocabulary
+ * overrides stay in the resolver layer, never here). `roles` are display
+ * labels for the persisted role VALUES (admin/gerente/miembro) — the stored
+ * values never change. Status VALUE labels resolve through `statuses`.
+ */
+export interface TeamMessages {
+  title: string
+  description: string
+  newUser: string
+  roles: { admin: string; gerente: string; miembro: string }
+  stats: { total: string; active: string; uniqueRoles: string }
+  empty: { title: string; body: string }
+  card: { projectsPlaceholder: string }
+  deleteDialog: {
+    title: string
+    description: (name: string) => string
+    confirm: string
+  }
+  toasts: { deleted: string; deleteError: string }
+  form: {
+    titleNew: string
+    titleEdit: string
+    fields: { name: string; email: string; role: string; status: string; department: string }
+    namePlaceholder: string
+    emailPlaceholder: string
+    departmentPlaceholder: string
+    errors: { nameRequired: string; emailRequired: string }
+    saving: string
+    create: string
+    update: string
+    toasts: { created: string; updated: string; saveError: string }
+  }
 }
 
 /**
@@ -1168,6 +1402,8 @@ export interface UIMessages {
   clients: ClientsMessages
   calendar: CalendarMessages
   billing: BillingMessages
+  services: ServicesMessages
+  team: TeamMessages
   inbox: InboxMessages
   statuses: StatusesMessages
   voice: VoiceMessages

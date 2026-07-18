@@ -5,22 +5,26 @@ import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
 import { cn } from "@/lib/utils"
 import { Save, Plus, Trash2, Loader2, CheckCircle2 } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 import type { ServiceCatalogItem } from "@core/services/catalog"
 
 /**
- * Services — the generic (core) catalog surface. Visible text is Spanish; the
- * route and code stay English. Beauty only contributes the seed/labels via its
- * vertical pack; this page is the same for every vertical.
+ * Services — the generic (core) catalog surface. Visible text comes from the
+ * `services` i18n namespace; the route and code stay English. Beauty only
+ * contributes the seed/labels via its vertical pack; this page is the same
+ * for every vertical.
  *
  * Canonical source: `serviceCatalog` (structured). Saving here also refreshes
  * `businessProfile.services` (active names only) through the API bridge.
  */
 export default function ServicesPage() {
+  const { t } = useI18n()
+  const S = t.services
   const [items, setItems] = useState<ServiceCatalogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<"load" | "save" | null>(null)
   const [newName, setNewName] = useState("")
   const [newCategory, setNewCategory] = useState("")
 
@@ -31,7 +35,7 @@ export default function ServicesPage() {
       const data = await res.json()
       setItems(Array.isArray(data.serviceCatalog) ? data.serviceCatalog : [])
     } catch {
-      setError("No se pudo cargar el catálogo de servicios")
+      setError("load")
     } finally {
       setLoading(false)
     }
@@ -57,7 +61,7 @@ export default function ServicesPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {
-      setError("No se pudo guardar el catálogo")
+      setError("save")
     } finally {
       setSaving(false)
     }
@@ -90,10 +94,10 @@ export default function ServicesPage() {
   if (loading) {
     return (
       <AppShell>
-        <SectionPage title="Servicios" description="Cargando…">
+        <SectionPage title={S.title} description={S.loading.description}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Cargando servicios…</span>
+            <span className="text-sm">{S.loading.body}</span>
           </div>
         </SectionPage>
       </AppShell>
@@ -102,14 +106,11 @@ export default function ServicesPage() {
 
   return (
     <AppShell>
-      <SectionPage
-        title="Servicios"
-        description="El catálogo de lo que ofrece tu negocio. Tus agentes usan los servicios activos para entender qué vendes. Solo los servicios activos se comparten con ellos."
-      >
+      <SectionPage title={S.title} description={S.description}>
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* Add a service */}
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-sm font-medium text-foreground">Añadir servicio</p>
+            <p className="text-sm font-medium text-foreground">{S.add.heading}</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
@@ -121,7 +122,7 @@ export default function ServicesPage() {
                     addService()
                   }
                 }}
-                placeholder="Nombre del servicio…"
+                placeholder={S.add.namePlaceholder}
                 className="flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
@@ -134,7 +135,7 @@ export default function ServicesPage() {
                     addService()
                   }
                 }}
-                placeholder="Categoría (opcional)"
+                placeholder={S.add.categoryOptionalPlaceholder}
                 className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:w-48"
               />
               <button
@@ -143,22 +144,19 @@ export default function ServicesPage() {
                 disabled={!newName.trim()}
                 className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Plus className="h-3.5 w-3.5" /> Añadir
+                <Plus className="h-3.5 w-3.5" /> {S.add.button}
               </button>
             </div>
           </div>
 
           {/* Catalog list */}
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aún no hay servicios. Añade el primero arriba.
-            </p>
+            <p className="text-sm text-muted-foreground">{S.list.empty}</p>
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-1">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {items.length} {items.length === 1 ? "servicio" : "servicios"} · {activeCount} activo
-                  {activeCount === 1 ? "" : "s"}
+                  {S.list.counts(items.length, activeCount)}
                 </p>
               </div>
               {items.map((item) => (
@@ -179,7 +177,7 @@ export default function ServicesPage() {
                     type="text"
                     value={item.category ?? ""}
                     onChange={(e) => updateItem(item.id, { category: e.target.value })}
-                    placeholder="Categoría"
+                    placeholder={S.list.categoryPlaceholder}
                     className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-muted-foreground focus:border-border focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring sm:w-40"
                   />
                   <div className="flex items-center gap-2">
@@ -194,13 +192,13 @@ export default function ServicesPage() {
                       )}
                       aria-pressed={item.active}
                     >
-                      {item.active ? "Activo" : "Inactivo"}
+                      {item.active ? S.list.active : S.list.inactive}
                     </button>
                     <button
                       type="button"
                       onClick={() => removeItem(item.id)}
                       className="text-muted-foreground hover:text-red-500 transition-colors"
-                      aria-label={`Eliminar ${item.name}`}
+                      aria-label={S.list.removeAria(item.name)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -223,14 +221,18 @@ export default function ServicesPage() {
               )}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Guardando…" : "Guardar servicios"}
+              {saving ? S.save.saving : S.save.button}
             </button>
             {saved && (
               <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle2 className="h-4 w-4" /> Guardado
+                <CheckCircle2 className="h-4 w-4" /> {S.save.saved}
               </span>
             )}
-            {error && <span className="text-sm text-red-500">{error}</span>}
+            {error && (
+              <span className="text-sm text-red-500">
+                {error === "load" ? S.errors.load : S.errors.save}
+              </span>
+            )}
           </div>
         </div>
       </SectionPage>

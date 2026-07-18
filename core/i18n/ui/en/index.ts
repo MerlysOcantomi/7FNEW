@@ -8,6 +8,8 @@ import { today } from "./today"
 import { clients } from "./clients"
 import { calendar } from "./calendar"
 import { billing } from "./billing"
+import { services } from "./services"
+import { team } from "./team"
 import { inbox } from "./inbox"
 import { statuses } from "./statuses"
 import { voice } from "./voice"
@@ -23,6 +25,8 @@ export const en: UIMessages = {
   clients,
   calendar,
   billing,
+  services,
+  team,
   inbox,
   statuses,
   voice,

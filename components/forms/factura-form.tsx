@@ -7,6 +7,9 @@ import { useFetch } from "@/hooks/use-fetch"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { INPUT_CLASS } from "@/lib/form-classes"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
+import { formatCurrency } from "@core/i18n/format"
 import { toast } from "sonner"
 
 interface Props {
@@ -23,17 +26,17 @@ interface LineItem {
   total: number
 }
 
-const estadoOptions = [
-  { value: "borrador", label: "Draft" },
-  { value: "enviada", label: "Sent" },
-  { value: "pagada", label: "Paid" },
-  { value: "vencida", label: "Overdue" },
-  { value: "cancelada", label: "Canceled" },
-]
+// Persisted estado VALUES — labels resolve via the shared `statuses` catalog.
+const ESTADO_VALUES = ["borrador", "enviada", "pagada", "vencida", "cancelada"] as const
+
+// Invoices don't persist a currency of their own yet — the workspace default.
+const INVOICE_CURRENCY = "CHF"
 
 const emptyItem = (): LineItem => ({ descripcion: "", cantidad: 1, precioUnitario: 0, total: 0 })
 
 export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
+  const { t, locale } = useI18n()
+  const F = t.billing.form
   const isEditing = !!data?.id
   const [saving, setSaving] = useState(false)
   const [numero, setNumero] = useState("")
@@ -53,6 +56,8 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const impuesto = Math.round(subtotal * (impuestoPct / 100) * 100) / 100
   const total = subtotal + impuesto
+
+  const money = (value: number) => formatCurrency(value, { locale, currency: INVOICE_CURRENCY })
 
   useEffect(() => {
     if (open) {
@@ -97,8 +102,8 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!numero.trim()) return toast.error("Invoice number is required")
-    if (items.every((i) => !i.descripcion.trim())) return toast.error("Add at least one line item")
+    if (!numero.trim()) return toast.error(F.errors.numberRequired)
+    if (items.every((i) => !i.descripcion.trim())) return toast.error(F.errors.lineRequired)
     setSaving(true)
     try {
       const validItems = items.filter((i) => i.descripcion.trim())
@@ -116,15 +121,15 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
       }
       if (isEditing) {
         await apiPatch(`/api/facturacion/${data.id}`, body)
-        toast.success("Invoice updated")
+        toast.success(F.toasts.updated)
       } else {
         await apiPost("/api/facturacion", body)
-        toast.success("Invoice created")
+        toast.success(F.toasts.created)
       }
       onSuccess()
       onClose()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Could not save invoice")
+      toast.error(err instanceof Error && err.message ? err.message : F.toasts.saveError)
     } finally {
       setSaving(false)
     }
@@ -136,46 +141,46 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-        <Button variant="ghost" size="icon-sm" onClick={onClose} className="absolute right-4 top-4 h-6 w-6" aria-label="Close">
+        <Button variant="ghost" size="icon-sm" onClick={onClose} className="absolute right-4 top-4 h-6 w-6" aria-label={t.common.close}>
           <X className="h-3.5 w-3.5" />
         </Button>
 
         <h2 className="text-lg font-semibold text-foreground mb-6">
-          {isEditing ? "Edit invoice" : "New invoice"}
+          {isEditing ? F.titleEdit : F.titleNew}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Invoice number *">
-              <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="FAC-001" className={INPUT_CLASS} autoFocus />
+            <Field label={F.fields.number}>
+              <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder={F.numberPlaceholder} className={INPUT_CLASS} autoFocus />
             </Field>
-            <Field label="Status">
+            <Field label={F.fields.status}>
               <select value={estado} onChange={(e) => setEstado(e.target.value)} className={INPUT_CLASS}>
-                {estadoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {ESTADO_VALUES.map((value) => <option key={value} value={value}>{resolveStatusLabel(t.statuses, value)}</option>)}
               </select>
             </Field>
-            <Field label="Tax (%)">
+            <Field label={F.fields.taxPct}>
               <input type="number" value={impuestoPct} onChange={(e) => setImpuestoPct(Number(e.target.value) || 0)} min="0" max="100" className={INPUT_CLASS} />
             </Field>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Client">
+            <Field label={F.fields.client}>
               <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className={INPUT_CLASS}>
-                <option value="">No client</option>
+                <option value="">{F.noClient}</option>
                 {clientesList.map((c: any) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </Field>
-            <Field label="Project">
+            <Field label={F.fields.project}>
               <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} className={INPUT_CLASS}>
-                <option value="">No project</option>
+                <option value="">{F.noProject}</option>
                 {proyectosList.map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </Field>
-            <Field label="Issue date">
+            <Field label={F.fields.issueDate}>
               <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} className={INPUT_CLASS} />
             </Field>
-            <Field label="Due date">
+            <Field label={F.fields.dueDate}>
               <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} className={INPUT_CLASS} />
             </Field>
           </div>
@@ -183,9 +188,9 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
           {/* Line items */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-xs font-medium text-muted-foreground">Line items</label>
+              <label className="block text-xs font-medium text-muted-foreground">{F.lineItems}</label>
               <Button variant="ghost" size="sm" type="button" onClick={addItem} className="h-auto px-2 py-1 text-xs">
-                <Plus className="h-3 w-3" /> Add item
+                <Plus className="h-3 w-3" /> {F.addItem}
               </Button>
             </div>
             <div className="flex flex-col gap-2">
@@ -195,14 +200,14 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     type="text"
                     value={item.descripcion}
                     onChange={(e) => updateItem(i, "descripcion", e.target.value)}
-                    placeholder="Description"
+                    placeholder={F.descriptionPlaceholder}
                     className={INPUT_CLASS}
                   />
                   <input
                     type="number"
                     value={item.cantidad || ""}
                     onChange={(e) => updateItem(i, "cantidad", e.target.value)}
-                    placeholder="Qty."
+                    placeholder={F.qtyPlaceholder}
                     min="0"
                     className={cn(INPUT_CLASS, "text-center")}
                   />
@@ -210,19 +215,19 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
                     type="number"
                     value={item.precioUnitario || ""}
                     onChange={(e) => updateItem(i, "precioUnitario", e.target.value)}
-                    placeholder="Price"
+                    placeholder={F.pricePlaceholder}
                     min="0"
                     step="0.01"
                     className={cn(INPUT_CLASS, "text-right")}
                   />
                   <div className={cn(INPUT_CLASS, "bg-muted/30 text-right font-medium text-xs flex items-center justify-end")}>
-                    ${item.total.toLocaleString("es-MX", { minimumFractionDigits: 0 })}
+                    {money(item.total)}
                   </div>
                   <button
                     type="button"
                     onClick={() => removeItem(i)}
                     className="flex h-[38px] w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-                    aria-label="Remove line item"
+                    aria-label={F.removeItemAria}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -234,25 +239,25 @@ export function FacturaForm({ open, onClose, onSuccess, data }: Props) {
           {/* Totals */}
           <div className="flex flex-col items-end gap-1 border-t border-border pt-4 text-sm">
             <div className="flex items-center gap-6">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium text-foreground w-28 text-right">${subtotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">{F.subtotal}</span>
+              <span className="font-medium text-foreground w-28 text-right">{money(subtotal)}</span>
             </div>
             <div className="flex items-center gap-6">
-              <span className="text-muted-foreground">Tax ({impuestoPct}%)</span>
-              <span className="font-medium text-foreground w-28 text-right">${impuesto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">{F.taxWithPct(impuestoPct)}</span>
+              <span className="font-medium text-foreground w-28 text-right">{money(impuesto)}</span>
             </div>
             <div className="flex items-center gap-6 text-base font-semibold mt-1">
-              <span className="text-foreground">Total</span>
-              <span className="text-foreground w-28 text-right">${total.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span className="text-foreground">{F.total}</span>
+              <span className="text-foreground w-28 text-right">{money(total)}</span>
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-2">
             <Button variant="outline" type="button" onClick={onClose}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : isEditing ? "Update invoice" : "Create invoice"}
+              {saving ? F.saving : isEditing ? F.update : F.create}
             </Button>
           </div>
         </form>

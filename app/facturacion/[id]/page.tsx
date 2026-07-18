@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { apiPatch } from "@/lib/api-client";
-import { displayLabel, estadoLabel } from "@/lib/api-client";
 import { FacturaForm } from "@/components/forms/factura-form";
+import { useI18n } from "@/components/i18n-provider";
+import { resolveStatusLabel } from "@core/i18n/ui";
+import { formatCurrency as formatCurrencyIntl, formatDate as formatDateIntl } from "@core/i18n/format";
 import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -61,35 +63,37 @@ interface ActivityData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ElementType; label: string }> = {
-  pagada:    { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]", icon: CheckCircle2, label: "Paid" },
-  enviada:   { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    icon: Clock,        label: "Pending" },
-  vencida:   { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  icon: AlertTriangle, label: "Overdue" },
-  borrador:  { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText,     label: "Draft" },
-  cancelada: { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText,     label: "Canceled" },
+// Persisted estado VALUES → styling + icon only; visible labels resolve via
+// the shared `statuses` catalog (`resolveStatusLabel`).
+const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
+  pagada:    { bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]", icon: CheckCircle2 },
+  enviada:   { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    icon: Clock },
+  vencida:   { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  icon: AlertTriangle },
+  borrador:  { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText },
+  cancelada: { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", icon: FileText },
 };
 
-const ACTIVITY_TYPE_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  created:       { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    dot: "bg-primary",                        label: "Creada" },
-  comment:       { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", dot: "bg-muted-foreground",               label: "Comentario" },
-  updated:       { bg: "bg-[var(--status-warning-bg)]",  text: "text-[var(--status-warning-text)]", dot: "bg-[var(--status-warning-text)]",   label: "Actualizada" },
-  deleted:       { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  dot: "bg-destructive",                    label: "Eliminada" },
-  status_change: { bg: "bg-[var(--status-success-bg)]",  text: "text-[var(--status-success-text)]", dot: "bg-[var(--status-success-text)]",   label: "Estado" },
+// Activity `type` VALUES → styling only; visible labels come from the catalog.
+const ACTIVITY_TYPE_CONFIG: Record<string, { bg: string; text: string; dot: string }> = {
+  created:       { bg: "bg-[var(--status-info-bg)]",    text: "text-[var(--status-info-text)]",    dot: "bg-primary" },
+  comment:       { bg: "bg-[var(--status-neutral-bg)]",  text: "text-[var(--status-neutral-text)]", dot: "bg-muted-foreground" },
+  updated:       { bg: "bg-[var(--status-warning-bg)]",  text: "text-[var(--status-warning-text)]", dot: "bg-[var(--status-warning-text)]" },
+  deleted:       { bg: "bg-[var(--status-danger-bg)]",   text: "text-[var(--status-danger-text)]",  dot: "bg-destructive" },
+  status_change: { bg: "bg-[var(--status-success-bg)]",  text: "text-[var(--status-success-text)]", dot: "bg-[var(--status-success-text)]" },
 };
 
-function formatDate(value: string | Date | null | undefined): string {
+// Invoices don't persist a currency of their own yet — the workspace default.
+const INVOICE_CURRENCY = "CHF";
+
+function formatDate(value: string | Date | null | undefined, locale: string): string {
   if (!value) return "—";
-  try {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return "—";
-  }
+  const formatted = formatDateIntl(value instanceof Date ? value : String(value), { locale });
+  return formatted || "—";
 }
 
-function formatCurrency(value: number | null | undefined): string {
+function formatCurrency(value: number | null | undefined, locale: string): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("es", { style: "currency", currency: "CHF" }).format(value);
+  return formatCurrencyIntl(value, { locale, currency: INVOICE_CURRENCY }) || "—";
 }
 
 function formatFileSize(bytes: number): string {
@@ -109,6 +113,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── TAB: Resumen ──────────────────────────────────────────────────────────────
 
 function TabResumen({ factura }: { factura: FacturaData }) {
+  const { t, locale } = useI18n();
+  const D = t.billing.detail;
   const paidRaw = factura.estado === "pagada" ? factura.total : 0;
   const paidPercent = factura.total > 0 ? Math.round((paidRaw / factura.total) * 100) : 0;
   const statusCfg = STATUS_CONFIG[factura.estado] ?? STATUS_CONFIG.borrador;
@@ -119,10 +125,12 @@ function TabResumen({ factura }: { factura: FacturaData }) {
         <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-xl p-4">
           <AlertTriangle size={15} className="text-destructive mt-0.5 shrink-0" strokeWidth={1.75} />
           <div>
-            <p className="text-sm font-semibold text-destructive">Overdue payment — immediate action required</p>
+            <p className="text-sm font-semibold text-destructive">{D.overdueAlert.title}</p>
             <p className="text-xs text-destructive/80 mt-0.5">
-              Esta factura venció el {formatDate(factura.fechaVencimiento)}. Contacta al equipo de cuentas a pagar de{" "}
-              {factura.cliente?.nombre ?? "el cliente"}.
+              {D.overdueAlert.body({
+                date: formatDate(factura.fechaVencimiento, locale),
+                client: factura.cliente?.nombre ?? D.overdueAlert.clientFallback,
+              })}
             </p>
           </div>
         </div>
@@ -130,27 +138,27 @@ function TabResumen({ factura }: { factura: FacturaData }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5 space-y-5">
-          <SectionLabel>Desglose del importe</SectionLabel>
+          <SectionLabel>{D.summary.breakdown}</SectionLabel>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-accent rounded-xl p-4">
-              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.subtotal)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Subtotal</p>
+              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.subtotal, locale)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{D.summary.subtotal}</p>
             </div>
             <div className="bg-accent rounded-xl p-4">
-              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.impuesto)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Impuestos</p>
+              <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(factura.impuesto, locale)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{D.summary.taxes}</p>
             </div>
             <div className="bg-primary/15 rounded-xl p-4">
-              <p className="text-xl font-bold text-primary tracking-tight">{formatCurrency(factura.total)}</p>
-              <p className="text-[10px] text-primary mt-0.5">Total</p>
+              <p className="text-xl font-bold text-primary tracking-tight">{formatCurrency(factura.total, locale)}</p>
+              <p className="text-[10px] text-primary mt-0.5">{D.summary.total}</p>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Estado de cobro</span>
-              <span className="text-xs font-semibold text-foreground">{paidPercent}% cobrado</span>
+              <span className="text-xs text-muted-foreground">{D.summary.collectionStatus}</span>
+              <span className="text-xs font-semibold text-foreground">{D.summary.collectedPct(paidPercent)}</span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
@@ -162,26 +170,26 @@ function TabResumen({ factura }: { factura: FacturaData }) {
               />
             </div>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Outstanding: {paidRaw > 0 ? formatCurrency(factura.total - paidRaw) : formatCurrency(factura.total)}</span>
-              {paidRaw > 0 && <span className="text-[var(--status-success-text)] font-medium">Paid: {formatCurrency(paidRaw)}</span>}
+              <span>{D.summary.outstanding(paidRaw > 0 ? formatCurrency(factura.total - paidRaw, locale) : formatCurrency(factura.total, locale))}</span>
+              {paidRaw > 0 && <span className="text-[var(--status-success-text)] font-medium">{D.summary.paid(formatCurrency(paidRaw, locale))}</span>}
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-1 border-t border-muted">
-            <span className="text-xs text-muted-foreground">Estado</span>
+            <span className="text-xs text-muted-foreground">{D.summary.status}</span>
             <span className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold",
               statusCfg.bg,
               statusCfg.text
             )}>
-              {displayLabel(factura.estado, estadoLabel)}
+              {resolveStatusLabel(t.statuses, factura.estado)}
             </span>
           </div>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div>
-            <SectionLabel>Cliente</SectionLabel>
+            <SectionLabel>{D.summary.client}</SectionLabel>
             {factura.clienteId ? (
               <Link
                 href={`/clientes/${factura.clienteId}`}
@@ -197,7 +205,7 @@ function TabResumen({ factura }: { factura: FacturaData }) {
           </div>
 
           <div>
-            <SectionLabel>Proyecto</SectionLabel>
+            <SectionLabel>{D.summary.project}</SectionLabel>
             {factura.proyectoId ? (
               <Link
                 href={`/proyectos/${factura.proyectoId}`}
@@ -214,9 +222,9 @@ function TabResumen({ factura }: { factura: FacturaData }) {
 
           <div className="space-y-2 pt-1 border-t border-muted">
             {[
-              { label: "Issue date", value: formatDate(factura.fechaEmision), icon: Calendar },
-              { label: "Due date", value: formatDate(factura.fechaVencimiento), icon: Calendar },
-              ...(factura.paidAt ? [{ label: "Payment date", value: formatDate(factura.paidAt), icon: CreditCard }] : []),
+              { label: D.summary.issueDate, value: formatDate(factura.fechaEmision, locale), icon: Calendar },
+              { label: D.summary.dueDate, value: formatDate(factura.fechaVencimiento, locale), icon: Calendar },
+              ...(factura.paidAt ? [{ label: D.summary.paymentDate, value: formatDate(factura.paidAt, locale), icon: CreditCard }] : []),
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="flex items-start justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
@@ -236,28 +244,30 @@ function TabResumen({ factura }: { factura: FacturaData }) {
 // ── TAB: Líneas ───────────────────────────────────────────────────────────────
 
 function TabLineas({ factura }: { factura: FacturaData }) {
+  const { t, locale } = useI18n();
+  const D = t.billing.detail;
   const items = Array.isArray(factura.items) ? factura.items : [];
 
   if (items.length === 0) {
     return (
       <div className="bg-card rounded-xl border border-border p-12 text-center">
         <FileText size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-foreground">No invoice lines</p>
-        <p className="text-xs text-muted-foreground mt-1">Esta factura no tiene conceptos registrados.</p>
+        <p className="text-sm font-medium text-foreground">{D.lines.emptyTitle}</p>
+        <p className="text-xs text-muted-foreground mt-1">{D.lines.emptyBody}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <SectionLabel>Invoice lines</SectionLabel>
+      <SectionLabel>{D.lines.heading}</SectionLabel>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-muted bg-background">
-          <span className="col-span-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Concepto</span>
-          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Cantidad</span>
-          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">P. unitario</span>
-          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Total</span>
+          <span className="col-span-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.lines.columns.concept}</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">{D.lines.columns.quantity}</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">{D.lines.columns.unitPrice}</span>
+          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">{D.lines.columns.total}</span>
         </div>
 
         {items.map((item, i) => (
@@ -268,15 +278,15 @@ function TabLineas({ factura }: { factura: FacturaData }) {
             <div className="hidden md:grid grid-cols-12 items-center px-5 py-4">
               <span className="col-span-5 text-sm text-foreground pr-4 leading-snug">{item.descripcion || "—"}</span>
               <span className="col-span-2 text-sm text-muted-foreground text-right">{item.cantidad}</span>
-              <span className="col-span-2 text-sm text-muted-foreground text-right">{formatCurrency(item.precioUnitario)}</span>
-              <span className="col-span-3 text-sm font-semibold text-foreground text-right">{formatCurrency(item.total)}</span>
+              <span className="col-span-2 text-sm text-muted-foreground text-right">{formatCurrency(item.precioUnitario, locale)}</span>
+              <span className="col-span-3 text-sm font-semibold text-foreground text-right">{formatCurrency(item.total, locale)}</span>
             </div>
 
             <div className="md:hidden px-4 py-4 space-y-2">
               <p className="text-sm text-foreground leading-snug">{item.descripcion || "—"}</p>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">{item.cantidad} × {formatCurrency(item.precioUnitario)}</span>
-                <span className="text-sm font-semibold text-foreground">{formatCurrency(item.total)}</span>
+                <span className="text-xs text-muted-foreground">{item.cantidad} × {formatCurrency(item.precioUnitario, locale)}</span>
+                <span className="text-sm font-semibold text-foreground">{formatCurrency(item.total, locale)}</span>
               </div>
             </div>
           </div>
@@ -284,16 +294,16 @@ function TabLineas({ factura }: { factura: FacturaData }) {
 
         <div className="border-t border-border bg-background px-5 py-4 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Subtotal</span>
-            <span className="text-sm text-foreground">{formatCurrency(factura.subtotal)}</span>
+            <span className="text-xs text-muted-foreground">{D.summary.subtotal}</span>
+            <span className="text-sm text-foreground">{formatCurrency(factura.subtotal, locale)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Impuestos</span>
-            <span className="text-sm text-foreground">{formatCurrency(factura.impuesto)}</span>
+            <span className="text-xs text-muted-foreground">{D.summary.taxes}</span>
+            <span className="text-sm text-foreground">{formatCurrency(factura.impuesto, locale)}</span>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-sm font-semibold text-foreground">Total a pagar</span>
-            <span className="text-base font-bold text-foreground">{formatCurrency(factura.total)}</span>
+            <span className="text-sm font-semibold text-foreground">{D.lines.totalDue}</span>
+            <span className="text-base font-bold text-foreground">{formatCurrency(factura.total, locale)}</span>
           </div>
         </div>
       </div>
@@ -304,35 +314,35 @@ function TabLineas({ factura }: { factura: FacturaData }) {
 // ── TAB: Pagos ────────────────────────────────────────────────────────────────
 
 function TabPagos({ factura }: { factura: FacturaData }) {
+  const { t, locale } = useI18n();
+  const D = t.billing.detail;
   const paidRaw = factura.estado === "pagada" ? factura.total : 0;
   const paidPercent = factura.total > 0 ? Math.round((paidRaw / factura.total) * 100) : 0;
   const statusCfg = STATUS_CONFIG[factura.estado] ?? STATUS_CONFIG.borrador;
 
   const payments = factura.estado === "pagada" && factura.paidAt
-    ? [{ date: formatDate(factura.paidAt), amount: formatCurrency(factura.total), method: "Pago completo" }]
+    ? [{ date: formatDate(factura.paidAt, locale), amount: formatCurrency(factura.total, locale), method: D.payments.fullPayment }]
     : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
-        <SectionLabel>Recorded payments</SectionLabel>
+        <SectionLabel>{D.payments.heading}</SectionLabel>
 
         {payments.length === 0 ? (
           <div className="bg-card rounded-xl border border-border px-5 py-10 text-center">
             <CreditCard size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-foreground">No payments recorded</p>
+            <p className="text-sm font-medium text-foreground">{D.payments.emptyTitle}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {factura.estado === "vencida"
-                ? "Esta factura está vencida. Marca como pagada cuando se reciba el pago."
-                : "El pago aparecerá aquí cuando se confirme la recepción."}
+              {factura.estado === "vencida" ? D.payments.emptyOverdueBody : D.payments.emptyPendingBody}
             </p>
           </div>
         ) : (
           <div className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="hidden sm:grid grid-cols-12 px-5 py-3 border-b border-muted bg-background">
-              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fecha</span>
-              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Método</span>
-              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Importe</span>
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.payments.columns.date}</span>
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.payments.columns.method}</span>
+              <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">{D.payments.columns.amount}</span>
             </div>
             {payments.map((p, i) => (
               <div key={i} className="grid grid-cols-12 items-center px-5 py-4 border-b border-muted last:border-0">
@@ -346,18 +356,18 @@ function TabPagos({ factura }: { factura: FacturaData }) {
       </div>
 
       <div className="space-y-4">
-        <SectionLabel>Collection summary</SectionLabel>
+        <SectionLabel>{D.payments.summaryHeading}</SectionLabel>
         <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-accent rounded-xl p-3.5">
-              <p className="text-base font-bold text-foreground">{formatCurrency(factura.total)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Total emitido</p>
+              <p className="text-base font-bold text-foreground">{formatCurrency(factura.total, locale)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{D.payments.totalIssued}</p>
             </div>
             <div className={cn("rounded-xl p-3.5", paidRaw > 0 ? "bg-[var(--status-success-bg)]" : "bg-[var(--status-neutral-bg)]")}>
               <p className={cn("text-base font-bold", paidRaw > 0 ? "text-[var(--status-success-text)]" : "text-muted-foreground")}>
-                {paidRaw > 0 ? formatCurrency(paidRaw) : "$0"}
+                {formatCurrency(paidRaw, locale)}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Total cobrado</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{D.payments.totalCollected}</p>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -367,17 +377,17 @@ function TabPagos({ factura }: { factura: FacturaData }) {
                 style={{ width: `${paidPercent}%` }}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground">{paidPercent}% cobrado</p>
+            <p className="text-[10px] text-muted-foreground">{D.summary.collectedPct(paidPercent)}</p>
           </div>
           <div className="pt-1 border-t border-muted space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs text-muted-foreground">Fecha vencimiento</span>
-              <span className="text-xs font-medium text-foreground text-right">{formatDate(factura.fechaVencimiento)}</span>
+              <span className="text-xs text-muted-foreground">{D.summary.dueDate}</span>
+              <span className="text-xs font-medium text-foreground text-right">{formatDate(factura.fechaVencimiento, locale)}</span>
             </div>
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs text-muted-foreground">Estado</span>
+              <span className="text-xs text-muted-foreground">{D.summary.status}</span>
               <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", statusCfg.bg, statusCfg.text)}>
-                {displayLabel(factura.estado, estadoLabel)}
+                {resolveStatusLabel(t.statuses, factura.estado)}
               </span>
             </div>
           </div>
@@ -400,6 +410,8 @@ function TabArchivos({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  const { t } = useI18n();
+  const F = t.billing.detail.files;
   const [uploading, setUploading] = useState(false);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -416,11 +428,11 @@ function TabArchivos({
         body: formData,
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message || "Error al subir");
-      toast.success("Archivo subido");
+      if (!json.success) throw new Error(json.error?.message || "");
+      toast.success(F.toasts.uploaded);
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al subir archivo");
+      toast.error(err instanceof Error && err.message ? err.message : F.toasts.uploadError);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -438,15 +450,15 @@ function TabArchivos({
   if (attachments.length === 0) {
     return (
       <div className="max-w-2xl space-y-4">
-        <SectionLabel>Attached files</SectionLabel>
+        <SectionLabel>{F.heading}</SectionLabel>
         <div className="bg-card rounded-xl border border-border p-12 text-center">
           <Paperclip size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
-          <p className="text-sm font-medium text-foreground">No attached files</p>
-          <p className="text-xs text-muted-foreground mt-1">Sube documentos relacionados con esta factura.</p>
+          <p className="text-sm font-medium text-foreground">{F.emptyTitle}</p>
+          <p className="text-xs text-muted-foreground mt-1">{F.emptyBody}</p>
         </div>
         <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-background transition-colors justify-center cursor-pointer">
           <Upload size={14} strokeWidth={1.75} />
-          {uploading ? "Subiendo…" : "Subir archivo adjunto"}
+          {uploading ? F.uploading : F.upload}
           <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       </div>
@@ -455,7 +467,7 @@ function TabArchivos({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <SectionLabel>Attached files</SectionLabel>
+      <SectionLabel>{F.heading}</SectionLabel>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {attachments.map((file, i) => (
@@ -480,7 +492,7 @@ function TabArchivos({
               className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
             >
               <Download size={12} strokeWidth={1.75} />
-              Descargar
+              {F.download}
             </a>
           </div>
         ))}
@@ -488,7 +500,7 @@ function TabArchivos({
 
       <label className="flex items-center gap-2 px-4 py-3 w-full rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-background transition-colors justify-center cursor-pointer">
         <Upload size={14} strokeWidth={1.75} />
-        {uploading ? "Subiendo…" : "Subir archivo adjunto"}
+        {uploading ? F.uploading : F.upload}
         <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
       </label>
     </div>
@@ -508,6 +520,8 @@ function TabNotas({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  const { t, locale } = useI18n();
+  const N = t.billing.detail.notes;
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -528,12 +542,12 @@ function TabNotas({
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message || "Error al guardar");
-      toast.success("Nota agregada");
+      if (!json.success) throw new Error(json.error?.message || "");
+      toast.success(N.toasts.added);
       setComment("");
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar nota");
+      toast.error(err instanceof Error && err.message ? err.message : N.toasts.saveError);
     } finally {
       setSaving(false);
     }
@@ -549,13 +563,11 @@ function TabNotas({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <SectionLabel>Internal notes</SectionLabel>
+      <SectionLabel>{N.heading}</SectionLabel>
       <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <div className="flex items-start gap-3">
           <StickyNote size={14} className="text-muted-foreground mt-0.5 shrink-0" strokeWidth={1.75} />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Las notas internas son visibles únicamente para el equipo. No se incluyen en la factura enviada al cliente.
-          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{N.visibilityNote}</p>
         </div>
 
         <form onSubmit={handleAddComment} className="space-y-3">
@@ -564,18 +576,18 @@ function TabNotas({
             onChange={(e) => setComment(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition-colors leading-relaxed"
             rows={4}
-            placeholder="Agrega una nota interna sobre esta factura..."
+            placeholder={N.placeholder}
           />
           <div className="flex justify-end">
             <Button type="submit" size="sm" disabled={saving || !comment.trim()}>
-              {saving ? "Saving..." : "Save note"}
+              {saving ? N.saving : N.save}
             </Button>
           </div>
         </form>
 
         {comments.length > 0 && (
           <div className="pt-4 border-t border-muted space-y-3">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Previous notes</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{N.previous}</p>
             <div className="space-y-2">
               {comments.map((a) => (
                 <div key={a.id} className="flex items-start gap-3 py-2">
@@ -583,7 +595,7 @@ function TabNotas({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground leading-snug">{a.data?.comment ?? "—"}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {a.userName ?? "Usuario"} · {formatDate(a.createdAt)}
+                      {a.userName ?? N.userFallback} · {formatDate(a.createdAt, locale)}
                     </p>
                   </div>
                 </div>
@@ -593,7 +605,7 @@ function TabNotas({
         )}
 
         {comments.length === 0 && (
-          <p className="text-xs text-muted-foreground">No hay notas anteriores.</p>
+          <p className="text-xs text-muted-foreground">{N.empty}</p>
         )}
       </div>
     </div>
@@ -603,6 +615,8 @@ function TabNotas({
 // ── Tab: Historial (Activity timeline) ────────────────────────────────────────
 
 function TabHistorial({ activities, loading }: { activities: ActivityData[]; loading: boolean }) {
+  const { t, locale } = useI18n();
+  const A = t.billing.detail.activity;
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -615,8 +629,8 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
     return (
       <div className="bg-card rounded-xl border border-border p-12 text-center">
         <Clock size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-foreground">Sin actividad registrada</p>
-        <p className="text-xs text-muted-foreground mt-1">Los cambios y comentarios aparecerán aquí.</p>
+        <p className="text-sm font-medium text-foreground">{A.emptyTitle}</p>
+        <p className="text-xs text-muted-foreground mt-1">{A.emptyBody}</p>
       </div>
     );
   }
@@ -627,15 +641,23 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
     return (
       <div className="bg-card rounded-xl border border-border p-12 text-center">
         <Clock size={28} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-foreground">No change history</p>
-        <p className="text-xs text-muted-foreground mt-1">Only comments are available in the Notes tab.</p>
+        <p className="text-sm font-medium text-foreground">{A.onlyCommentsTitle}</p>
+        <p className="text-xs text-muted-foreground mt-1">{A.onlyCommentsBody}</p>
       </div>
     );
   }
 
+  const typeLabels: Record<string, string> = {
+    created: A.types.created,
+    comment: A.types.comment,
+    updated: A.types.updated,
+    deleted: A.types.deleted,
+    status_change: A.types.statusChange,
+  };
+
   return (
     <div className="space-y-4">
-      <SectionLabel>Historial de actividad</SectionLabel>
+      <SectionLabel>{A.heading}</SectionLabel>
       <div className="bg-card rounded-xl border border-border px-5 py-2 divide-y divide-muted">
         {nonComments.map((event) => {
           const cfg = ACTIVITY_TYPE_CONFIG[event.type] ?? ACTIVITY_TYPE_CONFIG.updated;
@@ -646,21 +668,21 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
             : event.type === "updated" && event.data?.field
             ? `${event.data.field}: ${event.data.oldValue} → ${event.data.newValue}`
             : event.type === "created"
-            ? `Factura creada: ${label}`
+            ? A.createdDesc(String(label))
             : event.type === "deleted"
-            ? "Factura eliminada"
+            ? A.deletedDesc
             : event.type === "status_change"
-            ? `Estado: ${event.data?.oldValue} → ${event.data?.newValue}`
+            ? A.statusChangeDesc(String(event.data?.oldValue), String(event.data?.newValue))
             : String(label);
           return (
             <div key={event.id} className="flex items-start gap-3 py-4">
               <span className={cn("mt-1.5 shrink-0 w-2 h-2 rounded-full", cfg.dot)} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground leading-snug">{desc}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(event.createdAt)} · {event.userName ?? "Sistema"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(event.createdAt, locale)} · {event.userName ?? A.systemFallback}</p>
               </div>
               <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", cfg.bg, cfg.text)}>
-                {cfg.label}
+                {typeLabels[event.type] ?? A.types.updated}
               </span>
             </div>
           );
@@ -672,16 +694,10 @@ function TabHistorial({ activities, loading }: { activities: ActivityData[]; loa
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { key: "resumen",  label: "Summary" },
-  { key: "lineas",   label: "Lines" },
-  { key: "pagos",    label: "Payments" },
-  { key: "archivos", label: "Files" },
-  { key: "notas",    label: "Notes" },
-  { key: "historial", label: "Activity" },
-];
-
 export default function InvoiceDetailPage() {
+  const { t, locale } = useI18n();
+  const B = t.billing;
+  const D = B.detail;
   const { id } = useParams<{ id: string }>();
   const [editOpen, setEditOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -700,6 +716,15 @@ export default function InvoiceDetailPage() {
   const statusCfg = factura ? (STATUS_CONFIG[factura.estado] ?? STATUS_CONFIG.borrador) : STATUS_CONFIG.borrador;
   const StatusIcon = statusCfg.icon;
 
+  const tabs = [
+    { key: "resumen",  label: D.tabs.summary },
+    { key: "lineas",   label: D.tabs.lines },
+    { key: "pagos",    label: D.tabs.payments },
+    { key: "archivos", label: D.tabs.files },
+    { key: "notas",    label: D.tabs.notes },
+    { key: "historial", label: D.tabs.activity },
+  ];
+
   function handleFormSuccess() {
     setRefreshKey((k) => k + 1);
     refetch();
@@ -713,10 +738,10 @@ export default function InvoiceDetailPage() {
         estado: "pagada",
         paidAt: new Date().toISOString(),
       });
-      toast.success("Factura marcada como pagada");
+      toast.success(D.toasts.markedPaid);
       refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al actualizar");
+      toast.error(err instanceof Error && err.message ? err.message : D.toasts.updateError);
     }
   }
 
@@ -736,13 +761,13 @@ export default function InvoiceDetailPage() {
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="bg-card rounded-xl border border-border p-8 text-center max-w-md">
             <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
-            <p className="text-sm font-medium text-destructive">{error ?? "Factura no encontrada"}</p>
-            <p className="text-xs text-muted-foreground mt-2">La factura puede no existir o no tener acceso.</p>
+            <p className="text-sm font-medium text-destructive">{error ?? D.errors.notFound}</p>
+            <p className="text-xs text-muted-foreground mt-2">{D.errors.notFoundBody}</p>
             <Link
               href="/facturacion"
               className="mt-4 inline-block text-sm font-medium text-primary hover:text-primary/80"
             >
-              Back to billing
+              {D.errors.backToBilling}
             </Link>
           </div>
         </div>
@@ -754,21 +779,21 @@ export default function InvoiceDetailPage() {
     <>
     <ContextShell
       breadcrumbs={[
-        { label: "Revenue", href: "/" },
-        { label: "Invoices", href: "/facturacion" },
+        { label: B.eyebrow, href: "/" },
+        { label: B.invoices, href: "/facturacion" },
         { label: factura.numero },
       ]}
       heading={
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-semibold text-foreground tracking-tight">
-            Factura {factura.numero}
+            {D.invoiceTitle(factura.numero)}
           </h1>
           <span className={cn(
             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold",
             statusCfg.bg, statusCfg.text
           )}>
             <StatusIcon size={12} strokeWidth={2} />
-            {displayLabel(factura.estado, estadoLabel)}
+            {resolveStatusLabel(t.statuses, factura.estado)}
           </span>
         </div>
       }
@@ -792,40 +817,40 @@ export default function InvoiceDetailPage() {
           )}
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Calendar size={13} strokeWidth={1.75} className="text-muted-foreground" />
-            Emitida {formatDate(factura.fechaEmision)}
+            {B.list.issuedOn(formatDate(factura.fechaEmision, locale))}
           </span>
           {factura.fechaVencimiento && (
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Calendar size={13} strokeWidth={1.75} className="text-muted-foreground" />
-              Vence {formatDate(factura.fechaVencimiento)}
+              {B.list.dueOn(formatDate(factura.fechaVencimiento, locale))}
             </span>
           )}
-          <span className="text-sm font-bold text-foreground">{formatCurrency(factura.total)}</span>
+          <span className="text-sm font-bold text-foreground">{formatCurrency(factura.total, locale)}</span>
         </div>
       }
       actions={
         <>
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil size={13} strokeWidth={1.75} />
-            Edit
+            {t.common.edit}
           </Button>
           <Button variant="outline" size="sm">
             <Download size={13} strokeWidth={1.75} />
-            Descargar PDF
+            {D.downloadPdf}
           </Button>
           <Button variant="outline" size="sm">
             <Send size={13} strokeWidth={1.75} />
-            Send by email
+            {D.sendByEmail}
           </Button>
           {(factura.estado === "enviada" || factura.estado === "vencida") && (
             <Button size="sm" onClick={handleMarkAsPaid}>
               <CheckCircle2 size={13} strokeWidth={1.75} />
-              Marcar como pagada
+              {D.markAsPaid}
             </Button>
           )}
         </>
       }
-      tabs={TABS}
+      tabs={tabs}
       defaultTab="resumen"
       copilotContext="Billing"
     >

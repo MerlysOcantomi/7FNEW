@@ -174,13 +174,16 @@ test("coverage: derived matrix matches the real composed catalogs", () => {
   }
 })
 
-test("coverage: expected snapshot — es partial (billing), de/fr/it pending", () => {
+test("coverage: expected snapshot — es complete, de/fr/it pending", () => {
   assert.equal(UI_NAMESPACE_COVERAGE.es.clients, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.nav, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.inbox, "native")
-  assert.equal(UI_NAMESPACE_COVERAGE.es.billing, "fallback-en")
-  assert.ok(localeHasPendingCoverage("es"))
+  assert.equal(UI_NAMESPACE_COVERAGE.es.billing, "native")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.services, "native")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.team, "native")
+  // Every registered namespace has a real Spanish contribution now.
+  assert.ok(!localeHasPendingCoverage("es"))
   assert.ok(!localeHasPendingCoverage("en"))
   for (const code of ["de", "fr", "it"] as const) {
     assert.ok(localeHasPendingCoverage(code))
@@ -215,8 +218,10 @@ test("getUIMessages: exposes exactly the canonical namespaces", () => {
     "globalSearch",
     "inbox",
     "nav",
+    "services",
     "settings",
     "statuses",
+    "team",
     "today",
     "voice",
   ])
@@ -283,6 +288,78 @@ test("new namespaces: representative English strings are present", () => {
   assert.equal(t.calendar.views.day, "Day")
   assert.equal(t.calendar.eventTypes.reunion, "Meeting")
   assert.equal(t.billing.newInvoice, "New invoice")
+})
+
+test("billing: representative English strings with typed count/interpolation functions", () => {
+  const en = getNamespace("en", "billing")
+  assert.equal(en.eyebrow, "Revenue")
+  assert.equal(en.invoices, "Invoices")
+  assert.equal(en.list.stats.totalBilled, "Total billed")
+  assert.equal(en.list.stats.pendingCount(1), "1 pending invoice")
+  assert.equal(en.list.stats.pendingCount(3), "3 pending invoices")
+  assert.equal(en.list.count(1), "1 invoice")
+  assert.equal(
+    en.list.overdueBanner.body({ numero: "F-01", client: "Acme", amount: "CHF 12", date: "1 Mar 2026" }),
+    "F-01 for Acme (CHF 12) became overdue on 1 Mar 2026.",
+  )
+  assert.equal(en.detail.invoiceTitle("F-01"), "Invoice F-01")
+  assert.equal(en.detail.summary.collectedPct(40), "40% collected")
+  assert.equal(en.form.taxWithPct(16), "Tax (16%)")
+})
+
+test("billing es: real Spanish strings (tú form) with typed count functions", () => {
+  const es = getNamespace("es", "billing")
+  const en = getNamespace("en", "billing")
+  assert.notEqual(es, en)
+  assert.equal(es.eyebrow, "Ingresos")
+  assert.equal(es.invoices, "Facturas")
+  assert.equal(es.newInvoice, "Nueva factura")
+  assert.equal(es.list.stats.paidCount(1), "1 factura pagada")
+  assert.equal(es.list.stats.paidCount(2), "2 facturas pagadas")
+  assert.equal(es.list.empty.default, "Crea tu primera factura para empezar.")
+  assert.equal(
+    es.list.overdueBanner.body({ numero: "F-01", client: "Acme", amount: "CHF 12", date: "1 mar 2026" }),
+    "F-01 de Acme (CHF 12) venció el 1 mar 2026.",
+  )
+  assert.equal(es.detail.markAsPaid, "Marcar como pagada")
+  assert.equal(es.detail.summary.collectedPct(40), "40% cobrado")
+  assert.equal(es.form.errors.numberRequired, "El número de factura es obligatorio")
+  // Sample document ids stay identical across locales.
+  assert.equal(es.form.numberPlaceholder, en.form.numberPlaceholder)
+})
+
+test("services: representative English and Spanish strings with typed counts", () => {
+  const en = getNamespace("en", "services")
+  const es = getNamespace("es", "services")
+  assert.notEqual(es, en)
+  assert.equal(en.title, "Services")
+  assert.equal(en.list.counts(1, 1), "1 service · 1 active")
+  assert.equal(en.list.counts(3, 2), "3 services · 2 active")
+  assert.equal(en.list.removeAria("Cut"), "Remove Cut")
+  assert.equal(es.title, "Servicios")
+  assert.equal(es.add.heading, "Añadir servicio")
+  assert.equal(es.list.counts(1, 1), "1 servicio · 1 activo")
+  assert.equal(es.list.counts(3, 2), "3 servicios · 2 activos")
+  assert.equal(es.errors.load, "No se pudo cargar el catálogo de servicios")
+})
+
+test("team: role labels keyed by persisted values, en and es", () => {
+  const en = getNamespace("en", "team")
+  const es = getNamespace("es", "team")
+  assert.notEqual(es, en)
+  assert.equal(en.title, "Team")
+  assert.equal(en.roles.admin, "Admin")
+  assert.equal(en.roles.gerente, "Manager")
+  assert.equal(en.roles.miembro, "Member")
+  assert.equal(en.deleteDialog.title, "Delete user")
+  assert.equal(es.title, "Equipo")
+  assert.equal(es.roles.gerente, "Gerente")
+  assert.equal(es.roles.miembro, "Miembro")
+  assert.equal(
+    es.deleteDialog.description("Ana"),
+    '¿Seguro que quieres eliminar a "Ana"? Esta acción no se puede deshacer.',
+  )
+  assert.equal(es.toasts.deleted, "Usuario eliminado")
 })
 
 test("calendar es: real Spanish surface strings (Agenda) with typed count functions", () => {
@@ -390,7 +467,7 @@ test("legacy @core/i18n API remains importable and behaves", () => {
 
 test("legacy TranslationSet did not absorb the UI namespaces", () => {
   const legacy = getTranslations("en") as unknown as Record<string, unknown>
-  for (const ns of ["settings", "today", "clients", "calendar", "billing"]) {
+  for (const ns of ["settings", "today", "clients", "calendar", "billing", "services", "team"]) {
     assert.ok(!(ns in legacy), `legacy TranslationSet must not gain "${ns}"`)
   }
 })
