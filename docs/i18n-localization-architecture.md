@@ -656,10 +656,26 @@ brings vocabulary, its namespaces and sector content.
 
 ### Known formatting debt (audited P4.CORE-5L)
 
-81 files still call `Intl.*`/`toLocale*` directly; literal locales found:
-52× "en-US", 21× "es-MX", 11× "de-CH", 8× "es-ES" — including Finesse
-Marketing (`components/marketing/*` hardcodes es-ES). Migrate opportunistically
-to `core/i18n/format.ts` (Marketing first: P4.MARKETING-5L).
+~80 files still call `Intl.*`/`toLocale*` directly with literal locales
+("en-US", "es-MX", "de-CH", "es-ES"). Migrate opportunistically to
+`core/i18n/format.ts`. **Finesse Marketing is DONE (P4.MARKETING-5L):**
+`components/marketing/*` and `modules/marketing/*` carry no literal locales —
+scheduled dates and audience numbers go through `formatDateTime`/`formatNumber`
+and editorial weekdays derive from Intl via `toIntlLocale`.
+
+### Vertical namespace precedent — Finesse Marketing (P4.MARKETING-5L)
+
+`modules/marketing/i18n/` is the reference implementation of a VERTICAL
+namespace on top of the Core runtime: a typed `BeautyMarketingMessages`
+contract with five complete catalogs (es/en/de/fr/it, `satisfies`-validated,
+no English fallback inside the namespace — `parseLocale` only catches invalid
+external locales), counted phrases as typed functions, localized draft
+templates (`buildDraftPostFromWork`), localized product-owned demo content
+(`MarketingDemoContent` → `demo-data.ts` owns only structure), and integrity
+tests (`modules/marketing/i18n.test.ts`) enforcing parity, no empty strings,
+no English copies and the banned `Clienta/Clientas` vocabulary. Components
+consume the catalog resolved from the effective `useI18n()` locale — no second
+resolution, no navigator/cookie reads.
 
 ## 17. Recommended next step
 
