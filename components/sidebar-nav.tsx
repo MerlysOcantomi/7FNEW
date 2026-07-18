@@ -217,6 +217,7 @@ const NAV_SECTIONS = buildNavSections();
  * a neutral icon.
  */
 const VERTICAL_NAV_ICONS: Record<string, React.ElementType> = {
+  "my-salon": LayoutDashboard,
   today: Sun,
   agenda: CalendarDays,
   clientas: Users,

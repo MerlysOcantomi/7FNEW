@@ -42,13 +42,23 @@ test("resolveNavProfile: empty/nullish input → null", () => {
 const primaryIds = (items: VerticalNavItem[]) =>
   items.filter((i) => i.group === "primary").map((i) => i.id)
 
-test("Beauty primary menu is Hoy · Agenda · Mensajes · Clientas, in order", () => {
+test("Beauty primary menu is Mi salón · Hoy · Agenda · Mensajes · Clientas, in order", () => {
   assert.deepEqual(primaryIds(BEAUTY_NAV_PROFILE.items), [
+    "my-salon",
     "today",
     "agenda",
     "mensajes",
     "clientas",
   ])
+})
+
+test("Beauty: Mi salón reuses the core overview route (no invented page)", () => {
+  const mySalon = BEAUTY_NAV_PROFILE.items.find((i) => i.id === "my-salon")
+  assert.equal(mySalon?.href, "/")
+  assert.equal(mySalon?.label, "Mi salón")
+  // Product-name literal on purpose — no entity/vocabulary binding.
+  assert.equal(mySalon?.entityKey, undefined)
+  assert.equal(mySalon?.navLabelKey, undefined)
 })
 
 test("Beauty fallback labels are Spanish and client-neutral (P4.2.1)", () => {

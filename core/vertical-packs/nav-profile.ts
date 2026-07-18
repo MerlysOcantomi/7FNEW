@@ -83,14 +83,18 @@ export interface VerticalNavProfile {
 /**
  * 7F Beauty navigation — the target Beauty MVP menu.
  *
- * Primary:  Hoy · Agenda · Mensajes · Clientas
+ * Primary:  Mi salón · Hoy · Agenda · Mensajes · Clientas
  * More:     Marketing · Cobros · Servicios · Equipo (Team only) · Mr. Forte Lab
  *
- * Hidden by omission (never listed — routes stay live in core): Business
- * Overview, Inbox Overview, a standalone Tasks page, Projects, advanced
- * Finance, Reports, advanced Inventory, Biblioteca/Herramientas, and
- * Notificaciones (which lives in the top-bar bell). Hiding is achieved by NOT
- * listing them — nothing is deleted from the core.
+ * "Mi salón" points at `/` — the core Business Overview route, which is
+ * vertical-aware (Beauty renders the Finesse "Mi salón" experience; other
+ * verticals keep the core dashboard — see `app/page.tsx`). No new route.
+ *
+ * Hidden by omission (never listed — routes stay live in core): Inbox
+ * Overview, a standalone Tasks page, Projects, advanced Finance, Reports,
+ * advanced Inventory, Biblioteca/Herramientas, and Notificaciones (which
+ * lives in the top-bar bell). Hiding is achieved by NOT listing them —
+ * nothing is deleted from the core.
  *
  * Helpers are NEUTRAL function descriptions ("Facturas y pagos"), never agent
  * attributions: the sidebar says what a section does; who does the work is the
@@ -105,6 +109,9 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   locale: "es",
   moreLabel: "Más",
   items: [
+    // Literal label on purpose (like "Mr. Forte Lab"): "Mi salón" is the
+    // Finesse product name for the overview, not an entity/vocabulary noun.
+    { id: "my-salon", label: "Mi salón", href: "/", group: "primary" },
     { id: "today", label: "Hoy", href: "/today", group: "primary", navLabelKey: "today" },
     { id: "agenda", label: "Agenda", href: "/calendario", group: "primary", entityKey: "calendar", entityForm: "singular" },
     { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
