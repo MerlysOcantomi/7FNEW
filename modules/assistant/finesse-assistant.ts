@@ -202,3 +202,52 @@ export function getFinesseSuggestions(page: FinesseAssistantPageKey): string[] {
 // ─── Question limits (shared client/server) ──────────────────────────────────
 
 export const FINESSE_MAX_QUESTION_LENGTH = 1000
+
+// ─── Server-side context sanitation (shared by the text + voice routes) ──────
+
+/**
+ * Whitelist-sanitize a client-published page context. Server routes call this
+ * BEFORE building any prompt; workspace/vertical are then re-derived from the
+ * AUTHENTICATED workspace — never taken from the payload.
+ */
+export function sanitizeFinesseContext(raw: unknown): Partial<FinesseAssistantContext> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const source = raw as Record<string, unknown>
+  const out: Partial<FinesseAssistantContext> = {}
+
+  const str = (v: unknown, max = 120): string | undefined =>
+    typeof v === "string" && v.trim().length > 0 ? v.trim().slice(0, max) : undefined
+
+  out.page = str(source.page) as FinesseAssistantContext["page"] | undefined
+  out.route = str(source.route)
+  out.section = str(source.section)
+  out.selectedEntityType = str(source.selectedEntityType)
+  out.selectedEntityId = str(source.selectedEntityId)
+  out.locale = str(source.locale, 20)
+  out.currency = str(source.currency, 8)
+
+  const period = source.period
+  if (period && typeof period === "object" && !Array.isArray(period)) {
+    const p = period as Record<string, unknown>
+    const preset = str(p.preset, 12)
+    const start = str(p.start, 12)
+    const end = str(p.end, 12)
+    if (preset && start && end) {
+      out.period = {
+        preset: preset as NonNullable<FinesseAssistantContext["period"]>["preset"],
+        start,
+        end,
+      }
+    }
+  }
+
+  const metrics = source.visibleMetrics
+  if (metrics && typeof metrics === "object" && !Array.isArray(metrics)) {
+    const entries = Object.entries(metrics as Record<string, unknown>)
+      .filter(([, v]) => typeof v === "number" || typeof v === "string" || v === null)
+      .slice(0, 24) as Array<[string, number | string | null]>
+    if (entries.length > 0) out.visibleMetrics = Object.fromEntries(entries)
+  }
+
+  return out
+}
