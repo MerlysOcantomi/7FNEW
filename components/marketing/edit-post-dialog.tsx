@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { SmartModal } from "@/components/smart-modal"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { PostEdits } from "@modules/marketing/state"
 import type { MarketingPost, PostChannel, PostKind } from "@modules/marketing/types"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT_CLASS, LABEL_CLASS } from "./marketing-ui"
@@ -11,24 +11,24 @@ const CHANNELS: PostChannel[] = ["instagram", "facebook", "tiktok"]
 const KINDS: PostKind[] = ["post", "reel", "story", "carrusel"]
 
 /**
- * "Editar publicación" — text, hashtags, channel, content type, goal, CTA and
+ * "Edit post" — text, hashtags, channel, content type, goal, CTA and
  * (when already scheduled) date/time. Validation lives in the pure layer
  * (`applyPostEdits`); this dialog only collects input and surfaces errors.
  */
 export function EditPostDialog({
-  config,
+  messages,
   post,
   onClose,
   onSave,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   /** The post being edited, or null when closed. */
   post: MarketingPost | null
   onClose: () => void
   /** Returns false when the edits were rejected (e.g. empty caption). */
   onSave: (post: MarketingPost, edits: PostEdits) => boolean
 }) {
-  const t = config.editPost
+  const t = messages.editPost
 
   const [title, setTitle] = useState("")
   const [caption, setCaption] = useState("")
@@ -141,7 +141,7 @@ export function EditPostDialog({
             >
               {CHANNELS.map((c) => (
                 <option key={c} value={c}>
-                  {config.channelLabels[c]}
+                  {messages.channelLabels[c]}
                 </option>
               ))}
             </select>
@@ -158,7 +158,7 @@ export function EditPostDialog({
             >
               {KINDS.map((k) => (
                 <option key={k} value={k}>
-                  {config.kindLabels[k]}
+                  {messages.kindLabels[k]}
                 </option>
               ))}
             </select>
@@ -181,7 +181,7 @@ export function EditPostDialog({
             <>
               <div className="flex flex-col gap-1">
                 <label htmlFor="edit-date" className={LABEL_CLASS}>
-                  {config.schedule.dateLabel}
+                  {messages.schedule.dateLabel}
                 </label>
                 <input
                   id="edit-date"
@@ -193,7 +193,7 @@ export function EditPostDialog({
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="edit-time" className={LABEL_CLASS}>
-                  {config.schedule.timeLabel}
+                  {messages.schedule.timeLabel}
                 </label>
                 <input
                   id="edit-time"

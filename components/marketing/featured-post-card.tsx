@@ -1,7 +1,8 @@
 "use client"
 
 import { CalendarClock, Camera, Pencil, Send, Sparkles, Target } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import { formatDateTime } from "@core/i18n/format"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { MarketingPost, MarketingWork } from "@modules/marketing/types"
 import {
   BTN_PRIMARY,
@@ -16,29 +17,18 @@ import {
 } from "./marketing-ui"
 import { MarketingEmptyState } from "./marketing-empty-state"
 
-function fmtScheduled(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleString("es-ES", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
 /**
- * "Publicación de hoy" — the protagonist card. Photo with real prominence,
+ * "Today's post" — the protagonist card. Photo with real prominence,
  * channel + status, Freya attribution, generated caption + hashtags, goal and
- * best time, and the three actions (Publicar ahora · Programar · Editar).
+ * best time, and the three actions (publish now · schedule · edit).
  * Feels ready to use, never like an empty form.
  *
- * HONESTY: while no channel is connected, "Publicar ahora" approves the post
- * (state "Aprobada · canal pendiente de conexión") and the pending-connection
- * note is shown — it never simulates a real publication.
+ * HONESTY: while no channel is connected, "publish now" approves the post
+ * (localized "approved · channel connection pending" state) and the
+ * pending-connection note is shown — it never simulates a real publication.
  */
 export function FeaturedPostCard({
-  config,
+  messages,
   post,
   work,
   channelConnected,
@@ -47,7 +37,7 @@ export function FeaturedPostCard({
   onEdit,
   onUpload,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   post: MarketingPost | null
   work: MarketingWork | null
   channelConnected: boolean
@@ -56,7 +46,7 @@ export function FeaturedPostCard({
   onEdit: (post: MarketingPost) => void
   onUpload: () => void
 }) {
-  const t = config.featured
+  const t = messages.featured
 
   return (
     <section aria-labelledby="featured-post-title">
@@ -92,7 +82,7 @@ export function FeaturedPostCard({
               />
             ) : (
               <div
-                aria-label={work ? `Foto: ${work.title}` : "Foto del trabajo"}
+                aria-label={work ? messages.a11y.workPhotoAlt(work.title) : messages.a11y.workPhotoFallback}
                 role="img"
                 className="absolute inset-0"
                 style={{ background: placeholderBackground(work?.placeholderTone) }}
@@ -102,7 +92,7 @@ export function FeaturedPostCard({
               className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold text-white"
               style={{ background: "color-mix(in srgb, var(--text-primary-light) 55%, transparent)", backdropFilter: "blur(4px)" }}
             >
-              {config.channelLabels[post.channel]} · {config.kindLabels[post.kind]}
+              {messages.channelLabels[post.channel]} · {messages.kindLabels[post.kind]}
             </span>
           </div>
 
@@ -117,15 +107,15 @@ export function FeaturedPostCard({
                 <Sparkles size={13} strokeWidth={2} />
               </span>
               <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--text-primary-light)]">
-                {config.freya.name}
+                {messages.freya.name}
               </span>
               <span className="text-[10px] text-[var(--text-tertiary-light)]">
-                {post.preparedBy === "freya" ? t.freyaPrepared : config.publish.proposalNote}
+                {post.preparedBy === "freya" ? t.freyaPrepared : messages.publish.proposalNote}
               </span>
               <span className={`${CHIP_CLASS} ml-auto`} style={chipStyle(POST_STATUS_TONE[post.status])}>
                 {post.status === "aprobada"
                   ? t.approvedState
-                  : config.postStatusLabels[post.status]}
+                  : messages.postStatusLabels[post.status]}
               </span>
             </div>
 
@@ -168,7 +158,7 @@ export function FeaturedPostCard({
                   <span>
                     <span className="text-[var(--text-tertiary-light)]">{t.scheduledState} </span>
                     <strong className="font-semibold text-[var(--text-primary-light)]">
-                      {fmtScheduled(post.scheduledFor)}
+                      {formatDateTime(post.scheduledFor, { locale: messages.locale })}
                     </strong>
                   </span>
                 </span>

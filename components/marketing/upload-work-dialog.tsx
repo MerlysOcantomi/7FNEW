@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Camera, ImagePlus, X } from "lucide-react"
 import { SmartModal } from "@/components/smart-modal"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT_CLASS, LABEL_CLASS } from "./marketing-ui"
 
 export interface UploadedWorkDraft {
@@ -17,7 +17,7 @@ export interface UploadedWorkDraft {
 }
 
 /**
- * "Subir fotos" — frontend upload flow prepared to connect to a real storage
+ * "Upload photos" — frontend upload flow prepared to connect to a real storage
  * backend later. Select one or several images (mobile also offers the camera),
  * preview them, optionally add client/service/style/before-after/notes, and
  * confirm. Images travel as object URLs for now; the `UploadedWorkDraft`
@@ -25,17 +25,17 @@ export interface UploadedWorkDraft {
  * hardcoded inside the component.
  */
 export function UploadWorkDialog({
-  config,
+  messages,
   open,
   onClose,
   onConfirm,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   open: boolean
   onClose: () => void
   onConfirm: (drafts: UploadedWorkDraft[]) => void
 }) {
-  const t = config.upload
+  const t = messages.upload
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -150,7 +150,7 @@ export function UploadWorkDialog({
                 <button
                   type="button"
                   onClick={() => removeImage(img.url)}
-                  aria-label={`Quitar ${img.name}`}
+                  aria-label={t.removeImageAria(img.name)}
                   className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   style={{ background: "color-mix(in srgb, var(--text-primary-light) 60%, transparent)" }}
                 >
@@ -172,7 +172,7 @@ export function UploadWorkDialog({
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="María"
+              placeholder={t.clientPlaceholder}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -184,7 +184,7 @@ export function UploadWorkDialog({
               value={service}
               onChange={(e) => setService(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="Manicura semipermanente"
+              placeholder={t.servicePlaceholder}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -196,7 +196,7 @@ export function UploadWorkDialog({
               value={style}
               onChange={(e) => setStyle(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="Rose nude chrome"
+              placeholder={t.stylePlaceholder}
             />
           </div>
           <div className="flex items-end pb-1.5">

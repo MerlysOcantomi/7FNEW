@@ -1,7 +1,7 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { CalendarItemKind, EditorialCalendarDay } from "@modules/marketing/types"
 import { CARD_CLASS } from "./marketing-ui"
 
@@ -25,21 +25,22 @@ const ITEM_KIND_STYLE: Record<CalendarItemKind, CSSProperties> = {
 }
 
 /**
- * "Calendario de contenido" — a simple 7-day editorial strip (posts, reels,
- * stories, campaigns, today highlighted). Editorial only: it never replaces
- * the general appointments calendar. On mobile the parent renders it inside a
- * collapsible block so the screen never gets too long.
+ * "Content calendar" — a simple 7-day editorial strip (posts, reels,
+ * stories, campaigns, today highlighted) with regional weekday labels.
+ * Editorial only: it never replaces the general appointments calendar. On
+ * mobile the parent renders it inside a collapsible block so the screen never
+ * gets too long.
  */
 export function ContentCalendar({
-  config,
+  messages,
   days,
   showHeading = true,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   days: EditorialCalendarDay[]
   showHeading?: boolean
 }) {
-  const t = config.calendar
+  const t = messages.calendar
   const isEmpty = days.every((d) => d.items.length === 0)
 
   return (
@@ -90,7 +91,7 @@ export function ContentCalendar({
                       key={item.id}
                       className="w-full truncate rounded-md px-1.5 py-0.5 text-center text-[9px] font-semibold"
                       style={ITEM_KIND_STYLE[item.kind]}
-                      title={`${item.label} · ${item.kind}`}
+                      title={`${item.label} · ${t.itemKindLabels[item.kind]}`}
                     >
                       {item.label}
                     </span>

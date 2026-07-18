@@ -7,8 +7,10 @@ import { ChevronDown, Users } from "lucide-react"
 import { toast } from "sonner"
 import { AppShell } from "@/components/app-shell"
 import { SmartModal } from "@/components/smart-modal"
+import { useI18n } from "@/components/i18n-provider"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import { formatNumber } from "@core/i18n/format"
+import { getBeautyMarketingMessages, type BeautyMarketingMessages } from "@modules/marketing/i18n"
 import {
   getBeautyMarketingDemoSnapshot,
   getEmptyMarketingSnapshot,
@@ -65,12 +67,17 @@ import {
  * featured post → gallery → campaign → pulse, calendar collapsed) via
  * `display: contents` wrappers + `order-*`, without duplicating markup.
  *
+ * i18n: every visible string comes from the localized Marketing catalog
+ * (`@modules/marketing/i18n`) resolved from the EFFECTIVE `useI18n()` locale —
+ * no second locale resolution, no direct navigator/cookie reads. Regional
+ * formats go through `@core/i18n/format`.
+ *
  * Data: the isolated demo adapter provides the workspace-scoped snapshot (no
  * Marketing backend yet — the header shows the preview chip permanently). All
  * mutations run through the pure functions in `@modules/marketing/state`, so
  * this component stays a thin orchestrator. Publish NEVER simulates a real
  * publication: with no channel connected it moves the post to the honest
- * "aprobada · canal pendiente" state.
+ * "approved · channel pending" state.
  */
 
 // ─── Local state (reducer over the snapshot) ─────────────────────────────────
@@ -114,9 +121,11 @@ function marketingReducer(state: MarketingSnapshot, action: MarketingAction): Ma
 
 // ─── Entry ───────────────────────────────────────────────────────────────────
 
-export function BeautyMarketingPage({ config }: { config: BeautyMarketingConfig }) {
+export function BeautyMarketingPage() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
+  const { locale } = useI18n()
+  const messages = useMemo(() => getBeautyMarketingMessages(locale), [locale])
 
   // QA/preview helpers (mirror `?vertical=beauty`): force the empty or error
   // dataset to review those states without touching real data.
@@ -133,15 +142,18 @@ export function BeautyMarketingPage({ config }: { config: BeautyMarketingConfig 
   const workspaceId = workspace?.id ?? "preview"
 
   return (
-    <AppShell currentSection="contenido" breadcrumbs={[{ label: "7F" }, { label: config.header.title }]} contentClassName="max-w-7xl">
+    <AppShell currentSection="contenido" breadcrumbs={[{ label: "7F" }, { label: messages.header.title }]} contentClassName="max-w-7xl">
       {demoMode === "error" ? (
-        <MarketingErrorState config={config} />
+        <MarketingErrorState messages={messages} />
       ) : now === null ? (
-        <MarketingLoading />
+        <MarketingLoading messages={messages} />
       ) : (
         <MarketingContent
-          key={`${workspaceId}:${demoMode ?? "demo"}`}
-          config={config}
+          // Locale is part of the key: the demo snapshot is product-owned
+          // sample data, so switching language regenerates it in the new
+          // language (real user content would never be re-derived like this).
+          key={`${workspaceId}:${demoMode ?? "demo"}:${messages.locale}`}
+          messages={messages}
           workspaceId={workspaceId}
           now={now}
           empty={demoMode === "empty"}
@@ -153,9 +165,9 @@ export function BeautyMarketingPage({ config }: { config: BeautyMarketingConfig 
 
 // ─── States: loading / error ─────────────────────────────────────────────────
 
-function MarketingLoading() {
+function MarketingLoading({ messages }: { messages: BeautyMarketingMessages }) {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando Marketing">
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label={messages.a11y.loadingMarketing}>
       <div className={`${CARD_CLASS} h-24 animate-pulse`} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-6">
@@ -171,8 +183,8 @@ function MarketingLoading() {
   )
 }
 
-function MarketingErrorState({ config }: { config: BeautyMarketingConfig }) {
-  const t = config.errorState
+function MarketingErrorState({ messages }: { messages: BeautyMarketingMessages }) {
+  const t = messages.errorState
   return (
     <div className={`${CARD_CLASS} mx-auto mt-10 flex max-w-md flex-col items-center gap-3 p-8 text-center`}>
       <p className="text-[15px] font-semibold text-[var(--text-primary-light)]">{t.title}</p>
@@ -187,12 +199,12 @@ function MarketingErrorState({ config }: { config: BeautyMarketingConfig }) {
 // ─── Content ─────────────────────────────────────────────────────────────────
 
 function MarketingContent({
-  config,
+  messages,
   workspaceId,
   now,
   empty,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   workspaceId: string
   now: Date
   empty: boolean
@@ -200,7 +212,10 @@ function MarketingContent({
   const [snapshot, dispatch] = useReducer(
     marketingReducer,
     undefined,
-    () => (empty ? getEmptyMarketingSnapshot(workspaceId) : getBeautyMarketingDemoSnapshot(workspaceId, now)),
+    () =>
+      empty
+        ? getEmptyMarketingSnapshot(workspaceId)
+        : getBeautyMarketingDemoSnapshot(workspaceId, now, messages.demo),
   )
 
   // Dialog state.
@@ -217,8 +232,8 @@ function MarketingContent({
     [featured, snapshot.works],
   )
   const week = useMemo(
-    () => buildEditorialWeek(snapshot.posts, snapshot.campaigns, now),
-    [snapshot.posts, snapshot.campaigns, now],
+    () => buildEditorialWeek(snapshot.posts, snapshot.campaigns, now, messages.locale),
+    [snapshot.posts, snapshot.campaigns, now, messages.locale],
   )
   const anyChannelConnected = snapshot.channels.some((c) => c.connected)
 
@@ -229,7 +244,7 @@ function MarketingContent({
       const created: MarketingWork[] = drafts.map((d, i) => ({
         id: `${workspaceId}:work-${Date.now()}-${i}`,
         workspaceId,
-        title: buildWorkTitle(d),
+        title: buildWorkTitle(d, messages.upload.defaultWorkTitle),
         clientName: d.clientName || null,
         service: d.service || null,
         style: d.style || null,
@@ -241,29 +256,32 @@ function MarketingContent({
       }))
       dispatch({ type: "add_works", works: created })
       setUploadOpen(false)
-      toast.success(config.upload.successToast)
+      toast.success(messages.upload.successToast)
     },
-    [workspaceId, config.upload.successToast],
+    [workspaceId, messages.upload.successToast, messages.upload.defaultWorkTitle],
   )
 
   const handlePreparePost = useCallback(
     (work: MarketingWork) => {
-      const draft = buildDraftPostFromWork(work, { id: `${workspaceId}:post-${Date.now()}` })
+      const draft = buildDraftPostFromWork(work, {
+        id: `${workspaceId}:post-${Date.now()}`,
+        templates: messages.draftTemplates,
+      })
       dispatch({ type: "add_post", post: draft })
       // Straight into review/edit — the proposal never feels like an empty form.
       setEditingPost(draft)
       setGalleryOpen(false)
     },
-    [workspaceId],
+    [workspaceId, messages.draftTemplates],
   )
 
   const handlePublish = useCallback(
     (post: MarketingPost) => {
       const channelConnected = snapshot.channels.some((c) => c.channel === post.channel && c.connected)
       dispatch({ type: "replace_post", post: approvePost(post, { channelConnected }) })
-      toast.success(config.publish.approvedToast)
+      toast.success(messages.publish.approvedToast)
     },
-    [snapshot.channels, config.publish.approvedToast],
+    [snapshot.channels, messages.publish.approvedToast],
   )
 
   const handleScheduleConfirm = useCallback(
@@ -271,10 +289,10 @@ function MarketingContent({
       const scheduled = schedulePost({ ...post, channel }, iso, new Date())
       if (!scheduled) return false
       dispatch({ type: "replace_post", post: scheduled })
-      toast.success(config.schedule.successToast)
+      toast.success(messages.schedule.successToast)
       return true
     },
-    [config.schedule.successToast],
+    [messages.schedule.successToast],
   )
 
   const handleEditSave = useCallback(
@@ -282,10 +300,10 @@ function MarketingContent({
       const updated = applyPostEdits(post, edits)
       if (!updated) return false
       dispatch({ type: "replace_post", post: updated })
-      toast.success(config.editPost.successToast)
+      toast.success(messages.editPost.successToast)
       return true
     },
-    [config.editPost.successToast],
+    [messages.editPost.successToast],
   )
 
   const handleCampaignTransition = useCallback(
@@ -293,9 +311,9 @@ function MarketingContent({
       const updated = transitionCampaign(campaign, to)
       if (!updated) return
       dispatch({ type: "update_campaign", campaign: updated })
-      toast.success(`${config.campaigns.sectionTitle}: ${config.campaignStatusLabels[to].toLowerCase()}`)
+      toast.success(messages.campaigns.transitionToast(to))
     },
-    [config],
+    [messages.campaigns],
   )
 
   const openUpload = useCallback(() => setUploadOpen(true), [])
@@ -307,14 +325,14 @@ function MarketingContent({
 
   return (
     <div className="flex flex-col gap-5 md:gap-6">
-      <MarketingHeader config={config} summary={summary} onUpload={openUpload} />
+      <MarketingHeader messages={messages} summary={summary} onUpload={openUpload} />
 
       <div className="flex flex-col gap-5 md:gap-6 lg:grid lg:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)] lg:items-start">
         {/* Left column (protagonist) */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
           <div className="order-2 lg:order-none">
             <FeaturedPostCard
-              config={config}
+              messages={messages}
               post={featured}
               work={featuredWork}
               channelConnected={anyChannelConnected}
@@ -326,7 +344,7 @@ function MarketingContent({
           </div>
           <div className="order-3 lg:order-none">
             <WorkGallery
-              config={config}
+              messages={messages}
               works={snapshot.works}
               onUpload={openUpload}
               onPreparePost={handlePreparePost}
@@ -343,14 +361,14 @@ function MarketingContent({
                   aria-hidden="true"
                   className="transition-transform group-open:rotate-180"
                 />
-                {config.calendar.mobileToggle}
+                {messages.calendar.mobileToggle}
               </summary>
               <div className="mt-3">
-                <ContentCalendar config={config} days={week} showHeading={false} />
+                <ContentCalendar messages={messages} days={week} showHeading={false} />
               </div>
             </details>
             <div className="hidden lg:block">
-              <ContentCalendar config={config} days={week} />
+              <ContentCalendar messages={messages} days={week} />
             </div>
           </div>
         </div>
@@ -358,43 +376,43 @@ function MarketingContent({
         {/* Right rail */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
           <div className="order-1 lg:order-none">
-            {/* The "N listas" pill tracks the LIVE ready count so it never
+            {/* The ready-count pill tracks the LIVE ready count so it never
                 contradicts the header summary after the user acts. */}
             <FreyaMarketingBrief
-              config={config}
+              messages={messages}
               brief={snapshot.freya ? { ...snapshot.freya, readyCount: summary.readyCount } : null}
             />
           </div>
           <div className="order-4 lg:order-none">
             <SimpleCampaigns
-              config={config}
+              messages={messages}
               campaigns={snapshot.campaigns}
               onTransition={handleCampaignTransition}
               onView={setViewingCampaign}
             />
           </div>
           <div className="order-5 lg:order-none">
-            <SocialPulseCard config={config} pulse={snapshot.pulse} channelsConnected={anyChannelConnected} />
+            <SocialPulseCard messages={messages} pulse={snapshot.pulse} channelsConnected={anyChannelConnected} />
           </div>
         </div>
       </div>
 
       {/* Dialogs */}
-      <UploadWorkDialog config={config} open={uploadOpen} onClose={() => setUploadOpen(false)} onConfirm={handleUploadConfirm} />
-      <EditPostDialog config={config} post={editingPost} onClose={() => setEditingPost(null)} onSave={handleEditSave} />
+      <UploadWorkDialog messages={messages} open={uploadOpen} onClose={() => setUploadOpen(false)} onConfirm={handleUploadConfirm} />
+      <EditPostDialog messages={messages} post={editingPost} onClose={() => setEditingPost(null)} onSave={handleEditSave} />
       <SchedulePostDialog
-        config={config}
+        messages={messages}
         post={schedulingPost}
         onClose={() => setSchedulingPost(null)}
         onConfirm={handleScheduleConfirm}
       />
       <CampaignDetailModal
-        config={config}
+        messages={messages}
         campaign={viewingCampaign}
         onClose={() => setViewingCampaign(null)}
       />
       <FullGalleryModal
-        config={config}
+        messages={messages}
         open={galleryOpen}
         works={snapshot.works}
         onClose={() => setGalleryOpen(false)}
@@ -405,19 +423,19 @@ function MarketingContent({
 }
 
 /** Human title for an uploaded work, composed from its metadata. */
-function buildWorkTitle(d: UploadedWorkDraft): string {
-  const base = d.style || d.service || "Nuevo trabajo"
+function buildWorkTitle(d: UploadedWorkDraft, fallback: string): string {
+  const base = d.style || d.service || fallback
   return d.clientName ? `${base} · ${d.clientName}` : base
 }
 
 // ─── Campaign detail (simple, plain-language) ────────────────────────────────
 
 function CampaignDetailModal({
-  config,
+  messages,
   campaign,
   onClose,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   campaign: MarketingCampaign | null
   onClose: () => void
 }) {
@@ -434,17 +452,18 @@ function CampaignDetailModal({
                 borderColor: "color-mix(in srgb, var(--inbox-info) 32%, transparent)",
               }}
             >
-              {config.agentLabels[campaign.agent]}
+              {messages.agentLabels[campaign.agent]}
             </span>
             <span className={CHIP_CLASS} style={chipStyle(WORK_STATUS_TONE.preparado)}>
-              {config.campaignStatusLabels[campaign.status]}
+              {messages.campaignStatusLabels[campaign.status]}
             </span>
           </div>
           <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">{campaign.reason}</p>
           {campaign.audienceSize != null ? (
             <p className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--text-tertiary-light)]">
               <Users size={12} strokeWidth={2} aria-hidden="true" />
-              ~{campaign.audienceSize.toLocaleString("es-ES")} {campaign.audienceLabel ?? config.campaigns.audiencePrefix}
+              ~{formatNumber(campaign.audienceSize, { locale: messages.locale })}{" "}
+              {campaign.audienceLabel ?? messages.campaigns.audienceFallback}
             </p>
           ) : null}
         </div>
@@ -456,20 +475,20 @@ function CampaignDetailModal({
 // ─── Full gallery (all works, same states) ───────────────────────────────────
 
 function FullGalleryModal({
-  config,
+  messages,
   open,
   works,
   onClose,
   onPreparePost,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   open: boolean
   works: MarketingWork[]
   onClose: () => void
   onPreparePost: (work: MarketingWork) => void
 }) {
   return (
-    <SmartModal open={open} onClose={onClose} title={config.gallery.sectionTitle} size="xl">
+    <SmartModal open={open} onClose={onClose} title={messages.gallery.sectionTitle} size="xl">
       <ul className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 md:grid-cols-4" role="list">
         {works.map((work) => {
           const unused = work.status === "nuevo" || work.status === "sin_usar"
@@ -482,13 +501,13 @@ function FullGalleryModal({
                 ) : (
                   <div
                     role="img"
-                    aria-label={`Foto: ${work.title}`}
+                    aria-label={messages.a11y.workPhotoAlt(work.title)}
                     className="absolute inset-0"
                     style={{ background: placeholderBackground(work.placeholderTone) }}
                   />
                 )}
                 <span className={`${CHIP_CLASS} absolute left-2 top-2`} style={chipStyle(WORK_STATUS_TONE[work.status])}>
-                  {config.workStatusLabels[work.status]}
+                  {messages.workStatusLabels[work.status]}
                 </span>
               </div>
               <p className="truncate text-[11.5px] font-medium text-[var(--text-primary-light)]">{work.title}</p>
@@ -498,7 +517,7 @@ function FullGalleryModal({
                   onClick={() => onPreparePost(work)}
                   className="self-start text-[11px] font-semibold text-[var(--accent-on-dark)] transition-colors hover:text-[var(--accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40 rounded"
                 >
-                  {config.gallery.preparePost} →
+                  {messages.gallery.preparePost} →
                 </button>
               ) : null}
             </li>

@@ -1,7 +1,8 @@
 "use client"
 
 import { Megaphone, Users } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import { formatNumber } from "@core/i18n/format"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { CampaignStatus, MarketingCampaign } from "@modules/marketing/types"
 import {
   BTN_PRIMARY,
@@ -14,22 +15,22 @@ import {
 import { MarketingEmptyState } from "./marketing-empty-state"
 
 /**
- * "Campañas simples" — easy-to-understand campaigns with responsible agent
+ * "Simple campaigns" — easy-to-understand campaigns with responsible agent
  * (Fiona), state, title, reason, approximate audience and one-tap actions.
  * No funnels, ROAS or ad-tech jargon anywhere in the copy.
  */
 export function SimpleCampaigns({
-  config,
+  messages,
   campaigns,
   onTransition,
   onView,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   campaigns: MarketingCampaign[]
   onTransition: (campaign: MarketingCampaign, to: CampaignStatus) => void
   onView: (campaign: MarketingCampaign) => void
 }) {
-  const t = config.campaigns
+  const t = messages.campaigns
   const visible = campaigns.filter((c) => c.status !== "finalizada")
   const activeCount = campaigns.filter((c) => c.status === "activa").length
 
@@ -43,7 +44,7 @@ export function SimpleCampaigns({
           {t.sectionTitle}
         </h2>
         <span className="font-mono text-[10.5px] text-[var(--text-tertiary-light)]">
-          {activeCount} {activeCount === 1 ? "activa" : "activas"}
+          {t.activeCountHint(activeCount)}
         </span>
       </div>
 
@@ -62,10 +63,10 @@ export function SimpleCampaigns({
                     borderColor: "color-mix(in srgb, var(--inbox-info) 32%, transparent)",
                   }}
                 >
-                  {config.agentLabels[campaign.agent]}
+                  {messages.agentLabels[campaign.agent]}
                 </span>
                 <span className={CHIP_CLASS} style={chipStyle(CAMPAIGN_STATUS_TONE[campaign.status])}>
-                  {config.campaignStatusLabels[campaign.status]}
+                  {messages.campaignStatusLabels[campaign.status]}
                 </span>
               </div>
 
@@ -76,12 +77,13 @@ export function SimpleCampaigns({
               {campaign.audienceSize != null ? (
                 <p className="mt-1.5 inline-flex items-center gap-1.5 text-[10.5px] text-[var(--text-tertiary-light)]">
                   <Users size={11} strokeWidth={2} aria-hidden="true" />
-                  ~{campaign.audienceSize.toLocaleString("es-ES")} {campaign.audienceLabel ?? t.audiencePrefix}
+                  ~{formatNumber(campaign.audienceSize, { locale: messages.locale })}{" "}
+                  {campaign.audienceLabel ?? t.audienceFallback}
                 </p>
               ) : null}
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <CampaignActions campaign={campaign} config={config} onTransition={onTransition} onView={onView} />
+                <CampaignActions campaign={campaign} messages={messages} onTransition={onTransition} onView={onView} />
               </div>
             </li>
           ))}
@@ -94,16 +96,16 @@ export function SimpleCampaigns({
 /** One-tap actions per campaign state (transitions validated in the pure layer). */
 function CampaignActions({
   campaign,
-  config,
+  messages,
   onTransition,
   onView,
 }: {
   campaign: MarketingCampaign
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   onTransition: (campaign: MarketingCampaign, to: CampaignStatus) => void
   onView: (campaign: MarketingCampaign) => void
 }) {
-  const t = config.campaigns
+  const t = messages.campaigns
   const compactBtn = "px-3 py-1.5 text-[11.5px]"
 
   switch (campaign.status) {
@@ -123,7 +125,7 @@ function CampaignActions({
       return (
         <>
           <button type="button" onClick={() => onTransition(campaign, "activa")} className={`${BTN_PRIMARY} ${compactBtn} flex-1 sm:flex-none`}>
-            {config.campaignStatusLabels.activa}
+            {messages.campaignStatusLabels.activa}
           </button>
           <button type="button" onClick={() => onView(campaign)} className={`${BTN_SECONDARY} ${compactBtn}`}>
             {t.detail}

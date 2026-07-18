@@ -15,7 +15,8 @@ import {
   workStatusForPost,
 } from "./state"
 import { getBeautyMarketingDemoSnapshot, getEmptyMarketingSnapshot } from "./demo-data"
-import { resolveBeautyMarketingConfig } from "./beauty-marketing"
+import { isBeautyMarketingVertical } from "./beauty-marketing"
+import { MARKETING_MESSAGES } from "./i18n"
 import type { MarketingCampaign, MarketingPost, MarketingWork } from "./types"
 
 const WS = "ws-test"
@@ -132,7 +133,10 @@ test("buildDraftPostFromWork composes a usable proposal from metadata", () => {
     status: "sin_usar",
     createdAt: NOW.toISOString(),
   }
-  const draft = buildDraftPostFromWork(work, { id: "p-new" })
+  const draft = buildDraftPostFromWork(work, {
+    id: "p-new",
+    templates: MARKETING_MESSAGES.es.draftTemplates,
+  })
   assert.equal(draft.workspaceId, WS)
   assert.equal(draft.workId, "w1")
   assert.equal(draft.status, "borrador")
@@ -141,6 +145,38 @@ test("buildDraftPostFromWork composes a usable proposal from metadata", () => {
   assert.ok(draft.hashtags.length > 0)
   // Hashtags carry no spaces or leading #.
   for (const t of draft.hashtags) assert.ok(!t.includes(" ") && !t.startsWith("#"))
+})
+
+test("buildDraftPostFromWork writes the proposal in the caller's locale", () => {
+  const work: MarketingWork = {
+    id: "w1",
+    workspaceId: WS,
+    title: "Rose nude · María",
+    clientName: "María",
+    service: "Manicura semipermanente",
+    style: "Rose nude",
+    status: "sin_usar",
+    createdAt: NOW.toISOString(),
+  }
+  const drafts = Object.fromEntries(
+    (["es", "en", "de", "fr", "it"] as const).map((code) => [
+      code,
+      buildDraftPostFromWork(work, {
+        id: `p-${code}`,
+        templates: MARKETING_MESSAGES[code].draftTemplates,
+      }),
+    ]),
+  )
+  for (const [code, draft] of Object.entries(drafts)) {
+    // User content (style + client name) is composed verbatim, never translated.
+    assert.ok(draft.caption.includes("Rose nude"), `${code}: subject missing`)
+    assert.ok(draft.caption.includes("María"), `${code}: client name missing`)
+    assert.equal(draft.goal, MARKETING_MESSAGES[code as "es"].draftTemplates.goal)
+    assert.equal(draft.cta, MARKETING_MESSAGES[code as "es"].draftTemplates.cta)
+  }
+  // The sentence around the user content differs per locale.
+  assert.notEqual(drafts.es.caption, drafts.en.caption)
+  assert.notEqual(drafts.de.caption, drafts.en.caption)
 })
 
 // ─── Work status sync ────────────────────────────────────────────────────────
@@ -162,7 +198,7 @@ test("buildEditorialWeek derives 7 days with scheduled posts and active campaign
     kind: "reel",
     scheduledFor: new Date(2026, 6, 19, 18, 0).toISOString(),
   })
-  const days = buildEditorialWeek([scheduled], [campaign({ status: "activa" })], NOW)
+  const days = buildEditorialWeek([scheduled], [campaign({ status: "activa" })], NOW, "es")
   assert.equal(days.length, 7)
   assert.equal(days[0].isToday, true)
   // The active campaign markers live on today's cell.
@@ -171,6 +207,16 @@ test("buildEditorialWeek derives 7 days with scheduled posts and active campaign
   assert.ok(days[2].items.some((i) => i.kind === "reel"))
   // Unscheduled days stay empty.
   assert.equal(days[6].items.length, 0)
+})
+
+test("buildEditorialWeek weekday labels are regional, not hardcoded Spanish", () => {
+  // NOW (2026-07-17) is a Friday.
+  const es = buildEditorialWeek([], [], NOW, "es")
+  const en = buildEditorialWeek([], [], NOW, "en")
+  const de = buildEditorialWeek([], [], NOW, "de")
+  assert.ok(/vie/i.test(es[0].weekday), `es weekday: ${es[0].weekday}`)
+  assert.ok(/fri/i.test(en[0].weekday), `en weekday: ${en[0].weekday}`)
+  assert.ok(/fr/i.test(de[0].weekday), `de weekday: ${de[0].weekday}`)
 })
 
 // ─── Summary & featured pick ─────────────────────────────────────────────────
@@ -196,13 +242,13 @@ test("pickFeaturedPost prefers preparada, then borrador, then aprobada, then pro
 // ─── Demo adapter ────────────────────────────────────────────────────────────
 
 test("demo snapshot is workspace-scoped and coherent", () => {
-  const snap = getBeautyMarketingDemoSnapshot(WS, NOW)
+  const snap = getBeautyMarketingDemoSnapshot(WS, NOW, MARKETING_MESSAGES.es.demo)
   assert.equal(snap.workspaceId, WS)
   for (const w of snap.works) assert.equal(w.workspaceId, WS)
   for (const p of snap.posts) assert.equal(p.workspaceId, WS)
   for (const c of snap.campaigns) assert.equal(c.workspaceId, WS)
   // Ids are namespaced per workspace so two tenants never collide.
-  const other = getBeautyMarketingDemoSnapshot("ws-other", NOW)
+  const other = getBeautyMarketingDemoSnapshot("ws-other", NOW, MARKETING_MESSAGES.es.demo)
   const ids = new Set(snap.works.map((w) => w.id))
   for (const w of other.works) assert.ok(!ids.has(w.id))
   // Every work that claims a post actually has it.
@@ -227,26 +273,25 @@ test("empty snapshot drives the empty states", () => {
   assert.equal(snap.freya, null)
 })
 
-// ─── Beauty config resolver ──────────────────────────────────────────────────
+// ─── Beauty vertical resolver ────────────────────────────────────────────────
 
-test("resolveBeautyMarketingConfig activates for beauty verticals only", () => {
+test("isBeautyMarketingVertical activates for beauty verticals only", () => {
   for (const key of ["beauty", "salon", "nails", "spa"]) {
-    assert.ok(resolveBeautyMarketingConfig(key), `expected config for ${key}`)
+    assert.ok(isBeautyMarketingVertical(key), `expected activation for ${key}`)
   }
-  assert.equal(resolveBeautyMarketingConfig("construction"), null)
-  assert.equal(resolveBeautyMarketingConfig(null), null)
-  assert.equal(resolveBeautyMarketingConfig(undefined), null)
+  assert.equal(isBeautyMarketingVertical("construction"), false)
+  assert.equal(isBeautyMarketingVertical(null), false)
+  assert.equal(isBeautyMarketingVertical(undefined), false)
 })
 
-test("beauty marketing config speaks Spanish and stays honest about channels", () => {
-  const cfg = resolveBeautyMarketingConfig("beauty")
-  assert.ok(cfg)
-  assert.equal(cfg.header.title, "Marketing")
-  assert.ok(cfg.previewChip.includes("datos de ejemplo"))
-  assert.ok(cfg.featured.channelPendingNote.length > 0)
-  // No complex ad-tech jargon in the campaign section.
-  const text = JSON.stringify(cfg.campaigns).toLowerCase()
-  for (const banned of ["funnel", "roas", "segmentación avanzada"]) {
-    assert.ok(!text.includes(banned), `campaigns copy must not include "${banned}"`)
-  }
+test("localized demo snapshots share structure and localize only content", () => {
+  const es = getBeautyMarketingDemoSnapshot(WS, NOW, MARKETING_MESSAGES.es.demo)
+  const de = getBeautyMarketingDemoSnapshot(WS, NOW, MARKETING_MESSAGES.de.demo)
+  // Structure (ids, statuses, scheduling) is identical across locales…
+  assert.deepEqual(es.works.map((w) => [w.id, w.status]), de.works.map((w) => [w.id, w.status]))
+  assert.deepEqual(es.posts.map((p) => [p.id, p.status, p.scheduledFor]),
+    de.posts.map((p) => [p.id, p.status, p.scheduledFor]))
+  // …while the visible demo copy follows the catalog's language.
+  assert.notEqual(es.freya?.message, de.freya?.message)
+  assert.notEqual(es.pulse?.insight, de.pulse?.insight)
 })

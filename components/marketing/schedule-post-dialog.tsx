@@ -2,30 +2,30 @@
 
 import { useEffect, useState } from "react"
 import { SmartModal } from "@/components/smart-modal"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { MarketingPost, PostChannel } from "@modules/marketing/types"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT_CLASS, LABEL_CLASS } from "./marketing-ui"
 
 const CHANNELS: PostChannel[] = ["instagram", "facebook", "tiktok"]
 
 /**
- * "Programar" — a simple date / time / channel picker. Future-date validation
+ * "Schedule" — a simple date / time / channel picker. Future-date validation
  * lives in the pure layer (`schedulePost`); this dialog only collects input.
  */
 export function SchedulePostDialog({
-  config,
+  messages,
   post,
   onClose,
   onConfirm,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   /** The post being scheduled, or null when closed. */
   post: MarketingPost | null
   onClose: () => void
   /** Returns false when the chosen date/time was rejected (e.g. in the past). */
   onConfirm: (post: MarketingPost, scheduledForIso: string, channel: PostChannel) => boolean
 }) {
-  const t = config.schedule
+  const t = messages.schedule
 
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
@@ -99,7 +99,7 @@ export function SchedulePostDialog({
           >
             {CHANNELS.map((c) => (
               <option key={c} value={c}>
-                {config.channelLabels[c]}
+                {messages.channelLabels[c]}
               </option>
             ))}
           </select>

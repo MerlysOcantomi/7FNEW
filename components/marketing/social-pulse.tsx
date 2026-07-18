@@ -1,25 +1,25 @@
 "use client"
 
 import { MessageCircle, PlugZap } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { SocialPulse } from "@modules/marketing/types"
 import { CARD_CLASS } from "./marketing-ui"
 
 /**
- * "Pulso social" — only easy-to-understand metrics (followers, reach, saves,
+ * "Social pulse" — only easy-to-understand metrics (followers, reach, saves,
  * inquiries, new clients from content) plus one useful interpretation that
  * connects marketing to real business results. Never a dense analytics panel.
  */
 export function SocialPulseCard({
-  config,
+  messages,
   pulse,
   channelsConnected,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   pulse: SocialPulse | null
   channelsConnected: boolean
 }) {
-  const t = config.pulse
+  const t = messages.pulse
 
   return (
     <section aria-labelledby="social-pulse-title">

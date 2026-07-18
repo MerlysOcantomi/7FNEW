@@ -1,7 +1,7 @@
 "use client"
 
 import { Plus, Sparkles } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { MarketingWeeklySummary } from "@modules/marketing/state"
 import { BTN_PRIMARY, CARD_CLASS } from "./marketing-ui"
 
@@ -13,20 +13,20 @@ import { BTN_PRIMARY, CARD_CLASS } from "./marketing-ui"
  * priority of capture-first).
  */
 export function MarketingHeader({
-  config,
+  messages,
   summary,
   onUpload,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   summary: MarketingWeeklySummary
   onUpload: () => void
 }) {
-  const { header } = config
+  const { header } = messages
 
   const summaryItems: { text: string; dot: string }[] = [
-    { text: `${summary.readyCount} ${summary.readyCount === 1 ? "foto lista" : "fotos listas"}`, dot: "var(--accent-primary)" },
-    { text: `${summary.scheduledCount} ${summary.scheduledCount === 1 ? "programada" : "programadas"}`, dot: "var(--inbox-info)" },
-    { text: `${summary.activeCampaigns} ${summary.activeCampaigns === 1 ? "campaña activa" : "campañas activas"}`, dot: "var(--inbox-success)" },
+    { text: header.readyPhotos(summary.readyCount), dot: "var(--accent-primary)" },
+    { text: header.scheduledPosts(summary.scheduledCount), dot: "var(--inbox-info)" },
+    { text: header.activeCampaigns(summary.activeCampaigns), dot: "var(--inbox-success)" },
   ]
 
   return (
@@ -45,7 +45,7 @@ export function MarketingHeader({
             }}
           >
             <Sparkles size={11} strokeWidth={2} aria-hidden="true" />
-            {config.brandChip}
+            {messages.brandChip}
           </span>
           <span
             className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -53,9 +53,9 @@ export function MarketingHeader({
               borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)",
               color: "var(--inbox-info)",
             }}
-            title="Datos de ejemplo mientras conectamos tus redes y fotos reales."
+            title={messages.preview.tooltip}
           >
-            {config.previewChip}
+            {messages.preview.chip}
           </span>
         </div>
 

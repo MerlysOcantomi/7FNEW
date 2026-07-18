@@ -83,11 +83,11 @@ export interface MarketingPost {
   hashtags: string[]
   channel: PostChannel
   kind: PostKind
-  /** Plain-language goal, e.g. "Atraer clientas nuevas". */
+  /** Plain-language goal, e.g. "Attract new clients" (localized template default). */
   goal?: string | null
-  /** Suggested best time, e.g. "Hoy 19:00". */
+  /** Suggested best time, e.g. "Today 19:00" (localized demo string). */
   bestTime?: string | null
-  /** Call to action, e.g. "Reserva tu cita". */
+  /** Call to action, e.g. "Book your appointment" (localized template default). */
   cta?: string | null
   status: PostStatus
   /** ISO datetime when `status === "programada"`. */
@@ -114,9 +114,9 @@ export interface MarketingCampaign {
   status: CampaignStatus
   /** Plain-language reason why this campaign is recommended. */
   reason: string
-  /** Approximate audience size (nº of clientas), if known. */
+  /** Approximate audience size (number of people), if known. */
   audienceSize?: number | null
-  /** Human audience description, e.g. "clientas sin reservar hace 2+ meses". */
+  /** Human audience description, e.g. "clients without a booking for 2+ months". */
   audienceLabel?: string | null
 }
 
@@ -163,7 +163,7 @@ export interface EditorialCalendarItem {
 export interface EditorialCalendarDay {
   /** ISO date (yyyy-mm-dd). */
   date: string
-  /** Short weekday label, e.g. "Vie". */
+  /** Short regional weekday label from Intl (e.g. "Fri", "vie", "Fr."). */
   weekday: string
   /** Day of month. */
   dayNumber: number

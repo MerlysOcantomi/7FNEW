@@ -8,6 +8,7 @@
  * and all of this is testable with `node:test`.
  */
 
+import { toIntlLocale, type FormatLocale } from "@core/i18n/format"
 import type {
   CampaignStatus,
   EditorialCalendarDay,
@@ -20,6 +21,7 @@ import type {
   PostStatus,
   WorkStatus,
 } from "./types"
+import type { MarketingDraftTemplates } from "./i18n/types"
 
 // ─── Campaign transitions ────────────────────────────────────────────────────
 
@@ -146,28 +148,37 @@ export function applyPostEdits(post: MarketingPost, edits: PostEdits): Marketing
  * template composition (no AI call, no fake "Freya generated this"): the UI
  * labels the result as an initial proposal the user edits. When the real Freya
  * backend lands, this becomes its fallback.
+ *
+ * The sentence templates come from the caller's localized catalog
+ * (`templates`), so the proposal is written in the effective UI locale. The
+ * work's OWN metadata (service, style, client name) is user content and is
+ * composed verbatim — never translated.
  */
 export function buildDraftPostFromWork(
   work: MarketingWork,
-  opts: { id: string; channel?: PostChannel },
+  opts: { id: string; templates: MarketingDraftTemplates; channel?: PostChannel },
 ): MarketingPost {
-  const service = work.service?.trim() || "trabajo"
+  const { templates } = opts
+  const service = work.service?.trim() || templates.fallbackSubject
   const style = work.style?.trim()
   const subject = style ? `${style}` : service
-  const clientBit = work.clientName?.trim() ? ` de ${work.clientName.trim()}` : ""
-  const beforeAfterBit = work.beforeAfter ? " Antes y después real, sin filtros." : ""
+  const clientName = work.clientName?.trim() || null
   return {
     id: opts.id,
     workspaceId: work.workspaceId,
     workId: work.id,
     title: work.title,
-    caption: `${capitalize(subject)}${clientBit} recién salido del estudio ✨${beforeAfterBit} ¿Reservamos el tuyo? Quedan huecos esta semana 💅`,
+    caption: templates.caption({
+      subject: capitalize(subject),
+      clientName,
+      beforeAfter: work.beforeAfter === true,
+    }),
     hashtags: buildHashtagsFromWork(work),
     channel: opts.channel ?? "instagram",
     kind: work.beforeAfter ? "carrusel" : "post",
-    goal: "Atraer clientas nuevas",
+    goal: templates.goal,
     bestTime: null,
-    cta: "Reserva tu cita",
+    cta: templates.cta,
     status: "borrador",
     scheduledFor: null,
     preparedBy: "user",
@@ -213,8 +224,6 @@ export function workStatusForPost(postStatus: PostStatus): WorkStatus {
 
 // ─── Editorial calendar (7-day derivation) ───────────────────────────────────
 
-const WEEKDAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
-
 function isoDateOf(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -232,13 +241,16 @@ function calendarKindOf(kind: PostKind): EditorialCalendarItem["kind"] {
 /**
  * Derive the 7-day editorial calendar starting at `today` from scheduled posts
  * and active/programmed campaigns. Editorial only — never replaces the general
- * appointments calendar.
+ * appointments calendar. Weekday labels are regional: they come from Intl for
+ * the caller's locale (a UI locale like "es" or a regional tag like "de-CH").
  */
 export function buildEditorialWeek(
   posts: MarketingPost[],
   campaigns: MarketingCampaign[],
   today: Date,
+  locale: FormatLocale,
 ): EditorialCalendarDay[] {
+  const weekdayFormat = new Intl.DateTimeFormat(toIntlLocale(locale), { weekday: "short" })
   const days: EditorialCalendarDay[] = []
   for (let i = 0; i < 7; i++) {
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
@@ -254,7 +266,7 @@ export function buildEditorialWeek(
     }
     days.push({
       date: iso,
-      weekday: WEEKDAYS_ES[date.getDay()],
+      weekday: weekdayFormat.format(date),
       dayNumber: date.getDate(),
       isToday: i === 0,
       items,

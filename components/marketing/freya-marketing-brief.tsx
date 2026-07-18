@@ -1,7 +1,7 @@
 "use client"
 
 import { Sparkles } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { FreyaBrief } from "@modules/marketing/types"
 
 /**
@@ -10,15 +10,15 @@ import type { FreyaBrief } from "@modules/marketing/types"
  * the FinesseAssistant card family from the Beauty "Hoy" overview.
  */
 export function FreyaMarketingBrief({
-  config,
+  messages,
   brief,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   brief: FreyaBrief | null
 }) {
   return (
     <section
-      aria-label={config.freya.name}
+      aria-label={messages.freya.name}
       className="rounded-[18px] border p-4"
       style={{
         borderColor: "var(--accent-muted-border)",
@@ -35,9 +35,9 @@ export function FreyaMarketingBrief({
           <Sparkles size={13} strokeWidth={2} />
         </span>
         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-primary-light)]">
-          {config.freya.name}
+          {messages.freya.name}
         </span>
-        <span className="text-[10px] text-[var(--text-tertiary-light)]">{config.freya.role}</span>
+        <span className="text-[10px] text-[var(--text-tertiary-light)]">{messages.freya.role}</span>
         {brief && brief.readyCount > 0 ? (
           <span className="ml-auto inline-flex items-center gap-1.5 text-[10.5px] text-[var(--text-secondary-light)]">
             <span
@@ -45,12 +45,12 @@ export function FreyaMarketingBrief({
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: "var(--inbox-success)" }}
             />
-            {brief.readyCount} {brief.readyCount === 1 ? config.freya.readySuffixOne : config.freya.readySuffix}
+            {messages.freya.readyForReview(brief.readyCount)}
           </span>
         ) : null}
       </div>
       <p className="mt-2.5 text-[13px] leading-relaxed text-[var(--text-primary-light)]">
-        {brief ? brief.message : config.freya.empty}
+        {brief ? brief.message : messages.freya.empty}
       </p>
     </section>
   )

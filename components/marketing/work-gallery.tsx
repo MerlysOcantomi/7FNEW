@@ -1,7 +1,7 @@
 "use client"
 
 import { Camera, Plus, Wand2 } from "lucide-react"
-import type { BeautyMarketingConfig } from "@modules/marketing/beauty-marketing"
+import type { BeautyMarketingMessages } from "@modules/marketing/i18n"
 import type { MarketingWork } from "@modules/marketing/types"
 import {
   CHIP_CLASS,
@@ -12,24 +12,24 @@ import {
 import { MarketingEmptyState } from "./marketing-empty-state"
 
 /**
- * "Tus trabajos" — recent work photos with visual states (Nuevo / Sin usar /
- * Preparado / Programado / Publicado), an upload tile and a link to the full
- * gallery. Selecting an unused photo starts the convert-to-post flow.
+ * "Your work" — recent work photos with localized visual states, an upload
+ * tile and a link to the full gallery. Selecting an unused photo starts the
+ * convert-to-post flow.
  */
 export function WorkGallery({
-  config,
+  messages,
   works,
   onUpload,
   onPreparePost,
   onViewAll,
 }: {
-  config: BeautyMarketingConfig
+  messages: BeautyMarketingMessages
   works: MarketingWork[]
   onUpload: () => void
   onPreparePost: (work: MarketingWork) => void
   onViewAll?: () => void
 }) {
-  const t = config.gallery
+  const t = messages.gallery
   const recent = works.slice(0, 5)
 
   return (
@@ -93,13 +93,13 @@ export function WorkGallery({
                 ) : (
                   <div
                     role="img"
-                    aria-label={`Foto: ${work.title}`}
+                    aria-label={messages.a11y.workPhotoAlt(work.title)}
                     className="absolute inset-0"
                     style={{ background: placeholderBackground(work.placeholderTone) }}
                   />
                 )}
                 <span className={`${CHIP_CLASS} absolute left-2 top-2`} style={chipStyle(WORK_STATUS_TONE[work.status])}>
-                  {config.workStatusLabels[work.status]}
+                  {messages.workStatusLabels[work.status]}
                 </span>
                 <div
                   className="absolute inset-x-0 bottom-0 px-2.5 pb-2 pt-6"
@@ -116,7 +116,7 @@ export function WorkGallery({
                   <button
                     type="button"
                     onClick={() => onPreparePost(work)}
-                    aria-label={`${t.preparePost}: ${work.title}`}
+                    aria-label={t.preparePostAria(work.title)}
                     className="absolute inset-0 flex items-center justify-center transition-opacity focus-visible:opacity-100 focus-visible:outline-none md:opacity-0 md:group-hover:opacity-100"
                   >
                     <span className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent-primary)] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-md">
