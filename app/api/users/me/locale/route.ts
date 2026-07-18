@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server"
+import { cookies } from "next/headers"
 import { successResponse, errorResponse, handleError } from "@/lib/api"
 import { getSessionFromCookies } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 import { SUPPORTED_LOCALES } from "@core/i18n"
 import { planUserLocaleUpdate } from "@core/i18n/user-locale"
+import {
+  LOCALE_COOKIE,
+  buildLocaleCookieOptions,
+  planLocaleCookieAfterUserUpdate,
+} from "@core/i18n/cookie"
 
 /**
  * Personal app-locale preference for the authenticated user.
@@ -52,6 +58,21 @@ export async function PUT(request: NextRequest) {
       where: { id: command.userId },
       data: { locale: command.locale },
     })
+
+    /**
+     * Cookie mirror — ONLY after the database write succeeded (validation or
+     * persistence failures above never touch the cookie). A concrete locale
+     * is mirrored so the pre-session first paint matches; clearing the
+     * preference deletes the cookie so the next request re-derives the hint
+     * from the effective resolution instead of pinning a stale value.
+     */
+    const cookiePlan = planLocaleCookieAfterUserUpdate(command.locale)
+    const cookieStore = await cookies()
+    if (cookiePlan.kind === "set") {
+      cookieStore.set(LOCALE_COOKIE, cookiePlan.value, buildLocaleCookieOptions())
+    } else {
+      cookieStore.delete(LOCALE_COOKIE)
+    }
 
     return successResponse({ locale: command.locale })
   } catch (error) {

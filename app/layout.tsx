@@ -7,7 +7,9 @@ import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provi
 import { UserProvider } from '@/hooks/use-user'
 import { GlobalSearchProvider } from '@/components/global-search-provider'
 import { GlobalNewProvider } from '@/components/global-new/global-new-provider'
+import { I18nProvider } from '@/components/i18n-provider'
 import { resolveWorkspaceDefaultThemeKey } from '@core/theme'
+import { getRequestLocale } from '@core/i18n/server'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -45,11 +47,22 @@ export default async function RootLayout({
    * Server-resolved default `data-theme` for the active workspace (beauty →
    * rose-nude), used ONLY when the user hasn't chosen a theme. See @core/theme.
    * Falls back to midnight for signed-out/public routes or non-beauty verticals.
+   *
+   * `getRequestLocale()` resolves the effective UI locale (authenticated:
+   * User.locale → workspace → Accept-Language → en; anonymous: 7f-locale
+   * cookie → Accept-Language → en). Read-only; per-request memoized. Both
+   * resolutions are independent, so they run in parallel.
+   * `suppressHydrationWarning` remains REQUIRED by the theme system (the
+   * no-FOUC script mutates <html data-theme> before hydration) — it is not
+   * covering any locale mismatch: the provider starts from this same locale.
    */
-  const workspaceDefaultTheme = await resolveWorkspaceDefaultThemeKey()
+  const [workspaceDefaultTheme, requestLocale] = await Promise.all([
+    resolveWorkspaceDefaultThemeKey(),
+    getRequestLocale(),
+  ])
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={requestLocale.locale} suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         {/**
          * Theme bridge (no-FOUC). Sets data-theme on <html> before paint.
@@ -71,17 +84,30 @@ export default async function RootLayout({
           }}
         />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <UserProvider>
-            <ToastProvider>
-              <KeyboardShortcutsProvider>
-                <GlobalNewProvider>
-                  <GlobalSearchProvider>
-                    {children}
-                  </GlobalSearchProvider>
-                </GlobalNewProvider>
-              </KeyboardShortcutsProvider>
-            </ToastProvider>
-          </UserProvider>
+          {/**
+           * I18nProvider receives ONLY serializable data (locale + metadata) —
+           * the typed catalogs contain functions and are imported client-side
+           * by the provider itself. Sits directly inside ThemeProvider so
+           * every existing provider below keeps its relative order.
+           */}
+          <I18nProvider
+            locale={requestLocale.locale}
+            source={requestLocale.source}
+            userLocale={requestLocale.userLocale}
+            shouldSyncCookie={requestLocale.shouldSyncCookie}
+          >
+            <UserProvider>
+              <ToastProvider>
+                <KeyboardShortcutsProvider>
+                  <GlobalNewProvider>
+                    <GlobalSearchProvider>
+                      {children}
+                    </GlobalSearchProvider>
+                  </GlobalNewProvider>
+                </KeyboardShortcutsProvider>
+              </ToastProvider>
+            </UserProvider>
+          </I18nProvider>
         </ThemeProvider>
         <Analytics />
       </body>
