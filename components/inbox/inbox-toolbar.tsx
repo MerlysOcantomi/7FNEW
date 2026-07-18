@@ -15,6 +15,9 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useManualIntake } from "@/components/manual-intake/manual-intake-provider"
+import { useI18n } from "@/components/i18n-provider"
+import type { UIMessages } from "@core/i18n/ui"
+import { toIntlLocale } from "@core/i18n/format"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -108,49 +111,51 @@ interface InboxToolbarProps {
   isTodoMode?: boolean
 }
 
-function formatSyncAge(date: Date) {
+type InboxToolbarMessages = UIMessages["inbox"]["toolbar"]
+
+function formatSyncAge(date: Date, syncAge: InboxToolbarMessages["syncAge"]) {
   const diff = Date.now() - date.getTime()
-  if (diff < 60_000) return "just now"
+  if (diff < 60_000) return syncAge.justNow
   const minutes = Math.floor(diff / 60_000)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return syncAge.minutesAgo(minutes)
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return syncAge.hoursAgo(hours)
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return syncAge.daysAgo(days)
 }
 
-const WORK_FILTERS = [
-  { value: "all", label: "All" },
-  { value: "needs_action", label: "Needs attention" },
-  { value: "waiting", label: "Waiting" },
-  { value: "done", label: "Done" },
-] as const
-
 /**
- * Priority filter options. UI labels are operator-friendly; values are the
- * canonical `Conversation.urgency` strings the API already understands (see
- * `mapSidebarFilter` / `listConversations`). Fixed vocabulary (NOT workspace
- * taxonomy), so it's safe to keep inline here like WORK_FILTERS.
+ * Filter option builders. VALUES are stable API contracts (work filters mirror
+ * the sidebar `?filter=`; priority values are the canonical
+ * `Conversation.urgency` strings; assignment keeps all/mine/unassigned) —
+ * only the visible labels localize, sourced from the `inbox` catalog.
  */
-const PRIORITY_FILTERS = [
-  { value: "all", label: "Any priority" },
-  { value: "critica", label: "Critical" },
-  { value: "alta", label: "High" },
-  { value: "media", label: "Medium" },
-  { value: "baja", label: "Low" },
-] as const
+function buildWorkFilters(m: InboxToolbarMessages) {
+  return [
+    { value: "all", label: m.workFilters.all },
+    { value: "needs_action", label: m.workFilters.needsAttention },
+    { value: "waiting", label: m.workFilters.waiting },
+    { value: "done", label: m.workFilters.done },
+  ] as const
+}
 
-/**
- * Assignment filter options. Same values/behavior as the previous segmented
- * three-button group (All / Mine / Unassigned) — only the presentation changes
- * to a `Select`, so it lines up with Priority / Sender and stops eating a wide
- * row in the More filters panel. `"all"` is the cleared/idle state.
- */
-const ASSIGNMENT_FILTERS = [
-  { value: "all", label: "Anyone" },
-  { value: "mine", label: "Mine" },
-  { value: "unassigned", label: "Unassigned" },
-] as const
+function buildPriorityFilters(m: InboxToolbarMessages) {
+  return [
+    { value: "all", label: m.priorities.any },
+    { value: "critica", label: m.priorities.critical },
+    { value: "alta", label: m.priorities.high },
+    { value: "media", label: m.priorities.medium },
+    { value: "baja", label: m.priorities.low },
+  ] as const
+}
+
+function buildAssignmentFilters(m: InboxToolbarMessages) {
+  return [
+    { value: "all", label: m.assignments.anyone },
+    { value: "mine", label: m.assignments.mine },
+    { value: "unassigned", label: m.assignments.unassigned },
+  ] as const
+}
 
 export function InboxToolbar({
   search,
@@ -179,6 +184,12 @@ export function InboxToolbar({
   // ManualIntakeProvider (mounted in AppShell), so other mounts never get a dead button.
   const { openManualIntake, available: manualIntakeAvailable } = useManualIntake()
 
+  const { t, locale } = useI18n()
+  const m = t.inbox.toolbar
+  const workFilters = buildWorkFilters(m)
+  const priorityFilters = buildPriorityFilters(m)
+  const assignmentFilters = buildAssignmentFilters(m)
+
   const advancedHasActiveFilter =
     assignmentFilter !== "all" ||
     status !== "all" ||
@@ -198,7 +209,7 @@ export function InboxToolbar({
   }, [advancedHasActiveFilter, moreOpen])
 
   const activeChannelLabel =
-    channelOptions.find((option) => option.value === channel)?.label ?? "All channels"
+    channelOptions.find((option) => option.value === channel)?.label ?? m.allChannels
 
   return (
     <div className="shrink-0 rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-surface)] shadow-[var(--app-shadow-subtle)]">
@@ -228,12 +239,12 @@ export function InboxToolbar({
             size="sm"
             variant="accent"
             onClick={() => onCompose()}
-            title="Compose new message"
-            aria-label="Compose new message"
+            title={m.composeTitle}
+            aria-label={m.composeTitle}
             className="h-8 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-medium"
           >
             <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">Compose</span>
+            <span className="hidden sm:inline">{m.compose}</span>
           </Button>
         ) : null}
 
@@ -243,18 +254,18 @@ export function InboxToolbar({
             size="sm"
             variant="outline"
             onClick={() => openManualIntake()}
-            title="Capture a call, note, request or follow-up"
-            aria-label="Capture manual intake"
+            title={m.captureTitle}
+            aria-label={m.captureAria}
             className="h-8 shrink-0 gap-1.5 rounded-lg border-[var(--inbox-border)] bg-transparent px-2.5 text-xs font-medium text-[var(--inbox-text)] hover:bg-white/[0.06] hover:text-[var(--inbox-accent)]"
           >
             <PenSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">Capture</span>
+            <span className="hidden sm:inline">{m.capture}</span>
           </Button>
         ) : null}
 
         {!isTodoMode && onPrimaryWorkFilterChange ? (
-          <div role="group" aria-label="Work filter" className="flex shrink-0 flex-wrap items-center gap-1">
-            {WORK_FILTERS.map((option) => {
+          <div role="group" aria-label={m.workFilterAria} className="flex shrink-0 flex-wrap items-center gap-1">
+            {workFilters.map((option) => {
               const isActive = primaryWorkFilter === option.value
               return (
                 <button
@@ -294,7 +305,7 @@ export function InboxToolbar({
             )}
           >
             <span className="whitespace-nowrap">
-              <span className="opacity-60">Channel:</span> {activeChannelLabel}
+              <span className="opacity-60">{m.channelPrefix}</span> {activeChannelLabel}
             </span>
             {channelOpen ? (
               <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -318,10 +329,10 @@ export function InboxToolbar({
             )}
           >
             <SlidersHorizontal className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">More filters</span>
+            <span className="hidden sm:inline">{m.moreFilters}</span>
             {advancedHasActiveFilter ? (
               <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold text-[var(--inbox-accent)]">
-                on
+                {m.filtersOnBadge}
               </span>
             ) : null}
             {moreOpen ? (
@@ -341,7 +352,7 @@ export function InboxToolbar({
           {activeSearchTerm ? (
             <div
               className="hidden shrink-0 rounded-md bg-[var(--inbox-list-selected-bg)] px-2 py-1 text-[11px] font-medium text-[var(--inbox-list-selected)] lg:block"
-              title={`Filtering: ${activeSearchTerm}`}
+              title={m.filteringTitle(activeSearchTerm)}
             >
               <span className="whitespace-nowrap">&ldquo;{activeSearchTerm}&rdquo;</span>
             </div>
@@ -355,14 +366,14 @@ export function InboxToolbar({
             <Input
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Filter inbox..."
-              aria-label="Filter inbox"
+              placeholder={m.filterPlaceholder}
+              aria-label={m.filterAria}
               className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.03] pl-8 pr-7 text-[11px] text-[var(--inbox-list-text)] placeholder:text-[11px] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
             />
             {search ? (
               <button
                 type="button"
-                aria-label="Clear filter"
+                aria-label={m.clearFilter}
                 onClick={() => onSearchChange("")}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--inbox-list-text)]"
               >
@@ -376,8 +387,8 @@ export function InboxToolbar({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Inbox actions"
-                  title="Inbox actions"
+                  aria-label={m.actionsAria}
+                  title={m.actionsAria}
                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)] data-[state=open]:bg-[var(--inbox-list-background)] data-[state=open]:text-[var(--inbox-list-text)]"
                 >
                   {fetchingEmails ? (
@@ -403,16 +414,16 @@ export function InboxToolbar({
                     className={cn("h-4 w-4", fetchingEmails && "animate-spin")}
                     aria-hidden="true"
                   />
-                  {fetchingEmails ? "Syncing…" : "Sync now"}
+                  {fetchingEmails ? m.syncing : m.syncNow}
                 </DropdownMenuItem>
                 {lastSyncedAt && !fetchingEmails ? (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel
                       className="text-[11px] font-normal text-[var(--inbox-list-text-secondary)]"
-                      title={lastSyncedAt.toLocaleString()}
+                      title={lastSyncedAt.toLocaleString(toIntlLocale(locale))}
                     >
-                      Last synced {formatSyncAge(lastSyncedAt)}
+                      {m.lastSynced(formatSyncAge(lastSyncedAt, m.syncAge))}
                     </DropdownMenuLabel>
                   </>
                 ) : null}
@@ -439,13 +450,13 @@ export function InboxToolbar({
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-              Channels
+              {m.channelsHeading}
             </span>
             <button
               type="button"
               onClick={() => setChannelOpen(false)}
               className="rounded-md p-1 text-[var(--inbox-list-text-secondary)] transition-colors hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]"
-              aria-label="Close channel picker"
+              aria-label={m.closeChannelPicker}
             >
               <X className="h-3 w-3" aria-hidden="true" />
             </button>
@@ -459,7 +470,7 @@ export function InboxToolbar({
                   type="button"
                   onClick={() => onChannelChange(option.value)}
                   aria-pressed={isActive}
-                  title={`Channel: ${option.label}`}
+                  title={t.inbox.channelTitle(option.label)}
                   className={cn(
                     "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
                     isActive
@@ -503,7 +514,7 @@ export function InboxToolbar({
             {onUrgencyFilterChange ? (
               <div className="min-w-0">
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                  Priority
+                  {m.priorityLabel}
                 </label>
                 <Select value={urgencyFilter} onValueChange={onUrgencyFilterChange}>
                   <SelectTrigger
@@ -511,13 +522,13 @@ export function InboxToolbar({
                       FILTER_TRIGGER_BASE,
                       urgencyFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                     )}
-                    aria-label="Priority filter"
-                    title="Filter by conversation priority / urgency"
+                    aria-label={m.priorityFilterAria}
+                    title={m.priorityFilterTitle}
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PRIORITY_FILTERS.map((option) => (
+                    {priorityFilters.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -537,7 +548,7 @@ export function InboxToolbar({
 
             <div className="min-w-0">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                Assignment
+                {m.assignmentLabel}
               </label>
               {/*
                * Was a wide three-button segmented group; now a Select so it
@@ -554,13 +565,13 @@ export function InboxToolbar({
                     FILTER_TRIGGER_BASE,
                     assignmentFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                   )}
-                  aria-label="Assignment filter"
-                  title="Filter by assignment (anyone / mine / unassigned)"
+                  aria-label={m.assignmentFilterAria}
+                  title={m.assignmentFilterTitle}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ASSIGNMENT_FILTERS.map((option) => (
+                  {assignmentFilters.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -588,7 +599,7 @@ export function InboxToolbar({
              */}
             <div className="min-w-0">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
-                Conversation status
+                {m.conversationStatusLabel}
               </label>
               <Select value={status} onValueChange={onStatusChange}>
                 <SelectTrigger
@@ -596,8 +607,8 @@ export function InboxToolbar({
                     FILTER_TRIGGER_BASE,
                     status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                   )}
-                  aria-label="Conversation status filter (overrides the status chips)"
-                  title="Exact conversation status — overrides the top status chips"
+                  aria-label={m.conversationStatusAria}
+                  title={m.conversationStatusTitle}
                 >
                   <SelectValue />
                 </SelectTrigger>

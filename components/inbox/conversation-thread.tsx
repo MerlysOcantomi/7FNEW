@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyState } from "@/components/empty-state"
+import { useI18n } from "@/components/i18n-provider"
 import { MessageBubble, type MessageAttachment, type MessageEmailMeta } from "@/components/inbox/message-bubble"
 import { EmailReadingView, computeEmailNavigation, type EmailReadingMessage } from "@/components/inbox/email-reading-view"
 import { cn } from "@/lib/utils"
@@ -88,6 +89,8 @@ export function ConversationThread({
   emailViewMode = "chat",
   onEmailViewModeChange,
 }: ConversationThreadProps) {
+  const { t } = useI18n()
+  const m = t.inbox.thread
   /**
    * Mapa estable de refs por messageId para hacer scrollIntoView cuando cambia la selección.
    * Se rellena con callback refs en el JSX más abajo.
@@ -116,8 +119,8 @@ export function ConversationThread({
         <EmptyState
           variant="inbox"
           icon={MessageSquare}
-          title="Select a conversation"
-          description="Choose a thread from the list to review context and reply."
+          title={m.emptyTitle}
+          description={m.emptyBody}
         />
       </div>
     )
@@ -136,7 +139,7 @@ export function ConversationThread({
   const EmailViewToggle = showEmailToggle ? (
     <div
       role="group"
-      aria-label="Email reading mode"
+      aria-label={m.viewToggleAria}
       className="inline-flex items-center gap-0.5 rounded-md border border-[var(--inbox-border)]/45 bg-white/[0.03] p-0.5 text-[11px]"
     >
       <button
@@ -151,7 +154,7 @@ export function ConversationThread({
         )}
       >
         <MessageSquare className="h-3 w-3" aria-hidden="true" />
-        Chat
+        {m.chat}
       </button>
       <button
         type="button"
@@ -165,7 +168,7 @@ export function ConversationThread({
         )}
       >
         <Mail className="h-3 w-3" aria-hidden="true" />
-        Email
+        {m.email}
       </button>
     </div>
   ) : null
@@ -181,14 +184,14 @@ export function ConversationThread({
   const EmailNavControls = emailNav && emailNav.totalNavigable > 1 ? (
     <div
       role="group"
-      aria-label="Email navigation"
+      aria-label={m.emailNavAria}
       className="inline-flex items-center gap-0.5 rounded-md border border-[var(--inbox-border)]/45 bg-white/[0.03] p-0.5 text-[11px]"
     >
       <button
         type="button"
         onClick={() => emailNav.prevId && onSelectMessage?.(emailNav.prevId)}
         disabled={!emailNav.prevId}
-        aria-label="Previous email"
+        aria-label={m.previousEmail}
         className={cn(
           "inline-flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors",
           emailNav.prevId
@@ -202,8 +205,8 @@ export function ConversationThread({
         className="px-1 tabular-nums font-medium text-[var(--inbox-text-secondary)]"
         aria-label={
           emailNav.currentNavIndex >= 0
-            ? `Email ${emailNav.currentNavIndex + 1} of ${emailNav.totalNavigable}`
-            : `${emailNav.totalNavigable} emails`
+            ? m.emailPosition(emailNav.currentNavIndex + 1, emailNav.totalNavigable)
+            : m.emailsCount(emailNav.totalNavigable)
         }
       >
         {emailNav.currentNavIndex >= 0 ? `${emailNav.currentNavIndex + 1}/${emailNav.totalNavigable}` : `–/${emailNav.totalNavigable}`}
@@ -212,7 +215,7 @@ export function ConversationThread({
         type="button"
         onClick={() => emailNav.nextId && onSelectMessage?.(emailNav.nextId)}
         disabled={!emailNav.nextId}
-        aria-label="Next email"
+        aria-label={m.nextEmail}
         className={cn(
           "inline-flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors",
           emailNav.nextId
@@ -235,7 +238,7 @@ export function ConversationThread({
   const StatusControl = (
     <Select value={statusValue} onValueChange={(value) => { void onStatusChange(value) }}>
       <SelectTrigger
-        aria-label="Conversation status"
+        aria-label={m.statusSelectAria}
         className={cn(
           // Compact, same height/feel as the Chat/Email toggle — light readable text in the
           // dark theme. `!h-7` overrides shadcn's `data-[size]:h-9` (higher CSS specificity)
@@ -246,7 +249,7 @@ export function ConversationThread({
           "hover:bg-white/8 hover:text-[var(--inbox-accent)] focus:ring-1 focus:ring-[var(--inbox-accent)]/40",
         )}
       >
-        <span className="text-[var(--inbox-text-secondary)]">Status:</span>
+        <span className="text-[var(--inbox-text-secondary)]">{m.statusPrefix}</span>
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="border-[var(--inbox-border)] bg-[var(--inbox-surface-elevated)] text-[var(--inbox-text)] shadow-lg backdrop-blur-sm">
@@ -281,7 +284,7 @@ export function ConversationThread({
             onClick={onBack}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            Inbox
+            {m.back}
           </Button>
           <Button
             type="button"
@@ -291,7 +294,7 @@ export function ConversationThread({
             onClick={onOpenContext}
           >
             <Sparkles className="h-3 w-3" />
-            Context
+            {m.context}
           </Button>
           {EmailNavControls}
           {EmailViewToggle}
@@ -332,19 +335,19 @@ export function ConversationThread({
           <EmptyState
             variant="inbox"
             icon={AlertTriangle}
-            title="Could not load conversation"
+            title={m.loadErrorTitle}
             description={detailErrorMessage}
           />
         </div>
       ) : detailLoading ? (
         <div className="flex min-h-[min(280px,50dvh)] flex-1 flex-col items-center justify-center gap-3 bg-[var(--inbox-chat-background)] py-12">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--inbox-text-secondary)]" aria-hidden />
-          <p className="text-xs text-[var(--inbox-text-secondary)]">Loading conversation…</p>
+          <p className="text-xs text-[var(--inbox-text-secondary)]">{m.loading}</p>
         </div>
       ) : messages.length === 0 ? (
         <div className="flex flex-1 flex-col bg-[var(--inbox-chat-background)] px-5 py-6">
           <div className="rounded-2xl border border-dashed border-[var(--inbox-border)] bg-white/[0.04] p-6">
-            <p className="text-sm text-[var(--inbox-text-secondary)]">No messages yet.</p>
+            <p className="text-sm text-[var(--inbox-text-secondary)]">{m.noMessages}</p>
           </div>
         </div>
       ) : renderEmailView ? (
@@ -375,7 +378,7 @@ export function ConversationThread({
                   <div className="my-4 flex items-center gap-3 px-1">
                     <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
                     <span className="shrink-0 text-[10px] font-medium text-[var(--inbox-text-secondary)]/50">
-                      {message.tone === "outbound" ? "Reply" : "Email"} · {message.timestampLabel}
+                      {message.tone === "outbound" ? m.separator.reply : m.separator.email} · {message.timestampLabel}
                     </span>
                     <div className="h-px flex-1 bg-[var(--inbox-divider)]" />
                   </div>

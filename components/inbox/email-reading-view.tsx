@@ -6,6 +6,7 @@ import {
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
+import { useI18n } from "@/components/i18n-provider"
 import { AttachmentPreviews } from "@/components/inbox/attachment-previews"
 import type { MessageAttachment, MessageEmailMeta } from "@/components/inbox/message-bubble"
 import { cn } from "@/lib/utils"
@@ -125,6 +126,8 @@ export function EmailReadingView({
   onRestoreMessage,
   onTrashMessage,
 }: EmailReadingViewProps) {
+  const { t } = useI18n()
+  const m = t.inbox.emailView
   /**
    * Prev/Next + current message resolved by the shared pure helper (also used by the
    * conversation header's compact nav controls). Memoized so the auto-select effect's
@@ -154,8 +157,8 @@ export function EmailReadingView({
         <EmptyState
           variant="inbox"
           icon={Mail}
-          title="No emails to display"
-          description="This conversation has no inbound or outbound emails to read in single-email mode. Switch back to Chat view to see internal notes and system events."
+          title={m.noEmailsTitle}
+          description={m.noEmailsBody}
         />
       </div>
     )
@@ -163,7 +166,7 @@ export function EmailReadingView({
 
   const ccList = currentMessage.emailMeta?.cc?.filter(Boolean) ?? []
   const bccList = currentMessage.emailMeta?.bcc?.filter(Boolean) ?? []
-  const subject = currentMessage.subject?.trim() || "(No subject)"
+  const subject = currentMessage.subject?.trim() || m.noSubject
   const fromLabel = currentMessage.fromLabel || currentMessage.authorLabel
   const dateLabel = currentMessage.timestampFull || currentMessage.timestampLabel
   const isOutbound = currentMessage.tone === "outbound"
@@ -186,7 +189,7 @@ export function EmailReadingView({
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2">
                 <Trash2 className="h-4 w-4 shrink-0 opacity-70" aria-hidden="true" />
-                <span>Message moved to trash</span>
+                <span>{m.trashedPlaceholder}</span>
               </span>
               {onRestoreMessage ? (
                 <button
@@ -197,10 +200,10 @@ export function EmailReadingView({
                     "text-[var(--inbox-accent)] hover:bg-[var(--inbox-accent)]/10",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40",
                   )}
-                  aria-label="Restore message"
+                  aria-label={m.restoreAria}
                 >
                   <RotateCcw className="h-3 w-3 shrink-0" aria-hidden="true" />
-                  Restore
+                  {m.restore}
                 </button>
               ) : null}
             </div>
@@ -240,8 +243,8 @@ export function EmailReadingView({
                       type="button"
                       onClick={() => onTrashMessage(currentMessage.id)}
                       className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--inbox-text-secondary)] transition-colors hover:bg-[var(--inbox-urgency-critical-bg)]/30 hover:text-[var(--inbox-urgency-critical-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
-                      title="Trash this message"
-                      aria-label="Trash this message"
+                      title={m.trashMessage}
+                      aria-label={m.trashMessage}
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
@@ -249,27 +252,27 @@ export function EmailReadingView({
                 </div>
               </div>
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs leading-snug text-[var(--inbox-text)]/90">
-                <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">From</dt>
+                <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">{m.from}</dt>
                 <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{fromLabel}</dd>
                 {currentMessage.recipientsLabel ? (
                   <>
-                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">To</dt>
+                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">{m.to}</dt>
                     <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{currentMessage.recipientsLabel}</dd>
                   </>
                 ) : null}
                 {ccList.length > 0 ? (
                   <>
-                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">CC</dt>
+                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">{m.cc}</dt>
                     <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{ccList.join(", ")}</dd>
                   </>
                 ) : null}
                 {bccList.length > 0 ? (
                   <>
-                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">BCC</dt>
+                    <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">{m.bcc}</dt>
                     <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{bccList.join(", ")}</dd>
                   </>
                 ) : null}
-                <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">Date</dt>
+                <dt className="font-semibold uppercase tracking-wider text-[10px] text-[var(--inbox-text-secondary)]">{m.date}</dt>
                 <dd suppressHydrationWarning className="min-w-0 tabular-nums opacity-90">{dateLabel}</dd>
               </dl>
             </header>
@@ -285,7 +288,7 @@ export function EmailReadingView({
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <Paperclip className="h-3 w-3 text-[var(--inbox-text-secondary)]" aria-hidden="true" />
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-text-secondary)]">
-                    Attachments ({currentMessage.attachments.length})
+                    {m.attachments(currentMessage.attachments.length)}
                   </span>
                 </div>
                 <AttachmentPreviews

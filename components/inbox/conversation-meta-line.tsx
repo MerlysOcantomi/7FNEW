@@ -20,6 +20,7 @@
 import { Badge, badgeVariants } from "@/components/ui/badge"
 import type { VariantProps } from "class-variance-authority"
 import { Sparkles } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
@@ -115,46 +116,36 @@ interface ConversationMetaLineProps {
 }
 
 /**
- * Subtle, read-only presentation map for the derived Smart Action state.
- * Colours follow the same restrained semantics used elsewhere in this file:
- * red = attention/failure, accent = needs a human, info-blue = Fanny prepared
- * something, green = ready, neutral = informational. Labels are short on
- * purpose — the narrow list column can't afford long copy.
+ * Subtle, read-only presentation map for the derived Smart Action state —
+ * COLOURS only (labels/titles come from the `inbox` i18n catalog at render
+ * time). Colours follow the same restrained semantics used elsewhere in this
+ * file: red = attention/failure, accent = needs a human, info-blue = Fanny
+ * prepared something, green = ready, neutral = informational. Labels stay
+ * short on purpose — the narrow list column can't afford long copy.
  */
-const SMART_ACTION_BADGE: Record<
-  "failed" | "needs_review" | "draft_ready" | "action_ready" | "task_created",
-  { label: string; title: string; className: string }
-> = {
-  failed: {
-    label: "Failed",
-    title: "A Smart Action failed — needs attention",
-    className:
-      "border border-[var(--inbox-destructive)]/30 bg-[var(--inbox-destructive-soft)] text-[var(--inbox-destructive)]",
-  },
-  needs_review: {
-    label: "Review",
-    title: "Fanny prepared something that needs your review",
-    className:
-      "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 text-[var(--inbox-accent)]",
-  },
-  draft_ready: {
-    label: "Draft",
-    title: "Fanny prepared a reply draft",
-    className:
-      "border border-[var(--inbox-info)]/25 bg-[var(--inbox-info-soft)] text-[var(--inbox-info)]",
-  },
-  action_ready: {
-    label: "Ready",
-    title: "A Smart Action is ready",
-    className:
-      "border border-[var(--inbox-success)]/30 bg-[var(--inbox-success-soft)] text-[var(--inbox-success)]",
-  },
-  task_created: {
-    label: "Task",
-    title: "A task was created from this conversation",
-    className: "border border-white/[0.1] bg-white/[0.06] text-[var(--inbox-list-text-secondary)]",
-  },
+type SmartActionKey = "failed" | "needs_review" | "draft_ready" | "action_ready" | "task_created"
+
+const SMART_ACTION_BADGE_CLASS: Record<SmartActionKey, string> = {
+  failed:
+    "border border-[var(--inbox-destructive)]/30 bg-[var(--inbox-destructive-soft)] text-[var(--inbox-destructive)]",
+  needs_review:
+    "border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 text-[var(--inbox-accent)]",
+  draft_ready:
+    "border border-[var(--inbox-info)]/25 bg-[var(--inbox-info-soft)] text-[var(--inbox-info)]",
+  action_ready:
+    "border border-[var(--inbox-success)]/30 bg-[var(--inbox-success-soft)] text-[var(--inbox-success)]",
+  task_created:
+    "border border-white/[0.1] bg-white/[0.06] text-[var(--inbox-list-text-secondary)]",
 }
+
+/** Persisted state key → camelCase catalog key for label/title copy. */
+const SMART_ACTION_MESSAGE_KEY = {
+  failed: "failed",
+  needs_review: "needsReview",
+  draft_ready: "draftReady",
+  action_ready: "actionReady",
+  task_created: "taskCreated",
+} as const satisfies Record<SmartActionKey, string>
 
 export function ConversationMetaLine({
   conversationStatus,
@@ -168,20 +159,20 @@ export function ConversationMetaLine({
   proposedTaskCount,
   smartActionState,
 }: ConversationMetaLineProps) {
+  const { t } = useI18n()
+  const meta = t.inbox.list.meta
   /**
-   * Singular / plural copy. PR 11 swapped "Fanny suggestion(s)" for
-   * "pending decision(s)" so the badge stays consistent with the
-   * Smart Hub's "Pending decisions" section title and reinforces the
-   * IA: this row needs a human decision (approve / dismiss), not
-   * generic execution. The pill is hidden entirely when `count <= 0`
+   * Singular / plural copy — a typed catalog function. PR 11 swapped
+   * "Fanny suggestion(s)" for "pending decision(s)" so the badge stays
+   * consistent with the Smart Hub's "Pending decisions" section title and
+   * reinforces the IA: this row needs a human decision (approve / dismiss),
+   * not generic execution. The pill is hidden entirely when `count <= 0`
    * (or `undefined`), so rows without proposals keep their previous
    * footprint to the pixel.
    */
   const proposedTaskBadge =
     typeof proposedTaskCount === "number" && proposedTaskCount > 0
-      ? proposedTaskCount === 1
-        ? "1 pending decision"
-        : `${proposedTaskCount} pending decisions`
+      ? meta.pendingDecisions(proposedTaskCount)
       : null
   const hideTerminal =
     conversationStatus === "archived" ||
@@ -207,7 +198,12 @@ export function ConversationMetaLine({
     smartActionState && smartActionState !== "none"
       ? smartActionState === "needs_review" && proposedTaskBadge
         ? null
-        : SMART_ACTION_BADGE[smartActionState] ?? null
+        : SMART_ACTION_BADGE_CLASS[smartActionState]
+          ? {
+              ...meta.smartAction[SMART_ACTION_MESSAGE_KEY[smartActionState]],
+              className: SMART_ACTION_BADGE_CLASS[smartActionState],
+            }
+          : null
       : null
 
   return (
@@ -241,7 +237,7 @@ export function ConversationMetaLine({
       ) : null}
       {typeof leadScore === "number" && (
         <span className="rounded-md border border-[var(--inbox-lead)]/35 bg-[var(--inbox-lead-soft)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--inbox-lead)] shadow-none whitespace-nowrap">
-          Lead {leadScore}
+          {meta.lead(leadScore)}
         </span>
       )}
       {/*
@@ -256,7 +252,7 @@ export function ConversationMetaLine({
       {category ? (
         <span
           className="inline-flex max-w-[12rem] items-center rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] shadow-none truncate whitespace-nowrap"
-          title={`Category: ${category}`}
+          title={meta.categoryTitle(category)}
         >
           {category}
         </span>
@@ -273,7 +269,7 @@ export function ConversationMetaLine({
       {proposedTaskBadge ? (
         <span
           className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] shadow-none whitespace-nowrap"
-          title="Fanny suggestions awaiting your approve / dismiss decision"
+          title={meta.pendingDecisionsTitle}
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
           {proposedTaskBadge}

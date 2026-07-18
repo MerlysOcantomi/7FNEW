@@ -532,6 +532,283 @@ export interface BillingMessages {
 }
 
 /**
+ * Smart Inbox MAIN SHELL — toolbar, conversation list (+ row + meta line),
+ * thread chrome, email reading view, layout switcher, and the page-level
+ * dialogs / banners / toasts of `app/inbox/page.tsx`.
+ *
+ * Boundary rules (single source per message):
+ * - Status / urgency / channel VALUE labels, relative dates, action labels and
+ *   sync toast headlines live in `lib/inbox-labels.ts` — never duplicated here.
+ *   This namespace owns only the shell chrome AROUND those labels.
+ * - The reply composer and the right context panel localize in a later stage;
+ *   their strings are NOT here yet.
+ * - Channel/product names (WhatsApp, Instagram, Email-as-product, Fanny,
+ *   Smart Inbox) are brands: identical across locales but still sourced from
+ *   the catalog wherever they appear as UI copy.
+ * - Counted phrases are typed FUNCTIONS — components never glue plurals.
+ */
+export interface InboxMessages {
+  /** Tooltip/aria phrase for a channel badge or chip ("Channel: WhatsApp"). */
+  channelTitle: (label: string) => string
+  toolbar: {
+    compose: string
+    /** title + aria for the compose button ("Compose new message"). */
+    composeTitle: string
+    capture: string
+    captureTitle: string
+    captureAria: string
+    workFilterAria: string
+    workFilters: { all: string; needsAttention: string; waiting: string; done: string }
+    /** Collapsed channel-picker trigger prefix ("Channel:"). */
+    channelPrefix: string
+    channelsHeading: string
+    closeChannelPicker: string
+    allChannels: string
+    allStatuses: string
+    moreFilters: string
+    /** Tiny badge shown when an advanced filter is active ("on"). */
+    filtersOnBadge: string
+    priorityLabel: string
+    priorityFilterAria: string
+    priorityFilterTitle: string
+    priorities: { any: string; critical: string; high: string; medium: string; low: string }
+    assignmentLabel: string
+    assignmentFilterAria: string
+    assignmentFilterTitle: string
+    assignments: { anyone: string; mine: string; unassigned: string }
+    conversationStatusLabel: string
+    conversationStatusAria: string
+    conversationStatusTitle: string
+    filterPlaceholder: string
+    filterAria: string
+    clearFilter: string
+    filteringTitle: (term: string) => string
+    actionsAria: string
+    syncNow: string
+    syncing: string
+    lastSynced: (age: string) => string
+    /** Compact sync-age phrases composed into `lastSynced` ("5m ago"). */
+    syncAge: {
+      justNow: string
+      minutesAgo: (minutes: number) => string
+      hoursAgo: (hours: number) => string
+      daysAgo: (days: number) => string
+    }
+  }
+  list: {
+    unavailableTitle: string
+    empty: {
+      noResultsTitle: string
+      noResultsBody: (term: string) => string
+      mineTitle: string
+      mineBody: string
+      unassignedTitle: string
+      unassignedBody: string
+      defaultTitle: string
+      defaultBody: string
+    }
+    loadingMore: string
+    loadMore: string
+    item: {
+      showDetails: string
+      hideDetails: string
+      unread: string
+      /** aria-label for the message-count figure on a row. */
+      messageCount: (count: number) => string
+      urgencyTitle: (label: string) => string
+      loadingRequests: string
+      earlierRequests: string
+      openMessage: (text: string) => string
+      noEarlierRequests: string
+    }
+    /** Chip cluster labels (currently rendered by ConversationMetaLine). */
+    meta: {
+      pendingDecisions: (count: number) => string
+      pendingDecisionsTitle: string
+      lead: (score: number) => string
+      categoryTitle: (category: string) => string
+      smartAction: {
+        failed: { label: string; title: string }
+        needsReview: { label: string; title: string }
+        draftReady: { label: string; title: string }
+        actionReady: { label: string; title: string }
+        taskCreated: { label: string; title: string }
+      }
+    }
+  }
+  thread: {
+    emptyTitle: string
+    emptyBody: string
+    viewToggleAria: string
+    chat: string
+    /** Email view-mode label — brand/product noun, same in every locale. */
+    email: string
+    emailNavAria: string
+    previousEmail: string
+    nextEmail: string
+    emailPosition: (current: number, total: number) => string
+    emailsCount: (count: number) => string
+    /** Mobile back button — returns to the conversation list. */
+    back: string
+    context: string
+    statusPrefix: string
+    statusSelectAria: string
+    loadErrorTitle: string
+    loading: string
+    noMessages: string
+    /** Divider labels between stacked emails in chat view. */
+    separator: { reply: string; email: string }
+  }
+  emailView: {
+    noEmailsTitle: string
+    noEmailsBody: string
+    noSubject: string
+    trashedPlaceholder: string
+    restore: string
+    restoreAria: string
+    trashMessage: string
+    from: string
+    to: string
+    cc: string
+    bcc: string
+    date: string
+    attachments: (count: number) => string
+  }
+  layout: {
+    switcherAria: string
+    brief: { label: string; title: string }
+    read: { label: string; title: string }
+    handle: { label: string; title: string }
+  }
+  /** Thread message chrome labels derived in `app/inbox/page.tsx`. */
+  message: {
+    internalNote: string
+    team: string
+    contact: string
+    unidentifiedContact: string
+    conversationFallback: string
+    internalNoteMeta: string
+    inbound: string
+    system: string
+    sent: string
+    sendFailed: string
+    confirmedReceived: (when: string) => string
+    opened: (when: string) => string
+    possiblyOpened: (when: string) => string
+    unknownAssignee: string
+  }
+  errors: {
+    listWorkspaceUnavailable: string
+    listLoadFailed: string
+    detailWorkspaceUnavailable: string
+    detailLoadFailed: string
+  }
+  banners: {
+    loadFailedTitle: string
+    loadFailedBody: string
+    retry: string
+    dismissFetchFeedback: string
+    goToInbox: string
+    terminalRescueLead: string
+    terminalRescueBody: string
+    trashOnly: string
+    /** Page-local sync detail lines (headlines stay in lib/inbox-labels). */
+    sync: {
+      noConnectionHint: string
+      skippedKnown: (count: number) => string
+      checkedAllKnown: (count: number) => string
+      andMore: (count: number) => string
+    }
+  }
+  toasts: {
+    noConversationSelected: string
+    creatingEvent: string
+    eventCreated: string
+    eventAlreadyCreated: string
+    couldNotApproveCalendarAction: string
+    couldNotCreateEvent: string
+    processing: string
+    actionFailed: string
+    actionApplied: string
+    unknownError: string
+    approving: string
+    executing: string
+    actionApprovedAndExecuted: string
+    couldNotApproveAction: string
+    couldNotExecuteAction: string
+    processingAction: string
+    couldNotPerformAction: string
+    actionApproved: string
+    actionDismissed: string
+    actionExecuted: string
+    handoffUpdated: string
+    savingHandoff: string
+    couldNotSaveHandoff: string
+    couldNotSaveDraft: string
+    couldNotSendMessage: string
+    noteSaved: string
+    replySavedEmailFailed: (reason: string) => string
+    replyFailedUnknownReason: string
+    replySentEmailDelivered: string
+    replySent: string
+    uploadFailed: string
+    uploadFailedFile: (filename: string) => string
+    filesFailed: (count: number, firstError: string) => string
+    couldNotAssign: string
+    couldNotUpdateStatus: string
+    couldNotUpdateMessageStatus: string
+    couldNotMarkAsDone: string
+    couldNotUpdateMessageTrash: string
+    couldNotMoveToTrash: string
+    couldNotConvertPendingItem: string
+    todoCreatedFromPendingItem: string
+    couldNotResolveMessageForTodo: string
+    messageFollowUp: string
+    couldNotCreateTodoFromMessage: string
+    todoCreatedFromSelectedMessage: string
+    todoCreatedFromLatestMessage: string
+    couldNotCreateTodoFromInternalNote: string
+    todoCreatedFromInternalNote: string
+  }
+  dialogs: {
+    assign: {
+      title: string
+      description: string
+      chooseMember: string
+      userIdPlaceholder: string
+      confirm: string
+    }
+    dismiss: {
+      title: string
+      description: string
+      reasonPlaceholder: string
+      confirm: string
+    }
+    compose: {
+      title: string
+      description: string
+      to: string
+      subject: string
+      subjectPlaceholder: string
+      message: string
+      messagePlaceholder: string
+      send: string
+      sending: string
+    }
+  }
+  todoSuggestion: {
+    createFromNote: string
+    createTodo: string
+    dismissAria: string
+  }
+  contextSheet: {
+    fallbackTitle: string
+    description: string
+  }
+  contextPlaceholder: string
+}
+
+/**
  * Ask Finesse voice surface — visible labels only; no voice behavior lives
  * here. States must never rely on color alone, so every state has a label.
  */
@@ -574,6 +851,7 @@ export interface UIMessages {
   clients: ClientsMessages
   calendar: CalendarMessages
   billing: BillingMessages
+  inbox: InboxMessages
   statuses: StatusesMessages
   voice: VoiceMessages
 }

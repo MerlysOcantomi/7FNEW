@@ -64,6 +64,7 @@ import {
   syncErrors,
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
+import { toIntlLocale } from "@core/i18n/format"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
 import { currentRequestFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import {
@@ -1046,13 +1047,17 @@ function InboxPageContent() {
   const serverTotal = typeof conversationsMeta?.total === "number" ? conversationsMeta.total : null
   const hasMore = serverTotal !== null && conversations.length < serverTotal
 
+  // Typed UI catalog + effective personal locale (see the uiLocale derivation
+  // further down for the first-paint fallback rationale).
+  const { t, locale: providerLocale } = useI18n()
+
   const isWorkspaceUnavailable = errorCode === "NO_WORKSPACE"
   const isGenericListFailure = errorCode === "INTERNAL_ERROR"
   const listErrorMessage =
     isWorkspaceUnavailable
-      ? "Inbox is not available yet for this workspace."
+      ? t.inbox.errors.listWorkspaceUnavailable
       : isGenericListFailure
-        ? "Inbox could not load conversations right now."
+        ? t.inbox.errors.listLoadFailed
       : error
 
   const activeSelectedId = useMemo(() => {
@@ -1157,10 +1162,9 @@ function InboxPageContent() {
     { refreshKey },
   )
 
-  // The visible labels follow the EFFECTIVE personal UI locale (useI18n),
-  // reacting immediately to the language selector; the server meta locale is
-  // only a first-paint fallback while the provider hydrates.
-  const { locale: providerLocale } = useI18n()
+  // The visible labels follow the EFFECTIVE personal UI locale (useI18n,
+  // destructured above), reacting immediately to the language selector; the
+  // server meta locale is only a first-paint fallback while the provider hydrates.
   const uiLocale: SupportedLocale = providerLocale ?? parseLocale(
     (typeof conversationsMeta?.locale === "string" && conversationsMeta.locale)
       ? conversationsMeta.locale
@@ -1173,9 +1177,9 @@ function InboxPageContent() {
   const isGenericDetailFailure = detailErrorCode === "INTERNAL_ERROR"
   const detailErrorMessage =
     isDetailWorkspaceUnavailable
-      ? "This conversation is not available until a workspace is active."
+      ? t.inbox.errors.detailWorkspaceUnavailable
       : isGenericDetailFailure
-        ? "This conversation could not be loaded right now."
+        ? t.inbox.errors.detailLoadFailed
         : detailError
   /** Solo usar detalle si coincide con la selección (evita mensajes vacíos / datos de otra conversación durante la carga). */
   const selected =
@@ -1293,11 +1297,11 @@ function InboxPageContent() {
   const handleCreateCalendarEvent = useCallback(
     async (actionId: string, payload: CreateCalendarEventInput) => {
       if (!selectedId) {
-        throw new Error("No conversation selected")
+        throw new Error(t.inbox.toasts.noConversationSelected)
       }
 
       setPendingActionId(actionId)
-      setActionState("Creating event…")
+      setActionState(t.inbox.toasts.creatingEvent)
 
       try {
         const approveRes = await fetch(
@@ -1315,7 +1319,7 @@ function InboxPageContent() {
           const reason: string = approveJson.error?.message ?? ""
           const looksLikeAlreadyAdvanced = /no puede aprobarse/i.test(reason)
           if (!looksLikeAlreadyAdvanced) {
-            throw new Error(reason || "Could not approve calendar action")
+            throw new Error(reason || t.inbox.toasts.couldNotApproveCalendarAction)
           }
         }
 
@@ -1329,12 +1333,12 @@ function InboxPageContent() {
         )
         const execJson = await execRes.json()
         if (!execJson.success) {
-          throw new Error(execJson.error?.message || "Could not create event")
+          throw new Error(execJson.error?.message || t.inbox.toasts.couldNotCreateEvent)
         }
 
         const alreadyExecuted = (execJson.data?.results as { alreadyExecuted?: boolean } | undefined)
           ?.alreadyExecuted === true
-        setActionState(alreadyExecuted ? "Event already created" : "Event created")
+        setActionState(alreadyExecuted ? t.inbox.toasts.eventAlreadyCreated : t.inbox.toasts.eventCreated)
         setRefreshKey((value) => value + 1)
         refetch()
         refetchDetail()
@@ -1342,13 +1346,13 @@ function InboxPageContent() {
         setPendingActionId(null)
       }
     },
-    [selectedId, refetch, refetchDetail],
+    [selectedId, refetch, refetchDetail, t],
   )
 
   async function handleConvert(action: "cliente" | "proyecto" | "tarea" | "todo") {
     if (!selectedId) return
 
-    setActionState("Processing...")
+    setActionState(t.inbox.toasts.processing)
     try {
       /**
        * Acting on integration:
@@ -1370,14 +1374,14 @@ function InboxPageContent() {
         }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Action failed")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.actionFailed)
 
-      setActionState("Action applied")
+      setActionState(t.inbox.toasts.actionApplied)
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
     } catch (err) {
-      setActionState(err instanceof Error ? err.message : "Unknown error")
+      setActionState(err instanceof Error ? err.message : t.inbox.toasts.unknownError)
     }
   }
 
@@ -1392,27 +1396,27 @@ function InboxPageContent() {
 
     if (operation === "approve_and_execute") {
       setPendingActionId(action.id)
-      setActionState("Approving...")
+      setActionState(t.inbox.toasts.approving)
       try {
         const approveRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/approve`, { method: "POST" })
         const approveJson = await approveRes.json()
-        if (!approveJson.success) throw new Error(approveJson.error?.message || "Could not approve action")
+        if (!approveJson.success) throw new Error(approveJson.error?.message || t.inbox.toasts.couldNotApproveAction)
 
-        setActionState("Executing...")
+        setActionState(t.inbox.toasts.executing)
         const execRes = await fetch(`/api/inbox/conversations/${selectedId}/actions/${action.id}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
         })
         const execJson = await execRes.json()
-        if (!execJson.success) throw new Error(execJson.error?.message || "Could not execute action")
+        if (!execJson.success) throw new Error(execJson.error?.message || t.inbox.toasts.couldNotExecuteAction)
 
-        setActionState("Action approved and executed")
+        setActionState(t.inbox.toasts.actionApprovedAndExecuted)
         setRefreshKey((v) => v + 1)
         refetch()
         refetchDetail()
       } catch (err) {
-        setActionState(err instanceof Error ? err.message : "Unknown error")
+        setActionState(err instanceof Error ? err.message : t.inbox.toasts.unknownError)
       } finally {
         setPendingActionId(null)
       }
@@ -1420,7 +1424,7 @@ function InboxPageContent() {
     }
 
     setPendingActionId(action.id)
-    setActionState("Processing action...")
+    setActionState(t.inbox.toasts.processingAction)
 
     try {
       const endpoint =
@@ -1436,20 +1440,20 @@ function InboxPageContent() {
         body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not perform the action")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotPerformAction)
 
       setActionState(
         operation === "approve"
-          ? "Action approved"
+          ? t.inbox.toasts.actionApproved
           : operation === "dismiss"
-            ? "Action dismissed"
-            : "Action executed",
+            ? t.inbox.toasts.actionDismissed
+            : t.inbox.toasts.actionExecuted,
       )
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
     } catch (err) {
-      setActionState(err instanceof Error ? err.message : "Unknown error")
+      setActionState(err instanceof Error ? err.message : t.inbox.toasts.unknownError)
     } finally {
       setPendingActionId(null)
     }
@@ -1491,9 +1495,9 @@ function InboxPageContent() {
     setPendingActionInput(null)
   }
 
-  async function updateHandoff(payload: Record<string, unknown>, successMessage = "Handoff updated") {
+  async function updateHandoff(payload: Record<string, unknown>, successMessage?: string) {
     if (!selectedId) return
-    setHandoffState("Saving handoff...")
+    setHandoffState(t.inbox.toasts.savingHandoff)
     try {
       const res = await fetch(`/api/inbox/conversations/${selectedId}/handoff`, {
         method: "PATCH",
@@ -1501,12 +1505,12 @@ function InboxPageContent() {
         body: JSON.stringify(payload),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not save the handoff")
-      setHandoffState(successMessage)
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotSaveHandoff)
+      setHandoffState(successMessage ?? t.inbox.toasts.handoffUpdated)
       setRefreshKey((value) => value + 1)
       refetchDetail()
     } catch (err) {
-      setHandoffState(err instanceof Error ? err.message : "Unknown error")
+      setHandoffState(err instanceof Error ? err.message : t.inbox.toasts.unknownError)
       throw err
     }
   }
@@ -1520,7 +1524,7 @@ function InboxPageContent() {
         body: JSON.stringify(payload),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not save the draft")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotSaveDraft)
       setRefreshKey((value) => value + 1)
       refetchDetail()
     } catch (err) {
@@ -1556,7 +1560,7 @@ function InboxPageContent() {
         }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not send message")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotSendMessage)
 
       if (draftIdToMark) {
         updateDraft(draftIdToMark, { status: "sent" }).catch(() => null)
@@ -1600,16 +1604,20 @@ function InboxPageContent() {
       refetchDetail()
 
       if (replyIsInternal) {
-        setReplyStatus("Note saved")
+        setReplyStatus(t.inbox.toasts.noteSaved)
       } else if (json.meta?.emailSent === false) {
-        setReplyStatus(`Reply saved — email failed: ${json.meta.emailError || "unknown error"}`)
+        setReplyStatus(
+          t.inbox.toasts.replySavedEmailFailed(
+            json.meta.emailError || t.inbox.toasts.replyFailedUnknownReason,
+          ),
+        )
       } else if (json.meta?.emailSent === true) {
-        setReplyStatus("Reply sent — email delivered")
+        setReplyStatus(t.inbox.toasts.replySentEmailDelivered)
       } else {
-        setReplyStatus("Reply sent")
+        setReplyStatus(t.inbox.toasts.replySent)
       }
     } catch (err) {
-      setReplyStatus(err instanceof Error ? err.message : "Unknown error")
+      setReplyStatus(err instanceof Error ? err.message : t.inbox.toasts.unknownError)
     } finally {
       setReplySending(false)
     }
@@ -1626,7 +1634,7 @@ function InboxPageContent() {
           formData.append("file", file)
           const res = await fetch("/api/inbox/attachments/upload", { method: "POST", body: formData })
           const json = await res.json()
-          if (!res.ok) throw new Error(json.error || `Upload failed: ${file.name}`)
+          if (!res.ok) throw new Error(json.error || t.inbox.toasts.uploadFailedFile(file.name))
           return { url: json.url, filename: json.filename, contentType: json.contentType, size: json.size } as ComposerAttachment
         }),
       )
@@ -1634,17 +1642,17 @@ function InboxPageContent() {
       const succeeded: ComposerAttachment[] = []
       for (const result of uploads) {
         if (result.status === "fulfilled") succeeded.push(result.value)
-        else errors.push(result.reason?.message || "Upload failed")
+        else errors.push(result.reason?.message || t.inbox.toasts.uploadFailed)
       }
 
       if (succeeded.length > 0) {
         setReplyAttachments((prev) => [...prev, ...succeeded])
       }
       if (errors.length > 0) {
-        setReplyStatus(`${errors.length} file(s) failed: ${errors[0]}`)
+        setReplyStatus(t.inbox.toasts.filesFailed(errors.length, errors[0]))
       }
     } catch (err) {
-      setReplyStatus(err instanceof Error ? err.message : "Upload failed")
+      setReplyStatus(err instanceof Error ? err.message : t.inbox.toasts.uploadFailed)
     } finally {
       setAttachmentUploading(false)
     }
@@ -1685,9 +1693,9 @@ function InboxPageContent() {
     () =>
       STATUS_OPTIONS.filter((s) => s !== "triaged").map((s) => ({
         value: s,
-        label: s === "all" ? "All statuses" : statusLabel(s, uiLocale),
+        label: s === "all" ? t.inbox.toolbar.allStatuses : statusLabel(s, uiLocale),
       })),
-    [uiLocale],
+    [uiLocale, t],
   )
 
   const statusEditOptions = useMemo(() => {
@@ -1706,7 +1714,7 @@ function InboxPageContent() {
 
   const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
     value: option,
-    label: option === "all" ? "All channels" : channelLabel(option, uiLocale),
+    label: option === "all" ? t.inbox.toolbar.allChannels : channelLabel(option, uiLocale),
   }))
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
@@ -1720,7 +1728,7 @@ function InboxPageContent() {
         body: JSON.stringify({ assignedTo: value }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not assign")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotAssign)
       setRefreshKey((v) => v + 1)
       refetch()
       refetchDetail()
@@ -1729,7 +1737,7 @@ function InboxPageContent() {
     } finally {
       setAssignSaving(false)
     }
-  }, [activeSelectedId, refetch, refetchDetail])
+  }, [activeSelectedId, refetch, refetchDetail, t])
 
   async function handleStatusChange(newStatus: string) {
     if (!activeSelectedId) return
@@ -1740,7 +1748,7 @@ function InboxPageContent() {
         body: JSON.stringify({ status: newStatus }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.error?.message || "Could not update status")
+      if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotUpdateStatus)
       setRefreshKey((value) => value + 1)
       refetch()
       refetchDetail()
@@ -1755,7 +1763,7 @@ function InboxPageContent() {
           ...members,
           {
             userId: selected.assignedTo,
-            nombre: "Unknown assignee",
+            nombre: t.inbox.message.unknownAssignee,
             /** `assignedTo` es userId, no email — no mostrarlo como correo. */
             email: "",
             avatar: null,
@@ -1772,7 +1780,7 @@ function InboxPageContent() {
           contact?.nombre?.trim() ||
           contact?.empresa?.trim() ||
           contact?.email?.trim() ||
-          "Contact"
+          t.inbox.message.contact
 
         /**
          * Collapsed-row label refactor: dropped the AI-derived `senderIntent` here on purpose.
@@ -1832,7 +1840,7 @@ function InboxPageContent() {
         return {
           id: conversation.id,
           channel: conversation.channel,
-          title: "Conversation",
+          title: t.inbox.message.conversationFallback,
           subject: null as string | null,
           intentSummary: null as string | null,
           currentMessageId: null as string | null,
@@ -1853,7 +1861,7 @@ function InboxPageContent() {
         }
       }
     }),
-    [conversationsAfterUserFilters, uiLocale],
+    [conversationsAfterUserFilters, uiLocale, t],
   )
 
   const threadMessages =
@@ -1911,10 +1919,10 @@ function InboxPageContent() {
       } catch { /* ignore parse errors */ }
 
       const authorLabel = isInternal
-        ? "Internal note"
+        ? t.inbox.message.internalNote
         : isOutbound
-          ? "Team"
-          : selected?.contact?.nombre || selected?.contact?.email || "Contact"
+          ? t.inbox.message.team
+          : selected?.contact?.nombre || selected?.contact?.email || t.inbox.message.contact
 
       /**
        * Phase 2.5: cabecera "email-style" derivada con safety-first — cualquier campo ausente
@@ -1944,7 +1952,7 @@ function InboxPageContent() {
       try {
         const d = new Date(message.createdAt)
         if (!Number.isNaN(d.getTime())) {
-          timestampFull = d.toLocaleString(uiLocale, { dateStyle: "long", timeStyle: "short" })
+          timestampFull = d.toLocaleString(toIntlLocale(uiLocale), { dateStyle: "long", timeStyle: "short" })
         }
       } catch { /* ignore date parse errors */ }
 
@@ -1958,19 +1966,19 @@ function InboxPageContent() {
        *  - "Sent"                   default outbound — anything else
        * We deliberately avoid the word "Read" because pixel tracking can't prove the human read it.
        */
-      let outboundLabel = "Sent"
+      let outboundLabel = t.inbox.message.sent
       if (isOutbound) {
         if (msgEmailStatus === "failed") {
-          outboundLabel = "Send failed"
+          outboundLabel = t.inbox.message.sendFailed
         } else if (msgConfirmedReadAt) {
           const when = formatRelativeDate(msgConfirmedReadAt, uiLocale)
-          outboundLabel = `Confirmed received · ${when}`
+          outboundLabel = t.inbox.message.confirmedReceived(when)
         } else if (msgOpenedAt) {
           const opened = msgLastOpenedAt ?? msgOpenedAt
           const when = formatRelativeDate(opened, uiLocale)
           outboundLabel = msgOpenProxy || msgOpenSuspect
-            ? `Possibly opened · ${when}`
-            : `Opened · ${when}`
+            ? t.inbox.message.possiblyOpened(when)
+            : t.inbox.message.opened(when)
         }
       }
 
@@ -1979,12 +1987,12 @@ function InboxPageContent() {
         authorLabel,
         roleLabel: formatRoleLabel(message.role),
         metaLabel: isInternal
-          ? "Internal note · Not sent to customer"
+          ? t.inbox.message.internalNoteMeta
           : isOutbound
             ? outboundLabel
             : isInbound
-              ? "Inbound"
-              : "System",
+              ? t.inbox.message.inbound
+              : t.inbox.message.system,
         timestampLabel: formatRelativeDate(message.createdAt, uiLocale),
         content: message.content,
         tone,
@@ -2336,14 +2344,14 @@ function InboxPageContent() {
           },
         )
         const json = await res.json()
-        if (!json.success) throw new Error(json.error?.message || "Could not update message status")
+        if (!json.success) throw new Error(json.error?.message || t.inbox.toasts.couldNotUpdateMessageStatus)
         setRefreshKey((value) => value + 1)
         refetchDetail()
       } catch (err) {
-        setActionState(err instanceof Error ? err.message : "Could not mark as done")
+        setActionState(err instanceof Error ? err.message : t.inbox.toasts.couldNotMarkAsDone)
       }
     },
-    [activeSelectedId, refetchDetail],
+    [activeSelectedId, refetchDetail, t],
   )
 
   /**
@@ -2390,7 +2398,7 @@ function InboxPageContent() {
         )
         const json = await res.json()
         if (!json.success) {
-          throw new Error(json.error?.message || "Could not update message trash state")
+          throw new Error(json.error?.message || t.inbox.toasts.couldNotUpdateMessageTrash)
         }
         /** When trashing the message that's currently selected, drop the visual selection so
          *  the composer doesn't keep the placeholder highlighted. effectiveSelectedMessageId
@@ -2402,10 +2410,10 @@ function InboxPageContent() {
         setRefreshKey((value) => value + 1)
         refetchDetail()
       } catch (err) {
-        setActionState(err instanceof Error ? err.message : "Could not move to trash")
+        setActionState(err instanceof Error ? err.message : t.inbox.toasts.couldNotMoveToTrash)
       }
     },
-    [activeSelectedId, refetchDetail, selectedMessageId],
+    [activeSelectedId, refetchDetail, selectedMessageId, t],
   )
 
   /**
@@ -2442,10 +2450,10 @@ function InboxPageContent() {
         metadata: { origin: "smart_hub_pending_item" },
       })
       if (!result.success) {
-        setActionState(result.error || "Could not convert pending item to To-do")
+        setActionState(result.error || t.inbox.toasts.couldNotConvertPendingItem)
         return false
       }
-      setTodoCaptureFeedback("To-do created from pending item")
+      setTodoCaptureFeedback(t.inbox.toasts.todoCreatedFromPendingItem)
       /**
        * Bump `todosRefreshKey` so the Triage Summary counter (which depends on it via a
        * per-conversation fetch) refreshes to include the new item.
@@ -2453,7 +2461,7 @@ function InboxPageContent() {
       setTodosRefreshKey((k) => k + 1)
       return true
     },
-    [activeSelectedId],
+    [activeSelectedId, t],
   )
 
   /**
@@ -2474,7 +2482,7 @@ function InboxPageContent() {
     const targetId = moreActionsTargetMessageId
     const rawMsg = selected?.messages?.find((m) => m.id === targetId) ?? null
     if (!rawMsg) {
-      setActionState("Could not resolve message for To-do")
+      setActionState(t.inbox.toasts.couldNotResolveMessageForTodo)
       return
     }
 
@@ -2491,7 +2499,7 @@ function InboxPageContent() {
     }
 
     const cleanedBody = (rawMsg.content || "").replace(/\s+/g, " ").trim()
-    const title = metaShortIntent || truncateForTitle(cleanedBody || "Message follow-up", 120)
+    const title = metaShortIntent || truncateForTitle(cleanedBody || t.inbox.toasts.messageFollowUp, 120)
     const description = cleanedBody && cleanedBody !== title ? truncateForTitle(cleanedBody, 280) : null
 
     setCreatingTodoFromMessage(true)
@@ -2509,13 +2517,17 @@ function InboxPageContent() {
     })
     setCreatingTodoFromMessage(false)
     if (!result.success) {
-      setActionState(result.error || "Could not create To-do from message")
+      setActionState(result.error || t.inbox.toasts.couldNotCreateTodoFromMessage)
       return
     }
-    setTodoCaptureFeedback(actingOnScope === "selected" ? "To-do created from selected message" : "To-do created from latest message")
+    setTodoCaptureFeedback(
+      actingOnScope === "selected"
+        ? t.inbox.toasts.todoCreatedFromSelectedMessage
+        : t.inbox.toasts.todoCreatedFromLatestMessage,
+    )
     /** See bump rationale in `handleCreateTodoFromPendingItem` — keeps the Triage counter fresh. */
     setTodosRefreshKey((k) => k + 1)
-  }, [activeSelectedId, moreActionsTargetMessageId, selected, actingOnScope, creatingTodoFromMessage])
+  }, [activeSelectedId, moreActionsTargetMessageId, selected, actingOnScope, creatingTodoFromMessage, t])
 
   /**
    * Phase 3 — accept the internal-note TODO suggestion. Reads the captured title + note id
@@ -2541,14 +2553,14 @@ function InboxPageContent() {
     })
     setInternalNoteTodoBusy(false)
     if (!result.success) {
-      setActionState(result.error || "Could not create To-do from internal note")
+      setActionState(result.error || t.inbox.toasts.couldNotCreateTodoFromInternalNote)
       return
     }
-    setTodoCaptureFeedback("To-do created from internal note")
+    setTodoCaptureFeedback(t.inbox.toasts.todoCreatedFromInternalNote)
     setInternalNoteTodoSuggestion(null)
     /** See bump rationale in `handleCreateTodoFromPendingItem` — keeps the Triage counter fresh. */
     setTodosRefreshKey((k) => k + 1)
-  }, [internalNoteTodoSuggestion, internalNoteTodoBusy])
+  }, [internalNoteTodoSuggestion, internalNoteTodoBusy, t])
 
   const handleDismissInternalNoteTodo = useCallback(() => {
     setInternalNoteTodoSuggestion(null)
@@ -2948,10 +2960,7 @@ function InboxPageContent() {
           setFetchFeedback({
             level: "error",
             message: syncMessage("noConnection", uiLocale),
-            detail:
-              uiLocale === "es"
-                ? "Configura una en Administración → Canales para empezar a recibir mensajes."
-                : "Set one up in Administration → Channels to start receiving messages.",
+            detail: t.inbox.banners.sync.noConnectionHint,
           })
         } else if (code === "CONNECTION_INACTIVE") {
           setFetchFeedback({
@@ -2986,12 +2995,7 @@ function InboxPageContent() {
         setFetchFeedback({
           level: "success",
           message: syncNewEmails(ingested, uiLocale),
-          detail:
-            skipped > 0
-              ? uiLocale === "es"
-                ? `${skipped} ya conocidos / propios — omitidos.`
-                : `${skipped} already known / own — skipped.`
-              : null,
+          detail: skipped > 0 ? t.inbox.banners.sync.skippedKnown(skipped) : null,
           visibilityHint: filterHint,
         })
       } else if (errs.length > 0) {
@@ -2999,12 +3003,7 @@ function InboxPageContent() {
           level: "error",
           message: syncErrors(errs.length, uiLocale),
           detail:
-            errs[0] +
-            (errs.length > 1
-              ? uiLocale === "es"
-                ? ` … y ${errs.length - 1} más.`
-                : ` … and ${errs.length - 1} more.`
-              : ""),
+            errs[0] + (errs.length > 1 ? ` ${t.inbox.banners.sync.andMore(errs.length - 1)}` : ""),
         })
       } else if (data.cursorReset) {
         setFetchFeedback({
@@ -3016,12 +3015,7 @@ function InboxPageContent() {
         setFetchFeedback({
           level: "info",
           message: syncMessage("noNewEmails", uiLocale),
-          detail:
-            skipped > 0
-              ? uiLocale === "es"
-                ? `${skipped} mensajes revisados (todos ya conocidos).`
-                : `${skipped} messages checked (all already known).`
-              : null,
+          detail: skipped > 0 ? t.inbox.banners.sync.checkedAllKnown(skipped) : null,
         })
       }
     } catch (err) {
@@ -3034,7 +3028,7 @@ function InboxPageContent() {
     } finally {
       setFetchingEmails(false)
     }
-  }, [refetch, sidebarFilter, uiLocale])
+  }, [refetch, sidebarFilter, uiLocale, t])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
     if (!activeSelectedId || conversationsAfterUserFilters.length === 0 || selectedIndex < 0) return
@@ -3239,7 +3233,7 @@ function InboxPageContent() {
   ) : null
 
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: t.nav.inbox }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
       <InboxAskFannyBridge
         conversationId={activeSelectedId}
         selectedMessageId={effectiveSelectedMessageId}
@@ -3373,19 +3367,17 @@ function InboxPageContent() {
                     aria-live="assertive"
                   >
                     <div className="font-semibold text-rose-300">
-                      Inbox could not load conversations
+                      {t.inbox.banners.loadFailedTitle}
                     </div>
                     <div className="mt-0.5 text-[var(--inbox-text)]">
-                      The conversations API returned an error. This is not an empty inbox — your
-                      data is intact. Try again, and if the problem persists check server logs for
-                      a Prisma or schema-drift error.
+                      {t.inbox.banners.loadFailedBody}
                     </div>
                     <button
                       type="button"
                       onClick={() => refetch()}
                       className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-200 hover:bg-rose-500/20"
                     >
-                      Retry
+                      {t.inbox.banners.retry}
                     </button>
                   </div>
                 ) : null}
@@ -3414,14 +3406,14 @@ function InboxPageContent() {
                         <div className="mt-0.5 opacity-85">
                           {fetchFeedback.visibilityHint}{" "}
                           <Link className="font-medium underline-offset-2 hover:underline" href="/inbox?filter=inbox">
-                            Ir al Inbox
+                            {t.inbox.banners.goToInbox}
                           </Link>
                         </div>
                       ) : null}
                     </div>
                     <button
                       type="button"
-                      aria-label="Dismiss fetch feedback"
+                      aria-label={t.inbox.banners.dismissFetchFeedback}
                       onClick={() => setFetchFeedback(null)}
                       className="shrink-0 rounded-md p-0.5 opacity-70 transition-opacity hover:opacity-100"
                     >
@@ -3435,15 +3427,15 @@ function InboxPageContent() {
                     role="status"
                   >
                     <span className="text-[var(--inbox-text)]">
-                      All conversations are archived, closed, or in trash — nothing left in the main inbox view.
+                      {t.inbox.banners.terminalRescueLead}
                     </span>{" "}
                     <span>
-                      Showing the full list so you can still open them.{" "}
+                      {t.inbox.banners.terminalRescueBody}{" "}
                       <Link
                         className="font-medium text-[var(--app-accent)] underline-offset-2 hover:underline"
                         href="/inbox?filter=trash"
                       >
-                        Trash only
+                        {t.inbox.banners.trashOnly}
                       </Link>
                     </span>
                   </div>
@@ -3491,7 +3483,7 @@ function InboxPageContent() {
                     <InboxContextStrip
                       channel={selected.channel}
                       channelLabel={channelLabel(selected.channel, uiLocale)}
-                      senderLabel={selected.contact?.nombre || selected.contact?.email || "Contact"}
+                      senderLabel={selected.contact?.nombre || selected.contact?.email || t.inbox.message.contact}
                       intent={selected.intent || selected.summary}
                       signalLabel={
                         urgencyBadge(selected.urgency) === "urgency-critical" ||
@@ -3506,8 +3498,8 @@ function InboxPageContent() {
                       hasSelectedId={Boolean(activeSelectedId)}
                       detailLoading={detailLoading && !selected}
                       detailErrorMessage={detailErrorMessage}
-                      headerTitle={selected?.subject || selected?.contact?.nombre || "Conversation"}
-                      headerSubtitle={`${selected?.contact?.nombre || selected?.contact?.email || "Unidentified contact"}${selected?.contact?.empresa ? ` · ${selected.contact?.empresa}` : ""}`}
+                      headerTitle={selected?.subject || selected?.contact?.nombre || t.inbox.message.conversationFallback}
+                      headerSubtitle={`${selected?.contact?.nombre || selected?.contact?.email || t.inbox.message.unidentifiedContact}${selected?.contact?.empresa ? ` · ${selected.contact?.empresa}` : ""}`}
                       channel={selected?.channel || "email"}
                       statusValue={selected?.status || "new"}
                       statusOptions={statusEditOptions}
@@ -3560,7 +3552,7 @@ function InboxPageContent() {
                         <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/8 px-3 py-2 text-xs text-emerald-100">
                           <ListPlus className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden="true" />
                           <div className="min-w-0 flex-1 leading-snug">
-                            <div className="font-medium text-emerald-100/95">Create To-do from this note?</div>
+                            <div className="font-medium text-emerald-100/95">{t.inbox.todoSuggestion.createFromNote}</div>
                             <div className="truncate text-emerald-200/70">{internalNoteTodoSuggestion.title}</div>
                           </div>
                           <button
@@ -3574,11 +3566,11 @@ function InboxPageContent() {
                             ) : (
                               <Sparkles className="h-3 w-3" aria-hidden="true" />
                             )}
-                            Create To-do
+                            {t.inbox.todoSuggestion.createTodo}
                           </button>
                           <button
                             type="button"
-                            aria-label="Dismiss To-do suggestion"
+                            aria-label={t.inbox.todoSuggestion.dismissAria}
                             onClick={handleDismissInternalNoteTodo}
                             className="inline-flex shrink-0 items-center justify-center rounded-md p-1 text-emerald-200/70 transition-colors hover:bg-emerald-500/15 hover:text-emerald-50"
                           >
@@ -3692,19 +3684,19 @@ function InboxPageContent() {
                   type="button"
                   onClick={() => handleLayoutModeChange("reading")}
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--inbox-border)]/45 px-2 py-1 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
-                  title="Read — read the full message with AI context."
+                  title={t.inbox.layout.read.title}
                 >
                   <Columns3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Read
+                  {t.inbox.layout.read.label}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleLayoutModeChange("focus")}
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--inbox-border)]/45 px-2 py-1 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40"
-                  title="Handle — work through one conversation with AI beside you."
+                  title={t.inbox.layout.handle.title}
                 >
                   <Maximize2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Handle
+                  {t.inbox.layout.handle.label}
                 </button>
               </div>
             ) : null}
@@ -3724,9 +3716,9 @@ function InboxPageContent() {
         <Sheet open={contextSheetOpen} onOpenChange={setContextSheetOpen}>
           <SheetContent side="bottom" className="h-[85dvh] rounded-t-[28px] border-t border-[var(--inbox-border)] bg-[var(--inbox-surface)] p-0 xl:hidden">
             <SheetHeader className="border-b border-[var(--inbox-divider)] px-4 py-4 text-left">
-              <SheetTitle>{selected?.subject || selected?.contact.nombre || "Conversation context"}</SheetTitle>
+              <SheetTitle>{selected?.subject || selected?.contact.nombre || t.inbox.contextSheet.fallbackTitle}</SheetTitle>
               <SheetDescription>
-                Smart Handoff, drafts, actions, and business context for the current conversation.
+                {t.inbox.contextSheet.description}
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto bg-[var(--inbox-background)]/10 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
@@ -3742,8 +3734,8 @@ function InboxPageContent() {
           {pendingActionInput?.dialogType === "assign" && (
             <>
               <DialogHeader>
-                <DialogTitle>Assign owner</DialogTitle>
-                <DialogDescription>Select a team member to assign this conversation to.</DialogDescription>
+                <DialogTitle>{t.inbox.dialogs.assign.title}</DialogTitle>
+                <DialogDescription>{t.inbox.dialogs.assign.description}</DialogDescription>
               </DialogHeader>
               <div className="py-3">
                 {members.length > 0 ? (
@@ -3753,7 +3745,7 @@ function InboxPageContent() {
                     onChange={(e) => setDialogAssignValue(e.target.value)}
                     autoFocus
                   >
-                    <option value="">Choose a member…</option>
+                    <option value="">{t.inbox.dialogs.assign.chooseMember}</option>
                     {members.map((m) => (
                       <option key={m.userId} value={m.userId}>
                         {m.nombre || m.email} ({formatRoleLabel(m.role)})
@@ -3763,7 +3755,7 @@ function InboxPageContent() {
                 ) : (
                   <input
                     type="text"
-                    placeholder="User ID"
+                    placeholder={t.inbox.dialogs.assign.userIdPlaceholder}
                     className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]"
                     value={dialogAssignValue}
                     onChange={(e) => setDialogAssignValue(e.target.value)}
@@ -3777,7 +3769,7 @@ function InboxPageContent() {
                   className="rounded-md border border-[var(--inbox-border)] px-4 py-2 text-sm hover:bg-[var(--inbox-background)]"
                   onClick={() => setPendingActionInput(null)}
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="button"
@@ -3785,7 +3777,7 @@ function InboxPageContent() {
                   disabled={!dialogAssignValue.trim()}
                   onClick={handleDialogConfirm}
                 >
-                  Assign
+                  {t.inbox.dialogs.assign.confirm}
                 </button>
               </DialogFooter>
             </>
@@ -3794,14 +3786,14 @@ function InboxPageContent() {
           {pendingActionInput?.dialogType === "dismiss" && (
             <>
               <DialogHeader>
-                <DialogTitle>Dismiss action</DialogTitle>
-                <DialogDescription>Optionally explain why this action is being dismissed.</DialogDescription>
+                <DialogTitle>{t.inbox.dialogs.dismiss.title}</DialogTitle>
+                <DialogDescription>{t.inbox.dialogs.dismiss.description}</DialogDescription>
               </DialogHeader>
               <div className="py-3">
                 <textarea
                   className="w-full rounded-md border border-[var(--inbox-border)] bg-[var(--inbox-surface)] px-3 py-2 text-sm text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]"
                   rows={3}
-                  placeholder="Reason (optional)"
+                  placeholder={t.inbox.dialogs.dismiss.reasonPlaceholder}
                   value={dialogDismissReason}
                   onChange={(e) => setDialogDismissReason(e.target.value)}
                   autoFocus
@@ -3813,14 +3805,14 @@ function InboxPageContent() {
                   className="rounded-md border border-[var(--inbox-border)] px-4 py-2 text-sm hover:bg-[var(--inbox-background)]"
                   onClick={() => setPendingActionInput(null)}
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="button"
                   className="rounded-md bg-[var(--inbox-destructive)] px-4 py-2 text-sm font-medium text-white"
                   onClick={handleDialogConfirm}
                 >
-                  Dismiss
+                  {t.inbox.dialogs.dismiss.confirm}
                 </button>
               </DialogFooter>
             </>
@@ -3832,12 +3824,12 @@ function InboxPageContent() {
       <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Email</DialogTitle>
-            <DialogDescription>Compose and send a new email from your inbox.</DialogDescription>
+            <DialogTitle>{t.inbox.dialogs.compose.title}</DialogTitle>
+            <DialogDescription>{t.inbox.dialogs.compose.description}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">To</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.inbox.dialogs.compose.to}</label>
               <ComposeRecipientPicker
                 value={composeTo}
                 onChange={setComposeTo}
@@ -3846,19 +3838,19 @@ function InboxPageContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Subject</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.inbox.dialogs.compose.subject}</label>
               <Input
-                placeholder="Subject"
+                placeholder={t.inbox.dialogs.compose.subjectPlaceholder}
                 value={composeSubject}
                 onChange={(e) => setComposeSubject(e.target.value)}
                 disabled={composeSending}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Message</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.inbox.dialogs.compose.message}</label>
               <textarea
                 className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-                placeholder="Write your message..."
+                placeholder={t.inbox.dialogs.compose.messagePlaceholder}
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
                 disabled={composeSending}
@@ -3867,7 +3859,7 @@ function InboxPageContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button
               onClick={handleComposeSend}
@@ -3875,7 +3867,7 @@ function InboxPageContent() {
               className="gap-1.5"
             >
               {composeSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {composeSending ? "Sending…" : "Send"}
+              {composeSending ? t.inbox.dialogs.compose.sending : t.inbox.dialogs.compose.send}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3935,6 +3927,7 @@ function InboxRightColumn({
   latestInboundMessageId: string | null
 }) {
   const { open: askOpen, closeAsk } = useAskFanny()
+  const { t } = useI18n()
 
   if (showInitialListSkeleton) {
     return <InboxContextSkeleton />
@@ -3964,15 +3957,16 @@ function InboxRightColumn({
     <div className="flex flex-1 items-center justify-center bg-[var(--inbox-background)]/7">
       <div className="text-center">
         <Sparkles className="mx-auto mb-2 h-8 w-8 text-[var(--inbox-text-secondary)]/30" />
-        <p className="text-xs text-[var(--inbox-text-secondary)]">Context will appear here</p>
+        <p className="text-xs text-[var(--inbox-text-secondary)]">{t.inbox.contextPlaceholder}</p>
       </div>
     </div>
   )
 }
 
 function InboxPageFallback() {
+  const { t } = useI18n()
   return (
-    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: "Inbox" }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
+    <AppShell currentSection="inbox" breadcrumbs={[{ label: "7F" }, { label: t.nav.inbox }]} contentClassName="max-w-[1800px] min-h-0 flex-1">
       <div className="-mx-4 -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-background)] md:-mx-8">
         <div className={cn("flex min-h-0 flex-1 flex-col gap-3 p-3", DESKTOP_INBOX_GRID)}>
           <div className="min-h-0 overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-background)] shadow-[var(--app-shadow-subtle)] xl:h-full">

@@ -7,6 +7,7 @@ import { settings } from "./settings"
 import { today } from "./today"
 import { clients } from "./clients"
 import { calendar } from "./calendar"
+import { inbox } from "./inbox"
 import { statuses } from "./statuses"
 import { voice } from "./voice"
 
@@ -26,6 +27,7 @@ export const es: LocaleCatalogOverrides = {
   today,
   clients,
   calendar,
+  inbox,
   statuses,
   voice,
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/empty-state"
+import { useI18n } from "@/components/i18n-provider"
 import { ConversationListItem, type ShortIntentEntry } from "@/components/inbox/conversation-list-item"
 
 /**
@@ -131,6 +132,8 @@ export function ConversationList({
   onLoadMore,
   activeSearchTerm,
 }: ConversationListProps) {
+  const { t } = useI18n()
+  const m = t.inbox.list
   return (
     <div className="h-full min-h-0 w-full min-w-0 shrink-0 bg-[var(--inbox-list-background)] xl:flex xl:flex-col xl:overflow-hidden">
       <ScrollArea className="min-h-0 flex-1 bg-[var(--inbox-list-background)]">
@@ -152,7 +155,7 @@ export function ConversationList({
             <EmptyState
               variant="inbox"
               icon={Search}
-              title="Inbox unavailable"
+              title={m.unavailableTitle}
               description={errorMessage}
             />
           ) : conversations.length === 0 ? (
@@ -161,21 +164,21 @@ export function ConversationList({
               icon={Search}
               title={
                 activeSearchTerm
-                  ? "No results"
+                  ? m.empty.noResultsTitle
                   : assignmentFilter === "mine"
-                    ? "Nothing assigned to you"
+                    ? m.empty.mineTitle
                     : assignmentFilter === "unassigned"
-                      ? "All conversations are assigned"
-                      : "No conversations"
+                      ? m.empty.unassignedTitle
+                      : m.empty.defaultTitle
               }
               description={
                 activeSearchTerm
-                  ? `No conversations match "${activeSearchTerm}". Try different keywords or broaden your filters.`
+                  ? m.empty.noResultsBody(activeSearchTerm)
                   : assignmentFilter === "mine"
-                    ? "You have no conversations assigned right now."
+                    ? m.empty.mineBody
                     : assignmentFilter === "unassigned"
-                      ? "Every conversation has an owner."
-                      : "Try broadening your filters or check back later."
+                      ? m.empty.unassignedBody
+                      : m.empty.defaultBody
               }
             />
           ) : (
@@ -227,10 +230,10 @@ export function ConversationList({
                     {loadingMore ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Loading...
+                        {m.loadingMore}
                       </>
                     ) : (
-                      "Load more conversations"
+                      m.loadMore
                     )}
                   </Button>
                 </div>

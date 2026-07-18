@@ -178,6 +178,7 @@ test("coverage: expected snapshot — es partial (billing), de/fr/it pending", (
   assert.equal(UI_NAMESPACE_COVERAGE.es.clients, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.nav, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "native")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.inbox, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.billing, "fallback-en")
   assert.ok(localeHasPendingCoverage("es"))
   assert.ok(!localeHasPendingCoverage("en"))
@@ -212,12 +213,46 @@ test("getUIMessages: exposes exactly the canonical namespaces", () => {
     "common",
     "globalNew",
     "globalSearch",
+    "inbox",
     "nav",
     "settings",
     "statuses",
     "today",
     "voice",
   ])
+})
+
+test("inbox: representative English shell strings with typed count functions", () => {
+  const en = getNamespace("en", "inbox")
+  assert.equal(en.toolbar.workFilters.needsAttention, "Needs attention")
+  assert.equal(en.toolbar.priorities.any, "Any priority")
+  assert.equal(en.toolbar.filterPlaceholder, "Filter inbox...")
+  assert.equal(en.list.empty.noResultsTitle, "No results")
+  assert.equal(en.list.loadMore, "Load more conversations")
+  assert.equal(en.list.item.messageCount(1), "1 message")
+  assert.equal(en.list.item.messageCount(3), "3 messages")
+  assert.equal(en.thread.emailPosition(2, 5), "Email 2 of 5")
+  assert.equal(en.dialogs.assign.title, "Assign owner")
+  assert.equal(en.channelTitle("WhatsApp"), "Channel: WhatsApp")
+})
+
+test("inbox es: real Spanish shell strings (tú form, neutral) with typed count functions", () => {
+  const es = getNamespace("es", "inbox")
+  const en = getNamespace("en", "inbox")
+  assert.notEqual(es, en)
+  assert.equal(es.toolbar.workFilters.needsAttention, "Requiere atención")
+  assert.equal(es.toolbar.priorities.any, "Cualquier prioridad")
+  assert.equal(es.toolbar.allChannels, "Todos los canales")
+  assert.equal(es.list.empty.mineTitle, "Nada asignado a ti")
+  assert.equal(es.list.empty.mineBody, "Ahora mismo no tienes conversaciones asignadas.")
+  assert.equal(es.list.meta.pendingDecisions(1), "1 decisión pendiente")
+  assert.equal(es.list.meta.pendingDecisions(2), "2 decisiones pendientes")
+  assert.equal(es.thread.emptyTitle, "Selecciona una conversación")
+  assert.equal(es.banners.sync.andMore(2), "… y 2 más.")
+  assert.equal(es.dialogs.assign.title, "Asignar responsable")
+  // Brand/product names stay identical across locales but come from the catalog.
+  assert.equal(es.thread.email, en.thread.email)
+  assert.equal(es.channelTitle("WhatsApp"), "Canal: WhatsApp")
 })
 
 test("nav/globalSearch/globalNew/today: real Spanish shell strings (P4.2)", () => {

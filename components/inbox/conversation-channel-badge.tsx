@@ -1,6 +1,7 @@
 "use client"
 
 import { Globe, Mail, MessageCircleMore, MessageSquare, PenSquare, Smartphone } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 
 interface ConversationChannelBadgeProps {
@@ -37,6 +38,7 @@ export function ConversationChannelBadge({
   label,
   selected = false,
 }: ConversationChannelBadgeProps) {
+  const { t } = useI18n()
   const Icon = channelMap[channel as keyof typeof channelMap] ?? channelMap.default
 
   return (
@@ -47,8 +49,8 @@ export function ConversationChannelBadge({
           ? "bg-[var(--inbox-surface)] text-[var(--inbox-accent)]"
           : "bg-[var(--inbox-background)] text-[var(--inbox-text-secondary)]",
       )}
-      title={`Channel: ${label}`}
-      aria-label={`Channel: ${label}`}
+      title={t.inbox.channelTitle(label)}
+      aria-label={t.inbox.channelTitle(label)}
     >
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       {/*

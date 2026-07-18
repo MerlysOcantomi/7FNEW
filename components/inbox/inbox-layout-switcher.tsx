@@ -1,6 +1,7 @@
 "use client"
 
 import { Columns3, Maximize2, Sparkles } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 
 /**
@@ -19,30 +20,19 @@ import { cn } from "@/lib/utils"
  */
 export type InboxLayoutMode = "triage" | "reading" | "focus"
 
+/**
+ * Mode → icon + catalog key. Labels/titles come from the `inbox.layout`
+ * catalog at render time (Brief/Read/Handle ↔ triage/reading/focus — the
+ * internal mode VALUES never change, only the visible copy).
+ */
 const MODES: ReadonlyArray<{
   mode: InboxLayoutMode
-  label: string
-  title: string
+  messageKey: "brief" | "read" | "handle"
   Icon: typeof Columns3
 }> = [
-  {
-    mode: "triage",
-    label: "Brief",
-    title: "Brief — See who wrote, what matters, and what to do next.",
-    Icon: Sparkles,
-  },
-  {
-    mode: "reading",
-    label: "Read",
-    title: "Read — Read the full message with AI context.",
-    Icon: Columns3,
-  },
-  {
-    mode: "focus",
-    label: "Handle",
-    title: "Handle — Work through one conversation with AI beside you.",
-    Icon: Maximize2,
-  },
+  { mode: "triage", messageKey: "brief", Icon: Sparkles },
+  { mode: "reading", messageKey: "read", Icon: Columns3 },
+  { mode: "focus", messageKey: "handle", Icon: Maximize2 },
 ]
 
 interface InboxLayoutSwitcherProps {
@@ -57,22 +47,24 @@ interface InboxLayoutSwitcherProps {
  * up to the page, which owns persistence and the conditional column rendering.
  */
 export function InboxLayoutSwitcher({ value, onChange, className }: InboxLayoutSwitcherProps) {
+  const { t } = useI18n()
+  const m = t.inbox.layout
   return (
     <div
       role="group"
-      aria-label="Inbox layout mode"
+      aria-label={m.switcherAria}
       className={cn(
         "inline-flex items-center gap-0.5 rounded-md border border-[var(--inbox-border)]/45 bg-white/[0.03] p-0.5 text-[11px]",
         className,
       )}
     >
-      {MODES.map(({ mode, label, title, Icon }) => (
+      {MODES.map(({ mode, messageKey, Icon }) => (
         <button
           key={mode}
           type="button"
           onClick={() => onChange(mode)}
           aria-pressed={value === mode}
-          title={title}
+          title={m[messageKey].title}
           className={cn(
             "inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 font-medium transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--inbox-accent)]/40",
@@ -82,7 +74,7 @@ export function InboxLayoutSwitcher({ value, onChange, className }: InboxLayoutS
           )}
         >
           <Icon className="h-3 w-3" aria-hidden="true" />
-          {label}
+          {m[messageKey].label}
         </button>
       ))}
     </div>

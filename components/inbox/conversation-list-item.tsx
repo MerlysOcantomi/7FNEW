@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
+import { useI18n } from "@/components/i18n-provider"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -113,6 +114,8 @@ export function ConversationListItem({
   urgencyClassName,
   messageCount,
 }: ConversationListItemProps) {
+  const { t } = useI18n()
+  const m = t.inbox.list.item
   const itemRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -182,7 +185,7 @@ export function ConversationListItem({
         <button
           type="button"
           aria-expanded={expanded}
-          aria-label={expanded ? "Hide details" : "Show details"}
+          aria-label={expanded ? m.hideDetails : m.showDetails}
           onClick={(e) => {
             e.stopPropagation()
             onToggleExpand()
@@ -233,7 +236,7 @@ export function ConversationListItem({
               </p>
               {messageCount > 1 ? (
                 <span
-                  aria-label={`${messageCount} mensajes`}
+                  aria-label={m.messageCount(messageCount)}
                   className={cn(
                     "shrink-0 text-[10px] font-semibold tabular-nums tracking-tight text-[var(--inbox-list-text-secondary)]",
                     isUnread && "text-[var(--inbox-list-text)]",
@@ -245,7 +248,7 @@ export function ConversationListItem({
               {isUnread ? (
                 <span
                   className="h-2 w-2 shrink-0 rounded-full bg-[var(--inbox-list-selected)] shadow-sm ring-2 ring-[var(--inbox-list-selected)]/20"
-                  aria-label="Unread"
+                  aria-label={m.unread}
                 />
               ) : null}
               <span
@@ -284,7 +287,7 @@ export function ConversationListItem({
                 {isHighUrgency ? (
                   <span
                     className="max-w-[7rem] shrink-0 truncate rounded-md border border-[var(--inbox-urgency)]/30 bg-[var(--inbox-urgency-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--inbox-urgency)] whitespace-nowrap"
-                    title={`Urgency: ${urgencyLabel}`}
+                    title={m.urgencyTitle(urgencyLabel)}
                   >
                     {urgencyLabel}
                   </span>
@@ -300,7 +303,7 @@ export function ConversationListItem({
           {intentsLoading ? (
             <div className="flex items-center gap-2 py-0.5 text-[var(--inbox-list-text-secondary)]">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
-              <span className="text-[11px]">Loading requests…</span>
+              <span className="text-[11px]">{m.loadingRequests}</span>
             </div>
           ) : earlierIntents.length > 0 ? (
             <div className="space-y-1.5">
@@ -311,7 +314,7 @@ export function ConversationListItem({
                 Each row keeps message-level navigation to the center column.
               */}
               <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-list-text-secondary)]">
-                Earlier requests
+                {m.earlierRequests}
               </p>
               <ul className="space-y-1" role="list">
                 {[...earlierIntents].reverse().map((intent, idx) => (
@@ -323,7 +326,7 @@ export function ConversationListItem({
                         onIntentSelect?.(intent.messageId)
                       }}
                       title={intent.text}
-                      aria-label={`Open message: ${intent.text}`}
+                      aria-label={m.openMessage(intent.text)}
                       className={cn(
                         "block w-full border-l-2 border-[var(--inbox-list-selected)]/35 pl-2 text-left text-[11px] leading-snug text-[var(--inbox-list-text-secondary)] transition-colors [overflow-wrap:anywhere]",
                         "rounded-r-md hover:border-[var(--inbox-list-selected)] hover:bg-[var(--inbox-list-selected-bg)] hover:text-[var(--inbox-list-text)]",
@@ -338,7 +341,7 @@ export function ConversationListItem({
             </div>
           ) : (
             <p className="py-0.5 text-[11px] leading-snug text-[var(--inbox-list-text-secondary)]">
-              No earlier requests in this thread.
+              {m.noEarlierRequests}
             </p>
           )}
         </div>
