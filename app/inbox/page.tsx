@@ -46,6 +46,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useFetch } from "@/hooks/use-fetch"
+import { useI18n } from "@/components/i18n-provider"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { cn } from "@/lib/utils"
 import {
@@ -58,6 +59,9 @@ import {
   urgencyLabel,
   channelLabel,
   formatRoleLabel,
+  syncMessage,
+  syncNewEmails,
+  syncErrors,
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
@@ -1153,7 +1157,11 @@ function InboxPageContent() {
     { refreshKey },
   )
 
-  const uiLocale: SupportedLocale = parseLocale(
+  // The visible labels follow the EFFECTIVE personal UI locale (useI18n),
+  // reacting immediately to the language selector; the server meta locale is
+  // only a first-paint fallback while the provider hydrates.
+  const { locale: providerLocale } = useI18n()
+  const uiLocale: SupportedLocale = providerLocale ?? parseLocale(
     (typeof conversationsMeta?.locale === "string" && conversationsMeta.locale)
       ? conversationsMeta.locale
       : typeof detailMeta?.locale === "string"
@@ -2930,34 +2938,37 @@ function InboxPageContent() {
 
       const filterHint =
         sidebarFilter && sidebarFilter !== "inbox"
-          ? `Estás en la vista "${sidebarFilter}" — los emails nuevos aparecen en "Smart Inbox → Inbox".`
+          ? syncMessage("viewHint", uiLocale).replace("{filter}", sidebarFilter)
           : null
 
       if (!res.ok || !json?.success) {
         const code = json?.error?.code ?? "FETCH_ERROR"
-        const message = json?.error?.message ?? "No se pudo sincronizar el email."
+        const message = json?.error?.message ?? syncMessage("syncFailed", uiLocale)
         if (code === "NO_CONNECTION") {
           setFetchFeedback({
             level: "error",
-            message: "No hay conexión de email configurada.",
-            detail: "Configura una en Administración → Canales para empezar a recibir mensajes.",
+            message: syncMessage("noConnection", uiLocale),
+            detail:
+              uiLocale === "es"
+                ? "Configura una en Administración → Canales para empezar a recibir mensajes."
+                : "Set one up in Administration → Channels to start receiving messages.",
           })
         } else if (code === "CONNECTION_INACTIVE") {
           setFetchFeedback({
             level: "error",
-            message: "La conexión de email está inactiva.",
+            message: syncMessage("inactiveConnection", uiLocale),
             detail: message,
           })
         } else if (code === "PROVIDER_NOT_FETCHABLE") {
           setFetchFeedback({
             level: "warning",
-            message: "Esta conexión no requiere fetch manual.",
+            message: syncMessage("manualFetchNotSupported", uiLocale),
             detail: message,
           })
         } else {
           setFetchFeedback({
             level: "error",
-            message: "No se pudo sincronizar el email.",
+            message: syncMessage("syncFailed", uiLocale),
             detail: message,
           })
         }
@@ -2974,40 +2985,56 @@ function InboxPageContent() {
         refetch()
         setFetchFeedback({
           level: "success",
-          message: ingested === 1 ? "1 email nuevo recibido." : `${ingested} emails nuevos recibidos.`,
-          detail: skipped > 0 ? `${skipped} ya conocidos / propios — omitidos.` : null,
+          message: syncNewEmails(ingested, uiLocale),
+          detail:
+            skipped > 0
+              ? uiLocale === "es"
+                ? `${skipped} ya conocidos / propios — omitidos.`
+                : `${skipped} already known / own — skipped.`
+              : null,
           visibilityHint: filterHint,
         })
       } else if (errs.length > 0) {
         setFetchFeedback({
           level: "error",
-          message: errs.length === 1 ? "Error durante el sync IMAP." : `${errs.length} errores durante el sync IMAP.`,
-          detail: errs[0] + (errs.length > 1 ? ` … y ${errs.length - 1} más.` : ""),
+          message: syncErrors(errs.length, uiLocale),
+          detail:
+            errs[0] +
+            (errs.length > 1
+              ? uiLocale === "es"
+                ? ` … y ${errs.length - 1} más.`
+                : ` … and ${errs.length - 1} more.`
+              : ""),
         })
       } else if (data.cursorReset) {
         setFetchFeedback({
           level: "warning",
-          message: "Cursor IMAP reiniciado.",
-          detail: "El servidor reportó un cambio de uidValidity o un cursor inconsistente. El próximo sync recuperará mensajes recientes.",
+          message: syncMessage("cursorReset", uiLocale),
+          detail: syncMessage("cursorResetDetail", uiLocale),
         })
       } else {
         setFetchFeedback({
           level: "info",
-          message: "Sin emails nuevos.",
-          detail: skipped > 0 ? `${skipped} mensajes revisados (todos ya conocidos).` : null,
+          message: syncMessage("noNewEmails", uiLocale),
+          detail:
+            skipped > 0
+              ? uiLocale === "es"
+                ? `${skipped} mensajes revisados (todos ya conocidos).`
+                : `${skipped} messages checked (all already known).`
+              : null,
         })
       }
     } catch (err) {
       console.error("[inbox] Fetch failed:", err)
       setFetchFeedback({
         level: "error",
-        message: "No se pudo contactar al servidor.",
+        message: syncMessage("serverUnreachable", uiLocale),
         detail: err instanceof Error ? err.message : null,
       })
     } finally {
       setFetchingEmails(false)
     }
-  }, [refetch, sidebarFilter])
+  }, [refetch, sidebarFilter, uiLocale])
 
   const navigateConversation = useCallback((offset: 1 | -1) => {
     if (!activeSelectedId || conversationsAfterUserFilters.length === 0 || selectedIndex < 0) return

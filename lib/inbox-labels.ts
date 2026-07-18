@@ -225,17 +225,36 @@ export function channelLabel(channel: string, localeRaw?: string | null) {
   return CHANNEL[locale]?.[channel] ?? CHANNEL.en?.[channel] ?? channel
 }
 
-export function actionTypeLabel(type: string) {
-  return (
-    {
-      create_client: "Create client",
-      create_project: "Create project",
-      create_task: "Create task",
-      schedule_followup: "Schedule follow-up",
-      assign_operator: "Assign owner",
-      generate_proposal: "Generate proposal",
-    } as Record<string, string>
-  )[type] ?? type
+const ACTION_TYPE: Partial<Record<SupportedLocale, Record<string, string>>> = {
+  en: {
+    create_client: "Create client",
+    create_project: "Create project",
+    create_task: "Create task",
+    schedule_followup: "Schedule follow-up",
+    assign_operator: "Assign owner",
+    generate_proposal: "Generate proposal",
+  },
+  es: {
+    create_client: "Crear cliente",
+    create_project: "Crear proyecto",
+    create_task: "Crear tarea",
+    schedule_followup: "Programar seguimiento",
+    assign_operator: "Asignar responsable",
+    generate_proposal: "Generar propuesta",
+  },
+  de: {
+    create_client: "Kontakt anlegen",
+    create_project: "Projekt anlegen",
+    create_task: "Aufgabe anlegen",
+    schedule_followup: "Follow-up planen",
+    assign_operator: "Verantwortliche Person zuweisen",
+    generate_proposal: "Angebot erstellen",
+  },
+}
+
+export function actionTypeLabel(type: string, locale?: string | null) {
+  const key = parseLocale(locale)
+  return ACTION_TYPE[key]?.[type] ?? ACTION_TYPE.en?.[type] ?? type
 }
 
 export function actionStatusBadge(status: string) {
@@ -254,20 +273,84 @@ export function actionStatusBadge(status: string) {
   }
 }
 
-export function actionStatusLabel(status: string) {
-  return (
-    {
-      suggested: "Suggested",
-      approved: "Approved",
-      executed: "Executed",
-      dismissed: "Dismissed",
-      failed: "Failed",
-    } as Record<string, string>
-  )[status] ?? status
+const ACTION_STATUS: Partial<Record<SupportedLocale, Record<string, string>>> = {
+  en: {
+    suggested: "Suggested",
+    approved: "Approved",
+    executed: "Executed",
+    dismissed: "Dismissed",
+    failed: "Failed",
+  },
+  es: {
+    suggested: "Sugerida",
+    approved: "Aprobada",
+    executed: "Ejecutada",
+    dismissed: "Descartada",
+    failed: "Fallida",
+  },
+  de: {
+    suggested: "Vorgeschlagen",
+    approved: "Freigegeben",
+    executed: "Ausgeführt",
+    dismissed: "Verworfen",
+    failed: "Fehlgeschlagen",
+  },
+}
+
+export function actionStatusLabel(status: string, locale?: string | null) {
+  const key = parseLocale(locale)
+  return ACTION_STATUS[key]?.[status] ?? ACTION_STATUS.en?.[status] ?? status
 }
 
 export function formatRoleLabel(value: string) {
   return value
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+/** IMAP sync feedback strings (operator-facing toasts on /inbox). */
+const SYNC: Partial<Record<SupportedLocale, Record<string, string>>> = {
+  en: {
+    syncFailed: "Could not sync email.",
+    noConnection: "No email connection is configured.",
+    inactiveConnection: "The email connection is inactive.",
+    manualFetchNotSupported: "This connection does not require a manual fetch.",
+    noNewEmails: "No new emails.",
+    oneNewEmail: "1 new email received.",
+    cursorReset: "IMAP cursor reset.",
+    cursorResetDetail:
+      "The server reported a uidValidity change or an inconsistent cursor. The next sync will recover recent messages.",
+    serverUnreachable: "Could not reach the server.",
+    viewHint: 'You are in the "{filter}" view — new emails appear under "Smart Inbox → Inbox".',
+  },
+  es: {
+    syncFailed: "No se pudo sincronizar el email.",
+    noConnection: "No hay conexión de email configurada.",
+    inactiveConnection: "La conexión de email está inactiva.",
+    manualFetchNotSupported: "Esta conexión no requiere fetch manual.",
+    noNewEmails: "Sin emails nuevos.",
+    oneNewEmail: "1 email nuevo recibido.",
+    cursorReset: "Cursor IMAP reiniciado.",
+    cursorResetDetail:
+      "El servidor reportó un cambio de uidValidity o un cursor inconsistente. El próximo sync recuperará mensajes recientes.",
+    serverUnreachable: "No se pudo contactar al servidor.",
+    viewHint: 'Estás en la vista "{filter}" — los emails nuevos aparecen en "Smart Inbox → Inbox".',
+  },
+}
+
+export function syncMessage(key: string, locale?: string | null): string {
+  const code = parseLocale(locale)
+  return SYNC[code]?.[key] ?? SYNC.en?.[key] ?? key
+}
+
+export function syncNewEmails(count: number, locale?: string | null): string {
+  const code = parseLocale(locale)
+  if (count === 1) return syncMessage("oneNewEmail", locale)
+  return code === "es" ? `${count} emails nuevos recibidos.` : `${count} new emails received.`
+}
+
+export function syncErrors(count: number, locale?: string | null): string {
+  const code = parseLocale(locale)
+  if (code === "es") return count === 1 ? "Error durante el sync IMAP." : `${count} errores durante el sync IMAP.`
+  return count === 1 ? "An error occurred during the IMAP sync." : `${count} errors occurred during the IMAP sync.`
 }
