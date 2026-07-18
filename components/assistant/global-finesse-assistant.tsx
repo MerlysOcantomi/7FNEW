@@ -40,6 +40,24 @@ import {
  * backdrop covers the launcher. Content clearance is handled by the shells
  * (extra bottom padding when the launcher is mounted).
  */
+/**
+ * Explicit focus restoration: both overlays return focus to the visible
+ * floating launcher on close (Radix's default "previously focused element"
+ * proved unreliable here because the launcher is not the Radix trigger).
+ */
+function focusLauncher(event: Event) {
+  event.preventDefault()
+  const launchers = document.querySelectorAll<HTMLElement>("[data-finesse-launcher]")
+  for (const el of launchers) {
+    // The launchers are position:fixed (offsetParent is always null), so use
+    // rendered boxes to skip the breakpoint-hidden (display:none) variant.
+    if (el.getClientRects().length > 0) {
+      el.focus()
+      return
+    }
+  }
+}
+
 export function GlobalFinesseAssistantChrome() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
@@ -61,6 +79,7 @@ export function GlobalFinesseAssistantChrome() {
           <DrawerContent
             className="bg-[var(--app-surface-dark)] text-[var(--text-primary-light)] data-[vaul-drawer-direction=bottom]:max-h-[88dvh]"
             aria-describedby={undefined}
+            onCloseAutoFocus={focusLauncher}
           >
             <DrawerTitle className="sr-only">{COPY.panelTitle}</DrawerTitle>
             <DrawerDescription className="sr-only">{COPY.panelSubtitle}</DrawerDescription>
@@ -86,6 +105,7 @@ export function GlobalFinesseAssistantChrome() {
           <SheetContent
             side="right"
             className="w-full gap-0 border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-0 text-[var(--text-primary-light)] sm:max-w-[420px] [&>button]:hidden"
+            onCloseAutoFocus={focusLauncher}
           >
             <SheetTitle className="sr-only">{COPY.panelTitle}</SheetTitle>
             <SheetDescription className="sr-only">{COPY.panelSubtitle}</SheetDescription>
