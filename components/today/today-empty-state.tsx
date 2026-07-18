@@ -39,7 +39,7 @@ export function TodayEmptyState() {
         {copy.body}
       </p>
       <Link
-        href="/inbox/overview"
+        href="/inbox"
         className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
       >
         {copy.inboxCta}
