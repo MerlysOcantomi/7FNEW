@@ -604,6 +604,17 @@ except `calendar`/`billing`; `de`/`fr`/`it` registered + fully pending
 serves en/es/de natively and fr/it as explicit English fallback whose
 `.locale` states the content language (ack `<html lang>` follows it).
 
+**Finesse EN/ES (P4.FINESSE-ENES):** while de/fr/it remain incomplete across
+Finesse surfaces, the personal selector OFFERS only English/Español in beauty
+workspaces (`offeredUiLocales` in `core/i18n/ui`) so no selection can produce
+a mixed-language app; the runtime keeps all five locales registered. Vertical
+namespaces added on the Marketing precedent: `modules/overview/i18n` (Mi
+salón) and `modules/today/i18n` (Beauty Today) — English canonical + complete
+Spanish, resolving de/fr/it to English until real catalogs exist. The core
+`nav` namespace now carries the structural Finesse keys (`mySalon`,
+`helpers.*`, `smartInbox.*`) and `today` carries the full work-first
+workboard.
+
 ### Regional formatters
 
 `core/i18n/format.ts`: `toIntlLocale`, `formatDate/Time/DateTime`,
