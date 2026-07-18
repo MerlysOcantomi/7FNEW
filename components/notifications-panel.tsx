@@ -1,5 +1,7 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
+
 import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -75,6 +77,7 @@ export function NotificationsPanel({
   onMarkAllRead,
   onClose,
 }: NotificationsPanelProps) {
+  const { t } = useI18n()
   const router = useRouter()
 
   const handleClick = useCallback(
@@ -93,10 +96,10 @@ export function NotificationsPanel({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t.common.notifications.label}</h3>
           {unreadCount > 0 && (
             <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
-              {unreadCount} new
+              {t.common.notifications.newCount(unreadCount)}
             </span>
           )}
         </div>
@@ -105,7 +108,7 @@ export function NotificationsPanel({
             <button
               onClick={onMarkAllRead}
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Mark all as read"
+              title={t.common.notifications.markAllRead}
             >
               <CheckCheck className="h-3.5 w-3.5" />
             </button>
@@ -124,7 +127,7 @@ export function NotificationsPanel({
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 px-4">
             <Bell className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">No notifications</p>
+            <p className="text-sm text-muted-foreground">{t.common.notifications.empty}</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -177,7 +180,7 @@ export function NotificationsPanel({
             }}
             className="w-full rounded-md py-1.5 text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            View all notifications
+            {t.common.notifications.viewAll}
           </button>
         </div>
       )}

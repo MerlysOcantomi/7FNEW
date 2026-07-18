@@ -33,6 +33,14 @@ export interface CommonMessages {
   search: string
   loading: string
   saveChanges: string
+  /** Top-bar notifications bell + panel chrome (shared shell). */
+  notifications: {
+    label: string
+    newCount: (count: number) => string
+    markAllRead: string
+    empty: string
+    viewAll: string
+  }
 }
 
 /**

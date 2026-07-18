@@ -10,4 +10,11 @@ export const common: CommonMessages = {
   search: "Buscar",
   loading: "Cargando…",
   saveChanges: "Guardar cambios",
+  notifications: {
+    label: "Notificaciones",
+    newCount: (count) => (count === 1 ? "1 nueva" : `${count} nuevas`),
+    markAllRead: "Marcar todas como leídas",
+    empty: "Sin notificaciones",
+    viewAll: "Ver todas las notificaciones",
+  },
 }

@@ -1,5 +1,7 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,6 +21,7 @@ interface NotificationData {
 }
 
 export function NotificationsBell() {
+  const { t } = useI18n()
   const { user } = useUser()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationData[]>([])
@@ -83,7 +86,7 @@ export function NotificationsBell() {
             ? "bg-accent text-foreground"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         )}
-        aria-label="Notifications"
+        aria-label={t.common.notifications.label}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
