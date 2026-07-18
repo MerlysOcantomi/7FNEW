@@ -194,11 +194,13 @@ export function getBeautyMarketingDemoSnapshot(workspaceId: string, now: Date): 
       insight:
         "3 clientas nuevas escribieron esta semana después de ver una publicación. Fanny ya las está atendiendo.",
     },
+    // Coherent with the snapshot above: 1 post ready for review (p1), plus a
+    // reel idea from Laura's baby boomer (p3, already scheduled).
     freya: {
       workspaceId,
       message:
-        "Tienes 3 fotos listas para publicar y una idea de reel del baby boomer de Laura. Publica hoy antes de las 19:00 para conseguir más alcance.",
-      readyCount: 3,
+        "Tienes el Rose Nude de María listo para publicar y una idea de reel del baby boomer de Laura. Publica hoy antes de las 19:00 para conseguir más alcance.",
+      readyCount: 1,
     },
     // No channel is connected yet — publish stays in the honest "aprobada ·
     // canal pendiente" state until real integrations exist.

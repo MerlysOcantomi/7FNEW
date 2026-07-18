@@ -79,9 +79,10 @@ export function FeaturedPostCard({
           onAction={onUpload}
         />
       ) : (
-        <article className={`${CARD_CLASS} overflow-hidden md:flex`}>
-          {/* Photo — enough protagonism: full-width on mobile, wide column on desktop. */}
-          <div className="relative h-48 shrink-0 sm:h-56 md:h-auto md:w-[280px] md:min-h-[320px]">
+        <article className={`${CARD_CLASS} overflow-hidden xl:flex`}>
+          {/* Photo — enough protagonism: full-width banner up to lg, wide side
+              column from xl (below xl the text column would get too narrow). */}
+          <div className="relative h-48 shrink-0 sm:h-64 xl:h-auto xl:w-[280px] xl:min-h-[320px]">
             {work?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -106,7 +107,7 @@ export function FeaturedPostCard({
           </div>
 
           {/* Content */}
-          <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">
+          <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <span
                 aria-hidden="true"
