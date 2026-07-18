@@ -9,5 +9,5 @@ export const common: CommonMessages = {
   close: "Close",
   search: "Search",
   loading: "Loading…",
-  save_changes: "Save changes",
+  saveChanges: "Save changes",
 }

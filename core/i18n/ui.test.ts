@@ -18,7 +18,7 @@ test("getUIMessages: en returns common and nav namespaces", () => {
   const t = getUIMessages("en")
   assert.equal(typeof t.common, "object")
   assert.equal(typeof t.nav, "object")
-  assert.equal(t.common.save_changes, "Save changes")
+  assert.equal(t.common.saveChanges, "Save changes")
   assert.equal(t.nav.today, "Today")
 })
 

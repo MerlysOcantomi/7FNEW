@@ -1,6 +1,8 @@
 # 7F Language Detection & Localization Architecture
 
-**Status:** Audit + architecture proposal. **Docs only — no implementation in this change.**
+**Status:** Canonical architecture. Originally an audit + proposal (PR 1); updated after
+PRs 2–4 landed (`core/i18n/ui` scaffolding, locale-resolution tests, `User.locale` +
+personal locale API). Sections marked "future" describe approved-but-unbuilt phases.
 **Scope:** Language detection, locale resolution, and UI localization strategy for the 7F app.
 
 ---
@@ -15,9 +17,13 @@ Recommended direction:
 
 1. Keep **English as the permanent internal base language** (routes, identifiers,
    schema, APIs, logs, tests, translation keys).
-2. Add **user-level UI locale** (`User.locale`) as a future tiny schema PR.
-3. Keep **workspace locale** for customer-facing output and workspace identity.
-4. Introduce a **React/server-aware translation boundary** gradually.
+2. **User-level UI locale exists**: `User.locale` (nullable) plus the self-scoped
+   `GET/PUT /api/users/me/locale` API and the pure policy in `core/i18n/user-locale.ts`.
+   Nothing renders from it yet — that is the resolver/provider work, not schema work.
+3. Keep **workspace locale** for customer-facing output and workspace identity
+   (`Workspace.config.locale`, admin-gated `/api/workspaces/[id]/locale`).
+4. Introduce a **React/server-aware translation boundary** gradually, on top of the
+   existing `core/i18n/ui` typed-namespace layer.
 5. Pilot **Spanish Beauty** through the safest visible surfaces first.
 6. **Defer Inbox UI localization** until Inbox stabilization lands.
 
@@ -40,7 +46,8 @@ Every claim below was checked against the repository at the time of writing.
 | `getTranslations` consumed only by `core/email-templates.ts`, `core/notifications/inbox.ts`, `modules/inbox/email-outbound.ts` (+ the i18n test) | ✅ Confirmed | grep across repo |
 | Workspace locale stored in `Workspace.config`, resolved via `resolveLocaleFromConfig(...)` / `getWorkspaceWithResolvedConfig` | ✅ Confirmed | `core/i18n/index.ts`, `lib/workspace` |
 | `/api/workspaces/[id]/locale` exists, admin-gated, validates against `SUPPORTED_LOCALES` | ✅ Confirmed | `app/api/workspaces/[id]/locale/route.ts` |
-| `User` model has **no** `locale` field | ✅ Confirmed | `prisma/schema.prisma` (`model User`) |
+| `User.locale String?` exists (nullable, canonical codes only), with self-scoped `GET/PUT /api/users/me/locale` and pure policy `core/i18n/user-locale.ts` | ✅ Landed after the original audit | `prisma/schema.prisma` (`model User`), `app/api/users/me/locale/route.ts` |
+| Typed UI namespace layer exists: `core/i18n/ui/{types.ts,index.ts,en/*}` with `getUIMessages` / `getNamespace`, English-only content, es/de falling back to English, kept OFF the root barrel | ✅ Landed after the original audit | `core/i18n/ui/*`, `core/i18n/ui.test.ts` |
 | Root layout hardcodes `<html lang="en">` | ✅ Confirmed | `app/layout.tsx:44` |
 | Beauty nav renders Spanish labels (`Clientas`, `Cobros`, `Herramientas`, …) without creating routes | ✅ Confirmed | `core/vertical-packs/nav-profile.ts` |
 | Beauty pack carries Spanish business vocabulary (`client.plural = "Clientas"`, `billing.plural = "Cobros"`, `locale: "es"`) | ✅ Confirmed | `core/vertical-packs/beauty.ts` |
@@ -134,20 +141,41 @@ for full UI coverage because:
    surfaces need server helpers.
 4. Root layout hardcodes `lang="en"`, so document language is not locale-aware.
 
-### Proposed structural evolution — typed namespaces
+### Canonical structure — typed namespaces (decided)
+
+Operator-UI messages live in:
 
 ```
-core/i18n/
-  types.ts
-  index.ts
-  resolve.ts
-  provider.tsx              // client boundary (later)
-  server.ts                 // server helper (later)
-  locales/
-    en/ common.ts nav.ts settings.ts today.ts clients.ts calendar.ts billing.ts beauty.ts email.ts
-    es/ ...
-    de/ ...
+core/i18n/ui/<locale>/<namespace>.ts
 ```
+
+with the interface contracts in `core/i18n/ui/types.ts` and the resolvers
+(`getUIMessages` / `getNamespace`) in `core/i18n/ui/index.ts` — this layer is
+deliberately kept OFF the root `@core/i18n` barrel so legacy email/notification
+consumers never bundle UI dictionaries.
+
+The alternative layout previously sketched here and in PR #25,
+
+```
+core/i18n/locales/<locale>/<namespace>.ts   // ❌ expressly discarded for UI messages
+```
+
+is **rejected for new UI messages**: it collides/shadows with the legacy
+`core/i18n/locales/{en,es,de}.ts` files and would re-expose UI catalogs on the root
+barrel. New namespaces are added under `core/i18n/ui/` only.
+
+### Two message domains (shared infrastructure, separate catalogs)
+
+| Domain | Audience & locale | Runtime | Status |
+| ------ | ----------------- | ------- | ------ |
+| `core/i18n/ui/` | Operator interface — resolved with the **viewer's** locale | Server + selectively client | Exists (en-only) |
+| `core/i18n/communications/` | Emails, notifications, external comms — resolved with the **recipient's** locale (workspace/client) | **Server-only** | Future — NOT created yet |
+
+The legacy monolithic `TranslationSet` (email/notifications/activity) will converge into
+`communications/`, **not** into `ui/` — do not add email/notification strings to `ui/`
+in the meantime. Both domains share the same infrastructure: `core/i18n/locale.ts`
+(`parseLocale` / `isValidLocale`), the interface-per-namespace × file-per-locale typing
+pattern, and the future `format.ts` helpers.
 
 Do **not** jump to JSON unless a strong external translation workflow demands it. The
 current TypeScript interpolation functions are a real strength and should be preserved.
@@ -188,11 +216,27 @@ top of locale strings.
 
 | Preference | Owner | Purpose | Persistence |
 | ---------- | ----- | ------- | ----------- |
-| `User.locale` | Signed-in user | App UI language | New nullable field (future tiny schema PR) |
-| `Workspace.config.locale` | Workspace admin | Customer-facing output + default workspace language | Already exists |
-| Cookie | Browser/session bridge | First paint + pre-login hint | Future cookie, not source of truth |
+| `User.locale` | Signed-in user | App UI language — **persisted source of truth for authenticated users** | Exists: nullable field + `GET/PUT /api/users/me/locale` |
+| `Workspace.config.locale` | Workspace admin | Customer-facing output + default workspace language | Already exists (`/api/workspaces/[id]/locale`) |
+| Cookie `7f-locale` | Browser/session bridge | Technical mirror/hint: first paint + pre-login only — **never outranks `User.locale`** | Future cookie, not source of truth |
 | Browser language | Browser | Weak detection signal | Not persisted until user confirms |
 | Region/country | Workspace/user metadata | Weak secondary signal only | Never overrides explicit language |
+
+### Independent signals — do not collapse
+
+These are five separate signals; none may be derived from another:
+
+- `User.locale` — the person's own interface language.
+- `Workspace.config.locale` — the business's default language and its customer-facing
+  communications.
+- `Conversation.detectedLanguage` — the detected language of a specific client/
+  conversation (drives AI outbound replies; wider value set than `SupportedLocale`).
+- Vertical vocabulary (`core/personalization`, vertical packs) — sector terminology,
+  **not** a locale.
+- Country, currency, and timezone — independent regional configuration. **Currency must
+  never be inferred from language/locale**: `formatMoney`-style helpers take an explicit
+  currency (workspace/document config); the viewer's locale only decides separators and
+  digit grouping.
 
 ### Why `User.locale` is needed
 
@@ -202,23 +246,41 @@ A German-speaking employee can work inside a Spanish salon workspace:
   vocabulary: Spanish vertical terms · Internal routes/keys/schema: English.
 
 Workspace locale alone cannot support this without forcing all employees into one UI
-language. **Schema impact:** add `User.locale String?` in its own future tiny PR (the
-current `User` model has no locale field).
+language. **Schema status:** `User.locale String?` already exists (nullable, canonical
+codes only, `null` = no explicit preference), together with its API and pure policy.
 
 ---
 
 ## 7. Language detection flow
 
-### Resolution chain
+### Resolution chains (decided — two separate chains)
+
+Authenticated user (operator app):
 
 ```
-Request / render starts
-  1. Explicit user preference   — User.locale (signed in) or confirmed cookie (pre-login)
-  2. Workspace preference       — Workspace.config.locale via getWorkspaceWithResolvedConfig()
-  3. Browser signal             — Accept-Language (server); navigator.language (client suggestion only)
-  4. Region/country signal      — weak hint only; never silently overrides language
-  5. English fallback           — DEFAULT_LOCALE = "en"
+User.locale                    — persisted source of truth
+  → Workspace.config.locale    — active workspace default
+  → Accept-Language            — via parseLocale (prefix fallback, es-MX → es)
+  → English                    — DEFAULT_LOCALE = "en"
 ```
+
+Anonymous visitor (login, future public pages):
+
+```
+cookie 7f-locale               — previous explicit choice, validated with isValidLocale
+  → Accept-Language
+  → English
+```
+
+The cookie is a **technical hint/mirror, never an authority above `User.locale`**: with
+a valid session it does not participate in the decision — it is synchronized to the
+resolution result so the pre-session first paint matches. If cookie and `User.locale`
+disagree, `User.locale` wins and the cookie is rewritten.
+
+The future `getRequestLocale()` server helper is a **read-only resolver**: it must not
+attempt to write cookies from a Server Component (Next.js forbids it). The cookie is
+updated only through allowed write paths — a Route Handler (e.g. the existing
+`PUT /api/users/me/locale`), a Server Action, or middleware cookie normalization.
 
 ### Where it executes
 
@@ -300,12 +362,16 @@ Workspace language  — Used for customer-facing messages, emails, portal, and w
 
 ## 10. Translation file structure
 
-Adopt **typed per-namespace TypeScript files**.
+Adopt **typed per-namespace TypeScript files**. For UI messages this is implemented as
+`core/i18n/ui/<locale>/<namespace>.ts` (see §4 — the `core/i18n/locales/<locale>/` layout
+is expressly discarded). Naming/shape conventions are frozen in `core/i18n/ui/types.ts`:
+camelCase keys, nested objects for semantic units, typed functions for interpolation/
+plurals/vocabulary composition, every locale satisfying the same interface.
 
 | Option | Verdict |
 | ------ | ------- |
-| Current single `en.ts/es.ts/de.ts` | Keep for now, then split. Simple + typed, but will grow huge and eager-imports all strings. |
-| Per-namespace TS files | **Best fit.** Typed, scalable, supports functions/plurals, smaller PRs. |
+| Current single `en.ts/es.ts/de.ts` | Legacy (email/notifications) only; converges into `communications/` later. |
+| Per-namespace TS files | **Best fit.** Typed, scalable, supports functions/plurals, smaller PRs. Implemented for UI under `core/i18n/ui/`. |
 | JSON + loader | Defer. Works with external tooling but loses typed functions. |
 | Runtime DB translations | Do not use. Too much complexity now. |
 
@@ -402,17 +468,16 @@ workstream.
 
 ## 14. Small PR sequence
 
-Each PR is single-objective and reviewable.
+Each PR is single-objective and reviewable. **PRs 1–4 have landed.**
 
-1. **Docs only** — this document (route policy, vocabulary-vs-i18n composition). No code.
-2. **i18n namespace scaffolding, `en` only** — add namespace structure (English only),
-   keep current exports compatible, no visible string moves, run `npm run test:i18n`.
-3. **Locale-resolution tests** — exact locale, prefixed locale, invalid → `en`, workspace
-   config parse-failure → `en`. No UI changes.
-4. **`User.locale` schema field** — nullable `User.locale`, tiny API/helper to read/update
-   own locale, migration only, no UI setting.
-5. **Locale resolver helper** — server-side chain (user → workspace → Accept-Language →
-   fallback) + tests. No visible UI.
+1. **Docs only** — this document. ✅ Landed.
+2. **i18n namespace scaffolding, `en` only** — landed as `core/i18n/ui/` (common + nav),
+   kept off the root barrel. ✅ Landed (supersedes the `locales/en/` variant of PR #25).
+3. **Locale-resolution tests** — ✅ Landed (`i18n.test.ts`, `ui.test.ts`).
+4. **`User.locale` schema field** — nullable field + self-scoped API + pure policy.
+   ✅ Landed (`user-locale.ts`, `/api/users/me/locale`).
+5. **Locale resolver helper** — read-only server-side chains from §7 (authenticated /
+   anonymous) + cookie-mirror semantics + tests. No visible UI.
 6. **Client i18n provider** — provider/hook, wire resolved locale into the app shell
    without moving copy yet, careful `<html lang>` strategy.
 7. **Settings language controls** — user app-language setting + workspace language setting
@@ -445,8 +510,10 @@ names · internal logs · technical docs/tests (except i18n-visible-copy tests).
 *Future PRs only — not modified by this doc.*
 
 **i18n core:** `core/i18n/{types.ts,index.ts,i18n.test.ts}`,
-`core/i18n/locales/{en,es,de}.ts`, plus the future per-namespace tree
-`core/i18n/locales/{en,es,de}/{common,nav,settings,today,clients,calendar,billing,email}.ts`.
+`core/i18n/locales/{en,es,de}.ts` (legacy), the existing UI tree
+`core/i18n/ui/{types.ts,index.ts,<locale>/*}` growing to
+`{common,nav,settings,today,clients,calendar,billing}`, and the future server-only
+`core/i18n/communications/` domain for email/notification catalogs.
 
 **Locale resolution / providers:** `app/layout.tsx`, `middleware.ts` *(exists — extend for
 cookie/header only)*, `components/i18n-provider.tsx`, `core/i18n/server.ts`,
@@ -475,5 +542,6 @@ cookie/header only)*, `components/i18n-provider.tsx`, `core/i18n/server.ts`,
 
 ## 17. Recommended next step
 
-Implementation should not start from this document. Approve **PR 1 (this doc)**, then
-proceed to zero-risk **PR 2 — i18n namespace scaffolding, English only**.
+PRs 1–4 have landed. Next: port the remaining English namespaces
+(`settings,today,clients,calendar,billing`) onto `core/i18n/ui/` (superseding PR #25's
+`locales/en/` layout), then **PR 5 — the read-only locale resolver helper** (§7 chains).
