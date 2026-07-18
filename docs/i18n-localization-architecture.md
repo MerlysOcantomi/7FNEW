@@ -613,7 +613,14 @@ salón) and `modules/today/i18n` (Beauty Today) — English canonical + complete
 Spanish, resolving de/fr/it to English until real catalogs exist. The core
 `nav` namespace now carries the structural Finesse keys (`mySalon`,
 `helpers.*`, `smartInbox.*`) and `today` carries the full work-first
-workboard.
+workboard. Blocks E–H added: full `calendar` EN/ES namespace (the /calendario
+Agenda — views, lenses, Time Intelligence, Event DNA, Intl-derived
+month/weekday names), the shared `statuses` namespace (localized labels for
+persisted Spanish enum values via `resolveStatusLabel`), the Ask Finesse
+panel/suggestion catalogs (`getFinesseAssistantCopy`, per-locale suggestion
+texts) with the voice prompt speaking the USER's effective interface
+language, and the Inbox label layer (`lib/inbox-labels.ts`) following the
+effective `useI18n()` locale with localized action/sync strings.
 
 ### Regional formatters
 

@@ -26,6 +26,8 @@ import {
 import { useFetch } from "@/hooks/use-fetch";
 import { ProyectoForm } from "@/components/forms/proyecto-form";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { useI18n } from "@/components/i18n-provider";
+import { useClientsNouns, capNoun } from "@/hooks/use-clients-nouns";
 import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -433,6 +435,8 @@ const TABS = [
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useI18n();
+  const nouns = useClientsNouns();
   const [formOpen, setFormOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -481,8 +485,8 @@ export default function ProjectDetailPage() {
     <>
       <ContextShell
         breadcrumbs={[
-          { label: "Core", href: "/" },
-          { label: "Proyectos", href: "/proyectos" },
+          { label: t.clients.detail.breadcrumbRoot, href: "/" },
+          { label: capNoun(nouns.projects), href: "/proyectos" },
           { label: project.nombre },
         ]}
         heading={
