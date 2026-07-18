@@ -466,6 +466,10 @@ export function AdministracionContent({
   const v = vocabulary ?? DEFAULT_VOCABULARY
   const CORE_CAPABILITIES = vocabulary ? buildCoreCapabilities(v) : CORE_CAPABILITIES_DEFAULT
 
+  /** Page-chrome copy (header, notices) — resolves with the viewer's locale. */
+  const { t } = useI18n()
+  const adminStrings = t.settings.adminPage
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [copilotCollapsed, setCopilotCollapsed] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -584,26 +588,26 @@ export function AdministracionContent({
             <div className="px-4 md:px-8 pt-7 pb-5 border-b border-border bg-background flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-                  Settings
+                  {adminStrings.eyebrow}
                 </p>
                 <h1 className="text-xl font-semibold text-foreground tracking-tight">
-                  Workspace settings
+                  {adminStrings.title}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Review core capabilities, optional packs, and advanced upgrades for this workspace.
+                  {adminStrings.subtitle}
                 </p>
                 {!isAdmin && (
                   <p className="text-xs text-[#D97706] mt-1.5">
-                    You need admin or owner access to change settings.
+                    {adminStrings.adminOnlyNotice}
                   </p>
                 )}
                 {isAdmin && (
                   <p className="text-xs text-muted-foreground mt-2">
                     <Link href="/administracion/canales" className="font-medium text-[#1D4ED8] hover:underline">
-                      Email channels
+                      {adminStrings.emailChannelsLink}
                     </Link>
                     {" "}
-                    — IMAP/SMTP inboxes for this workspace.
+                    {adminStrings.emailChannelsNote}
                   </p>
                 )}
               </div>

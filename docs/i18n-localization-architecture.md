@@ -350,14 +350,17 @@ from a personal prompt.
 
 ### User-level setting
 
-Account Center → **Language** section
+Account Center → **Language / Idioma** section
 (`components/account-center/language-preference-control.tsx`). Values: English,
 Español, Deutsch (native names, never translated — `LOCALE_DISPLAY_NAMES`).
 Behavior: `PUT /api/users/me/locale` persists `User.locale` (self-scoped), the
 route mirrors the 7f-locale cookie after success, the provider applies the
 change optimistically (rollback on failure) and `router.refresh()` re-renders
-Server Components. Labels come from the `settings.language` namespace — the
-first real consumer of the typed catalog runtime.
+Server Components. A **"Use the workspace language" / "Usar el idioma del
+negocio"** action clears the preference (`locale: null` → cookie deleted) so
+resolution follows the workspace again; the following-the-business state stays
+visually explicit. The whole Account Center chrome renders from
+`settings.accountCenter` (P4.1) — the first fully localized surface.
 
 ### Workspace-level setting
 
@@ -563,8 +566,13 @@ cookie/header only)*, `components/i18n-provider.tsx`, `core/i18n/server.ts`,
 
 ## 17. Recommended next step
 
-PRs 1–7 have landed: the locale runtime is functional end to end (resolution,
-provider, `<html lang>`, cookie bridge, personal + workspace controls), with
-`es`/`de` still falling back to English catalogs. Next: **P4 — real Spanish
-catalogs (`core/i18n/ui/es/*`) and the coherent Finesse/Beauty pilot surfaces**
-(§11), not more runtime scaffolding.
+PRs 1–7 plus P4.1 have landed: the locale runtime is functional end to end, the
+Spanish catalog exists (`core/i18n/ui/es/*`, typed parity with English enforced
+by test), `settings`/`common` are really translated, the Account Center and the
+Administración chrome render fully localized, and operators can follow the
+business language again ("Usar el idioma del negocio"). Still pending inside
+`es`: `nav`, `today`, `clients`, `calendar`, `billing` carry English values
+until their surfaces are wired. `de` still falls back to English entirely.
+Next: **P4.2 — the coherent Finesse/Beauty pilot surfaces** (§11: Clientes
+first, composing the Clienta/Clientas vocabulary; then Today and Agenda
+labels), which is when those five namespaces get their real Spanish content.
