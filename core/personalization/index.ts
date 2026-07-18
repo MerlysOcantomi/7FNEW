@@ -9,6 +9,7 @@ export type {
 export { DEFAULT_VOCABULARY } from "./vocabulary"
 export { BUSINESS_PRESETS } from "./presets"
 export { resolveVocabulary, getLabel, mapVerticalKeyToBusinessType } from "./resolve"
+export { composeEntityLabel, hasVocabularyOverride, type EntityLabelForm } from "./compose"
 
 // resolveWorkspaceVocabulary is NOT re-exported here because it depends on
 // @core/db (Prisma) and would break client-side bundling. Server components

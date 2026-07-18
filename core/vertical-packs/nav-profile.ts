@@ -25,11 +25,32 @@
 
 export type VerticalNavGroup = "primary" | "more"
 
+/**
+ * Structural (non-entity) nav labels an item can bind to. Values mirror keys
+ * of the i18n `nav` namespace; kept as a local literal union so vertical
+ * packs stay decoupled from the i18n type module.
+ */
+export type VerticalNavStructuralKey = "today"
+
 export interface VerticalNavItem {
   /** Stable id used by the sidebar to pick an icon. Not shown to the user. */
   id: string
-  /** User-facing label (already localized for the vertical). */
+  /**
+   * FALLBACK user-facing label. Since P4.2 the sidebar composes the real
+   * label from `entityKey`/`navLabelKey` (vocabulary noun or locale catalog);
+   * this literal renders only when an item declares neither — e.g. brand
+   * names like "Mr. Forte Lab" — or as a last-resort safety net.
+   */
   label: string
+  /**
+   * Entity binding: the label is the workspace's vocabulary noun for this
+   * entity (Beauty → Clientas/Agenda/Mensajes/Cobros), falling back to the
+   * locale catalog's generic translation via `composeEntityLabel`.
+   */
+  entityKey?: import("@core/personalization").EntityKey
+  entityForm?: "singular" | "plural"
+  /** Structural binding: the label comes from the i18n nav namespace. */
+  navLabelKey?: VerticalNavStructuralKey
   /** Existing 7F Core route. Never a new/vertical-specific route. */
   href: string
   /**
@@ -84,14 +105,14 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   locale: "es",
   moreLabel: "Más",
   items: [
-    { id: "today", label: "Hoy", href: "/today", group: "primary" },
-    { id: "agenda", label: "Agenda", href: "/calendario", group: "primary" },
-    { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary" },
-    { id: "clientas", label: "Clientas", href: "/clientes", group: "primary" },
-    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "more" },
-    { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more" },
-    { id: "servicios", label: "Servicios", href: "/services", group: "more" },
-    { id: "equipo", label: "Equipo", href: "/usuarios", group: "more", teamOnly: true },
+    { id: "today", label: "Hoy", href: "/today", group: "primary", navLabelKey: "today" },
+    { id: "agenda", label: "Agenda", href: "/calendario", group: "primary", entityKey: "calendar", entityForm: "singular" },
+    { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
+    { id: "clientas", label: "Clientas", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
+    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "more", entityKey: "marketing", entityForm: "singular" },
+    { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more", entityKey: "billing", entityForm: "plural" },
+    { id: "servicios", label: "Servicios", href: "/services", group: "more", entityKey: "project", entityForm: "plural" },
+    { id: "equipo", label: "Equipo", href: "/usuarios", group: "more", teamOnly: true, entityKey: "member", entityForm: "singular" },
     { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helper: "Módulos y mejoras", group: "more" },
   ],
 }

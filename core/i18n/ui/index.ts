@@ -19,6 +19,8 @@ export type { UIMessages, UINamespace } from "./types"
 export type {
   CommonMessages,
   NavMessages,
+  GlobalSearchMessages,
+  GlobalNewMessages,
   SettingsMessages,
   TodayMessages,
   ClientsMessages,

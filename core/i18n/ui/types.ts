@@ -35,7 +35,16 @@ export interface CommonMessages {
   saveChanges: string
 }
 
-/** Navigation labels. English-only source; not wired to the sidebar yet. */
+/**
+ * Navigation + shell-control labels.
+ *
+ * Entity items (clients/calendar/inbox/billing/services/team/tasks/finance/
+ * marketing) are LOCALE FALLBACKS: when the workspace's vertical vocabulary
+ * explicitly overrides the entity noun (Beauty → Clientas/Agenda/Mensajes/
+ * Cobros), the vocabulary wins via `composeEntityLabel` — the catalog never
+ * hardcodes a vertical's noun. Structural labels (today/more/new/search and
+ * the a11y controls) are pure locale strings.
+ */
 export interface NavMessages {
   today: string
   calendar: string
@@ -45,6 +54,49 @@ export interface NavMessages {
   billing: string
   team: string
   settings: string
+  tasks: string
+  finance: string
+  marketing: string
+  more: string
+  new: string
+  search: string
+  expandSidebar: string
+  collapseSidebar: string
+  openNavigation: string
+  closeNavigation: string
+  navigationTitle: string
+  backToWorkspace: string
+}
+
+/** Global search chrome (trigger, dialog frame, footer hints) — not results. */
+export interface GlobalSearchMessages {
+  placeholder: string
+  introTitle: string
+  introSubtitle: string
+  quickNavigation: string
+  exampleSearchesAria: string
+  loading: string
+  close: string
+  dialogAria: string
+  footer: {
+    navigate: string
+    open: string
+    close: string
+  }
+}
+
+/** Global "New" menu chrome (trigger, panel frame, group headings) — not items. */
+export interface GlobalNewMessages {
+  trigger: string
+  title: string
+  subtitle: string
+  close: string
+  groups: {
+    capture: string
+    work: string
+    assets: string
+    vertical: string
+  }
 }
 
 /**
@@ -111,12 +163,17 @@ export interface SettingsMessages {
   }
 }
 
-/** Today surface — header and empty state. */
+/** Today surface — header, empty state and global-chrome frame labels. */
 export interface TodayMessages {
   title: string
   empty: {
     title: string
     body: string
+  }
+  /** Global Today peek chrome (header CTA + close) — not the peek body copy. */
+  chrome: {
+    openFull: string
+    close: string
   }
 }
 
@@ -155,6 +212,8 @@ export interface BillingMessages {
 export interface UIMessages {
   common: CommonMessages
   nav: NavMessages
+  globalSearch: GlobalSearchMessages
+  globalNew: GlobalNewMessages
   settings: SettingsMessages
   today: TodayMessages
   clients: ClientsMessages

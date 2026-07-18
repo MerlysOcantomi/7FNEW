@@ -97,16 +97,36 @@ test("getUIMessages: de/de-CH still fall back to English until German content la
 
 // ─── namespace registry (P2) ───────────────────────────────────────────────────
 
-test("getUIMessages: exposes exactly the seven canonical namespaces", () => {
+test("getUIMessages: exposes exactly the nine canonical namespaces", () => {
   assert.deepEqual(Object.keys(getUIMessages("en")).sort(), [
     "billing",
     "calendar",
     "clients",
     "common",
+    "globalNew",
+    "globalSearch",
     "nav",
     "settings",
     "today",
   ])
+})
+
+test("nav/globalSearch/globalNew/today: real Spanish shell strings (P4.2)", () => {
+  const es = getUIMessages("es")
+  assert.equal(es.nav.today, "Hoy")
+  assert.equal(es.nav.inbox, "Bandeja de entrada")
+  assert.equal(es.nav.more, "Más")
+  assert.equal(es.nav.new, "Nuevo")
+  assert.equal(es.nav.search, "Buscar")
+  assert.equal(es.nav.collapseSidebar, "Contraer la navegación")
+  assert.equal(es.globalNew.subtitle, "Crea en todo tu workspace")
+  assert.equal(es.globalSearch.quickNavigation, "Navegación rápida")
+  assert.equal(es.globalSearch.footer.close, "cerrar")
+  assert.equal(es.today.title, "Hoy")
+  assert.equal(es.today.chrome.openFull, "Abrir Hoy completo")
+  // Entity fallbacks stay GENERIC Spanish — never a vertical's noun.
+  assert.equal(es.nav.clients, "Clientes")
+  assert.equal(es.nav.calendar, "Calendario")
 })
 
 test("new namespaces: representative English strings are present", () => {

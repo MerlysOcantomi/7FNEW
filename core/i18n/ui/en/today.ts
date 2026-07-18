@@ -10,4 +10,8 @@ export const today: TodayMessages = {
     title: "Nothing for today yet",
     body: "New items will show up here as they come in.",
   },
+  chrome: {
+    openFull: "Open full Today",
+    close: "Close Today",
+  },
 }

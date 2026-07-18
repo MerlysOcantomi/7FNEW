@@ -1,15 +1,18 @@
 import type { TodayMessages } from "../types"
 
 /**
- * Spanish source for the `today` UI namespace.
- * P4.1 ships English values on purpose — the Today surface does not consume
- * this namespace yet; the translation pass belongs to the Finesse pilot
- * (P4.2). Typed parity with English is already enforced.
+ * Spanish source for the `today` UI namespace — really translated (P4.2):
+ * the shell's Today trigger/chrome consumes `title` and `chrome`, and the
+ * page-level strings are small enough to carry their real translation now.
  */
 export const today: TodayMessages = {
-  title: "Today",
+  title: "Hoy",
   empty: {
-    title: "Nothing for today yet",
-    body: "New items will show up here as they come in.",
+    title: "Nada para hoy todavía",
+    body: "Los nuevos elementos aparecerán aquí a medida que lleguen.",
+  },
+  chrome: {
+    openFull: "Abrir Hoy completo",
+    close: "Cerrar Hoy",
   },
 }
