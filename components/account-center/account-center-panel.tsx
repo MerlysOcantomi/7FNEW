@@ -7,6 +7,7 @@ import {
   Building2,
   CreditCard,
   KeyRound,
+  Languages,
   Loader2,
   LogOut,
   Palette,
@@ -19,6 +20,7 @@ import {
 import type { ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import { cn } from "@/lib/utils"
 import { ThemeModeToggle } from "@/components/theme-mode-toggle"
+import { LanguagePreferenceControl } from "@/components/account-center/language-preference-control"
 
 /**
  * Account Center Panel
@@ -565,6 +567,11 @@ export function AccountCenterPanel({
                   </li>
                 ))}
               </ul>
+            </section>
+
+            <section>
+              <SectionHeading icon={Languages}>Language</SectionHeading>
+              <LanguagePreferenceControl />
             </section>
 
             <section>

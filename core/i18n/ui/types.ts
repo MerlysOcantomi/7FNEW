@@ -55,6 +55,15 @@ export interface SettingsMessages {
     appDescription: string
     workspaceLabel: string
     workspaceDescription: string
+    /** Shown when the user has no personal preference and follows the fallback. */
+    followingDefault: string
+    updatedToast: string
+    updateErrorTitle: string
+    updateErrorBody: string
+    workspaceUpdatedToast: string
+    workspaceUpdateErrorTitle: string
+    /** Read-only note for members without admin rights on the workspace control. */
+    workspaceReadOnly: string
   }
 }
 

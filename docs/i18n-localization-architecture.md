@@ -22,8 +22,11 @@ Recommended direction:
    Nothing renders from it yet — that is the resolver/provider work, not schema work.
 3. Keep **workspace locale** for customer-facing output and workspace identity
    (`Workspace.config.locale`, admin-gated `/api/workspaces/[id]/locale`).
-4. Introduce a **React/server-aware translation boundary** gradually, on top of the
-   existing `core/i18n/ui` typed-namespace layer.
+4. The **React/server-aware translation boundary exists**: read-only server
+   resolver (`core/i18n/{resolve,cookie,server}.ts`), client provider + hook
+   (`components/i18n-provider.tsx`, `useI18n()`), dynamic `<html lang>`, cookie
+   bridge, and functional personal (Account Center) + workspace
+   (Administración) language controls.
 5. Pilot **Spanish Beauty** through the safest visible surfaces first.
 6. **Defer Inbox UI localization** until Inbox stabilization lands.
 
@@ -253,7 +256,12 @@ codes only, `null` = no explicit preference), together with its API and pure pol
 
 ## 7. Language detection flow
 
-### Resolution chains (decided — two separate chains)
+### Resolution chains (implemented — two separate chains)
+
+Implemented in `core/i18n/resolve.ts` (pure: both chains + the q-value-aware
+`parseAcceptLanguage`), `core/i18n/cookie.ts` (7f-locale policy: HttpOnly, lax,
+path=/, secure in prod) and `core/i18n/server.ts` (`getRequestLocale()`,
+per-request memoized). Matrix coverage lives in `core/i18n/resolve.test.ts`.
 
 Authenticated user (operator app):
 
@@ -277,20 +285,23 @@ a valid session it does not participate in the decision — it is synchronized t
 resolution result so the pre-session first paint matches. If cookie and `User.locale`
 disagree, `User.locale` wins and the cookie is rewritten.
 
-The future `getRequestLocale()` server helper is a **read-only resolver**: it must not
-attempt to write cookies from a Server Component (Next.js forbids it). The cookie is
-updated only through allowed write paths — a Route Handler (e.g. the existing
-`PUT /api/users/me/locale`), a Server Action, or middleware cookie normalization.
+`getRequestLocale()` (`core/i18n/server.ts`) is a **read-only resolver**: it never
+writes cookies (Server Components must not) and never calls the workspace helper
+that auto-writes `wf_workspace` — it mirrors those rules read-only. The cookie is
+written only by authorized Route Handlers: `PUT /api/users/me/locale` (mirror after
+a successful DB update; delete on cleared preference) and the technical bridge
+`PUT /api/i18n/locale` (cookie only, no `User.locale`, no permissions — invoked by
+the provider when the server reports `shouldSyncCookie`, at most once per mount).
 
-### Where it executes
+### Where it executes (all shipped except the middleware option)
 
 | Runtime | Responsibility |
 | ------- | -------------- |
-| Server helper | Resolve initial locale for server-rendered pages/layouts. |
-| Root/app shell provider | Pass resolved locale + translations to client components. |
-| Client provider | Expose `useI18n()` / `t` for client-only surfaces. |
-| Cookie | Prevent first-paint mismatch after the user chooses a language. |
-| Middleware | Optional later, cookie/header normalization only. **Never** route rewriting. |
+| Server helper | `getRequestLocale()` resolves per request (React `cache()`); RSCs translate via `getNamespace`. |
+| Root layout | `<html lang={locale}>` + mounts the provider with SERIALIZABLE data only (locale + metadata — catalogs contain functions and never cross the RSC boundary; the client provider imports them itself). |
+| Client provider | `components/i18n-provider.tsx` exposes `useI18n()` (`t`, `setUserLocale` with optimistic rollback, `router.refresh()` reconciliation, `document.documentElement.lang` sync). |
+| Cookie | 7f-locale (HttpOnly) prevents first-paint mismatch; mirror only, never authority. |
+| Middleware | Untouched. Optional cookie/header normalization remains a future option. **Never** route rewriting, never Prisma. |
 
 ### Middleware caution
 
@@ -335,21 +346,28 @@ from a personal prompt.
 
 ---
 
-## 9. Settings proposal
+## 9. Settings (implemented)
 
 ### User-level setting
 
-Account Center → *My profile / Preferences*. Label: **Language**. Values: English,
-Español, Deutsch. Behavior: updates `User.locale`, sets the locale cookie for first-paint
-consistency, re-renders the app shell/client provider; server pages pick it up on next
-navigation.
+Account Center → **Language** section
+(`components/account-center/language-preference-control.tsx`). Values: English,
+Español, Deutsch (native names, never translated — `LOCALE_DISPLAY_NAMES`).
+Behavior: `PUT /api/users/me/locale` persists `User.locale` (self-scoped), the
+route mirrors the 7f-locale cookie after success, the provider applies the
+change optimistically (rollback on failure) and `router.refresh()` re-renders
+Server Components. Labels come from the `settings.language` namespace — the
+first real consumer of the typed catalog runtime.
 
 ### Workspace-level setting
 
-Workspace settings / Administration → **Workspace language**. Admin-gated. Reuse the
-existing `/api/workspaces/[id]/locale` endpoint (already validates supported locales and
-requires admin). Purpose: customer-facing communication language + default workspace
-setup language (email/portal/widget output).
+Administración → **Workspace language** section (`WorkspaceLanguageSection` in
+`components/administracion-content.tsx`, fed server-side by
+`app/administracion/page.tsx`). Reuses `PUT /api/workspaces/[id]/locale`
+(admin-gated — the endpoint stays the authority; non-admins see a read-only
+control). Changes ONLY `Workspace.config.locale`: personal preferences are
+untouched; members without one adopt the new fallback on refresh. Language
+never implies currency, country or timezone.
 
 ### Settings copy distinction
 
@@ -476,12 +494,12 @@ Each PR is single-objective and reviewable. **PRs 1–4 have landed.**
 3. **Locale-resolution tests** — ✅ Landed (`i18n.test.ts`, `ui.test.ts`).
 4. **`User.locale` schema field** — nullable field + self-scoped API + pure policy.
    ✅ Landed (`user-locale.ts`, `/api/users/me/locale`).
-5. **Locale resolver helper** — read-only server-side chains from §7 (authenticated /
-   anonymous) + cookie-mirror semantics + tests. No visible UI.
-6. **Client i18n provider** — provider/hook, wire resolved locale into the app shell
-   without moving copy yet, careful `<html lang>` strategy.
-7. **Settings language controls** — user app-language setting + workspace language setting
-   (reuse existing endpoint, admin-gated).
+5. **Locale resolver helper** — ✅ Landed (`core/i18n/{resolve,cookie,server}.ts`
+   + `resolve.test.ts`).
+6. **Client i18n provider** — ✅ Landed (`components/i18n-provider.tsx`, root
+   layout `<html lang>`, cookie bridge `app/api/i18n/locale`).
+7. **Settings language controls** — ✅ Landed (Account Center Language section +
+   Administración Workspace language, both on the existing endpoints).
 8. **Global chrome pilot** — localize sidebar / global search / global new / account
    center common labels. Beauty nav stays vertical-profile data unless/until converted to
    locale-aware labels.
@@ -507,7 +525,10 @@ names · internal logs · technical docs/tests (except i18n-visible-copy tests).
 
 ## 16. Files likely involved later
 
-*Future PRs only — not modified by this doc.*
+*Reference map. The locale-resolution/provider/settings entries below have
+landed (P3): `core/i18n/{resolve,cookie,server}.ts`, `components/i18n-provider.tsx`,
+`app/api/i18n/locale/route.ts`, the Account Center language control and the
+Administración workspace-language section. `middleware.ts` was NOT modified.*
 
 **i18n core:** `core/i18n/{types.ts,index.ts,i18n.test.ts}`,
 `core/i18n/locales/{en,es,de}.ts` (legacy), the existing UI tree
@@ -542,6 +563,8 @@ cookie/header only)*, `components/i18n-provider.tsx`, `core/i18n/server.ts`,
 
 ## 17. Recommended next step
 
-PRs 1–4 have landed. Next: port the remaining English namespaces
-(`settings,today,clients,calendar,billing`) onto `core/i18n/ui/` (superseding PR #25's
-`locales/en/` layout), then **PR 5 — the read-only locale resolver helper** (§7 chains).
+PRs 1–7 have landed: the locale runtime is functional end to end (resolution,
+provider, `<html lang>`, cookie bridge, personal + workspace controls), with
+`es`/`de` still falling back to English catalogs. Next: **P4 — real Spanish
+catalogs (`core/i18n/ui/es/*`) and the coherent Finesse/Beauty pilot surfaces**
+(§11), not more runtime scaffolding.

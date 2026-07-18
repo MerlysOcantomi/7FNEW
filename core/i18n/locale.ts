@@ -35,3 +35,13 @@ export function parseLocale(raw?: string | null): SupportedLocale {
 export function isValidLocale(raw: string): raw is SupportedLocale {
   return SUPPORTED_SET.has(raw)
 }
+
+/**
+ * Native display names for language pickers. Proper nouns — each language
+ * names itself, so these are locale-independent and never translated.
+ */
+export const LOCALE_DISPLAY_NAMES: Record<SupportedLocale, string> = {
+  en: "English",
+  es: "Español",
+  de: "Deutsch",
+}

@@ -18,6 +18,7 @@ import { checkMembership, getWorkspaceWithResolvedConfig } from "@/core/workspac
 import { parseSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
 import { AdministracionContent } from "@/components/administracion-content"
 import { resolveWorkspaceVocabulary } from "@core/personalization/resolve-workspace"
+import { DEFAULT_LOCALE, type SupportedLocale } from "@core/i18n"
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -33,6 +34,13 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
   let workspaceId = ""
   let wsRole = "VIEWER"
   let moduleConfig: Record<string, boolean> = {}
+  /**
+   * Effective workspace locale for the "Workspace language" control. Comes
+   * from the already-loaded resolved config (`ws.locale` applies the legacy
+   * "en" default when the config carries no locale — acceptable here: the
+   * control shows the effective business language, not raw storage).
+   */
+  let workspaceLocale: SupportedLocale = DEFAULT_LOCALE
   let vocabulary: import("@core/personalization").EntityVocabulary | undefined
 
   try {
@@ -43,6 +51,7 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
     const ws = await getWorkspaceWithResolvedConfig(workspaceId)
     if (ws) {
       moduleConfig = ws.resolvedConfig.modules
+      workspaceLocale = ws.locale
     }
 
     vocabulary = await resolveWorkspaceVocabulary(workspaceId)
@@ -56,6 +65,7 @@ export default async function AdministracionPage({ searchParams }: PageProps) {
       workspaceId={workspaceId}
       wsRole={wsRole}
       moduleConfig={moduleConfig}
+      workspaceLocale={workspaceLocale}
       vocabulary={vocabulary}
     />
   )

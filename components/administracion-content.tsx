@@ -2,12 +2,17 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
 import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel"
-import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X, Check, Loader2 } from "lucide-react"
+import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X, Check, Loader2, Languages } from "lucide-react"
 import type { ForteSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
 import type { EntityVocabulary } from "@core/personalization"
 import { DEFAULT_VOCABULARY } from "@core/personalization"
+import { useI18n } from "@/components/i18n-provider"
+import { useToast } from "@/components/toast-provider"
+import { LOCALE_DISPLAY_NAMES } from "@core/i18n/locale"
+import type { SupportedLocale } from "@core/i18n/types"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CapabilityItem {
@@ -321,11 +326,132 @@ function getChangedModules(
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
+/**
+ * Workspace language control — persists `Workspace.config.locale` through the
+ * existing admin-gated `PUT /api/workspaces/[id]/locale` endpoint (the API is
+ * the authority; the UI mirror only reflects it). It NEVER touches the
+ * viewer's `User.locale`: a member with a personal preference keeps their own
+ * UI language, while members without one adopt the new workspace fallback on
+ * the `router.refresh()` that follows a successful save. Language ≠ currency /
+ * country / timezone — this control changes language only.
+ */
+function WorkspaceLanguageSection({
+  workspaceId,
+  isAdmin,
+  initialLocale,
+}: {
+  workspaceId: string
+  isAdmin: boolean
+  initialLocale: SupportedLocale
+}) {
+  const router = useRouter()
+  const { t, supportedLocales } = useI18n()
+  const { addToast } = useToast()
+  const [savedLocale, setSavedLocale] = useState<SupportedLocale>(initialLocale)
+  const [saving, setSaving] = useState(false)
+
+  const strings = t.settings.language
+
+  const handleSelect = async (next: SupportedLocale) => {
+    if (!isAdmin || saving || next === savedLocale || !workspaceId) return
+    const previous = savedLocale
+    setSavedLocale(next)
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/locale`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: next }),
+      })
+      const json: unknown = await res.json().catch(() => null)
+      const ok =
+        res.ok &&
+        Boolean(json && typeof json === "object" && (json as { success?: boolean }).success)
+      if (!ok) throw new Error("workspace-locale-update-failed")
+      addToast({
+        type: "success",
+        title: strings.workspaceUpdatedToast,
+        description: LOCALE_DISPLAY_NAMES[next],
+      })
+      // Members whose effective locale follows the workspace pick up the new
+      // fallback on this refresh; explicit personal preferences are untouched.
+      router.refresh()
+    } catch {
+      setSavedLocale(previous)
+      addToast({
+        type: "error",
+        title: strings.workspaceUpdateErrorTitle,
+        description: strings.updateErrorBody,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+          {strings.workspaceLabel}
+        </h2>
+      </div>
+      <div className="bg-card rounded-xl border border-border shadow-sm px-5 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+              <Languages size={15} strokeWidth={1.75} className="text-muted-foreground" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">{strings.workspaceLabel}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {strings.workspaceDescription}
+                {!isAdmin ? ` ${strings.workspaceReadOnly}` : ""}
+              </p>
+            </div>
+          </div>
+          <div
+            role="radiogroup"
+            aria-label={strings.workspaceLabel}
+            className="flex shrink-0 gap-1 rounded-lg border border-border bg-muted p-1"
+          >
+            {supportedLocales.map((option) => {
+              const isActive = savedLocale === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => handleSelect(option)}
+                  disabled={!isAdmin || saving}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                    isActive
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground disabled:opacity-60"
+                  }`}
+                >
+                  {saving && isActive ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : isActive ? (
+                    <Check size={12} />
+                  ) : null}
+                  {LOCALE_DISPLAY_NAMES[option]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 interface AdministracionContentProps {
   handoff: ForteSettingsHandoff | null
   workspaceId: string
   wsRole: string
   moduleConfig: Record<string, boolean>
+  workspaceLocale: SupportedLocale
   vocabulary?: EntityVocabulary
 }
 
@@ -334,6 +460,7 @@ export function AdministracionContent({
   workspaceId,
   wsRole,
   moduleConfig,
+  workspaceLocale,
   vocabulary,
 }: AdministracionContentProps) {
   const v = vocabulary ?? DEFAULT_VOCABULARY
@@ -512,6 +639,13 @@ export function AdministracionContent({
                   onDismiss={() => setBannerDismissed(true)}
                 />
               )}
+
+              {/* ── Workspace language (business/customer-facing language) ── */}
+              <WorkspaceLanguageSection
+                workspaceId={workspaceId}
+                isAdmin={isAdmin}
+                initialLocale={workspaceLocale}
+              />
 
               {/* ── Section 1: Core capabilities ── */}
               <section>

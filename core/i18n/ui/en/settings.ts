@@ -12,5 +12,12 @@ export const settings: SettingsMessages = {
     workspaceLabel: "Workspace language",
     workspaceDescription:
       "Used for customer-facing messages, emails, portal, and workspace defaults.",
+    followingDefault: "No personal preference yet — following the workspace language.",
+    updatedToast: "App language updated",
+    updateErrorTitle: "Could not save your language",
+    updateErrorBody: "Please try again.",
+    workspaceUpdatedToast: "Workspace language updated",
+    workspaceUpdateErrorTitle: "Could not save the workspace language",
+    workspaceReadOnly: "Only workspace admins can change this.",
   },
 }
