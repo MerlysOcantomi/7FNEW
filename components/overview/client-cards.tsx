@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { formatCurrency, formatNumber, formatPercent, type FormatLocale } from "@core/i18n/format"
 import { clientMixShares } from "@modules/overview/derive"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { ClientMix, ClientPerformance } from "@modules/overview/types"
 import {
   BTN_FOCUS,
@@ -26,7 +26,7 @@ export function ClientMixCard({
   mix,
   locale,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   mix: ClientMix | null
   locale: FormatLocale
 }) {
@@ -50,7 +50,7 @@ function MixBody({
   mix,
   locale,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   mix: ClientMix
   locale: FormatLocale
 }) {
@@ -125,7 +125,7 @@ export function TopClientsCard({
   currency,
   clientHref,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   clients: ClientPerformance[]
   locale: FormatLocale
   currency: string

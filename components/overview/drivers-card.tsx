@@ -4,7 +4,8 @@ import Link from "next/link"
 import { ArrowRight, CalendarClock, HelpCircle } from "lucide-react"
 import { formatCurrency, type FormatLocale } from "@core/i18n/format"
 import { sumDrivers } from "@modules/overview/derive"
-import { buildDriverLabel, type BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import { buildDriverLabel } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { LookingAheadNote, PerformanceDriver } from "@modules/overview/types"
 import {
   BTN_FOCUS,
@@ -29,7 +30,7 @@ export function PerformanceDriversCard({
   locale,
   currency,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   drivers: PerformanceDriver[]
   lookingAhead: LookingAheadNote | null
   locale: FormatLocale
@@ -132,7 +133,7 @@ function LookingAheadNoteBlock({
   config,
   note,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   note: LookingAheadNote
 }) {
   return (

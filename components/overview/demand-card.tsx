@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { ArrowRight, Clock } from "lucide-react"
 import { formatNumber, type FormatLocale } from "@core/i18n/format"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { DemandPattern } from "@modules/overview/types"
 import { BTN_FOCUS, CARD_CLASS, CARD_HINT_CLASS, CARD_TITLE_CLASS } from "./overview-ui"
 
@@ -17,7 +17,7 @@ export function BusiestTimesCard({
   demand,
   locale,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   demand: DemandPattern | null
   locale: FormatLocale
 }) {
@@ -44,7 +44,7 @@ function DemandBody({
   demand,
   locale,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   demand: DemandPattern
   locale: FormatLocale
 }) {
@@ -57,7 +57,7 @@ function DemandBody({
     )
     .join(", ")
 
-  const peakLabel = peakDays.map((d) => config.demand.weekdaysLong[d.weekday]).join(" y ")
+  const peakLabel = peakDays.map((d) => config.demand.weekdaysLong[d.weekday]).join(config.demand.peakJoiner)
   const hours = demand.peakHours
 
   return (

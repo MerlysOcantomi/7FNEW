@@ -15,10 +15,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { formatPercent, type FormatLocale } from "@core/i18n/format"
-import {
-  buildRecommendationText,
-  type BeautyOverviewConfig,
-} from "@modules/overview/beauty-overview"
+import { buildRecommendationText } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type {
   BookingSourceKind,
   BookingSourcePerformance,
@@ -68,7 +66,7 @@ export function BookingSourcesCard({
   sources,
   locale,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   sources: BookingSourcePerformance[]
   locale: FormatLocale
 }) {
@@ -145,7 +143,7 @@ export function BusinessRecommendationsCard({
   locale,
   currency,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   recommendations: BusinessRecommendation[]
   locale: FormatLocale
   currency: string
@@ -195,7 +193,7 @@ export function BusinessRecommendationsCard({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11.5px] leading-relaxed text-[var(--text-primary-light)]">
-                    {buildRecommendationText(rec, { locale, currency })}
+                    {buildRecommendationText(rec, { messages: config, locale, currency })}
                   </p>
                   <Link
                     href={rec.actionHref}

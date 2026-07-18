@@ -2,7 +2,7 @@
 
 import { Sparkles } from "lucide-react"
 import type { FormatLocale } from "@core/i18n/format"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { OverviewPeriodPreset } from "@modules/overview/types"
 import { BTN_FOCUS, formatDateParts } from "./overview-ui"
 
@@ -20,7 +20,7 @@ export function OverviewHeader({
   now,
   exportSlot,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   preset: OverviewPeriodPreset
   onPresetChange: (preset: OverviewPeriodPreset) => void
   locale: FormatLocale
@@ -53,9 +53,9 @@ export function OverviewHeader({
               borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)",
               color: "var(--inbox-info)",
             }}
-            title="Datos de ejemplo mientras conectamos tus datos reales."
+            title={config.preview.tooltip}
           >
-            {config.previewChip}
+            {config.preview.chip}
           </span>
         </div>
 
@@ -85,7 +85,7 @@ export function OverviewPeriodSelector({
   preset,
   onPresetChange,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   preset: OverviewPeriodPreset
   onPresetChange: (preset: OverviewPeriodPreset) => void
 }) {

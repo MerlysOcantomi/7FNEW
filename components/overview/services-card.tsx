@@ -7,7 +7,7 @@ import {
   formatPercent,
   type FormatLocale,
 } from "@core/i18n/format"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { ServicePerformance } from "@modules/overview/types"
 import {
   CARD_CLASS,
@@ -30,7 +30,7 @@ export function TopServicesCard({
   locale,
   currency,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   services: ServicePerformance[]
   totalVisits: number | null
   locale: FormatLocale

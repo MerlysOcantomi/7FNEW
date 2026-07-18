@@ -18,6 +18,8 @@
  */
 
 import { buildTrendBuckets } from "./period"
+import { en as enOverview } from "./i18n/en"
+import type { BeautyOverviewMessages } from "./i18n/types"
 import { deriveLookingAhead, distributeTotal, normalizeBookingSources, withVisitShares } from "./derive"
 import type {
   BusinessOverviewSnapshot,
@@ -121,12 +123,23 @@ const DEMO_SPECS: Record<OverviewPeriod["preset"], DemoSpec> = {
 
 // ─── Fixed demo catalog (names only — numbers are derived) ───────────────────
 
-const DEMO_SERVICES: Array<{ id: string; name: string; visitWeight: number; revenueWeight: number }> = [
-  { id: "corte-peinado", name: "Corte y peinado", visitWeight: 38, revenueWeight: 27 },
-  { id: "color-completo", name: "Color completo", visitWeight: 24, revenueWeight: 25 },
-  { id: "mechas-balayage", name: "Mechas y balayage", visitWeight: 16, revenueWeight: 23 },
-  { id: "tratamiento-brillo", name: "Tratamiento y brillo", visitWeight: 12, revenueWeight: 15 },
-  { id: "peinado-evento", name: "Peinado de evento", visitWeight: 10, revenueWeight: 10 },
+/**
+ * Demo service catalog — names are LOCALIZED product-owned sample content
+ * (`nameKey` into `BeautyOverviewMessages.demo.serviceNames`); ids/weights are
+ * structure. Real service names, once a backend exists, are business data and
+ * are never translated.
+ */
+const DEMO_SERVICES: Array<{
+  id: string
+  nameKey: keyof BeautyOverviewMessages["demo"]["serviceNames"]
+  visitWeight: number
+  revenueWeight: number
+}> = [
+  { id: "corte-peinado", nameKey: "cutStyle", visitWeight: 38, revenueWeight: 27 },
+  { id: "color-completo", nameKey: "fullColor", visitWeight: 24, revenueWeight: 25 },
+  { id: "mechas-balayage", nameKey: "balayage", visitWeight: 16, revenueWeight: 23 },
+  { id: "tratamiento-brillo", nameKey: "treatment", visitWeight: 12, revenueWeight: 15 },
+  { id: "peinado-evento", nameKey: "eventStyle", visitWeight: 10, revenueWeight: 10 },
 ]
 
 /** Weekday visit weights, Monday → Sunday. Friday + Saturday peak. */
@@ -166,6 +179,11 @@ interface DemoOptions {
   withComparison?: boolean
   /** Inverts the trend into an honest "worse than last period" dataset. */
   negative?: boolean
+  /**
+   * Localized demo service names (product-owned sample content) from the
+   * overview catalog. Defaults to the English catalog names.
+   */
+  serviceNames?: BeautyOverviewMessages["demo"]["serviceNames"]
 }
 
 /** The standard, fully-populated demo snapshot for a Beauty workspace. */
@@ -174,7 +192,12 @@ export function getBeautyOverviewDemoSnapshot(
   period: OverviewPeriod,
   options: DemoOptions = {},
 ): BusinessOverviewSnapshot {
-  const { financeVisible = true, withComparison = true, negative = false } = options
+  const {
+    financeVisible = true,
+    withComparison = true,
+    negative = false,
+    serviceNames = enOverview.demo.serviceNames,
+  } = options
   const base = DEMO_SPECS[period.preset]
 
   // Negative mode swaps current/previous so the delta chips, drivers and brief
@@ -213,7 +236,7 @@ export function getBeautyOverviewDemoSnapshot(
   const topServices = withVisitShares(
     DEMO_SERVICES.map((s, i) => ({
       serviceId: `${workspaceId}:service-${s.id}`,
-      name: s.name,
+      name: serviceNames[s.nameKey],
       visits: serviceVisits[i] ?? 0,
       revenue: financeVisible ? serviceRevenue[i] ?? 0 : null,
     })),
@@ -382,22 +405,25 @@ export function getEmptyOverviewSnapshot(
 export function getPartialOverviewSnapshot(
   workspaceId: string,
   period: OverviewPeriod,
+  options: Pick<DemoOptions, "serviceNames"> = {},
 ): BusinessOverviewSnapshot {
-  return getBeautyOverviewDemoSnapshot(workspaceId, period, { financeVisible: false })
+  return getBeautyOverviewDemoSnapshot(workspaceId, period, { ...options, financeVisible: false })
 }
 
 /** First period in business — no comparison baseline anywhere. */
 export function getFirstPeriodOverviewSnapshot(
   workspaceId: string,
   period: OverviewPeriod,
+  options: Pick<DemoOptions, "serviceNames"> = {},
 ): BusinessOverviewSnapshot {
-  return getBeautyOverviewDemoSnapshot(workspaceId, period, { withComparison: false })
+  return getBeautyOverviewDemoSnapshot(workspaceId, period, { ...options, withComparison: false })
 }
 
 /** A worse-than-last-period dataset — negative deltas, inverted drivers. */
 export function getNegativeOverviewSnapshot(
   workspaceId: string,
   period: OverviewPeriod,
+  options: Pick<DemoOptions, "serviceNames"> = {},
 ): BusinessOverviewSnapshot {
-  return getBeautyOverviewDemoSnapshot(workspaceId, period, { negative: true })
+  return getBeautyOverviewDemoSnapshot(workspaceId, period, { ...options, negative: true })
 }

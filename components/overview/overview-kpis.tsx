@@ -9,7 +9,7 @@ import {
   type FormatLocale,
 } from "@core/i18n/format"
 import { compareKpi } from "@modules/overview/derive"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { OverviewKpiValue, OverviewKpis, OverviewPeriodPreset } from "@modules/overview/types"
 import { BTN_FOCUS, CARD_CLASS, TONE_GLYPH, TONE_STYLES } from "./overview-ui"
 
@@ -68,7 +68,7 @@ export function OverviewKpiGrid({
   locale,
   currency,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   kpis: OverviewKpis | null
   preset: OverviewPeriodPreset
   locale: FormatLocale
@@ -104,7 +104,7 @@ function OverviewKpiCard({
   descriptor: KpiDescriptor
   label: string
   kpi: OverviewKpiValue | null
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   preset: OverviewPeriodPreset
   locale: FormatLocale
   currency: string
@@ -165,7 +165,11 @@ function OverviewKpiCard({
             </span>
             <span>{config.kpis.comparisonSuffix[preset]}</span>
             <span className="sr-only">
-              {cmp.tone === "up" ? "más" : cmp.tone === "down" ? "menos" : "igual"}
+              {cmp.tone === "up"
+                ? config.kpis.srTones.more
+                : cmp.tone === "down"
+                  ? config.kpis.srTones.less
+                  : config.kpis.srTones.same}
             </span>
           </>
         ) : (

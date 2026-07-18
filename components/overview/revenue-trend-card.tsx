@@ -3,7 +3,7 @@
 import { formatCurrency, type FormatLocale } from "@core/i18n/format"
 import { compareKpi, sumRevenueTrend } from "@modules/overview/derive"
 import { fromIsoDate } from "@modules/overview/period"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { OverviewKpiValue, RevenuePoint } from "@modules/overview/types"
 import {
   CARD_CLASS,
@@ -28,7 +28,7 @@ export function RevenueTrendCard({
   locale,
   currency,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   trend: RevenuePoint[]
   earnings: OverviewKpiValue | null
   locale: FormatLocale
@@ -136,7 +136,7 @@ export function RevenueTrendCard({
 function bucketLabel(
   point: RevenuePoint,
   locale: FormatLocale,
-  config: BeautyOverviewConfig,
+  config: BeautyOverviewMessages,
 ): string {
   const date = fromIsoDate(point.start)
   switch (point.bucket) {

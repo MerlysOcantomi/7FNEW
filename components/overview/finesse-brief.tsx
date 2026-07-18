@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react"
 import type { FormatLocale } from "@core/i18n/format"
 import { fromIsoDate } from "@modules/overview/period"
-import type { BeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import type { BeautyOverviewMessages } from "@modules/overview/i18n"
 import type { OverviewPeriod } from "@modules/overview/types"
 import { CARD_CLASS, formatDateParts } from "./overview-ui"
 
@@ -20,7 +20,7 @@ export function FinesseBriefRow({
   locale,
   hasComparison,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   brief: string | null
   period: OverviewPeriod
   locale: FormatLocale
@@ -68,7 +68,7 @@ function PeriodCard({
   locale,
   hasComparison,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   period: OverviewPeriod
   locale: FormatLocale
   hasComparison: boolean

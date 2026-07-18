@@ -25,8 +25,9 @@ import {
   buildBeautyOverviewBrief,
   buildDriverLabel,
   buildRecommendationText,
-  resolveBeautyOverviewConfig,
+  isBeautyOverviewVertical,
 } from "./beauty-overview"
+import { getBeautyOverviewMessages } from "./i18n"
 import type { OverviewPeriodPreset, OverviewSignals } from "./types"
 
 const WS = "ws-test"
@@ -336,59 +337,104 @@ test("empty snapshot: everything empty, nothing invented", () => {
   assert.equal(deriveLookingAhead(s.signals), null)
 })
 
-// ─── Config + brief consistency ──────────────────────────────────────────────
+// ─── Vertical gate + localized copy consistency ──────────────────────────────
 
-test("config resolves for beauty (and aliases) and stays null elsewhere", () => {
-  assert.ok(resolveBeautyOverviewConfig("beauty"))
-  assert.ok(resolveBeautyOverviewConfig("salon"))
-  assert.ok(resolveBeautyOverviewConfig("nails"))
-  assert.equal(resolveBeautyOverviewConfig("creative-agency"), null)
-  assert.equal(resolveBeautyOverviewConfig(null), null)
-  assert.equal(resolveBeautyOverviewConfig(undefined), null)
+test("vertical gate activates for beauty (and aliases) and stays off elsewhere", () => {
+  assert.ok(isBeautyOverviewVertical("beauty"))
+  assert.ok(isBeautyOverviewVertical("salon"))
+  assert.ok(isBeautyOverviewVertical("nails"))
+  assert.equal(isBeautyOverviewVertical("creative-agency"), false)
+  assert.equal(isBeautyOverviewVertical(null), false)
+  assert.equal(isBeautyOverviewVertical(undefined), false)
 })
 
-test("brief: generated from the snapshot and consistent with its metrics", () => {
-  const period = resolveOverviewPeriod("month", NOW)
-  const s = getBeautyOverviewDemoSnapshot(WS, period)
-  const facts = deriveBriefFacts(s)
-  const brief = buildBeautyOverviewBrief(facts, { locale: "es" }) ?? ""
+test("overview catalogs: en canonical, es complete, parity + fallback", () => {
+  const en = getBeautyOverviewMessages("en")
+  const es = getBeautyOverviewMessages("es")
+  assert.equal(en.locale, "en")
+  assert.equal(es.locale, "es")
+  // Real translations, never copies.
+  assert.notEqual(es.header.description, en.header.description)
+  assert.notEqual(es.states.emptyPage.description, en.states.emptyPage.description)
+  assert.notEqual(es.demo.serviceNames.cutStyle, en.demo.serviceNames.cutStyle)
+  // Structural parity between both catalogs.
+  const paths = (v: unknown, prefix = ""): string[] =>
+    typeof v === "function"
+      ? [`${prefix}()`]
+      : Array.isArray(v)
+        ? [prefix]
+        : v !== null && typeof v === "object"
+          ? Object.entries(v).flatMap(([k, x]) => paths(x, prefix ? `${prefix}.${k}` : k))
+          : [prefix]
+  assert.deepEqual(paths(es).sort(), paths(en).sort())
+  // de/fr/it are not offered inside Finesse yet → English, never mixed.
+  assert.equal(getBeautyOverviewMessages("de").locale, "en")
+  assert.equal(getBeautyOverviewMessages("fr").locale, "en")
+  assert.equal(getBeautyOverviewMessages(null).locale, "en")
+  // No banned gendered noun in either catalog.
+  for (const catalog of [en, es]) {
+    assert.ok(!/clienta/i.test(JSON.stringify(catalog)))
+  }
+})
 
-  assert.ok(brief.length > 0)
-  // The stated delta and retention are the snapshot's own numbers.
-  const earnings = s.kpis!.earnings!
-  const deltaPct = Math.round(Math.abs((earnings.current - earnings.previous!) / earnings.previous!) * 100)
-  const returningPct = Math.round(s.kpis!.returningRate!.current * 100)
-  assert.ok(brief.includes(`${deltaPct}`), `brief mentions the real earnings delta (${brief})`)
-  assert.ok(brief.includes(`${returningPct}`), `brief mentions the real returning rate (${brief})`)
-  assert.ok(brief.includes(s.topServices[0].name.toLowerCase()))
+test("brief: generated from the snapshot and consistent with its metrics (both locales)", () => {
+  const period = resolveOverviewPeriod("month", NOW)
+  for (const code of ["es", "en"] as const) {
+    const messages = getBeautyOverviewMessages(code)
+    const s = getBeautyOverviewDemoSnapshot(WS, period, { serviceNames: messages.demo.serviceNames })
+    const facts = deriveBriefFacts(s)
+    const brief = buildBeautyOverviewBrief(facts, { messages, locale: code }) ?? ""
+
+    assert.ok(brief.length > 0)
+    // The stated delta and retention are the snapshot's own numbers.
+    const earnings = s.kpis!.earnings!
+    const deltaPct = Math.round(Math.abs((earnings.current - earnings.previous!) / earnings.previous!) * 100)
+    const returningPct = Math.round(s.kpis!.returningRate!.current * 100)
+    assert.ok(brief.includes(`${deltaPct}`), `${code} brief mentions the real earnings delta (${brief})`)
+    assert.ok(brief.includes(`${returningPct}`), `${code} brief mentions the real returning rate (${brief})`)
+    assert.ok(brief.includes(s.topServices[0].name.toLowerCase()))
+  }
+  // The two locales produce genuinely different sentences.
+  const esMessages = getBeautyOverviewMessages("es")
+  const enMessages = getBeautyOverviewMessages("en")
+  const facts = deriveBriefFacts(getBeautyOverviewDemoSnapshot(WS, period))
+  assert.notEqual(
+    buildBeautyOverviewBrief(facts, { messages: esMessages, locale: "es" }),
+    buildBeautyOverviewBrief(facts, { messages: enMessages, locale: "en" }),
+  )
 })
 
 test("brief: partial data yields a partial summary, empty data yields none", () => {
   const period = resolveOverviewPeriod("month", NOW)
+  const messages = getBeautyOverviewMessages("es")
 
   const partial = buildBeautyOverviewBrief(deriveBriefFacts(getPartialOverviewSnapshot(WS, period)), {
+    messages,
     locale: "es",
   }) ?? ""
   assert.ok(partial.length > 0)
   assert.ok(!partial.includes("ganaste"), "no earnings claim without finance data")
 
   const empty = buildBeautyOverviewBrief(deriveBriefFacts(getEmptyOverviewSnapshot(WS, period)), {
+    messages,
     locale: "es",
   })
   assert.equal(empty, null)
 })
 
-test("driver + recommendation copy interpolate real values", () => {
-  const config = resolveBeautyOverviewConfig("beauty")!
-  const label = buildDriverLabel(
-    { id: "x", source: "new-clients", amount: 300, tone: "up", confidence: "correlation", detail: "Instagram" },
-    config,
-  )
-  assert.ok(label.includes("Instagram"))
+test("driver + recommendation copy interpolate real values in both locales", () => {
+  for (const code of ["es", "en"] as const) {
+    const messages = getBeautyOverviewMessages(code)
+    const label = buildDriverLabel(
+      { id: "x", source: "new-clients", amount: 300, tone: "up", confidence: "correlation", detail: "Instagram" },
+      messages,
+    )
+    assert.ok(label.includes("Instagram"))
 
-  const text = buildRecommendationText(
-    { id: "p", agent: "felix", kind: "pending-payments", value: 310, actionHref: "/facturacion" },
-    { locale: "es", currency: "EUR" },
-  )
-  assert.ok(text.includes("310"))
+    const text = buildRecommendationText(
+      { id: "p", agent: "felix", kind: "pending-payments", value: 310, actionHref: "/facturacion" },
+      { messages, locale: code, currency: "EUR" },
+    )
+    assert.ok(text.includes("310"), `${code}: ${text}`)
+  }
 })

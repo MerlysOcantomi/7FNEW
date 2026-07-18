@@ -1,8 +1,9 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
+import { useI18n } from "@/components/i18n-provider"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
-import { resolveBeautyOverviewConfig } from "@modules/overview/beauty-overview"
+import { isBeautyOverviewVertical } from "@modules/overview/beauty-overview"
 import { BeautyBusinessOverviewPage } from "@/components/overview/beauty-business-overview-page"
 import { DashboardCorePage } from "@/components/dashboard-core-page"
 import { AppShell } from "@/components/app-shell"
@@ -34,7 +35,6 @@ export default function OverviewPage() {
   // "Mi salón" surface without flipping a workspace's vertical first.
   const forcedBeauty = searchParams.get("vertical") === "beauty"
   const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
-  const overview = resolveBeautyOverviewConfig(effectiveVerticalKey)
 
   if (loading && !workspace && !forcedBeauty) {
     return (
@@ -44,8 +44,8 @@ export default function OverviewPage() {
     )
   }
 
-  if (overview) {
-    return <BeautyBusinessOverviewPage config={overview} />
+  if (isBeautyOverviewVertical(effectiveVerticalKey)) {
+    return <BeautyBusinessOverviewPage />
   }
 
   return <DashboardCorePage />
@@ -53,8 +53,9 @@ export default function OverviewPage() {
 
 /** Neutral first-load skeleton — no experience committed yet, no layout jumps. */
 function OverviewRouteLoading() {
+  const { t } = useI18n()
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando">
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label={t.common.loading}>
       <div className="h-24 animate-pulse rounded-[18px] border border-border bg-card" />
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <div className="h-28 animate-pulse rounded-[18px] border border-border bg-card" />

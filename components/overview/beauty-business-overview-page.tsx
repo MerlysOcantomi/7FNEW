@@ -10,10 +10,11 @@ import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { useI18n } from "@/components/i18n-provider"
 import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import type { CSVColumn } from "@/lib/export/csv"
+import { buildBeautyOverviewBrief } from "@modules/overview/beauty-overview"
 import {
-  buildBeautyOverviewBrief,
-  type BeautyOverviewConfig,
-} from "@modules/overview/beauty-overview"
+  getBeautyOverviewMessages,
+  type BeautyOverviewMessages,
+} from "@modules/overview/i18n"
 import {
   compareKpi,
   deriveBriefFacts,
@@ -66,9 +67,11 @@ import { BTN_PRIMARY, CARD_CLASS } from "./overview-ui"
 
 // ─── Entry ───────────────────────────────────────────────────────────────────
 
-export function BeautyBusinessOverviewPage({ config }: { config: BeautyOverviewConfig }) {
+export function BeautyBusinessOverviewPage() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
+  const { locale } = useI18n()
+  const config = useMemo(() => getBeautyOverviewMessages(locale), [locale])
 
   const demoMode = searchParams.get("overviewDemo")
 
@@ -94,7 +97,9 @@ export function BeautyBusinessOverviewPage({ config }: { config: BeautyOverviewC
         <OverviewLoading config={config} />
       ) : (
         <OverviewContent
-          key={`${workspaceId}:${demoMode ?? "demo"}`}
+          // Locale in the key: the demo snapshot is product-owned sample data
+          // and regenerates in the new language (real data never would).
+          key={`${workspaceId}:${demoMode ?? "demo"}:${config.locale}`}
           config={config}
           workspaceId={workspaceId}
           now={now}
@@ -107,7 +112,7 @@ export function BeautyBusinessOverviewPage({ config }: { config: BeautyOverviewC
 
 // ─── States: loading / error ─────────────────────────────────────────────────
 
-function OverviewLoading({ config }: { config: BeautyOverviewConfig }) {
+function OverviewLoading({ config }: { config: BeautyOverviewMessages }) {
   return (
     <div className="flex flex-col gap-6" aria-busy="true" aria-label={config.states.loading}>
       <div className={`${CARD_CLASS} h-24 animate-pulse`} />
@@ -130,7 +135,7 @@ function OverviewLoading({ config }: { config: BeautyOverviewConfig }) {
   )
 }
 
-function OverviewErrorState({ config }: { config: BeautyOverviewConfig }) {
+function OverviewErrorState({ config }: { config: BeautyOverviewMessages }) {
   const t = config.states.error
   return (
     <div className={`${CARD_CLASS} mx-auto mt-10 flex max-w-md flex-col items-center gap-3 p-8 text-center`}>
@@ -150,28 +155,34 @@ function resolveSnapshot(
   preset: OverviewPeriodPreset,
   now: Date,
   demoMode: string | null,
+  config: BeautyOverviewMessages,
 ): BusinessOverviewSnapshot {
   const period = resolveOverviewPeriod(preset, now)
+  const serviceNames = config.demo.serviceNames
   switch (demoMode) {
     case "empty":
       return getEmptyOverviewSnapshot(workspaceId, period)
     case "partial":
-      return getPartialOverviewSnapshot(workspaceId, period)
+      return getPartialOverviewSnapshot(workspaceId, period, { serviceNames })
     case "negative":
-      return getNegativeOverviewSnapshot(workspaceId, period)
+      return getNegativeOverviewSnapshot(workspaceId, period, { serviceNames })
     case "first":
-      return getFirstPeriodOverviewSnapshot(workspaceId, period)
+      return getFirstPeriodOverviewSnapshot(workspaceId, period, { serviceNames })
     default:
-      return getBeautyOverviewDemoSnapshot(workspaceId, period)
+      return getBeautyOverviewDemoSnapshot(workspaceId, period, { serviceNames })
   }
 }
 
-const EXPORT_COLUMNS: CSVColumn[] = [
-  { key: "service", label: "Servicio" },
-  { key: "visits", label: "Visitas" },
-  { key: "revenue", label: "Ingresos" },
-  { key: "share", label: "% visitas" },
-]
+/** CSV column headers come from the catalog — the export localizes too. */
+function buildExportColumns(config: BeautyOverviewMessages): CSVColumn[] {
+  const c = config.exportCsv.columns
+  return [
+    { key: "service", label: c.service },
+    { key: "visits", label: c.visits },
+    { key: "revenue", label: c.revenue },
+    { key: "share", label: c.visitShare },
+  ]
+}
 
 function OverviewContent({
   config,
@@ -179,7 +190,7 @@ function OverviewContent({
   now,
   demoMode,
 }: {
-  config: BeautyOverviewConfig
+  config: BeautyOverviewMessages
   workspaceId: string
   now: Date
   demoMode: string | null
@@ -189,13 +200,13 @@ function OverviewContent({
 
   // ONE snapshot per (workspace, period, mode) — every section derives from it.
   const snapshot = useMemo(
-    () => resolveSnapshot(workspaceId, preset, now, demoMode),
-    [workspaceId, preset, now, demoMode],
+    () => resolveSnapshot(workspaceId, preset, now, demoMode, config),
+    [workspaceId, preset, now, demoMode, config],
   )
 
   const brief = useMemo(
-    () => buildBeautyOverviewBrief(deriveBriefFacts(snapshot), { locale }),
-    [snapshot, locale],
+    () => buildBeautyOverviewBrief(deriveBriefFacts(snapshot), { messages: config, locale }),
+    [snapshot, config, locale],
   )
   const recommendations = useMemo(() => deriveRecommendations(snapshot.signals), [snapshot])
 
@@ -265,8 +276,8 @@ function OverviewContent({
           exportRows.length > 0 ? (
             <ExportCSVButton
               data={exportRows}
-              columns={EXPORT_COLUMNS}
-              filename={`mi-salon-${snapshot.period.start}`}
+              columns={buildExportColumns(config)}
+              filename={`${config.exportCsv.filenamePrefix}-${snapshot.period.start}`}
               label={config.header.exportLabel}
             />
           ) : null
@@ -393,7 +404,7 @@ function OverviewContent({
 
 // ─── Whole-page empty state ──────────────────────────────────────────────────
 
-function OverviewEmptyState({ config }: { config: BeautyOverviewConfig }) {
+function OverviewEmptyState({ config }: { config: BeautyOverviewMessages }) {
   const t = config.states.emptyPage
   return (
     <div className={`${CARD_CLASS} mx-auto mt-6 flex w-full max-w-lg flex-col items-center gap-3 p-8 text-center`}>
