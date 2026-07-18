@@ -540,8 +540,8 @@ export interface BillingMessages {
  * - Status / urgency / channel VALUE labels, relative dates, action labels and
  *   sync toast headlines live in `lib/inbox-labels.ts` — never duplicated here.
  *   This namespace owns only the shell chrome AROUND those labels.
- * - The reply composer and the right context panel localize in a later stage;
- *   their strings are NOT here yet.
+ * - Stage 2 added `composer` (reply composer) and `panel` (right context
+ *   panel) sub-groups; both follow the same rules as the shell.
  * - Channel/product names (WhatsApp, Instagram, Email-as-product, Fanny,
  *   Smart Inbox) are brands: identical across locales but still sourced from
  *   the catalog wherever they appear as UI copy.
@@ -806,6 +806,323 @@ export interface InboxMessages {
     description: string
   }
   contextPlaceholder: string
+  /**
+   * Reply composer (components/inbox/reply-composer.tsx) — stage 2.
+   * Visible chrome only: mode/toolbar labels, AI assist panel, attach
+   * toolbox, More menu, email details fields, voice states and assist
+   * error feedback. Channel VALUE labels stay in `lib/inbox-labels.ts`.
+   */
+  composer: {
+    internalNoteBanner: string
+    /** Send button hover title — the action label plus the keyboard shortcut. */
+    sendTitle: (label: string) => string
+    send: {
+      saveNote: string
+      forward: string
+      replyAll: string
+      sendReply: string
+      sendMessage: string
+    }
+    placeholders: {
+      voiceCompose: string
+      internalNote: string
+      emailReply: string
+      chatMessage: string
+      defaultMessage: string
+    }
+    /** Subject preview fallback when the email thread has no subject. */
+    noSubject: string
+    undoAiChange: string
+    processing: { composing: string; rewriting: string }
+    voice: {
+      listeningIntent: string
+      done: string
+      stopDictation: string
+      recording: string
+      stopRecording: string
+      dictate: string
+      dictateTitle: string
+      speakIntent: string
+      speakIntentTitle: string
+      intentTooShort: string
+    }
+    removeAttachment: string
+    /** Context chip ("Regarding · this message / whole conversation"). */
+    regarding: { label: string; thisMessage: string; wholeConversation: string }
+    toolbar: {
+      reply: string
+      replyAll: string
+      forward: string
+      internalNote: string
+      switchBackToReply: string
+      emailDetails: string
+      details: string
+      emailDetailsTitle: string
+      detailsTitle: string
+      attach: string
+      aiTools: string
+      aiToolsTitle: string
+      more: string
+      moreTitle: string
+    }
+    details: {
+      signedInAs: string
+      confirmationRequested: string
+      confirmationRequestedTitle: string
+      confirmationRequestedAria: string
+      subject: string
+      to: string
+      cc: string
+      bcc: string
+      recipientPlaceholder: string
+      ccPlaceholder: string
+      bccPlaceholder: string
+    }
+    /** Channel badge fallback when the channel slug is unknown/empty. */
+    channelFallback: string
+    assist: {
+      tablistAria: string
+      emptyHint: string
+      tabs: {
+        improve: string
+        translate: string
+        templates: string
+        suggestions: string
+        voice: string
+      }
+      /** AI improve tone chips (SMART_TOOLS). */
+      tones: {
+        proofread: string
+        shorter: string
+        clearer: string
+        professional: string
+        warmer: string
+        direct: string
+      }
+      templateSearchPlaceholder: string
+      noMatches: string
+      fannyTitled: (title: string) => string
+      fannySuggestedReply: string
+      editSuggestionPlaceholder: string
+      useReply: string
+      errors: {
+        processFailed: string
+        connectionUnchanged: string
+        translateFailed: string
+        connectionTranslate: string
+      }
+    }
+    attach: {
+      tablistAria: string
+      tabs: { attach: string; share: string }
+      file: string
+      fileTitle: string
+      image: string
+      imageTitle: string
+      document: string
+      documentTitle: string
+      insertLink: string
+      insertLinkTitle: string
+      urlLabel: string
+      linkLabelOptional: string
+      linkLabelPlaceholder: string
+      insert: string
+      confirmReceived: string
+      confirmationRequested: string
+      confirmReceivedTitle: string
+      confirmationRequestedTitle: string
+    }
+    more: {
+      contextHeading: string
+      contextCaption: string
+      useLatestMessage: string
+      useWholeConversation: string
+      advancedActions: string
+      thisMessageHeading: string
+      latestMessageHeading: string
+      manualFallbackCaption: string
+      markMessageNeedsAction: string
+      markMessageDone: string
+      markedDone: string
+      addInternalNote: string
+      createFollowUp: string
+      conversationHeading: string
+      conversationCaption: string
+      markNeedsAction: string
+      markResolved: string
+      resolved: string
+      unarchive: string
+      archive: string
+      archived: string
+      reopen: string
+      close: string
+      closed: string
+      alreadyTitle: (label: string) => string
+      alreadyApplied: (label: string) => string
+    }
+  }
+  /**
+   * Right context panel (components/inbox/context-panel.tsx) — stage 2.
+   * Action-type VALUE labels stay in `lib/inbox-labels.ts`; only the
+   * panel's own chrome, guidance sentences and CTA labels live here.
+   */
+  panel: {
+    header: { title: string; messageInsight: string; conversationOverview: string }
+    handling: {
+      aria: string
+      assignedToMe: string
+      assignedTo: (name: string) => string
+      assigned: string
+      unassigned: string
+      waitingOnClient: string
+      done: string
+      needsReview: string
+    }
+    unknownContact: string
+    contact: {
+      details: string
+      showDetails: string
+      hideDetails: string
+      clientProfileLinked: string
+      noClientProfile: string
+      viewClientProfile: string
+      relationship: {
+        client: string
+        lead: string
+        supplier: string
+        colleague: string
+        visitor: string
+        contact: string
+      }
+    }
+    triage: {
+      messageType: string
+      priority: string
+      opportunity: string
+      language: string
+      opportunityHigh: string
+      opportunityModerate: string
+      leadScoreTitle: (score: number) => string
+      priorityAria: (label: string) => string
+      priorities: { critical: string; high: string; medium: string; low: string; normal: string }
+    }
+    confidenceTitle: string
+    confidenceAria: (pct: number) => string
+    summaryLabel: string
+    summaryPlaceholder: string
+    keyFacts: string
+    decisions: string
+    counters: {
+      draftsOpen: (count: number) => string
+      actionsOpen: (count: number) => string
+    }
+    request: {
+      label: string
+      notSummarised: string
+      hasAttachments: string
+      hasLink: string
+      direction: {
+        inbound: string
+        outbound: string
+        internal: string
+        system: string
+        fallback: string
+      }
+    }
+    attention: {
+      label: string
+      tone: string
+      negativeUrgent: string
+      negative: string
+      positiveUrgent: string
+      positiveOpportunity: string
+      positive: string
+      urgent: string
+    }
+    recommends: {
+      label: string
+      editPlaceholder: string
+      fallbackAskMissing: string
+      fallbackReview: string
+      fallbackPreparing: string
+    }
+    actions: {
+      label: string
+      reviewDraft: string
+      reviewDraftDescription: string
+      addToCalendar: string
+      eventDetected: (title: string) => string
+      eventDetectedGeneric: string
+      forThisMessage: string
+      anchoredTitle: string
+      continue: string
+      /** Business CTA labels per action type (richer than `actionTypeLabel`). */
+      labels: {
+        createClient: string
+        createProject: string
+        createTask: string
+        scheduleFollowup: string
+        assignOperator: string
+        generateProposal: string
+        createEvent: string
+      }
+      /** One-line per-type fallback descriptions of what the action does. */
+      descriptions: {
+        createClient: string
+        createProject: string
+        createTask: string
+        scheduleFollowup: string
+        assignOperator: string
+        generateProposal: string
+        createEvent: string
+      }
+    }
+    pendingDecisions: {
+      label: string
+      caption: string
+      priorities: { low: string; normal: string; high: string; urgent: string }
+      confidencePct: (pct: number) => string
+      confidenceTitle: string
+      viewOnly: string
+      viewOnlyTitle: string
+      dismiss: string
+      dismissAria: (title: string) => string
+      createTask: string
+      continue: string
+      primaryAria: (label: string, title: string) => string
+    }
+    workflow: { label: string; assignPlaceholder: string; unassigned: string; updating: string }
+    askFanny: { label: string; caption: string }
+    calendar: {
+      dialogAria: string
+      heading: string
+      reviewCaption: string
+      previewOnly: string
+      close: string
+      fields: {
+        title: string
+        date: string
+        time: string
+        duration: string
+        allDay: string
+        location: string
+        description: string
+      }
+      titlePlaceholder: string
+      locationPlaceholder: string
+      descriptionPlaceholder: string
+      durations: { min30: string; min45: string; h1: string; h1x5: string; h2: string; h3: string }
+      markAllDay: string
+      missing: (fields: string) => string
+      actionMissing: string
+      invalidDateTime: string
+      couldNotCreate: string
+      creatingEventTitle: string
+      createTitle: string
+      creating: string
+      createEvent: string
+    }
+  }
 }
 
 /**

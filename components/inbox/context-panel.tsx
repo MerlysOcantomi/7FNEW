@@ -15,6 +15,11 @@ import {
 import { cn } from "@/lib/utils"
 import { useAskFanny } from "@/components/assistant/ask-fanny-provider"
 import { actionTypeLabel, channelLabel } from "@/lib/inbox-labels"
+import { useI18n } from "@/components/i18n-provider"
+import type { InboxMessages } from "@core/i18n/ui/types"
+
+/** Visible strings for the right context panel — `t.inbox.panel` from the UI catalog. */
+type PanelMessages = InboxMessages["panel"]
 
 /**
  * Contrast fix: el variant `ghost` de shadcn aplica `text-foreground` (token global, casi negro
@@ -258,6 +263,8 @@ export function ContextPanel({
   onCreateTodoFromPendingItem,
   conversationTodoCount,
 }: ContextPanelProps) {
+  const { t, locale } = useI18n()
+  const m = t.inbox.panel
   const { openAsk } = useAskFanny()
   const [contactExpanded, setContactExpanded] = useState(false)
   /**
@@ -288,7 +295,7 @@ export function ContextPanel({
   const isMessageMode = Boolean(selectedMessageId && selectedMessageInfo)
 
   const contactName =
-    selected.contact?.nombre || selected.cliente?.nombre || "Unknown contact"
+    selected.contact?.nombre || selected.cliente?.nombre || m.unknownContact
   const contactEmail = selected.contact?.email || selected.cliente?.email || null
   const contactPhone = selected.contact?.telefono || null
   const contactCompany = selected.contact?.empresa || selected.cliente?.empresa || null
@@ -401,7 +408,7 @@ export function ContextPanel({
     typeof selected.urgency === "string"
     && selected.urgency.length > 0
     && selected.urgency !== "media"
-  const triagePriority = mapUrgency(selected.urgency)
+  const triagePriority = mapUrgency(selected.urgency, m)
 
   /**
    * Counters in the expanded Details footer. Risks are intentionally NOT counted here —
@@ -418,9 +425,9 @@ export function ContextPanel({
         <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
       </div>
       <div className="min-w-0">
-        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">Fanny</h2>
+        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">{m.header.title}</h2>
         <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
-          {isMessageMode ? "Message insight" : "Conversation overview"}
+          {isMessageMode ? m.header.messageInsight : m.header.conversationOverview}
         </p>
       </div>
     </div>
@@ -445,14 +452,14 @@ export function ContextPanel({
   const assignmentChip: { label: string; tone: "neutral" | "muted" } =
     selected.assignedTo
       ? currentUserId && selected.assignedTo === currentUserId
-        ? { label: "Assigned to me", tone: "neutral" }
+        ? { label: m.handling.assignedToMe, tone: "neutral" }
         : {
             label: assignedMember
-              ? `Assigned to ${assignedMember.nombre?.trim() || assignedMember.email.trim()}`
-              : "Assigned",
+              ? m.handling.assignedTo(assignedMember.nombre?.trim() || assignedMember.email.trim())
+              : m.handling.assigned,
             tone: "neutral",
           }
-      : { label: "Unassigned", tone: "muted" }
+      : { label: m.handling.unassigned, tone: "muted" }
   const isWaitingOnClient = selected.status === "awaiting_response"
   const isDone = selected.status === "resolved" || selected.status === "closed"
   const needsReview =
@@ -460,7 +467,7 @@ export function ContextPanel({
     || (selected.actions ?? []).some((a) => a.status === "suggested")
 
   const handlingSection = (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label="Handling">
+    <div className="flex flex-wrap items-center gap-1.5" aria-label={m.handling.aria}>
       <span
         className={cn(
           "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap",
@@ -474,16 +481,16 @@ export function ContextPanel({
       </span>
       {isWaitingOnClient ? (
         <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400/90 whitespace-nowrap">
-          Waiting on client
+          {m.handling.waitingOnClient}
         </span>
       ) : isDone ? (
         <span className="inline-flex items-center rounded-md border border-[var(--inbox-success)]/30 bg-[var(--inbox-success-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-success)] whitespace-nowrap">
-          Done
+          {m.handling.done}
         </span>
       ) : null}
       {needsReview ? (
         <span className="inline-flex items-center rounded-md border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--inbox-accent)] whitespace-nowrap">
-          Needs review
+          {m.handling.needsReview}
         </span>
       ) : null}
     </div>
@@ -503,9 +510,9 @@ export function ContextPanel({
   const opportunityLabel =
     typeof selected.leadScore === "number"
       ? selected.leadScore >= 70
-        ? "High"
+        ? m.triage.opportunityHigh
         : selected.leadScore >= 40
-          ? "Moderate"
+          ? m.triage.opportunityModerate
           : null
       : null
 
@@ -543,8 +550,8 @@ export function ContextPanel({
           {handoffConfidencePct !== null ? (
             <span
               className="shrink-0 rounded-full bg-[var(--inbox-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-              title="AI confidence in this read"
-              aria-label={`AI confidence ${handoffConfidencePct}%`}
+              title={m.confidenceTitle}
+              aria-label={m.confidenceAria(handoffConfidencePct)}
             >
               {handoffConfidencePct}%
             </span>
@@ -554,11 +561,11 @@ export function ContextPanel({
       {showSummaryInDetails ? (
         <>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Summary
+            {m.summaryLabel}
           </p>
           <InlineTextarea
             value={summary ?? ""}
-            placeholder="Add summary..."
+            placeholder={m.summaryPlaceholder}
             className="mt-1.5 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text)]"
             rows={2}
             onSave={(value) => updateHandoff({ summary: value })}
@@ -577,7 +584,7 @@ export function ContextPanel({
     <div className="space-y-2">
       {handoffFacts.length > 0 && (
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Key facts</p>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">{m.keyFacts}</p>
           <ul className="mt-1 space-y-0.5">
             {handoffFacts.map((fact, idx) => (
               <li
@@ -593,7 +600,7 @@ export function ContextPanel({
       )}
       {handoffDecisions.length > 0 && (
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Decisions</p>
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">{m.decisions}</p>
           <ul className="mt-1 space-y-0.5">
             {handoffDecisions.map((decision, idx) => (
               <li
@@ -628,10 +635,10 @@ export function ContextPanel({
           <p className="truncate text-sm font-semibold text-[var(--inbox-intelligence-text)]">{contactName}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-medium capitalize text-[var(--inbox-intelligence-text-secondary)]">
-              {getRelationshipLabel(selected)}
+              {getRelationshipLabel(selected, m)}
             </span>
             <span className="text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
-              {channelLabel(selected.channel)}
+              {channelLabel(selected.channel, locale)}
             </span>
             {triageCategory && (
               <span className="truncate text-[10px] font-medium text-[var(--inbox-accent)]" title={triageCategory}>
@@ -650,9 +657,9 @@ export function ContextPanel({
           onClick={() => setContactExpanded((v) => !v)}
           className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/8 hover:text-[var(--inbox-intelligence-text)]"
           aria-expanded={contactExpanded}
-          aria-label={contactExpanded ? "Hide details" : "Show details"}
+          aria-label={contactExpanded ? m.contact.hideDetails : m.contact.showDetails}
         >
-          Details
+          {m.contact.details}
           {contactExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
@@ -677,7 +684,7 @@ export function ContextPanel({
                     : "italic text-[var(--inbox-intelligence-text-secondary)]",
                 )}
               >
-                {clientProfileState === "linked" ? "Client profile linked" : "No client profile yet"}
+                {clientProfileState === "linked" ? m.contact.clientProfileLinked : m.contact.noClientProfile}
               </span>
             </span>
             {selected.cliente && (
@@ -685,7 +692,7 @@ export function ContextPanel({
                 href={`/clientes/${selected.cliente.id}`}
                 className="shrink-0 text-[11px] font-medium text-[var(--accent-on-dark)] hover:underline"
               >
-                View client profile
+                {m.contact.viewClientProfile}
               </a>
             )}
           </div>
@@ -725,7 +732,7 @@ export function ContextPanel({
           {(messageTypeForDetails || triagePriorityIsExplicit || opportunityLabel || selected.detectedLanguage) ? (
             <div className="space-y-2 border-t border-[var(--inbox-intelligence-border)] pt-3">
               {messageTypeForDetails ? (
-                <TriageRow label="Message type">
+                <TriageRow label={m.triage.messageType}>
                   <span
                     className="block truncate text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
                     title={messageTypeForDetails}
@@ -735,10 +742,10 @@ export function ContextPanel({
                 </TriageRow>
               ) : null}
               {triagePriorityIsExplicit ? (
-                <TriageRow label="Priority">
+                <TriageRow label={m.triage.priority}>
                   <span
                     className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--inbox-intelligence-text)]"
-                    aria-label={`Priority ${triagePriority.label}`}
+                    aria-label={m.triage.priorityAria(triagePriority.label)}
                   >
                     <span
                       aria-hidden="true"
@@ -752,17 +759,17 @@ export function ContextPanel({
                 </TriageRow>
               ) : null}
               {opportunityLabel ? (
-                <TriageRow label="Opportunity">
+                <TriageRow label={m.triage.opportunity}>
                   <span
                     className="text-[12px] font-medium text-[var(--inbox-intelligence-text)]"
-                    title={typeof selected.leadScore === "number" ? `Lead score ${selected.leadScore}` : undefined}
+                    title={typeof selected.leadScore === "number" ? m.triage.leadScoreTitle(selected.leadScore) : undefined}
                   >
                     {opportunityLabel}
                   </span>
                 </TriageRow>
               ) : null}
               {selected.detectedLanguage ? (
-                <TriageRow label="Language">
+                <TriageRow label={m.triage.language}>
                   <span className="text-[12px] uppercase text-[var(--inbox-intelligence-text)]">
                     {selected.detectedLanguage}
                   </span>
@@ -785,14 +792,10 @@ export function ContextPanel({
           {triageHasCounters ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--inbox-intelligence-border)] pt-2 text-[11px] text-[var(--inbox-intelligence-text-secondary)]">
               {triageDraftsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageDraftsOpen} ${triageDraftsOpen === 1 ? "draft" : "drafts"} open`}
-                />
+                <CounterPill label={m.counters.draftsOpen(triageDraftsOpen)} />
               ) : null}
               {triageActionsOpen > 0 ? (
-                <CounterPill
-                  label={`${triageActionsOpen} ${triageActionsOpen === 1 ? "action" : "actions"} open`}
-                />
+                <CounterPill label={m.counters.actionsOpen(triageActionsOpen)} />
               ) : null}
             </div>
           ) : null}
@@ -803,12 +806,12 @@ export function ContextPanel({
   const messageNeedSection = (
     <section
       className="rounded-xl border border-white/[0.08] border-l-2 border-l-[var(--inbox-accent)] bg-white/[0.05] px-3 py-2.5"
-      aria-label="Request"
+      aria-label={m.request.label}
     >
       <div className="flex items-center gap-1.5">
         <CornerUpLeft className="h-3 w-3 shrink-0 text-[var(--inbox-accent)]" aria-hidden="true" />
         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
-          Request
+          {m.request.label}
         </span>
         {isMessageMode && selectedMessageInfo?.timestampLabel ? (
           <span
@@ -837,7 +840,7 @@ export function ContextPanel({
         </p>
       ) : (
         <p className="mt-1 text-[11px] italic leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny hasn&apos;t summarised this message yet.
+          {m.request.notSummarised}
         </p>
       )}
       {isMessageMode && selectedMessageInfo
@@ -846,13 +849,13 @@ export function ContextPanel({
           || selectedMessageInfo.hasLinks) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           {selectedMessageInfo.direction ? (
-            <SignalChip label={directionChipLabel(selectedMessageInfo)} />
+            <SignalChip label={directionChipLabel(selectedMessageInfo, m)} />
           ) : null}
           {selectedMessageInfo.hasAttachments ? (
-            <SignalChip label="Has attachments" icon={Paperclip} />
+            <SignalChip label={m.request.hasAttachments} icon={Paperclip} />
           ) : null}
           {selectedMessageInfo.hasLinks ? (
-            <SignalChip label="Has link" icon={Link2} />
+            <SignalChip label={m.request.hasLink} icon={Link2} />
           ) : null}
         </div>
       )}
@@ -872,17 +875,17 @@ export function ContextPanel({
    * strip, one practical sentence. Hidden when sentiment is missing/neutral and nothing
    * (urgency) makes it useful. See `getToneGuidance`.
    */
-  const toneGuidance = getToneGuidance(selected)
+  const toneGuidance = getToneGuidance(selected, m)
 
   const needsAttentionSection = (attentionNotes.length > 0 || toneGuidance) ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Needs attention"
+      aria-label={m.attention.label}
     >
       <div className="flex items-center gap-1.5">
         <AlertTriangle className="h-3 w-3 text-amber-500/80" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Needs attention
+          {m.attention.label}
         </p>
       </div>
       {attentionNotes.length > 0 ? (
@@ -909,7 +912,7 @@ export function ContextPanel({
           )}
         >
           <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-            Tone
+            {m.attention.tone}
           </span>
           <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/8" aria-hidden="true">
             <div className={cn("h-full w-full rounded-full", toneGuidance.barClass)} />
@@ -946,21 +949,21 @@ export function ContextPanel({
    */
   const recommendationFallback = storedRecommendationIsStatusLabel
     ? handoffPendingItems.length > 0
-      ? "Ask for the missing details before preparing your reply."
-      : "Review before replying and send a clear next step."
-    : "Fanny is still preparing the best next step."
+      ? m.recommends.fallbackAskMissing
+      : m.recommends.fallbackReview
+    : m.recommends.fallbackPreparing
   const recommendsSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Fanny recommends
+          {m.recommends.label}
         </p>
       </div>
       {recommendationText ? (
         <InlineTextarea
           value={recommendationText}
-          placeholder="Edit recommendation..."
+          placeholder={m.recommends.editPlaceholder}
           className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
           rows={2}
           onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
@@ -1023,28 +1026,28 @@ export function ContextPanel({
   const hasAnyActionCard =
     showSuggestedDraftCta || showAddToCalendarCta || orderedSuggestedActions.length > 0
   const actionsSection = hasAnyActionCard ? (
-    <section aria-label="Actions" className="space-y-1.5">
+    <section aria-label={m.actions.label} className="space-y-1.5">
       <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        Actions
+        {m.actions.label}
       </p>
       {showSuggestedDraftCta ? (
         <WorkActionCard
-          title="Review draft"
-          description="Fanny prepared a reply for this message. Review it before sending."
-          ctaLabel="Review draft"
+          title={m.actions.reviewDraft}
+          description={m.actions.reviewDraftDescription}
+          ctaLabel={m.actions.reviewDraft}
           icon={Sparkles}
           onAction={onUseSuggestedDraft}
         />
       ) : null}
       {showAddToCalendarCta ? (
         <WorkActionCard
-          title="Add to calendar"
+          title={m.actions.addToCalendar}
           description={
             selectedMessageInfo?.eventHint?.title
-              ? `Fanny detected an event: ${selectedMessageInfo.eventHint.title}`
-              : "Fanny detected an event in this message."
+              ? m.actions.eventDetected(selectedMessageInfo.eventHint.title)
+              : m.actions.eventDetectedGeneric
           }
-          ctaLabel="Add to calendar"
+          ctaLabel={m.actions.addToCalendar}
           icon={CalendarPlus}
           onAction={() => setCalendarPreviewOpen(true)}
         />
@@ -1052,7 +1055,7 @@ export function ContextPanel({
       {orderedSuggestedActions.slice(0, 4).map((action) => {
         const title = typeof action.data?.title === "string" && action.data.title.trim()
           ? action.data.title
-          : actionTypeLabel(action.type)
+          : actionTypeLabel(action.type, locale)
         const isPending = pendingActionId === action.id
         const isMessageScoped = Boolean(
           isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
@@ -1061,9 +1064,9 @@ export function ContextPanel({
           <WorkActionCard
             key={action.id}
             title={title}
-            description={getActionDescription(action)}
-            ctaLabel={getBusinessActionLabel(action)}
-            badge={isMessageScoped ? "For this message" : null}
+            description={getActionDescription(action, m)}
+            ctaLabel={getBusinessActionLabel(action, m, locale)}
+            badge={isMessageScoped ? m.actions.forThisMessage : null}
             pending={isPending}
             onAction={() =>
               handleSuggestedAction(
@@ -1116,16 +1119,16 @@ export function ContextPanel({
   const pendingDecisionsSection = proposedFannyTasks.length > 0 ? (
     <section
       className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label="Pending decisions"
+      aria-label={m.pendingDecisions.label}
     >
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          Pending decisions
+          {m.pendingDecisions.label}
         </p>
       </div>
       <p className="mt-1 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]/85">
-        Fanny suggestions awaiting your approval before becoming workspace tasks.
+        {m.pendingDecisions.caption}
       </p>
       <ul className="mt-2 space-y-2">
         {proposedFannyTasks.map((task) => {
@@ -1159,7 +1162,7 @@ export function ContextPanel({
           const canAct = Boolean(linkedAction)
           const isPending = canAct && linkedAction?.id === pendingActionId
           const confidencePct = readConfidencePct(task.metadata)
-          const priorityLabel = task.priority.charAt(0).toUpperCase() + task.priority.slice(1)
+          const priorityLabel = m.pendingDecisions.priorities[task.priority]
           /**
            * Primary CTA label tracks the linked action's lifecycle so the
            * operator always sees the next concrete step:
@@ -1171,7 +1174,9 @@ export function ContextPanel({
            * and the execute is what does the real work.
            */
           const primaryCtaLabel =
-            linkedAction?.status === "approved" ? "Continue" : "Create task"
+            linkedAction?.status === "approved"
+              ? m.pendingDecisions.continue
+              : m.pendingDecisions.createTask
           return (
             <li
               key={task.id}
@@ -1195,17 +1200,17 @@ export function ContextPanel({
                     {confidencePct !== null ? (
                       <span
                         className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-accent)]"
-                        title="Fanny's confidence in this suggestion"
+                        title={m.pendingDecisions.confidenceTitle}
                       >
-                        {confidencePct}% confidence
+                        {m.pendingDecisions.confidencePct(confidencePct)}
                       </span>
                     ) : null}
                     {!canAct ? (
                       <span
                         className="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-400/90"
-                        title="The linked action is no longer pending — refresh to resync."
+                        title={m.pendingDecisions.viewOnlyTitle}
                       >
-                        View only
+                        {m.pendingDecisions.viewOnly}
                       </span>
                     ) : null}
                   </div>
@@ -1225,9 +1230,9 @@ export function ContextPanel({
                     "h-6 rounded-md px-2 text-[10px]",
                     INBOX_GHOST_BUTTON,
                   )}
-                  aria-label={`Dismiss suggested task: ${task.title}`}
+                  aria-label={m.pendingDecisions.dismissAria(task.title)}
                 >
-                  Dismiss
+                  {m.pendingDecisions.dismiss}
                 </Button>
                 <Button
                   type="button"
@@ -1242,7 +1247,7 @@ export function ContextPanel({
                     "h-6 rounded-md px-2 text-[10px]",
                     INBOX_GHOST_BUTTON,
                   )}
-                  aria-label={`${primaryCtaLabel} for suggested task: ${task.title}`}
+                  aria-label={m.pendingDecisions.primaryAria(primaryCtaLabel, task.title)}
                 >
                   {isPending ? (
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
@@ -1290,7 +1295,7 @@ export function ContextPanel({
 
   const workflowSection = showWorkflow ? (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">Workflow</p>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">{m.workflow.label}</p>
       <div className="mt-2">
         <Select
           value={selected.assignedTo || "unassigned"}
@@ -1298,10 +1303,10 @@ export function ContextPanel({
           disabled={assignSaving}
         >
           <SelectTrigger className="h-7 w-full text-xs">
-            <SelectValue placeholder="Assign to..." />
+            <SelectValue placeholder={m.workflow.assignPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
+            <SelectItem value="unassigned">{m.workflow.unassigned}</SelectItem>
             {members.map((m) => (
               <SelectItem key={m.userId} value={m.userId}>
                 {m.nombre || m.email}
@@ -1311,7 +1316,7 @@ export function ContextPanel({
         </Select>
         {assignSaving && (
           <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
-            <Loader2 className="h-3 w-3 animate-spin" /> Updating...
+            <Loader2 className="h-3 w-3 animate-spin" /> {m.workflow.updating}
           </div>
         )}
       </div>
@@ -1328,7 +1333,7 @@ export function ContextPanel({
    * (published by app/inbox/page.tsx), so no scope is wired here.
    */
   const askFannySection = (
-    <section aria-label="Ask Fanny">
+    <section aria-label={m.askFanny.label}>
       <button
         type="button"
         onClick={() => openAsk()}
@@ -1339,10 +1344,10 @@ export function ContextPanel({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[11px] font-semibold text-[var(--inbox-intelligence-text)]">
-            Ask Fanny
+            {m.askFanny.label}
           </span>
           <span className="block truncate text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
-            Ask about this conversation.
+            {m.askFanny.caption}
           </span>
         </span>
         <ChevronRight
@@ -1434,15 +1439,15 @@ function SignalChip({ label, icon: Icon }: { label: string; icon?: React.Element
  * Phase B: deriva el label del chip de dirección priorizando los booleans específicos. Los
  * booleans son más fiables que el string de dirección (que puede llegar como cualquier valor).
  */
-function directionChipLabel(info: SelectedMessageInfo): string {
-  if (info.isInbound) return "Inbound"
-  if (info.isOutbound) return "Outbound"
+function directionChipLabel(info: SelectedMessageInfo, m: PanelMessages): string {
+  if (info.isInbound) return m.request.direction.inbound
+  if (info.isOutbound) return m.request.direction.outbound
   const dir = typeof info.direction === "string" ? info.direction.toLowerCase() : ""
-  if (dir === "inbound") return "Inbound"
-  if (dir === "outbound") return "Outbound"
-  if (dir === "internal") return "Internal"
-  if (dir === "system") return "System"
-  return dir ? dir.charAt(0).toUpperCase() + dir.slice(1) : "Message"
+  if (dir === "inbound") return m.request.direction.inbound
+  if (dir === "outbound") return m.request.direction.outbound
+  if (dir === "internal") return m.request.direction.internal
+  if (dir === "system") return m.request.direction.system
+  return dir ? dir.charAt(0).toUpperCase() + dir.slice(1) : m.request.direction.fallback
 }
 
 /**
@@ -1467,6 +1472,7 @@ function WorkActionCard({
   badge?: string | null
   icon?: React.ElementType
 }) {
+  const { t } = useI18n()
   return (
     <div className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-3">
       <div className="flex items-start gap-2.5">
@@ -1481,7 +1487,7 @@ function WorkActionCard({
             {badge ? (
               <span
                 className="shrink-0 rounded-full border border-[var(--inbox-accent)]/40 bg-[var(--inbox-accent)]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--inbox-accent)]"
-                title="This action is anchored to the selected message"
+                title={t.inbox.panel.actions.anchoredTitle}
               >
                 {badge}
               </span>
@@ -1520,25 +1526,25 @@ function WorkActionCard({
  * happened (e.g. a prior execute failed), so "Continue" tells the operator we're finishing
  * the same piece of work rather than starting a new one.
  */
-function getBusinessActionLabel(action: ActionItem): string {
-  if (action.status === "approved") return "Continue"
+function getBusinessActionLabel(action: ActionItem, m: PanelMessages, locale: string): string {
+  if (action.status === "approved") return m.actions.continue
   switch (action.type) {
     case "create_client":
-      return "Create client profile"
+      return m.actions.labels.createClient
     case "create_project":
-      return "Create project"
+      return m.actions.labels.createProject
     case "create_task":
-      return "Create task"
+      return m.actions.labels.createTask
     case "schedule_followup":
-      return "Create follow-up"
+      return m.actions.labels.scheduleFollowup
     case "assign_operator":
-      return "Assign owner"
+      return m.actions.labels.assignOperator
     case "generate_proposal":
-      return "Prepare proposal"
+      return m.actions.labels.generateProposal
     case "create_event":
-      return "Add to calendar"
+      return m.actions.labels.createEvent
     default:
-      return actionTypeLabel(action.type)
+      return actionTypeLabel(action.type, locale)
   }
 }
 
@@ -1547,24 +1553,24 @@ function getBusinessActionLabel(action: ActionItem): string {
  * `data.description` when present; otherwise falls back to a generic per-type sentence that
  * only describes behaviour the backend really implements (no overpromising).
  */
-function getActionDescription(action: ActionItem): string | null {
+function getActionDescription(action: ActionItem, m: PanelMessages): string | null {
   const desc = action.data?.description
   if (typeof desc === "string" && desc.trim()) return desc.trim()
   switch (action.type) {
     case "create_client":
-      return "Create a client profile for this contact in your workspace."
+      return m.actions.descriptions.createClient
     case "create_project":
-      return "Start a project linked to this conversation."
+      return m.actions.descriptions.createProject
     case "create_task":
-      return "Add this as a task so it shows up in your work."
+      return m.actions.descriptions.createTask
     case "schedule_followup":
-      return "Set a follow-up so this doesn't slip."
+      return m.actions.descriptions.scheduleFollowup
     case "assign_operator":
-      return "Hand this conversation to a teammate."
+      return m.actions.descriptions.assignOperator
     case "generate_proposal":
-      return "Prepare a proposal based on this conversation."
+      return m.actions.descriptions.generateProposal
     case "create_event":
-      return "Add the detected meeting to your calendar."
+      return m.actions.descriptions.createEvent
     default:
       return null
   }
@@ -1665,7 +1671,10 @@ function getClientProfileState(selected: ContextPanelProps["selected"]): "linked
  *   4. Neutral/unknown sentiment with no urgency → null (the strip hides; no fabricated
  *      emotional states).
  */
-function getToneGuidance(selected: ContextPanelProps["selected"]): {
+function getToneGuidance(
+  selected: ContextPanelProps["selected"],
+  m: PanelMessages,
+): {
   note: string
   tone: "positive" | "neutral" | "warning" | "danger"
   barClass: string
@@ -1678,9 +1687,7 @@ function getToneGuidance(selected: ContextPanelProps["selected"]): {
 
   if (isNegative) {
     return {
-      note: isUrgent
-        ? "Tense and urgent. Acknowledge their concern and reply today with a concrete next step."
-        : "Tense. Acknowledge their concern and give a clear next step.",
+      note: isUrgent ? m.attention.negativeUrgent : m.attention.negative,
       tone: "danger",
       barClass: "bg-gradient-to-r from-rose-500/70 via-rose-400/40 to-transparent",
     }
@@ -1688,22 +1695,20 @@ function getToneGuidance(selected: ContextPanelProps["selected"]): {
   if (isPositive) {
     if (isUrgent) {
       return {
-        note: "Interested and waiting. Reply today with a concrete answer.",
+        note: m.attention.positiveUrgent,
         tone: "warning",
         barClass: "bg-gradient-to-r from-amber-500/70 via-emerald-400/40 to-transparent",
       }
     }
     return {
-      note: isHighOpportunity
-        ? "Interested. Good opportunity for a helpful, direct reply."
-        : "Cordial. A clear, direct answer will land well.",
+      note: isHighOpportunity ? m.attention.positiveOpportunity : m.attention.positive,
       tone: "positive",
       barClass: "bg-gradient-to-r from-emerald-500/70 via-teal-400/40 to-transparent",
     }
   }
   if (isUrgent) {
     return {
-      note: "Urgent. Reply with a concrete next step today.",
+      note: m.attention.urgent,
       tone: "warning",
       barClass: "bg-gradient-to-r from-amber-500/70 via-amber-400/40 to-transparent",
     }
@@ -1724,19 +1729,19 @@ function getRecommendationText(selected: ContextPanelProps["selected"]): string 
  * Relationship label for the sender chip. A linked `cliente` record is the strongest signal
  * ("Client"); otherwise we fall back to the contact's own type (Lead / Supplier / ...).
  */
-function getRelationshipLabel(selected: ContextPanelProps["selected"]): string {
-  if (selected.cliente) return "Client"
-  return formatContactType(selected.contact?.tipo || "contact")
+function getRelationshipLabel(selected: ContextPanelProps["selected"], m: PanelMessages): string {
+  if (selected.cliente) return m.contact.relationship.client
+  return formatContactType(selected.contact?.tipo || "contact", m)
 }
 
-function formatContactType(tipo: string) {
+function formatContactType(tipo: string, m: PanelMessages) {
   const map: Record<string, string> = {
-    lead: "Lead",
-    cliente: "Client",
-    proveedor: "Supplier",
-    colega: "Colleague",
-    visitante: "Visitor",
-    contact: "Contact",
+    lead: m.contact.relationship.lead,
+    cliente: m.contact.relationship.client,
+    proveedor: m.contact.relationship.supplier,
+    colega: m.contact.relationship.colleague,
+    visitante: m.contact.relationship.visitor,
+    contact: m.contact.relationship.contact,
   }
   return map[tipo] || tipo.replace(/_/g, " ")
 }
@@ -1851,18 +1856,18 @@ function readConfidencePct(metadata: Record<string, unknown> | null | undefined)
   return null
 }
 
-function mapUrgency(urgency?: string | null) {
+function mapUrgency(urgency: string | null | undefined, m: PanelMessages) {
   switch (urgency) {
     case "critica":
-      return { label: "Critical", percent: 100, barClass: "bg-rose-500" }
+      return { label: m.triage.priorities.critical, percent: 100, barClass: "bg-rose-500" }
     case "alta":
-      return { label: "High", percent: 75, barClass: "bg-amber-500" }
+      return { label: m.triage.priorities.high, percent: 75, barClass: "bg-amber-500" }
     case "media":
-      return { label: "Medium", percent: 50, barClass: "bg-sky-400" }
+      return { label: m.triage.priorities.medium, percent: 50, barClass: "bg-sky-400" }
     case "baja":
-      return { label: "Low", percent: 25, barClass: "bg-emerald-500" }
+      return { label: m.triage.priorities.low, percent: 25, barClass: "bg-emerald-500" }
     default:
-      return { label: "Normal", percent: 35, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
+      return { label: m.triage.priorities.normal, percent: 35, barClass: "bg-[var(--inbox-intelligence-text-secondary)]/40" }
   }
 }
 
@@ -1900,6 +1905,8 @@ function CalendarEventPreviewDialog({
    *  Returning a rejected promise surfaces the error inside the dialog without closing it. */
   onCreate?: (payload: CreateCalendarEventInput) => Promise<void>
 }) {
+  const { t } = useI18n()
+  const m = t.inbox.panel.calendar
   const initial = useMemo(() => splitEventHint(hint), [hint])
   const [title, setTitle] = useState(initial.title)
   const [date, setDate] = useState(initial.date)
@@ -1930,9 +1937,9 @@ function CalendarEventPreviewDialog({
   /** When NOT all-day we also need a real time component to build a valid startISO. */
   const missingTime = !allDay && !time.trim()
   const missingFields: string[] = []
-  if (missingTitle) missingFields.push("Title")
-  if (missingDate) missingFields.push("Date")
-  if (missingTime) missingFields.push("Time")
+  if (missingTitle) missingFields.push(m.fields.title)
+  if (missingDate) missingFields.push(m.fields.date)
+  if (missingTime) missingFields.push(m.fields.time)
   const isValid = missingFields.length === 0
   const canSubmit = Boolean(onCreate) && isValid && !submitting
 
@@ -1949,12 +1956,13 @@ function CalendarEventPreviewDialog({
         allDay,
         location: location.trim() || null,
         description: description.trim() || null,
+        invalidDateTimeMessage: m.invalidDateTime,
       })
       await onCreate(payload)
       /** Parent decides whether to close on success — we don't auto-close here so the
        *  parent can show a "saved" state momentarily if it wants. */
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Could not create event")
+      setSubmitError(err instanceof Error ? err.message : m.couldNotCreate)
     } finally {
       setSubmitting(false)
     }
@@ -1964,7 +1972,7 @@ function CalendarEventPreviewDialog({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Add to calendar — preview"
+      aria-label={m.dialogAria}
       className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4 py-6"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -1974,19 +1982,17 @@ function CalendarEventPreviewDialog({
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-              Add to calendar
+              {m.heading}
             </p>
             <p className="mt-0.5 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-              {onCreate
-                ? "Review the details extracted from this message before creating the event."
-                : "Preview only — calendar action is missing."}
+              {onCreate ? m.reviewCaption : m.previewOnly}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            aria-label="Close"
+            aria-label={m.close}
             className="rounded-md p-1 text-[var(--inbox-intelligence-text-secondary)] transition-colors hover:bg-white/10 hover:text-[var(--inbox-intelligence-text)] disabled:opacity-50"
           >
             <X className="h-3.5 w-3.5" />
@@ -1994,18 +2000,18 @@ function CalendarEventPreviewDialog({
         </header>
 
         <div className="mt-3 grid grid-cols-1 gap-2.5">
-          <Field label="Title">
+          <Field label={m.fields.title}>
             <input
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
-              placeholder="Meeting title"
+              placeholder={m.titlePlaceholder}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Date">
+            <Field label={m.fields.date}>
               <input
                 type="date"
                 value={date}
@@ -2013,7 +2019,7 @@ function CalendarEventPreviewDialog({
                 className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] focus:border-[var(--inbox-accent)] focus:outline-none"
               />
             </Field>
-            <Field label="Time">
+            <Field label={m.fields.time}>
               <input
                 type="time"
                 value={time}
@@ -2025,22 +2031,22 @@ function CalendarEventPreviewDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Duration">
+            <Field label={m.fields.duration}>
               <select
                 value={duration}
                 onChange={(event) => setDuration(event.target.value)}
                 disabled={allDay}
                 className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] focus:border-[var(--inbox-accent)] focus:outline-none disabled:opacity-50"
               >
-                <option value="30">30 min</option>
-                <option value="45">45 min</option>
-                <option value="60">1 hour</option>
-                <option value="90">1.5 hours</option>
-                <option value="120">2 hours</option>
-                <option value="180">3 hours</option>
+                <option value="30">{m.durations.min30}</option>
+                <option value="45">{m.durations.min45}</option>
+                <option value="60">{m.durations.h1}</option>
+                <option value="90">{m.durations.h1x5}</option>
+                <option value="120">{m.durations.h2}</option>
+                <option value="180">{m.durations.h3}</option>
               </select>
             </Field>
-            <Field label="All day">
+            <Field label={m.fields.allDay}>
               <label className="inline-flex h-[30px] items-center gap-2 rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 text-xs text-[var(--inbox-intelligence-text)]">
                 <input
                   type="checkbox"
@@ -2048,41 +2054,41 @@ function CalendarEventPreviewDialog({
                   onChange={(event) => setAllDay(event.target.checked)}
                   className="h-3 w-3 accent-[var(--inbox-accent)]"
                 />
-                Mark as all-day
+                {m.markAllDay}
               </label>
             </Field>
           </div>
 
-          <Field label="Location">
+          <Field label={m.fields.location}>
             <input
               type="text"
               value={location}
               onChange={(event) => setLocation(event.target.value)}
               className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
-              placeholder="Address, room, or video link"
+              placeholder={m.locationPlaceholder}
             />
           </Field>
 
-          <Field label="Description">
+          <Field label={m.fields.description}>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
               className="w-full rounded-md border border-[var(--inbox-intelligence-border)] bg-black/35 px-2 py-1.5 text-xs text-[var(--inbox-intelligence-text)] placeholder:text-[var(--inbox-intelligence-text-secondary)]/70 focus:border-[var(--inbox-accent)] focus:outline-none"
-              placeholder="What is this event about?"
+              placeholder={m.descriptionPlaceholder}
             />
           </Field>
         </div>
 
         {missingFields.length > 0 ? (
           <p className="mt-2 text-[11px] text-amber-400/80" role="status">
-            Missing: {missingFields.join(", ")}
+            {m.missing(missingFields.join(", "))}
           </p>
         ) : null}
 
         {!onCreate ? (
           <p className="mt-2 text-[11px] text-amber-400/80" role="status">
-            Calendar action is missing. Please refresh and try again.
+            {m.actionMissing}
           </p>
         ) : null}
 
@@ -2099,7 +2105,7 @@ function CalendarEventPreviewDialog({
             disabled={submitting}
             className="text-[11px] font-medium text-[var(--inbox-intelligence-text-secondary)] hover:text-[var(--inbox-intelligence-text)] disabled:opacity-50"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             type="button"
@@ -2107,12 +2113,12 @@ function CalendarEventPreviewDialog({
             disabled={!canSubmit}
             title={
               !onCreate
-                ? "Calendar action is missing. Please refresh and try again."
+                ? m.actionMissing
                 : !isValid
-                  ? `Missing: ${missingFields.join(", ")}`
+                  ? m.missing(missingFields.join(", "))
                   : submitting
-                    ? "Creating event…"
-                    : "Create the event in the internal 7F calendar"
+                    ? m.creatingEventTitle
+                    : m.createTitle
             }
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors",
@@ -2122,7 +2128,7 @@ function CalendarEventPreviewDialog({
             )}
           >
             {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
-            {submitting ? "Creating…" : "Create event"}
+            {submitting ? m.creating : m.createEvent}
           </button>
         </footer>
       </div>
@@ -2144,11 +2150,13 @@ function buildCreateEventInput(input: {
   allDay: boolean
   location: string | null
   description: string | null
+  /** Localized error surfaced in the dialog when date+time can't be parsed. */
+  invalidDateTimeMessage: string
 }): CreateCalendarEventInput {
   const dateForStart = input.allDay ? `${input.date}T00:00` : `${input.date}T${input.time}`
   const start = new Date(dateForStart)
   if (Number.isNaN(start.getTime())) {
-    throw new Error("Invalid date or time")
+    throw new Error(input.invalidDateTimeMessage)
   }
 
   let end: Date | null = null

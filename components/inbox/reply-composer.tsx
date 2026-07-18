@@ -18,6 +18,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
+import { useI18n } from "@/components/i18n-provider"
+import { channelLabel as channelValueLabel } from "@/lib/inbox-labels"
+import type { InboxMessages } from "@core/i18n/ui/types"
+
+/** Visible strings for the composer — `t.inbox.composer` from the UI catalog. */
+type ComposerMessages = InboxMessages["composer"]
 
 export interface ComposerAttachment {
   url: string
@@ -202,13 +208,18 @@ const SHELL_TOOLBAR_ICON =
 const SHELL_TOOLBAR_ICON_ACTIVE =
   "relative bg-[var(--app-sidebar-surface)] text-[var(--app-accent)] shadow-[0_0_0_1px_var(--app-accent),0_0_10px_0_rgba(99,102,241,0.22)] before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--app-accent)]"
 
-const SMART_TOOLS: Array<{ action: AssistAction; label: string; icon: typeof Sparkles; needsText: boolean }> = [
-  { action: "proofread", label: "Proofread", icon: CheckCheck, needsText: true },
-  { action: "shorter", label: "Shorter", icon: AlignLeft, needsText: true },
-  { action: "clearer", label: "Clearer", icon: Sparkles, needsText: true },
-  { action: "professional", label: "Professional", icon: Briefcase, needsText: true },
-  { action: "warmer", label: "Warmer", icon: Heart, needsText: true },
-  { action: "direct", label: "Direct", icon: ArrowRight, needsText: true },
+/** Tone chip actions — labels come from `t.inbox.composer.assist.tones` at render time. */
+const SMART_TOOLS: Array<{
+  action: keyof ComposerMessages["assist"]["tones"]
+  icon: typeof Sparkles
+  needsText: boolean
+}> = [
+  { action: "proofread", icon: CheckCheck, needsText: true },
+  { action: "shorter", icon: AlignLeft, needsText: true },
+  { action: "clearer", icon: Sparkles, needsText: true },
+  { action: "professional", icon: Briefcase, needsText: true },
+  { action: "warmer", icon: Heart, needsText: true },
+  { action: "direct", icon: ArrowRight, needsText: true },
 ]
 
 export function ReplyComposer({
@@ -252,6 +263,8 @@ export function ReplyComposer({
   requestConfirmation = false,
   onRequestConfirmationChange,
 }: ReplyComposerProps) {
+  const { t, locale } = useI18n()
+  const m = t.inbox.composer
   const speech = useSpeechRecognition()
   const baseTextRef = useRef("")
   const userInterruptedRef = useRef(false)
@@ -288,7 +301,7 @@ export function ReplyComposer({
   onReplyContentChangeRef.current = onReplyContentChange
 
   const { items: cannedResponses } = useCannedResponses()
-  const composerConfig = getComposerConfig({ channel, channelLabel, replyIsInternal, detectedLanguage, subject })
+  const composerConfig = getComposerConfig({ channel, channelLabel, replyIsInternal, detectedLanguage, subject, messages: m })
 
   const hasText = replyContent.trim().length > 0
   const isProcessing = assistLoading !== null
@@ -357,8 +370,8 @@ export function ReplyComposer({
   type ClipCategoryId = "attach" | "share"
   const [activeClipCategory, setActiveClipCategory] = useState<ClipCategoryId>("attach")
   const clipCategoryTabs: Array<{ id: ClipCategoryId; label: string }> = [
-    { id: "attach", label: "Attach" },
-    ...(channel === "email" ? [{ id: "share" as const, label: "Share" }] : []),
+    { id: "attach", label: m.attach.tabs.attach },
+    ...(channel === "email" ? [{ id: "share" as const, label: m.attach.tabs.share }] : []),
   ]
 
   function insertLinkAtCursor() {
@@ -468,7 +481,7 @@ export function ReplyComposer({
         }
         onReplyContentChange(json.data.result)
       } else {
-        const errorMsg = json.error?.message || "Could not process your request"
+        const errorMsg = json.error?.message || m.assist.errors.processFailed
         showAssistError(errorMsg)
         if (action === "compose_from_intent") {
           onReplyContentChange(input)
@@ -476,7 +489,7 @@ export function ReplyComposer({
         }
       }
     } catch {
-      showAssistError("Connection error — your text was not changed")
+      showAssistError(m.assist.errors.connectionUnchanged)
       if (action === "compose_from_intent") {
         onReplyContentChange(input)
         setContentBeforeAssist(null)
@@ -510,11 +523,11 @@ export function ReplyComposer({
       if (json.success && json.data?.result && !json.data.skipped) {
         onReplyContentChange(json.data.result)
       } else {
-        const errorMsg = json.error?.message || "Could not translate"
+        const errorMsg = json.error?.message || m.assist.errors.translateFailed
         showAssistError(errorMsg)
       }
     } catch {
-      showAssistError("Connection error — translation failed")
+      showAssistError(m.assist.errors.connectionTranslate)
     } finally {
       setAssistLoading(null)
     }
@@ -560,7 +573,7 @@ export function ReplyComposer({
       speech.reset()
 
       if (intentText.trim().length < 3) {
-        showAssistError("Voice input too short — try describing your intent more clearly")
+        showAssistError(m.voice.intentTooShort)
         return
       }
 
@@ -646,11 +659,11 @@ export function ReplyComposer({
   const showEmailOptions = !replyIsInternal && channel === "email"
 
   const sendActionLabel = replyIsInternal
-    ? "Save note"
+    ? m.send.saveNote
     : emailMode === "forward"
-      ? "Forward"
+      ? m.send.forward
       : emailMode === "reply_all"
-        ? "Reply all"
+        ? m.send.replyAll
         : composerConfig.sendLabel
 
   /** Phase 4: handlers conversation-level (Archive / Close / Move to Trash). */
@@ -743,11 +756,11 @@ export function ReplyComposer({
    * navegador no soporta speech recognition).
    */
   const assistTabs: Array<{ id: AssistTabId; label: string }> = [
-    { id: "improve", label: "Improve" },
-    { id: "translate", label: "Translate" },
-    ...(cannedResponses.length > 0 ? [{ id: "templates" as const, label: "Templates" }] : []),
-    ...(hasFannySuggestion ? [{ id: "suggestions" as const, label: "Fanny" }] : []),
-    ...(speech.supported ? [{ id: "voice" as const, label: "Voice" }] : []),
+    { id: "improve", label: m.assist.tabs.improve },
+    { id: "translate", label: m.assist.tabs.translate },
+    ...(cannedResponses.length > 0 ? [{ id: "templates" as const, label: m.assist.tabs.templates }] : []),
+    ...(hasFannySuggestion ? [{ id: "suggestions" as const, label: m.assist.tabs.suggestions }] : []),
+    ...(speech.supported ? [{ id: "voice" as const, label: m.assist.tabs.voice }] : []),
   ]
   /** Si el tab activo deja de existir (p. ej. Fanny pierde sugerencia), volvemos a "improve". */
   useEffect(() => {
@@ -780,7 +793,7 @@ export function ReplyComposer({
           <div className="flex items-center gap-1.5 rounded border border-[var(--inbox-warning)]/35 bg-[var(--inbox-warning)]/10 px-2 py-1">
             <StickyNote className="h-3 w-3 shrink-0 text-[var(--inbox-warning)]" aria-hidden />
             <span className="text-[10px] font-medium leading-tight text-[var(--inbox-warning)]">
-              Internal note — private to your team. Not sent to the customer.
+              {m.internalNoteBanner}
             </span>
           </div>
         )}
@@ -793,7 +806,7 @@ export function ReplyComposer({
             onChange={(event) => handleTextareaChange(event.target.value)}
             placeholder={
               speech.listening && voiceMode === "compose"
-                ? "Describe what you want to say..."
+                ? m.placeholders.voiceCompose
                 : composerConfig.placeholder
             }
             rows={1}
@@ -848,8 +861,8 @@ export function ReplyComposer({
                 type="button"
                 onClick={handleUndoAssist}
                 className="pointer-events-auto rounded-[8px] p-1.5 text-[var(--inbox-warning)] transition-all duration-150 hover:bg-[var(--app-sidebar-surface)]/60"
-                title="Undo last AI change"
-                aria-label="Undo last AI change"
+                title={m.undoAiChange}
+                aria-label={m.undoAiChange}
               >
                 <RotateCcw className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
@@ -862,7 +875,7 @@ export function ReplyComposer({
                 handleSend()
               }}
               disabled={replySending || !hasText || isProcessing || (!replyIsInternal && emailMode === "forward" && !emailForwardTo.trim())}
-              title={`${sendActionLabel} · Ctrl+Enter or ⌘+Enter`}
+              title={m.sendTitle(sendActionLabel)}
               aria-label={sendActionLabel}
               className={cn(
                 "pointer-events-auto shrink-0 rounded-md shadow-sm",
@@ -882,7 +895,7 @@ export function ReplyComposer({
               <div className="flex items-center gap-2 rounded-lg border border-[var(--inbox-border)]/50 bg-[var(--inbox-surface)] px-3 py-2 text-sm shadow-sm">
                 <Loader2 className="h-4 w-4 animate-spin text-[var(--inbox-accent)]" />
                 <span className="text-[13px] font-medium text-[var(--inbox-text)]">
-                  {assistLoading === "compose_from_intent" ? "Composing your reply..." : "Rewriting..."}
+                  {assistLoading === "compose_from_intent" ? m.processing.composing : m.processing.rewriting}
                 </span>
               </div>
             </div>
@@ -891,14 +904,14 @@ export function ReplyComposer({
             <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 rounded-xl border border-[var(--inbox-voice-compose-border)] bg-[var(--inbox-voice-compose-bg)]/90 px-3 py-2.5 text-sm text-[var(--inbox-voice-compose-text)] backdrop-blur-sm">
               <Mic className="h-4 w-4 shrink-0 animate-pulse" />
               <span className="flex-1 truncate font-medium">
-                {speech.transcript || "Listening... describe what you want to say"}
+                {speech.transcript || m.voice.listeningIntent}
               </span>
               <button
                 type="button"
                 onClick={() => speech.stop()}
                 className="shrink-0 rounded-lg bg-[var(--inbox-voice-compose-border)]/80 px-2.5 py-1 text-xs font-medium text-[var(--inbox-voice-compose-text)] transition-colors hover:bg-[var(--inbox-voice-compose-border)]"
               >
-                Done
+                {m.voice.done}
               </button>
             </div>
           )}
@@ -907,11 +920,11 @@ export function ReplyComposer({
               type="button"
               onClick={() => speech.stop()}
               className="absolute bottom-3 right-14 flex items-center gap-2 rounded-lg border border-[var(--inbox-voice-dictate-border)] bg-[var(--inbox-voice-dictate-bg)]/90 px-3 py-1.5 text-xs font-medium text-[var(--inbox-voice-dictate-text)] backdrop-blur-sm transition-colors hover:bg-[var(--inbox-voice-dictate-bg)]"
-              title="Stop dictation"
-              aria-label="Stop dictation"
+              title={m.voice.stopDictation}
+              aria-label={m.voice.stopDictation}
             >
               <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--inbox-voice-dictate-text)]" />
-              Recording — click to stop
+              {m.voice.recording}
             </button>
           )}
         </div>
@@ -933,7 +946,7 @@ export function ReplyComposer({
                   type="button"
                   onClick={() => onRemoveAttachment(att.url)}
                   className="ml-0.5 rounded-full p-0.5 text-[var(--inbox-text-secondary)] hover:bg-white/[0.08] hover:text-[var(--inbox-text)]"
-                  title="Remove"
+                  title={m.removeAttachment}
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
@@ -954,22 +967,22 @@ export function ReplyComposer({
         {actingOnScope === "selected" && replyTarget ? (
           <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
-              Regarding
+              {m.regarding.label}
             </span>
             <span
               className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]"
               title={replyTarget.shortIntent ?? undefined}
             >
-              {replyTarget.shortIntent?.trim() || "this message"}
+              {replyTarget.shortIntent?.trim() || m.regarding.thisMessage}
             </span>
           </div>
         ) : actingOnScope === "all" ? (
           <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-[var(--inbox-accent)]/35 bg-[var(--inbox-accent)]/10 px-2 py-1">
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-accent)]">
-              Regarding
+              {m.regarding.label}
             </span>
             <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--inbox-text)]">
-              whole conversation
+              {m.regarding.wholeConversation}
             </span>
           </div>
         ) : null}
@@ -992,8 +1005,8 @@ export function ReplyComposer({
                   SHELL_TOOLBAR_ICON,
                   emailToolActive && emailMode === "reply" && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title="Reply"
-                aria-label="Reply"
+                title={m.toolbar.reply}
+                aria-label={m.toolbar.reply}
               >
                 <Reply className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
@@ -1012,8 +1025,8 @@ export function ReplyComposer({
                       SHELL_TOOLBAR_ICON,
                       emailToolActive && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
-                    title="Reply all"
-                    aria-label="Reply all"
+                    title={m.toolbar.replyAll}
+                    aria-label={m.toolbar.replyAll}
                   >
                     <ReplyAll className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
@@ -1030,8 +1043,8 @@ export function ReplyComposer({
                       SHELL_TOOLBAR_ICON,
                       emailToolActive && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
                     )}
-                    title="Forward"
-                    aria-label="Forward"
+                    title={m.toolbar.forward}
+                    aria-label={m.toolbar.forward}
                   >
                     <Forward className="h-4 w-4 shrink-0" strokeWidth={2} />
                   </button>
@@ -1049,8 +1062,8 @@ export function ReplyComposer({
                     ? "relative bg-[var(--inbox-warning)]/12 text-[var(--inbox-warning)] shadow-[0_0_0_1px_var(--inbox-warning),0_0_10px_0_rgba(242,198,109,0.2)] hover:bg-[var(--inbox-warning)]/18 before:pointer-events-none before:absolute before:left-px before:top-1/2 before:z-10 before:-translate-y-1/2 before:w-0.5 before:h-3.5 before:rounded-r-full before:bg-[var(--inbox-warning)]"
                     : SHELL_TOOLBAR_ICON,
                 )}
-                title={replyIsInternal ? "Switch back to reply" : "Internal note"}
-                aria-label={replyIsInternal ? "Switch back to reply" : "Internal note"}
+                title={replyIsInternal ? m.toolbar.switchBackToReply : m.toolbar.internalNote}
+                aria-label={replyIsInternal ? m.toolbar.switchBackToReply : m.toolbar.internalNote}
                 aria-pressed={replyIsInternal}
               >
                 <StickyNote className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -1070,12 +1083,12 @@ export function ReplyComposer({
                       ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
                       : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
                   )}
-                  title={showEmailOptions ? "Email details — account, subject, CC / BCC" : "Details — account & channel"}
-                  aria-label={showEmailOptions ? "Email details" : "Details"}
+                  title={showEmailOptions ? m.toolbar.emailDetailsTitle : m.toolbar.detailsTitle}
+                  aria-label={showEmailOptions ? m.toolbar.emailDetails : m.toolbar.details}
                   aria-expanded={detailsOpen}
                 >
                   <Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span>{showEmailOptions ? "Email details" : "Details"}</span>
+                  <span>{showEmailOptions ? m.toolbar.emailDetails : m.toolbar.details}</span>
                   {detailsOpen ? (
                     <ChevronUp className="h-3 w-3 shrink-0 opacity-60" />
                   ) : (
@@ -1102,7 +1115,7 @@ export function ReplyComposer({
                 clipPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 attachmentUploading && "opacity-50",
               )}
-              title="Insert or attach"
+              title={m.toolbar.attach}
             >
               {attachmentUploading ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2} />
@@ -1140,8 +1153,8 @@ export function ReplyComposer({
                   SHELL_TOOLBAR_ICON,
                   assistPanelOpen && !micCapturesChrome && SHELL_TOOLBAR_ICON_ACTIVE,
                 )}
-                title="AI tools — improve, translate, templates, suggestions, voice"
-                aria-label="AI tools"
+                title={m.toolbar.aiToolsTitle}
+                aria-label={m.toolbar.aiTools}
                 aria-expanded={assistPanelOpen}
               >
                 <Wand2 className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -1159,8 +1172,8 @@ export function ReplyComposer({
                 type="button"
                 onClick={() => speech.stop()}
                 className={cn(SHELL_TOOLBAR_ICON, SHELL_TOOLBAR_ICON_ACTIVE)}
-                title="Stop recording"
-                aria-label="Stop recording"
+                title={m.voice.stopRecording}
+                aria-label={m.voice.stopRecording}
               >
                 <MicOff className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
@@ -1183,12 +1196,12 @@ export function ReplyComposer({
                     ? "border-[var(--inbox-accent)]/50 bg-[var(--inbox-accent)]/12 text-[var(--inbox-accent)]"
                     : "border-[var(--inbox-border)]/40 bg-transparent text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]",
                 )}
-                title="More actions — message, conversation & context"
-                aria-label="More actions"
+                title={m.toolbar.moreTitle}
+                aria-label={m.toolbar.more}
                 aria-expanded={moreMenuOpen}
               >
                 <MoreHorizontal className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span>More</span>
+                <span>{m.toolbar.more}</span>
               </button>
             ) : null}
             </div>
@@ -1204,7 +1217,7 @@ export function ReplyComposer({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {signedInEmail?.trim() ? (
                   <p className="min-w-0 truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">
-                    Signed in as{" "}
+                    {m.details.signedInAs}{" "}
                     <span className="font-medium text-[var(--inbox-text)]" title={signedInEmail}>
                       {signedInEmail}
                     </span>
@@ -1218,22 +1231,22 @@ export function ReplyComposer({
                     <button
                       type="button"
                       onClick={() => onRequestConfirmationChange?.(false)}
-                      title="Confirmation requested — click to remove"
-                      aria-label="Confirmation requested. Click to remove."
+                      title={m.details.confirmationRequestedTitle}
+                      aria-label={m.details.confirmationRequestedAria}
                       className="inline-flex items-center gap-1 rounded-full border border-[var(--inbox-accent)]/45 bg-[var(--inbox-accent)]/12 px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-accent)] transition-colors hover:bg-[var(--inbox-accent)]/20"
                     >
                       <MailCheck className="h-3 w-3" aria-hidden />
-                      Confirmation requested
+                      {m.details.confirmationRequested}
                       <X className="h-2.5 w-2.5 opacity-70" aria-hidden />
                     </button>
                   )}
                   {channel ? (
                     <span
                       className="inline-flex items-center rounded-full border border-[var(--inbox-border)]/45 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-[var(--inbox-text-secondary)]"
-                      title={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
-                      aria-label={`Channel: ${formatChannelBadge(channel, channelLabel)}`}
+                      title={t.inbox.channelTitle(formatChannelBadge(channel, channelLabel, locale, m.channelFallback))}
+                      aria-label={t.inbox.channelTitle(formatChannelBadge(channel, channelLabel, locale, m.channelFallback))}
                     >
-                      {formatChannelBadge(channel, channelLabel)}
+                      {formatChannelBadge(channel, channelLabel, locale, m.channelFallback)}
                     </span>
                   ) : null}
                 </div>
@@ -1245,7 +1258,7 @@ export function ReplyComposer({
                 {composerConfig.subjectPreview && (
                   <div className="flex min-h-[1.25rem] items-center gap-1.5">
                     <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">
-                      Subject
+                      {m.details.subject}
                     </span>
                     <span className="min-w-0 truncate text-[12px] leading-tight text-[var(--inbox-text-secondary)]">
                       {composerConfig.subjectPreview}
@@ -1255,34 +1268,34 @@ export function ReplyComposer({
                 {emailMode === "forward" && (
                   <div className="flex min-h-[1.25rem] items-center gap-1.5">
                     <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">
-                      To
+                      {m.details.to}
                     </span>
                     <Input
                       type="text"
                       value={emailForwardTo}
                       onChange={(e) => onEmailForwardToChange(e.target.value)}
-                      placeholder="Recipient email"
+                      placeholder={m.details.recipientPlaceholder}
                       className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] leading-tight text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                     />
                   </div>
                 )}
                 <div className="flex items-center gap-1.5">
-                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">CC</span>
+                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">{m.details.cc}</span>
                   <Input
                     type="text"
                     value={emailCc}
                     onChange={(e) => onEmailCcChange(e.target.value)}
-                    placeholder="CC (optional)"
+                    placeholder={m.details.ccPlaceholder}
                     className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">BCC</span>
+                  <span className="w-12 shrink-0 text-[11px] font-medium text-[var(--inbox-chat-text-secondary)]">{m.details.bcc}</span>
                   <Input
                     type="text"
                     value={emailBcc}
                     onChange={(e) => onEmailBccChange(e.target.value)}
-                    placeholder="BCC (optional)"
+                    placeholder={m.details.bccPlaceholder}
                     className="h-5 flex-1 border-0 bg-transparent p-0 text-[12px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 shadow-none focus-visible:ring-0"
                   />
                 </div>
@@ -1297,7 +1310,7 @@ export function ReplyComposer({
             {/* Dark tab bar — matches Attach toolbox */}
             <div
               role="tablist"
-              aria-label="Improve text categories"
+              aria-label={m.assist.tablistAria}
               className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/35 bg-black/35 px-2 pt-1.5"
             >
               {assistTabs.map((tab) => {
@@ -1336,7 +1349,7 @@ export function ReplyComposer({
             {/* Helper hint when textarea is empty — only relevant to Improve/Translate */}
             {!hasText && (activeAssistTab === "improve" || activeAssistTab === "translate") && (
               <p className="px-3 pt-2 text-[11px] leading-relaxed text-[var(--inbox-text-secondary)]">
-                Write something in the message to use improve and translate tools.
+                {m.assist.emptyHint}
               </p>
             )}
 
@@ -1355,7 +1368,7 @@ export function ReplyComposer({
                 SMART_TOOLS.map((tool) => (
                   <ClipAction
                     key={tool.action}
-                    label={tool.label}
+                    label={m.assist.tones[tool.action]}
                     icon={tool.icon}
                     onClick={
                       hasText
@@ -1387,7 +1400,7 @@ export function ReplyComposer({
                 <>
                   <Input
                     type="text"
-                    placeholder="Search templates..."
+                    placeholder={m.assist.templateSearchPlaceholder}
                     value={templateQuery}
                     onChange={(e) => setTemplateQuery(e.target.value)}
                     className="h-7 border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)]/60 px-2 text-[11px] text-[var(--inbox-text)] placeholder:text-[var(--inbox-text-secondary)]/65 focus-visible:ring-0"
@@ -1405,7 +1418,7 @@ export function ReplyComposer({
                       if (filtered.length === 0) {
                         return (
                           <p className="px-1 py-2 text-[11px] text-[var(--inbox-text-secondary)]">
-                            No matches.
+                            {m.assist.noMatches}
                           </p>
                         )
                       }
@@ -1436,11 +1449,11 @@ export function ReplyComposer({
                 <>
                   {fannySuggestionTitle?.trim() ? (
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
-                      Fanny · {fannySuggestionTitle}
+                      {m.assist.fannyTitled(fannySuggestionTitle)}
                     </p>
                   ) : (
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-on-dark)]">
-                      Fanny · suggested reply
+                      {m.assist.fannySuggestedReply}
                     </p>
                   )}
                   <Textarea
@@ -1448,7 +1461,7 @@ export function ReplyComposer({
                     onChange={(e) => setFannyEditBuffer(e.target.value)}
                     rows={6}
                     className="min-h-[120px] max-h-[min(32vh,240px)] w-full resize-y overflow-y-auto rounded-md border border-[var(--inbox-border)]/40 bg-[var(--inbox-composer-input)] px-2.5 py-2 text-sm text-[var(--inbox-composer-input-text)] [field-sizing:fixed]"
-                    placeholder="Edit suggested reply…"
+                    placeholder={m.assist.editSuggestionPlaceholder}
                   />
                   <div className="flex flex-wrap items-center justify-end gap-1.5">
                     <Button
@@ -1458,7 +1471,7 @@ export function ReplyComposer({
                       className="text-[var(--inbox-text-secondary)] hover:bg-white/8 hover:text-[var(--inbox-text)]"
                       onClick={() => setAssistPanelOpen(false)}
                     >
-                      Cancel
+                      {t.common.cancel}
                     </Button>
                     <Button
                       type="button"
@@ -1472,7 +1485,7 @@ export function ReplyComposer({
                         setAssistPanelOpen(false)
                       }}
                     >
-                      Use reply
+                      {m.assist.useReply}
                     </Button>
                   </div>
                 </>
@@ -1480,18 +1493,18 @@ export function ReplyComposer({
               {activeAssistTab === "voice" && speech.supported && (
                 <>
                   <ClipAction
-                    label="Dictate"
+                    label={m.voice.dictate}
                     icon={Keyboard}
-                    title="Dictation — speech is typed into the message"
+                    title={m.voice.dictateTitle}
                     onClick={() => {
                       setAssistPanelOpen(false)
                       startVoice("dictate")
                     }}
                   />
                   <ClipAction
-                    label="Speak intent"
+                    label={m.voice.speakIntent}
                     icon={Sparkles}
-                    title="Intent — describe the reply you want; Fanny drafts it from your words"
+                    title={m.voice.speakIntentTitle}
                     onClick={() => {
                       setAssistPanelOpen(false)
                       startVoice("compose")
@@ -1509,7 +1522,7 @@ export function ReplyComposer({
             {/* Category tabs — dark header */}
             <div
               role="tablist"
-              aria-label="Insert toolbox categories"
+              aria-label={m.attach.tablistAria}
               className="flex flex-wrap items-center gap-0.5 border-b border-[var(--inbox-border)]/35 bg-black/35 px-2 pt-1.5"
             >
               {clipCategoryTabs.map((tab) => {
@@ -1556,21 +1569,21 @@ export function ReplyComposer({
               {activeClipCategory === "attach" && (
                 <>
                   <ClipAction
-                    label="File"
+                    label={m.attach.file}
                     icon={FileText}
-                    title="Attach any allowed file"
+                    title={m.attach.fileTitle}
                     onClick={() => openFilePicker("")}
                   />
                   <ClipAction
-                    label="Image"
+                    label={m.attach.image}
                     icon={Image}
-                    title="Attach an image (JPG, PNG, GIF, WebP)"
+                    title={m.attach.imageTitle}
                     onClick={() => openFilePicker("image/*")}
                   />
                   <ClipAction
-                    label="Document"
+                    label={m.attach.document}
                     icon={FileText}
-                    title="Attach a document (PDF, Word, Excel, CSV, TXT)"
+                    title={m.attach.documentTitle}
                     onClick={() =>
                       openFilePicker(".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx")
                     }
@@ -1588,12 +1601,12 @@ export function ReplyComposer({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        title="Insert a link into the reply"
-                        aria-label="Insert a link into the reply"
+                        title={m.attach.insertLinkTitle}
+                        aria-label={m.attach.insertLinkTitle}
                         className="inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap text-[var(--inbox-text)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-accent)] sm:flex-none"
                       >
                         <Link className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        <span className="text-left">Insert link</span>
+                        <span className="text-left">{m.attach.insertLink}</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -1603,7 +1616,7 @@ export function ReplyComposer({
                     >
                       <div className="space-y-1">
                         <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
-                          URL
+                          {m.attach.urlLabel}
                         </label>
                         <Input
                           type="url"
@@ -1622,13 +1635,13 @@ export function ReplyComposer({
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--inbox-muted)]">
-                          Label (optional)
+                          {m.attach.linkLabelOptional}
                         </label>
                         <Input
                           type="text"
                           value={linkLabel}
                           onChange={(e) => setLinkLabel(e.target.value)}
-                          placeholder="Click here"
+                          placeholder={m.attach.linkLabelPlaceholder}
                           className="h-8 text-xs"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
@@ -1646,7 +1659,7 @@ export function ReplyComposer({
                           onClick={() => setLinkPopoverOpen(false)}
                           className="h-7 px-2 text-[11px] text-[var(--inbox-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--inbox-text)]"
                         >
-                          Cancel
+                          {t.common.cancel}
                         </Button>
                         <Button
                           type="button"
@@ -1656,7 +1669,7 @@ export function ReplyComposer({
                           disabled={linkUrl.trim().length === 0}
                           className="h-7 px-3 text-[11px]"
                         >
-                          Insert
+                          {m.attach.insert}
                         </Button>
                       </div>
                     </PopoverContent>
@@ -1670,7 +1683,7 @@ export function ReplyComposer({
                    non-email channels (see `clipCategoryTabs`) so it never shows as a
                    disabled/fake control. */
                 <ClipAction
-                  label={requestConfirmation ? "Confirmation requested" : "Confirm received"}
+                  label={requestConfirmation ? m.attach.confirmationRequested : m.attach.confirmReceived}
                   icon={MailCheck}
                   onClick={
                     onRequestConfirmationChange
@@ -1680,8 +1693,8 @@ export function ReplyComposer({
                   active={requestConfirmation}
                   title={
                     requestConfirmation
-                      ? "Customer will see a 'Confirm you received this' link. Click to disable."
-                      : "Add a 'Confirm you received this' link to this email."
+                      ? m.attach.confirmationRequestedTitle
+                      : m.attach.confirmReceivedTitle
                   }
                 />
               )}
@@ -1695,10 +1708,10 @@ export function ReplyComposer({
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                Context
+                {m.more.contextHeading}
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                What the AI and tools use as context.
+                {m.more.contextCaption}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
@@ -1706,8 +1719,8 @@ export function ReplyComposer({
                 icon={Layers}
                 label={
                   actingOnScope === "all"
-                    ? "Use latest message instead"
-                    : "Use whole conversation as context"
+                    ? m.more.useLatestMessage
+                    : m.more.useWholeConversation
                 }
                 onClick={() =>
                   onActingOnScopeChange?.(actingOnScope === "all" ? "latest" : "all")
@@ -1728,7 +1741,7 @@ export function ReplyComposer({
             aria-expanded={advancedActionsOpen}
             className="flex w-full items-center justify-between rounded-md border border-[var(--inbox-border)]/40 bg-transparent px-2.5 py-1.5 text-[11px] font-medium text-[var(--inbox-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--inbox-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40"
           >
-            <span>Advanced actions</span>
+            <span>{m.more.advancedActions}</span>
             <ChevronDown
               className={cn("h-3.5 w-3.5 shrink-0 transition-transform", advancedActionsOpen && "rotate-180")}
               aria-hidden="true"
@@ -1747,10 +1760,10 @@ export function ReplyComposer({
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                {actingOnScope === "selected" ? "This message" : "Latest message"}
+                {actingOnScope === "selected" ? m.more.thisMessageHeading : m.more.latestMessageHeading}
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Manual fallback — Fanny usually prepares this for you.
+                {m.more.manualFallbackCaption}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
@@ -1764,15 +1777,15 @@ export function ReplyComposer({
                 messageActions.intentStatus === "done" ? (
                   <MoreMenuItem
                     icon={AlertCircle}
-                    label="Mark this message as needs action"
+                    label={m.more.markMessageNeedsAction}
                     onClick={messageActions.onMarkDone}
                     onAfterClick={() => setMoreMenuOpen(false)}
                   />
                 ) : (
                   <MoreMenuItem
                     icon={CheckCircle2}
-                    label="Mark this message done"
-                    activeLabel="Marked as done"
+                    label={m.more.markMessageDone}
+                    activeLabel={m.more.markedDone}
                     onClick={messageActions.onMarkDone}
                     isCurrent={false}
                     onAfterClick={() => setMoreMenuOpen(false)}
@@ -1782,7 +1795,7 @@ export function ReplyComposer({
               {messageActions.onAddInternalNote ? (
                 <MoreMenuItem
                   icon={StickyNote}
-                  label="Add internal note"
+                  label={m.more.addInternalNote}
                   onClick={messageActions.onAddInternalNote}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
@@ -1798,7 +1811,7 @@ export function ReplyComposer({
                  */
                 <MoreMenuItem
                   icon={ListPlus}
-                  label="Create follow-up"
+                  label={m.more.createFollowUp}
                   onClick={messageActions.onAddToTodo}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
@@ -1811,10 +1824,10 @@ export function ReplyComposer({
           <div className="overflow-hidden rounded-lg border border-[var(--inbox-border)]/35 bg-white/[0.02]">
             <div className="border-b border-[var(--inbox-border)]/35 bg-black/35 px-3 py-1.5">
               <p className="text-[11px] font-semibold leading-tight text-[var(--inbox-text)]">
-                Conversation actions
+                {m.more.conversationHeading}
               </p>
               <p className="mt-0.5 text-[10px] leading-tight text-[var(--inbox-text-secondary)]">
-                Affects the whole conversation.
+                {m.more.conversationCaption}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 p-2.5">
@@ -1830,15 +1843,15 @@ export function ReplyComposer({
                 currentConversationStatus === "resolved" && markNeedsActionHandler ? (
                   <MoreMenuItem
                     icon={AlertCircle}
-                    label="Mark as needs action"
+                    label={m.more.markNeedsAction}
                     onClick={markNeedsActionHandler}
                     onAfterClick={() => setMoreMenuOpen(false)}
                   />
                 ) : (
                   <MoreMenuItem
                     icon={CheckCheck}
-                    label="Mark as resolved"
-                    activeLabel="Resolved"
+                    label={m.more.markResolved}
+                    activeLabel={m.more.resolved}
                     onClick={markResolvedHandler}
                     isCurrent={currentConversationStatus === "resolved"}
                     onAfterClick={() => setMoreMenuOpen(false)}
@@ -1848,15 +1861,15 @@ export function ReplyComposer({
               {currentConversationStatus === "archived" && unarchiveHandler ? (
                 <MoreMenuItem
                   icon={ArchiveRestore}
-                  label="Unarchive"
+                  label={m.more.unarchive}
                   onClick={unarchiveHandler}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
               ) : (
                 <MoreMenuItem
                   icon={Archive}
-                  label="Archive"
-                  activeLabel="Archived"
+                  label={m.more.archive}
+                  activeLabel={m.more.archived}
                   onClick={archiveHandler}
                   isCurrent={currentConversationStatus === "archived"}
                   onAfterClick={() => setMoreMenuOpen(false)}
@@ -1865,15 +1878,15 @@ export function ReplyComposer({
               {currentConversationStatus === "closed" && reopenHandler ? (
                 <MoreMenuItem
                   icon={MailOpen}
-                  label="Reopen"
+                  label={m.more.reopen}
                   onClick={reopenHandler}
                   onAfterClick={() => setMoreMenuOpen(false)}
                 />
               ) : (
                 <MoreMenuItem
                   icon={CheckCircle2}
-                  label="Close"
-                  activeLabel="Closed"
+                  label={m.more.close}
+                  activeLabel={m.more.closed}
                   onClick={closeHandler}
                   isCurrent={currentConversationStatus === "closed"}
                   onAfterClick={() => setMoreMenuOpen(false)}
@@ -1911,19 +1924,27 @@ export function ReplyComposer({
 }
 
 /**
- * Formatea el canal de la conversación para el badge del header del composer. Prioriza un map
- * curado para los canales conocidos (consistencia tipográfica: "Web chat", no "Web_chat"), cae
- * al `channelLabel` que envía el parent, y como último recurso capitaliza el slug crudo.
+ * Formatea el canal de la conversación para el badge del header del composer. Los canales que
+ * `lib/inbox-labels` conoce (email, whatsapp, web_chat, portal, manual) se localizan vía
+ * `channelLabel(channel, locale)`; el resto son marcas (Instagram, Messenger, …) idénticas en
+ * todos los locales. Cae al `channelLabel` que envía el parent y, como último recurso,
+ * capitaliza el slug crudo. `fallback` es la etiqueta genérica del catálogo ("Channel").
  */
-function formatChannelBadge(channel: string, channelLabel: string): string {
+function formatChannelBadge(
+  channel: string,
+  channelLabel: string,
+  locale: string,
+  fallback: string,
+): string {
   const normalized = (channel || "").trim().toLowerCase()
-  const map: Record<string, string> = {
-    email: "Email",
-    whatsapp: "WhatsApp",
-    web_chat: "Web chat",
-    web: "Web chat",
-    webchat: "Web chat",
-    portal: "Portal",
+  /** Aliases → canonical slug understood by `lib/inbox-labels`. */
+  const canonical = normalized === "web" || normalized === "webchat" ? "web_chat" : normalized
+  if (canonical) {
+    const localized = channelValueLabel(canonical, locale)
+    if (localized !== canonical) return localized
+  }
+  /** Brand/proper-noun channels — identical across locales by design. */
+  const brandMap: Record<string, string> = {
     instagram: "Instagram",
     facebook: "Facebook",
     messenger: "Messenger",
@@ -1931,10 +1952,10 @@ function formatChannelBadge(channel: string, channelLabel: string): string {
     voice: "Voice",
     telegram: "Telegram",
   }
-  if (map[normalized]) return map[normalized]
+  if (brandMap[normalized]) return brandMap[normalized]
   const fromLabel = channelLabel?.trim()
   if (fromLabel) return fromLabel
-  if (!normalized) return "Channel"
+  if (!normalized) return fallback
   return normalized
     .replace(/[_-]+/g, " ")
     .split(" ")
@@ -1947,27 +1968,37 @@ function getComposerConfig({
   channel,
   replyIsInternal,
   subject,
+  messages,
 }: {
   channel: string
   channelLabel: string
   replyIsInternal: boolean
   detectedLanguage?: string | null
   subject?: string | null
+  messages: ComposerMessages
 }) {
   if (replyIsInternal) {
-    return { placeholder: "Add an internal note...", sendLabel: "Save note", subjectPreview: null }
+    return {
+      placeholder: messages.placeholders.internalNote,
+      sendLabel: messages.send.saveNote,
+      subjectPreview: null,
+    }
   }
 
   switch (channel) {
     case "email":
-      return { placeholder: "Write your reply...", sendLabel: "Send reply", subjectPreview: subject || "No subject available" }
+      return {
+        placeholder: messages.placeholders.emailReply,
+        sendLabel: messages.send.sendReply,
+        subjectPreview: subject || messages.noSubject,
+      }
     case "whatsapp":
-      return { placeholder: "Type your message...", sendLabel: "Send message", subjectPreview: null }
+      return { placeholder: messages.placeholders.chatMessage, sendLabel: messages.send.sendMessage, subjectPreview: null }
     case "web_chat":
     case "portal":
-      return { placeholder: "Type your message...", sendLabel: "Send message", subjectPreview: null }
+      return { placeholder: messages.placeholders.chatMessage, sendLabel: messages.send.sendMessage, subjectPreview: null }
     default:
-      return { placeholder: "Write your message...", sendLabel: "Send reply", subjectPreview: null }
+      return { placeholder: messages.placeholders.defaultMessage, sendLabel: messages.send.sendReply, subjectPreview: null }
   }
 }
 
@@ -1998,6 +2029,7 @@ function MoreMenuItem({
   tone?: "neutral" | "danger"
   onAfterClick?: () => void
 }) {
+  const { t } = useI18n()
   const disabled = !onClick || Boolean(isCurrent)
   const toneText = tone === "danger" ? "text-[var(--inbox-urgency-critical-text)]" : "text-[var(--inbox-text)]"
   const toneHover =
@@ -2016,8 +2048,8 @@ function MoreMenuItem({
             }
       }
       disabled={disabled}
-      title={isCurrent ? `Already ${activeLabel || label}` : label}
-      aria-label={isCurrent ? `${label} (already applied)` : label}
+      title={isCurrent ? t.inbox.composer.more.alreadyTitle(activeLabel || label) : label}
+      aria-label={isCurrent ? t.inbox.composer.more.alreadyApplied(label) : label}
       className={cn(
         "inline-flex min-w-[110px] flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:flex-none",
         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-accent)]/40",
