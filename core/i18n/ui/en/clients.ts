@@ -1,17 +1,122 @@
 import type { ClientsMessages } from "../types"
 
 /**
- * English source for the `clients` UI namespace.
- * Business nouns (Client / Clienta / Patient) are interpolated in from the
- * vocabulary resolver — the catalog owns the sentence, never the noun.
+ * English source for the `clients` UI namespace — the full /clientes journey.
+ * Noun args arrive LOWERCASE from the vocabulary composition; this file
+ * capitalizes where English grammar needs it.
  */
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+
 export const clients: ClientsMessages = {
-  title: "Clients",
-  newButton: "New client",
-  searchPlaceholder: ({ clientPlural }) => `Search ${clientPlural}, company, or email…`,
-  count: (count, clientPlural) => `${count} ${clientPlural}`,
-  empty: {
-    title: "No clients yet",
-    body: "Add your first client to get started.",
+  nouns: {
+    client: "client",
+    clients: "clients",
+    project: "project",
+    projects: "projects",
+    invoices: "invoices",
+  },
+  status: {
+    active: "Active",
+    inactive: "Inactive",
+    prospect: "Prospect",
+  },
+  list: {
+    eyebrow: "Core",
+    newButton: ({ client }) => `New ${client}`,
+    searchPlaceholder: ({ clients }) => `Search ${clients}, company, or email...`,
+    sectionAll: ({ clients }) => `All ${clients}`,
+    count: (count, { client, clients }) => `${count} ${count === 1 ? client : clients}`,
+    statusFilterLabel: "Status",
+    filters: { all: "All", active: "Active", inactive: "Inactive", prospect: "Prospect" },
+    stats: {
+      total: "Total",
+      activeSub: "With activity",
+      prospects: "Prospects",
+      prospectsSub: "To convert",
+      inactiveSub: "No activity",
+    },
+    columns: { company: "Company", contact: "Contact", status: "Status", updated: "Updated" },
+    rowActionsAria: ({ client }) => `${cap(client)} actions`,
+    rowView: ({ client }) => `View ${client}`,
+    view: "View",
+    updated: (date) => `Updated ${date}`,
+    loadError: ({ clients }) => `${cap(clients)} could not be loaded`,
+    empty: {
+      title: ({ clients }) => `No ${clients} yet`,
+      bodyDefault: ({ client }) => `Create your first ${client} to get started.`,
+      bodyFiltered: "No results for the selected filters.",
+    },
+  },
+  detail: {
+    breadcrumbRoot: "Core",
+    tabs: { summary: "Summary", activity: "Activity" },
+    snapshot: {
+      activeProjects: ({ projects }) => `Active ${projects}`,
+      billedRevenue: "Billed revenue",
+      outstandingInvoices: ({ invoices }) => `Outstanding ${invoices}`,
+      clientSince: ({ client }) => `${cap(client)} since`,
+    },
+    profile: ({ client }) => `${cap(client)} profile`,
+    company: "Company",
+    noNotes: "No notes.",
+    projectsSection: ({ client, projects }) => `${cap(client)} ${projects}`,
+    projectsEmptyTitle: ({ client, projects }) => `No ${projects} for this ${client}`,
+    projectsEmptyBody: ({ client, projects }) => `${cap(projects)} linked to this ${client} will appear here.`,
+    newProject: ({ project }) => `New ${project}`,
+    invoicesSection: ({ client }) => `${cap(client)} billing`,
+    invoicesEmptyTitle: ({ client, invoices }) => `No ${invoices} for this ${client}`,
+    invoicesEmptyBody: ({ client }) => `Everything billed to this ${client} will appear here.`,
+    openBilling: ({ invoices }) => `Open ${invoices}`,
+    due: (date) => `Due ${date}`,
+    invoiceColumns: { amount: "Amount", dueDate: "Due date", status: "Status" },
+    notesSection: "Notes",
+    notesEmptyTitle: "No notes yet",
+    notesEmptyBody: ({ client }) => `Notes linked to this ${client} will appear here.`,
+    activitySection: "Recent activity",
+    activityEmptyTitle: "No activity recorded",
+    activityEmptyBody: ({ client }) => `Changes to this ${client} will show up here.`,
+    activityFallback: { created: "Created", updated: "Updated", system: "System", note: "Note" },
+    viewBilling: ({ invoices }) => `View ${invoices}`,
+    errors: {
+      invalidId: ({ client }) => `Invalid ${client} ID`,
+      notFound: ({ client }) => `${cap(client)} not found`,
+      backToList: ({ clients }) => `Back to ${clients}`,
+    },
+  },
+  form: {
+    titleNew: ({ client }) => `New ${client}`,
+    titleEdit: ({ client }) => `Edit ${client}`,
+    identityTitle: ({ client }) => `${cap(client)} identity`,
+    identityDesc: ({ client }) => `Core information used to identify the ${client} record.`,
+    contactTitle: "Contact details",
+    contactDesc: ({ client }) => `How the ${client} can be reached.`,
+    billingTitle: "Billing preferences",
+    billingDesc: ({ client }) => `Basic payment settings for this ${client}.`,
+    notesTitle: "Notes",
+    notesDesc: "Helpful internal context for the team.",
+    fields: {
+      id: ({ client }) => `${cap(client)} ID`,
+      idAuto: "Generated automatically on save",
+      name: "Name",
+      namePlaceholder: ({ client }) => `${cap(client)} name`,
+      company: "Company",
+      companyPlaceholder: "Company or legal name",
+      status: "Status",
+      email: "Email",
+      emailPlaceholder: "name@company.com",
+      phone: "Phone",
+      phonePlaceholder: "+1 555 123 4567",
+      paymentMethod: "Preferred payment method",
+      currency: "Currency",
+      notesPlaceholder: ({ client }) => `Add relevant notes about this ${client}...`,
+    },
+    payment: { cash: "Cash", transfer: "Bank transfer", card: "Card" },
+    saving: "Saving...",
+    create: ({ client }) => `Create ${client}`,
+    update: ({ client }) => `Update ${client}`,
+    toastCreated: ({ client }) => `${cap(client)} created`,
+    toastUpdated: ({ client }) => `${cap(client)} updated`,
+    toastSaveError: ({ client }) => `Could not save the ${client}`,
+    nameRequired: "Name is required",
   },
 }

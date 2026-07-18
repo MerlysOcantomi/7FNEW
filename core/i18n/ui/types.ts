@@ -178,19 +178,131 @@ export interface TodayMessages {
 }
 
 /**
- * Clients surface. Business nouns (Client → Clienta/Patient) are interpolation
- * DATA supplied by the vocabulary resolver — never keys in this catalog.
+ * Clients surface — the full /clientes journey (list, detail, form).
+ *
+ * Noun convention: every entity noun is interpolation DATA from the
+ * vocabulary resolver, passed LOWERCASE by callers (compose with
+ * `lowercase: true`); each locale file capitalizes internally where its
+ * grammar needs it. Sentence STRUCTURE lives here; nouns never do.
+ * `nouns` are the locale-generic fallbacks used when the workspace/vertical
+ * declares no explicit noun (mirrors the nav.* fallback role, singular forms
+ * included). Full-phrase typed functions are used wherever word order or
+ * agreement changes between languages — no `${action} ${entity}` gluing.
+ * Known limitation (documented): Spanish articles/adjectives agree with the
+ * standard masculine nouns; a feminine workspace override (e.g. "Clienta")
+ * keeps the standard structure words.
  */
 export interface ClientsMessages {
-  title: string
-  newButton: string
-  /** `clientPlural` comes from the vocabulary resolver (caller lowercases it). */
-  searchPlaceholder: (args: { clientPlural: string }) => string
-  /** Basic pluralization: the vocabulary noun already carries the plural form. */
-  count: (count: number, clientPlural: string) => string
-  empty: {
-    title: string
-    body: string
+  nouns: {
+    client: string
+    clients: string
+    project: string
+    projects: string
+    invoices: string
+  }
+  status: {
+    active: string
+    inactive: string
+    prospect: string
+  }
+  list: {
+    eyebrow: string
+    newButton: (v: { client: string }) => string
+    searchPlaceholder: (v: { clients: string }) => string
+    sectionAll: (v: { clients: string }) => string
+    count: (count: number, v: { client: string; clients: string }) => string
+    statusFilterLabel: string
+    filters: { all: string; active: string; inactive: string; prospect: string }
+    stats: {
+      total: string
+      activeSub: string
+      prospects: string
+      prospectsSub: string
+      inactiveSub: string
+    }
+    columns: { company: string; contact: string; status: string; updated: string }
+    rowActionsAria: (v: { client: string }) => string
+    rowView: (v: { client: string }) => string
+    view: string
+    updated: (date: string) => string
+    loadError: (v: { clients: string }) => string
+    empty: {
+      title: (v: { clients: string }) => string
+      bodyDefault: (v: { client: string }) => string
+      bodyFiltered: string
+    }
+  }
+  detail: {
+    breadcrumbRoot: string
+    tabs: { summary: string; activity: string }
+    snapshot: {
+      activeProjects: (v: { projects: string }) => string
+      billedRevenue: string
+      outstandingInvoices: (v: { invoices: string }) => string
+      clientSince: (v: { client: string }) => string
+    }
+    profile: (v: { client: string }) => string
+    company: string
+    noNotes: string
+    projectsSection: (v: { client: string; projects: string }) => string
+    projectsEmptyTitle: (v: { client: string; projects: string }) => string
+    projectsEmptyBody: (v: { client: string; projects: string }) => string
+    newProject: (v: { project: string }) => string
+    invoicesSection: (v: { client: string; invoices: string }) => string
+    invoicesEmptyTitle: (v: { client: string; invoices: string }) => string
+    invoicesEmptyBody: (v: { client: string }) => string
+    openBilling: (v: { invoices: string }) => string
+    due: (date: string) => string
+    invoiceColumns: { amount: string; dueDate: string; status: string }
+    notesSection: string
+    notesEmptyTitle: string
+    notesEmptyBody: (v: { client: string }) => string
+    activitySection: string
+    activityEmptyTitle: string
+    activityEmptyBody: (v: { client: string }) => string
+    activityFallback: { created: string; updated: string; system: string; note: string }
+    viewBilling: (v: { invoices: string }) => string
+    errors: {
+      invalidId: (v: { client: string }) => string
+      notFound: (v: { client: string }) => string
+      backToList: (v: { clients: string }) => string
+    }
+  }
+  form: {
+    titleNew: (v: { client: string }) => string
+    titleEdit: (v: { client: string }) => string
+    identityTitle: (v: { client: string }) => string
+    identityDesc: (v: { client: string }) => string
+    contactTitle: string
+    contactDesc: (v: { client: string }) => string
+    billingTitle: string
+    billingDesc: (v: { client: string }) => string
+    notesTitle: string
+    notesDesc: string
+    fields: {
+      id: (v: { client: string }) => string
+      idAuto: string
+      name: string
+      namePlaceholder: (v: { client: string }) => string
+      company: string
+      companyPlaceholder: string
+      status: string
+      email: string
+      emailPlaceholder: string
+      phone: string
+      phonePlaceholder: string
+      paymentMethod: string
+      currency: string
+      notesPlaceholder: (v: { client: string }) => string
+    }
+    payment: { cash: string; transfer: string; card: string }
+    saving: string
+    create: (v: { client: string }) => string
+    update: (v: { client: string }) => string
+    toastCreated: (v: { client: string }) => string
+    toastUpdated: (v: { client: string }) => string
+    toastSaveError: (v: { client: string }) => string
+    nameRequired: string
   }
 }
 

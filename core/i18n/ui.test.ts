@@ -134,7 +134,7 @@ test("new namespaces: representative English strings are present", () => {
   assert.equal(t.settings.title, "Settings")
   assert.equal(t.settings.language.appLabel, "App language")
   assert.equal(t.today.title, "Today")
-  assert.equal(t.clients.newButton, "New client")
+  assert.equal(t.clients.list.newButton({ client: "client" }), "New client")
   assert.equal(t.calendar.empty, "No events scheduled.")
   assert.equal(t.billing.newInvoice, "New invoice")
 })
@@ -144,20 +144,47 @@ test("new namespaces: nested semantic objects (empty, language)", () => {
   assert.equal(typeof t.settings.language, "object")
   assert.equal(typeof t.today.empty, "object")
   assert.equal(t.today.empty.title, "Nothing for today yet")
-  assert.equal(t.clients.empty.body, "Add your first client to get started.")
+  assert.equal(
+    t.clients.list.empty.bodyDefault({ client: "client" }),
+    "Create your first client to get started.",
+  )
 })
 
 test("clients: typed functions interpolate vertical vocabulary and counts", () => {
-  const clients = getNamespace("en", "clients")
+  const en = getNamespace("en", "clients")
   // The noun comes from the vocabulary resolver as data — never from a key.
   assert.equal(
-    clients.searchPlaceholder({ clientPlural: "clientas" }),
-    "Search clientas, company, or email…",
+    en.list.searchPlaceholder({ clients: "clientas" }),
+    "Search clientas, company, or email...",
   )
-  // Basic pluralization: the vocabulary noun carries the plural form.
-  assert.equal(clients.count(1, "client"), "1 client")
-  assert.equal(clients.count(3, "clients"), "3 clients")
-  assert.equal(clients.count(5, "clientas"), "5 clientas")
+  // Basic pluralization: the noun forms come from the vocabulary.
+  assert.equal(en.list.count(1, { client: "client", clients: "clients" }), "1 client")
+  assert.equal(en.list.count(3, { client: "client", clients: "clients" }), "3 clients")
+})
+
+test("clients es: full-phrase grammar with lowercase nouns (P4.3)", () => {
+  const es = getNamespace("es", "clients")
+  // Standard Finesse masculine agreement — "Nuevo cliente", never "Nueva".
+  assert.equal(es.list.newButton({ client: "cliente" }), "Nuevo cliente")
+  assert.equal(es.form.titleEdit({ client: "cliente" }), "Editar cliente")
+  assert.equal(es.form.toastCreated({ client: "cliente" }), "Cliente creado")
+  assert.equal(
+    es.list.searchPlaceholder({ clients: "clientes" }),
+    "Buscar clientes, empresa o email...",
+  )
+  assert.equal(es.list.empty.title({ clients: "clientes" }), "No hay clientes todavía")
+  assert.equal(es.list.count(1, { client: "cliente", clients: "clientes" }), "1 cliente")
+  // Word order flips vs English — full phrases, not glued fragments.
+  assert.equal(
+    es.detail.projectsSection({ client: "cliente", projects: "servicios" }),
+    "Servicios del cliente",
+  )
+  assert.equal(
+    es.detail.snapshot.outstandingInvoices({ invoices: "cobros" }),
+    "Cobros pendientes",
+  )
+  assert.equal(es.detail.errors.notFound({ client: "cliente" }), "Cliente no encontrado")
+  assert.equal(es.status.prospect, "Prospecto")
 })
 
 // ─── getNamespace ──────────────────────────────────────────────────────────────
