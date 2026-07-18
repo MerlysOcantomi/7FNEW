@@ -25,4 +25,30 @@ export const nav: NavMessages = {
   closeNavigation: "Close navigation",
   navigationTitle: "Navigation",
   backToWorkspace: "Back to 7F",
+  mySalon: "My salon",
+  helpers: {
+    marketing: "Content, campaigns & growth",
+    billing: "Invoices & payments",
+    forteLab: "Modules & improvements",
+  },
+  smartInbox: {
+    title: "Smart Inbox",
+    byFanny: "by Fanny",
+    groups: {
+      work: "Work",
+      smartViews: "Smart views",
+      storage: "Storage",
+    },
+    items: {
+      inbox: "Inbox",
+      needsAction: "Needs action",
+      waiting: "Waiting",
+      done: "Done",
+      scheduled: "Scheduled",
+      opportunities: "Opportunities",
+      closed: "Closed",
+      archived: "Archived",
+      trash: "Trash",
+    },
+  },
 }

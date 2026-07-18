@@ -7,6 +7,8 @@ import {
   showsTeamOnlyItems,
   type VerticalNavItem,
 } from "./nav-profile"
+import { nav as enNav } from "@core/i18n/ui/en/nav"
+import { nav as esNav } from "@core/i18n/ui/es/nav"
 
 // ─── resolveNavProfile: beauty keys ──────────────────────────────────────────
 
@@ -14,7 +16,9 @@ test("resolveNavProfile: 'beauty' returns the Beauty profile", () => {
   const p = resolveNavProfile("beauty")
   assert.equal(p, BEAUTY_NAV_PROFILE)
   assert.equal(p?.verticalKey, "beauty")
-  assert.equal(p?.locale, "es")
+  // Fallback literals are English canonical — the rendered language comes
+  // from the bindings + the effective locale (P4.FINESSE-ENES).
+  assert.equal(p?.locale, "en")
 })
 
 test("resolveNavProfile: salon/nails/barber alias to Beauty", () => {
@@ -42,7 +46,7 @@ test("resolveNavProfile: empty/nullish input → null", () => {
 const primaryIds = (items: VerticalNavItem[]) =>
   items.filter((i) => i.group === "primary").map((i) => i.id)
 
-test("Beauty primary menu is Mi salón · Hoy · Agenda · Mensajes · Clientas, in order", () => {
+test("Beauty primary menu is My salon · Today · Calendar · Messages · Clients, in order", () => {
   assert.deepEqual(primaryIds(BEAUTY_NAV_PROFILE.items), [
     "my-salon",
     "today",
@@ -52,37 +56,42 @@ test("Beauty primary menu is Mi salón · Hoy · Agenda · Mensajes · Clientas,
   ])
 })
 
-test("Beauty: Mi salón reuses the core overview route (no invented page)", () => {
+test("Beauty: My salon reuses the core overview route (no invented page)", () => {
   const mySalon = BEAUTY_NAV_PROFILE.items.find((i) => i.id === "my-salon")
   assert.equal(mySalon?.href, "/")
-  assert.equal(mySalon?.label, "Mi salón")
-  // Product-name literal on purpose — no entity/vocabulary binding.
+  assert.equal(mySalon?.label, "My salon")
+  // Structural binding: the visible label localizes via the nav catalog.
   assert.equal(mySalon?.entityKey, undefined)
-  assert.equal(mySalon?.navLabelKey, undefined)
+  assert.equal(mySalon?.navLabelKey, "mySalon")
 })
 
-test("Beauty fallback labels are Spanish and client-neutral (P4.2.1)", () => {
+test("Beauty fallback labels are English canonical and client-neutral", () => {
   // These literals are FALLBACKS — the sidebar composes real labels from
-  // entity/nav bindings; standard Finesse never shows "Clientas".
+  // entity/nav bindings; the profile never carries a final language.
   const byId = Object.fromEntries(BEAUTY_NAV_PROFILE.items.map((i) => [i.id, i.label]))
-  assert.equal(byId.today, "Hoy")
-  assert.equal(byId.agenda, "Agenda")
-  assert.equal(byId.clientas, "Clientes")
-  assert.equal(byId.mensajes, "Mensajes")
-  assert.equal(byId.servicios, "Servicios")
+  assert.equal(byId.today, "Today")
+  assert.equal(byId.agenda, "Calendar")
+  assert.equal(byId.clientas, "Clients")
+  assert.equal(byId.mensajes, "Messages")
+  assert.equal(byId.servicios, "Services")
 })
 
 test("Beauty items declare their label source bindings", () => {
   const byId = Object.fromEntries(BEAUTY_NAV_PROFILE.items.map((i) => [i.id, i]))
+  assert.equal(byId["my-salon"].navLabelKey, "mySalon")
   assert.equal(byId.today.navLabelKey, "today")
   assert.equal(byId.clientas.entityKey, "client")
   assert.equal(byId.clientas.entityForm, "plural")
   assert.equal(byId.agenda.entityKey, "calendar")
   assert.equal(byId.mensajes.entityKey, "inbox")
   assert.equal(byId.cobros.entityKey, "billing")
-  // Brand item stays literal on purpose.
+  // Brand item stays literal on purpose (label), helper still binds.
   assert.equal(byId.forte.entityKey, undefined)
   assert.equal(byId.forte.navLabelKey, undefined)
+  // Helper subtitles are catalog bindings, never profile literals.
+  assert.equal(byId.marketing.helperKey, "marketing")
+  assert.equal(byId.cobros.helperKey, "billing")
+  assert.equal(byId.forte.helperKey, "forteLab")
 })
 
 test("Beauty hides Projects / Reports / advanced Finance by omission", () => {
@@ -98,8 +107,8 @@ test("every Beauty nav href points at an existing route (starts with '/')", () =
   }
 })
 
-test("Beauty groups items into a 'Más' overflow", () => {
-  assert.equal(BEAUTY_NAV_PROFILE.moreLabel, "Más")
+test("Beauty groups items into a 'More' overflow (nav.more localizes it)", () => {
+  assert.equal(BEAUTY_NAV_PROFILE.moreLabel, "More")
   const more = BEAUTY_NAV_PROFILE.items.filter((i) => i.group === "more")
   assert.ok(more.length > 0)
   assert.ok(more.some((i) => i.id === "cobros"))
@@ -131,21 +140,14 @@ test("Beauty: Equipo is the only teamOnly item", () => {
   assert.deepEqual(teamOnly.map((i) => i.id), ["equipo"])
 })
 
-test("Beauty: helpers describe functions, never agents", () => {
-  const marketing = byId("marketing")?.helper ?? ""
-  assert.ok(!/freya/i.test(marketing), "Marketing helper must not mention Freya")
-  assert.ok(!/fiona/i.test(marketing), "Marketing helper must not mention Fiona")
-
-  const cobros = byId("cobros")?.helper ?? ""
-  assert.ok(!/felix/i.test(cobros), "Cobros helper must not mention Felix")
-
-  // No Beauty helper attributes a section to an agent ("por <Agente>").
-  for (const item of BEAUTY_NAV_PROFILE.items) {
-    if (!item.helper) continue
-    assert.ok(
-      !/\bpor\s+f\w+/i.test(item.helper),
-      `${item.id} helper must not attribute the section to an agent: "${item.helper}"`,
-    )
+test("Beauty: helpers are catalog bindings that describe functions, never agents", () => {
+  // Helper text lives in the nav catalog (`nav.helpers`) in both locales —
+  // assert the catalog copy never attributes a section to an agent.
+  for (const catalog of [enNav, esNav]) {
+    for (const text of Object.values(catalog.helpers)) {
+      assert.ok(!/freya|fiona|felix|fanny/i.test(text), `helper must not mention an agent: "${text}"`)
+      assert.ok(!/\b(por|by)\s+f\w+/i.test(text), `helper must not attribute to an agent: "${text}"`)
+    }
   }
 })
 

@@ -285,7 +285,8 @@ function buildVerticalNavSections(
         : item.label,
     href: item.href,
     icon: VERTICAL_NAV_ICONS[item.id] ?? LayoutDashboard,
-    helper: item.helper,
+    // Helper subtitles resolve from the nav catalog — never profile literals.
+    helper: item.helperKey ? nav.helpers[item.helperKey] : undefined,
   });
 
   // Solo/Team visibility is decided ONCE by the shared pure resolver; the
@@ -332,6 +333,52 @@ function getInboxFocusedItems(): NavItem[] {
 
 const INBOX_FOCUSED_ITEMS = getInboxFocusedItems();
 
+/**
+ * Localize Inbox filter subitems from the nav catalog. Items are IDENTIFIED
+ * by their stable `?filter=` value (null = the main /inbox list) and groups
+ * by their internal English tags — visible labels are catalog output, so the
+ * same NavItem structures serve every locale without drifting. Non-inbox
+ * items pass through untouched.
+ */
+const INBOX_FILTER_LABEL_KEYS: Record<
+  string,
+  keyof NavMessages["smartInbox"]["items"]
+> = {
+  needs_action: "needsAction",
+  waiting: "waiting",
+  done: "done",
+  scheduled: "scheduled",
+  opportunities: "opportunities",
+  closed: "closed",
+  archived: "archived",
+  trash: "trash",
+};
+
+const INBOX_GROUP_LABEL_KEYS: Record<
+  string,
+  keyof NavMessages["smartInbox"]["groups"]
+> = {
+  Work: "work",
+  "Smart views": "smartViews",
+  Storage: "storage",
+};
+
+function localizeInboxSubitems(items: NavItem[], nav: NavMessages): NavItem[] {
+  return items.map((item) => {
+    if (!item.href.startsWith("/inbox")) return item;
+    const filter = item.href.includes("?filter=")
+      ? new URL(item.href, "http://x").searchParams.get("filter")
+      : null;
+    const labelKey = filter ? INBOX_FILTER_LABEL_KEYS[filter] : item.href === "/inbox" ? "inbox" : undefined;
+    const groupKey = item.group ? INBOX_GROUP_LABEL_KEYS[item.group] : undefined;
+    return {
+      ...item,
+      label: labelKey ? nav.smartInbox.items[labelKey] : item.label,
+      group: groupKey ? nav.smartInbox.groups[groupKey] : item.group,
+    };
+  });
+}
+
 /** True when the current route is the Inbox workspace (top-level or any subroute). */
 function isInboxFocusedPath(pathname: string): boolean {
   return pathname === "/inbox" || pathname.startsWith("/inbox/");
@@ -363,22 +410,27 @@ function SmartInboxNavLink({
   const hrefFilter = href.includes("?filter=") ? new URL(href, "http://x").searchParams.get("filter") : null;
   const isActive = pathname === "/inbox" && currentFilter === hrefFilter;
 
-  const getIconColor = (label: string) => {
-    switch (label) {
+  /**
+   * Icon colors key on the STABLE `?filter=` value (null = the main Inbox
+   * list), never on the visible label — labels are localized and must stay
+   * free to change per language without breaking the color mapping.
+   */
+  const getIconColor = (filter: string | null) => {
+    switch (filter) {
       /**
        * Inbox + Work group — accent-tinted icons signal "active operational lanes".
        */
-      case "Inbox": return "text-[var(--inbox-accent)]";
-      case "Needs action": return "text-[var(--inbox-accent)]";
-      case "Waiting": return "text-[var(--inbox-waiting-color)]";
-      case "Done": return "text-[var(--inbox-done-color)]";
+      case null: return "text-[var(--inbox-accent)]";
+      case "needs_action": return "text-[var(--inbox-accent)]";
+      case "waiting": return "text-[var(--inbox-waiting-color)]";
+      case "done": return "text-[var(--inbox-done-color)]";
       /** Smart views — pre-existing semantic colors. */
-      case "Scheduled": return "text-[var(--inbox-accent)]";
-      case "Opportunities": return "text-[var(--inbox-lead-color)]";
+      case "scheduled": return "text-[var(--inbox-accent)]";
+      case "opportunities": return "text-[var(--inbox-lead-color)]";
       /** Storage — muted because they're not where daily work happens. */
-      case "Closed": return "text-[var(--inbox-done-color)]";
-      case "Archived": return "text-[var(--inbox-archive-color)]";
-      case "Trash": return "text-[var(--app-sidebar-text-muted)]";
+      case "closed": return "text-[var(--inbox-done-color)]";
+      case "archived": return "text-[var(--inbox-archive-color)]";
+      case "trash": return "text-[var(--app-sidebar-text-muted)]";
       default: return "text-[var(--app-sidebar-text-muted)]";
     }
   };
@@ -404,9 +456,9 @@ function SmartInboxNavLink({
           size={15}
           strokeWidth={1.75}
           className={cn(
-            getIconColor(label),
+            getIconColor(hrefFilter),
             /** Opportunities (formerly Leads) keeps the filled star for emphasis. */
-            label === "Opportunities" && "fill-current",
+            hrefFilter === "opportunities" && "fill-current",
           )}
         />
       </span>
@@ -429,6 +481,12 @@ function NavLinkWithSubitems({
   const pathname = usePathname();
   const currentParams = useSearchParams();
   const currentFilter = currentParams.get("filter");
+  const { t } = useI18n();
+  // Inbox filter labels/groups localize at render; other subitems no-op.
+  const localizedSubitems = useMemo(
+    () => (subitems ? localizeInboxSubitems(subitems, t.nav) : undefined),
+    [subitems, t.nav],
+  );
   const hasActiveSubitem = subitems?.some(subitem => {
     const subFilter = subitem.href.includes("?filter=") ? new URL(subitem.href, "http://x").searchParams.get("filter") : null;
     return pathname === "/inbox" && currentFilter === subFilter;
@@ -517,7 +575,7 @@ function NavLinkWithSubitems({
       </Link>
       {!collapsed && expanded && subitems && (
         <div className="ml-4 mt-1 border-l border-[var(--app-sidebar-border)] pl-3">
-          {renderGroupedSubitems(subitems, onClick)}
+          {renderGroupedSubitems(localizedSubitems ?? subitems, onClick)}
         </div>
       )}
     </div>
@@ -718,8 +776,12 @@ function InboxFocusedNav({
   collapsed?: boolean;
   onNavClick?: () => void;
 }) {
-  /** Only the shared shell exit label localizes here; Inbox naming stays put. */
-  const backToWorkspaceLabel = useI18n().t.nav.backToWorkspace;
+  const { t } = useI18n();
+  const backToWorkspaceLabel = t.nav.backToWorkspace;
+  const focusedItems = useMemo(
+    () => localizeInboxSubitems(INBOX_FOCUSED_ITEMS, t.nav),
+    [t.nav],
+  );
   /**
    * When expanded we show Work / Smart views / Storage group separators (matching the
    * global sidebar's submenu). When collapsed, the separators don't fit the icon-only
@@ -728,12 +790,12 @@ function InboxFocusedNav({
    */
   const body = useMemo(() => {
     if (collapsed) {
-      return INBOX_FOCUSED_ITEMS.map((item) => (
+      return focusedItems.map((item) => (
         <SmartInboxNavLink key={item.href} {...item} collapsed onClick={onNavClick} />
       ));
     }
-    return renderGroupedSubitems(INBOX_FOCUSED_ITEMS, onNavClick);
-  }, [collapsed, onNavClick]);
+    return renderGroupedSubitems(focusedItems, onNavClick);
+  }, [collapsed, onNavClick, focusedItems]);
 
   return (
     /**
@@ -764,11 +826,11 @@ function InboxFocusedNav({
         {!collapsed ? (
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="text-[11px] font-semibold text-[var(--app-sidebar-text)] tracking-wide">
-              Smart Inbox
+              {t.nav.smartInbox.title}
             </span>
             <span className="text-[9px] text-[var(--app-sidebar-text-muted)] tracking-wide flex items-center gap-1">
               <Sparkles size={9} className="shrink-0" />
-              by Fanny
+              {t.nav.smartInbox.byFanny}
             </span>
           </div>
         ) : null}

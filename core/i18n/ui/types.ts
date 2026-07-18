@@ -66,6 +66,41 @@ export interface NavMessages {
   closeNavigation: string
   navigationTitle: string
   backToWorkspace: string
+  /** Structural label for the vertical overview item ("My salon" / "Mi salón"). */
+  mySalon: string
+  /** Neutral, function-describing helper subtitles for vertical nav items. */
+  helpers: {
+    marketing: string
+    billing: string
+    forteLab: string
+  }
+  /**
+   * Focused Inbox chrome + filter labels (rendered on /inbox in every
+   * workspace). `title`/`byFanny` are product/agent branding sourced from the
+   * catalog so a locale MAY localize them; filter items and group separators
+   * are plain UI copy. Keys are stable — the sidebar derives them from each
+   * item's `?filter=` value, never from the visible label.
+   */
+  smartInbox: {
+    title: string
+    byFanny: string
+    groups: {
+      work: string
+      smartViews: string
+      storage: string
+    }
+    items: {
+      inbox: string
+      needsAction: string
+      waiting: string
+      done: string
+      scheduled: string
+      opportunities: string
+      closed: string
+      archived: string
+      trash: string
+    }
+  }
 }
 
 /** Global search chrome (trigger, dialog frame, footer hints) — not results. */

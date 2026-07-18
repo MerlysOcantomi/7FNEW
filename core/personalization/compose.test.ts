@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { composeEntityLabel, hasVocabularyOverride } from "./compose"
+import { getNamespace } from "@core/i18n/ui"
 import { resolveVocabulary, mapVerticalKeyToBusinessType, DEFAULT_VOCABULARY } from "./index"
 
 const beautyType = mapVerticalKeyToBusinessType("salon")
@@ -123,4 +124,33 @@ test("guard: DEFAULT_VOCABULARY itself never reports overrides", () => {
     assert.ok(!hasVocabularyOverride(DEFAULT_VOCABULARY, entity, "singular"))
     assert.ok(!hasVocabularyOverride(DEFAULT_VOCABULARY, entity, "plural"))
   }
+})
+
+// ─── P4.FINESSE-ENES: mandatory navigation matrix (sidebar label composition) ─
+
+test("Finesse sidebar matrix: EN → My salon · Today · Calendar · Messages · Clients", () => {
+  const nav = getNamespace("en", "nav")
+  const compose = (entity: "client" | "calendar" | "inbox", form: "singular" | "plural", fallback: string) =>
+    composeEntityLabel({ vocabulary: beautyEn, entity, form, fallback })
+  assert.equal(nav.mySalon, "My salon")
+  assert.equal(nav.today, "Today")
+  assert.equal(compose("calendar", "singular", nav.calendar), "Calendar")
+  assert.equal(compose("inbox", "singular", nav.inbox), "Messages")
+  assert.equal(compose("client", "plural", nav.clients), "Clients")
+  // "More" group + helpers are English.
+  assert.equal(nav.more, "More")
+  assert.equal(nav.helpers.billing, "Invoices & payments")
+})
+
+test("Finesse sidebar matrix: ES → Mi salón · Hoy · Agenda · Mensajes · Clientes", () => {
+  const nav = getNamespace("es", "nav")
+  const compose = (entity: "client" | "calendar" | "inbox", form: "singular" | "plural", fallback: string) =>
+    composeEntityLabel({ vocabulary: beautyEs, entity, form, fallback })
+  assert.equal(nav.mySalon, "Mi salón")
+  assert.equal(nav.today, "Hoy")
+  assert.equal(compose("calendar", "singular", nav.calendar), "Agenda")
+  assert.equal(compose("inbox", "singular", nav.inbox), "Mensajes")
+  assert.equal(compose("client", "plural", nav.clients), "Clientes")
+  assert.equal(nav.more, "Más")
+  assert.equal(nav.helpers.billing, "Facturas y pagos")
 })

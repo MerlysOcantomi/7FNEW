@@ -30,7 +30,14 @@ export type VerticalNavGroup = "primary" | "more"
  * of the i18n `nav` namespace; kept as a local literal union so vertical
  * packs stay decoupled from the i18n type module.
  */
-export type VerticalNavStructuralKey = "today"
+export type VerticalNavStructuralKey = "today" | "mySalon"
+
+/**
+ * Helper-subtitle bindings. Values mirror keys of the i18n `nav.helpers`
+ * namespace; kept as a local literal union so vertical packs stay decoupled
+ * from the i18n type module.
+ */
+export type VerticalNavHelperKey = "marketing" | "billing" | "forteLab"
 
 export interface VerticalNavItem {
   /** Stable id used by the sidebar to pick an icon. Not shown to the user. */
@@ -54,11 +61,12 @@ export interface VerticalNavItem {
   /** Existing 7F Core route. Never a new/vertical-specific route. */
   href: string
   /**
-   * Optional neutral, FUNCTION-describing subtitle (e.g. "Facturas y pagos").
-   * Never an agent attribution: the sidebar describes what a section does, not
-   * which agent owns it — work attribution belongs to the Agents surface.
+   * Neutral, FUNCTION-describing subtitle binding — resolved from the i18n
+   * `nav.helpers` namespace by the sidebar. Never an agent attribution: the
+   * sidebar describes what a section does, not which agent owns it — work
+   * attribution belongs to the Agents surface.
    */
-  helper?: string
+  helperKey?: VerticalNavHelperKey
   /** `primary` renders flat at the top; `more` collapses under the "Más" group. */
   group: VerticalNavGroup
   /**
@@ -72,9 +80,13 @@ export interface VerticalNavItem {
 export interface VerticalNavProfile {
   /** The vertical this profile belongs to (canonical key). */
   verticalKey: string
-  /** Display locale for the labels in this profile. */
+  /**
+   * Locale of the LITERAL fallback labels below (always "en" — English is the
+   * canonical source). The rendered language comes from the bindings + the
+   * effective locale, never from this field.
+   */
   locale: string
-  /** Header label for the collapsible "more" group. */
+  /** Fallback header label for the collapsible "more" group (nav.more wins). */
   moreLabel: string
   /** Ordered nav items (primary first, then more). */
   items: VerticalNavItem[]
@@ -83,10 +95,16 @@ export interface VerticalNavProfile {
 /**
  * 7F Beauty navigation — the target Beauty MVP menu.
  *
- * Primary:  Mi salón · Hoy · Agenda · Mensajes · Clientas
- * More:     Marketing · Cobros · Servicios · Equipo (Team only) · Mr. Forte Lab
+ * Primary:  My salon · Today · Calendar · Messages · Clients
+ *           (es: Mi salón · Hoy · Agenda · Mensajes · Clientes)
+ * More:     Marketing · Billing · Services · Team (Team only) · Mr. Forte Lab
  *
- * "Mi salón" points at `/` — the core Business Overview route, which is
+ * The profile declares IDENTITY and ROUTE, never the final language: every
+ * label/helper resolves through a binding (vocabulary noun or nav catalog) at
+ * the effective locale. Literals are English canonical fallbacks — the only
+ * binding-less literal is the "Mr. Forte Lab" brand name.
+ *
+ * "My salon" points at `/` — the core Business Overview route, which is
  * vertical-aware (Beauty renders the Finesse "Mi salón" experience; other
  * verticals keep the core dashboard — see `app/page.tsx`). No new route.
  *
@@ -96,31 +114,31 @@ export interface VerticalNavProfile {
  * lives in the top-bar bell). Hiding is achieved by NOT listing them —
  * nothing is deleted from the core.
  *
- * Helpers are NEUTRAL function descriptions ("Facturas y pagos"), never agent
- * attributions: the sidebar says what a section does; who does the work is the
- * Agents surface's job.
+ * Helpers are NEUTRAL function descriptions ("Invoices & payments"), never
+ * agent attributions: the sidebar says what a section does; who does the work
+ * is the Agents surface's job.
  *
- * `Servicios` points at `/services` — the generic (core) service-catalog
+ * `Services` points at `/services` — the generic (core) service-catalog
  * surface. The catalog itself is core infrastructure; Beauty only contributes
  * the seed/labels via its vertical pack.
  */
 export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
   verticalKey: "beauty",
-  locale: "es",
-  moreLabel: "Más",
+  locale: "en",
+  moreLabel: "More",
   items: [
-    // Literal label on purpose (like "Mr. Forte Lab"): "Mi salón" is the
-    // Finesse product name for the overview, not an entity/vocabulary noun.
-    { id: "my-salon", label: "Mi salón", href: "/", group: "primary" },
-    { id: "today", label: "Hoy", href: "/today", group: "primary", navLabelKey: "today" },
-    { id: "agenda", label: "Agenda", href: "/calendario", group: "primary", entityKey: "calendar", entityForm: "singular" },
-    { id: "mensajes", label: "Mensajes", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
-    { id: "clientas", label: "Clientes", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
-    { id: "marketing", label: "Marketing", href: "/contenido", helper: "Contenido, campañas y crecimiento", group: "more", entityKey: "marketing", entityForm: "singular" },
-    { id: "cobros", label: "Cobros", href: "/facturacion", helper: "Facturas y pagos", group: "more", entityKey: "billing", entityForm: "plural" },
-    { id: "servicios", label: "Servicios", href: "/services", group: "more", entityKey: "project", entityForm: "plural" },
-    { id: "equipo", label: "Equipo", href: "/usuarios", group: "more", teamOnly: true, entityKey: "member", entityForm: "singular" },
-    { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helper: "Módulos y mejoras", group: "more" },
+    // Structural binding: the overview label lives in the nav catalog
+    // ("My salon" / "Mi salón") — a product concept, not an entity noun.
+    { id: "my-salon", label: "My salon", href: "/", group: "primary", navLabelKey: "mySalon" },
+    { id: "today", label: "Today", href: "/today", group: "primary", navLabelKey: "today" },
+    { id: "agenda", label: "Calendar", href: "/calendario", group: "primary", entityKey: "calendar", entityForm: "singular" },
+    { id: "mensajes", label: "Messages", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
+    { id: "clientas", label: "Clients", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
+    { id: "marketing", label: "Marketing", href: "/contenido", helperKey: "marketing", group: "more", entityKey: "marketing", entityForm: "singular" },
+    { id: "cobros", label: "Billing", href: "/facturacion", helperKey: "billing", group: "more", entityKey: "billing", entityForm: "plural" },
+    { id: "servicios", label: "Services", href: "/services", group: "more", entityKey: "project", entityForm: "plural" },
+    { id: "equipo", label: "Team", href: "/usuarios", group: "more", teamOnly: true, entityKey: "member", entityForm: "singular" },
+    { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helperKey: "forteLab", group: "more" },
   ],
 }
 
