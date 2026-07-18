@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Loader2, Send, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  FINESSE_ASSISTANT_COPY as COPY,
   FINESSE_MAX_QUESTION_LENGTH,
+  getFinesseAssistantCopy,
   resolveFinessePageKey,
 } from "@modules/assistant/finesse-assistant"
 import { buildFinesseSuggestions } from "@modules/assistant/finesse-suggestions"
@@ -26,18 +26,20 @@ import { FinesseVoiceMicButton, FinesseVoiceStatusBar } from "./finesse-voice-co
 export function FinesseAssistantConversation() {
   const pathname = usePathname()
   const { pageContext, messages, status, ask } = useFinesseAssistant()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [draft, setDraft] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Panel copy resolved from the effective UI locale (EN fallback).
+  const copy = useMemo(() => getFinesseAssistantCopy(locale), [locale])
   const pageKey = pageContext?.page ?? resolveFinessePageKey(pathname)
   // Deterministic, data-aware suggestions: ranked from the metrics the page
   // registered; static page prompts remain only as fallback. Memoized on the
   // registered context so they are stable between renders and update exactly
-  // when relevant context changes.
+  // when relevant context (or the locale) changes.
   const suggestions = useMemo(
-    () => buildFinesseSuggestions({ page: pageKey, context: pageContext }),
-    [pageKey, pageContext],
+    () => buildFinesseSuggestions({ page: pageKey, context: pageContext, locale }),
+    [pageKey, pageContext, locale],
   )
   const unavailable = status === "unavailable"
 
@@ -64,7 +66,7 @@ export function FinesseAssistantConversation() {
         {/* Context label + contextual introduction */}
         <div className="mb-4">
           <p className="text-[11px] text-[var(--text-tertiary-light)]">
-            {COPY.contextLead}{" "}
+            {copy.contextLead}{" "}
             <span
               className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold"
               style={{
@@ -73,14 +75,14 @@ export function FinesseAssistantConversation() {
                 borderColor: "var(--accent-muted-border)",
               }}
             >
-              {COPY.pageLabels[pageKey]}
+              {copy.pageLabels[pageKey]}
             </span>
           </p>
           <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">
-            {COPY.intros[pageKey]}
+            {copy.intros[pageKey]}
           </p>
           <p className="mt-1.5 text-[10.5px] leading-relaxed text-[var(--text-tertiary-light)]">
-            {COPY.honestyNote}
+            {copy.honestyNote}
           </p>
         </div>
 
@@ -93,10 +95,10 @@ export function FinesseAssistantConversation() {
             }}
           >
             <p className="text-[12.5px] font-semibold" style={{ color: "var(--inbox-lead)" }}>
-              {COPY.unavailable.title}
+              {copy.unavailable.title}
             </p>
             <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">
-              {COPY.unavailable.description}
+              {copy.unavailable.description}
             </p>
           </div>
         ) : null}
@@ -105,7 +107,7 @@ export function FinesseAssistantConversation() {
         {messages.length === 0 && !unavailable ? (
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--text-tertiary-light)]">
-              {COPY.suggestionsTitle}
+              {copy.suggestionsTitle}
             </p>
             <div className="flex flex-col items-start gap-1.5">
               {suggestions.map((s) => (
@@ -119,7 +121,7 @@ export function FinesseAssistantConversation() {
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-[var(--text-tertiary-light)]">{COPY.emptyConversation}</p>
+            <p className="mt-3 text-[11px] text-[var(--text-tertiary-light)]">{copy.emptyConversation}</p>
           </div>
         ) : null}
 
@@ -151,7 +153,7 @@ export function FinesseAssistantConversation() {
             {status === "loading" ? (
               <div className="flex items-center gap-2 self-start rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 py-2.5">
                 <Loader2 size={13} className="animate-spin text-[var(--accent-on-dark)]" aria-hidden="true" />
-                <span className="text-[11.5px] text-[var(--text-secondary-light)]">{COPY.thinking}</span>
+                <span className="text-[11.5px] text-[var(--text-secondary-light)]">{copy.thinking}</span>
               </div>
             ) : null}
 
@@ -165,9 +167,9 @@ export function FinesseAssistantConversation() {
                 }}
               >
                 <p className="text-[12px] font-semibold" style={{ color: "var(--inbox-urgency)" }}>
-                  {COPY.error.title}
+                  {copy.error.title}
                 </p>
-                <p className="mt-0.5 text-[11px] text-[var(--text-secondary-light)]">{COPY.error.retry}</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary-light)]">{copy.error.retry}</p>
               </div>
             ) : null}
           </div>
@@ -196,8 +198,8 @@ export function FinesseAssistantConversation() {
           }}
           rows={2}
           maxLength={FINESSE_MAX_QUESTION_LENGTH}
-          placeholder={COPY.composerPlaceholder}
-          aria-label={COPY.composerPlaceholder}
+          placeholder={copy.composerPlaceholder}
+          aria-label={copy.composerPlaceholder}
           disabled={unavailable}
           className="min-h-[42px] flex-1 resize-none rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3 py-2 text-[12.5px] text-[var(--text-primary-light)] outline-none placeholder:text-[var(--text-tertiary-light)] focus:ring-2 focus:ring-[var(--accent-primary)]/40 disabled:cursor-not-allowed disabled:opacity-60"
         />
@@ -205,7 +207,7 @@ export function FinesseAssistantConversation() {
         <button
           type="submit"
           disabled={unavailable || status === "loading" || draft.trim().length === 0}
-          aria-label={COPY.send}
+          aria-label={copy.send}
           className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-[var(--accent-primary)] text-white transition-colors hover:bg-[var(--accent-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-1"
         >
           {status === "loading" ? (
@@ -221,6 +223,8 @@ export function FinesseAssistantConversation() {
 
 /** Shared Finesse identity header for the panel and the mobile sheet. */
 export function FinesseAssistantIdentity() {
+  const { locale } = useI18n()
+  const copy = getFinesseAssistantCopy(locale)
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <span
@@ -234,8 +238,8 @@ export function FinesseAssistantIdentity() {
         <Sparkles size={15} strokeWidth={2} />
       </span>
       <div className="min-w-0 leading-tight">
-        <p className="text-[13.5px] font-semibold text-[var(--text-primary-light)]">{COPY.panelTitle}</p>
-        <p className="text-[10px] text-[var(--text-tertiary-light)]">{COPY.panelSubtitle}</p>
+        <p className="text-[13.5px] font-semibold text-[var(--text-primary-light)]">{copy.panelTitle}</p>
+        <p className="text-[10px] text-[var(--text-tertiary-light)]">{copy.panelSubtitle}</p>
       </div>
     </div>
   )

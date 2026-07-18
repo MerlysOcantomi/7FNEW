@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Sparkles, X } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
@@ -9,7 +9,7 @@ import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { resolveVerticalSpecialist } from "@core/vertical-packs/specialists"
 import { useI18n } from "@/components/i18n-provider"
-import { FINESSE_ASSISTANT_COPY as COPY } from "@modules/assistant/finesse-assistant"
+import { getFinesseAssistantCopy } from "@modules/assistant/finesse-assistant"
 import {
   VOICE_HINT_STORAGE_KEY,
   shouldShowVoiceHint,
@@ -70,6 +70,10 @@ export function GlobalFinesseAssistantChrome() {
   const { workspace } = useActiveWorkspace()
   const { open, setOpen, available } = useFinesseAssistant()
   const isMobile = useIsMobile()
+  const { locale } = useI18n()
+
+  // Panel chrome copy resolved from the effective UI locale (EN fallback).
+  const copy = useMemo(() => getFinesseAssistantCopy(locale), [locale])
 
   const forcedBeauty = searchParams.get("vertical") === "beauty"
   const specialist = resolveVerticalSpecialist(
@@ -88,14 +92,14 @@ export function GlobalFinesseAssistantChrome() {
             aria-describedby={undefined}
             onCloseAutoFocus={focusLauncher}
           >
-            <DrawerTitle className="sr-only">{COPY.panelTitle}</DrawerTitle>
-            <DrawerDescription className="sr-only">{COPY.panelSubtitle}</DrawerDescription>
+            <DrawerTitle className="sr-only">{copy.panelTitle}</DrawerTitle>
+            <DrawerDescription className="sr-only">{copy.panelSubtitle}</DrawerDescription>
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-dark)] px-4 py-3">
               <FinesseAssistantIdentity />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label={COPY.close}
+                aria-label={copy.close}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-secondary-light)] transition-colors hover:bg-[var(--app-surface-hover)] hover:text-[var(--text-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
               >
                 <X size={16} aria-hidden="true" />
@@ -119,14 +123,14 @@ export function GlobalFinesseAssistantChrome() {
             className="inset-y-3 right-3 h-auto w-full gap-0 overflow-hidden rounded-[20px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-0 text-[var(--text-primary-light)] shadow-[0_28px_70px_-28px_color-mix(in_srgb,var(--accent-primary)_45%,rgba(0,0,0,0.4))] sm:max-w-[420px] [&>button]:hidden"
             onCloseAutoFocus={focusLauncher}
           >
-            <SheetTitle className="sr-only">{COPY.panelTitle}</SheetTitle>
-            <SheetDescription className="sr-only">{COPY.panelSubtitle}</SheetDescription>
+            <SheetTitle className="sr-only">{copy.panelTitle}</SheetTitle>
+            <SheetDescription className="sr-only">{copy.panelSubtitle}</SheetDescription>
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-dark)] px-4 py-3.5">
               <FinesseAssistantIdentity />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label={COPY.close}
+                aria-label={copy.close}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-secondary-light)] transition-colors hover:bg-[var(--app-surface-hover)] hover:text-[var(--text-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
               >
                 <X size={16} aria-hidden="true" />
@@ -159,8 +163,9 @@ export function GlobalFinesseAssistantChrome() {
  */
 function FinesseLauncher() {
   const { openAssistant, openAssistantWithVoice, open, voice } = useFinesseAssistant()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const tv = t.voice
+  const copy = getFinesseAssistantCopy(locale)
 
   const canLongPress =
     voice.support.voiceSupported && voice.support.touchCapable && voice.entitled
@@ -191,7 +196,7 @@ function FinesseLauncher() {
     "data-finesse-launcher": true as const,
     "aria-haspopup": "dialog" as const,
     "aria-expanded": open,
-    "aria-label": `${COPY.launcherAria}${stateSuffix}`,
+    "aria-label": `${copy.launcherAria}${stateSuffix}`,
     onPointerDown: handlers.onPointerDown,
     onPointerMove: handlers.onPointerMove,
     onPointerUp: handlers.onPointerUp,
@@ -212,7 +217,7 @@ function FinesseLauncher() {
         }}
       >
         <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
-        {COPY.launcherLabel}
+        {copy.launcherLabel}
       </button>
 
       {/* Mobile circle — above the safe-area inset, right side. */}

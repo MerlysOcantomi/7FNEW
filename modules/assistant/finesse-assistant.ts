@@ -1,7 +1,7 @@
 /**
- * Ask Finesse — pure contracts, page mapping and Spanish copy for the global
- * Beauty assistant. No React, no DB, no clock — safe on client, server and in
- * tests (mirrors `modules/overview/beauty-overview.ts`).
+ * Ask Finesse — pure contracts, page mapping and localized copy (EN canonical
+ * + ES) for the global Beauty assistant. No React, no DB, no clock — safe on
+ * client, server and in tests (mirrors `modules/overview/beauty-overview.ts`).
  *
  * The assistant is page-aware: pages REGISTER a small serializable context
  * (`FinesseAssistantPageContext`) through the provider, and this module maps
@@ -10,6 +10,7 @@
  * re-scopes it to the authenticated workspace before building any prompt.
  */
 
+import { parseLocale } from "@core/i18n"
 import type { OverviewPeriodPreset } from "@modules/overview/types"
 
 // ─── Page mapping ────────────────────────────────────────────────────────────
@@ -89,7 +90,21 @@ export interface FinesseAssistantMessage {
 
 export type FinesseAssistantStatus = "idle" | "loading" | "error" | "unavailable"
 
-// ─── Copy (Spanish, España — same convention as the Beauty configs) ──────────
+// ─── Copy (localized: EN canonical + ES — resolved via the Core contract) ────
+
+/**
+ * Locales with a REAL assistant catalog today. The other official locales
+ * (de/fr/it) fall back to English until real catalogs exist — same external
+ * contract as everywhere else: `parseLocale` normalizes unknown input first.
+ */
+export type FinesseAssistantLocale = "en" | "es"
+
+/** Effective UI locale → catalog locale (en fallback for de/fr/it/unknown). */
+export function resolveFinesseAssistantLocale(
+  locale: string | null | undefined,
+): FinesseAssistantLocale {
+  return parseLocale(locale) === "es" ? "es" : "en"
+}
 
 export interface FinesseAssistantCopy {
   /** Launcher label (desktop pill). */
@@ -114,7 +129,64 @@ export interface FinesseAssistantCopy {
   emptyConversation: string
 }
 
-export const FINESSE_ASSISTANT_COPY: FinesseAssistantCopy = {
+/**
+ * English catalog — canonical. Proper nouns (Finesse, Sevenef, 7F Beauty) are
+ * identical across locales. Page labels follow the app nav vocabulary
+ * (`core/i18n/ui/en/nav.ts` + the Beauty vertical presets).
+ */
+const COPY_EN: FinesseAssistantCopy = {
+  launcherLabel: "Ask Finesse",
+  launcherAria: "Ask Finesse, your business assistant",
+  panelTitle: "Finesse",
+  panelSubtitle: "beauty intelligence · by Sevenef",
+  contextLead: "You're on",
+  pageLabels: {
+    "my-salon": "My salon",
+    today: "Today",
+    agenda: "Calendar",
+    clients: "Clients",
+    messages: "Messages",
+    catalog: "Services",
+    marketing: "Marketing",
+    billing: "Billing",
+    team: "Team",
+    settings: "Settings",
+    other: "7F Beauty",
+  },
+  intros: {
+    "my-salon": "I can explain how your salon is doing this period and what you can improve.",
+    today: "I can help you organize your day and decide what to do first.",
+    agenda: "I can help you with your appointments, open slots and peak hours.",
+    clients: "I can help you look after your clients and spot who needs attention.",
+    messages: "I can help you bring order to your conversations.",
+    catalog: "I can help you understand which services perform best.",
+    marketing: "I can give you ideas for your content and campaigns.",
+    billing: "I can help you with your payments and outstanding invoices.",
+    team: "I can help you organize your team's work.",
+    settings: "I can help you set up your workspace.",
+    other: "Ask me anything you need about your business.",
+  },
+  suggestionsTitle: "Suggestions",
+  composerPlaceholder: "Type your question…",
+  send: "Send",
+  close: "Close",
+  thinking: "Finesse is thinking…",
+  unavailable: {
+    title: "Finesse isn't connected yet.",
+    description:
+      "The assistant will be available once the AI service is connected. Everything else in your workspace keeps working as usual.",
+  },
+  error: {
+    title: "I couldn't answer just now.",
+    retry: "Try again in a few seconds.",
+  },
+  honestyNote:
+    "Finesse answers with the information visible in your workspace. It doesn't take actions for you yet.",
+  emptyConversation: "Pick a suggestion or type your question.",
+}
+
+/** Spanish catalog (España — same convention as the Beauty configs). */
+const COPY_ES: FinesseAssistantCopy = {
   launcherLabel: "Preguntar a Finesse",
   launcherAria: "Preguntar a Finesse, tu asistente de negocio",
   panelTitle: "Finesse",
@@ -137,7 +209,7 @@ export const FINESSE_ASSISTANT_COPY: FinesseAssistantCopy = {
     "my-salon": "Puedo explicarte cómo va tu salón este periodo y qué puedes mejorar.",
     today: "Puedo ayudarte a organizar tu día y decidir qué hacer primero.",
     agenda: "Puedo ayudarte con tus citas, huecos libres y horas punta.",
-    clients: "Puedo ayudarte a cuidar a tus clientas y detectar quién necesita atención.",
+    clients: "Puedo ayudarte a cuidar a tus clientes y detectar quién necesita atención.",
     messages: "Puedo ayudarte a poner orden en tus conversaciones.",
     catalog: "Puedo ayudarte a entender qué servicios funcionan mejor.",
     marketing: "Puedo darte ideas para tu contenido y campañas.",
@@ -165,46 +237,87 @@ export const FINESSE_ASSISTANT_COPY: FinesseAssistantCopy = {
   emptyConversation: "Elige una sugerencia o escribe tu pregunta.",
 }
 
-// ─── Contextual suggestions (mission §8, Spanish) ────────────────────────────
-
-const SUGGESTIONS: Record<FinesseAssistantPageKey, string[]> = {
-  "my-salon": [
-    "Explícame este periodo",
-    "¿Por qué cambiaron mis ingresos?",
-    "¿Qué clientas deberían volver?",
-    "¿Cómo puedo mejorar el próximo mes?",
-  ],
-  today: ["¿Qué hago primero?", "Resume mi día", "¿Qué necesita mi atención?"],
-  agenda: [
-    "Busca hueco libre mañana",
-    "¿Cuáles son mis horas punta?",
-    "¿Dónde caben dos citas más?",
-  ],
-  clients: [
-    "¿A quién debería volver a contactar?",
-    "¿Qué clientas no han vuelto?",
-    "Muéstrame mis clientas más fieles",
-  ],
-  messages: [
-    "Resume las conversaciones pendientes",
-    "¿Qué mensajes necesitan respuesta?",
-  ],
-  catalog: ["¿Qué servicio funciona mejor?", "¿Qué debería promocionar?"],
-  marketing: [
-    "Crea una publicación",
-    "Sugiéreme una campaña",
-    "Usa mi último trabajo",
-    "Ayúdame a llenar huecos libres",
-  ],
-  billing: ["¿Qué cobros tengo pendientes?", "Resume mis ingresos del periodo"],
-  team: ["¿Cómo va el trabajo del equipo?"],
-  settings: ["¿Qué me falta por configurar?"],
-  other: ["¿Cómo va mi negocio?", "¿Qué necesita mi atención hoy?"],
+const COPY_BY_LOCALE: Record<FinesseAssistantLocale, FinesseAssistantCopy> = {
+  en: COPY_EN,
+  es: COPY_ES,
 }
 
-/** Suggestions for a page key — configurable in one place, page-derived. */
-export function getFinesseSuggestions(page: FinesseAssistantPageKey): string[] {
-  return SUGGESTIONS[page]
+/**
+ * Resolve the assistant copy for the effective UI locale (as provided by
+ * `useI18n()` / the Core resolution chain — never re-resolved here). Unknown
+ * or not-yet-translated locales fall back to the English canonical catalog.
+ */
+export function getFinesseAssistantCopy(
+  locale: string | null | undefined,
+): FinesseAssistantCopy {
+  return COPY_BY_LOCALE[resolveFinesseAssistantLocale(locale)]
+}
+
+// ─── Contextual suggestions (mission §8, localized EN + ES) ──────────────────
+
+/**
+ * Static per-page prompts. Each entry pairs both locales so the arrays can
+ * never drift out of alignment — the index IS the stable identity that
+ * `fallbackSuggestions` turns into `fallback-<page>-<i>` ids.
+ */
+const SUGGESTIONS: Record<FinesseAssistantPageKey, Array<Record<FinesseAssistantLocale, string>>> = {
+  "my-salon": [
+    { en: "Explain this period to me", es: "Explícame este periodo" },
+    { en: "Why did my earnings change?", es: "¿Por qué cambiaron mis ingresos?" },
+    { en: "Which clients should come back?", es: "¿Qué clientes deberían volver?" },
+    { en: "How can I improve next month?", es: "¿Cómo puedo mejorar el próximo mes?" },
+  ],
+  today: [
+    { en: "What should I do first?", es: "¿Qué hago primero?" },
+    { en: "Summarize my day", es: "Resume mi día" },
+    { en: "What needs my attention?", es: "¿Qué necesita mi atención?" },
+  ],
+  agenda: [
+    { en: "Find a free slot tomorrow", es: "Busca hueco libre mañana" },
+    { en: "What are my peak hours?", es: "¿Cuáles son mis horas punta?" },
+    { en: "Where can two more appointments fit?", es: "¿Dónde caben dos citas más?" },
+  ],
+  clients: [
+    { en: "Who should I reach out to again?", es: "¿A quién debería volver a contactar?" },
+    { en: "Which clients haven't come back?", es: "¿Qué clientes no han vuelto?" },
+    { en: "Show me my most loyal clients", es: "Muéstrame mis clientes más fieles" },
+  ],
+  messages: [
+    { en: "Summarize the pending conversations", es: "Resume las conversaciones pendientes" },
+    { en: "Which messages need a reply?", es: "¿Qué mensajes necesitan respuesta?" },
+  ],
+  catalog: [
+    { en: "Which service performs best?", es: "¿Qué servicio funciona mejor?" },
+    { en: "What should I promote?", es: "¿Qué debería promocionar?" },
+  ],
+  marketing: [
+    { en: "Create a post", es: "Crea una publicación" },
+    { en: "Suggest a campaign", es: "Sugiéreme una campaña" },
+    { en: "Use my latest work", es: "Usa mi último trabajo" },
+    { en: "Help me fill open slots", es: "Ayúdame a llenar huecos libres" },
+  ],
+  billing: [
+    { en: "Which payments are outstanding?", es: "¿Qué cobros tengo pendientes?" },
+    { en: "Summarize my earnings for the period", es: "Resume mis ingresos del periodo" },
+  ],
+  team: [{ en: "How is the team's work going?", es: "¿Cómo va el trabajo del equipo?" }],
+  settings: [{ en: "What do I still need to set up?", es: "¿Qué me falta por configurar?" }],
+  other: [
+    { en: "How is my business doing?", es: "¿Cómo va mi negocio?" },
+    { en: "What needs my attention today?", es: "¿Qué necesita mi atención hoy?" },
+  ],
+}
+
+/**
+ * Localized suggestions for a page key — configurable in one place,
+ * page-derived. Unknown/untranslated locales fall back to English.
+ */
+export function getFinesseSuggestions(
+  page: FinesseAssistantPageKey,
+  locale: string | null | undefined,
+): string[] {
+  const resolved = resolveFinesseAssistantLocale(locale)
+  return SUGGESTIONS[page].map((s) => s[resolved])
 }
 
 // ─── Question limits (shared client/server) ──────────────────────────────────

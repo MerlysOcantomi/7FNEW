@@ -6,6 +6,7 @@ import {
   buildFinesseSuggestions,
   fallbackSuggestions,
   type FinesseSuggestion,
+  type FinesseSuggestionInput,
 } from "./finesse-suggestions"
 import { getFinesseSuggestions, type FinesseAssistantPageContext } from "./finesse-assistant"
 
@@ -13,12 +14,18 @@ function ctx(partial: Partial<FinesseAssistantPageContext> & { page: FinesseAssi
   return { ...partial }
 }
 
+// Behavioral tests run pinned to the Spanish catalog (the original copy);
+// locale-specific behavior has its own tests at the bottom.
+function build(input: Omit<FinesseSuggestionInput, "locale">): FinesseSuggestion[] {
+  return buildFinesseSuggestions({ ...input, locale: "es" })
+}
+
 const ids = (s: FinesseSuggestion[]) => s.map((x) => x.id)
 
 // ─── Candidate generation per signal ─────────────────────────────────────────
 
 test("my-salon: revenue drop produces the drop question first", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "my-salon",
     context: ctx({ page: "my-salon", visibleMetrics: { ingresosDelta: -0.12 } }),
   })
@@ -27,7 +34,7 @@ test("my-salon: revenue drop produces the drop question first", () => {
 })
 
 test("my-salon: revenue growth produces the growth question (not the drop)", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "my-salon",
     context: ctx({ page: "my-salon", visibleMetrics: { ingresosDelta: 0.12 } }),
   })
@@ -36,7 +43,7 @@ test("my-salon: revenue growth produces the growth question (not the drop)", () 
 })
 
 test("my-salon: first period (no comparison) wins over delta prompts", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "my-salon",
     context: ctx({
       page: "my-salon",
@@ -48,7 +55,7 @@ test("my-salon: first period (no comparison) wins over delta prompts", () => {
 })
 
 test("my-salon: weak rebooking, pending payments and full peak day all rank", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "my-salon",
     context: ctx({
       page: "my-salon",
@@ -71,7 +78,7 @@ test("my-salon: weak rebooking, pending payments and full peak day all rank", ()
 })
 
 test("agenda: gaps, confirmations, cancellations and full-day signals", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "agenda",
     context: ctx({
       page: "agenda",
@@ -92,7 +99,7 @@ test("agenda: gaps, confirmations, cancellations and full-day signals", () => {
 })
 
 test("clients: selected client adds entity-scoped suggestions", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "clients",
     context: ctx({
       page: "clients",
@@ -107,7 +114,7 @@ test("clients: selected client adds entity-scoped suggestions", () => {
 })
 
 test("clients: never emits an entity suggestion without a selected entity", () => {
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "clients",
     context: ctx({ page: "clients", visibleMetrics: { clientasSinVolver: 5 } }),
   })
@@ -115,7 +122,7 @@ test("clients: never emits an entity suggestion without a selected entity", () =
 })
 
 test("messages: selected conversation vs inbox-wide signals", () => {
-  const selected = buildFinesseSuggestions({
+  const selected = build({
     page: "messages",
     context: ctx({
       page: "messages",
@@ -126,19 +133,19 @@ test("messages: selected conversation vs inbox-wide signals", () => {
   })
   assert.equal(selected[0].id, "messages-selected-summary:conv-1")
 
-  const none = buildFinesseSuggestions({ page: "messages", context: null })
+  const none = build({ page: "messages", context: null })
   assert.equal(none[0].source, "fallback")
 })
 
 test("marketing: unused photos vs no media are mutually exclusive", () => {
-  const withWorks = buildFinesseSuggestions({
+  const withWorks = build({
     page: "marketing",
     context: ctx({ page: "marketing", visibleMetrics: { trabajosSubidos: 3, publicacionesListas: 1 } }),
   })
   assert.ok(ids(withWorks).includes("marketing-post-latest-work"))
   assert.ok(!ids(withWorks).includes("marketing-no-media"))
 
-  const noMedia = buildFinesseSuggestions({
+  const noMedia = build({
     page: "marketing",
     context: ctx({ page: "marketing", visibleMetrics: { trabajosSubidos: 0 } }),
   })
@@ -146,13 +153,13 @@ test("marketing: unused photos vs no media are mutually exclusive", () => {
 })
 
 test("billing: overdue vs healthy collection are mutually exclusive", () => {
-  const overdue = buildFinesseSuggestions({
+  const overdue = build({
     page: "billing",
     context: ctx({ page: "billing", visibleMetrics: { cobrosPendientes: 120 } }),
   })
   assert.equal(overdue[0].id, "billing-follow-up")
 
-  const healthy = buildFinesseSuggestions({
+  const healthy = build({
     page: "billing",
     context: ctx({ page: "billing", visibleMetrics: { cobrosPendientes: 0, ingresosDelta: 0.08 } }),
   })
@@ -174,7 +181,7 @@ test("suggestions are priority-ordered, deduped and capped", () => {
       clientasSinVolver: 20,
     },
   })
-  const out = buildFinesseSuggestions({ page: "my-salon", context })
+  const out = build({ page: "my-salon", context })
   assert.ok(out.length <= MAX_SUGGESTIONS)
   for (let i = 1; i < out.length; i += 1) {
     assert.ok(out[i - 1].priority >= out[i].priority, "priority descending")
@@ -184,8 +191,8 @@ test("suggestions are priority-ordered, deduped and capped", () => {
 
 test("deterministic: same context object shape → identical output", () => {
   const context = ctx({ page: "today", visibleMetrics: { citas: 5, huecosLibres: 1 } })
-  const a = buildFinesseSuggestions({ page: "today", context })
-  const b = buildFinesseSuggestions({ page: "today", context: { ...context } })
+  const a = build({ page: "today", context })
+  const b = build({ page: "today", context: { ...context } })
   assert.deepEqual(a, b)
 })
 
@@ -193,22 +200,22 @@ test("deterministic: same context object shape → identical output", () => {
 
 test("no context → static fallback suggestions, capped", () => {
   for (const page of ["my-salon", "agenda", "marketing", "other"] as const) {
-    const out = buildFinesseSuggestions({ page, context: null })
+    const out = build({ page, context: null })
     assert.ok(out.length > 0)
     assert.ok(out.length <= MAX_SUGGESTIONS)
     assert.ok(out.every((s) => s.source === "fallback"))
-    assert.equal(out[0].label, getFinesseSuggestions(page)[0])
+    assert.equal(out[0].label, getFinesseSuggestions(page, "es")[0])
   }
 })
 
 test("empty metrics → fallback; partial metrics → only supported candidates", () => {
-  const empty = buildFinesseSuggestions({
+  const empty = build({
     page: "my-salon",
     context: ctx({ page: "my-salon", visibleMetrics: {} }),
   })
   assert.ok(empty.every((s) => s.source === "fallback"))
 
-  const partial = buildFinesseSuggestions({
+  const partial = build({
     page: "my-salon",
     context: ctx({ page: "my-salon", visibleMetrics: { cobrosPendientes: 45 } }),
   })
@@ -220,7 +227,7 @@ test("empty metrics → fallback; partial metrics → only supported candidates"
 test("context for a DIFFERENT page never leaks into the current page", () => {
   // Route changed but a stale context object was still registered: engine
   // must ignore it (context.page !== input.page) and fall back.
-  const out = buildFinesseSuggestions({
+  const out = build({
     page: "agenda",
     context: ctx({ page: "my-salon", visibleMetrics: { ingresosDelta: -0.5 } }),
   })
@@ -228,11 +235,11 @@ test("context for a DIFFERENT page never leaks into the current page", () => {
 })
 
 test("entity change changes the suggestion identity (stable per entity)", () => {
-  const a = buildFinesseSuggestions({
+  const a = build({
     page: "clients",
     context: ctx({ page: "clients", selectedEntityType: "client", selectedEntityId: "a" }),
   })
-  const b = buildFinesseSuggestions({
+  const b = build({
     page: "clients",
     context: ctx({ page: "clients", selectedEntityType: "client", selectedEntityId: "b" }),
   })
@@ -240,10 +247,52 @@ test("entity change changes the suggestion identity (stable per entity)", () => 
 })
 
 test("fallbackSuggestions caps and preserves static order", () => {
-  const fb = fallbackSuggestions("my-salon")
+  const fb = fallbackSuggestions("my-salon", "es")
   assert.ok(fb.length <= MAX_SUGGESTIONS)
   assert.deepEqual(
     fb.map((s) => s.label),
-    getFinesseSuggestions("my-salon").slice(0, MAX_SUGGESTIONS),
+    getFinesseSuggestions("my-salon", "es").slice(0, MAX_SUGGESTIONS),
+  )
+})
+
+// ─── Localization ────────────────────────────────────────────────────────────
+
+test("same context → same ids and metadata, locale-specific label/prompt text", () => {
+  const context = ctx({
+    page: "agenda",
+    visibleMetrics: { huecosManana: 2, citasSinConfirmar: 3, cancelacionesHoy: 1, diaCasiCompleto: 1 },
+  })
+  const es = buildFinesseSuggestions({ page: "agenda", context, locale: "es" })
+  const en = buildFinesseSuggestions({ page: "agenda", context, locale: "en" })
+
+  assert.deepEqual(ids(es), ids(en), "identity is locale-independent")
+  for (let i = 0; i < es.length; i += 1) {
+    assert.notEqual(es[i].label, en[i].label, `${es[i].id} label must be translated`)
+    assert.notEqual(es[i].prompt, en[i].prompt, `${es[i].id} prompt must be translated`)
+    assert.equal(es[i].reason, en[i].reason)
+    assert.equal(es[i].priority, en[i].priority)
+    assert.equal(es[i].source, en[i].source)
+  }
+  // Interpolated counts stay raw integers in both locales.
+  const fillEs = es.find((s) => s.id === "agenda-fill-tomorrow")
+  const fillEn = en.find((s) => s.id === "agenda-fill-tomorrow")
+  assert.ok(fillEs?.prompt.includes("2"))
+  assert.ok(fillEn?.prompt.includes("2"))
+})
+
+test("unknown locale falls back to English text (dynamic + fallback paths)", () => {
+  const context = ctx({ page: "today", visibleMetrics: { citas: 5, huecosLibres: 1 } })
+  assert.deepEqual(
+    buildFinesseSuggestions({ page: "today", context, locale: "pt-BR" }),
+    buildFinesseSuggestions({ page: "today", context, locale: "en" }),
+  )
+  assert.deepEqual(
+    buildFinesseSuggestions({ page: "settings", context: null, locale: "xx" }),
+    buildFinesseSuggestions({ page: "settings", context: null, locale: "en" }),
+  )
+  // Omitted locale follows the same contract (default → English).
+  assert.deepEqual(
+    buildFinesseSuggestions({ page: "today", context }),
+    buildFinesseSuggestions({ page: "today", context, locale: "en" }),
   )
 })
