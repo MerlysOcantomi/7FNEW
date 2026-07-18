@@ -47,10 +47,66 @@ export interface NavMessages {
   settings: string
 }
 
+/** Settings surface — carries the App vs Workspace language distinction (doc §9). */
+export interface SettingsMessages {
+  title: string
+  language: {
+    appLabel: string
+    appDescription: string
+    workspaceLabel: string
+    workspaceDescription: string
+  }
+}
+
+/** Today surface — header and empty state. */
+export interface TodayMessages {
+  title: string
+  empty: {
+    title: string
+    body: string
+  }
+}
+
+/**
+ * Clients surface. Business nouns (Client → Clienta/Patient) are interpolation
+ * DATA supplied by the vocabulary resolver — never keys in this catalog.
+ */
+export interface ClientsMessages {
+  title: string
+  newButton: string
+  /** `clientPlural` comes from the vocabulary resolver (caller lowercases it). */
+  searchPlaceholder: (args: { clientPlural: string }) => string
+  /** Basic pluralization: the vocabulary noun already carries the plural form. */
+  count: (count: number, clientPlural: string) => string
+  empty: {
+    title: string
+    body: string
+  }
+}
+
+/** Calendar surface — visible labels only; no calendar behavior lives here. */
+export interface CalendarMessages {
+  title: string
+  today: string
+  empty: string
+}
+
+/** Billing surface — visible labels only; no finance behavior lives here. */
+export interface BillingMessages {
+  title: string
+  newInvoice: string
+  empty: string
+}
+
 /** All UI namespaces available to `getUIMessages` / `getNamespace`. */
 export interface UIMessages {
   common: CommonMessages
   nav: NavMessages
+  settings: SettingsMessages
+  today: TodayMessages
+  clients: ClientsMessages
+  calendar: CalendarMessages
+  billing: BillingMessages
 }
 
 /** Union of valid namespace keys. */

@@ -15,7 +15,15 @@ import type { UIMessages, UINamespace } from "./types"
 import { en } from "./en"
 
 export type { UIMessages, UINamespace } from "./types"
-export type { CommonMessages, NavMessages } from "./types"
+export type {
+  CommonMessages,
+  NavMessages,
+  SettingsMessages,
+  TodayMessages,
+  ClientsMessages,
+  CalendarMessages,
+  BillingMessages,
+} from "./types"
 
 /**
  * Locale → UI messages.
