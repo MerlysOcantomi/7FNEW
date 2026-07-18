@@ -45,7 +45,7 @@ export function FreyaMarketingBrief({
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: "var(--inbox-success)" }}
             />
-            {brief.readyCount} {config.freya.readySuffix}
+            {brief.readyCount} {brief.readyCount === 1 ? config.freya.readySuffixOne : config.freya.readySuffix}
           </span>
         ) : null}
       </div>

@@ -358,7 +358,12 @@ function MarketingContent({
         {/* Right rail */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
           <div className="order-1 lg:order-none">
-            <FreyaMarketingBrief config={config} brief={snapshot.freya} />
+            {/* The "N listas" pill tracks the LIVE ready count so it never
+                contradicts the header summary after the user acts. */}
+            <FreyaMarketingBrief
+              config={config}
+              brief={snapshot.freya ? { ...snapshot.freya, readyCount: summary.readyCount } : null}
+            />
           </div>
           <div className="order-4 lg:order-none">
             <SimpleCampaigns

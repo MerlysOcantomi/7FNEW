@@ -81,20 +81,26 @@ export function MarketingHeader({
         </div>
       </div>
 
-      {/* Upload CTA — full button on ≥sm, prominent square icon button on mobile. */}
+      {/* Upload CTA — full button on ≥sm, prominent square icon button on
+          mobile. Wrapper divs carry the responsive visibility so `hidden`
+          never fights the button's own `inline-flex` display class. */}
       <div className="shrink-0">
-        <button type="button" onClick={onUpload} className={`${BTN_PRIMARY} hidden sm:inline-flex`}>
-          <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
-          {header.uploadCta}
-        </button>
-        <button
-          type="button"
-          onClick={onUpload}
-          aria-label={header.uploadCta}
-          className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--accent-primary)] text-white transition-colors hover:bg-[var(--accent-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-1 sm:hidden"
-        >
-          <Plus size={19} strokeWidth={2.2} aria-hidden="true" />
-        </button>
+        <div className="hidden sm:block">
+          <button type="button" onClick={onUpload} className={BTN_PRIMARY}>
+            <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
+            {header.uploadCta}
+          </button>
+        </div>
+        <div className="sm:hidden">
+          <button
+            type="button"
+            onClick={onUpload}
+            aria-label={header.uploadCta}
+            className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--accent-primary)] text-white transition-colors hover:bg-[var(--accent-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-1"
+          >
+            <Plus size={19} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </header>
   )

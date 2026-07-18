@@ -62,6 +62,7 @@ export interface BeautyMarketingConfig {
   freya: {
     name: string
     role: string
+    readySuffixOne: string
     readySuffix: string
     empty: string
   }
@@ -185,6 +186,7 @@ const BEAUTY_MARKETING_CONFIG: BeautyMarketingConfig = {
   freya: {
     name: "Freya",
     role: "creative studio",
+    readySuffixOne: "lista",
     readySuffix: "listas",
     empty: "Sube una foto de tu último trabajo y te preparo una propuesta de publicación.",
   },
