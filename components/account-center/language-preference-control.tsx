@@ -26,6 +26,7 @@ export function LanguagePreferenceControl() {
   const { t, locale, userLocale, supportedLocales, setUserLocale, isChangingLocale } = useI18n()
   const { addToast } = useToast()
   const [pendingLocale, setPendingLocale] = useState<SupportedLocale | null>(null)
+  const [clearingPreference, setClearingPreference] = useState(false)
 
   const strings = t.settings.language
 
@@ -40,6 +41,29 @@ export function LanguagePreferenceControl() {
         title: strings.updatedToast,
         description: LOCALE_DISPLAY_NAMES[next],
       })
+    } else {
+      addToast({
+        type: "error",
+        title: strings.updateErrorTitle,
+        description: strings.updateErrorBody,
+      })
+    }
+  }
+
+  /**
+   * "Use the workspace language": clears the personal preference (User.locale
+   * = null via the same self-scoped PUT — the route also deletes the 7f-locale
+   * cookie) so resolution falls back to the workspace. The provider keeps the
+   * current paint until router.refresh() re-resolves server-side, then the UI
+   * adopts the business language. Never touches the workspace's own locale.
+   */
+  const handleUseWorkspaceLanguage = async () => {
+    if (isChangingLocale || userLocale === null) return
+    setClearingPreference(true)
+    const ok = await setUserLocale(null)
+    setClearingPreference(false)
+    if (ok) {
+      addToast({ type: "success", title: strings.clearedToast })
     } else {
       addToast({
         type: "error",
@@ -101,6 +125,17 @@ export function LanguagePreferenceControl() {
         {strings.appDescription}
         {userLocale === null ? ` ${strings.followingDefault}` : ""}
       </p>
+      {userLocale !== null ? (
+        <button
+          type="button"
+          onClick={handleUseWorkspaceLanguage}
+          disabled={isChangingLocale}
+          className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--accent-primary)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {clearingPreference ? <Loader2 size={11} className="animate-spin" /> : null}
+          {strings.useWorkspaceLanguage}
+        </button>
+      ) : null}
     </div>
   )
 }

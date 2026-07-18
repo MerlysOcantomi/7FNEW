@@ -21,6 +21,7 @@ import type { ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import { cn } from "@/lib/utils"
 import { ThemeModeToggle } from "@/components/theme-mode-toggle"
 import { LanguagePreferenceControl } from "@/components/account-center/language-preference-control"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Account Center Panel
@@ -129,8 +130,8 @@ function formatRoleLabel(role: string | null | undefined): string {
  */
 type SettingsItem = {
   id: string
-  label: string
-  description: string
+  /** Copy comes from `settings.accountCenter.items` at render time. */
+  catalogKey: "workspaceSettings" | "members" | "planUsage" | "profile" | "security"
   icon: LucideIcon
   href?: string
   /**
@@ -144,39 +145,14 @@ type SettingsItem = {
 const SETTINGS_ITEMS: SettingsItem[] = [
   {
     id: "workspace-settings",
-    label: "Workspace settings",
-    description: "Configuración general del workspace",
+    catalogKey: "workspaceSettings",
     icon: SettingsIcon,
     href: "/administracion",
   },
-  {
-    id: "members",
-    label: "Members",
-    description: "Invitaciones y roles del equipo",
-    icon: Users,
-    comingSoon: true,
-  },
-  {
-    id: "plan-usage",
-    label: "Plan & usage",
-    description: "Plan actual, consumo y facturación",
-    icon: CreditCard,
-    comingSoon: true,
-  },
-  {
-    id: "profile",
-    label: "My profile",
-    description: "Datos personales y preferencias",
-    icon: UserCircle,
-    comingSoon: true,
-  },
-  {
-    id: "security",
-    label: "Account security",
-    description: "Sesiones activas y autenticación",
-    icon: KeyRound,
-    comingSoon: true,
-  },
+  { id: "members", catalogKey: "members", icon: Users, comingSoon: true },
+  { id: "plan-usage", catalogKey: "planUsage", icon: CreditCard, comingSoon: true },
+  { id: "profile", catalogKey: "profile", icon: UserCircle, comingSoon: true },
+  { id: "security", catalogKey: "security", icon: KeyRound, comingSoon: true },
 ]
 
 /**
@@ -324,10 +300,10 @@ function RolePill({ role, accent = false }: { role: string; accent?: boolean }) 
   )
 }
 
-function ComingSoonTag() {
+function ComingSoonTag({ label }: { label: string }) {
   return (
     <span className="shrink-0 rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-[var(--text-secondary-light)]">
-      Soon
+      {label}
     </span>
   )
 }
@@ -348,6 +324,9 @@ export function AccountCenterPanel({
   onClose,
 }: AccountCenterPanelProps) {
   const roleLabel = workspace ? formatRoleLabel(workspace.role) : null
+  /** Account Center chrome copy — resolves with the viewer's effective locale. */
+  const { t } = useI18n()
+  const ac = t.settings.accountCenter
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -418,7 +397,7 @@ export function AccountCenterPanel({
         <div className="grid min-w-0 gap-6 @[720px]:grid-cols-2">
           <div className="min-w-0 space-y-5">
           <section>
-            <SectionHeading icon={Building2}>Workspaces</SectionHeading>
+            <SectionHeading icon={Building2}>{ac.workspacesSection}</SectionHeading>
 
             {/**
              * Current workspace card. Plain `<div>` (NOT a focusable
@@ -427,12 +406,12 @@ export function AccountCenterPanel({
              * text replace the previous greyed-out row.
              */}
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary-light)]/80">
-              Current workspace
+              {ac.currentWorkspace}
             </p>
             {workspace ? (
               <div
                 role="group"
-                aria-label="Current workspace"
+                aria-label={ac.currentWorkspace}
                 className="relative mb-4 flex items-start gap-2 rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/10 px-2.5 py-2"
               >
                 <span
@@ -454,23 +433,23 @@ export function AccountCenterPanel({
                     {workspace.slug}
                   </span>
                   <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--accent-primary)]/85">
-                    You are here
+                    {ac.youAreHere}
                   </span>
                 </div>
               </div>
             ) : (
               <div className="mb-4 rounded-lg border border-dashed border-[var(--border-dark)] px-2.5 py-2 text-xs text-[var(--text-secondary-light)]">
-                {wsLoading ? "Loading workspace…" : "No active workspace"}
+                {wsLoading ? ac.loadingWorkspace : ac.noActiveWorkspace}
               </div>
             )}
 
             <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary-light)]/80">
               <ArrowRightLeft size={11} className="shrink-0" />
-              Switch workspace
+              {ac.switchWorkspace}
             </p>
             {wsError ? (
               <p className="text-[11px] italic text-destructive">
-                Couldn&apos;t load workspaces. Try reopening the panel.
+                {ac.workspacesLoadError}
               </p>
             ) : otherWorkspaces.length > 0 ? (
               <ul className="space-y-0.5">
@@ -503,7 +482,7 @@ export function AccountCenterPanel({
               </ul>
             ) : (
               <p className="px-2 text-[11px] italic text-[var(--text-secondary-light)]">
-                No other workspaces available
+                {ac.noOtherWorkspaces}
               </p>
             )}
 
@@ -524,14 +503,14 @@ export function AccountCenterPanel({
            */}
           {isPlatformAdmin ? (
             <section>
-              <SectionHeading icon={ShieldCheck}>Platform</SectionHeading>
+              <SectionHeading icon={ShieldCheck}>{ac.platformSection}</SectionHeading>
               <ul className="space-y-0.5">
                 <li>
                   <ActionRow
                     icon={ShieldCheck}
                     iconAccent="rgb(245, 158, 11)"
                     title="SevenF System Admin"
-                    description="Control plane (no es un workspace)"
+                    description={ac.platformDescription}
                     href="/system"
                     isExternal
                     onClick={onClose}
@@ -551,35 +530,37 @@ export function AccountCenterPanel({
 
           <div className="min-w-0 space-y-5">
             <section>
-              <SectionHeading icon={SettingsIcon}>Settings</SectionHeading>
+              <SectionHeading icon={SettingsIcon}>{ac.settingsSection}</SectionHeading>
               <ul className="space-y-0.5">
-                {SETTINGS_ITEMS.map((item) => (
-                  <li key={item.id}>
-                    <ActionRow
-                      icon={item.icon}
-                      title={item.label}
-                      description={item.description}
-                      href={item.href}
-                      onClick={onClose}
-                      disabled={Boolean(item.comingSoon)}
-                      trailing={item.comingSoon ? <ComingSoonTag /> : null}
-                    />
-                  </li>
-                ))}
+                {SETTINGS_ITEMS.map((item) => {
+                  const copy = ac.items[item.catalogKey]
+                  return (
+                    <li key={item.id}>
+                      <ActionRow
+                        icon={item.icon}
+                        title={copy.label}
+                        description={copy.description}
+                        href={item.href}
+                        onClick={onClose}
+                        disabled={Boolean(item.comingSoon)}
+                        trailing={item.comingSoon ? <ComingSoonTag label={ac.comingSoon} /> : null}
+                      />
+                    </li>
+                  )
+                })}
               </ul>
             </section>
 
             <section>
-              <SectionHeading icon={Languages}>Language</SectionHeading>
+              <SectionHeading icon={Languages}>{ac.languageSection}</SectionHeading>
               <LanguagePreferenceControl />
             </section>
 
             <section>
-              <SectionHeading icon={Palette}>Appearance</SectionHeading>
+              <SectionHeading icon={Palette}>{ac.appearanceSection}</SectionHeading>
               <ThemeModeToggle />
               <p className="mt-2 text-[11px] leading-snug text-[var(--text-secondary-light)]">
-                Midnight is the default. Lavender Mist is an in-progress light
-                theme — some areas may still show dark styling.
+                {ac.appearanceNote}
               </p>
             </section>
           </div>
@@ -612,9 +593,9 @@ export function AccountCenterPanel({
             )}
           </span>
           <span className="flex flex-col leading-tight">
-            <span>Sign out</span>
+            <span>{ac.signOut}</span>
             <span className="text-[11px] font-normal text-[var(--text-secondary-light)]">
-              Cierra sesión en este dispositivo
+              {ac.signOutDescription}
             </span>
           </span>
         </button>
