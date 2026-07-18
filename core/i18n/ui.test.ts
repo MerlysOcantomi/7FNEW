@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { getUIMessages, getNamespace } from "./ui"
+import { getUIMessages, getNamespace, UI_NAMESPACE_COVERAGE, localeHasPendingCoverage } from "./ui"
+import { LOCALE_REGISTRY, SUPPORTED_LOCALES as REGISTRY_LOCALES, FALLBACK_LOCALE, type SupportedLocale } from "./types"
+import { LOCALE_DISPLAY_NAMES } from "./locale"
 // Legacy barrel must keep exposing its full API alongside the new UI layer.
 import {
   parseLocale,
@@ -70,9 +72,9 @@ test("getUIMessages: null/undefined → English", () => {
   assert.equal(getUIMessages(undefined), getUIMessages("en"))
 })
 
-test("getUIMessages: unknown locale (fr/xyz) → English", () => {
-  assert.equal(getUIMessages("fr"), getUIMessages("en"))
+test("getUIMessages: unknown locale (xyz/pt) → English", () => {
   assert.equal(getUIMessages("xyz"), getUIMessages("en"))
+  assert.equal(getUIMessages("pt"), getUIMessages("en"))
 })
 
 test("getUIMessages: en-GB resolves English", () => {
@@ -89,10 +91,115 @@ test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
   assert.equal(spanish.common.saveChanges, "Guardar cambios")
 })
 
-test("getUIMessages: de/de-CH still fall back to English until German content lands", () => {
+test("getUIMessages: de/fr/it are official with FULL per-namespace English fallback", () => {
   const english = getUIMessages("en")
-  assert.equal(getUIMessages("de"), english)
-  assert.equal(getUIMessages("de-CH"), english)
+  for (const code of ["de", "fr", "it"] as const) {
+    const catalog = getUIMessages(code)
+    // Composed object (not the same reference) whose every namespace is the
+    // ENGLISH object — an explicit fallback, never an English copy.
+    for (const ns of Object.keys(english) as Array<keyof typeof english>) {
+      assert.equal(catalog[ns], english[ns], `${code}.${ns} must reference the English namespace`)
+    }
+  }
+  assert.equal(getUIMessages("de-CH").nav, english.nav)
+  assert.equal(getUIMessages("fr-CH").nav, english.nav)
+  assert.equal(getUIMessages("it-CH").nav, english.nav)
+})
+
+// ─── locale registry (§5/§16, P4.CORE-5L) ──────────────────────────────────────
+
+test("registry: exactly the five official locales with complete metadata", () => {
+  assert.deepEqual(REGISTRY_LOCALES, ["es", "en", "de", "fr", "it"])
+  const expectedNames: Record<SupportedLocale, string> = {
+    es: "Español", en: "English", de: "Deutsch", fr: "Français", it: "Italiano",
+  }
+  const expectedIntl: Record<SupportedLocale, string> = {
+    es: "es-ES", en: "en-GB", de: "de-DE", fr: "fr-FR", it: "it-IT",
+  }
+  for (const code of REGISTRY_LOCALES) {
+    const def = LOCALE_REGISTRY[code]
+    assert.equal(def.code, code)
+    assert.equal(def.nativeName, expectedNames[code])
+    assert.equal(LOCALE_DISPLAY_NAMES[code], expectedNames[code])
+    assert.equal(def.direction, "ltr")
+    assert.equal(def.intlLocale, expectedIntl[code])
+  }
+})
+
+test("registry: fallbacks are valid, acyclic and terminate at English", () => {
+  for (const code of REGISTRY_LOCALES) {
+    const def = LOCALE_REGISTRY[code]
+    // No locale falls back to itself.
+    assert.notEqual(def.fallback, code)
+    // Walk the chain — must terminate (no cycles) at the terminal fallback.
+    const seen = new Set<SupportedLocale>([code])
+    let cursor = def.fallback
+    while (cursor !== null) {
+      assert.ok(!seen.has(cursor), `fallback cycle at ${cursor}`)
+      seen.add(cursor)
+      cursor = LOCALE_REGISTRY[cursor].fallback
+    }
+  }
+  assert.equal(LOCALE_REGISTRY[FALLBACK_LOCALE].fallback, null)
+})
+
+test("normalization: regional and malformed tags (§6 matrix)", () => {
+  assert.equal(parseLocale("es"), "es")
+  assert.equal(parseLocale("es-ES"), "es")
+  assert.equal(parseLocale("es_MX"), "es")
+  assert.equal(parseLocale("EN-gb"), "en")
+  assert.equal(parseLocale("de-CH"), "de")
+  assert.equal(parseLocale("fr-CH"), "fr")
+  assert.equal(parseLocale("it-IT"), "it")
+  assert.equal(parseLocale("it-CH"), "it")
+  assert.equal(parseLocale("zz-ZZ"), "en")
+  assert.equal(parseLocale(""), "en")
+  assert.equal(parseLocale(null), "en")
+  assert.equal(parseLocale(undefined), "en")
+})
+
+// ─── coverage matrix (§9/§16) ──────────────────────────────────────────────────
+
+test("coverage: derived matrix matches the real composed catalogs", () => {
+  const english = getUIMessages("en")
+  for (const code of REGISTRY_LOCALES) {
+    const catalog = getUIMessages(code)
+    for (const ns of Object.keys(english) as Array<keyof typeof english>) {
+      const declared = UI_NAMESPACE_COVERAGE[code][ns]
+      const actuallyEnglish = catalog[ns] === english[ns]
+      if (code === "en") assert.equal(declared, "native")
+      else if (declared === "native") assert.ok(!actuallyEnglish, `${code}.${ns} declared native but serves English`)
+      else assert.ok(actuallyEnglish, `${code}.${ns} declared fallback but is not the English object`)
+    }
+  }
+})
+
+test("coverage: expected snapshot — es partial (calendar/billing), de/fr/it pending", () => {
+  assert.equal(UI_NAMESPACE_COVERAGE.es.clients, "native")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.nav, "native")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "fallback-en")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.billing, "fallback-en")
+  assert.ok(localeHasPendingCoverage("es"))
+  assert.ok(!localeHasPendingCoverage("en"))
+  for (const code of ["de", "fr", "it"] as const) {
+    assert.ok(localeHasPendingCoverage(code))
+    for (const status of Object.values(UI_NAMESPACE_COVERAGE[code])) {
+      assert.equal(status, "fallback-en")
+    }
+  }
+})
+
+test("getUIMessages: complete catalogs with no empty strings for ALL five locales", () => {
+  const walk = (value: unknown, path: string) => {
+    if (typeof value === "string") {
+      assert.ok(value.length > 0, `empty string at ${path}`)
+      return
+    }
+    if (value && typeof value === "object") {
+      for (const [k, v] of Object.entries(value)) walk(v, `${path}.${k}`)
+    }
+  }
+  for (const code of REGISTRY_LOCALES) walk(getUIMessages(code), code)
 })
 
 // ─── namespace registry (P2) ───────────────────────────────────────────────────
@@ -213,12 +320,17 @@ test("legacy @core/i18n API remains importable and behaves", () => {
   assert.equal(typeof getTranslations, "function")
   assert.equal(typeof isValidLocale, "function")
   assert.equal(typeof resolveLocaleFromConfig, "function")
-  assert.deepEqual(SUPPORTED_LOCALES, ["en", "es", "de"])
+  assert.deepEqual(SUPPORTED_LOCALES, ["es", "en", "de", "fr", "it"])
   assert.equal(DEFAULT_LOCALE, "en")
   assert.equal(parseLocale("es-MX"), "es")
   assert.ok(isValidLocale("en"))
-  assert.ok(!isValidLocale("fr"))
+  assert.ok(isValidLocale("fr"))
+  assert.ok(isValidLocale("it"))
+  assert.ok(!isValidLocale("pt"))
   assert.equal(getTranslations("de").locale, "de")
+  // fr/it legacy sets pending → honest English content (locale states it).
+  assert.equal(getTranslations("fr").locale, "en")
+  assert.equal(getTranslations("it").locale, "en")
   assert.equal(resolveLocaleFromConfig(JSON.stringify({ locale: "es" })), "es")
 })
 

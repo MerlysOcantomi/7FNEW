@@ -335,3 +335,15 @@ export interface UIMessages {
 
 /** Union of valid namespace keys. */
 export type UINamespace = keyof UIMessages
+
+/**
+ * Per-locale catalog contribution (§9, P4.CORE-5L): a locale file exports
+ * ONLY the namespaces it really translates — each one COMPLETE against its
+ * contract (partial objects inside a namespace are a type error). Missing
+ * namespaces fall back to English at composition time in `ui/index.ts`, so
+ * `getUIMessages` always returns a full `UIMessages` and components never
+ * check for missing keys. No English copies inside locale files.
+ */
+export type LocaleCatalogOverrides = {
+  [K in UINamespace]?: UIMessages[K]
+}

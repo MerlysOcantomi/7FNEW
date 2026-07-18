@@ -1,4 +1,4 @@
-import type { UIMessages } from "../types"
+import type { LocaleCatalogOverrides } from "../types"
 import { common } from "./common"
 import { nav } from "./nav"
 import { globalSearch } from "./global-search"
@@ -6,20 +6,16 @@ import { globalNew } from "./global-new"
 import { settings } from "./settings"
 import { today } from "./today"
 import { clients } from "./clients"
-import { calendar } from "./calendar"
-import { billing } from "./billing"
 
 /**
- * Composed Spanish UI messages. Typed against the same `UIMessages` contract
- * as English — structural parity is a compile-time guarantee (and re-checked
- * at runtime by the parity test in `../../ui.test.ts`).
- *
- * P4.2 status: `settings`, `common`, `nav`, `globalSearch`, `globalNew` and
- * `today` are really translated. `clients`, `calendar` and `billing` still
- * carry English values until their surfaces are wired (deep Finesse content)
- * — none of them has a consumer yet, so no mixed-language UI can result.
+ * Spanish catalog contribution — ONLY really-translated namespaces (each one
+ * complete against its typed contract). `calendar` and `billing` are absent
+ * on purpose: composition in `ui/index.ts` serves the English objects for
+ * them (explicit per-namespace fallback, surfaced by UI_NAMESPACE_COVERAGE
+ * and verified by test). Never add an English-valued file here to fake
+ * coverage.
  */
-export const es: UIMessages = {
+export const es: LocaleCatalogOverrides = {
   common,
   nav,
   globalSearch,
@@ -27,6 +23,4 @@ export const es: UIMessages = {
   settings,
   today,
   clients,
-  calendar,
-  billing,
 }

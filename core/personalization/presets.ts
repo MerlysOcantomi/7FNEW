@@ -7,6 +7,7 @@
  */
 
 import type { BusinessType, VocabularyOverrides } from "./types"
+import type { SupportedLocale } from "@core/i18n/types"
 
 export const BUSINESS_PRESETS: Record<BusinessType, VocabularyOverrides> = {
   default: {},
@@ -75,7 +76,7 @@ export const BUSINESS_PRESETS: Record<BusinessType, VocabularyOverrides> = {
  * English-fallback rule, so a German UI never shows Spanish nouns.
  */
 export const LOCALIZED_BUSINESS_PRESETS: Partial<
-  Record<BusinessType, Record<string, VocabularyOverrides>>
+  Record<BusinessType, Partial<Record<SupportedLocale, VocabularyOverrides>>>
 > = {
   beauty: {
     es: {

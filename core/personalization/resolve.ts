@@ -27,6 +27,7 @@ import type {
   BusinessType,
   VocabularyOverrides,
 } from "./types"
+import { isValidLocale } from "@core/i18n/locale"
 import { DEFAULT_VOCABULARY } from "./vocabulary"
 import { BUSINESS_PRESETS, LOCALIZED_BUSINESS_PRESETS } from "./presets"
 
@@ -79,10 +80,11 @@ function parseWorkspaceLabels(
  * LOCALIZED_BUSINESS_PRESETS key ("es-MX" → "es"). Local on purpose — this
  * module stays decoupled from @core/i18n.
  */
-function presetLocaleKey(locale: string | null | undefined): string | null {
+function presetLocaleKey(locale: string | null | undefined) {
   if (!locale || typeof locale !== "string") return null
   const prefix = locale.trim().toLowerCase().split(/[-_]/)[0]
-  return prefix || null
+  // Single source of validity: the core i18n registry (no local allowlist).
+  return prefix && isValidLocale(prefix) ? prefix : null
 }
 
 export function resolveVocabulary(
