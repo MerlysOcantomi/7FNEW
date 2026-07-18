@@ -25,6 +25,8 @@ import {
 import { useFetch } from "@/hooks/use-fetch";
 import { ClienteForm } from "@/components/forms/cliente-form";
 import { displayLabel, estadoLabel } from "@/lib/api-client";
+import { useI18n } from "@/components/i18n-provider";
+import { useClientsNouns, capNoun } from "@/hooks/use-clients-nouns";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,11 +51,13 @@ const FACTURA_ESTADO_STYLE: Record<string, string> = {
   vencida: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
 };
 
-function formatDate(value: string | Date | null | undefined): string {
+function formatDate(value: string | Date | null | undefined, locale: string): string {
   if (!value) return "—";
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d.getTime())
+      ? "—"
+      : d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "—";
   }
@@ -88,6 +92,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── Tab panels ────────────────────────────────────────────────────────────────
 
 function TabResumen({ client }: { client: any }) {
+  const { t } = useI18n();
+  const nouns = useClientsNouns();
+  const D = t.clients.detail;
   const proyectos = client.proyectos ?? [];
   const facturas = client.facturas ?? [];
   const totalFacturado = facturas.reduce((sum: number, f: any) => sum + (f.total ?? 0), 0);
@@ -98,10 +105,10 @@ function TabResumen({ client }: { client: any }) {
   const clienteDesde = client.createdAt ? new Date(client.createdAt).getFullYear() : null;
 
   const snapshot = [
-    { label: "Active projects", value: String(proyectos.filter((p: any) => p.estado !== "completado" && p.estado !== "cancelado").length) },
-    { label: "Billed revenue", value: formatCurrency(totalFacturado) },
-    { label: "Outstanding invoices", value: `${facturasPendientes} (${formatCurrency(totalPendiente)})` },
-    { label: "Client since", value: clienteDesde ? String(clienteDesde) : "—" },
+    { label: D.snapshot.activeProjects({ projects: nouns.projects }), value: String(proyectos.filter((p: any) => p.estado !== "completado" && p.estado !== "cancelado").length) },
+    { label: D.snapshot.billedRevenue, value: formatCurrency(totalFacturado) },
+    { label: D.snapshot.outstandingInvoices({ invoices: nouns.invoices }), value: `${facturasPendientes} (${formatCurrency(totalPendiente)})` },
+    { label: D.snapshot.clientSince({ client: nouns.client }), value: clienteDesde ? String(clienteDesde) : "—" },
   ];
 
   return (
@@ -117,13 +124,13 @@ function TabResumen({ client }: { client: any }) {
         </div>
         <div className="bg-primary/15 rounded-xl p-5 flex flex-col justify-between">
           <div className="mb-4">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Client profile</p>
+            <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">{D.profile({ client: nouns.client })}</p>
             <p className="text-sm font-semibold text-foreground mb-1">{client.nombre}</p>
-            <p className="text-xs text-foreground/70 leading-relaxed">{client.notas || "No notes."}</p>
+            <p className="text-xs text-foreground/70 leading-relaxed">{client.notas || D.noNotes}</p>
           </div>
           {client.empresa && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Empresa:</span>
+              <span className="text-xs text-muted-foreground">{D.company}:</span>
               <span className="text-xs font-medium text-foreground">{client.empresa}</span>
             </div>
           )}
@@ -134,20 +141,23 @@ function TabResumen({ client }: { client: any }) {
 }
 
 function TabProyectos({ client }: { client: any }) {
+  const { t, locale } = useI18n();
+  const nouns = useClientsNouns();
+  const D = t.clients.detail;
   const proyectos = client.proyectos ?? [];
 
   if (proyectos.length === 0) {
     return (
       <div className="space-y-3">
-        <SectionLabel>Proyectos del cliente</SectionLabel>
+        <SectionLabel>{D.projectsSection({ client: nouns.client, projects: nouns.projects })}</SectionLabel>
         <div className="bg-card rounded-xl border border-border p-12 text-center">
           <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">No projects for this client</p>
-          <p className="text-xs text-muted-foreground mt-1">Los proyectos vinculados al cliente aparecerán aquí</p>
+          <p className="text-sm font-medium text-muted-foreground">{D.projectsEmptyTitle({ client: nouns.client, projects: nouns.projects })}</p>
+          <p className="text-xs text-muted-foreground mt-1">{D.projectsEmptyBody({ client: nouns.client, projects: nouns.projects })}</p>
           <Button asChild size="sm" className="mt-4">
             <Link href="/proyectos">
               <Plus size={12} strokeWidth={2.5} />
-              New project
+              {D.newProject({ project: nouns.project })}
             </Link>
           </Button>
         </div>
@@ -158,11 +168,11 @@ function TabProyectos({ client }: { client: any }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>Proyectos del cliente</SectionLabel>
+        <SectionLabel>{D.projectsSection({ client: nouns.client, projects: nouns.projects })}</SectionLabel>
         <Button asChild size="sm">
           <Link href="/proyectos">
             <Plus size={12} strokeWidth={2.5} />
-            New project
+            {D.newProject({ project: nouns.project })}
           </Link>
         </Button>
       </div>
@@ -186,11 +196,11 @@ function TabProyectos({ client }: { client: any }) {
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[10px] text-muted-foreground">Due</p>
-                <p className="text-xs text-foreground font-medium">{formatDate(p.fechaFin)}</p>
+                <p className="text-[10px] text-muted-foreground">{D.invoiceColumns.dueDate}</p>
+                <p className="text-xs text-foreground font-medium">{formatDate(p.fechaFin, locale)}</p>
               </div>
               <Link href={`/proyectos/${p.id}`} className="shrink-0 flex items-center gap-0.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors">
-                Ver <ArrowUpRight size={11} />
+                {t.clients.list.view} <ArrowUpRight size={11} />
               </Link>
             </div>
           );
@@ -201,18 +211,21 @@ function TabProyectos({ client }: { client: any }) {
 }
 
 function TabFacturacion({ client }: { client: any }) {
+  const { t, locale } = useI18n();
+  const nouns = useClientsNouns();
+  const D = t.clients.detail;
   const facturas = client.facturas ?? [];
 
   if (facturas.length === 0) {
     return (
       <div className="space-y-3">
-        <SectionLabel>Client billing</SectionLabel>
+        <SectionLabel>{D.invoicesSection({ client: nouns.client, invoices: nouns.invoices })}</SectionLabel>
         <div className="bg-card rounded-xl border border-border p-12 text-center">
           <FileText className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">No invoices for this client</p>
-          <p className="text-xs text-muted-foreground mt-1">Las facturas vinculadas al cliente aparecerán aquí</p>
+          <p className="text-sm font-medium text-muted-foreground">{D.invoicesEmptyTitle({ client: nouns.client, invoices: nouns.invoices })}</p>
+          <p className="text-xs text-muted-foreground mt-1">{D.invoicesEmptyBody({ client: nouns.client })}</p>
           <Link href="/facturacion" className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80">
-            Open billing <ArrowUpRight size={12} />
+            {D.openBilling({ invoices: nouns.invoices })} <ArrowUpRight size={12} />
           </Link>
         </div>
       </div>
@@ -222,18 +235,18 @@ function TabFacturacion({ client }: { client: any }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>Client billing</SectionLabel>
+        <SectionLabel>{D.invoicesSection({ client: nouns.client, invoices: nouns.invoices })}</SectionLabel>
         <Link href="/facturacion" className="text-xs text-primary font-medium hover:text-primary/80 transition-colors flex items-center gap-1">
-          Open billing <ArrowUpRight size={11} />
+          {D.openBilling({ invoices: nouns.invoices })} <ArrowUpRight size={11} />
         </Link>
       </div>
 
       <div className="hidden sm:block bg-card rounded-xl border border-border overflow-hidden">
         <div className="grid grid-cols-12 px-5 py-2.5 border-b border-muted bg-background">
-          <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Invoice</span>
-          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Amount</span>
-          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due date</span>
-          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Estado</span>
+          <span className="col-span-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{capNoun(nouns.invoices)}</span>
+          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.invoiceColumns.amount}</span>
+          <span className="col-span-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.invoiceColumns.dueDate}</span>
+          <span className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{D.invoiceColumns.status}</span>
         </div>
         {facturas.map((f: any, i: number) => {
           const s = FACTURA_ESTADO_STYLE[f.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]";
@@ -245,7 +258,7 @@ function TabFacturacion({ client }: { client: any }) {
             >
               <span className="col-span-4 text-sm font-medium text-primary hover:text-primary/80 transition-colors">#{f.numero}</span>
               <span className="col-span-3 text-sm font-medium text-foreground">{formatCurrency(f.total)}</span>
-              <span className="col-span-3 text-sm text-muted-foreground">{formatDate(f.fechaVencimiento)}</span>
+              <span className="col-span-3 text-sm text-muted-foreground">{formatDate(f.fechaVencimiento, locale)}</span>
               <span className={cn("col-span-2 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", s)}>{displayLabel(f.estado, estadoLabel)}</span>
             </Link>
           );
@@ -262,7 +275,7 @@ function TabFacturacion({ client }: { client: any }) {
                 <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", s)}>{displayLabel(f.estado, estadoLabel)}</span>
               </div>
               <p className="text-sm font-medium text-foreground">{formatCurrency(f.total)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Due {formatDate(f.fechaVencimiento)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{D.due(formatDate(f.fechaVencimiento, locale))}</p>
             </Link>
           );
         })}
@@ -272,6 +285,9 @@ function TabFacturacion({ client }: { client: any }) {
 }
 
 function TabActividad({ client, activities }: { client: any; activities: any[] }) {
+  const { t, locale } = useI18n();
+  const nouns = useClientsNouns();
+  const D = t.clients.detail;
   const notas = client.notasProfesionales ?? [];
 
   const hasNotes = notas.length > 0;
@@ -281,19 +297,19 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <SectionLabel>Notas</SectionLabel>
+          <SectionLabel>{D.notesSection}</SectionLabel>
           <div className="bg-card rounded-xl border border-border p-12 text-center">
             <StickyNote className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">No hay notas</p>
-            <p className="text-xs text-muted-foreground mt-1">Las notas vinculadas al cliente aparecerán aquí</p>
+            <p className="text-sm font-medium text-muted-foreground">{D.notesEmptyTitle}</p>
+            <p className="text-xs text-muted-foreground mt-1">{D.notesEmptyBody({ client: nouns.client })}</p>
           </div>
         </div>
         <div className="space-y-3">
-          <SectionLabel>Recent activity</SectionLabel>
+          <SectionLabel>{D.activitySection}</SectionLabel>
           <div className="bg-card rounded-xl border border-border p-12 text-center">
             <Clock className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">No activity recorded</p>
-            <p className="text-xs text-muted-foreground mt-1">Los cambios en el cliente se mostrarán aquí</p>
+            <p className="text-sm font-medium text-muted-foreground">{D.activityEmptyTitle}</p>
+            <p className="text-xs text-muted-foreground mt-1">{D.activityEmptyBody({ client: nouns.client })}</p>
           </div>
         </div>
       </div>
@@ -303,18 +319,18 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-3">
-        <SectionLabel>Notas</SectionLabel>
+        <SectionLabel>{D.notesSection}</SectionLabel>
         {notas.length === 0 ? (
           <div className="bg-card rounded-xl border border-border p-8 text-center">
-            <p className="text-sm text-muted-foreground">No hay notas</p>
+            <p className="text-sm text-muted-foreground">{D.notesEmptyTitle}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {notas.map((n: any) => (
               <div key={n.id} className="bg-card rounded-xl border border-border p-5">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-xs font-semibold text-foreground">{n.titulo || "Nota"}</p>
-                  <span className="text-[10px] text-muted-foreground">{formatDate(n.createdAt)}</span>
+                  <p className="text-xs font-semibold text-foreground">{n.titulo || D.activityFallback.note}</p>
+                  <span className="text-[10px] text-muted-foreground">{formatDate(n.createdAt, locale)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{n.contenido || "—"}</p>
               </div>
@@ -324,22 +340,22 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Recent activity</SectionLabel>
+        <SectionLabel>{D.activitySection}</SectionLabel>
         {activities.length === 0 ? (
           <div className="bg-card rounded-xl border border-border p-8 text-center">
-            <p className="text-sm text-muted-foreground">No activity recorded</p>
+            <p className="text-sm text-muted-foreground">{D.activityEmptyTitle}</p>
           </div>
         ) : (
           <div className="bg-card rounded-xl border border-border px-5 py-2 divide-y divide-muted">
             {activities.map((a: any, i: number) => {
-              const label = a.data?.label ?? a.data?.comment ?? (a.type === "created" ? "Creado" : a.type === "updated" ? "Actualizado" : a.type);
+              const label = a.data?.label ?? a.data?.comment ?? (a.type === "created" ? D.activityFallback.created : a.type === "updated" ? D.activityFallback.updated : a.type);
               return (
                 <div key={a.id || i} className="flex items-start gap-3 py-4">
                   <MessageSquare size={14} className="mt-0.5 shrink-0 text-muted-foreground" strokeWidth={1.75} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-foreground leading-snug">{label}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {a.userName || a.userEmail || "System"} · {formatDate(a.createdAt)}
+                      {a.userName || a.userEmail || D.activityFallback.system} · {formatDate(a.createdAt, locale)}
                     </p>
                   </div>
                 </div>
@@ -354,15 +370,23 @@ function TabActividad({ client, activities }: { client: any; activities: any[] }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { key: "resumen", label: "Summary" },
-  { key: "proyectos", label: "Projects" },
-  { key: "facturacion", label: "Invoices" },
-  { key: "actividad", label: "Activity" },
-];
-
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useI18n();
+  const nouns = useClientsNouns();
+  const D = t.clients.detail;
+  /** Visible label per persisted estado value — raw values never change. */
+  const statusBadge: Record<string, string> = {
+    activo: t.clients.status.active,
+    inactivo: t.clients.status.inactive,
+    prospecto: t.clients.status.prospect,
+  };
+  const tabs = [
+    { key: "resumen", label: D.tabs.summary },
+    { key: "proyectos", label: capNoun(nouns.projects) },
+    { key: "facturacion", label: capNoun(nouns.invoices) },
+    { key: "actividad", label: D.tabs.activity },
+  ];
   const [formOpen, setFormOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -381,7 +405,7 @@ export default function ClientDetailPage() {
   if (!id) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-muted-foreground">Invalid client ID</p>
+        <p className="text-sm text-muted-foreground">{D.errors.invalidId({ client: nouns.client })}</p>
       </div>
     );
   }
@@ -401,9 +425,9 @@ export default function ClientDetailPage() {
       <div className="flex flex-col md:flex-row min-h-screen bg-background">
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
           <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-          <p className="text-sm font-medium text-destructive">{error || "Client not found"}</p>
+          <p className="text-sm font-medium text-destructive">{error || D.errors.notFound({ client: nouns.client })}</p>
           <Link href="/clientes" className="mt-4 text-sm text-primary hover:text-primary/80 font-medium">
-            Back to clients
+            {D.errors.backToList({ clients: nouns.clients })}
           </Link>
         </div>
       </div>
@@ -416,8 +440,8 @@ export default function ClientDetailPage() {
     <>
       <ContextShell
         breadcrumbs={[
-          { label: "Core", href: "/" },
-          { label: "Clients", href: "/clientes" },
+          { label: D.breadcrumbRoot, href: "/" },
+          { label: capNoun(nouns.clients), href: "/clientes" },
           { label: client.nombre },
         ]}
         heading={
@@ -429,7 +453,7 @@ export default function ClientDetailPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-xl font-semibold text-foreground tracking-tight">{client.nombre}</h1>
                 <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", statusStyle.bg, statusStyle.text)}>
-                  {displayLabel(client.estado, estadoLabel)}
+                  {statusBadge[client.estado] ?? client.estado}
                 </span>
               </div>
             </div>
@@ -461,19 +485,19 @@ export default function ClientDetailPage() {
           <>
             <Button variant="outline" size="sm" onClick={() => setFormOpen(true)}>
               <Pencil size={13} strokeWidth={1.75} />
-              Edit
+              {t.common.edit}
             </Button>
             <Button asChild size="sm">
               <Link href="/facturacion">
                 <TrendingUp size={13} strokeWidth={1.75} />
-                View billing
+                {D.viewBilling({ invoices: nouns.invoices })}
               </Link>
             </Button>
           </>
         }
-        tabs={TABS}
+        tabs={tabs}
         defaultTab="resumen"
-        copilotContext="Clients"
+        copilotContext={capNoun(nouns.clients)}
       >
         {(activeTab) => {
           if (activeTab === "resumen") return <TabResumen client={client} />;

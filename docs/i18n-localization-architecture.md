@@ -584,7 +584,17 @@ triggers and panel chromes render from the catalog. Known remaining hardcodes
 — structural issue reported), global-search dialog interior (result groups,
 quick links, example chips), New ITEM labels (need entity+gender composition,
 e.g. "Nueva clienta"), Today peek body copy, notifications bell, and the
-vertical profile's Spanish `helper` subtitles. Next: **P4.3 — Finesse content
-surfaces** (§11: Clientes first with Clienta/Clientas composition, then Today
-and Agenda labels) which is when `clients`/`calendar`/`billing` get real
-Spanish content.
+vertical profile's Spanish `helper` subtitles. P4.2.1 made vertical vocabulary LOCALE-AWARE (localized presets; workspace
+`ui.labels` is the only explicit-personalization layer; standard Finesse is
+neutral Cliente/Clientes). P4.3 landed the full **/clientes journey**: the
+`clients` namespace covers list/detail/form with grammar-safe full-phrase
+functions (lowercase noun args, per-locale capitalization), the shared
+`useClientsNouns()` hook composes entity nouns once for the whole surface,
+and the list page, detail page and client form render entirely from
+catalog + vocabulary (persisted enum values untouched; DB/user content never
+translated; dates follow the effective locale). Known remaining in that
+journey (documented): project/invoice status badge labels still come from the
+shared English enum maps (they belong to the Projects/Billing domains),
+currency formatting is hardcoded es/CHF (functional bug, out of i18n scope),
+and Spanish structure words keep masculine agreement under feminine workspace
+overrides. Next: **P4.4 — Today and Agenda labels** (§11), then Cobros.
