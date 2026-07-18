@@ -4,7 +4,8 @@ function resolveLocale(localeRaw?: string | null): SupportedLocale {
   return localeRaw ? parseLocale(localeRaw) : DEFAULT_LOCALE
 }
 
-const STATUS: Record<SupportedLocale, Record<string, string>> = {
+// Partial: official locales without labels yet (fr/it) fall back to en below.
+const STATUS: Partial<Record<SupportedLocale, Record<string, string>>> = {
   en: {
     new: "New",
     triaged: "Triaged",
@@ -43,13 +44,13 @@ const STATUS: Record<SupportedLocale, Record<string, string>> = {
   },
 }
 
-const URGENCY: Record<SupportedLocale, Record<string, string>> = {
+const URGENCY: Partial<Record<SupportedLocale, Record<string, string>>> = {
   en: { critica: "Critical", alta: "High", media: "Medium", baja: "Low" },
   es: { critica: "Crítica", alta: "Alta", media: "Media", baja: "Baja" },
   de: { critica: "Kritisch", alta: "Hoch", media: "Mittel", baja: "Niedrig" },
 }
 
-const CHANNEL: Record<SupportedLocale, Record<string, string>> = {
+const CHANNEL: Partial<Record<SupportedLocale, Record<string, string>>> = {
   en: {
     manual: "Manual",
     web_chat: "Web chat",
@@ -73,7 +74,7 @@ const CHANNEL: Record<SupportedLocale, Record<string, string>> = {
   },
 }
 
-const REL_NOW: Record<SupportedLocale, string> = {
+const REL_NOW: Partial<Record<SupportedLocale, string>> = {
   en: "Now",
   es: "Ahora",
   de: "Jetzt",
@@ -93,7 +94,7 @@ export function formatRelativeDate(value: string, localeRaw?: string | null) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return REL_NOW[locale]
+  if (minutes < 1) return REL_NOW[locale] ?? REL_NOW.en!
   if (minutes < 60) {
     const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" })
     return rtf.format(-minutes, "minute")
@@ -137,7 +138,7 @@ export function formatRelativeDateCompact(value: string, localeRaw?: string | nu
     return formatDayMonthDots(date)
   }
 
-  if (minutes < 1) return REL_NOW[locale]
+  if (minutes < 1) return REL_NOW[locale] ?? REL_NOW.en!
   if (minutes < 60) return `${minutes}m`
   if (hours < 24) return `${hours}h`
   if (days < 7) return `${days}d`
@@ -175,7 +176,7 @@ export function statusBadge(status: string) {
 
 export function statusLabel(status: string, localeRaw?: string | null) {
   const locale = resolveLocale(localeRaw)
-  return STATUS[locale][status] ?? STATUS.en[status] ?? status
+  return STATUS[locale]?.[status] ?? STATUS.en?.[status] ?? status
 }
 
 /** Etiqueta visible del Inbox: `triaged` no se muestra como tal (el flujo ya está clasificado por IA). */
@@ -216,12 +217,12 @@ export function urgencyBadge(urgency: string) {
 
 export function urgencyLabel(urgency: string, localeRaw?: string | null) {
   const locale = resolveLocale(localeRaw)
-  return URGENCY[locale][urgency] ?? URGENCY.en[urgency] ?? urgency
+  return URGENCY[locale]?.[urgency] ?? URGENCY.en?.[urgency] ?? urgency
 }
 
 export function channelLabel(channel: string, localeRaw?: string | null) {
   const locale = resolveLocale(localeRaw)
-  return CHANNEL[locale][channel] ?? CHANNEL.en[channel] ?? channel
+  return CHANNEL[locale]?.[channel] ?? CHANNEL.en?.[channel] ?? channel
 }
 
 export function actionTypeLabel(type: string) {

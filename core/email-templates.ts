@@ -73,7 +73,13 @@ function getAckDefaults(locale: SupportedLocale): Required<AckEmailConfig> {
 export function resolveAckEmailConfig(
   workspaceConfigJson: string | null | undefined,
 ): Required<AckEmailConfig> & { locale: SupportedLocale } {
-  const locale = resolveLocaleFromConfig(workspaceConfigJson)
+  /**
+   * CONTENT locale: the locale of the translation set actually rendered.
+   * For official locales without a legacy set yet (fr/it) this is "en" —
+   * so <html lang> always matches the body text instead of claiming a
+   * language whose catalog is still pending.
+   */
+  const locale = getTranslations(resolveLocaleFromConfig(workspaceConfigJson)).locale
   const defaults = getAckDefaults(locale)
 
   if (!workspaceConfigJson) return { ...defaults, locale }

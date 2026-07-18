@@ -19,7 +19,8 @@ import {
 
 test("accept-language: weighted list picks best supported by q", () => {
   assert.equal(parseAcceptLanguage("de-CH,de;q=0.9,en;q=0.8,es;q=0.7"), "de")
-  assert.equal(parseAcceptLanguage("fr-FR,fr;q=0.9,es;q=0.5,en;q=0.4"), "es")
+  // fr is an official locale since P4.CORE-5L — it wins by weight now.
+  assert.equal(parseAcceptLanguage("fr-FR,fr;q=0.9,es;q=0.5,en;q=0.4"), "fr")
 })
 
 test("accept-language: regional variants resolve to their prefix", () => {
@@ -40,7 +41,7 @@ test("accept-language: q ordering wins over header position", () => {
 })
 
 test("accept-language: unsupported, wildcard, broken and empty → null", () => {
-  assert.equal(parseAcceptLanguage("fr-FR,it;q=0.9,pt"), null)
+  assert.equal(parseAcceptLanguage("pt-BR,nl;q=0.9,pt"), null)
   assert.equal(parseAcceptLanguage("*"), null)
   assert.equal(parseAcceptLanguage("es;q=banana"), null)
   assert.equal(parseAcceptLanguage("es;q=0"), null)
@@ -116,7 +117,7 @@ test("case D: unsupported everything → English default", () => {
     userLocale: null,
     workspaceLocale: "xx",
     cookieLocale: null,
-    acceptLanguage: "fr-FR",
+    acceptLanguage: "pt-BR",
   })
   assert.equal(r.locale, "en")
   assert.equal(r.source, "default")
@@ -167,7 +168,7 @@ test("case G: no cookie, unsupported header → English default, no cookie churn
     userLocale: null,
     workspaceLocale: null,
     cookieLocale: null,
-    acceptLanguage: "fr-FR,it;q=0.8",
+    acceptLanguage: "pt-BR,nl;q=0.8",
   })
   assert.equal(r.locale, "en")
   assert.equal(r.source, "default")

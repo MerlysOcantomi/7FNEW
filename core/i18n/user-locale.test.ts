@@ -16,7 +16,7 @@ test("parseUserLocalePreference: null is valid (clears preference)", () => {
 })
 
 test("parseUserLocalePreference: unsupported/malformed values are invalid", () => {
-  for (const bad of ["", "fr", "it", "xyz", undefined, 123, 0, {}, [], true]) {
+  for (const bad of ["", "pt", "nl", "xyz", "es-MX", undefined, 123, 0, {}, [], true]) {
     assert.deepEqual(parseUserLocalePreference(bad), { ok: false }, `expected invalid: ${String(bad)}`)
   }
 })
@@ -56,7 +56,7 @@ test("planUserLocaleUpdate: null locale → update clears preference for session
 })
 
 test("planUserLocaleUpdate: invalid locale → invalid (no write)", () => {
-  assert.deepEqual(planUserLocaleUpdate({ userId: "u1" }, { locale: "fr" }), { kind: "invalid" })
+  assert.deepEqual(planUserLocaleUpdate({ userId: "u1" }, { locale: "fr" }), { kind: "update", userId: "u1", locale: "fr" })
   assert.deepEqual(planUserLocaleUpdate({ userId: "u1" }, { locale: "es-MX" }), { kind: "invalid" })
 })
 

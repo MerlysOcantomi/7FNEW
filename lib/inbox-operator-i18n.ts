@@ -81,7 +81,8 @@ const DE: OperatorUiStrings = {
   addToCalendarTitle: "Zum Kalender hinzufügen",
 }
 
-const MAP: Record<SupportedLocale, OperatorUiStrings> = { en: EN, es: ES, de: DE }
+// fr/it: official locales, operator strings pending — honest English fallback.
+const MAP: Record<SupportedLocale, OperatorUiStrings> = { es: ES, en: EN, de: DE, fr: EN, it: EN }
 
 export function getOperatorUiStrings(locale?: string | null): OperatorUiStrings {
   const key = parseLocale(locale)

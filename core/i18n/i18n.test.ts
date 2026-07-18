@@ -32,7 +32,7 @@ test("parseLocale: regional variants strip to prefix", () => {
 })
 
 test("parseLocale: unsupported locale → en", () => {
-  assert.equal(parseLocale("fr"), "en")
+  assert.equal(parseLocale("pt"), "en")
   assert.equal(parseLocale("xyz"), "en")
   assert.equal(parseLocale("ja"), "en")
   assert.equal(parseLocale("pt-BR"), "en")
@@ -80,7 +80,7 @@ test("isValidLocale: valid", () => {
 })
 
 test("isValidLocale: invalid", () => {
-  assert.ok(!isValidLocale("fr"))
+  assert.ok(!isValidLocale("pt"))
   assert.ok(!isValidLocale("xyz"))
   assert.ok(!isValidLocale(""))
 })
@@ -106,7 +106,7 @@ test("resolveLocaleFromConfig: regional variant in config", () => {
 })
 
 test("resolveLocaleFromConfig: invalid locale in config → en", () => {
-  assert.equal(resolveLocaleFromConfig(JSON.stringify({ locale: "fr" })), "en")
+  assert.equal(resolveLocaleFromConfig(JSON.stringify({ locale: "fr" })), "fr")
   assert.equal(resolveLocaleFromConfig(JSON.stringify({ locale: "xyz" })), "en")
 })
 

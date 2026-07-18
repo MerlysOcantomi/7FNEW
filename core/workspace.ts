@@ -64,7 +64,8 @@ export async function resolveWorkspaceContext(
   }
 }
 
-const WS_CTX_LABELS: Record<
+// Partial: fr/it fall back to English at the lookup site below.
+const WS_CTX_LABELS: Partial<Record<
   SupportedLocale,
   {
     header: string
@@ -78,7 +79,7 @@ const WS_CTX_LABELS: Record<
     hours: string
     rules: string
   }
-> = {
+>> = {
   en: {
     header: "WORKSPACE (business identity):",
     company: "Company",
@@ -118,7 +119,7 @@ const WS_CTX_LABELS: Record<
 }
 
 export function buildWorkspaceContextBlock(ctx: WorkspaceAgentContext, locale: SupportedLocale = "en"): string {
-  const L = WS_CTX_LABELS[locale] ?? WS_CTX_LABELS.en
+  const L = WS_CTX_LABELS[locale] ?? WS_CTX_LABELS.en!
   const lines: string[] = []
 
   lines.push(`- ${L.company}: ${ctx.identity.name}`)

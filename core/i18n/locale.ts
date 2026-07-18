@@ -10,7 +10,12 @@
  * existing public API.
  */
 
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE, type SupportedLocale } from "./types"
+import {
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  LOCALE_REGISTRY,
+  type SupportedLocale,
+} from "./types"
 
 const SUPPORTED_SET = new Set<string>(SUPPORTED_LOCALES)
 
@@ -37,11 +42,9 @@ export function isValidLocale(raw: string): raw is SupportedLocale {
 }
 
 /**
- * Native display names for language pickers. Proper nouns — each language
- * names itself, so these are locale-independent and never translated.
+ * Native display names for language pickers — derived from the locale
+ * registry (single source). Proper nouns; never translated.
  */
-export const LOCALE_DISPLAY_NAMES: Record<SupportedLocale, string> = {
-  en: "English",
-  es: "Español",
-  de: "Deutsch",
-}
+export const LOCALE_DISPLAY_NAMES: Record<SupportedLocale, string> = Object.fromEntries(
+  SUPPORTED_LOCALES.map((code) => [code, LOCALE_REGISTRY[code].nativeName]),
+) as Record<SupportedLocale, string>
