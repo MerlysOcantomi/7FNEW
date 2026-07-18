@@ -1,7 +1,9 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 
-import { applyLens, conflictingEventoIds, LENSES, lensCounts } from "./lenses"
+import { calendar as enCalendar } from "@core/i18n/ui/en/calendar"
+import { calendar as esCalendar } from "@core/i18n/ui/es/calendar"
+import { applyLens, conflictingEventoIds, LENSES, lensCounts, lensLabel } from "./lenses"
 import type { CalendarItem } from "./types"
 
 const today = new Date(2026, 5, 24, 12, 0, 0) // Wed Jun 24 2026
@@ -61,4 +63,16 @@ test("applyLens filters honestly; deferred → []; null → all", () => {
 test("LENSES = 5 backed + 3 deferred", () => {
   assert.equal(LENSES.filter((l) => l.backed).length, 5)
   assert.equal(LENSES.filter((l) => !l.backed).length, 3)
+})
+
+test("lensLabel resolves every lens from the catalog; en/es really differ", () => {
+  assert.equal(lensLabel("this-day", enCalendar.lenses.labels), "This day")
+  assert.equal(lensLabel("time-conflicts", enCalendar.lenses.labels), "Time conflicts")
+  assert.equal(lensLabel("this-day", esCalendar.lenses.labels), "Este día")
+  for (const lens of LENSES) {
+    const en = lensLabel(lens.key, enCalendar.lenses.labels)
+    const es = lensLabel(lens.key, esCalendar.lenses.labels)
+    assert.ok(en.length > 0 && es.length > 0, `empty label for ${lens.key}`)
+    assert.notEqual(en, es, `${lens.key} label is not translated`)
+  }
 })

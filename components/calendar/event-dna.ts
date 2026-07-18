@@ -5,7 +5,13 @@
  * into the honest, time-aware read-out the Intelligence Panel shows: what the
  * date MEANS, the timing RISK, and the suggested next ACTION. Every value is
  * derived from fields the feed already provides — no fabricated insights.
+ *
+ * Localization: each derivation takes the relevant slice of the `calendar`
+ * catalog explicitly (components pass `t.calendar.dna.*`); the English
+ * catalog is the pure default so tests and pure callers stay canonical.
  */
+import type { CalendarMessages } from "@core/i18n/ui"
+import { calendar as enCalendar } from "@core/i18n/ui/en/calendar"
 import type { CalendarItem } from "./types"
 
 const DAY_MS = 86_400_000
@@ -23,21 +29,24 @@ export interface DateMeaning {
   relativeDays: number
 }
 
-export function deriveDateMeaning(dateISO: string, today: Date): DateMeaning {
+export function deriveDateMeaning(
+  dateISO: string,
+  today: Date,
+  m: CalendarMessages["dna"]["meaning"] = enCalendar.dna.meaning,
+): DateMeaning {
   const day = startOfDay(new Date(dateISO))
   const t0 = startOfDay(today)
   if (Number.isNaN(day)) return { label: "—", relativeDays: NaN }
   const diff = Math.round((day - t0) / DAY_MS)
   const abs = Math.abs(diff)
   let label: string
-  if (diff === 0) label = "Today"
-  else if (diff === 1) label = "Tomorrow"
-  else if (diff === -1) label = "Yesterday"
-  else if (abs < 7) label = diff > 0 ? `In ${diff} days` : `${abs} days ago`
+  if (diff === 0) label = m.today
+  else if (diff === 1) label = m.tomorrow
+  else if (diff === -1) label = m.yesterday
+  else if (abs < 7) label = diff > 0 ? m.inDays(diff) : m.agoDays(abs)
   else {
     const weeks = Math.round(abs / 7)
-    const unit = weeks === 1 ? "week" : "weeks"
-    label = diff > 0 ? `In ${weeks} ${unit}` : `${weeks} ${unit} ago`
+    label = diff > 0 ? m.inWeeks(weeks) : m.agoWeeks(weeks)
   }
   return { label, relativeDays: diff }
 }
@@ -67,19 +76,24 @@ export function isActionableOverdue(item: Pick<CalendarItem, "type" | "date" | "
  * (overlapping timed eventos) → due-today → none. Overdue only ever applies to
  * still-actionable tareas/facturas; conflict only to timed eventos.
  */
-export function deriveTimingRisk(item: CalendarItem, today: Date, inConflict = false): TimingRisk {
+export function deriveTimingRisk(
+  item: CalendarItem,
+  today: Date,
+  inConflict = false,
+  m: CalendarMessages["dna"]["risks"] = enCalendar.dna.risks,
+): TimingRisk {
   if (isActionableOverdue(item, today)) {
     const past = Math.round((startOfDay(today) - startOfDay(new Date(item.date))) / DAY_MS)
-    return { level: "overdue", label: "Overdue", tone: "danger", detail: past === 1 ? "1 day past due" : `${past} days past due` }
+    return { level: "overdue", label: m.overdue, tone: "danger", detail: m.daysPastDue(past) }
   }
   if (inConflict) {
-    return { level: "conflict", label: "Time conflict", tone: "warning", detail: "Overlaps another event" }
+    return { level: "conflict", label: m.conflict, tone: "warning", detail: m.overlaps }
   }
   const day = startOfDay(new Date(item.date))
   if (!Number.isNaN(day) && day === startOfDay(today)) {
-    return { level: "due-today", label: item.type === "evento" ? "Happening today" : "Due today", tone: "info" }
+    return { level: "due-today", label: item.type === "evento" ? m.happeningToday : m.dueToday, tone: "info" }
   }
-  return { level: "none", label: "On track", tone: "neutral" }
+  return { level: "none", label: m.onTrack, tone: "neutral" }
 }
 
 export interface PrimaryCta {
@@ -97,17 +111,22 @@ export interface PrimaryCta {
  *   • future / past-inactive   → Go to date      (jump the calendar)
  * "View conflict" and "Go to date" return no href → the panel wires them to onOpenDate.
  */
-export function primaryCta(item: CalendarItem, today: Date, inConflict = false): PrimaryCta {
+export function primaryCta(
+  item: CalendarItem,
+  today: Date,
+  inConflict = false,
+  m: CalendarMessages["dna"]["cta"] = enCalendar.dna.cta,
+): PrimaryCta {
   const day = startOfDay(new Date(item.date))
   const t0 = startOfDay(today)
-  if (Number.isNaN(day)) return { label: "Go to date" }
-  if (inConflict) return { label: "View conflict" }
-  if (day === t0) return { label: "Open in Today", href: "/today" }
+  if (Number.isNaN(day)) return { label: m.goToDate }
+  if (inConflict) return { label: m.viewConflict }
+  if (day === t0) return { label: m.openInToday, href: "/today" }
   if (day < t0) {
     if (item.type === "tarea" && item.status !== "completada" && item.status !== "cancelada")
-      return { label: "Open in Tasks", href: "/tareas" }
+      return { label: m.openInTasks, href: "/tareas" }
     if (item.type === "factura" && item.status !== "pagada" && item.status !== "cancelada")
-      return { label: "Open in Finance", href: "/finanzas" }
+      return { label: m.openInFinance, href: "/finanzas" }
   }
-  return { label: "Go to date" }
+  return { label: m.goToDate }
 }

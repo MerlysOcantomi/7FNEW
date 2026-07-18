@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Loader2, PanelLeft, PanelRight, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -16,7 +18,7 @@ import {
 } from "./grid"
 import { useCalendarFeed } from "./use-calendar-feed"
 import { CalendarLeftNavigator } from "./left-navigator"
-import { LENSES, applyLens, conflictingEventoIds, type LensKey } from "./lenses"
+import { applyLens, conflictingEventoIds, lensLabel, type LensKey } from "./lenses"
 import { DayView } from "./day-view"
 import { WeekView } from "./week-view"
 import { MonthView } from "./month-view"
@@ -30,11 +32,8 @@ const WIDE_MEDIA = "(min-width: 1024px)"
 const NAV_MEDIA = "(min-width: 1280px)"
 const PHONE_MEDIA = "(max-width: 640px)"
 
-const VIEWS: { key: CalendarView; label: string }[] = [
-  { key: "day", label: "Day" },
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-]
+/** View order only — visible labels come from `t.calendar.views`. */
+const VIEW_KEYS: CalendarView[] = ["day", "week", "month"]
 
 /**
  * Contained Calendar shell — Day/Week/Month on the real feed, a left navigator
@@ -45,6 +44,9 @@ const VIEWS: { key: CalendarView; label: string }[] = [
  * The full 5-mode panel, EventDNA and Schedule/Visual arrive in later PRs.
  */
 export function CalendarShell() {
+  const { t, locale } = useI18n()
+  const cal = t.calendar
+  const intlLocale = toIntlLocale(locale)
   const isWide = useMediaQuery(WIDE_MEDIA)
   const isNav = useMediaQuery(NAV_MEDIA)
   const isPhone = useMediaQuery(PHONE_MEDIA)
@@ -158,7 +160,8 @@ export function CalendarShell() {
     setNavOpen(false)
   }, [activeLens])
 
-  const scopeLabel = view === "month" ? "This month" : view === "week" ? `Week ${isoWeek(currentDate)}` : "This day"
+  const scopeLabel =
+    view === "month" ? cal.ledger.thisMonth : view === "week" ? cal.ledger.weekScope(isoWeek(currentDate)) : cal.ledger.thisDay
   // Time risks — real overdue tareas/facturas in the loaded scope (no mocks).
   const overdue = useMemo(() => {
     const now = new Date()
@@ -170,12 +173,12 @@ export function CalendarShell() {
     )
   }, [items])
 
-  const activeLensDef = activeLens ? LENSES.find((l) => l.key === activeLens) ?? null : null
+  const activeLensLabel = activeLens ? lensLabel(activeLens, cal.lenses.labels) : null
 
   // Time-intelligence framing line under the title + the focused-day label for
   // the panel's open-time guidance (both descriptive/real — no fabricated data).
-  const subtitle = view === "day" ? "Your day, hour by hour" : view === "week" ? "Your week, day by day" : "Your month at a glance"
-  const dayLabel = currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+  const subtitle = cal.subtitles[view]
+  const dayLabel = currentDate.toLocaleDateString(intlLocale, { weekday: "short", month: "short", day: "numeric" })
   // You're "on today" only when the Day view is showing the real current day —
   // that's when the Today button has nothing left to do, so it reads as active.
   const isOnToday = view === "day" && isSameDay(currentDate, today)
@@ -184,7 +187,7 @@ export function CalendarShell() {
   const emptyHint = {
     dayCount: dayItems.length,
     dayLabel,
-    lens: activeLensDef ? { label: activeLensDef.label, count: lensedItems.length } : null,
+    lens: activeLensLabel ? { label: activeLensLabel, count: lensedItems.length } : null,
   }
   // Panel container by mode: Docked/Compact/Collapsed live in the right column;
   // Overlay floats as a Sheet; Expanded as a centered Dialog; mobile/tablet Sheet.
@@ -219,10 +222,10 @@ export function CalendarShell() {
       <header className="shrink-0">
         <div className="mb-1.5 flex items-center gap-2">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">
-            Calendar
+            {cal.title}
           </p>
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-muted-border)] bg-[var(--accent-soft)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--accent-primary)]">
-            <Sparkles className="h-2.5 w-2.5" /> Time Intelligence
+            <Sparkles className="h-2.5 w-2.5" /> {cal.timeIntelligence}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -231,7 +234,7 @@ export function CalendarShell() {
               type="button"
               onClick={() => setNavOpen(true)}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground xl:hidden"
-              aria-label="Open navigator"
+              aria-label={cal.nav.openNavigatorAria}
             >
               <PanelLeft className="h-4 w-4" />
             </button>
@@ -239,7 +242,7 @@ export function CalendarShell() {
               type="button"
               onClick={goPrev}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Previous"
+              aria-label={cal.nav.previousAria}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -247,13 +250,13 @@ export function CalendarShell() {
               type="button"
               onClick={goNext}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Next"
+              aria-label={cal.nav.nextAria}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
             <div className="ml-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{headerTitle(currentDate, view)}</h1>
+                <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{headerTitle(currentDate, view, intlLocale)}</h1>
                 {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
               </div>
               <p className="text-[11px] text-muted-foreground">{subtitle}</p>
@@ -271,20 +274,20 @@ export function CalendarShell() {
                   : "border-border text-foreground hover:bg-accent",
               )}
             >
-              Today
+              {cal.today}
             </button>
             <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
-              {VIEWS.map((v) => (
+              {VIEW_KEYS.map((key) => (
                 <button
-                  key={v.key}
+                  key={key}
                   type="button"
-                  onClick={() => pickView(v.key)}
+                  onClick={() => pickView(key)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    view === v.key ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground",
+                    view === key ? "bg-[var(--app-surface-active)] text-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {v.label}
+                  {cal.views[key]}
                 </button>
               ))}
             </div>
@@ -296,13 +299,13 @@ export function CalendarShell() {
           <div className="flex items-center gap-2 px-3 py-2">
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)]" />
             <div className="flex flex-col leading-tight">
-              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Scope</span>
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">{cal.ledger.scope}</span>
               <span className="text-[12px] font-semibold text-foreground">{scopeLabel}</span>
             </div>
           </div>
           <div className="flex items-center px-3 py-2">
             <div className="flex flex-col leading-tight">
-              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Scheduled</span>
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">{cal.ledger.scheduled}</span>
               <span className="text-[12px] font-semibold tabular-nums text-foreground">{items.length}</span>
             </div>
           </div>
@@ -310,7 +313,7 @@ export function CalendarShell() {
             <div className="flex items-center px-3 py-2">
               <div className="flex flex-col leading-tight">
                 <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--status-danger-text)]/80">
-                  Time risk{overdue.length > 1 ? "s" : ""}
+                  {cal.ledger.timeRisks(overdue.length)}
                 </span>
                 <span className="text-[12px] font-semibold tabular-nums text-[var(--status-danger-text)]">{overdue.length}</span>
               </div>
@@ -319,17 +322,17 @@ export function CalendarShell() {
         </div>
 
         {/* Active lens — honest, shows the count actually rendered; X to clear. */}
-        {activeLensDef && (
+        {activeLensLabel && (
           <div className="mt-2 flex items-center">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/10 px-2.5 py-1 text-[11px] font-medium text-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-primary)]" />
-              {activeLensDef.label}
-              <span className="text-muted-foreground">· {lensedItems.length} shown</span>
+              {activeLensLabel}
+              <span className="text-muted-foreground">· {cal.lenses.shown(lensedItems.length)}</span>
               <button
                 type="button"
                 onClick={() => setActiveLens(null)}
                 className="ml-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Clear lens"
+                aria-label={cal.lenses.clearAria}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -379,8 +382,8 @@ export function CalendarShell() {
               <button
                 type="button"
                 onClick={() => setPanelModePersisted("docked")}
-                aria-label="Show details"
-                title="Show details"
+                aria-label={cal.panel.showDetails}
+                title={cal.panel.showDetails}
                 className="relative flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <PanelRight className="h-3.5 w-3.5" />
@@ -388,7 +391,7 @@ export function CalendarShell() {
               </button>
             )}
             <span className="mt-auto rotate-180 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50 [writing-mode:vertical-rl]">
-              Time Intelligence
+              {cal.timeIntelligence}
             </span>
           </div>
         </aside>
@@ -397,7 +400,7 @@ export function CalendarShell() {
       {/* < xl: navigator opens as a left Sheet. */}
       <Sheet open={navOpen && !isNav} onOpenChange={setNavOpen}>
         <SheetContent side="left" className="w-[280px] max-w-[85vw] border-border bg-card p-0">
-          <SheetTitle className="sr-only">Calendar navigator</SheetTitle>
+          <SheetTitle className="sr-only">{cal.nav.navigatorTitle}</SheetTitle>
           {navigatorEl}
         </SheetContent>
       </Sheet>
@@ -412,7 +415,7 @@ export function CalendarShell() {
             isPhone && "h-[90dvh] max-h-[90dvh] rounded-t-2xl",
           )}
         >
-          <SheetTitle className="sr-only">Time Intelligence</SheetTitle>
+          <SheetTitle className="sr-only">{cal.timeIntelligence}</SheetTitle>
           {selected && (
             <CalendarIntelligencePanel
               key={selected.id}
@@ -432,7 +435,7 @@ export function CalendarShell() {
       {/* Desktop Expanded mode → centered Dialog. */}
       <Dialog open={dialogPanelOpen} onOpenChange={(open) => { if (!open) clearSelection() }}>
         <DialogContent className="flex h-[80vh] max-w-2xl flex-col overflow-hidden p-0">
-          <DialogTitle className="sr-only">Time Intelligence</DialogTitle>
+          <DialogTitle className="sr-only">{cal.timeIntelligence}</DialogTitle>
           {selected && (
             <CalendarIntelligencePanel
               key={selected.id}

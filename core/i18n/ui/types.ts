@@ -406,11 +406,122 @@ export interface ClientsMessages {
   }
 }
 
-/** Calendar surface — visible labels only; no calendar behavior lives here. */
+/**
+ * Calendar surface — the full /calendario journey (shell, views, navigator,
+ * lenses, Intelligence Panel, EventDNA). Visible labels only; no calendar
+ * behavior lives here. Counted/parametrized phrases are typed FUNCTIONS.
+ * `types`/`eventTypes` are display labels for PERSISTED enum values — the
+ * stored values (tarea/reunion/…) never change, only their visible labels.
+ * `timeIntelligence` is a product-brand string — locales MAY keep it as-is.
+ * Date/number RENDERING (month/weekday names, times) is not in this catalog:
+ * it derives from Intl via `toIntlLocale` in the components.
+ */
 export interface CalendarMessages {
+  /** Surface name — eyebrow + breadcrumb ("Calendar" / "Agenda"). */
   title: string
+  /** Product-brand framing badge — same string in every locale is OK. */
+  timeIntelligence: string
   today: string
-  empty: string
+  views: { day: string; week: string; month: string }
+  subtitles: { day: string; week: string; month: string }
+  nav: {
+    openNavigatorAria: string
+    navigatorTitle: string
+    previousAria: string
+    nextAria: string
+  }
+  ledger: {
+    scope: string
+    scheduled: string
+    timeRisks: (count: number) => string
+    thisMonth: string
+    weekScope: (week: number) => string
+    thisDay: string
+  }
+  lenses: {
+    heading: string
+    comingSoon: string
+    notTracked: string
+    clearAria: string
+    shown: (count: number) => string
+    /** Keyed camelCase per lens (`this-day` → `thisDay`, mapped in lenses.ts). */
+    labels: {
+      thisDay: string
+      nextDays: string
+      planningHorizon: string
+      timeConflicts: string
+      pastEvents: string
+      campaignCycles: string
+      followUpMoments: string
+      prepWindows: string
+    }
+  }
+  panel: {
+    emptyTitle: string
+    emptyBody: string
+    openTimeHint: string
+    dayCountHint: (count: number) => string
+    lensHint: (label: string, count: number) => string
+    analyzing: string
+    timingInsight: string
+    aiError: string
+    clearSelectionAria: string
+    showDetails: string
+  }
+  dna: {
+    client: string
+    project: string
+    amount: string
+    context: string
+    when: string
+    allDay: string
+    meaning: {
+      today: string
+      tomorrow: string
+      yesterday: string
+      inDays: (days: number) => string
+      agoDays: (days: number) => string
+      inWeeks: (weeks: number) => string
+      agoWeeks: (weeks: number) => string
+    }
+    risks: {
+      overdue: string
+      daysPastDue: (days: number) => string
+      conflict: string
+      overlaps: string
+      happeningToday: string
+      dueToday: string
+      onTrack: string
+    }
+    cta: {
+      goToDate: string
+      viewConflict: string
+      openInToday: string
+      openInTasks: string
+      openInFinance: string
+    }
+  }
+  dayView: {
+    emptyTitle: string
+    emptyBody: string
+    viewWeek: string
+    openTasks: string
+    allDayDeadlines: string
+  }
+  weekView: { empty: string }
+  monthView: { plusMore: (count: number) => string }
+  miniMonth: { wk: string; prevMonthAria: string; nextMonthAria: string }
+  panelModes: {
+    heading: string
+    ariaLabel: (label: string) => string
+    labels: { docked: string; compact: string; overlay: string; expanded: string; collapsed: string }
+    titles: { docked: string; compact: string; overlay: string; expanded: string; collapsed: string }
+  }
+  /** Display labels for the persisted CalendarItemType values. */
+  types: { tarea: string; proyecto: string; factura: string; evento: string }
+  /** Display labels for the persisted evento `tipo` values. */
+  eventTypes: { reunion: string; entrega: string; llamada: string; cita: string; evento: string }
+  invoiceTitle: (numero: string | number) => string
 }
 
 /** Billing surface — visible labels only; no finance behavior lives here. */

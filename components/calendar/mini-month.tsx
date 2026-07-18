@@ -1,9 +1,11 @@
 "use client"
 
-import { Fragment } from "react"
+import { Fragment, useMemo } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DAY_NAMES_SHORT, MONTH_NAMES, buildMonthDays, formatDateParam, isSameDay, isoWeek } from "./grid"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
+import { buildMonthDays, formatDateParam, isSameDay, isoWeek, monthNames, weekdayNames } from "./grid"
 
 /** Chunk the flat month grid into Monday-first weeks of 7. */
 function toWeeks(days: { date: Date; inMonth: boolean }[]): { date: Date; inMonth: boolean }[][] {
@@ -35,20 +37,26 @@ export function MiniMonth({
   onNextMonth: () => void
   onSelectDay: (d: Date) => void
 }) {
+  const { t, locale } = useI18n()
+  const cal = t.calendar
+  const intlLocale = toIntlLocale(locale)
+  const months = useMemo(() => monthNames(intlLocale, "long"), [intlLocale])
+  const dayNamesNarrow = useMemo(() => weekdayNames(intlLocale, "narrow"), [intlLocale])
+  const monthTitle = `${months[month.getMonth()]} ${month.getFullYear()}`
   const weeks = toWeeks(buildMonthDays(month))
 
   return (
     <div className="select-none">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[13px] font-semibold text-foreground">
-          {MONTH_NAMES[month.getMonth()]} {month.getFullYear()}
+          {monthTitle.charAt(0).toUpperCase() + monthTitle.slice(1)}
         </p>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
             onClick={onPrevMonth}
             className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Previous month"
+            aria-label={cal.miniMonth.prevMonthAria}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -56,7 +64,7 @@ export function MiniMonth({
             type="button"
             onClick={onNextMonth}
             className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Next month"
+            aria-label={cal.miniMonth.nextMonthAria}
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
@@ -64,8 +72,8 @@ export function MiniMonth({
       </div>
 
       <div className="grid grid-cols-8 gap-y-0.5 text-center">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/50">Wk</span>
-        {DAY_NAMES_SHORT.map((d, i) => (
+        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/50">{cal.miniMonth.wk}</span>
+        {dayNamesNarrow.map((d, i) => (
           <span key={i} className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
             {d}
           </span>
@@ -95,7 +103,7 @@ export function MiniMonth({
                           ? "text-foreground/80 hover:bg-[var(--app-surface-hover)]"
                           : "text-muted-foreground/35 hover:bg-[var(--app-surface-hover)]",
                   )}
-                  aria-label={date.toDateString()}
+                  aria-label={date.toLocaleDateString(intlLocale, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                   aria-current={isToday ? "date" : undefined}
                 >
                   <span className="leading-none">{date.getDate()}</span>

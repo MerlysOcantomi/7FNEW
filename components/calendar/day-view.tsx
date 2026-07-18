@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { CalendarClock, CalendarRange, CheckSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
 import { DAY_WINDOW_END, DAY_WINDOW_START, isSameDay, minutesSinceMidnight } from "./grid"
 import { statusLabel } from "./labels"
 import { typeColors, typeIcons } from "./tokens"
@@ -14,8 +16,8 @@ const GUTTER_PX = 48
 const BIZ_START = 8
 const BIZ_END = 18
 
-function fmtTime(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+function fmtTime(d: Date, intlLocale: string): string {
+  return d.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
 }
 
 /** Day: a vertical hour timeline (TIME structure). Timed eventos are placed by
@@ -38,6 +40,9 @@ export function DayView({
   onSelect: (item: CalendarItem) => void
   onViewWeek: () => void
 }) {
+  const { t, locale } = useI18n()
+  const cal = t.calendar
+  const intlLocale = toIntlLocale(locale)
   const timed = items.filter((it) => it.type === "evento" && !it.allDay && !Number.isNaN(new Date(it.date).getTime()))
   const allDay = items.filter((it) => !(it.type === "evento" && !it.allDay))
 
@@ -65,7 +70,7 @@ export function DayView({
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       {allDay.length > 0 && (
         <div className="shrink-0 border-b border-border p-2">
-          <p className="mb-1 px-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">All day · deadlines</p>
+          <p className="mb-1 px-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">{cal.dayView.allDayDeadlines}</p>
           <div className="flex flex-wrap gap-1.5">
             {allDay.map((item) => {
               const Icon = typeIcons[item.type]
@@ -96,9 +101,9 @@ export function DayView({
               <CalendarClock className="h-6 w-6" />
             </span>
             <div>
-              <p className="text-sm font-semibold text-foreground">No events this day</p>
+              <p className="text-sm font-semibold text-foreground">{cal.dayView.emptyTitle}</p>
               <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-relaxed text-muted-foreground">
-                Your day is open — a clean block of time to plan deliberately.
+                {cal.dayView.emptyBody}
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -107,13 +112,13 @@ export function DayView({
                 onClick={onViewWeek}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
-                <CalendarRange className="h-3.5 w-3.5" /> View week
+                <CalendarRange className="h-3.5 w-3.5" /> {cal.dayView.viewWeek}
               </button>
               <Link
                 href="/tareas"
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
-                <CheckSquare className="h-3.5 w-3.5" /> Open Tasks
+                <CheckSquare className="h-3.5 w-3.5" /> {cal.dayView.openTasks}
               </Link>
             </div>
           </div>
@@ -175,9 +180,9 @@ export function DayView({
                   <span className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: typeColors[item.type] }} aria-hidden />
                   <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
                   <p className="truncate text-[9px] text-muted-foreground">
-                    {fmtTime(start)}
-                    {end ? ` – ${fmtTime(end)}` : ""}
-                    {statusLabel(item) ? ` · ${statusLabel(item)}` : ""}
+                    {fmtTime(start, intlLocale)}
+                    {end ? ` – ${fmtTime(end, intlLocale)}` : ""}
+                    {statusLabel(item, cal, t.statuses) ? ` · ${statusLabel(item, cal, t.statuses)}` : ""}
                   </p>
                 </button>
               )

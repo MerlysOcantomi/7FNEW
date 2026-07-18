@@ -1,20 +1,22 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
 import { priorityLabel, statusLabel } from "./labels"
 import { deriveDateMeaning, deriveTimingRisk, type TimingRiskTone } from "./event-dna"
-import { typeColors, typeIcons, typeLabel } from "./tokens"
+import { typeColors, typeIcons } from "./tokens"
 import type { CalendarItem } from "./types"
 
-function formatFull(dateISO: string): string {
+function formatFull(dateISO: string, intlLocale: string): string {
   const t = new Date(dateISO).getTime()
   if (Number.isNaN(t)) return "—"
-  return new Date(t).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+  return new Date(t).toLocaleDateString(intlLocale, { weekday: "long", year: "numeric", month: "long", day: "numeric" })
 }
-function formatTime(dateISO: string | null | undefined): string | null {
+function formatTime(dateISO: string | null | undefined, intlLocale: string): string | null {
   if (!dateISO) return null
   const d = new Date(dateISO)
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
 }
 
 const TONE_CLASS: Record<TimingRiskTone, string> = {
@@ -41,18 +43,21 @@ export function EventDNA({
   inConflict?: boolean
   compact?: boolean
 }) {
+  const { t, locale } = useI18n()
+  const cal = t.calendar
+  const intlLocale = toIntlLocale(locale)
   const Icon = typeIcons[item.type]
-  const start = item.allDay ? null : formatTime(item.date)
-  const end = item.allDay ? null : formatTime(item.endDate)
-  const meaning = deriveDateMeaning(item.date, today)
-  const risk = deriveTimingRisk(item, today, inConflict)
-  const priority = priorityLabel(item.priority)
+  const start = item.allDay ? null : formatTime(item.date, intlLocale)
+  const end = item.allDay ? null : formatTime(item.endDate, intlLocale)
+  const meaning = deriveDateMeaning(item.date, today, cal.dna.meaning)
+  const risk = deriveTimingRisk(item, today, inConflict, cal.dna.risks)
+  const priority = priorityLabel(item.priority, t.statuses)
 
   const context: { label: string; value: string }[] = []
-  if (item.clientName) context.push({ label: "Client", value: item.clientName })
-  if (item.projectName) context.push({ label: "Project", value: item.projectName })
+  if (item.clientName) context.push({ label: cal.dna.client, value: item.clientName })
+  if (item.projectName) context.push({ label: cal.dna.project, value: item.projectName })
   if (item.type === "factura" && typeof item.invoiceTotal === "number")
-    context.push({ label: "Amount", value: `$${item.invoiceTotal.toLocaleString("en-US")}` })
+    context.push({ label: cal.dna.amount, value: `$${item.invoiceTotal.toLocaleString(intlLocale)}` })
 
   return (
     <div className="flex flex-col gap-3">
@@ -66,9 +71,9 @@ export function EventDNA({
               className="rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{ backgroundColor: `color-mix(in srgb, ${typeColors[item.type]} 18%, transparent)`, color: typeColors[item.type] }}
             >
-              {typeLabel[item.type]}
+              {cal.types[item.type]}
             </span>
-            <span className="text-[10px] text-muted-foreground">{statusLabel(item)}</span>
+            <span className="text-[10px] text-muted-foreground">{statusLabel(item, cal, t.statuses)}</span>
             {priority && <span className="text-[10px] text-muted-foreground">· {priority}</span>}
           </div>
         </div>
@@ -85,19 +90,19 @@ export function EventDNA({
       {/* When + what the date means */}
       <div className="rounded-lg border border-border bg-[var(--app-surface-dark-elevated)] p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">When</p>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{cal.dna.when}</p>
           <span className="rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-primary)]">
             {meaning.label}
           </span>
         </div>
-        <p className="mt-0.5 text-sm font-medium text-foreground">{formatFull(item.date)}</p>
-        <p className="text-xs text-muted-foreground">{start ? (end ? `${start} – ${end}` : start) : "All day"}</p>
+        <p className="mt-0.5 text-sm font-medium text-foreground">{formatFull(item.date, intlLocale)}</p>
+        <p className="text-xs text-muted-foreground">{start ? (end ? `${start} – ${end}` : start) : cal.dna.allDay}</p>
       </div>
 
       {/* Related context — only when the feed actually carries it (compact hides it) */}
       {!compact && context.length > 0 && (
         <div className="rounded-lg border border-border p-3">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Context</p>
+          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{cal.dna.context}</p>
           <div className="flex flex-col gap-1">
             {context.map((c) => (
               <div key={c.label} className="flex items-center justify-between gap-2 text-xs">

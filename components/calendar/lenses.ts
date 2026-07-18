@@ -11,6 +11,7 @@
  * horizon are month-scoped for PR2 (not a global future query). Honest, just
  * scoped.
  */
+import type { CalendarMessages } from "@core/i18n/ui"
 import { isSameDay } from "./grid"
 import type { CalendarItem } from "./types"
 
@@ -26,23 +27,38 @@ export type LensKey =
 
 export interface LensDef {
   key: LensKey
-  label: string
   /** Backed by real CalendarItem data today? Deferred lenses are disabled. */
   backed: boolean
-  /** Honest reason shown on a deferred chip. */
-  deferredNote?: string
 }
 
+/** Structure only — visible labels live in the `calendar.lenses` catalog. */
 export const LENSES: LensDef[] = [
-  { key: "this-day", label: "This day", backed: true },
-  { key: "next-days", label: "Next days", backed: true },
-  { key: "planning-horizon", label: "Planning horizon", backed: true },
-  { key: "time-conflicts", label: "Time conflicts", backed: true },
-  { key: "past-events", label: "Past events", backed: true },
-  { key: "campaign-cycles", label: "Campaign cycles", backed: false, deferredNote: "Not tracked yet" },
-  { key: "follow-up-moments", label: "Follow-up moments", backed: false, deferredNote: "Not tracked yet" },
-  { key: "prep-windows", label: "Prep windows", backed: false, deferredNote: "Not tracked yet" },
+  { key: "this-day", backed: true },
+  { key: "next-days", backed: true },
+  { key: "planning-horizon", backed: true },
+  { key: "time-conflicts", backed: true },
+  { key: "past-events", backed: true },
+  { key: "campaign-cycles", backed: false },
+  { key: "follow-up-moments", backed: false },
+  { key: "prep-windows", backed: false },
 ]
+
+/** Stable lens keys → camelCase catalog keys (contract convention). */
+const LENS_LABEL_KEY: Record<LensKey, keyof CalendarMessages["lenses"]["labels"]> = {
+  "this-day": "thisDay",
+  "next-days": "nextDays",
+  "planning-horizon": "planningHorizon",
+  "time-conflicts": "timeConflicts",
+  "past-events": "pastEvents",
+  "campaign-cycles": "campaignCycles",
+  "follow-up-moments": "followUpMoments",
+  "prep-windows": "prepWindows",
+}
+
+/** Localized label for a lens — pure lookup, callers pass `t.calendar.lenses.labels`. */
+export function lensLabel(key: LensKey, labels: CalendarMessages["lenses"]["labels"]): string {
+  return labels[LENS_LABEL_KEY[key]]
+}
 
 const DAY_MS = 86_400_000
 const NEXT_DAYS = 7

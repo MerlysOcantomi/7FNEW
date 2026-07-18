@@ -1,16 +1,31 @@
 /**
  * 7F Calendar — pure date / grid math (no React, no lucide), so it is safe to
  * unit-test with `tsx --test`. Extracted from the previous single-file page.
+ *
+ * Month/weekday names are Intl-derived for an explicit `intlLocale` (callers
+ * pass `toIntlLocale(locale)` from @core/i18n/format); the default is plain
+ * "en" so pure callers/tests keep the canonical English output.
  */
 import type { CalendarView } from "./types"
 
-export const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-]
-export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-export const DAY_NAMES_SHORT = ["M", "T", "W", "T", "F", "S", "S"]
-export const DAY_NAMES_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+const DAY_MS = 86_400_000
+/** 2024-01-01 is a Monday — reference anchor for Monday-first weekday names. */
+const REF_MONDAY_UTC = Date.UTC(2024, 0, 1)
+
+/** Monday-first weekday names for an Intl locale (short "Mon", narrow "M", long "Monday"). */
+export function weekdayNames(
+  intlLocale = "en",
+  style: "long" | "short" | "narrow" = "short",
+): string[] {
+  const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: style, timeZone: "UTC" })
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(REF_MONDAY_UTC + i * DAY_MS)))
+}
+
+/** January-first month names for an Intl locale. */
+export function monthNames(intlLocale = "en", style: "long" | "short" = "long"): string[] {
+  const fmt = new Intl.DateTimeFormat(intlLocale, { month: style, timeZone: "UTC" })
+  return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(Date.UTC(2024, i, 1))))
+}
 
 /** Default visible window for the Day timeline when no events force it wider. */
 export const DAY_WINDOW_START = 7
@@ -85,19 +100,37 @@ export function navigateDate(currentDate: Date, view: CalendarView, dir: number)
   return next
 }
 
-export function headerTitle(currentDate: Date, view: CalendarView): string {
+/** Capitalize the first character — locales like Spanish keep month/weekday
+ *  names lowercase, but the calendar header is a title. No-op for English. */
+function capitalize(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value
+}
+
+/** View-aware header title, rendered with Intl names for `intlLocale`
+ *  (default "en" keeps the canonical English output for pure callers/tests). */
+export function headerTitle(currentDate: Date, view: CalendarView, intlLocale = "en"): string {
   if (view === "month") {
-    return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+    return capitalize(
+      new Intl.DateTimeFormat(intlLocale, { month: "long", year: "numeric" }).format(currentDate),
+    )
   }
   if (view === "week") {
+    const shortMonth = new Intl.DateTimeFormat(intlLocale, { month: "short" })
     const mon = getMonday(currentDate)
     const sun = new Date(mon)
     sun.setDate(mon.getDate() + 6)
     const crossMonth = sun.getMonth() !== mon.getMonth()
-    const sunPart = crossMonth ? `${MONTH_NAMES[sun.getMonth()].slice(0, 3)} ${sun.getDate()}` : `${sun.getDate()}`
-    return `${MONTH_NAMES[mon.getMonth()].slice(0, 3)} ${mon.getDate()} — ${sunPart}, ${sun.getFullYear()}`
+    const sunPart = crossMonth ? `${shortMonth.format(sun)} ${sun.getDate()}` : `${sun.getDate()}`
+    return capitalize(`${shortMonth.format(mon)} ${mon.getDate()} — ${sunPart}, ${sun.getFullYear()}`)
   }
-  return `${DAY_NAMES_FULL[(currentDate.getDay() + 6) % 7]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`
+  return capitalize(
+    new Intl.DateTimeFormat(intlLocale, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(currentDate),
+  )
 }
 
 export function minutesSinceMidnight(d: Date): number {

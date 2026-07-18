@@ -9,7 +9,9 @@ import {
   headerTitle,
   isoWeek,
   isSameDay,
+  monthNames,
   navigateDate,
+  weekdayNames,
 } from "./grid"
 
 test("formatDateParam zero-pads to YYYY-MM-DD (local)", () => {
@@ -62,8 +64,26 @@ test("isoWeek matches known ISO week numbers", () => {
   assert.equal(isoWeek(new Date(2026, 5, 24)), 26) // 2026-06-24 → W26
 })
 
-test("headerTitle is view-aware and English", () => {
+test("headerTitle is view-aware and English by default", () => {
   assert.equal(headerTitle(new Date(2026, 5, 15), "month"), "June 2026")
   assert.match(headerTitle(new Date(2026, 5, 24), "week"), /Jun 22 — 28, 2026/)
   assert.equal(headerTitle(new Date(2026, 5, 24), "day"), "Wednesday, June 24, 2026")
+})
+
+test("headerTitle renders Intl names for an explicit locale (es-ES ≠ en)", () => {
+  assert.equal(headerTitle(new Date(2026, 5, 15), "month", "es-ES"), "Junio de 2026")
+  assert.equal(headerTitle(new Date(2026, 5, 24), "day", "es-ES"), "Miércoles, 24 de junio de 2026")
+  // January so even the SHORT month differs ("Ene" vs "Jan") — June's "Jun" collides.
+  for (const view of ["month", "week", "day"] as const) {
+    assert.notEqual(headerTitle(new Date(2026, 0, 7), view, "es-ES"), headerTitle(new Date(2026, 0, 7), view))
+  }
+})
+
+test("weekdayNames/monthNames are Monday-first / January-first per Intl locale", () => {
+  assert.deepEqual(weekdayNames().slice(0, 3), ["Mon", "Tue", "Wed"])
+  assert.deepEqual(weekdayNames("en", "narrow"), ["M", "T", "W", "T", "F", "S", "S"])
+  assert.deepEqual(weekdayNames("es-ES").slice(0, 3), ["lun", "mar", "mié"])
+  assert.equal(monthNames()[5], "June")
+  assert.equal(monthNames("es-ES")[5], "junio")
+  assert.equal(monthNames("en", "short")[5], "Jun")
 })

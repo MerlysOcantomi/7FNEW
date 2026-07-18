@@ -1,11 +1,131 @@
 import type { CalendarMessages } from "../types"
 
 /**
- * English source for the `calendar` UI namespace.
+ * English source for the `calendar` UI namespace — the full /calendario
+ * surface (shell, views, navigator, lenses, Intelligence Panel, EventDNA).
  * Visible labels only — no calendar or appointment behavior is touched.
  */
 export const calendar: CalendarMessages = {
   title: "Calendar",
+  timeIntelligence: "Time Intelligence",
   today: "Today",
-  empty: "No events scheduled.",
+  views: { day: "Day", week: "Week", month: "Month" },
+  subtitles: {
+    day: "Your day, hour by hour",
+    week: "Your week, day by day",
+    month: "Your month at a glance",
+  },
+  nav: {
+    openNavigatorAria: "Open navigator",
+    navigatorTitle: "Calendar navigator",
+    previousAria: "Previous",
+    nextAria: "Next",
+  },
+  ledger: {
+    scope: "Scope",
+    scheduled: "Scheduled",
+    timeRisks: (count) => (count === 1 ? "Time risk" : "Time risks"),
+    thisMonth: "This month",
+    weekScope: (week) => `Week ${week}`,
+    thisDay: "This day",
+  },
+  lenses: {
+    heading: "Lenses",
+    comingSoon: "Coming soon",
+    notTracked: "Not tracked yet",
+    clearAria: "Clear lens",
+    shown: (count) => `${count} shown`,
+    labels: {
+      thisDay: "This day",
+      nextDays: "Next days",
+      planningHorizon: "Planning horizon",
+      timeConflicts: "Time conflicts",
+      pastEvents: "Past events",
+      campaignCycles: "Campaign cycles",
+      followUpMoments: "Follow-up moments",
+      prepWindows: "Prep windows",
+    },
+  },
+  panel: {
+    emptyTitle: "Select an event",
+    emptyBody: "See its timing, context and the next action — without leaving the calendar.",
+    openTimeHint: "Open time — a clean block to plan deliberately.",
+    dayCountHint: (count) => `${count} scheduled — pick one to inspect its timing.`,
+    lensHint: (label, count) => `Lens: ${label} · ${count} shown`,
+    analyzing: "Analyzing…",
+    timingInsight: "Timing insight",
+    aiError: "Couldn't load a timing insight.",
+    clearSelectionAria: "Clear selection",
+    showDetails: "Show details",
+  },
+  dna: {
+    client: "Client",
+    project: "Project",
+    amount: "Amount",
+    context: "Context",
+    when: "When",
+    allDay: "All day",
+    meaning: {
+      today: "Today",
+      tomorrow: "Tomorrow",
+      yesterday: "Yesterday",
+      inDays: (days) => `In ${days} days`,
+      agoDays: (days) => `${days} days ago`,
+      inWeeks: (weeks) => (weeks === 1 ? "In 1 week" : `In ${weeks} weeks`),
+      agoWeeks: (weeks) => (weeks === 1 ? "1 week ago" : `${weeks} weeks ago`),
+    },
+    risks: {
+      overdue: "Overdue",
+      daysPastDue: (days) => (days === 1 ? "1 day past due" : `${days} days past due`),
+      conflict: "Time conflict",
+      overlaps: "Overlaps another event",
+      happeningToday: "Happening today",
+      dueToday: "Due today",
+      onTrack: "On track",
+    },
+    cta: {
+      goToDate: "Go to date",
+      viewConflict: "View conflict",
+      openInToday: "Open in Today",
+      openInTasks: "Open in Tasks",
+      openInFinance: "Open in Finance",
+    },
+  },
+  dayView: {
+    emptyTitle: "No events this day",
+    emptyBody: "Your day is open — a clean block of time to plan deliberately.",
+    viewWeek: "View week",
+    openTasks: "Open Tasks",
+    allDayDeadlines: "All day · deadlines",
+  },
+  weekView: { empty: "No events" },
+  monthView: { plusMore: (count) => `+${count} more` },
+  miniMonth: { wk: "Wk", prevMonthAria: "Previous month", nextMonthAria: "Next month" },
+  panelModes: {
+    heading: "Panel layout",
+    ariaLabel: (label) => `Panel layout: ${label}`,
+    labels: {
+      docked: "Docked",
+      compact: "Compact",
+      overlay: "Overlay",
+      expanded: "Expanded",
+      collapsed: "Collapsed",
+    },
+    titles: {
+      docked: "Docked — full context beside your calendar.",
+      compact: "Compact — the essentials in a slim column.",
+      overlay: "Overlay — context floats over the calendar.",
+      expanded: "Expanded — full focus on this moment.",
+      collapsed: "Collapsed — hide the panel, maximize the calendar.",
+    },
+  },
+  types: { tarea: "Task", proyecto: "Project", factura: "Invoice", evento: "Event" },
+  eventTypes: {
+    reunion: "Meeting",
+    entrega: "Delivery",
+    llamada: "Call",
+    cita: "Appointment",
+    evento: "Event",
+  },
+  invoiceTitle: (numero) => `Invoice ${numero}`,
 }

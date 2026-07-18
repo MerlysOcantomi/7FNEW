@@ -1,14 +1,17 @@
 "use client"
 
+import { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { DAY_NAMES, isSameDay } from "./grid"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
+import { isSameDay, weekdayNames } from "./grid"
 import { statusLabel } from "./labels"
 import { typeColors, typeIcons } from "./tokens"
 import type { CalendarItem } from "./types"
 
-function timeLabel(iso: string): string {
+function timeLabel(iso: string, intlLocale: string): string {
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
 }
 
 /** Week: 7 spacious fill-height columns. All-day/deadline chips first, then
@@ -26,6 +29,10 @@ export function WeekView({
   selectedId: string | null
   onSelect: (item: CalendarItem) => void
 }) {
+  const { t, locale } = useI18n()
+  const cal = t.calendar
+  const intlLocale = toIntlLocale(locale)
+  const dayNames = useMemo(() => weekdayNames(intlLocale, "short"), [intlLocale])
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="min-h-0 flex-1 overflow-x-auto">
@@ -46,7 +53,7 @@ export function WeekView({
                 )}
               >
                 <div className={cn("shrink-0 border-b border-border px-3 py-2.5 text-center")}>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{DAY_NAMES[i]}</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{dayNames[i]}</p>
                   <p className={cn("mt-0.5 text-lg font-semibold", isToday ? "text-[var(--accent-primary)]" : "text-foreground/70")}>
                     {d.getDate()}
                   </p>
@@ -68,7 +75,7 @@ export function WeekView({
                         <Icon className="mt-0.5 h-3 w-3 shrink-0" style={{ color: typeColors[item.type] }} />
                         <div className="min-w-0">
                           <p className="truncate text-[11px] font-medium text-foreground">{item.title}</p>
-                          <p className="text-[9px] text-muted-foreground">{statusLabel(item)}</p>
+                          <p className="text-[9px] text-muted-foreground">{statusLabel(item, cal, t.statuses)}</p>
                         </div>
                       </button>
                     )
@@ -84,11 +91,11 @@ export function WeekView({
                       )}
                       style={selectedId === item.id ? undefined : { backgroundColor: `color-mix(in srgb, ${typeColors[item.type]} 10%, transparent)` }}
                     >
-                      <span className="mt-0.5 shrink-0 font-mono text-[9px] text-muted-foreground">{timeLabel(item.date)}</span>
+                      <span className="mt-0.5 shrink-0 font-mono text-[9px] text-muted-foreground">{timeLabel(item.date, intlLocale)}</span>
                       <p className="min-w-0 truncate text-[11px] font-medium text-foreground">{item.title}</p>
                     </button>
                   ))}
-                  {dayItems.length === 0 && <p className="mt-4 text-center text-[10px] text-muted-foreground/40">No events</p>}
+                  {dayItems.length === 0 && <p className="mt-4 text-center text-[10px] text-muted-foreground/40">{cal.weekView.empty}</p>}
                 </div>
               </div>
             )

@@ -13,8 +13,9 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 import { formatDateParam } from "./grid"
-import { LENSES, lensCounts, type LensKey } from "./lenses"
+import { LENSES, lensCounts, lensLabel, type LensKey } from "./lenses"
 import { MiniMonth } from "./mini-month"
 import { typeColors } from "./tokens"
 import type { CalendarItem, CalendarItemType } from "./types"
@@ -84,6 +85,8 @@ export function CalendarLeftNavigator({
   onPrevMonth: () => void
   onNextMonth: () => void
 }) {
+  const { t } = useI18n()
+  const cal = t.calendar
   const dots = useMemo(() => buildDots(monthItems), [monthItems])
   const counts = useMemo(() => lensCounts(monthItems, today), [monthItems, today])
 
@@ -101,7 +104,7 @@ export function CalendarLeftNavigator({
 
       <div className="min-h-0">
         <p className="mb-2 px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Lenses
+          {cal.lenses.heading}
         </p>
         <div className="flex flex-col gap-0.5">
           {BACKED_LENSES.map((lens) => {
@@ -122,7 +125,7 @@ export function CalendarLeftNavigator({
               >
                 {active && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--accent-primary)]" />}
                 <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-[var(--accent-primary)]" : "text-muted-foreground")} />
-                <span className="flex-1 truncate">{lens.label}</span>
+                <span className="flex-1 truncate">{lensLabel(lens.key, cal.lenses.labels)}</span>
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
@@ -138,7 +141,7 @@ export function CalendarLeftNavigator({
 
         <div className="mb-2 mt-3 flex items-center gap-2 px-1">
           <span className="h-px flex-1 bg-border" />
-          <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">Coming soon</span>
+          <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">{cal.lenses.comingSoon}</span>
           <span className="h-px flex-1 bg-border" />
         </div>
 
@@ -149,12 +152,12 @@ export function CalendarLeftNavigator({
               <div
                 key={lens.key}
                 aria-disabled="true"
-                title="Not tracked yet"
+                title={cal.lenses.notTracked}
                 className="flex cursor-not-allowed items-center gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-[12px] opacity-60"
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                <span className="flex-1 truncate text-muted-foreground">{lens.label}</span>
-                <span className="shrink-0 text-[9px] italic text-muted-foreground/70">{lens.deferredNote}</span>
+                <span className="flex-1 truncate text-muted-foreground">{lensLabel(lens.key, cal.lenses.labels)}</span>
+                <span className="shrink-0 text-[9px] italic text-muted-foreground/70">{cal.lenses.notTracked}</span>
               </div>
             )
           })}

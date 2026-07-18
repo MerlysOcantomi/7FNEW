@@ -1,6 +1,8 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 
+import { calendar as enCalendar } from "@core/i18n/ui/en/calendar"
+import { calendar as esCalendar } from "@core/i18n/ui/es/calendar"
 import { deriveDateMeaning, deriveTimingRisk, isActionableOverdue, primaryCta } from "./event-dna"
 import type { CalendarItem } from "./types"
 
@@ -44,6 +46,38 @@ test("deriveTimingRisk: overdue > conflict > due-today > none", () => {
   assert.equal(conflict.tone, "warning")
   assert.equal(deriveTimingRisk(item({ type: "evento", date: iso(2026, 5, 24, 10), allDay: false, status: "reunion" }), today).label, "Happening today")
   assert.equal(deriveTimingRisk(item({ type: "tarea", date: iso(2026, 5, 24), status: "pendiente" }), today).label, "Due today")
+})
+
+test("derivations localize when passed the Spanish catalog slices", () => {
+  assert.equal(deriveDateMeaning(iso(2026, 5, 24), today, esCalendar.dna.meaning).label, "Hoy")
+  assert.equal(deriveDateMeaning(iso(2026, 5, 27), today, esCalendar.dna.meaning).label, "En 3 días")
+  assert.equal(deriveDateMeaning(iso(2026, 5, 10), today, esCalendar.dna.meaning).label, "Hace 2 semanas")
+  const risk = deriveTimingRisk(item({ type: "tarea", date: iso(2026, 5, 20), status: "pendiente" }), today, false, esCalendar.dna.risks)
+  assert.equal(risk.label, "Atrasado")
+  assert.equal(risk.detail, "4 días de retraso")
+  assert.deepEqual(
+    primaryCta(item({ type: "tarea", date: iso(2026, 5, 24), status: "pendiente" }), today, false, esCalendar.dna.cta),
+    { label: "Abrir en Hoy", href: "/today" },
+  )
+})
+
+test("calendar catalogs: es is a real translation (differs from en, no empty strings)", () => {
+  const leaves = (value: unknown, path: string, out: Map<string, string>): Map<string, string> => {
+    if (typeof value === "string") out.set(path, value)
+    else if (value && typeof value === "object") {
+      for (const [k, v] of Object.entries(value)) leaves(v, `${path}.${k}`, out)
+    }
+    return out
+  }
+  const en = leaves(enCalendar, "$", new Map())
+  const es = leaves(esCalendar, "$", new Map())
+  // Same string-leaf structure (functions are type-checked by the shared interface)…
+  assert.deepEqual([...es.keys()].sort(), [...en.keys()].sort())
+  // …no empty Spanish strings…
+  for (const [path, value] of es) assert.ok(value.length > 0, `empty string at ${path}`)
+  // …and the catalogs genuinely differ (not an English copy).
+  const differing = [...en.keys()].filter((k) => en.get(k) !== es.get(k))
+  assert.ok(differing.length > en.size / 2, "es calendar catalog looks like an English copy")
 })
 
 test("primaryCta: date- & module-aware, conflict wins", () => {

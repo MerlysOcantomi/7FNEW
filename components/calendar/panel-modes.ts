@@ -12,21 +12,22 @@ export type PanelMode = "docked" | "compact" | "overlay" | "expanded" | "collaps
 
 export interface PanelModeDef {
   mode: PanelMode
-  /** Friendly label — reads as an assistant layout choice, not a dev switch. */
-  label: string
-  /** Tooltip / aria description. */
-  title: string
   Icon: LucideIcon
   /** Float modes render OVER the workspace (Sheet/Dialog) instead of reserving a column. */
   floats: boolean
 }
 
+/**
+ * Structure only — the friendly labels and tooltip titles live in the
+ * `calendar.panelModes` catalog, keyed by `mode` (UI reads
+ * `t.calendar.panelModes.labels[mode]` / `.titles[mode]`).
+ */
 export const PANEL_MODES: readonly PanelModeDef[] = [
-  { mode: "docked", label: "Docked", title: "Docked — full context beside your calendar.", Icon: PanelRight, floats: false },
-  { mode: "compact", label: "Compact", title: "Compact — the essentials in a slim column.", Icon: Rows2, floats: false },
-  { mode: "overlay", label: "Overlay", title: "Overlay — context floats over the calendar.", Icon: Layers, floats: true },
-  { mode: "expanded", label: "Expanded", title: "Expanded — full focus on this moment.", Icon: Maximize2, floats: true },
-  { mode: "collapsed", label: "Collapsed", title: "Collapsed — hide the panel, maximize the calendar.", Icon: PanelRightClose, floats: false },
+  { mode: "docked", Icon: PanelRight, floats: false },
+  { mode: "compact", Icon: Rows2, floats: false },
+  { mode: "overlay", Icon: Layers, floats: true },
+  { mode: "expanded", Icon: Maximize2, floats: true },
+  { mode: "collapsed", Icon: PanelRightClose, floats: false },
 ]
 
 export const DEFAULT_PANEL_MODE: PanelMode = "docked"

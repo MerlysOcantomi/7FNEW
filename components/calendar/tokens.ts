@@ -1,5 +1,6 @@
 /**
- * 7F Calendar — color / icon / label maps per item type.
+ * 7F Calendar — color / icon maps per item type (visible type labels live in
+ * the `calendar.types` catalog).
  * Reuses the cross-module --tab-* semantic tokens and the shared status tokens
  * (Midnight-aware). No hardcoded colors.
  */
@@ -18,13 +19,6 @@ export const typeIcons: Record<CalendarItemType, typeof CheckSquare> = {
   proyecto: FolderKanban,
   factura: Receipt,
   evento: CalendarIcon,
-}
-
-export const typeLabel: Record<CalendarItemType, string> = {
-  tarea: "Task",
-  proyecto: "Project",
-  factura: "Invoice",
-  evento: "Event",
 }
 
 export const priorityDot: Record<string, string> = {

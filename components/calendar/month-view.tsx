@@ -1,7 +1,10 @@
 "use client"
 
+import { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { DAY_NAMES, DAY_NAMES_SHORT, isSameDay } from "./grid"
+import { useI18n } from "@/components/i18n-provider"
+import { toIntlLocale } from "@core/i18n/format"
+import { isSameDay, weekdayNames } from "./grid"
 import { priorityDot, typeColors } from "./tokens"
 import type { CalendarItem } from "./types"
 
@@ -20,14 +23,18 @@ export function MonthView({
   selectedId: string | null
   onSelect: (item: CalendarItem) => void
 }) {
+  const { t, locale } = useI18n()
+  const intlLocale = toIntlLocale(locale)
+  const dayNames = useMemo(() => weekdayNames(intlLocale, "short"), [intlLocale])
+  const dayNamesNarrow = useMemo(() => weekdayNames(intlLocale, "narrow"), [intlLocale])
   const weeks = Math.max(1, monthDays.length / 7)
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="grid grid-cols-7 border-b border-border">
-        {DAY_NAMES.map((d, i) => (
+        {dayNames.map((d, i) => (
           <div key={i} className="px-2 py-2.5 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             <span className="hidden sm:inline">{d}</span>
-            <span className="sm:hidden">{DAY_NAMES_SHORT[i]}</span>
+            <span className="sm:hidden">{dayNamesNarrow[i]}</span>
           </div>
         ))}
       </div>
@@ -75,7 +82,7 @@ export function MonthView({
                   </button>
                 ))}
                 {dayItems.length > 3 && (
-                  <span className="px-1 text-[9px] text-muted-foreground">+{dayItems.length - 3} more</span>
+                  <span className="px-1 text-[9px] text-muted-foreground">{t.calendar.monthView.plusMore(dayItems.length - 3)}</span>
                 )}
               </div>
             </div>

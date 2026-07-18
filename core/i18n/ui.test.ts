@@ -174,10 +174,10 @@ test("coverage: derived matrix matches the real composed catalogs", () => {
   }
 })
 
-test("coverage: expected snapshot — es partial (calendar/billing), de/fr/it pending", () => {
+test("coverage: expected snapshot — es partial (billing), de/fr/it pending", () => {
   assert.equal(UI_NAMESPACE_COVERAGE.es.clients, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.nav, "native")
-  assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "fallback-en")
+  assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.billing, "fallback-en")
   assert.ok(localeHasPendingCoverage("es"))
   assert.ok(!localeHasPendingCoverage("en"))
@@ -244,8 +244,25 @@ test("new namespaces: representative English strings are present", () => {
   assert.equal(t.settings.language.appLabel, "App language")
   assert.equal(t.today.title, "Today")
   assert.equal(t.clients.list.newButton({ client: "client" }), "New client")
-  assert.equal(t.calendar.empty, "No events scheduled.")
+  assert.equal(t.calendar.dayView.emptyTitle, "No events this day")
+  assert.equal(t.calendar.views.day, "Day")
+  assert.equal(t.calendar.eventTypes.reunion, "Meeting")
   assert.equal(t.billing.newInvoice, "New invoice")
+})
+
+test("calendar es: real Spanish surface strings (Agenda) with typed count functions", () => {
+  const es = getNamespace("es", "calendar")
+  const en = getNamespace("en", "calendar")
+  assert.notEqual(es, en)
+  assert.equal(es.title, "Agenda")
+  assert.equal(es.today, "Hoy")
+  assert.equal(es.views.day, "Día")
+  assert.equal(es.eventTypes.reunion, "Reunión")
+  assert.equal(es.ledger.timeRisks(1), "Riesgo de tiempo")
+  assert.equal(es.ledger.timeRisks(3), "Riesgos de tiempo")
+  assert.equal(es.dna.risks.daysPastDue(1), "1 día de retraso")
+  assert.equal(es.monthView.plusMore(2), "+2 más")
+  assert.equal(es.invoiceTitle("F-001"), "Factura F-001")
 })
 
 test("new namespaces: nested semantic objects (empty, language)", () => {
