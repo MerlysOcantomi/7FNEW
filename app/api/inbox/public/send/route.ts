@@ -143,6 +143,18 @@ export async function POST(request: NextRequest) {
      * Dual-write (INBOX-DATA-04B): web-chat visitor identity + association
      * evidence for the conversation's contact. Best-effort — never blocks
      * the public send path.
+     *
+     * INBOX-TRANSPORT-05B note: this route intentionally KEEPS its own flow
+     * instead of converting to `ingestInboundEnvelope` in this phase. The
+     * blocker is behavioural, not structural: the widget contract couples
+     * conversation reuse to `conversationId` round-tripping + CORS + the ack
+     * email, and converting it risks the public embed for zero user-visible
+     * gain. The exact future adapter: envelope { channel: "web_chat",
+     * provider: "web", externalMessageId: <generated per POST>,
+     * senderIdentity: { kind: "visitor", rawValue: visitorId } } with a
+     * resolveContact hook wrapping the visitor-contact reuse below and an
+     * afterPersist hook for the ack email. Identity resolution is ALREADY
+     * shared (recordInboundIdentity below) — nothing is duplicated.
      */
     void (async () => {
       const descriptor = buildIdentityDescriptor({

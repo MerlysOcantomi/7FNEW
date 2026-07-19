@@ -1,11 +1,6 @@
 import { db } from "@core/db"
-import { addMessage } from "./service"
-import { runConversationIntelligence } from "./intelligence"
-import { notifyInboundMessage } from "@core/notifications/inbox"
 import { logActivity } from "@core/activity"
-import { buildIdentityDescriptor } from "./identity-resolution"
-import { recordInboundIdentity } from "./identity-service"
-import { createMessageAttachments } from "./attachment-service"
+import { ingestInboundEnvelope } from "./ingestion/pipeline"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -543,198 +538,142 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
     throw new Error("Inbound email: workspace could not be resolved")
   }
 
-  // ---- Resolve contact (workspace-scoped only) ----
-  let contactId: string
-  const existingContact = await db.contact.findFirst({
-    where: { email: senderEmail, workspaceId },
-    orderBy: { lastSeenAt: "desc" },
-  })
-  if (existingContact) {
-    contactId = existingContact.id
-    await db.contact.update({ where: { id: contactId }, data: { lastSeenAt: new Date() } })
-  } else {
-    const contact = await db.contact.create({
-      data: { workspaceId, email: senderEmail, nombre: senderName, canal: "email", tipo: "visitante" },
-    })
-    contactId = contact.id
-  }
-
   /**
-   * Workspace-scoped dedup. At this point `workspaceId` is guaranteed defined (the
-   * resolution chain above either set it or threw). Returning the *real* `contactId` —
-   * not the empty-string placeholder the legacy implementation used — keeps the contract
-   * of `InboundEmailResult` honest for downstream consumers (logActivity, audit trails).
+   * INBOX-TRANSPORT-05B: from here on, the shared ingestion pipeline owns
+   * the flow (contact, dedup, identity, conversation, Message, attachments,
+   * notify + intelligence). Everything email-specific stays in this adapter
+   * as hooks: address-based contact reuse, legacy metadata dedup, RFC
+   * threading (In-Reply-To / References + contact reopen), RFC metadata
+   * fields and the email activity log.
    */
-  const existingDuplicate = await findWorkspaceScopedDuplicate({
-    workspaceId,
-    sourceId: input.sourceId,
-    messageId: input.messageId,
-  })
-  if (existingDuplicate) {
+  const resolvedWorkspaceId = workspaceId
+  const resolvedConnectionId = connectionId
+
+  const result = await ingestInboundEnvelope(
+    {
+      channel: "email",
+      provider: input.source,
+      workspaceId: resolvedWorkspaceId,
+      connectionId: resolvedConnectionId,
+      externalMessageId: input.sourceId,
+      senderIdentity: {
+        kind: "email",
+        rawValue: senderEmail,
+        displayName: senderName ?? senderEmail,
+      },
+      text: content,
+      subject,
+      conversationSource: "email",
+      isPublic: true,
+      ...(input.attachments && input.attachments.length > 0
+        ? { attachments: input.attachments }
+        : {}),
+    },
+    {
+      resolveContact: async () => {
+        const existingContact = await db.contact.findFirst({
+          where: { email: senderEmail, workspaceId: resolvedWorkspaceId },
+          orderBy: { lastSeenAt: "desc" },
+          select: { id: true },
+        })
+        if (existingContact) {
+          await db.contact.update({
+            where: { id: existingContact.id },
+            data: { lastSeenAt: new Date() },
+          })
+          return existingContact.id
+        }
+        const contact = await db.contact.create({
+          data: {
+            workspaceId: resolvedWorkspaceId,
+            email: senderEmail,
+            nombre: senderName,
+            canal: "email",
+            tipo: "visitante",
+          },
+          select: { id: true },
+        })
+        return contact.id
+      },
+      findDuplicate: async () => {
+        const hit = await findWorkspaceScopedDuplicate({
+          workspaceId: resolvedWorkspaceId,
+          sourceId: input.sourceId,
+          messageId: input.messageId,
+        })
+        return hit ? { messageId: hit.id, conversationId: hit.conversationId } : null
+      },
+      matchConversation: async ({ contactId }) => {
+        const threadMatch = await matchConversationByThread(inReplyTo, references, resolvedWorkspaceId)
+        if (threadMatch) {
+          if (resolvedConnectionId) {
+            await backfillConnectionId(threadMatch.conversationId, resolvedConnectionId, resolvedWorkspaceId)
+          }
+          return threadMatch
+        }
+        const contactMatch = await matchConversationByContact(resolvedWorkspaceId, contactId)
+        if (contactMatch) {
+          if (resolvedConnectionId) {
+            await backfillConnectionId(contactMatch.conversationId, resolvedConnectionId, resolvedWorkspaceId)
+          }
+          return contactMatch
+        }
+        return null
+      },
+      buildMessageMetadata: () => ({
+        emailMessageId: input.messageId,
+        emailFrom: input.from,
+        emailTo: input.to,
+        emailCc: input.cc ?? [],
+        emailSubject: subject,
+        inReplyTo,
+        references,
+      }),
+      afterPersist: async (ctx) => {
+        console.log(
+          `${tag} matched_by=${ctx.matchedBy} conv=${ctx.conversationId} new=${ctx.isNewConversation} conn=${resolvedConnectionId ?? "none"}`,
+        )
+        await logActivity({
+          module: "email",
+          recordId: ctx.conversationId,
+          type: "email_received",
+          data: {
+            source: input.source,
+            sourceId: input.sourceId,
+            from: senderEmail,
+            to: input.to,
+            subject,
+            isNew: ctx.isNewConversation,
+            matchedBy: ctx.matchedBy,
+            ...(resolvedConnectionId ? { connectionId: resolvedConnectionId } : {}),
+          },
+          workspaceId: resolvedWorkspaceId,
+        }).catch(() => null)
+      },
+    },
+  )
+
+  if (result.alreadyProcessed) {
     console.log(
-      `${tag} Dedup hit workspace=${workspaceId} matched_by=${existingDuplicate.matchedBy} existing_msg=${existingDuplicate.id} sourceId=${input.sourceId ?? "(none)"} messageId=${input.messageId ?? "(none)"}`,
+      `${tag} Dedup hit workspace=${resolvedWorkspaceId} existing_msg=${result.messageId} sourceId=${input.sourceId ?? "(none)"} messageId=${input.messageId ?? "(none)"}`,
     )
     return {
-      conversationId: existingDuplicate.conversationId,
-      messageId: existingDuplicate.id,
-      contactId,
+      conversationId: result.conversationId,
+      messageId: result.messageId,
+      contactId: result.contactId,
       isNewConversation: false,
       matchedBy: "in-reply-to",
       alreadyProcessed: true,
     }
   }
 
-  // ---- Match conversation ----
-  let conversationId: string
-  let isNewConversation = false
-  let matchedBy: MatchMethod
-
-  const threadMatch = await matchConversationByThread(inReplyTo, references, workspaceId)
-
-  if (threadMatch) {
-    conversationId = threadMatch.conversationId
-    matchedBy = threadMatch.matchedBy
-    if (connectionId) await backfillConnectionId(conversationId, connectionId, workspaceId)
-  } else {
-    const contactMatch = await matchConversationByContact(workspaceId, contactId)
-    if (contactMatch) {
-      conversationId = contactMatch.conversationId
-      matchedBy = contactMatch.matchedBy
-      if (connectionId) await backfillConnectionId(conversationId, connectionId, workspaceId)
-    } else {
-      const conv = await db.conversation.create({
-        data: {
-          workspaceId,
-          contactId,
-          connectionId,
-          channel: "email",
-          source: "email",
-          status: "new",
-          subject,
-          isPublic: true,
-          lastMessageAt: new Date(),
-          messageCount: 0,
-        },
-      })
-      conversationId = conv.id
-      isNewConversation = true
-      matchedBy = "new"
-    }
+  return {
+    conversationId: result.conversationId,
+    messageId: result.messageId,
+    contactId: result.contactId,
+    isNewConversation: result.isNewConversation,
+    matchedBy: result.matchedBy as MatchMethod,
   }
-
-  console.log(`${tag} matched_by=${matchedBy} conv=${conversationId} new=${isNewConversation} conn=${connectionId ?? "none"}`)
-
-  // ---- Create inbound message ----
-  const message = await addMessage({
-    workspaceId,
-    conversationId,
-    role: "visitor",
-    direction: "inbound",
-    content,
-    contentType: "text",
-    connectionId,
-    /** INBOX-DATA-04B: normalized provider id (indexed dedup); metadata keeps it too. */
-    sourceMessageId: input.sourceId,
-    metadata: {
-      source: input.source,
-      sourceId: input.sourceId,
-      emailMessageId: input.messageId,
-      emailFrom: input.from,
-      emailTo: input.to,
-      emailCc: input.cc ?? [],
-      emailSubject: subject,
-      inReplyTo,
-      references,
-      ...(connectionId ? { connectionId } : {}),
-      ...(input.attachments && input.attachments.length > 0 ? { attachments: input.attachments } : {}),
-    },
-  })
-
-  if (!message) throw new Error("Failed to create inbound message")
-
-  /**
-   * Dual-write (INBOX-DATA-04B) — best-effort, never blocks ingestion:
-   *  - external identity for the sender address + association evidence for
-   *    the contact the legacy resolution above chose (conflicts become
-   *    suggested links, logged with hashed values only);
-   *  - normalized MessageAttachment rows for the blob-stored attachments
-   *    (metadata array above remains the legacy fallback source).
-   */
-  try {
-    const descriptor = buildIdentityDescriptor({
-      channel: "email",
-      kind: "email",
-      rawValue: senderEmail,
-    })
-    if (descriptor) {
-      await recordInboundIdentity({
-        workspaceId,
-        descriptor,
-        displayValue: senderName ?? senderEmail,
-        contactId,
-      })
-    }
-  } catch (err) {
-    console.error(`${tag} identity dual-write failed conv=${conversationId}:`, err)
-  }
-  if (input.attachments && input.attachments.length > 0) {
-    try {
-      await createMessageAttachments({
-        workspaceId,
-        messageId: message.id,
-        provider: input.source,
-        attachments: input.attachments,
-      })
-    } catch (err) {
-      console.error(`${tag} attachment dual-write failed msg=${message.id}:`, err)
-    }
-  }
-
-  // ---- Post-processing (fire-and-forget) ----
-  db.conversation
-    .findFirst({
-      where: { id: conversationId, workspaceId },
-      select: { assignedTo: true, subject: true, channel: true, contact: { select: { nombre: true } } },
-    })
-    .then((conv) => {
-      if (!conv) return
-      return notifyInboundMessage({
-        workspaceId,
-        conversationId,
-        subject: conv.subject,
-        contactName: conv.contact?.nombre,
-        channel: conv.channel,
-        assignedTo: conv.assignedTo,
-      })
-    })
-    .catch(() => null)
-
-  runConversationIntelligence({
-    workspaceId,
-    conversationId,
-    trigger: "message_post",
-  }).catch((err) => {
-    console.error(`[email-inbound] Intelligence failed conv=${conversationId}:`, err)
-  })
-
-  logActivity({
-    module: "email",
-    recordId: conversationId,
-    type: "email_received",
-    data: {
-      source: input.source,
-      sourceId: input.sourceId,
-      from: senderEmail,
-      to: input.to,
-      subject,
-      isNew: isNewConversation,
-      matchedBy,
-      ...(connectionId ? { connectionId } : {}),
-    },
-    workspaceId,
-  }).catch(() => null)
-
-  return { conversationId, messageId: message.id, contactId, isNewConversation, matchedBy }
 }
 
 // ---------------------------------------------------------------------------
