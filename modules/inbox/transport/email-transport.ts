@@ -18,7 +18,11 @@ import {
   type OutboundAttachment,
   type SendOutboundEmailInput,
 } from "../email-outbound"
-import { buildEmailThreadingFromMetadata, type EmailThreadingHeaders } from "./email-threading"
+import {
+  buildEmailThreadingFromMetadata,
+  shouldBuildReplyThreading,
+  type EmailThreadingHeaders,
+} from "./email-threading"
 import type {
   ChannelSendInput,
   ChannelSendResult,
@@ -134,7 +138,11 @@ export function mapEmailSendResult(
   result: { ok: boolean; id?: string; error?: string },
   provider: string,
   at: Date,
+  extras: { fromAddress?: string | null } = {},
 ): ChannelSendResult {
+  const providerMetadata: Record<string, unknown> = {}
+  if (result.id) providerMetadata.providerMessageId = result.id
+  if (extras.fromAddress) providerMetadata.fromAddress = extras.fromAddress
   if (result.ok) {
     return {
       accepted: true,
@@ -144,7 +152,7 @@ export function mapEmailSendResult(
       sentAt: at,
       errorCode: null,
       retryable: false,
-      providerMetadata: result.id ? { providerMessageId: result.id } : {},
+      providerMetadata,
     }
   }
   return {
@@ -158,6 +166,7 @@ export function mapEmailSendResult(
     // Send failures are transient by default (provider/network) — the retry
     // route has always allowed re-attempting any failed email.
     retryable: true,
+    providerMetadata,
   }
 }
 
@@ -225,8 +234,7 @@ class EmailTransport implements ChannelTransport {
      * this transport, never in the neutral outbound service.
      */
     let threading: EmailThreadingHeaders | null = null
-    const mode = input.channelData?.mode
-    if (mode !== "forward") {
+    if (shouldBuildReplyThreading(input.channelData?.mode)) {
       const lastInbound = await db.message.findFirst({
         where: {
           conversationId: input.conversationId,
@@ -248,14 +256,21 @@ class EmailTransport implements ChannelTransport {
       threading,
     })
 
+    const fromAddress =
+      connectionSender?.fromEmail ||
+      process.env.INBOX_FROM_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      null
+
     try {
       const result = await sendOutboundEmail(args)
-      return mapEmailSendResult(result, this.provider, new Date())
+      return mapEmailSendResult(result, this.provider, new Date(), { fromAddress })
     } catch (err) {
       return mapEmailSendResult(
         { ok: false, error: err instanceof Error ? err.message : "Email service unavailable" },
         this.provider,
         new Date(),
+        { fromAddress },
       )
     }
   }

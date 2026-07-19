@@ -70,3 +70,11 @@ export function buildEmailThreadingFromMetadata(
   if (!references.includes(parentId)) references.push(parentId)
   return { inReplyTo: parentId, references }
 }
+
+/**
+ * Replies and reply-alls thread onto the parent message; forwards start a
+ * new thread (RFC-consistent with mail clients' behaviour).
+ */
+export function shouldBuildReplyThreading(mode: unknown): boolean {
+  return mode !== "forward"
+}
