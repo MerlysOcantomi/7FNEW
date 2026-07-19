@@ -23,6 +23,13 @@ import { recomputeExternalIdentityResolution } from "@modules/inbox/identity-ser
 
 const BATCH = 200
 
+/**
+ * Dry-run mode (INBOX_BACKFILL_DRY_RUN=1 or --dry-run): plans and REPORTS
+ * everything (identities/links to create, ambiguity candidates) without a
+ * single write. Safe against production.
+ */
+const DRY_RUN = process.env.INBOX_BACKFILL_DRY_RUN === "1" || process.argv.includes("--dry-run")
+
 async function main() {
   const workspaces = await db.workspace.findMany({ select: { id: true } })
   let identitiesCreated = 0
@@ -47,6 +54,42 @@ async function main() {
         contactsSeen += 1
         for (const plan of planIdentityBackfillForContact(contact)) {
           const { descriptor } = plan
+          if (DRY_RUN) {
+            const existing = await db.externalIdentity.findUnique({
+              where: {
+                workspaceId_channel_provider_scopeKey_externalKey: {
+                  workspaceId: ws.id,
+                  channel: descriptor.channel,
+                  provider: descriptor.provider,
+                  scopeKey: descriptor.scopeKey,
+                  externalKey: descriptor.externalKey,
+                },
+              },
+              select: {
+                id: true,
+                links: { select: { contactId: true, status: true } },
+              },
+            })
+            if (!existing) {
+              identitiesCreated += 1
+              linksCreated += 1
+              continue
+            }
+            const hasLink = existing.links.some((l: { contactId: string }) => l.contactId === contact.id)
+            if (!hasLink) linksCreated += 1
+            const confirmedOthers = existing.links.filter(
+              (l: { contactId: string; status: string }) =>
+                l.status === "confirmed" && l.contactId !== contact.id,
+            ).length
+            if (confirmedOthers >= 1 && !hasLink) {
+              conflictReport.push({
+                workspaceId: ws.id,
+                valueHash: hashIdentityValue(descriptor.externalKey),
+                contacts: confirmedOthers + 1,
+              })
+            }
+            continue
+          }
           const identity = await db.externalIdentity.upsert({
             where: {
               workspaceId_channel_provider_scopeKey_externalKey: {
@@ -119,7 +162,7 @@ async function main() {
   // Deduplicate conflict entries (same identity reported once per touching contact).
   const conflicts = [...new Map(conflictReport.map((c) => [`${c.workspaceId}:${c.valueHash}`, c])).values()]
 
-  console.warn("[backfill:identities] done", {
+  console.warn(`[backfill:identities] ${DRY_RUN ? "DRY-RUN (no writes)" : "done"}`, {
     workspaces: workspaces.length,
     contactsSeen,
     identitiesCreated,

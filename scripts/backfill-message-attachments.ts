@@ -20,6 +20,9 @@ import { createMessageAttachments } from "@modules/inbox/attachment-service"
 
 const BATCH = 500
 
+/** Dry-run mode: counts recoverable rows without writing. */
+const DRY_RUN = process.env.INBOX_BACKFILL_DRY_RUN === "1" || process.argv.includes("--dry-run")
+
 async function main() {
   const workspaces = await db.workspace.findMany({ select: { id: true } })
   let messagesSeen = 0
@@ -45,6 +48,11 @@ async function main() {
         const plan = planAttachmentBackfillForMessage(message)
         if (plan.length === 0) continue
         messagesWithAttachments += 1
+        if (DRY_RUN) {
+          const existing = await db.messageAttachment.count({ where: { messageId: message.id } })
+          rowsCreated += Math.max(0, plan.length - existing)
+          continue
+        }
         rowsCreated += await createMessageAttachments({
           workspaceId: ws.id,
           messageId: message.id,
@@ -55,7 +63,7 @@ async function main() {
     }
   }
 
-  console.warn("[backfill:attachments] done", {
+  console.warn(`[backfill:attachments] ${DRY_RUN ? "DRY-RUN (no writes)" : "done"}`, {
     workspaces: workspaces.length,
     candidateMessagesSeen: messagesSeen,
     messagesWithAttachments,
