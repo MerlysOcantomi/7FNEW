@@ -47,6 +47,10 @@ export const settings: SettingsMessages = {
         label: "Workspace settings",
         description: "General workspace configuration",
       },
+      businessProfile: {
+        label: "Business profile",
+        description: "Identity, services and business context",
+      },
       members: { label: "Members", description: "Team invitations and roles" },
       planUsage: { label: "Plan & usage", description: "Current plan, usage, and billing" },
       profile: { label: "My profile", description: "Personal details and preferences" },

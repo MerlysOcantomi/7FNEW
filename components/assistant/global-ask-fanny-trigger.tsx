@@ -7,6 +7,7 @@ import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { useGlobalSearch } from "@/components/global-search-provider"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Desktop trigger for the global Ask Fanny assistant — visual sibling of
@@ -24,6 +25,7 @@ import { useGlobalSearch } from "@/components/global-search-provider"
  */
 export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "context" }) {
   const { open, setOpen } = useAskFanny()
+  const { t } = useI18n()
   const { closeToday } = useTodayDrawer()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
@@ -62,7 +64,7 @@ export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "co
       )}
     >
       <MessageCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-      <span>Ask Fanny</span>
+      <span>{t.nav.askFanny}</span>
     </button>
   )
 }
@@ -75,6 +77,7 @@ export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "co
  */
 export function GlobalAskFannyTriggerMobile() {
   const { open, openAsk } = useAskFanny()
+  const { t } = useI18n()
   const { closeToday } = useTodayDrawer()
   const { closeAll: closeNew } = useGlobalNew()
   const { closeAgents } = useAgentsPanel()
@@ -91,7 +94,7 @@ export function GlobalAskFannyTriggerMobile() {
       type="button"
       onClick={onClick}
       data-ask-fanny-trigger="true"
-      aria-label="Ask Fanny"
+      aria-label={t.nav.askFanny}
       aria-expanded={open}
       className={cn(
         "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",

@@ -68,6 +68,12 @@ export interface NavMessages {
   more: string
   new: string
   search: string
+  /** Global toolbar: Agents trigger label (and mobile aria-label). */
+  agents: string
+  /** Global toolbar: accessible name of the desktop Agents trigger. */
+  agentsOpen: string
+  /** Global toolbar: Ask Fanny trigger label — "Fanny" is a proper name. */
+  askFanny: string
   expandSidebar: string
   collapseSidebar: string
   openNavigation: string
@@ -191,6 +197,8 @@ export interface SettingsMessages {
     signOutDescription: string
     items: {
       workspaceSettings: { label: string; description: string }
+      /** Entry for the business identity editor at `/business-profile`. */
+      businessProfile: { label: string; description: string }
       members: { label: string; description: string }
       planUsage: { label: string; description: string }
       profile: { label: string; description: string }

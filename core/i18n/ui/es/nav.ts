@@ -21,6 +21,10 @@ export const nav: NavMessages = {
   more: "Más",
   new: "Nuevo",
   search: "Buscar",
+  agents: "Agentes",
+  agentsOpen: "Abrir Agentes",
+  // "Fanny" is the agent's proper name — never translated (see AGENTS.md).
+  askFanny: "Preguntar a Fanny",
   expandSidebar: "Expandir la navegación",
   collapseSidebar: "Contraer la navegación",
   openNavigation: "Abrir la navegación",
