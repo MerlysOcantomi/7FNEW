@@ -70,6 +70,13 @@ import {
   resolveInboxChannelViews,
   type ResolvedInboxChannelView,
 } from "@core/inbox/channel-config"
+import {
+  resolveActiveUrlFilter,
+  resolveInboxFiltersConfig,
+  resolveInboxFilterViews,
+  type ResolvedInboxFilterView,
+} from "@core/inbox/filter-config"
+import { parseChannelFilterId } from "@core/inbox/filter-registry"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
 import { currentRequestFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import {
@@ -284,6 +291,46 @@ const STATUS_OPTIONS = [
 const FALLBACK_CHANNEL_VIEWS = resolveInboxChannelViews({
   config: resolveInboxChannelsConfig(),
 })
+
+/**
+ * Core fallback for the filter registry (no vertical/workspace layers) —
+ * reproduces the pre-registry chip row and sidebar filter semantics while
+ * `GET /api/inbox/channels` loads or if it fails.
+ */
+const FALLBACK_FILTER_VIEWS = resolveInboxFilterViews(
+  resolveInboxFiltersConfig({ channelViews: FALLBACK_CHANNEL_VIEWS }),
+)
+
+/**
+ * Registry filter id → toolbar chip label key. Channel filters resolve via
+ * `channelLabel` instead; unknown ids fall back to the raw id.
+ */
+const TOOLBAR_FILTER_LABEL_KEYS: Record<
+  string,
+  | "all"
+  | "needsAttention"
+  | "waiting"
+  | "done"
+  | "unanswered"
+  | "urgent"
+  | "unassigned"
+  | "opportunities"
+  | "closed"
+  | "archived"
+  | "trash"
+> = {
+  all: "all",
+  needs_action: "needsAttention",
+  waiting: "waiting",
+  done: "done",
+  unanswered: "unanswered",
+  urgent: "urgent",
+  unassigned: "unassigned",
+  opportunities: "opportunities",
+  closed: "closed",
+  archived: "archived",
+  trash: "trash",
+}
 /**
  * Desktop column matrix (xl+):
  *  - left   → minmax(260px, 300px): tight sender list. Was minmax(288px, 30%)
@@ -407,61 +454,13 @@ function inferConversationIntentStatus(
 }
 
 /**
- * Map sidebar `?filter=` URL values to the API query shape (`status` + `urgency`). The new
- * operational sidebar (Smart Inbox / Work / Smart views / Storage) drives the labels below;
- * legacy keys (`new`, `in_progress`, `urgent`, `needs_reply`, `leads`) are kept as aliases
- * so existing bookmarks, notifications, and links don't 404 silently. Unknown filters fall
- * through to `{}` (default Inbox view) which is also what `todo` and `scheduled` use today —
- * those are placeholder nav entries for future engines (To-do queue, Scheduled-by-EventHint).
+ * The old `mapSidebarFilter()` switch lived here. Its `?filter=` → query
+ * mapping (including every legacy alias) now lives in the central filter
+ * registry — `core/inbox/filter-registry.ts` (`CORE_INBOX_FILTERS` +
+ * `LEGACY_INBOX_FILTER_ALIASES`) — and is resolved per workspace through
+ * `resolveActiveUrlFilter()` below, so sidebar, toolbar chips and the API
+ * query all derive from one source of truth.
  */
-function mapSidebarFilter(filter: string | null): { status?: string; urgency?: string } {
-  switch (filter) {
-    /** ─ Storage ─ */
-    case "archived": return { status: "archived" }
-    case "closed": return { status: "closed" }
-    case "trash": return { status: "trashed" }
-    /** ─ Work ─ */
-    /**
-     * "Needs action" = conversations where someone on our side has to do something next.
-     * `new` (untouched), `assigned` (operator owns it), `triaged` (AI classified, waiting
-     * for human), `lead_detected` (qualified opportunity that needs follow-up). We
-     * intentionally exclude `awaiting_response` here because that's "we replied, waiting on
-     * them" — surfaced in the Waiting bucket instead.
-     */
-    case "needs_action": return { status: "new,assigned,triaged,lead_detected" }
-    /** "Waiting" = we're waiting on the customer / external party to respond. */
-    case "waiting": return { status: "awaiting_response" }
-    /**
-     * "Done" = work that's finished from the operator's perspective. Includes the new
-     * `resolved` (work done, conversation stays active for follow-ups), `closed` (terminal),
-     * and `converted` (turned into Cliente / Proyecto / Tarea). Storage's "Closed" sub-link
-     * narrows this further to just `closed` for archival browsing.
-     */
-    case "done": return { status: "resolved,closed,converted" }
-    /**
-     * "To-do" is a placeholder for the future action queue. Routes to /inbox so the active
-     * highlight works; `{}` returned here means no extra status filter is applied — the
-     * page falls back to the default Inbox view. Replacing this single arm is all that's
-     * needed when the To-do engine ships.
-     */
-    case "todo": return {}
-    /** ─ Smart views ─ */
-    case "opportunities": return { status: "lead_detected" }
-    /**
-     * "Scheduled" placeholder — will eventually filter by Message.metadata EventHint or by
-     * ConversationAction.type === "create_event". Returning `{}` keeps the active highlight
-     * working without breaking the list.
-     */
-    case "scheduled": return {}
-    /** ─ Legacy aliases (preserve external bookmarks) ─ */
-    case "new": return { status: "new" }
-    case "in_progress": return { status: "assigned,awaiting_response,triaged" }
-    case "urgent": return { urgency: "alta,critica" }
-    case "needs_reply": return { status: "awaiting_response" }
-    case "leads": return { status: "lead_detected" }
-    default: return {}
-  }
-}
 
 function InboxPageContent() {
   const [search, setSearch] = useState("")
@@ -665,7 +664,40 @@ function InboxPageContent() {
   const deepLinkId = searchParams.get("id")
   const deepLinkMessageId = searchParams.get("messageId")
   const sidebarFilter = searchParams.get("filter")
-  const filterParams = useMemo(() => mapSidebarFilter(sidebarFilter), [sidebarFilter])
+
+  /**
+   * Effective channel + filter views for this workspace (core defaults →
+   * vertical pack → workspace overrides, reconciled with real connections).
+   * Fetched once per session; the pure core fallbacks keep every filter
+   * working while it loads or if the endpoint errors. Declared here (before
+   * the URL filter resolution) because `filterParams` derives from it.
+   */
+  const { data: effectiveInboxData } = useFetch<{
+    channels: ResolvedInboxChannelView[]
+    defaultChannel: string | null
+    filters: ResolvedInboxFilterView[]
+    defaultFilter: string | null
+  }>("/api/inbox/channels")
+
+  const effectiveFilterViews = useMemo(
+    () =>
+      effectiveInboxData?.filters && effectiveInboxData.filters.length > 0
+        ? effectiveInboxData.filters
+        : FALLBACK_FILTER_VIEWS,
+    [effectiveInboxData],
+  )
+
+  /**
+   * URL `?filter=` resolved against the effective views (legacy aliases and
+   * unknown values fall back safely — see `resolveActiveUrlFilter`). The
+   * compiled params feed the list query below with the same precedence rules
+   * as before: explicit toolbar controls win over the URL filter.
+   */
+  const activeUrlFilter = useMemo(
+    () => resolveActiveUrlFilter(sidebarFilter, effectiveFilterViews),
+    [sidebarFilter, effectiveFilterViews],
+  )
+  const filterParams = activeUrlFilter.compiled
   /**
    * Deep-link layout mode (`?layout=triage|reading|focus`). Lets the Daily Overview's
    * "Open Inbox as" cards drop the operator straight into a chosen layout. When present and
@@ -702,20 +734,23 @@ function InboxPageContent() {
   const lastDeepLinkRef = useRef<string | null>(null)
 
   /**
-   * Primary work filter (chip strip on top of ConversationList) — derived from the URL
-   * `?filter=` so the chips and the sidebar Work group are always the same source of
-   * truth. Anything outside the four daily values (Inbox, Trash, Archived, Opportunities,
-   * To-do, Scheduled, Closed, etc.) maps to "other" so no chip is highlighted; the
+   * Primary filter chips (strip on top of ConversationList) — the effective
+   * `tier: "primary"` views from the filter registry, so the chip row is
+   * vertical/workspace configurable while the sidebar Work group and the
+   * chips stay two representations of the same `?filter=` URL state. A URL
+   * filter outside the chip row maps to "other" (no chip highlighted); the
    * sidebar already shows the operator where they are.
    */
-  type PrimaryWorkFilter = "all" | "needs_action" | "waiting" | "done" | "other"
-  const primaryWorkFilter: PrimaryWorkFilter = useMemo(() => {
-    if (!sidebarFilter || sidebarFilter === "inbox") return "all"
-    if (sidebarFilter === "needs_action") return "needs_action"
-    if (sidebarFilter === "waiting") return "waiting"
-    if (sidebarFilter === "done") return "done"
-    return "other"
-  }, [sidebarFilter])
+  const primaryFilterViews = useMemo(
+    () => effectiveFilterViews.filter((view) => view.tier === "primary"),
+    [effectiveFilterViews],
+  )
+  const primaryWorkFilter: string = useMemo(() => {
+    if (activeUrlFilter.isFallback) return "all"
+    const id = activeUrlFilter.id ?? sidebarFilter
+    if (!id) return "all"
+    return primaryFilterViews.some((view) => view.id === id) ? id : "other"
+  }, [activeUrlFilter, sidebarFilter, primaryFilterViews])
 
   /**
    * Chip click → URL change. Preserve all other search params (e.g. `?id=`, `?messageId=`)
@@ -724,7 +759,7 @@ function InboxPageContent() {
    * back to where they came from.
    */
   const handlePrimaryWorkFilterChange = useCallback(
-    (value: "all" | "needs_action" | "waiting" | "done") => {
+    (value: string) => {
       const next = new URLSearchParams(searchParams.toString())
       if (value === "all") next.delete("filter")
       else next.set("filter", value)
@@ -906,8 +941,8 @@ function InboxPageContent() {
    */
   if (status !== "all") {
     params.set("status", status)
-  } else if (filterParams.status) {
-    params.set("status", filterParams.status)
+  } else if (filterParams.status?.length) {
+    params.set("status", filterParams.status.join(","))
   }
   /**
    * Urgency precedence mirrors status: an explicit operator selection in More
@@ -916,12 +951,29 @@ function InboxPageContent() {
    */
   if (urgencyFilter !== "all") {
     params.set("urgency", urgencyFilter)
-  } else if (filterParams.urgency) {
-    params.set("urgency", filterParams.urgency)
+  } else if (filterParams.urgency?.length) {
+    params.set("urgency", filterParams.urgency.join(","))
   }
-  if (channel !== "all") params.set("channel", channel)
+  /**
+   * Channel precedence mirrors the rest: the explicit channel picker wins;
+   * otherwise a `channel:<id>` primary filter constrains the channel.
+   */
+  if (channel !== "all") {
+    params.set("channel", channel)
+  } else if (filterParams.channel?.length === 1) {
+    params.set("channel", filterParams.channel[0])
+  }
   if (assignmentFilter === "mine" && currentUserId) params.set("assignedTo", currentUserId)
-  if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
+  else if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
+  else if (filterParams.assignment === "unassigned") params.set("assignedTo", "unassigned")
+  else if (filterParams.assignment === "mine" && currentUserId) params.set("assignedTo", currentUserId)
+  /** Unanswered filter (registry `unanswered`): server-side semantics, see modules/inbox/unanswered.ts. */
+  if (filterParams.unanswered) {
+    params.set("unanswered", "1")
+    if (filterParams.unanswered.minAgeMinutes) {
+      params.set("unansweredMinAgeMinutes", String(filterParams.unanswered.minAgeMinutes))
+    }
+  }
   /**
    * Workspace category filter (selected via `<InboxTaxonomyChips>`). Sent to
    * the server so filtering + counts + pagination all operate on the full
@@ -945,17 +997,6 @@ function InboxPageContent() {
     pollInterval: isTabVisible ? LIST_POLL_INTERVAL : 0,
   })
 
-  /**
-   * Effective channel view for this workspace (core defaults → vertical pack
-   * → workspace overrides, reconciled with real connections). Read-only and
-   * stable per session; the fallback below keeps the filter working while it
-   * loads or if the endpoint errors.
-   */
-  const { data: effectiveChannelsData } = useFetch<{
-    channels: ResolvedInboxChannelView[]
-    defaultChannel: string | null
-  }>("/api/inbox/channels")
-
   const baseConversations = useMemo(
     () => (Array.isArray(conversationsData) ? conversationsData : []),
     [conversationsData],
@@ -977,7 +1018,7 @@ function InboxPageContent() {
    */
   const conversationsForSidebar = useMemo(() => {
     if (status !== "all") return conversations
-    if (filterParams.status) return conversations
+    if (filterParams.status?.length) return conversations
     const filtered = conversations.filter(
       (c) => c.status !== "archived" && c.status !== "closed" && c.status !== "trashed",
     )
@@ -1746,8 +1787,8 @@ function InboxPageContent() {
    */
   const channelSelectOptions = useMemo(() => {
     const views =
-      effectiveChannelsData?.channels && effectiveChannelsData.channels.length > 0
-        ? effectiveChannelsData.channels
+      effectiveInboxData?.channels && effectiveInboxData.channels.length > 0
+        ? effectiveInboxData.channels
         : FALLBACK_CHANNEL_VIEWS
     return [
       { value: "all", label: t.inbox.toolbar.allChannels },
@@ -1761,7 +1802,31 @@ function InboxPageContent() {
         }
       }),
     ]
-  }, [effectiveChannelsData, t, uiLocale])
+  }, [effectiveInboxData, t, uiLocale])
+
+  /**
+   * Primary-filter chip options from the effective registry views. Channel
+   * filters label via the shared channel label maps; coming-soon filters
+   * render disabled with the same suffix policy as the channel picker.
+   */
+  const workFilterOptions = useMemo(
+    () =>
+      primaryFilterViews.map((view) => {
+        const channelId = parseChannelFilterId(view.id)
+        const label = channelId
+          ? channelLabel(channelId, uiLocale)
+          : TOOLBAR_FILTER_LABEL_KEYS[view.id]
+            ? t.inbox.toolbar.workFilters[TOOLBAR_FILTER_LABEL_KEYS[view.id]]
+            : view.id
+        const comingSoon = view.uiAvailability === "coming_soon"
+        return {
+          value: view.id,
+          label: comingSoon ? `${label} · ${t.inbox.toolbar.channelComingSoon}` : label,
+          disabled: comingSoon,
+        }
+      }),
+    [primaryFilterViews, t, uiLocale],
+  )
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
     if (!activeSelectedId) return
@@ -3327,6 +3392,7 @@ function InboxPageContent() {
             onCompose={() => setComposeOpen(true)}
             primaryWorkFilter={primaryWorkFilter}
             onPrimaryWorkFilterChange={handlePrimaryWorkFilterChange}
+            workFilterOptions={workFilterOptions}
             channel={channel}
             channelOptions={channelSelectOptions}
             onChannelChange={setChannel}

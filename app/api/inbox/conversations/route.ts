@@ -31,6 +31,15 @@ export async function GET(request: NextRequest) {
      * simply returns an empty result set rather than a 4xx.
      */
     const category = searchParams.get("category")?.trim() || undefined
+    /**
+     * Unanswered filter (registry filter `unanswered`): flag + optional
+     * minimum age. Semantics live in `modules/inbox/unanswered.ts`.
+     */
+    const unansweredParam = searchParams.get("unanswered")
+    const unanswered = unansweredParam === "1" || unansweredParam === "true"
+    const minAgeRaw = Number.parseInt(searchParams.get("unansweredMinAgeMinutes") ?? "", 10)
+    const unansweredMinAgeMinutes =
+      Number.isFinite(minAgeRaw) && minAgeRaw > 0 ? minAgeRaw : undefined
 
     const whereSummary = {
       workspaceId,
@@ -40,6 +49,7 @@ export async function GET(request: NextRequest) {
       q: q ? "(set)" : "(none)",
       assignedTo: assignedTo ?? "(none)",
       category: category ?? "(none)",
+      unanswered: unanswered ? "1" : "(none)",
     }
 
     const [{ data, total, leads, urgent }, wsResolved] = await Promise.all([
@@ -53,6 +63,8 @@ export async function GET(request: NextRequest) {
         q,
         assignedTo,
         category,
+        unanswered,
+        unansweredMinAgeMinutes,
       }),
       getWorkspaceWithResolvedConfig(workspaceId),
     ])

@@ -20,6 +20,8 @@
  */
 
 import type { VerticalInboxChannelsDefaults } from "@core/inbox/channel-config"
+import type { VerticalInboxFiltersDefaults } from "@core/inbox/filter-config"
+import type { InboxFilterDefinition } from "@core/inbox/filter-registry"
 import { BEAUTY_SPECIALIST_AGENT, type VerticalSpecialistAgent } from "./specialists"
 
 /** A seed service for the Beauty service catalog (duration/price added later). */
@@ -108,6 +110,99 @@ export const BEAUTY_LABEL_OVERRIDES: Record<string, string> = {
   "billing.plural": "Cobros",
 }
 
+/**
+ * Beauty business filter definitions (scope "vertical", ALL planned). Intent
+ * tag values are the PROPOSED triage vocabulary — they become real when the
+ * Fanny pipeline emits them stably; until then `availability: "planned"`
+ * keeps every one of these out of the effective ready list.
+ */
+export const BEAUTY_INBOX_FILTER_DEFINITIONS: InboxFilterDefinition[] = [
+  {
+    id: "beauty.new_inquiries",
+    labelKey: "beautyNewInquiries",
+    iconToken: "sparkle",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["new_inquiry"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.booking_requests",
+    labelKey: "beautyBookingRequests",
+    iconToken: "calendar-plus",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["booking_request"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.pending_confirmations",
+    labelKey: "beautyPendingConfirmations",
+    iconToken: "clock",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["confirmation_pending"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.reschedules",
+    labelKey: "beautyReschedules",
+    iconToken: "calendar-clock",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["reschedule_request"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.cancellations",
+    labelKey: "beautyCancellations",
+    iconToken: "calendar-x",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["cancellation"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.rebooking",
+    labelKey: "beautyRebooking",
+    iconToken: "repeat",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["rebooking_opportunity"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+  {
+    id: "beauty.no_show",
+    labelKey: "beautyNoShow",
+    iconToken: "user-x",
+    group: "vertical",
+    scope: "vertical",
+    availability: "planned",
+    queryRule: { type: "intent", values: ["no_show_followup"] },
+    countStrategy: "none",
+    combinable: true,
+    surfaces: [],
+  },
+]
+
 /** Theme keys for a vertical (data only; the theme foundation maps them to CSS later). */
 export interface VerticalThemeKeys {
   default: string
@@ -153,6 +248,16 @@ export interface BeautyPack {
    */
   inbox: {
     channels: VerticalInboxChannelsDefaults
+    /** Filter ordering/tiering for this vertical (references core/channel filter ids). */
+    filters: VerticalInboxFiltersDefaults
+    /**
+     * Vertical-specific filter DEFINITIONS (scope "vertical"). Business
+     * filters whose rules depend on the Beauty triage vocabulary MUST stay
+     * `availability: "planned"` until that vocabulary ships — the resolver
+     * keeps planned filters out of every ready list, so they can never
+     * pretend to work.
+     */
+    filterDefinitions: InboxFilterDefinition[]
   }
   /**
    * The vertical specialist that leads this vertical's experience (Finesse for
@@ -224,6 +329,78 @@ export const BEAUTY_PACK: BeautyPack = {
       secondary: ["messenger", "tiktok", "sms", "web_chat", "portal", "manual", "email"],
       defaultChannel: "whatsapp",
     },
+    /**
+     * Beauty filter priority: work state first, then the vertical's channel
+     * order (channel filters derive from the channel config above — planned
+     * channels surface as disabled "coming soon" chips, never as working
+     * filters), with Waiting/Done closing the row. Email's channel filter
+     * stays ENABLED. The remaining core filters stay available as secondary.
+     */
+    filters: {
+      enabled: [
+        "all",
+        "needs_action",
+        "unanswered",
+        "urgent",
+        "channel:whatsapp",
+        "channel:instagram",
+        "channel:messenger",
+        "channel:tiktok",
+        "channel:sms",
+        "channel:email",
+        "waiting",
+        "done",
+        "unassigned",
+        "opportunities",
+        "closed",
+        "archived",
+        "trash",
+      ],
+      order: [
+        "all",
+        "needs_action",
+        "unanswered",
+        "urgent",
+        "channel:whatsapp",
+        "channel:instagram",
+        "channel:messenger",
+        "channel:tiktok",
+        "channel:sms",
+        "channel:email",
+        "waiting",
+        "done",
+        "unassigned",
+        "opportunities",
+        "closed",
+        "archived",
+        "trash",
+      ],
+      primary: [
+        "all",
+        "needs_action",
+        "unanswered",
+        "urgent",
+        "channel:whatsapp",
+        "channel:instagram",
+        "channel:messenger",
+        "channel:tiktok",
+        "channel:sms",
+        "channel:email",
+        "waiting",
+        "done",
+      ],
+      secondary: ["unassigned", "opportunities", "closed", "archived", "trash"],
+      defaultFilter: "all",
+    },
+    /**
+     * Future Beauty business filters — declared PLANNED on purpose: their
+     * rules reference triage-vocabulary intent tags that do not exist stably
+     * yet, so they are registered conceptually (and excluded from every
+     * ready list by the resolver) instead of shipping filters that would
+     * return misleading empty results. Activation is the triage-vocabulary
+     * mission's job: flip availability once the tags are produced reliably.
+     */
+    filterDefinitions: BEAUTY_INBOX_FILTER_DEFINITIONS,
   },
 }
 

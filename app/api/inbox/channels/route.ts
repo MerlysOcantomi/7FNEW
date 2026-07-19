@@ -10,27 +10,38 @@ import {
   resolveInboxChannelViews,
   type InboxChannelsConfigInput,
 } from "@core/inbox/channel-config"
+import {
+  extractInboxFiltersSlice,
+  parseWorkspaceInboxFilters,
+  resolveInboxFiltersConfig,
+  resolveInboxFilterViews,
+  type InboxFiltersConfigInput,
+} from "@core/inbox/filter-config"
 
 /**
- * GET /api/inbox/channels — the effective Inbox channel view for the active
- * workspace, resolved as:
+ * GET /api/inbox/channels — the effective Inbox CHANNEL and FILTER view for
+ * the active workspace, resolved as:
  *
- *   core defaults → vertical layer → workspace overrides, reconciled with
- *   the workspace's real `ChannelConnection` rows.
+ *   core defaults → vertical layer → workspace overrides, with channels
+ *   additionally reconciled with the workspace's real `ChannelConnection`
+ *   rows, and filters derived on top of the effective channel views (channel
+ *   filters exist only for channels the channel resolution surfaces).
  *
- * Vertical layer precedence: the DB `Vertical.defaultConfig` inbox slice
- * when the row carries one (admin edits win), otherwise the in-code pack
- * (`resolveWorkspaceExperience().inboxChannels`). The pack fallback matters
+ * Vertical layer precedence (both slices): the DB `Vertical.defaultConfig`
+ * inbox slice when the row carries one (admin edits win), otherwise the
+ * in-code pack via `resolveWorkspaceExperience()`. The pack fallback matters
  * for environments whose Vertical row was seeded before packs declared an
- * inbox block — Beauty ordering must not depend on a reseed.
+ * inbox block. Vertical filter DEFINITIONS always come from the in-code pack
+ * (typed code data) — neither the DB row nor workspace config can introduce
+ * new filter rules, only reference known ids.
  *
  * NOTE: we deliberately do NOT read `resolvedConfig` from
- * `getWorkspaceWithResolvedConfig` for this slice — `mergeConfigs` replaces
- * top-level keys wholesale beyond `modules`/`ui`, so a workspace overriding
- * only `inbox.channels.order` would lose the vertical's `enabled` list.
- * `resolveInboxChannelsConfig` layers per field instead.
+ * `getWorkspaceWithResolvedConfig` for these slices — `mergeConfigs`
+ * replaces top-level keys wholesale beyond `modules`/`ui`, so a workspace
+ * overriding only `inbox.channels.order` would lose the vertical's `enabled`
+ * list. The pure resolvers layer per field instead.
  *
- * Response: `{ channels: ResolvedInboxChannelView[], defaultChannel }`.
+ * Response: `{ channels, defaultChannel, filters, defaultFilter }`.
  * The raw `Workspace.config` blob never leaves this endpoint.
  */
 export async function GET() {
@@ -42,23 +53,33 @@ export async function GET() {
       select: { config: true, verticalKey: true },
     })
 
-    let verticalLayer: InboxChannelsConfigInput | null = null
+    let verticalChannelsLayer: InboxChannelsConfigInput | null = null
+    let verticalFiltersLayer: InboxFiltersConfigInput | null = null
+    const experience = resolveWorkspaceExperience(ws?.verticalKey ?? null)
     if (ws?.verticalKey) {
       const vertical = await getVerticalByKey(ws.verticalKey)
       if (vertical?.defaultConfig) {
         try {
-          verticalLayer = extractInboxChannelsSlice(JSON.parse(vertical.defaultConfig))
+          const parsed = JSON.parse(vertical.defaultConfig)
+          verticalChannelsLayer = extractInboxChannelsSlice(parsed)
+          verticalFiltersLayer = extractInboxFiltersSlice(parsed)
         } catch {
-          verticalLayer = null
+          verticalChannelsLayer = null
+          verticalFiltersLayer = null
         }
       }
-      if (!verticalLayer || Object.keys(verticalLayer).length === 0) {
-        verticalLayer = resolveWorkspaceExperience(ws.verticalKey).inboxChannels
+      if (!verticalChannelsLayer || Object.keys(verticalChannelsLayer).length === 0) {
+        verticalChannelsLayer = experience.inboxChannels
+      }
+      if (!verticalFiltersLayer || Object.keys(verticalFiltersLayer).length === 0) {
+        verticalFiltersLayer = experience.inboxFilters
       }
     }
 
-    const workspaceLayer = parseWorkspaceInboxChannels(ws?.config)
-    const config = resolveInboxChannelsConfig(verticalLayer, workspaceLayer)
+    const config = resolveInboxChannelsConfig(
+      verticalChannelsLayer,
+      parseWorkspaceInboxChannels(ws?.config),
+    )
 
     const connections = await db.channelConnection.findMany({
       where: { workspaceId, status: "active" },
@@ -70,7 +91,20 @@ export async function GET() {
       connectedChannelIds: connections.map((c) => c.channelType),
     })
 
-    return successResponse({ channels, defaultChannel: config.defaultChannel })
+    const filters = resolveInboxFilterViews(
+      resolveInboxFiltersConfig({
+        channelViews: channels,
+        verticalDefinitions: experience.inboxFilterDefinitions,
+        layers: [verticalFiltersLayer, parseWorkspaceInboxFilters(ws?.config)],
+      }),
+    )
+
+    return successResponse({
+      channels,
+      defaultChannel: config.defaultChannel,
+      filters,
+      defaultFilter: filters.find((f) => f.isDefault)?.id ?? "all",
+    })
   } catch (error) {
     return handleError(error, "inbox channels")
   }

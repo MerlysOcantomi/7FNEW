@@ -21,6 +21,8 @@
  */
 
 import type { VerticalInboxChannelsDefaults } from "@core/inbox/channel-config"
+import type { VerticalInboxFiltersDefaults } from "@core/inbox/filter-config"
+import type { InboxFilterDefinition } from "@core/inbox/filter-registry"
 import { mapVerticalKeyToBusinessType } from "@core/personalization"
 import { resolveNavProfile } from "./nav-profile"
 import { resolveVerticalSpecialist, type VerticalSpecialistAgent } from "./specialists"
@@ -74,6 +76,18 @@ export interface WorkspaceExperience {
    * together with workspace overrides to get the effective config.
    */
   inboxChannels: VerticalInboxChannelsDefaults | null
+  /**
+   * The vertical pack's declarative Inbox filter layer
+   * (`pack.inbox.filters`), or `null` when the vertical declares none.
+   * Feed into `resolveInboxFiltersConfig()` with workspace overrides.
+   */
+  inboxFilters: VerticalInboxFiltersDefaults | null
+  /**
+   * Vertical filter DEFINITIONS (`pack.inbox.filterDefinitions`) — typed
+   * code data, never sourced from workspace config. Planned definitions are
+   * conceptual registrations only.
+   */
+  inboxFilterDefinitions: InboxFilterDefinition[]
 }
 
 /**
@@ -114,6 +128,8 @@ export function resolveWorkspaceExperience(
       recommendedChannels: BEAUTY_PACK.channels,
       recommendedModules: BEAUTY_PACK.recommendedModules,
       inboxChannels: BEAUTY_PACK.inbox.channels,
+      inboxFilters: BEAUTY_PACK.inbox.filters,
+      inboxFilterDefinitions: BEAUTY_PACK.inbox.filterDefinitions,
     }
   }
 
@@ -136,5 +152,7 @@ export function resolveWorkspaceExperience(
     recommendedChannels: [],
     recommendedModules: [],
     inboxChannels: null,
+    inboxFilters: null,
+    inboxFilterDefinitions: [],
   }
 }
