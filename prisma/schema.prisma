@@ -70,6 +70,9 @@ model Workspace {
   channelConnections ChannelConnection[]
   inboxTodos     InboxTodo[]
   workspaceTasks WorkspaceTask[]
+  externalIdentities ExternalIdentity[]
+  contactIdentityLinks ContactIdentityLink[]
+  messageAttachments MessageAttachment[]
 }
 
 model Cliente {
@@ -455,6 +458,10 @@ model Contact {
   cliente       Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   conversations Conversation[]
   inboxEntries  InboxEntry[]
+  identityLinks ContactIdentityLink[]
+  /// Identities whose cached resolution points at this contact (projection —
+  /// the links above are the source of truth).
+  primaryIdentities ExternalIdentity[] @relation("PrimaryIdentityContact")
 
   @@index([workspaceId, email])
   @@index([workspaceId, telefono])
@@ -542,17 +549,45 @@ model Message {
   contentType     String   @default("text")
   metadata        String?
   isInternal      Boolean  @default(false)
+  /// The provider's id for this message, BOTH directions: inbound external
+  /// id (RFC Message-ID, `imap:<connId>:<uid>`, provider message id) and
+  /// outbound provider-assigned id (Resend id, future WhatsApp wamid).
+  /// Deliberately NO db unique: the same RFC Message-ID can legitimately
+  /// ingest twice in one workspace (an email CC'd into two connected
+  /// inboxes → two conversations). Dedup stays in the service layer scoped
+  /// (workspaceId, connectionId, sourceMessageId), backed by the index below.
   sourceMessageId String?
   connectionId    String?
+  /// Outbound delivery projection (INBOX-DATA-04B): "none" (inbound /
+  /// internal / not-applicable) | "queued" | "sending" | "sent" |
+  /// "delivered" | "read" | "failed" | "undeliverable" | "cancelled".
+  /// Monotonic — ALL writers go through
+  /// `modules/inbox/delivery-projection.ts`; never transition inline.
+  deliveryStatus  String   @default("none")
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  /// Provenance of the read signal: "provider_receipt" | "tracking_pixel" |
+  /// "manual". Column (not metadata) so UI badges and automation gates can
+  /// distinguish a real provider receipt from a pixel inference per row.
+  readSource      String?
+  failedAt        DateTime?
+  /// Stable machine code ("email_send_failed", …). Free-text reasons stay in
+  /// metadata (may contain PII).
+  failureCode     String?
+  deliveryUpdatedAt DateTime?
   workspaceId     String
   createdAt       DateTime @default(now())
 
   workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversation Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   connection   ChannelConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  attachments  MessageAttachment[]
 
   @@index([conversationId, createdAt])
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, deliveryStatus])
+  @@index([workspaceId, connectionId, sourceMessageId])
 }
 
 model ConversationAction {
@@ -1043,6 +1078,19 @@ model ChannelConnection {
   credentials       String?   // AES-256-GCM encrypted JSON (passwords, tokens)
   status            String    @default("active")
   externalAccountId String?   // email address, phone number, etc.
+  /// Provider-side account/page/phone-number id (Meta page id, WhatsApp
+  /// phone_number_id, Twilio SID…). Distinct from `externalAccountId` (the
+  /// human-facing address). Webhook payloads route on THIS value — see the
+  /// [provider, providerAccountId] index below (necessarily cross-workspace:
+  /// the payload carries no tenant; the resolved row's workspaceId scopes
+  /// everything after).
+  providerAccountId String?
+  /// Auth lifecycle for OAuth-token providers; null for password/API-key.
+  tokenExpiresAt    DateTime?
+  /// Number/account usage policy hint set during onboarding:
+  /// "business_only" | "mixed" | "unknown". Feeds future ConversationScope
+  /// defaults (see core/inbox/conversation-scope.ts).
+  numberUsage       String    @default("unknown")
   isDefault         Boolean   @default(false)
   syncState         String?   // JSON: { lastUid, uidValidity, ... } — incremental sync cursor
   lastSyncAt        DateTime?
@@ -1056,7 +1104,149 @@ model ChannelConnection {
 
   @@index([workspaceId, channelType])
   @@index([workspaceId, status])
+  @@index([provider, providerAccountId])
   @@unique([workspaceId, externalAccountId])
+}
+
+// ── Multi-channel identities & message media (INBOX-DATA-04B) ──
+// Design: docs/product/smart-inbox-data-model-design.md (rev. 04A.1).
+// Declared contact data vs ROUTABLE identity are two levels on purpose:
+// ExternalIdentity is the unique provider-scoped anchor a webhook resolves,
+// ContactIdentityLink carries the (possibly many, possibly ambiguous)
+// associations to contacts.
+
+/**
+ * One row per provider-scoped external identity (WhatsApp wa_id, Messenger
+ * PSID, Instagram IGSID, email address, E.164 phone, web visitor id…).
+ * Routing scope: workspace → channel → provider → scopeKey → externalKey.
+ * All routing-key columns are NON-NULL (SQLite treats NULLs as distinct in
+ * unique indexes, which would break the uniqueness guarantee).
+ *
+ * `primaryContactId` + `resolutionStatus` are a CACHED PROJECTION of the
+ * links — recomputed exclusively by
+ * `modules/inbox/identity-resolution.ts#projectIdentityResolution` via the
+ * identity service. No other code path may write them.
+ */
+model ExternalIdentity {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  /// Registry channel id (core/inbox/channel-registry.ts).
+  channel         String
+  /// Transport provider for provider-scoped ids ("meta", "twilio"…);
+  /// "unknown" for globally-addressed identities (email/phone) so one
+  /// address never splits across transports.
+  provider        String   @default("unknown")
+  /// providerAccountId for page/account-scoped ids (PSID, IGSID, TikTok);
+  /// "" for globally-addressed identities. connectionId only as a
+  /// documented degraded fallback when the account id is unavailable.
+  scopeKey        String   @default("")
+  /// "email" | "phone" | "handle" | "psid" | "external_id" | "visitor".
+  kind            String
+  /// Canonical routable value: provider external id when one exists,
+  /// otherwise the normalized address (lowercased email, E.164/digits
+  /// phone, lowercased handle).
+  externalKey     String
+  displayValue    String?
+  /// Cache of the single confirmed contact; NULL while unresolved/ambiguous.
+  primaryContactId String?
+  /// "resolved" | "ambiguous" | "unresolved" — projection of the links.
+  resolutionStatus String  @default("unresolved")
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  /// Provider-specific JSON string (normalization flags, profile URL…).
+  /// NEVER tokens/secrets — those live only in ChannelConnection.credentials.
+  metadata        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  primaryContact Contact?  @relation("PrimaryIdentityContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  links          ContactIdentityLink[]
+
+  @@unique([workspaceId, channel, provider, scopeKey, externalKey])
+  @@index([workspaceId, primaryContactId])
+  @@index([workspaceId, kind, externalKey])
+}
+
+/**
+ * Association between an ExternalIdentity and a Contact. Several contacts
+ * may link one identity (shared reception phone, family number, generic
+ * info@ address) — that is the AMBIGUOUS state, resolved by an operator,
+ * never automatically. Rejected rows are KEPT for audit ("the operator said
+ * this identity is NOT this contact").
+ */
+model ContactIdentityLink {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  externalIdentityId String
+  contactId          String
+  /// "confirmed" | "suggested" | "rejected".
+  status             String   @default("suggested")
+  /// "declared" (contact card claims the value) | "ingestion" | "manual" |
+  /// "merge" | "backfill".
+  source             String   @default("ingestion")
+  /// Operator user id for manual/merge actions; null for automatic sources.
+  createdBy          String?
+  confirmedAt        DateTime?
+  rejectedAt         DateTime?
+  metadata           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  externalIdentity ExternalIdentity @relation(fields: [externalIdentityId], references: [id], onDelete: Cascade)
+  contact          Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([externalIdentityId, contactId])
+  @@index([workspaceId, contactId])
+  @@index([workspaceId, status])
+}
+
+/**
+ * Channel media bound to one message's lifecycle. Distinct from the generic
+ * `Attachment` (operator documents, polymorphic module/recordId, OCR
+ * pipeline) — both are kept, responsibilities documented in the design doc.
+ *
+ * Idempotency anchor: `attachmentKey`, computed ONCE at creation by
+ * `modules/inbox/attachment-keys.ts` (tiered: provider media id > storage
+ * key > checksum#position > positional fallback) and never recomputed.
+ * `position` is presentation order only — mutable, NOT identity.
+ */
+model MessageAttachment {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  messageId       String
+  /// "image" | "video" | "audio" | "file" | "sticker" | …
+  kind            String   @default("file")
+  fileName        String?
+  mimeType        String?
+  sizeBytes       Int?
+  /// Our storage (Vercel Blob URL/path) once persisted.
+  storageKey      String?
+  /// Provider-hosted URL when we have not (or cannot) persist a copy.
+  externalUrl     String?
+  provider        String?
+  externalMediaId String?
+  width           Int?
+  height          Int?
+  durationMs      Int?
+  checksum        String?
+  caption         String?
+  /// "stored" | "pending_download" | "external_only" | "failed" | "unrecoverable".
+  status          String   @default("stored")
+  position        Int      @default(0)
+  attachmentKey   String
+  metadata        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, attachmentKey])
+  @@index([messageId, position])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, externalMediaId])
 }
 
 /**
