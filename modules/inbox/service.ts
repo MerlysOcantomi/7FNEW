@@ -612,7 +612,14 @@ export async function getConversationById(id: string, workspaceId: string) {
         classification: true,
         handoff: true,
         drafts: { orderBy: { createdAt: "desc" }, take: 10 },
-        messages: { orderBy: { createdAt: "asc" } },
+        /**
+         * INBOX-DATA-04B: normalized MessageAttachment rows ride along so the
+         * UI's read-with-fallback helper prefers them over metadata arrays.
+         */
+        messages: {
+          orderBy: { createdAt: "asc" },
+          include: { attachments: { orderBy: { position: "asc" } } },
+        },
         actions: { orderBy: { createdAt: "desc" } },
       },
     }),
