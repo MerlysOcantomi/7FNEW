@@ -19,6 +19,7 @@ import {
   listProposedFannyTasksForConversation,
   type ProposedFannyTaskRecord,
 } from "./inbox-tasks-read"
+import { buildUnansweredCandidateQuery } from "./unanswered"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -38,6 +39,16 @@ interface ListConversationsParams {
    * filters would corrupt them. `undefined`/""/"all"/"todos" → no filter.
    */
   category?: string
+  /**
+   * Restrict to unanswered conversations (latest non-internal message is
+   * inbound, status not terminal — see `modules/inbox/unanswered.ts` for the
+   * canonical semantics). Resolved via one bounded raw-SQL candidate query
+   * whose id set joins the Prisma `where` (the schema has no last-message
+   * direction column, so this cannot be a plain Prisma filter).
+   */
+  unanswered?: boolean
+  /** Only count messages older than this many minutes as unanswered. */
+  unansweredMinAgeMinutes?: number
 }
 
 interface CreateConversationFromInboxEntryInput {
@@ -415,7 +426,19 @@ function parseConversationClassification(classification?: {
 }
 
 export async function listConversations(params: ListConversationsParams) {
-  const { workspaceId, skip = 0, take = 20, status, channel, urgency, q, assignedTo, category } = params
+  const {
+    workspaceId,
+    skip = 0,
+    take = 20,
+    status,
+    channel,
+    urgency,
+    q,
+    assignedTo,
+    category,
+    unanswered,
+    unansweredMinAgeMinutes,
+  } = params
   const statusForWhere =
     !status || status === "all" || status === "todos" ? undefined : status
   const categoryForWhere =
@@ -428,9 +451,26 @@ export async function listConversations(params: ListConversationsParams) {
         ? { assignedTo }
         : {}
 
+  /**
+   * Unanswered support: compute the bounded candidate-id set first (raw SQL,
+   * workspace-scoped — see `modules/inbox/unanswered.ts`), then constrain the
+   * regular Prisma query with `id IN (...)` so it composes with every other
+   * filter, the includes, pagination and the meta counts unchanged.
+   */
+  let unansweredIdFilter: Prisma.ConversationWhereInput = {}
+  if (unanswered) {
+    const { sql, params: sqlParams } = buildUnansweredCandidateQuery({
+      workspaceId,
+      minAgeMinutes: unansweredMinAgeMinutes,
+    })
+    const rows = await db.$queryRawUnsafe<{ id: string }[]>(sql, ...sqlParams)
+    unansweredIdFilter = { id: { in: rows.map((row) => row.id) } }
+  }
+
   const where: Prisma.ConversationWhereInput = {
     workspaceId,
     ...assignedToFilter,
+    ...unansweredIdFilter,
     ...(statusForWhere
       ? {
           status: statusForWhere.includes(",")

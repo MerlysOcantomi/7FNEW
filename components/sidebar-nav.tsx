@@ -68,6 +68,7 @@ import {
   type VerticalNavProfile,
 } from "@core/vertical-packs/nav-profile";
 import { resolveWorkspacePlan } from "@core/system/plans";
+import { CORE_INBOX_FILTERS } from "@core/inbox/filter-registry";
 
 // ── Collapse Context ────────────────────────────────────────────────────────
 interface SidebarCollapseContextType {
@@ -99,6 +100,62 @@ type NavSection = {
   icon?: React.ElementType;
   dividerAbove?: boolean;
 };
+
+// ── Smart Inbox filter subitems (derived from the central filter registry) ──
+/**
+ * The Smart Inbox sidebar entries derive from `core/inbox/filter-registry.ts`
+ * — the same source of truth the toolbar chips and the list query use — so
+ * the sidebar can never drift from the filters' real semantics. Only ACTIVE
+ * core filters with a "sidebar" surface render (the old "Scheduled" entry was
+ * a semantics-free placeholder; it is now declared `planned` in the registry
+ * and no longer renders — its URLs fall back to the default view safely).
+ *
+ * English labels below are first-paint fallbacks; `localizeInboxSubitems`
+ * swaps them for catalog output keyed on the stable `?filter=` value. Icons
+ * resolve from registry icon TOKENS (the registry itself stays icon-free).
+ * Note: the sidebar renders the CORE registry (pure, no fetch); per-vertical
+ * / per-workspace filter promotion applies to the Inbox toolbar chips, which
+ * read the workspace-resolved views from `GET /api/inbox/channels`.
+ */
+const SIDEBAR_FILTER_ICONS: Record<string, React.ElementType> = {
+  inbox: Inbox,
+  "message-plus": MessageSquarePlus,
+  clock: Clock,
+  "check-circle": CheckCircle,
+  "calendar-clock": CalendarClock,
+  star: Star,
+  "check-done": CheckCircle2,
+  archive: Archive,
+  trash: Trash2,
+};
+const SIDEBAR_FILTER_FALLBACK_LABELS: Record<string, string> = {
+  needs_action: "Needs action",
+  waiting: "Waiting",
+  done: "Done",
+  opportunities: "Opportunities",
+  closed: "Closed",
+  archived: "Archived",
+  trash: "Trash",
+};
+const SIDEBAR_FILTER_GROUPS: Record<string, string> = {
+  workflow: "Work",
+  smart: "Smart views",
+  storage: "Storage",
+};
+
+function buildSmartInboxSubitems(): NavItem[] {
+  return [
+    { label: "Inbox", href: "/inbox", icon: Inbox },
+    ...CORE_INBOX_FILTERS.filter(
+      (def) => def.availability === "active" && def.surfaces.includes("sidebar"),
+    ).map((def) => ({
+      label: SIDEBAR_FILTER_FALLBACK_LABELS[def.id] ?? def.id,
+      href: `/inbox?filter=${def.id}`,
+      icon: SIDEBAR_FILTER_ICONS[def.iconToken ?? ""] ?? Inbox,
+      group: SIDEBAR_FILTER_GROUPS[def.group],
+    })),
+  ];
+}
 
 // ── Navigation Structure ─────────────────────────────────────────────────────
 function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[] {
@@ -155,17 +212,7 @@ function buildNavSections(v: EntityVocabulary = DEFAULT_VOCABULARY): NavSection[
           href: "/inbox/overview",
           icon: Inbox,
           helper: "by Fanny",
-          subitems: [
-            { label: "Inbox", href: "/inbox", icon: Inbox },
-            { label: "Needs action", href: "/inbox?filter=needs_action", icon: MessageSquarePlus, group: "Work" },
-            { label: "Waiting", href: "/inbox?filter=waiting", icon: Clock, group: "Work" },
-            { label: "Done", href: "/inbox?filter=done", icon: CheckCircle, group: "Work" },
-            { label: "Scheduled", href: "/inbox?filter=scheduled", icon: CalendarClock, group: "Smart views" },
-            { label: "Opportunities", href: "/inbox?filter=opportunities", icon: Star, group: "Smart views" },
-            { label: "Closed", href: "/inbox?filter=closed", icon: CheckCircle2, group: "Storage" },
-            { label: "Archived", href: "/inbox?filter=archived", icon: Archive, group: "Storage" },
-            { label: "Trash", href: "/inbox?filter=trash", icon: Trash2, group: "Storage" },
-          ]
+          subitems: buildSmartInboxSubitems(),
         },
         { label: v.client.plural, href: "/clientes", icon: Users },
         { label: v.project.plural, href: "/proyectos", icon: FolderKanban },

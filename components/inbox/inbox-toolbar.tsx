@@ -85,9 +85,21 @@ interface InboxToolbarProps {
   lastSyncedAt?: Date | null
   onCompose?: () => void
 
-  // Row 2 — primary work + channel picker trigger
-  primaryWorkFilter?: "all" | "needs_action" | "waiting" | "done" | "other"
-  onPrimaryWorkFilterChange?: (value: "all" | "needs_action" | "waiting" | "done") => void
+  // Row 2 — primary filter chips + channel picker trigger
+  /**
+   * Active primary filter id (registry id from `core/inbox/filter-registry.ts`;
+   * "other" = the URL carries a filter that is not in the chip row, so no chip
+   * highlights). The chip row itself comes from `workFilterOptions`.
+   */
+  primaryWorkFilter?: string
+  onPrimaryWorkFilterChange?: (value: string) => void
+  /**
+   * Effective primary-filter chips resolved by the page from the filter
+   * registry (vertical/workspace aware). Falls back to the core row
+   * (All / Needs attention / Waiting / Done) when absent. `disabled` marks
+   * coming-soon filters: visible, never selectable.
+   */
+  workFilterOptions?: Array<{ value: string; label: string; disabled?: boolean }>
   channel: string
   /**
    * Effective channel options resolved by the page from
@@ -172,6 +184,7 @@ export function InboxToolbar({
   onCompose,
   primaryWorkFilter = "all",
   onPrimaryWorkFilterChange,
+  workFilterOptions,
   channel,
   channelOptions,
   onChannelChange,
@@ -191,7 +204,8 @@ export function InboxToolbar({
 
   const { t, locale } = useI18n()
   const m = t.inbox.toolbar
-  const workFilters = buildWorkFilters(m)
+  const workFilters: ReadonlyArray<{ value: string; label: string; disabled?: boolean }> =
+    workFilterOptions && workFilterOptions.length > 0 ? workFilterOptions : buildWorkFilters(m)
   const priorityFilters = buildPriorityFilters(m)
   const assignmentFilters = buildAssignmentFilters(m)
 
@@ -276,13 +290,16 @@ export function InboxToolbar({
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => onPrimaryWorkFilterChange(option.value)}
+                  onClick={option.disabled ? undefined : () => onPrimaryWorkFilterChange(option.value)}
+                  disabled={option.disabled}
                   aria-pressed={isActive}
                   className={cn(
                     "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                    isActive
-                      ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
-                      : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+                    option.disabled
+                      ? "cursor-default border-dashed border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)]/60"
+                      : isActive
+                        ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
+                        : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
                   )}
                 >
                   {option.label}

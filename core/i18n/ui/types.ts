@@ -808,7 +808,24 @@ export interface InboxMessages {
     captureTitle: string
     captureAria: string
     workFilterAria: string
-    workFilters: { all: string; needsAttention: string; waiting: string; done: string }
+    /**
+     * Labels for primary-filter chips. Core row uses the first four; the
+     * rest cover registry filters a vertical/workspace may promote into the
+     * chip row (`core/inbox/filter-registry.ts` labelKeys).
+     */
+    workFilters: {
+      all: string
+      needsAttention: string
+      waiting: string
+      done: string
+      unanswered: string
+      urgent: string
+      unassigned: string
+      opportunities: string
+      closed: string
+      archived: string
+      trash: string
+    }
     /** Collapsed channel-picker trigger prefix ("Channel:"). */
     channelPrefix: string
     channelsHeading: string
