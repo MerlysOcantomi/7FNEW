@@ -4,7 +4,13 @@ import { jwtVerify } from "jose"
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/widget"]
+/**
+ * `/api/inbox/webhooks` (INBOX-TRANSPORT-05D): provider webhook skeletons.
+ * Unauthenticated by nature (providers push to them); the route resolves the
+ * tenant from [provider, providerAccountId] and currently answers
+ * accepted:false — real integrations add per-provider signature checks.
+ */
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 function isPublic(pathname: string): boolean {

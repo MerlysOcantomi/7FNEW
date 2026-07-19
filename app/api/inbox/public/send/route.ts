@@ -6,6 +6,7 @@ import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
 import { notifyNewConversation, notifyInboundMessage } from "@core/notifications/inbox"
 import { buildIdentityDescriptor } from "@modules/inbox/identity-resolution"
 import { recordInboundIdentity } from "@modules/inbox/identity-service"
+import { logInboxIntegrationEvent } from "@modules/inbox/integration-events"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -174,7 +175,15 @@ export async function POST(request: NextRequest) {
           typeof visitorName === "string" && visitorName.trim() ? visitorName.trim() : null,
         contactId: conv?.contactId ?? null,
       })
-    })().catch((err) => console.error("[public-send] identity dual-write failed:", err))
+    })().catch((err) => {
+      console.error("[public-send] identity dual-write failed:", err)
+      logInboxIntegrationEvent({
+        event: "identity_write_failed",
+        workspaceId: workspace.id,
+        channel: "web_chat",
+        errorCode: err instanceof Error ? err.name : "unknown",
+      })
+    })
 
     if (isNewConversation) {
       void notifyNewConversation({

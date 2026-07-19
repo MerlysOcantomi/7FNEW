@@ -24,6 +24,7 @@ export type InboxIntegrationEventName =
   | "duplicate_inbound"
   | "webhook_unknown_account"
   | "webhook_unknown_provider"
+  | "webhook_not_implemented"
   | "envelope_invalid"
 
 export interface InboxIntegrationEvent {
