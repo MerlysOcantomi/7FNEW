@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { verifyTrackingToken, type TrackingTokenPayload } from "@core/inbox-tracking"
 import { applyDeliveryEventToMessage } from "@modules/inbox/delivery-service"
+import { logInboxIntegrationEvent } from "@modules/inbox/integration-events"
 
 /**
  * Public open-tracking endpoint. Always responds with a 1x1 transparent PNG, even when the
@@ -180,6 +181,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       })
     } catch (err) {
       console.error(`[inbox-tracking] Could not project read for msg=${messageId}:`, err)
+      logInboxIntegrationEvent({
+        event: "delivery_projection_failed",
+        workspaceId,
+        messageId,
+        errorCode: err instanceof Error ? err.name : "unknown",
+      })
     }
 
     return pixelResponse()

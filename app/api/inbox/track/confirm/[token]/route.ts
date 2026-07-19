@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { verifyTrackingToken, type TrackingTokenPayload } from "@core/inbox-tracking"
 import { applyDeliveryEventToMessage } from "@modules/inbox/delivery-service"
+import { logInboxIntegrationEvent } from "@modules/inbox/integration-events"
 
 /**
  * Public manual receipt-confirmation endpoint. The customer clicks a CTA in the email body and
@@ -126,6 +127,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
       })
     } catch (err) {
       console.error(`[inbox-tracking] Could not project confirm for msg=${messageId}:`, err)
+      logInboxIntegrationEvent({
+        event: "delivery_projection_failed",
+        workspaceId,
+        messageId,
+        errorCode: err instanceof Error ? err.name : "unknown",
+      })
     }
 
     return renderPage({ ok: true })
