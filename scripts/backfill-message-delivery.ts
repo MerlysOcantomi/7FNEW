@@ -14,8 +14,17 @@
 import { db } from "@core/db"
 import { planDeliveryBackfillForMessage } from "@modules/inbox/backfill-planners"
 import { applyDeliveryEventToMessage } from "@modules/inbox/delivery-service"
+import {
+  projectDeliveryEvent,
+  type DeliveryState,
+  type DeliveryStatus,
+  type ReadSource,
+} from "@modules/inbox/delivery-projection"
 
 const BATCH = 500
+
+/** Dry-run mode: projects in memory and reports counts without writing. */
+const DRY_RUN = process.env.INBOX_BACKFILL_DRY_RUN === "1" || process.argv.includes("--dry-run")
 
 async function main() {
   const workspaces = await db.workspace.findMany({ select: { id: true } })
@@ -49,11 +58,40 @@ async function main() {
         messagesSeen += 1
         const plan = planDeliveryBackfillForMessage(message)
         if (plan.sourceMessageId) {
-          await db.message.update({
-            where: { id: message.id },
-            data: { sourceMessageId: plan.sourceMessageId },
-          })
+          if (!DRY_RUN) {
+            await db.message.update({
+              where: { id: message.id },
+              data: { sourceMessageId: plan.sourceMessageId },
+            })
+          }
           sourceIdsFilled += 1
+        }
+        if (DRY_RUN) {
+          // Project in memory against the CURRENT columns — same helper, no writes.
+          const full = await db.message.findUnique({
+            where: { id: message.id },
+            select: {
+              deliveryStatus: true, sentAt: true, deliveredAt: true, readAt: true,
+              readSource: true, failedAt: true, failureCode: true,
+            },
+          })
+          if (!full) continue
+          let state: DeliveryState = {
+            deliveryStatus: full.deliveryStatus as DeliveryStatus,
+            sentAt: full.sentAt, deliveredAt: full.deliveredAt, readAt: full.readAt,
+            readSource: full.readSource as ReadSource | null,
+            failedAt: full.failedAt, failureCode: full.failureCode,
+          }
+          let changed = false
+          for (const event of plan.events) {
+            const next = projectDeliveryEvent(state, event)
+            if (next) { state = next; changed = true }
+          }
+          if (changed) {
+            messagesProjected += 1
+            statusCounts[state.deliveryStatus] = (statusCounts[state.deliveryStatus] ?? 0) + 1
+          }
+          continue
         }
         let changed = false
         for (const event of plan.events) {
@@ -73,7 +111,7 @@ async function main() {
     }
   }
 
-  console.warn("[backfill:delivery] done", {
+  console.warn(`[backfill:delivery] ${DRY_RUN ? "DRY-RUN (no writes)" : "done"}`, {
     workspaces: workspaces.length,
     outboundMessagesSeen: messagesSeen,
     messagesProjected,
