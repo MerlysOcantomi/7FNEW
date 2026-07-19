@@ -24,6 +24,8 @@ export interface SendEmailInput {
   cc?: string[]
   bcc?: string[]
   attachments?: EmailAttachment[]
+  /** Extra RFC headers (e.g. In-Reply-To / References threading). */
+  headers?: Record<string, string>
 }
 
 export interface SendEmailResult {
@@ -87,6 +89,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         text: input.text,
         html: input.html,
         replyTo: input.replyTo,
+        ...(input.headers && Object.keys(input.headers).length > 0 ? { headers: input.headers } : {}),
         ...(input.cc?.length ? { cc: input.cc } : {}),
         ...(input.bcc?.length ? { bcc: input.bcc } : {}),
         ...(input.attachments?.length

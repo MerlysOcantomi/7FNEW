@@ -53,6 +53,15 @@ export interface SendOutboundEmailInput {
     messageId?: string
     workspaceId?: string
   }
+  /**
+   * RFC threading headers (INBOX-TRANSPORT-05): In-Reply-To / References of
+   * the message being answered. Built by the EmailTransport from inbound
+   * metadata; omitted sends go out unthreaded exactly as before.
+   */
+  threading?: {
+    inReplyTo: string
+    references: string[]
+  } | null
 }
 
 function ensureRePrefix(subject: string): string {
@@ -233,6 +242,9 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
       connectionConfig: cs.smtpConfig,
       encryptedCredentials: cs.encryptedCredentials,
       to: recipients,
+      ...(input.threading
+        ? { inReplyTo: input.threading.inReplyTo, references: input.threading.references }
+        : {}),
       ...commonPayload,
     })
   }
@@ -246,6 +258,14 @@ export async function sendOutboundEmail(input: SendOutboundEmailInput): Promise<
   return sendEmail({
     to: recipients,
     from,
+    ...(input.threading
+      ? {
+          headers: {
+            "In-Reply-To": input.threading.inReplyTo,
+            References: input.threading.references.join(" "),
+          },
+        }
+      : {}),
     ...commonPayload,
   })
 }
