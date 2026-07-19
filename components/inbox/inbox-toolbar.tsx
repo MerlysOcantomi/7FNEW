@@ -89,7 +89,12 @@ interface InboxToolbarProps {
   primaryWorkFilter?: "all" | "needs_action" | "waiting" | "done" | "other"
   onPrimaryWorkFilterChange?: (value: "all" | "needs_action" | "waiting" | "done") => void
   channel: string
-  channelOptions: Array<{ value: string; label: string }>
+  /**
+   * Effective channel options resolved by the page from
+   * `core/inbox/channel-config.ts`. `disabled` marks planned ("coming soon")
+   * channels: rendered as non-interactive affordances, never selectable.
+   */
+  channelOptions: Array<{ value: string; label: string; disabled?: boolean }>
   onChannelChange: (value: string) => void
 
   // Row 4 — More filters (advanced)
@@ -468,14 +473,17 @@ export function InboxToolbar({
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => onChannelChange(option.value)}
+                  onClick={option.disabled ? undefined : () => onChannelChange(option.value)}
+                  disabled={option.disabled}
                   aria-pressed={isActive}
                   title={t.inbox.channelTitle(option.label)}
                   className={cn(
                     "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                    isActive
-                      ? "border-transparent bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
-                      : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+                    option.disabled
+                      ? "cursor-default border-dashed border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)]/60"
+                      : isActive
+                        ? "border-transparent bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)] shadow-sm"
+                        : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
                   )}
                 >
                   {isActive ? (

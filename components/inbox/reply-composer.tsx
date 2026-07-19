@@ -20,6 +20,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useCannedResponses, type CannedResponse } from "@/hooks/use-canned-responses"
 import { useI18n } from "@/components/i18n-provider"
 import { channelLabel as channelValueLabel } from "@/lib/inbox-labels"
+import { getInboxChannelCapabilities, getInboxChannelKind } from "@core/inbox/channel-registry"
 import type { InboxMessages } from "@core/i18n/ui/types"
 
 /** Visible strings for the composer — `t.inbox.composer` from the UI catalog. */
@@ -369,9 +370,19 @@ export function ReplyComposer({
    */
   type ClipCategoryId = "attach" | "share"
   const [activeClipCategory, setActiveClipCategory] = useState<ClipCategoryId>("attach")
+  /**
+   * Capability-driven channel behaviour (VISUAL affordances only in this
+   * phase — transport guards stay in the backend). The central registry
+   * (`core/inbox/channel-registry.ts`) replaces the old `channel === "email"`
+   * conditionals: email is currently the only channel whose capabilities
+   * enable these affordances, so rendered behaviour is unchanged while future
+   * channels inherit honest, declared capabilities instead of assumptions.
+   */
+  const channelCapabilities = getInboxChannelCapabilities(channel)
   const clipCategoryTabs: Array<{ id: ClipCategoryId; label: string }> = [
     { id: "attach", label: m.attach.tabs.attach },
-    ...(channel === "email" ? [{ id: "share" as const, label: m.attach.tabs.share }] : []),
+    // Share's single real action ("Confirm received") needs read-receipt support.
+    ...(channelCapabilities.readReceipts ? [{ id: "share" as const, label: m.attach.tabs.share }] : []),
   ]
 
   function insertLinkAtCursor() {
@@ -656,7 +667,7 @@ export function ReplyComposer({
     onCannedOpenChange(false)
   }, [closePanelBlocks, onCannedOpenChange])
 
-  const showEmailOptions = !replyIsInternal && channel === "email"
+  const showEmailOptions = !replyIsInternal && channelCapabilities.subject
 
   const sendActionLabel = replyIsInternal
     ? m.send.saveNote
@@ -1010,45 +1021,46 @@ export function ReplyComposer({
               >
                 <Reply className="h-4 w-4 shrink-0" strokeWidth={2} />
               </button>
-              {channel === "email" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeComposerOverlays()
-                      setVoiceToolbarFocus(false)
-                      onReplyModeChange(false)
-                      onEmailModeChange("reply_all")
-                      focusComposerWithScroll()
-                    }}
-                    className={cn(
-                      SHELL_TOOLBAR_ICON,
-                      emailToolActive && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
-                    )}
-                    title={m.toolbar.replyAll}
-                    aria-label={m.toolbar.replyAll}
-                  >
-                    <ReplyAll className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeComposerOverlays()
-                      setVoiceToolbarFocus(false)
-                      onReplyModeChange(false)
-                      onEmailModeChange("forward")
-                      focusComposerWithScroll()
-                    }}
-                    className={cn(
-                      SHELL_TOOLBAR_ICON,
-                      emailToolActive && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
-                    )}
-                    title={m.toolbar.forward}
-                    aria-label={m.toolbar.forward}
-                  >
-                    <Forward className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                </>
+              {/* Reply-all needs multi-recipient (CC) support; forward is its own capability. */}
+              {channelCapabilities.cc && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeComposerOverlays()
+                    setVoiceToolbarFocus(false)
+                    onReplyModeChange(false)
+                    onEmailModeChange("reply_all")
+                    focusComposerWithScroll()
+                  }}
+                  className={cn(
+                    SHELL_TOOLBAR_ICON,
+                    emailToolActive && emailMode === "reply_all" && SHELL_TOOLBAR_ICON_ACTIVE,
+                  )}
+                  title={m.toolbar.replyAll}
+                  aria-label={m.toolbar.replyAll}
+                >
+                  <ReplyAll className="h-4 w-4 shrink-0" strokeWidth={2} />
+                </button>
+              )}
+              {channelCapabilities.forward && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeComposerOverlays()
+                    setVoiceToolbarFocus(false)
+                    onReplyModeChange(false)
+                    onEmailModeChange("forward")
+                    focusComposerWithScroll()
+                  }}
+                  className={cn(
+                    SHELL_TOOLBAR_ICON,
+                    emailToolActive && emailMode === "forward" && SHELL_TOOLBAR_ICON_ACTIVE,
+                  )}
+                  title={m.toolbar.forward}
+                  aria-label={m.toolbar.forward}
+                >
+                  <Forward className="h-4 w-4 shrink-0" strokeWidth={2} />
+                </button>
               )}
               <button
                 type="button"
@@ -1213,7 +1225,7 @@ export function ReplyComposer({
         {/* ── Email details (collapsible) — account · channel · subject · forward · CC / BCC ── */}
         {composerExpandedView && detailsOpen && (signedInEmail?.trim() || channel || showEmailOptions) && (
           <div className="space-y-2 rounded-md border border-[var(--inbox-border)]/35 bg-white/[0.02] px-2.5 py-2">
-            {(signedInEmail?.trim() || channel || (channel === "email" && requestConfirmation)) && (
+            {(signedInEmail?.trim() || channel || (channelCapabilities.readReceipts && requestConfirmation)) && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {signedInEmail?.trim() ? (
                   <p className="min-w-0 truncate text-[11px] leading-tight text-[var(--inbox-text-secondary)]">
@@ -1226,8 +1238,8 @@ export function ReplyComposer({
                   <span aria-hidden="true" />
                 )}
                 <div className="flex shrink-0 items-center gap-1.5">
-                  {/* Confirmation-requested pill. Email-only; click clears the request. */}
-                  {channel === "email" && requestConfirmation && (
+                  {/* Confirmation-requested pill. Needs read-receipt support; click clears the request. */}
+                  {channelCapabilities.readReceipts && requestConfirmation && (
                     <button
                       type="button"
                       onClick={() => onRequestConfirmationChange?.(false)}
@@ -1924,11 +1936,14 @@ export function ReplyComposer({
 }
 
 /**
- * Formatea el canal de la conversación para el badge del header del composer. Los canales que
- * `lib/inbox-labels` conoce (email, whatsapp, web_chat, portal, manual) se localizan vía
- * `channelLabel(channel, locale)`; el resto son marcas (Instagram, Messenger, …) idénticas en
- * todos los locales. Cae al `channelLabel` que envía el parent y, como último recurso,
- * capitaliza el slug crudo. `fallback` es la etiqueta genérica del catálogo ("Channel").
+ * Formatea el canal de la conversación para el badge del header del composer.
+ * Todos los canales del registro central (`core/inbox/channel-registry.ts`,
+ * que también resuelve aliases como "web") se localizan vía
+ * `channelLabel(channel, locale)` — los de marca (WhatsApp, Instagram, …) son
+ * idénticos en todos los locales dentro del propio mapa de labels. Cae al
+ * `channelLabel` que envía el parent y, como último recurso, capitaliza el
+ * slug crudo (cubre valores legacy tipo "voice"/"telegram"). `fallback` es la
+ * etiqueta genérica del catálogo ("Channel").
  */
 function formatChannelBadge(
   channel: string,
@@ -1943,16 +1958,6 @@ function formatChannelBadge(
     const localized = channelValueLabel(canonical, locale)
     if (localized !== canonical) return localized
   }
-  /** Brand/proper-noun channels — identical across locales by design. */
-  const brandMap: Record<string, string> = {
-    instagram: "Instagram",
-    facebook: "Facebook",
-    messenger: "Messenger",
-    sms: "SMS",
-    voice: "Voice",
-    telegram: "Telegram",
-  }
-  if (brandMap[normalized]) return brandMap[normalized]
   const fromLabel = channelLabel?.trim()
   if (fromLabel) return fromLabel
   if (!normalized) return fallback
@@ -1985,21 +1990,21 @@ function getComposerConfig({
     }
   }
 
-  switch (channel) {
-    case "email":
-      return {
-        placeholder: messages.placeholders.emailReply,
-        sendLabel: messages.send.sendReply,
-        subjectPreview: subject || messages.noSubject,
-      }
-    case "whatsapp":
-      return { placeholder: messages.placeholders.chatMessage, sendLabel: messages.send.sendMessage, subjectPreview: null }
-    case "web_chat":
-    case "portal":
-      return { placeholder: messages.placeholders.chatMessage, sendLabel: messages.send.sendMessage, subjectPreview: null }
-    default:
-      return { placeholder: messages.placeholders.defaultMessage, sendLabel: messages.send.sendReply, subjectPreview: null }
+  // Registry-driven composer family: email → subject composer; chat/social →
+  // conversational composer; internal/unknown → plain default. Replaces the
+  // old per-channel switch without changing behaviour for existing channels.
+  const kind = getInboxChannelKind(channel)
+  if (kind === "email") {
+    return {
+      placeholder: messages.placeholders.emailReply,
+      sendLabel: messages.send.sendReply,
+      subjectPreview: subject || messages.noSubject,
+    }
   }
+  if (kind === "chat" || kind === "social") {
+    return { placeholder: messages.placeholders.chatMessage, sendLabel: messages.send.sendMessage, subjectPreview: null }
+  }
+  return { placeholder: messages.placeholders.defaultMessage, sendLabel: messages.send.sendReply, subjectPreview: null }
 }
 
 /**

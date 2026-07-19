@@ -65,6 +65,11 @@ import {
 } from "@/lib/inbox-labels"
 import { parseLocale, type SupportedLocale } from "@core/i18n"
 import { toIntlLocale } from "@core/i18n/format"
+import {
+  resolveInboxChannelsConfig,
+  resolveInboxChannelViews,
+  type ResolvedInboxChannelView,
+} from "@core/inbox/channel-config"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
 import { currentRequestFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import {
@@ -269,7 +274,16 @@ const STATUS_OPTIONS = [
   "archived",
   "trashed",
 ]
-const CHANNEL_OPTIONS = ["all", "manual", "web_chat", "email", "portal", "whatsapp"]
+/**
+ * Core fallback for the channel filter, computed from the central registry
+ * (`core/inbox/channel-config.ts`) with no vertical/workspace layers. Used
+ * until `GET /api/inbox/channels` responds (or if it fails); it reproduces
+ * the previous hardcoded option list exactly. The effective per-vertical /
+ * per-workspace view replaces it as soon as the endpoint answers.
+ */
+const FALLBACK_CHANNEL_VIEWS = resolveInboxChannelViews({
+  config: resolveInboxChannelsConfig(),
+})
 /**
  * Desktop column matrix (xl+):
  *  - left   → minmax(260px, 300px): tight sender list. Was minmax(288px, 30%)
@@ -930,6 +944,17 @@ function InboxPageContent() {
     /** Pause list polling while the tab is hidden (Phase 1 visibility-aware). */
     pollInterval: isTabVisible ? LIST_POLL_INTERVAL : 0,
   })
+
+  /**
+   * Effective channel view for this workspace (core defaults → vertical pack
+   * → workspace overrides, reconciled with real connections). Read-only and
+   * stable per session; the fallback below keeps the filter working while it
+   * loads or if the endpoint errors.
+   */
+  const { data: effectiveChannelsData } = useFetch<{
+    channels: ResolvedInboxChannelView[]
+    defaultChannel: string | null
+  }>("/api/inbox/channels")
 
   const baseConversations = useMemo(
     () => (Array.isArray(conversationsData) ? conversationsData : []),
@@ -1712,10 +1737,31 @@ function InboxPageContent() {
     return base
   }, [selected?.status, uiLocale])
 
-  const channelSelectOptions = CHANNEL_OPTIONS.map((option) => ({
-    value: option,
-    label: option === "all" ? t.inbox.toolbar.allChannels : channelLabel(option, uiLocale),
-  }))
+  /**
+   * Channel filter options from the effective (vertical/workspace-resolved)
+   * channel view. Planned "coming soon" channels render as disabled
+   * affordances — visible so the vertical's priorities are honest, but never
+   * selectable (no fake integrations). Labels resolve through the shared
+   * channel label maps; icons for list badges come from the same registry.
+   */
+  const channelSelectOptions = useMemo(() => {
+    const views =
+      effectiveChannelsData?.channels && effectiveChannelsData.channels.length > 0
+        ? effectiveChannelsData.channels
+        : FALLBACK_CHANNEL_VIEWS
+    return [
+      { value: "all", label: t.inbox.toolbar.allChannels },
+      ...views.map((view) => {
+        const label = channelLabel(view.id, uiLocale)
+        const comingSoon = view.uiAvailability === "coming_soon"
+        return {
+          value: view.id,
+          label: comingSoon ? `${label} · ${t.inbox.toolbar.channelComingSoon}` : label,
+          disabled: comingSoon,
+        }
+      }),
+    ]
+  }, [effectiveChannelsData, t, uiLocale])
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
     if (!activeSelectedId) return

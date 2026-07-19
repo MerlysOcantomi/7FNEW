@@ -19,6 +19,7 @@
  *     appointment backend exists. No real operator is shown demo bookings.
  */
 
+import type { VerticalInboxChannelsDefaults } from "@core/inbox/channel-config"
 import { BEAUTY_SPECIALIST_AGENT, type VerticalSpecialistAgent } from "./specialists"
 
 /** A seed service for the Beauty service catalog (duration/price added later). */
@@ -144,6 +145,16 @@ export interface BeautyPack {
   serviceCatalog: BeautyServiceSeed[]
   appointmentStateLabels: Record<string, string>
   /**
+   * Declarative Smart Inbox configuration for this vertical (data only —
+   * resolved against core defaults and workspace overrides by
+   * `core/inbox/channel-config.ts`). Declaring a channel here NEVER implies
+   * its integration exists: availability/capabilities stay in the central
+   * channel registry.
+   */
+  inbox: {
+    channels: VerticalInboxChannelsDefaults
+  }
+  /**
    * The vertical specialist that leads this vertical's experience (Finesse for
    * Beauty). Optional so existing consumers/tests stay valid. Branding only —
    * not serialized into `Vertical.defaultConfig` (like `name`/`description`).
@@ -172,6 +183,48 @@ export const BEAUTY_PACK: BeautyPack = {
   serviceCatalog: BEAUTY_SERVICE_CATALOG_SEED,
   appointmentStateLabels: BEAUTY_APPOINTMENT_STATE_LABELS,
   specialistAgent: BEAUTY_SPECIALIST_AGENT,
+  /**
+   * Beauty/Finesse channel priority: WhatsApp → Instagram → Messenger →
+   * TikTok → SMS → … → Email. Email stays ENABLED — it is secondary for the
+   * salon conversation flow today but will matter for distributors,
+   * purchasing, inventory, orders, invoices and admin communication. The
+   * utility surfaces (web chat, portal, manual capture) stay enabled between
+   * SMS and Email so nothing existing disappears; Email is deliberately last
+   * in the visual order.
+   *
+   * `defaultChannel` is a DECLARED preference for future compose flows; no
+   * consumer acts on it until a WhatsApp transport exists (capabilities in
+   * the registry gate any real behaviour).
+   */
+  inbox: {
+    channels: {
+      enabled: [
+        "whatsapp",
+        "instagram",
+        "messenger",
+        "tiktok",
+        "sms",
+        "web_chat",
+        "portal",
+        "manual",
+        "email",
+      ],
+      order: [
+        "whatsapp",
+        "instagram",
+        "messenger",
+        "tiktok",
+        "sms",
+        "web_chat",
+        "portal",
+        "manual",
+        "email",
+      ],
+      primary: ["whatsapp", "instagram"],
+      secondary: ["messenger", "tiktok", "sms", "web_chat", "portal", "manual", "email"],
+      defaultChannel: "whatsapp",
+    },
+  },
 }
 
 /**
@@ -188,5 +241,6 @@ export function buildBeautyDefaultConfig(): string {
     serviceCatalog: BEAUTY_PACK.serviceCatalog,
     nav: { profile: BEAUTY_PACK.navProfileId },
     today: BEAUTY_PACK.today,
+    inbox: BEAUTY_PACK.inbox,
   })
 }

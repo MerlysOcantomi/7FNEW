@@ -20,6 +20,7 @@
  * future theme foundation finalizes.
  */
 
+import type { VerticalInboxChannelsDefaults } from "@core/inbox/channel-config"
 import { mapVerticalKeyToBusinessType } from "@core/personalization"
 import { resolveNavProfile } from "./nav-profile"
 import { resolveVerticalSpecialist, type VerticalSpecialistAgent } from "./specialists"
@@ -59,8 +60,20 @@ export interface WorkspaceExperience {
    */
   todayActivatesRealWorkspaces: boolean
   navProfileId: string | null
+  /**
+   * Advisory marketing/onboarding data ("channels this vertical usually
+   * lives on"). NOT the Inbox channel configuration — that is
+   * `inboxChannels` below, resolved by `core/inbox/channel-config.ts`.
+   */
   recommendedChannels: string[]
   recommendedModules: string[]
+  /**
+   * The vertical pack's declarative Inbox channel layer
+   * (`pack.inbox.channels`), or `null` when the vertical declares none
+   * (core defaults apply). Feed this into `resolveInboxChannelsConfig()`
+   * together with workspace overrides to get the effective config.
+   */
+  inboxChannels: VerticalInboxChannelsDefaults | null
 }
 
 /**
@@ -100,6 +113,7 @@ export function resolveWorkspaceExperience(
       navProfileId: navProfile?.verticalKey ?? BEAUTY_PACK.navProfileId,
       recommendedChannels: BEAUTY_PACK.channels,
       recommendedModules: BEAUTY_PACK.recommendedModules,
+      inboxChannels: BEAUTY_PACK.inbox.channels,
     }
   }
 
@@ -121,5 +135,6 @@ export function resolveWorkspaceExperience(
     navProfileId: navProfile?.verticalKey ?? null,
     recommendedChannels: [],
     recommendedModules: [],
+    inboxChannels: null,
   }
 }

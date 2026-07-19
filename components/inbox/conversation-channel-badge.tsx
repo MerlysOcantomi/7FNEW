@@ -1,6 +1,19 @@
 "use client"
 
-import { Globe, Mail, MessageCircleMore, MessageSquare, PenSquare, Smartphone } from "lucide-react"
+import {
+  Globe,
+  Instagram,
+  Mail,
+  MessageCircle,
+  MessageCircleMore,
+  MessageSquare,
+  MessageSquareText,
+  Music2,
+  PenSquare,
+  Smartphone,
+  type LucideIcon,
+} from "lucide-react"
+import { getInboxChannel, type InboxChannelIconToken } from "@core/inbox/channel-registry"
 import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 
@@ -11,27 +24,25 @@ interface ConversationChannelBadgeProps {
 }
 
 /**
- * Channel → icon map. Deliberately GENERIC (no brand/provider marks): we key on
- * the transport channel (`Conversation.channel`), not the provider, so we never
- * imply Gmail/Outlook/etc. without connection data to back it. Each channel gets
- * a visually distinct glyph so the source is recognisable at a glance in the
- * narrow list column:
- *   email      → Mail            (envelope)
- *   whatsapp   → Smartphone      (phone-based messenger — distinct from web chat)
- *   web_chat   → MessageCircleMore (rounded chat bubble)
- *   portal     → Globe           (client portal / web)
- *   manual     → PenSquare       (operator-typed)
- *   default    → MessageSquare   (unknown channel — distinct from web_chat above)
+ * Icon-token → glyph map. The CHANNEL itself comes from the central registry
+ * (`core/inbox/channel-registry.ts`, which also resolves legacy aliases like
+ * "web"); only the token → Lucide resolution lives here, because the registry
+ * is deliberately icon-library-free. Glyphs stay generic where the channel is
+ * generic (we key on `Conversation.channel`, never a provider, so we don't
+ * imply Gmail/Outlook/etc. without connection data to back it).
  */
-const channelMap = {
-  email: Mail,
-  whatsapp: Smartphone,
-  web_chat: MessageCircleMore,
-  web: MessageCircleMore,
-  portal: Globe,
-  manual: PenSquare,
-  default: MessageSquare,
-} as const
+const ICON_BY_TOKEN: Record<InboxChannelIconToken, LucideIcon> = {
+  mail: Mail,
+  smartphone: Smartphone,
+  "chat-bubble": MessageCircleMore,
+  globe: Globe,
+  "pen-square": PenSquare,
+  instagram: Instagram,
+  messenger: MessageCircle,
+  "music-note": Music2,
+  "message-sms": MessageSquareText,
+  generic: MessageSquare,
+}
 
 export function ConversationChannelBadge({
   channel,
@@ -39,7 +50,7 @@ export function ConversationChannelBadge({
   selected = false,
 }: ConversationChannelBadgeProps) {
   const { t } = useI18n()
-  const Icon = channelMap[channel as keyof typeof channelMap] ?? channelMap.default
+  const Icon = ICON_BY_TOKEN[getInboxChannel(channel)?.iconToken ?? "generic"]
 
   return (
     <span
