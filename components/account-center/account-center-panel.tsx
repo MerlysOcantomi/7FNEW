@@ -4,6 +4,7 @@ import Link from "next/link"
 import {
   AlertCircle,
   ArrowRightLeft,
+  Briefcase,
   Building2,
   CreditCard,
   KeyRound,
@@ -17,6 +18,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
+import { SETTINGS_ITEMS, type SettingsItemCatalogKey } from "@/components/account-center/settings-items"
 import type { ActiveWorkspaceSummary } from "@/hooks/use-active-workspace"
 import { cn } from "@/lib/utils"
 import { ThemeModeToggle } from "@/components/theme-mode-toggle"
@@ -117,43 +119,19 @@ function formatRoleLabel(role: string | null | undefined): string {
 }
 
 /**
- * Settings catalogue. We keep this static, declarative and inside the
- * component file because it's purely presentational metadata — no
- * authorisation lives here. Server-side routes still gate access for
- * each destination, and `disabled` items render a "Soon" tag without a
- * route so we never link to a 404.
- *
- * Real routes were verified against `app/administracion/**` before
- * adding them: `/administracion` and `/administracion/canales` exist
- * today, so they are wired live. The other items are placeholders we'll
- * activate as the corresponding pages land.
+ * Settings catalogue data lives in `settings-items.ts` (pure module) so the
+ * routing contract is testable without rendering the Sheet; the icon per
+ * item stays here because `core`-adjacent data modules never import an icon
+ * library (same split as the sidebar's `VERTICAL_NAV_ICONS`).
  */
-type SettingsItem = {
-  id: string
-  /** Copy comes from `settings.accountCenter.items` at render time. */
-  catalogKey: "workspaceSettings" | "members" | "planUsage" | "profile" | "security"
-  icon: LucideIcon
-  href?: string
-  /**
-   * Marks an item as not yet shipped. Renders as a non-clickable row
-   * with a "Soon" tag. Avoids 404s while the destination is being
-   * built. Flip to `false` and add `href` once the page exists.
-   */
-  comingSoon?: boolean
+const SETTINGS_ITEM_ICONS: Record<SettingsItemCatalogKey, LucideIcon> = {
+  workspaceSettings: SettingsIcon,
+  businessProfile: Briefcase,
+  members: Users,
+  planUsage: CreditCard,
+  profile: UserCircle,
+  security: KeyRound,
 }
-
-const SETTINGS_ITEMS: SettingsItem[] = [
-  {
-    id: "workspace-settings",
-    catalogKey: "workspaceSettings",
-    icon: SettingsIcon,
-    href: "/administracion",
-  },
-  { id: "members", catalogKey: "members", icon: Users, comingSoon: true },
-  { id: "plan-usage", catalogKey: "planUsage", icon: CreditCard, comingSoon: true },
-  { id: "profile", catalogKey: "profile", icon: UserCircle, comingSoon: true },
-  { id: "security", catalogKey: "security", icon: KeyRound, comingSoon: true },
-]
 
 /**
  * Section heading. Same uppercase tracking-wider treatment as the New
@@ -537,7 +515,7 @@ export function AccountCenterPanel({
                   return (
                     <li key={item.id}>
                       <ActionRow
-                        icon={item.icon}
+                        icon={SETTINGS_ITEM_ICONS[item.catalogKey]}
                         title={copy.label}
                         description={copy.description}
                         href={item.href}

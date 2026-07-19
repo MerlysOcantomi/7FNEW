@@ -191,6 +191,8 @@ export interface SettingsMessages {
     signOutDescription: string
     items: {
       workspaceSettings: { label: string; description: string }
+      /** Entry for the business identity editor at `/business-profile`. */
+      businessProfile: { label: string; description: string }
       members: { label: string; description: string }
       planUsage: { label: string; description: string }
       profile: { label: string; description: string }
