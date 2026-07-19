@@ -72,6 +72,21 @@ User-visible business content is Spanish; identifiers, keys and code are English
   (`{ enabled: true, type: "finesse-internal", ownerEmail }`) with run metadata
   under `finesseDemoMetadata`.
 
+## Safety model — target preflight (added in 7F-P01.B4)
+
+Beyond the marker/token safeguards, both `dry-run` and `seed` now classify
+the target workspace before anything else:
+
+| Target state | Result |
+|---|---|
+| Flagged demo (`config.demo.enabled: true`, `type: "finesse-internal"`) | Seed/re-seed allowed |
+| Not flagged, but zero unmarked clients/conversations (fresh workspace) | First activation allowed |
+| Not flagged AND holds unmarked clients or conversations | **Seed refuses to write** — that is what a real operator's workspace (e.g. Skina) looks like |
+
+The refusal can only be bypassed deliberately, with the workspace-bound
+override `FINESSE_DEMO_ALLOW_UNFLAGGED=ALLOW:<WORKSPACE_ID>` — there is no
+global "force" switch.
+
 ## How to run
 
 Requires `DATABASE_URL` (or `TURSO_DATABASE_URL`) and, for Turso,
@@ -102,6 +117,48 @@ task due-dates and invoice dates all recalculate relative to the current day.
 
 `--owner` can be replaced by `FINESSE_OWNER_EMAIL`, `--workspace-id` by
 `FINESSE_WORKSPACE_ID`.
+
+## Activating the demo on the real Turso database
+
+Run this from a machine that has the production credentials (e.g. a local
+checkout with the production `.env`, or values copied from the Vercel project
+settings). **Never paste tokens into a chat, commit, or log.**
+
+```bash
+# 1. Credentials — same variables the app uses (see .env.example).
+export TURSO_DATABASE_URL="libsql://<database>-<org>.turso.io"   # Turso dashboard
+export TURSO_AUTH_TOKEN="<auth token>"                            # Turso dashboard
+
+# 2. Find the Beauty demo workspace (lists your workspaces, tags Beauty ones).
+npm run demo:finesse:discover -- --owner <your login email>
+
+# 3. Read-only preflight — verifies membership, Beauty vertical, config JSON,
+#    the demo/fresh/real-workspace classification, and prints existing counts
+#    next to what would be created. Nothing is written.
+npm run demo:finesse:dry-run -- --workspace-id <WORKSPACE_ID> --owner <your login email>
+
+# 4. Seed — the dry-run prints this exact command including the token.
+FINESSE_DEMO_CONFIRM=SEED:<WORKSPACE_ID> \
+  npx tsx scripts/seed-finesse-demo.ts seed \
+  --workspace-id <WORKSPACE_ID> --owner <your login email>
+
+# 5. Idempotency check — run step 4 again: every line should say [update]
+#    and "Created" must be all zeros.
+```
+
+Then review in the deployment connected to that database:
+`/` (Mi salón), `/today` (Beauty Hoy), `/today?todayLayout=work_first`
+(workboard), `/business-profile`, `/calendario`, `/clientes`, `/inbox`,
+`/tareas`, `/facturacion`, `/services`.
+
+Notes:
+- If the dry-run reports **BLOCKED**, you pointed at a workspace with real,
+  unmarked data (for example the Skina workspace) — pick the demo workspace
+  from the discover list instead.
+- There is no `Workspace.timezone` field: "today" is always computed in the
+  browser timezone of whoever is looking, and the seeder plants dates
+  relative to the machine it runs on. Run the seed from your own timezone
+  (or re-run it any morning) so today's citas land on your calendar day.
 
 ## What the surfaces show afterwards
 

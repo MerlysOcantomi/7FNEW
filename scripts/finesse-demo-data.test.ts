@@ -26,6 +26,7 @@ import {
   mergeDemoWorkspaceConfig,
   mergeDemoBusinessProfile,
   shouldWriteDemoServiceCatalog,
+  assessDemoTarget,
   extractDemoMetadata,
 } from "./finesse-demo-utils"
 import {
@@ -651,6 +652,79 @@ test("shouldWriteDemoServiceCatalog: only when no canonical catalog resolves", (
   assert.equal(shouldWriteDemoServiceCatalog({}, null), true)
   assert.equal(shouldWriteDemoServiceCatalog({}, {}), true)
   assert.equal(shouldWriteDemoServiceCatalog({ serviceCatalog: [] }, { serviceCatalog: [] }), true)
+})
+
+test("assessDemoTarget: flagged demo workspace is always seedable", () => {
+  const flagged = { demo: { enabled: true, type: "finesse-internal", ownerEmail: "o@x.com" } }
+  const result = assessDemoTarget(flagged, {
+    totalClients: 20,
+    demoClients: 8,
+    totalConversations: 9,
+    demoConversations: 5,
+  })
+  assert.equal(result.status, "ok-flagged-demo")
+  assert.equal(result.flaggedDemo, true)
+  // Non-demo counts are still reported for the operator's eyes.
+  assert.equal(result.nonDemoClients, 12)
+  assert.equal(result.nonDemoConversations, 4)
+})
+
+test("assessDemoTarget: fresh unflagged workspace (no unmarked rows) is seedable", () => {
+  const result = assessDemoTarget({}, {
+    totalClients: 0,
+    demoClients: 0,
+    totalConversations: 0,
+    demoConversations: 0,
+  })
+  assert.equal(result.status, "ok-fresh")
+
+  // Marker-only rows (a previous seed run before the flag write failed) still
+  // count as fresh — every row is ours.
+  const markersOnly = assessDemoTarget({}, {
+    totalClients: 8,
+    demoClients: 8,
+    totalConversations: 5,
+    demoConversations: 5,
+  })
+  assert.equal(markersOnly.status, "ok-fresh")
+})
+
+test("assessDemoTarget: unflagged workspace WITH unmarked data is BLOCKED (real-workspace shape)", () => {
+  const result = assessDemoTarget({}, {
+    totalClients: 34,
+    demoClients: 0,
+    totalConversations: 120,
+    demoConversations: 0,
+  })
+  assert.equal(result.status, "blocked-unflagged-data")
+  assert.equal(result.nonDemoClients, 34)
+  assert.equal(result.nonDemoConversations, 120)
+
+  // A single unmarked conversation is enough to block — better safe.
+  const oneRow = assessDemoTarget({}, {
+    totalClients: 0,
+    demoClients: 0,
+    totalConversations: 1,
+    demoConversations: 0,
+  })
+  assert.equal(oneRow.status, "blocked-unflagged-data")
+})
+
+test("assessDemoTarget: a wrong/partial demo flag does not unlock seeding", () => {
+  for (const demo of [
+    { enabled: true, type: "other" },
+    { enabled: false, type: "finesse-internal" },
+    "corrupted",
+    null,
+  ]) {
+    const result = assessDemoTarget({ demo }, {
+      totalClients: 5,
+      demoClients: 0,
+      totalConversations: 0,
+      demoConversations: 0,
+    })
+    assert.equal(result.status, "blocked-unflagged-data", JSON.stringify(demo))
+  }
 })
 
 test("marker fields enable safe restoration/deletion without touching real data", () => {

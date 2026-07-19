@@ -13,6 +13,10 @@
  *   - Config-safe: validates Workspace.config JSON, rejects invalid configs
  *   - Relative dates: recalculated on each run so no drift
  *   - Conversation safety: uses source field for markers, preserves visible subject
+ *   - Real-workspace guard: a workspace that is NOT flagged as the internal
+ *     demo AND holds unmarked clients/conversations is refused (see
+ *     `assessDemoTarget`); overridable only with the workspace-bound
+ *     FINESSE_DEMO_ALLOW_UNFLAGGED=ALLOW:<workspaceId>
  *
  * Marker fields:
  *   - Cliente.customId: FINESSE_DEMO:client:01
@@ -56,6 +60,8 @@ import {
   mergeDemoWorkspaceConfig,
   mergeDemoBusinessProfile,
   shouldWriteDemoServiceCatalog,
+  assessDemoTarget,
+  type DemoTargetAssessment,
 } from "./finesse-demo-utils"
 import { BEAUTY_NAV_VERTICAL_KEYS } from "../core/vertical-packs/nav-profile"
 import { BEAUTY_PACK, buildBeautyDefaultConfig } from "../core/vertical-packs/beauty"
@@ -98,6 +104,39 @@ function parseArgs(): CommandContext {
 function isBeautyWorkspace(verticalKey: string | null): boolean {
   if (!verticalKey) return false
   return BEAUTY_NAV_VERTICAL_KEYS.has(verticalKey)
+}
+
+/**
+ * Preflight: classify the target workspace (flagged demo / fresh / real-looking)
+ * from its config + marker-aware row counts. Read-only.
+ */
+async function assessTargetWorkspace(
+  workspaceId: string,
+  configParsed: Record<string, unknown>,
+): Promise<DemoTargetAssessment> {
+  const [totalClients, demoClients, totalConversations, demoConversations] = await Promise.all([
+    db.cliente.count({ where: { workspaceId } }),
+    db.cliente.count({ where: { workspaceId, customId: { startsWith: "FINESSE_DEMO:" } } }),
+    db.conversation.count({ where: { workspaceId } }),
+    db.conversation.count({ where: { workspaceId, source: { startsWith: "FINESSE_DEMO:" } } }),
+  ])
+  return assessDemoTarget(configParsed, {
+    totalClients,
+    demoClients,
+    totalConversations,
+    demoConversations,
+  })
+}
+
+function describeAssessment(a: DemoTargetAssessment): string {
+  switch (a.status) {
+    case "ok-flagged-demo":
+      return "workspace is flagged as the Finesse internal demo (config.demo) — safe to (re)seed"
+    case "ok-fresh":
+      return "workspace is not flagged yet but holds no unmarked data — first activation is safe"
+    case "blocked-unflagged-data":
+      return `workspace is NOT flagged as demo and holds unmarked data (${a.nonDemoClients} client(s), ${a.nonDemoConversations} conversation(s)) — it looks like a REAL workspace`
+  }
 }
 
 /**
@@ -191,6 +230,17 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`[dry-run] ✓ User ${user.email} is member of workspace ${workspace.nombre}`)
   console.log(`[dry-run] ✓ Workspace is Beauty vertical: ${workspace.verticalKey}`)
   console.log(`[dry-run] ✓ Workspace.config is valid JSON (or empty)`)
+
+  // Preflight: is this actually the demo workspace (or a safe fresh one)?
+  const assessment = await assessTargetWorkspace(workspaceId, configParsed)
+  if (assessment.status === "blocked-unflagged-data") {
+    console.error(`[dry-run] ✗ BLOCKED: ${describeAssessment(assessment)}`)
+    console.error(
+      `[dry-run]   The seed mode will refuse this workspace. If you are absolutely sure it is the demo, set FINESSE_DEMO_ALLOW_UNFLAGGED=ALLOW:${workspaceId}`,
+    )
+  } else {
+    console.log(`[dry-run] ✓ Target check: ${describeAssessment(assessment)}`)
+  }
 
   const existingClientCount = await db.cliente.count({ where: { workspaceId } })
   const existingEventCount = await db.evento.count({ where: { workspaceId } })
@@ -296,6 +346,27 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
     console.error(`[seed] Demo dataset is invalid — aborting without modifications:`)
     for (const err of datasetValidation.errors) console.error(`  - ${err}`)
     process.exit(1)
+  }
+
+  // Preflight: refuse anything that looks like a REAL operator workspace.
+  // A workspace qualifies only when it is already flagged as the internal
+  // demo, or when it is fresh (no unmarked clients/conversations). The
+  // explicit override exists for a deliberate operator decision and is
+  // workspace-bound, so it can never be left set globally by accident.
+  const assessment = await assessTargetWorkspace(workspaceId, configParsed)
+  if (assessment.status === "blocked-unflagged-data") {
+    const override = process.env.FINESSE_DEMO_ALLOW_UNFLAGGED
+    if (override !== `ALLOW:${workspaceId}`) {
+      console.error(`[seed] ✗ BLOCKED: ${describeAssessment(assessment)}`)
+      console.error(`[seed]   No rows were written.`)
+      console.error(
+        `[seed]   Only if you are absolutely sure this is the demo workspace, re-run with FINESSE_DEMO_ALLOW_UNFLAGGED=ALLOW:${workspaceId}`,
+      )
+      process.exit(1)
+    }
+    console.log(`[seed] ⚠ Unflagged workspace with unmarked data — proceeding under explicit override`)
+  } else {
+    console.log(`[seed] ✓ Target check: ${describeAssessment(assessment)}`)
   }
 
   console.log(`[seed] ✓ All pre-checks passed`)

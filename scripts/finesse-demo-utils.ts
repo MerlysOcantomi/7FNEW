@@ -130,6 +130,61 @@ export function shouldWriteDemoServiceCatalog(
 }
 
 /**
+ * Preflight assessment of a seed target — the guard that keeps the seeder
+ * from ever writing into a REAL client workspace by mistake.
+ *
+ * Rules (pure, tested):
+ *   - `ok-flagged-demo`  → the workspace already carries the canonical demo
+ *     flag (`config.demo.enabled === true` + `type: "finesse-internal"`).
+ *     Re-runs are safe by construction (markers).
+ *   - `ok-fresh`         → not flagged yet, but it contains NO unmarked
+ *     clients/conversations — a fresh workspace being activated for the
+ *     first time.
+ *   - `blocked-unflagged-data` → not flagged AND it holds rows the seeder
+ *     did not create (clients/conversations without FINESSE_DEMO markers).
+ *     That is what a real operator's workspace looks like — the seeder must
+ *     STOP without writing.
+ */
+export interface DemoTargetCounts {
+  totalClients: number
+  demoClients: number
+  totalConversations: number
+  demoConversations: number
+}
+
+export interface DemoTargetAssessment {
+  status: "ok-flagged-demo" | "ok-fresh" | "blocked-unflagged-data"
+  flaggedDemo: boolean
+  nonDemoClients: number
+  nonDemoConversations: number
+}
+
+export function assessDemoTarget(
+  config: Record<string, unknown>,
+  counts: DemoTargetCounts,
+): DemoTargetAssessment {
+  const demo =
+    typeof config.demo === "object" && config.demo !== null && !Array.isArray(config.demo)
+      ? (config.demo as Record<string, unknown>)
+      : {}
+  const flaggedDemo = demo.enabled === true && demo.type === "finesse-internal"
+
+  const nonDemoClients = Math.max(0, counts.totalClients - counts.demoClients)
+  const nonDemoConversations = Math.max(
+    0,
+    counts.totalConversations - counts.demoConversations,
+  )
+
+  if (flaggedDemo) {
+    return { status: "ok-flagged-demo", flaggedDemo, nonDemoClients, nonDemoConversations }
+  }
+  if (nonDemoClients === 0 && nonDemoConversations === 0) {
+    return { status: "ok-fresh", flaggedDemo, nonDemoClients, nonDemoConversations }
+  }
+  return { status: "blocked-unflagged-data", flaggedDemo, nonDemoClients, nonDemoConversations }
+}
+
+/**
  * Extract demo metadata from Workspace.config.
  * Returns the demo metadata object or empty object if not found.
  */
