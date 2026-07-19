@@ -374,9 +374,15 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
 
   // Execute seed inside a transaction
   try {
-    await db.$transaction(async (tx) => {
-      await performSeed(tx, workspaceId, configParsed, ownerEmail, user.id, workspace.verticalKey)
-    })
+    await db.$transaction(
+      async (tx) => {
+        await performSeed(tx, workspaceId, configParsed, ownerEmail, user.id, workspace.verticalKey)
+      },
+      // The seed issues ~100 sequential lookups+writes against a remote Turso
+      // database; Prisma's 5s default interactive-transaction timeout expires
+      // mid-run on network latency alone.
+      { maxWait: 30_000, timeout: 300_000 },
+    )
     console.log(`[seed] ✓ Demo data operation completed successfully`)
   } catch (error) {
     console.error(`[seed] Transaction failed:`, error instanceof Error ? error.message : String(error))
