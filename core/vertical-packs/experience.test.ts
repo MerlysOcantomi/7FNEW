@@ -50,10 +50,10 @@ test("beauty: full resolved experience", () => {
   assert.equal(e.defaultThemeKey, "rose-nude")
   assert.deepEqual(e.availableThemeKeys, ["rose-nude", "sage-luxe", "noir-or"])
   assert.equal(e.todayMode, "appointment_first")
-  // P0 guardrail: Beauty DECLARES appointment_first, but that layout still
-  // renders demo bookings, so a real Beauty workspace must NOT activate it.
-  // The gate mirrors BEAUTY_PACK.today.activateRealForRealWorkspaces (false).
-  assert.equal(e.todayActivatesRealWorkspaces, false)
+  // The gate mirrors BEAUTY_PACK.today.activateRealForRealWorkspaces — ON
+  // since 7F-P01.B3: the Beauty Today reads real data, so real workspaces
+  // activate it.
+  assert.equal(e.todayActivatesRealWorkspaces, true)
   assert.equal(e.navProfileId, "beauty")
   assert.deepEqual(e.recommendedChannels, ["whatsapp", "instagram", "email"])
   assert.deepEqual(e.recommendedModules, [
@@ -72,8 +72,8 @@ test("beauty aliases (salon/nails/…) resolve to the beauty experience", () => 
     assert.equal(e.businessType, "beauty", `${key} → beauty`)
     assert.equal(e.specialistAgentId, "finesse")
     assert.equal(e.todayMode, "appointment_first")
-    // Aliases inherit the same guardrail — none auto-activates the demo Today.
-    assert.equal(e.todayActivatesRealWorkspaces, false, `${key} gated`)
+    // Aliases inherit the same gate — all activate the REAL Beauty Today.
+    assert.equal(e.todayActivatesRealWorkspaces, true, `${key} activated`)
     assert.equal(e.defaultThemeKey, "rose-nude")
   }
 })

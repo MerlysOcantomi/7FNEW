@@ -61,6 +61,57 @@ export const es = {
       connectMarketing: "Disponible al conectar Marketing",
     },
   },
+  real: {
+    signals: {
+      appointments: (count) => (count === 1 ? "1 cita" : `${count} citas`),
+      remaining: (count) => (count === 1 ? "1 por delante" : `${count} por delante`),
+      gaps: (count) => (count === 1 ? "1 hueco libre" : `${count} huecos libres`),
+    },
+    nextTitle: "Próxima cita",
+    nextNone: "No quedan más citas hoy.",
+    phaseCurrent: "En curso",
+    agendaEmpty: "No hay citas programadas para hoy.",
+    openCalendar: "Abrir agenda",
+    openClient: "Ver cliente",
+    gapRow: {
+      title: (start, end) => `Hueco libre · ${start} – ${end}`,
+      minutes: (minutes) => `${minutes} min`,
+    },
+    urgentTitle: "Para hoy",
+    suggestedTitle: "Finesse sugiere",
+    basisPrefix: "Basado en:",
+    proposedLabel: "Propuesta",
+    waitingLabel: "En espera",
+    overdueLabel: "Atrasada",
+    dueAtLabel: (time) => `Para las ${time}`,
+    open: "Abrir",
+    messagesRow: (count) =>
+      count === 1 ? "1 mensaje sin responder" : `${count} mensajes sin responder`,
+    openInbox: "Abrir inbox",
+    overdueInvoicesRow: (count, amount) =>
+      count === 1 ? `1 factura vencida (${amount})` : `${count} facturas vencidas (${amount})`,
+    pendingInvoicesRow: (count, amount) =>
+      count === 1
+        ? `1 factura pendiente de cobro (${amount})`
+        : `${count} facturas pendientes de cobro (${amount})`,
+    openBilling: "Ver cobros",
+    otherTasksRow: (count) =>
+      count === 1 ? "1 tarea más en tu tablero" : `${count} tareas más en tu tablero`,
+    openWorkboard: "Abrir el tablero de trabajo",
+    allClear: "Todo en orden — nada urgente ahora mismo. ✨",
+    emptyDay: {
+      title: "Tu día está libre",
+      description:
+        "Todavía no hay citas, tareas ni mensajes pendientes. La agenda es el lugar para añadir la primera reserva.",
+      cta: "Abrir agenda",
+    },
+    error: {
+      title: "No pudimos cargar tu día",
+      description: "Algo falló al cargar los datos de hoy.",
+      retry: "Reintentar",
+    },
+    loading: "Cargando tu día…",
+  },
   demo: {
     assistantNote:
       "Vas bien de día. Antes de la tarde, protege el color VIP de las 16:30 y ofrece el hueco libre a un cliente frecuente.",

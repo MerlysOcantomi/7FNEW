@@ -131,6 +131,12 @@ task due-dates and invoice dates all recalculate relative to the current day.
   yet (the service catalog schema is name/category/active only).
 - No extra team members are created: `WorkspaceMember` requires real auth
   users, and inventing logins is out of scope for demo data.
-- The Beauty `appointment_first` Today stays gated
-  (`activateRealForRealWorkspaces: false`) until a real appointment backend
-  exists; the demo workspace uses the real workboard.
+- The Beauty `appointment_first` Today is REAL and active
+  (`activateRealForRealWorkspaces: true` since 7F-P01.B3): `GET /api/today/beauty`
+  composes today's citas (`Evento` + `Cliente`), honest free gaps, the SAME
+  task reality as the workboard (via `aggregateToday`), pending messages and
+  urgent collections. `Evento` still has no attendance/confirmation state or
+  price, so the surface never claims completed/no-show or a booked value.
+  The mock Studio preview survives only behind `?todayData=mock` (or the
+  `?vertical=beauty` forced preview on a non-Beauty workspace); the work-first
+  workboard stays reachable via `/today?todayLayout=work_first`.

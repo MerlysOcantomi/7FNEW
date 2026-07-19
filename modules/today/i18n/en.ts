@@ -60,6 +60,57 @@ export const en = {
       connectMarketing: "Available once Marketing is connected",
     },
   },
+  real: {
+    signals: {
+      appointments: (count) => (count === 1 ? "1 appointment" : `${count} appointments`),
+      remaining: (count) => (count === 1 ? "1 still ahead" : `${count} still ahead`),
+      gaps: (count) => (count === 1 ? "1 open gap" : `${count} open gaps`),
+    },
+    nextTitle: "Next appointment",
+    nextNone: "No more appointments today.",
+    phaseCurrent: "Happening now",
+    agendaEmpty: "No appointments scheduled for today.",
+    openCalendar: "Open calendar",
+    openClient: "View client",
+    gapRow: {
+      title: (start, end) => `Free slot · ${start} – ${end}`,
+      minutes: (minutes) => `${minutes} min`,
+    },
+    urgentTitle: "For today",
+    suggestedTitle: "Finesse suggests",
+    basisPrefix: "Based on:",
+    proposedLabel: "Proposal",
+    waitingLabel: "Waiting",
+    overdueLabel: "Overdue",
+    dueAtLabel: (time) => `Due ${time}`,
+    open: "Open",
+    messagesRow: (count) =>
+      count === 1 ? "1 message awaiting reply" : `${count} messages awaiting reply`,
+    openInbox: "Open inbox",
+    overdueInvoicesRow: (count, amount) =>
+      count === 1 ? `1 overdue invoice (${amount})` : `${count} overdue invoices (${amount})`,
+    pendingInvoicesRow: (count, amount) =>
+      count === 1
+        ? `1 invoice awaiting payment (${amount})`
+        : `${count} invoices awaiting payment (${amount})`,
+    openBilling: "View billing",
+    otherTasksRow: (count) =>
+      count === 1 ? "1 more task on your board" : `${count} more tasks on your board`,
+    openWorkboard: "Open the work board",
+    allClear: "All clear — nothing urgent right now. ✨",
+    emptyDay: {
+      title: "Your day is open",
+      description:
+        "No appointments, tasks or pending messages yet. Your calendar is the place to add the first booking.",
+      cta: "Open calendar",
+    },
+    error: {
+      title: "We couldn't load your day",
+      description: "Something went wrong while loading today's data.",
+      retry: "Try again",
+    },
+    loading: "Loading your day…",
+  },
   demo: {
     assistantNote:
       "Your day is on track. Before the afternoon, protect the 16:30 VIP colour and offer the open slot to a regular client.",

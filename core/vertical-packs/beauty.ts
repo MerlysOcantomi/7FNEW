@@ -14,9 +14,10 @@
  *   - No new routes, no new modules. `modules` is a visibility record, not code.
  *   - Spanish (España) strings live here, in the pack — never hardcoded inside a
  *     core module.
- *   - `today.mode` is DECLARED as `appointment_first`, but the real appointment
- *     Today stays gated (`activateRealForRealWorkspaces: false`) until a real
- *     appointment backend exists. No real operator is shown demo bookings.
+ *   - `today.mode` is `appointment_first` and its activation gate is ON
+ *     (`activateRealForRealWorkspaces: true` since 7F-P01.B3): the Beauty
+ *     Today runs on the real backend, so no operator is ever shown demo
+ *     bookings — mocks survive only behind explicit QA params.
  */
 
 import { BEAUTY_SPECIALIST_AGENT, type VerticalSpecialistAgent } from "./specialists"
@@ -133,9 +134,12 @@ export interface BeautyPack {
     mode: "appointment_first"
     /**
      * Gate: while `false`, a REAL Beauty workspace never auto-switches into the
-     * appointment Today (which currently renders demo data). Real users stay on
-     * the safe default (`work_first`) until a real appointment backend lands.
-     * Preview/design review is still reachable via `?todayLayout=appointment_first`.
+     * appointment Today. Flipped ON in 7F-P01.B3: the appointment Today now
+     * runs on the REAL backend (`GET /api/today/beauty` →
+     * `modules/today/beauty-aggregator.ts` over Evento/Cliente + the same
+     * `aggregateToday` task reality as the workboard), so real operators see
+     * their own data. The mock Studio preview survives only behind
+     * `?todayData=mock` / the forced `?vertical=beauty` design preview.
      */
     activateRealForRealWorkspaces: boolean
   }
@@ -165,7 +169,7 @@ export const BEAUTY_PACK: BeautyPack = {
   recommendedModules: ["calendar", "clients", "messages", "marketing", "catalog", "services"],
   today: {
     mode: "appointment_first",
-    activateRealForRealWorkspaces: false,
+    activateRealForRealWorkspaces: true,
   },
   modules: BEAUTY_MODULE_VISIBILITY,
   labels: BEAUTY_LABEL_OVERRIDES,

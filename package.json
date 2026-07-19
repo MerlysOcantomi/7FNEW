@@ -26,7 +26,7 @@
     "test:today-jobs": "tsx --test modules/today/jobs.test.ts",
     "test:today-sessions": "tsx --test modules/today/sessions.test.ts",
     "test:today": "tsx --test modules/today/today-layout-mode.test.ts modules/today/briefing.test.ts modules/today/jobs.test.ts modules/today/sessions.test.ts",
-    "test:beauty-today": "tsx --test modules/today/beauty-today.test.ts",
+    "test:beauty-today": "tsx --test modules/today/beauty-today.test.ts modules/today/beauty-real.test.ts",
     "test:marketing": "tsx --test modules/marketing/state.test.ts modules/marketing/i18n.test.ts",
     "test:overview": "tsx --test modules/overview/overview.test.ts modules/overview/real-snapshot.test.ts",
     "test:assistant": "tsx --test modules/assistant/finesse-assistant.test.ts modules/assistant/finesse-suggestions.test.ts modules/assistant/finesse-voice-policy.test.ts modules/assistant/finesse-voice-messages.test.ts modules/assistant/finesse-long-press.test.ts",
