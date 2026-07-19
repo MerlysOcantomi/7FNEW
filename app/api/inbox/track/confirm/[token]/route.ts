@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { verifyTrackingToken, type TrackingTokenPayload } from "@core/inbox-tracking"
+import { applyDeliveryEventToMessage } from "@modules/inbox/delivery-service"
 
 /**
  * Public manual receipt-confirmation endpoint. The customer clicks a CTA in the email body and
@@ -95,10 +96,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
      * Idempotent: keep the original click time. Repeated visits do not bump confirmedReadAt
      * so the UI sees a stable "Confirmed received · {original time}" label.
      */
+    const confirmedReadAt = currentMeta.confirmedReadAt ?? new Date().toISOString()
     if (!currentMeta.confirmedReadAt) {
       const updatedMeta = {
         ...currentMeta,
-        confirmedReadAt: new Date().toISOString(),
+        confirmedReadAt,
       }
       try {
         await db.message.update({
@@ -109,6 +111,21 @@ export async function GET(_request: NextRequest, { params }: Params) {
         console.error(`[inbox-tracking] Could not record confirm for msg=${messageId}:`, err)
         /** Still render success page — the customer did click, blame is internal. */
       }
+    }
+
+    /**
+     * Dual-write (INBOX-DATA-04B): an explicit recipient confirmation is the
+     * strongest read evidence → `readSource: "manual"` (upgrades a pixel
+     * inference; idempotent on repeat visits via the projection helper).
+     */
+    try {
+      await applyDeliveryEventToMessage(messageId, {
+        type: "read",
+        at: new Date(confirmedReadAt),
+        readSource: "manual",
+      })
+    } catch (err) {
+      console.error(`[inbox-tracking] Could not project confirm for msg=${messageId}:`, err)
     }
 
     return renderPage({ ok: true })

@@ -4,6 +4,7 @@ import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
+import { recordOutboundSendResult } from "@modules/inbox/delivery-service"
 
 const TAG = "[inbox/compose]"
 
@@ -212,5 +213,17 @@ async function sendComposeEmail(input: SendComposeInput) {
     })
   } catch (metaErr) {
     console.error(`${TAG} Could not update metadata msg=${input.messageId}:`, metaErr)
+  }
+
+  /** Dual-write (INBOX-DATA-04B): normalized delivery projection + provider id. */
+  try {
+    await recordOutboundSendResult({
+      messageId: input.messageId,
+      ok: emailStatus === "sent",
+      providerMessageId: resendId,
+      failureCode: "email_send_failed",
+    })
+  } catch (projErr) {
+    console.error(`${TAG} Could not project delivery msg=${input.messageId}:`, projErr)
   }
 }

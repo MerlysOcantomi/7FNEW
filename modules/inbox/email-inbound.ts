@@ -3,6 +3,9 @@ import { addMessage } from "./service"
 import { runConversationIntelligence } from "./intelligence"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 import { logActivity } from "@core/activity"
+import { buildIdentityDescriptor } from "./identity-resolution"
+import { recordInboundIdentity } from "./identity-service"
+import { createMessageAttachments } from "./attachment-service"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -344,6 +347,17 @@ async function findWorkspaceScopedDuplicate(args: {
   const { workspaceId, sourceId, messageId } = args
 
   if (sourceId) {
+    /**
+     * INBOX-DATA-04B: prefer the indexed normalized column
+     * ([workspaceId, connectionId, sourceMessageId]) over metadata substring
+     * scans. The metadata scan below stays as the HISTORICAL fallback for
+     * rows ingested before the column was dual-written.
+     */
+    const indexed = await db.message.findFirst({
+      where: { workspaceId, direction: "inbound", sourceMessageId: sourceId },
+      select: { id: true, conversationId: true },
+    })
+    if (indexed) return { id: indexed.id, conversationId: indexed.conversationId, matchedBy: "sourceId" }
     const hit = await db.message.findFirst({
       where: { workspaceId, direction: "inbound", metadata: { contains: sourceId } },
       select: { id: true, conversationId: true },
@@ -619,6 +633,8 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
     content,
     contentType: "text",
     connectionId,
+    /** INBOX-DATA-04B: normalized provider id (indexed dedup); metadata keeps it too. */
+    sourceMessageId: input.sourceId,
     metadata: {
       source: input.source,
       sourceId: input.sourceId,
@@ -635,6 +651,44 @@ export async function ingestInboundEmail(input: IngestInboundEmailInput): Promis
   })
 
   if (!message) throw new Error("Failed to create inbound message")
+
+  /**
+   * Dual-write (INBOX-DATA-04B) — best-effort, never blocks ingestion:
+   *  - external identity for the sender address + association evidence for
+   *    the contact the legacy resolution above chose (conflicts become
+   *    suggested links, logged with hashed values only);
+   *  - normalized MessageAttachment rows for the blob-stored attachments
+   *    (metadata array above remains the legacy fallback source).
+   */
+  try {
+    const descriptor = buildIdentityDescriptor({
+      channel: "email",
+      kind: "email",
+      rawValue: senderEmail,
+    })
+    if (descriptor) {
+      await recordInboundIdentity({
+        workspaceId,
+        descriptor,
+        displayValue: senderName ?? senderEmail,
+        contactId,
+      })
+    }
+  } catch (err) {
+    console.error(`${tag} identity dual-write failed conv=${conversationId}:`, err)
+  }
+  if (input.attachments && input.attachments.length > 0) {
+    try {
+      await createMessageAttachments({
+        workspaceId,
+        messageId: message.id,
+        provider: input.source,
+        attachments: input.attachments,
+      })
+    } catch (err) {
+      console.error(`${tag} attachment dual-write failed msg=${message.id}:`, err)
+    }
+  }
 
   // ---- Post-processing (fire-and-forget) ----
   db.conversation
