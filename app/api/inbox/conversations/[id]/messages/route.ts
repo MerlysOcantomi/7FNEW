@@ -4,8 +4,7 @@ import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
-import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
-import { recordOutboundSendResult } from "@modules/inbox/delivery-service"
+import { sendConversationMessage } from "@modules/inbox/outbound-service"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
@@ -26,160 +25,30 @@ interface OutboundAsyncInput {
 }
 
 async function sendOutboundAsync(input: OutboundAsyncInput) {
-  const { workspaceId, conversationId, messageId, messageContent, sendMode } = input
-
-  const conv = await db.conversation.findFirst({
-    where: { id: conversationId, workspaceId },
-    select: {
-      channel: true,
-      subject: true,
-      connectionId: true,
-      contact: { select: { email: true } },
-      workspace: { select: { nombre: true, config: true } },
-    },
+  /**
+   * INBOX-TRANSPORT-05C: the common outbound service owns the flow
+   * (channel capability gate, transport resolution, send, delivery
+   * projection, legacy metadata dual-write). The old inline email logic
+   * lives in modules/inbox/transport/email-transport.ts. `enrichedMetadata`
+   * is already persisted on the message row; the service merges over it.
+   */
+  void input.enrichedMetadata
+  const outcome = await sendConversationMessage({
+    workspaceId: input.workspaceId,
+    conversationId: input.conversationId,
+    messageId: input.messageId,
+    content: input.messageContent,
+    mode: input.sendMode,
+    cc: input.parsedCc,
+    bcc: input.parsedBcc,
+    to: input.parsedTo,
+    attachments: input.parsedAttachments,
+    requestConfirmation: input.requestConfirmation,
   })
-
-  if (conv?.channel !== "email") return
-  const contactEmail = conv.contact?.email?.trim()
-  if (!contactEmail) {
-    console.warn(`[email-outbound] No contact email for conv=${conversationId}, skipping send`)
-    return
-  }
-
-  let connectionSender: ConnectionSender | null = null
-  if (conv.connectionId) {
-    /**
-     * Workspace-scoped lookup. The previous `findUnique({ where: { id } })` would happily
-     * return a row from another tenant if `conv.connectionId` were ever pointed at one
-     * (data anomaly, restore-from-backup mismatch, manual SQL). Sending an outbound email
-     * via a foreign workspace's SMTP credentials would be the worst kind of cross-tenant
-     * leak: customer A's reply going out from customer B's mail server. The compound
-     * `findFirst` filter eliminates that class of bug as defense-in-depth — even if the
-     * conversation row is malformed, we silently drop the connection here and the caller
-     * falls back to the env-level `INBOX_FROM_EMAIL` / `RESEND_FROM_EMAIL` instead.
-     */
-    const conn = await db.channelConnection.findFirst({
-      where: { id: conv.connectionId, workspaceId },
-      select: { provider: true, config: true, credentials: true, externalAccountId: true },
-    })
-    if (conn) {
-      const cfg = conn.config ? JSON.parse(conn.config) as Record<string, string> : null
-      const fromEmail = cfg?.fromEmail || conn.externalAccountId || ""
-      if (fromEmail) {
-        connectionSender = {
-          fromEmail,
-          fromName: cfg?.fromName || null,
-          provider: conn.provider as "resend" | "imap_smtp",
-        }
-        if (conn.provider === "imap_smtp" && conn.credentials && cfg) {
-          connectionSender.smtpConfig = {
-            smtpHost: cfg.smtpHost || "",
-            smtpPort: Number(cfg.smtpPort) || 465,
-            smtpSecure: cfg.smtpSecure !== "false",
-            fromEmail,
-            fromName: cfg.fromName || null,
-          }
-          connectionSender.encryptedCredentials = conn.credentials
-        }
-      }
-    }
-  }
-
-  const fromAddress = connectionSender?.fromEmail
-    || process.env.INBOX_FROM_EMAIL
-    || process.env.RESEND_FROM_EMAIL
-    || undefined
-
-  let emailStatus = "pending"
-  let emailError: string | undefined
-  let resendId: string | undefined
-
-  /**
-   * Open-tracking is enabled by default; workspaces may opt-out via
-   * `workspace.config.email.openTracking.enabled = false`. Per-message overrides will land in
-   * Phase 3 (manual confirmation) — for Phase 2 the pixel ships on every outbound email reply.
-   */
-  const openTrackingEnabled = (() => {
-    const raw = conv.workspace.config
-    if (!raw) return true
-    try {
-      const parsed = JSON.parse(raw) as { email?: { openTracking?: { enabled?: boolean } } }
-      const enabled = parsed?.email?.openTracking?.enabled
-      return enabled !== false
-    } catch {
-      return true
-    }
-  })()
-
-  try {
-    const result = await sendOutboundEmail({
-      workspaceName: conv.workspace.nombre,
-      contactEmail,
-      subject: conv.subject ?? "",
-      messageContent,
-      workspaceConfig: conv.workspace.config,
-      mode: sendMode,
-      connectionSender,
-      tracking: {
-        enabled: openTrackingEnabled,
-        askConfirm: input.requestConfirmation,
-        messageId,
-        workspaceId,
-      },
-      ...(input.parsedAttachments.length > 0 ? { attachments: input.parsedAttachments } : {}),
-      ...(input.parsedCc.length > 0 ? { cc: input.parsedCc } : {}),
-      ...(input.parsedBcc.length > 0 ? { bcc: input.parsedBcc } : {}),
-      ...(input.parsedTo.length > 0 ? { to: input.parsedTo } : {}),
-    })
-
-    if (result.ok) {
-      emailStatus = "sent"
-      resendId = result.id
-      console.log(`[email-outbound] OK conv=${conversationId} msg=${messageId} to=${contactEmail} from=${fromAddress} resendId=${result.id}`)
-    } else {
-      emailStatus = "failed"
-      emailError = result.error || "Email delivery failed"
-      console.error(`[email-outbound] FAILED conv=${conversationId} msg=${messageId} to=${contactEmail}: ${emailError}`)
-    }
-  } catch (err) {
-    emailStatus = "failed"
-    emailError = err instanceof Error ? err.message : "Email service unavailable"
-    console.error(`[email-outbound] EXCEPTION conv=${conversationId} msg=${messageId} to=${contactEmail}: ${emailError}`)
-  }
-
-  try {
-    const currentMeta = input.enrichedMetadata && typeof input.enrichedMetadata === "object" ? input.enrichedMetadata : {}
-    await db.message.update({
-      where: { id: messageId },
-      data: {
-        metadata: JSON.stringify({
-          ...(currentMeta as Record<string, unknown>),
-          emailStatus,
-          ...(resendId ? { resendId } : {}),
-          ...(emailError ? { emailError } : {}),
-          ...(fromAddress ? { fromAddress } : {}),
-          emailAttemptedAt: new Date().toISOString(),
-        }),
-      },
-    })
-  } catch (metaErr) {
-    console.error(`[email-outbound] Could not update message metadata msg=${messageId}:`, metaErr)
-  }
-
-  /**
-   * Dual-write (INBOX-DATA-04B): normalized delivery projection +
-   * provider-assigned id in `sourceMessageId`. Metadata above stays the
-   * legacy source; best-effort — never blocks the send path.
-   */
-  try {
-    await recordOutboundSendResult({
-      messageId,
-      ok: emailStatus === "sent",
-      providerMessageId: resendId,
-      failureCode: "email_send_failed",
-    })
-  } catch (projErr) {
-    console.error(`[email-outbound] Could not project delivery msg=${messageId}:`, projErr)
+  if (outcome.status === "skipped") {
+    console.warn(
+      `[email-outbound] Send skipped conv=${input.conversationId} msg=${input.messageId}: ${outcome.errorCode}`,
+    )
   }
 }
 

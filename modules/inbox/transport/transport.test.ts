@@ -15,6 +15,7 @@ import {
 import {
   buildEmailThreadingFromMetadata,
   normalizeRfcMessageId,
+  shouldBuildReplyThreading,
 } from "./email-threading"
 import type { ChannelSendInput, ChannelTransport } from "./contracts"
 
@@ -253,4 +254,11 @@ test("messages without a usable parent id produce no headers (unthreaded send)",
     buildEmailThreadingFromMetadata(JSON.stringify({ emailMessageId: "not a message id" })),
     null,
   )
+})
+
+test("replies and reply-alls thread; forwards start a new thread", () => {
+  assert.equal(shouldBuildReplyThreading("reply"), true)
+  assert.equal(shouldBuildReplyThreading("reply_all"), true)
+  assert.equal(shouldBuildReplyThreading(undefined), true)
+  assert.equal(shouldBuildReplyThreading("forward"), false)
 })
