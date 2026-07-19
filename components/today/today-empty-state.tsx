@@ -1,7 +1,6 @@
 "use client"
 
 import { CheckCircle2 } from "lucide-react"
-import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -15,6 +14,10 @@ import { useI18n } from "@/components/i18n-provider"
  * The link to `/inbox` is a soft escape hatch for the operator who lands on
  * Today before any work has accumulated; it's the most common "what next?"
  * destination in the workspace.
+ *
+ * This intentionally uses a native anchor instead of Next's client-side Link.
+ * The CTA must always request the canonical inbox route directly and must never
+ * reuse a cached `/inbox/overview` navigation payload from the old destination.
  */
 export function TodayEmptyState() {
   const { t } = useI18n()
@@ -38,12 +41,12 @@ export function TodayEmptyState() {
       <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary-light)]">
         {copy.body}
       </p>
-      <Link
+      <a
         href="/inbox"
         className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
       >
         {copy.inboxCta}
-      </Link>
+      </a>
     </div>
   )
 }
