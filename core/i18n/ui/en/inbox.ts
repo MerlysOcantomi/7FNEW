@@ -26,6 +26,7 @@ export const inbox: InboxMessages = {
     channelsHeading: "Channels",
     closeChannelPicker: "Close channel picker",
     allChannels: "All channels",
+    channelComingSoon: "Coming soon",
     allStatuses: "All statuses",
     moreFilters: "More filters",
     filtersOnBadge: "on",

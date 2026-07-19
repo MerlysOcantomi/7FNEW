@@ -814,6 +814,8 @@ export interface InboxMessages {
     channelsHeading: string
     closeChannelPicker: string
     allChannels: string
+    /** Suffix for planned channels rendered as disabled options ("Coming soon"). */
+    channelComingSoon: string
     allStatuses: string
     moreFilters: string
     /** Tiny badge shown when an advanced filter is active ("on"). */

@@ -50,6 +50,11 @@ const URGENCY: Partial<Record<SupportedLocale, Record<string, string>>> = {
   de: { critica: "Kritisch", alta: "Hoch", media: "Mittel", baja: "Niedrig" },
 }
 
+/**
+ * Channel value labels for every id in `core/inbox/channel-registry.ts`.
+ * Common nouns localize; proper-noun/brand channels (WhatsApp, Instagram,
+ * Messenger, TikTok, SMS) are identical across locales by design.
+ */
 const CHANNEL: Partial<Record<SupportedLocale, Record<string, string>>> = {
   en: {
     manual: "Manual",
@@ -57,6 +62,10 @@ const CHANNEL: Partial<Record<SupportedLocale, Record<string, string>>> = {
     email: "Email",
     portal: "Portal",
     whatsapp: "WhatsApp",
+    instagram: "Instagram",
+    messenger: "Messenger",
+    tiktok: "TikTok",
+    sms: "SMS",
   },
   es: {
     manual: "Manual",
@@ -64,6 +73,10 @@ const CHANNEL: Partial<Record<SupportedLocale, Record<string, string>>> = {
     email: "Correo",
     portal: "Portal",
     whatsapp: "WhatsApp",
+    instagram: "Instagram",
+    messenger: "Messenger",
+    tiktok: "TikTok",
+    sms: "SMS",
   },
   de: {
     manual: "Manuell",
@@ -71,6 +84,10 @@ const CHANNEL: Partial<Record<SupportedLocale, Record<string, string>>> = {
     email: "E-Mail",
     portal: "Portal",
     whatsapp: "WhatsApp",
+    instagram: "Instagram",
+    messenger: "Messenger",
+    tiktok: "TikTok",
+    sms: "SMS",
   },
 }
 
