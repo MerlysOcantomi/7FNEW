@@ -154,6 +154,35 @@ export interface BeautyOverviewMessages {
     }
     emptyPositive: string
   }
+  /** Salon identity card — real data from `Workspace.config.businessProfile`. */
+  salonProfile: {
+    title: string
+    regionLabel: string
+    hoursLabel: string
+    servicesLabel: string
+    /** "Perfil completo al 75%" — pct arrives pre-formatted. */
+    completeness: (pct: string) => string
+    editCta: string
+    /** Shown when the profile has no filled fields yet. */
+    empty: string
+  }
+  /** "Hoy en el salón" operational card — real cross-module counts. */
+  todayOps: {
+    title: string
+    appointmentsTitle: string
+    appointmentsEmpty: string
+    /** Row templates — counts/amounts arrive pre-formatted. */
+    pendingConversations: (count: number) => string
+    priorityTasks: (count: number) => string
+    activeClients: (count: number) => string
+    pendingInvoices: (count: number, amount: string) => string
+    overdueInvoices: (count: number, amount: string) => string
+    /** Row action labels (existing routes only). */
+    openInbox: string
+    openToday: string
+    openBilling: string
+    openAgenda: string
+  }
   states: {
     loading: string
     error: { title: string; description: string; retry: string }

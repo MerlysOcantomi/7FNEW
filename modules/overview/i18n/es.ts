@@ -201,6 +201,33 @@ export const es = {
     },
     emptyPositive: "Todo en orden — nada pendiente que Finesse quiera destacar hoy. ✨",
   },
+  salonProfile: {
+    title: "Perfil del salón",
+    regionLabel: "Zona",
+    hoursLabel: "Horario",
+    servicesLabel: "Servicios activos",
+    completeness: (pct) => `Perfil completo al ${pct}`,
+    editCta: "Editar perfil",
+    empty: "Tu perfil del salón está vacío. Complétalo para que tus clientes y Finesse conozcan tu negocio.",
+  },
+  todayOps: {
+    title: "Hoy en el salón",
+    appointmentsTitle: "Citas de hoy",
+    appointmentsEmpty: "No hay citas programadas para hoy.",
+    pendingConversations: (count) =>
+      count === 1 ? "1 mensaje sin responder" : `${count} mensajes sin responder`,
+    priorityTasks: (count) =>
+      count === 1 ? "1 tarea prioritaria para hoy" : `${count} tareas prioritarias para hoy`,
+    activeClients: (count) => (count === 1 ? "1 cliente activo" : `${count} clientes activos`),
+    pendingInvoices: (count, amount) =>
+      count === 1 ? `1 factura pendiente de cobro (${amount})` : `${count} facturas pendientes de cobro (${amount})`,
+    overdueInvoices: (count, amount) =>
+      count === 1 ? `1 factura vencida (${amount})` : `${count} facturas vencidas (${amount})`,
+    openInbox: "Abrir inbox",
+    openToday: "Ver tareas",
+    openBilling: "Ver cobros",
+    openAgenda: "Abrir agenda",
+  },
   states: {
     loading: "Cargando Mi salón",
     error: {

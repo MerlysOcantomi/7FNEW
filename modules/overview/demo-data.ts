@@ -1,20 +1,18 @@
 /**
- * My Salon — isolated demo adapter.
+ * My Salon — isolated demo adapter (QA modes ONLY).
  *
- * There is NO business-overview backend yet (no Appointment/Service/Payment
- * Prisma models — see `modules/today/appointments.ts`), so the surface runs on
- * this adapter and ALWAYS shows the "Vista previa · datos de ejemplo" chip,
- * exactly like Finesse Marketing (`modules/marketing/demo-data.ts`).
+ * The REAL backend exists now: `modules/overview/service.ts` +
+ * `real-snapshot.ts` aggregate `Evento`/`Factura`/`Cliente`/`Conversation`/
+ * `WorkspaceTask` + `Workspace.config` behind `GET /api/overview`, and the
+ * page consumes it by default. This adapter remains exclusively behind the
+ * explicit `?overviewDemo=` QA modes (which show the preview chip) — it is
+ * never mixed with real data.
  *
  * COHERENCE BY CONSTRUCTION: every breakdown is produced with
  * `distributeTotal` from the SAME period totals, so trend buckets sum to the
  * earnings KPI, weekday visits sum to the visits KPI, service visits sum to
  * the visits KPI, drivers sum to the earnings delta, and the client mix adds
  * up. Tests in `overview.test.ts` assert these invariants.
- *
- * Replacement seam: a future Prisma/API adapter only needs to return the same
- * `BusinessOverviewSnapshot` (see `types.ts`) from real `Evento` / `Factura` /
- * `Transaccion` aggregation — the UI and derivations stay untouched.
  */
 
 import { buildTrendBuckets } from "./period"

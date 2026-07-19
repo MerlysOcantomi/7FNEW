@@ -19,11 +19,15 @@ Tests: `npm run test:finesse-demo`.
 ## What it seeds
 
 - 8 clientas (`Cliente` + one `Contact` each) with preferences and history notes.
-- 12 citas (`Evento`, tipo `cita`) spread across today → +7 days; dates are
+- 30 citas (`Evento`, tipo `cita`): 12 upcoming (today → +7 days) plus 18
+  historical visits across the current month, the previous month (the
+  comparison baseline for the overview) and one ~3-months-back visit that
+  feeds the honest "clients without a recent visit" signal. Dates are
   recalculated relative to "today" on every run so the demo never goes stale.
 - 5 conversations (`Conversation` + 12 `Message`) in the Inbox.
-- 5 invoices (`Factura`) in states `pagada`, `enviada`, `borrador`, `vencida`
-  — with coherent `fechaEmision`, `fechaVencimiento` and `paidAt`.
+- 16 invoices (`Factura`) in states `pagada`, `enviada`, `borrador`, `vencida`
+  — with coherent `fechaEmision`, `fechaVencimiento` and `paidAt`; the paid
+  history gives the overview a real earnings KPI and revenue trend.
 - 6 workspace tasks (`WorkspaceTask`) that drive Today's work lanes, honoring
   Today's visibility rules (dated tasks are due today; undated tasks are
   assigned to the owner). They include the honest risks the demo needs:
@@ -110,9 +114,15 @@ task due-dates and invoice dates all recalculate relative to the current day.
 - **Calendario / Clientes / Inbox / Tareas / Facturación**: real DB rows.
 - **Services** (`/services`): the Beauty vertical catalog seed (or the demo
   fallback when no vertical defaults resolve).
-- **Mi salón** (`/`, Beauty overview) and **Beauty Marketing** remain on their
-  documented preview adapters — there is no aggregation backend for them yet,
-  and they honestly label themselves "Vista previa · datos de ejemplo".
+- **Mi salón** (`/`, Beauty overview): REAL aggregation via `GET /api/overview`
+  (`modules/overview/service.ts`) — earnings/visits/client-mix KPIs with a
+  previous-period comparison, revenue trend, weekday demand, top clients,
+  pending/overdue payment signals, the salon profile card and the "Hoy en el
+  salón" operational card. Sections without a backend (drivers, per-service
+  visits, booking attribution) render honest empty states. The demo adapter
+  survives only behind `?overviewDemo=` QA modes, clearly chip-labeled.
+- **Beauty Marketing** remains on its documented preview adapter — no
+  aggregation backend yet; it honestly labels itself "Vista previa".
 
 ## Known limits (deliberate)
 
