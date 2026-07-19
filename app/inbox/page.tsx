@@ -78,6 +78,10 @@ import {
 } from "@core/inbox/filter-config"
 import { parseChannelFilterId } from "@core/inbox/filter-registry"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
+import {
+  getMessageAttachmentsView,
+  getMessageDeliveryView,
+} from "@/lib/inbox/message-delivery-view"
 import { currentRequestFromRecentMessages } from "@/lib/inbox/parse-message-metadata"
 import {
   createTodoOnServer,
@@ -166,6 +170,20 @@ interface ConversationListItem {
     createdAt?: string
     /** Tras `parseConversationJsonFields` en el listado API suele ser objeto; en bruto, string JSON. */
     metadata?: string | Record<string, unknown> | null
+    /** INBOX-DATA-04B normalized delivery columns (fallback: metadata). */
+    deliveryStatus?: string | null
+    readAt?: string | null
+    readSource?: string | null
+    failureCode?: string | null
+    /** INBOX-DATA-04B normalized attachment rows (fallback: metadata array). */
+    attachments?: Array<{
+      fileName?: string | null
+      storageKey?: string | null
+      externalUrl?: string | null
+      mimeType?: string | null
+      sizeBytes?: number | null
+      position?: number
+    }> | null
   }>
 }
 
@@ -1988,25 +2006,13 @@ function InboxPageContent() {
             ? "inbound"
             : "system"
 
-      let msgAttachments: Array<{ filename: string; url: string; contentType: string; size?: number }> | undefined
       let msgEmailMeta: { cc?: string[]; bcc?: string[]; to?: string[]; mode?: "reply" | "reply_all" | "forward" } | undefined
       let msgFromAddress: string | null = null
-      /** Phase 2 open tracking — derived from Message.metadata only; no schema/joins required. */
-      let msgEmailStatus: string | null = null
-      let msgOpenedAt: string | null = null
-      let msgLastOpenedAt: string | null = null
-      let msgOpenProxy = false
-      let msgOpenSuspect = false
-      /** Phase 3 manual confirmation — only ever set when the customer clicked the CTA. */
-      let msgConfirmedReadAt: string | null = null
       /** Soft-trash flag (Message.metadata.trashedAt). Drives the placeholder bubble + Restore. */
       let msgTrashed = false
       try {
         if (message.metadata) {
           const parsed = typeof message.metadata === "string" ? JSON.parse(message.metadata) : message.metadata
-          if (Array.isArray(parsed?.attachments) && parsed.attachments.length > 0) {
-            msgAttachments = parsed.attachments
-          }
           const hasMeta = parsed?.cc || parsed?.bcc || parsed?.to || parsed?.mode ||
             parsed?.emailCc || parsed?.emailTo
           if (hasMeta) {
@@ -2019,15 +2025,19 @@ function InboxPageContent() {
           if (typeof parsed?.fromAddress === "string" && parsed.fromAddress.trim()) {
             msgFromAddress = parsed.fromAddress.trim()
           }
-          if (typeof parsed?.emailStatus === "string") msgEmailStatus = parsed.emailStatus
-          if (typeof parsed?.openedAt === "string") msgOpenedAt = parsed.openedAt
-          if (typeof parsed?.lastOpenedAt === "string") msgLastOpenedAt = parsed.lastOpenedAt
-          if (parsed?.openProxy === true) msgOpenProxy = true
-          if (parsed?.openSuspect === true) msgOpenSuspect = true
-          if (typeof parsed?.confirmedReadAt === "string") msgConfirmedReadAt = parsed.confirmedReadAt
           if (typeof parsed?.trashedAt === "string" && parsed.trashedAt.length > 0) msgTrashed = true
         }
       } catch { /* ignore parse errors */ }
+
+      /**
+       * INBOX-DATA-04B read-with-fallback: delivery state and attachments
+       * come from the central helpers (normalized columns/rows first, legacy
+       * metadata for historical messages). The fallback lives ONLY in
+       * `lib/inbox/message-delivery-view.ts`.
+       */
+      const delivery = getMessageDeliveryView(message)
+      const attachmentsView = getMessageAttachmentsView(message)
+      const msgAttachments = attachmentsView.length > 0 ? attachmentsView : undefined
 
       const authorLabel = isInternal
         ? t.inbox.message.internalNote
@@ -2079,15 +2089,15 @@ function InboxPageContent() {
        */
       let outboundLabel = t.inbox.message.sent
       if (isOutbound) {
-        if (msgEmailStatus === "failed") {
+        if (delivery.failed) {
           outboundLabel = t.inbox.message.sendFailed
-        } else if (msgConfirmedReadAt) {
-          const when = formatRelativeDate(msgConfirmedReadAt, uiLocale)
+        } else if (delivery.readSource === "manual" && delivery.readAt) {
+          const when = formatRelativeDate(delivery.readAt, uiLocale)
           outboundLabel = t.inbox.message.confirmedReceived(when)
-        } else if (msgOpenedAt) {
-          const opened = msgLastOpenedAt ?? msgOpenedAt
+        } else if (delivery.readAt) {
+          const opened = delivery.lastOpenedAt ?? delivery.readAt
           const when = formatRelativeDate(opened, uiLocale)
-          outboundLabel = msgOpenProxy || msgOpenSuspect
+          outboundLabel = delivery.readSuspect
             ? t.inbox.message.possiblyOpened(when)
             : t.inbox.message.opened(when)
         }
