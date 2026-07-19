@@ -26,6 +26,9 @@ export interface SmtpSendInput {
   cc?: string[]
   bcc?: string[]
   attachments?: Array<{ filename: string; path?: string; content?: Buffer; contentType?: string }>
+  /** RFC threading headers (In-Reply-To / References). */
+  inReplyTo?: string
+  references?: string[]
 }
 
 const SMTP_TIMEOUT_MS = 20_000
@@ -65,6 +68,8 @@ export async function sendEmailSmtp(input: SmtpSendInput): Promise<SendEmailResu
       text: input.text,
       html: input.html,
       replyTo: input.replyTo,
+      inReplyTo: input.inReplyTo,
+      references: input.references,
       cc: input.cc?.join(", "),
       bcc: input.bcc?.join(", "),
       attachments: input.attachments?.map((a) => ({
