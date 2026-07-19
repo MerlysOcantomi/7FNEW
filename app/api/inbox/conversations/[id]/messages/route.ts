@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
+import { recordOutboundSendResult } from "@modules/inbox/delivery-service"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 
 type Params = { params: Promise<{ id: string }> }
@@ -163,6 +164,22 @@ async function sendOutboundAsync(input: OutboundAsyncInput) {
     })
   } catch (metaErr) {
     console.error(`[email-outbound] Could not update message metadata msg=${messageId}:`, metaErr)
+  }
+
+  /**
+   * Dual-write (INBOX-DATA-04B): normalized delivery projection +
+   * provider-assigned id in `sourceMessageId`. Metadata above stays the
+   * legacy source; best-effort — never blocks the send path.
+   */
+  try {
+    await recordOutboundSendResult({
+      messageId,
+      ok: emailStatus === "sent",
+      providerMessageId: resendId,
+      failureCode: "email_send_failed",
+    })
+  } catch (projErr) {
+    console.error(`[email-outbound] Could not project delivery msg=${messageId}:`, projErr)
   }
 }
 

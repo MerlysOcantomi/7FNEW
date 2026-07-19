@@ -3,6 +3,7 @@ import { errorResponse, handleError, successResponse } from "@/lib/api"
 import { requireWriteAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
 import { sendOutboundEmail, type ConnectionSender } from "@modules/inbox/email-outbound"
+import { recordOutboundSendResult } from "@modules/inbox/delivery-service"
 
 type Params = { params: Promise<{ id: string; messageId: string }> }
 
@@ -131,6 +132,18 @@ export async function POST(request: NextRequest, { params }: Params) {
       console.log(`[email-retry] OK msg=${messageId} resendId=${result.id}`)
     } else {
       console.error(`[email-retry] FAILED msg=${messageId}: ${result.error}`)
+    }
+
+    /** Dual-write (INBOX-DATA-04B): a successful re-send supersedes the failure projection. */
+    try {
+      await recordOutboundSendResult({
+        messageId,
+        ok: result.ok,
+        providerMessageId: result.id,
+        failureCode: "email_send_failed",
+      })
+    } catch (projErr) {
+      console.error(`[email-retry] Could not project delivery msg=${messageId}:`, projErr)
     }
 
     return successResponse({

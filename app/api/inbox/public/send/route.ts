@@ -4,6 +4,8 @@ import { addMessage } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
 import { notifyNewConversation, notifyInboundMessage } from "@core/notifications/inbox"
+import { buildIdentityDescriptor } from "@modules/inbox/identity-resolution"
+import { recordInboundIdentity } from "@modules/inbox/identity-service"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -136,6 +138,31 @@ export async function POST(request: NextRequest) {
     if (!message) {
       return corsJson({ success: false, error: { code: "INTERNAL_ERROR", message: "Could not create message" } }, { status: 500 })
     }
+
+    /**
+     * Dual-write (INBOX-DATA-04B): web-chat visitor identity + association
+     * evidence for the conversation's contact. Best-effort — never blocks
+     * the public send path.
+     */
+    void (async () => {
+      const descriptor = buildIdentityDescriptor({
+        channel: "web_chat",
+        kind: "visitor",
+        rawValue: visitorId,
+      })
+      if (!descriptor) return
+      const conv = await db.conversation.findFirst({
+        where: { id: targetConversationId as string, workspaceId: workspace.id },
+        select: { contactId: true },
+      })
+      await recordInboundIdentity({
+        workspaceId: workspace.id,
+        descriptor,
+        displayValue:
+          typeof visitorName === "string" && visitorName.trim() ? visitorName.trim() : null,
+        contactId: conv?.contactId ?? null,
+      })
+    })().catch((err) => console.error("[public-send] identity dual-write failed:", err))
 
     if (isNewConversation) {
       void notifyNewConversation({

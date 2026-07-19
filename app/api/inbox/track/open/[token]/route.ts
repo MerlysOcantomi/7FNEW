@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { verifyTrackingToken, type TrackingTokenPayload } from "@core/inbox-tracking"
+import { applyDeliveryEventToMessage } from "@modules/inbox/delivery-service"
 
 /**
  * Public open-tracking endpoint. Always responds with a 1x1 transparent PNG, even when the
@@ -162,6 +163,23 @@ export async function GET(request: NextRequest, { params }: Params) {
     } catch (err) {
       /** Even DB write failures must return the pixel so the UA does not retry indefinitely. */
       console.error(`[inbox-tracking] Could not record open for msg=${messageId}:`, err)
+    }
+
+    /**
+     * Dual-write (INBOX-DATA-04B): project the pixel open into the
+     * normalized read columns with `readSource: "tracking_pixel"`. Suspect/
+     * proxy heuristics stay metadata-only (same trust level the UI applies);
+     * the projection helper guarantees a stronger source is never
+     * downgraded by a later pixel hit.
+     */
+    try {
+      await applyDeliveryEventToMessage(messageId, {
+        type: "read",
+        at: new Date(updatedMeta.openedAt ?? now),
+        readSource: "tracking_pixel",
+      })
+    } catch (err) {
+      console.error(`[inbox-tracking] Could not project read for msg=${messageId}:`, err)
     }
 
     return pixelResponse()

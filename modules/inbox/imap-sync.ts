@@ -1,6 +1,10 @@
 import { db } from "@core/db"
 import { decryptJson } from "@core/crypto"
 import { ingestInboundEmail, extractEmailAddress, stripHtml } from "./email-inbound"
+
+/** Attachment bounds for the IMAP path (mirror the Resend inbound limits). */
+const MAX_IMAP_ATTACHMENTS = 10
+const MAX_IMAP_ATTACHMENT_BYTES = 15 * 1024 * 1024
 import type { StoredAttachment } from "./email-inbound"
 
 // ---------------------------------------------------------------------------
@@ -237,6 +241,15 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
           let text: string | null = null
           let html: string | null = null
           const headers: Record<string, string> = {}
+          /**
+           * INBOX-DATA-04B fix: IMAP-ingested attachments used to be parsed
+           * and then silently DROPPED (mailparser exposed them but nothing
+           * persisted them). Store them to blob storage and hand them to
+           * `ingestInboundEmail`, which records both the legacy metadata
+           * array and the normalized MessageAttachment rows. Bounded and
+           * best-effort: a failed upload never blocks the message.
+           */
+          const storedAttachments: StoredAttachment[] = []
 
           if (msg.source) {
             const rawSource = msg.source.toString("utf-8")
@@ -249,6 +262,38 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
                 if (typeof value === "string") headers[key] = value
                 else if (value && typeof value === "object" && "text" in value) {
                   headers[key] = String((value as { text: string }).text)
+                }
+              }
+            }
+            if (parsed.attachments && parsed.attachments.length > 0) {
+              const { uploadToStorage, getStoragePath } = await import("@/lib/storage")
+              for (const att of parsed.attachments.slice(0, MAX_IMAP_ATTACHMENTS)) {
+                try {
+                  if (!att.content || att.content.length === 0) continue
+                  if (att.content.length > MAX_IMAP_ATTACHMENT_BYTES) {
+                    console.warn(
+                      `[imap-sync] attachment too large uid=${msg.uid} name=${att.filename ?? "(unnamed)"} bytes=${att.content.length} — skipped`,
+                    )
+                    continue
+                  }
+                  const path = getStoragePath(
+                    "inbox-attachments-inbound",
+                    att.filename || "file",
+                  )
+                  const url = await uploadToStorage(
+                    att.content,
+                    path,
+                    att.contentType || "application/octet-stream",
+                  )
+                  storedAttachments.push({
+                    filename: att.filename || "file",
+                    url,
+                    contentType: att.contentType || "application/octet-stream",
+                    size: att.content.length,
+                    source: "inbound",
+                  })
+                } catch (attErr) {
+                  console.error(`[imap-sync] attachment store failed uid=${msg.uid}:`, attErr)
                 }
               }
             }
@@ -274,6 +319,7 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
             receivedAt,
             connectionId: connection.id,
             workspaceId: connection.workspaceId,
+            ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
           })
 
           if (ingested.alreadyProcessed) {
