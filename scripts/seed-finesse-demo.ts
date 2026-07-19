@@ -21,6 +21,13 @@
  *   - Conversation.source: FINESSE_DEMO:conv:01
  *   - Factura.numero: DEMO-FINESSE-<workspace>-001
  *   - ContentPiece.notas: FINESSE_DEMO:content:01
+ *   - WorkspaceTask.sourceType/sourceId: finesse_demo / FINESSE_DEMO:task:01
+ *   - Tarea.descripcion (last line): FINESSE_DEMO:tarea:01
+ *
+ * Workspace.config writes (all non-destructive):
+ *   - businessProfile: fill-only-missing (owner edits always win)
+ *   - serviceCatalog: fallback only when no canonical catalog resolves
+ *   - demo flag + finesseDemoMetadata: merged, existing keys preserved
  */
 
 import "dotenv/config"
@@ -32,6 +39,11 @@ import {
   FINESSE_DEMO_CONVERSATIONS,
   FINESSE_DEMO_INVOICES,
   FINESSE_DEMO_CONTENT_PIECES,
+  FINESSE_DEMO_WORKSPACE_TASKS,
+  FINESSE_DEMO_TAREAS,
+  FINESSE_DEMO_BUSINESS_PROFILE,
+  FINESSE_DEMO_SERVICE_CATALOG,
+  FINESSE_DEMO_TASK_SOURCE_TYPE,
   generateDemoInvoiceNumber,
   getRelativeDate,
   getDemoDatasetSummary,
@@ -39,8 +51,14 @@ import {
   resolveClientId,
   validateDemoData,
 } from "./finesse-demo-data"
-import { parseWorkspaceConfig, mergeDemoWorkspaceConfig } from "./finesse-demo-utils"
+import {
+  parseWorkspaceConfig,
+  mergeDemoWorkspaceConfig,
+  mergeDemoBusinessProfile,
+  shouldWriteDemoServiceCatalog,
+} from "./finesse-demo-utils"
 import { BEAUTY_NAV_VERTICAL_KEYS } from "../core/vertical-packs/nav-profile"
+import { BEAUTY_PACK, buildBeautyDefaultConfig } from "../core/vertical-packs/beauty"
 
 const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
 if (!dbUrl) throw new Error("DATABASE_URL or TURSO_DATABASE_URL must be set")
@@ -181,6 +199,8 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   const existingMessageCount = await db.message.count({ where: { workspaceId } })
   const existingFacturaCount = await db.factura.count({ where: { workspaceId } })
   const existingContentCount = await db.contentPiece.count({ where: { workspaceId } })
+  const existingWorkspaceTaskCount = await db.workspaceTask.count({ where: { workspaceId } })
+  const existingTareaCount = await db.tarea.count({ where: { workspaceId } })
 
   console.log(`\n[dry-run] Existing data in workspace:`)
   console.log(`  Clientes: ${existingClientCount}`)
@@ -190,6 +210,8 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`  Mensajes: ${existingMessageCount}`)
   console.log(`  Facturas: ${existingFacturaCount}`)
   console.log(`  ContentPieces: ${existingContentCount}`)
+  console.log(`  WorkspaceTasks: ${existingWorkspaceTaskCount}`)
+  console.log(`  Tareas: ${existingTareaCount}`)
 
   const summary = getDemoDatasetSummary()
   console.log(`\n[dry-run] Demo dataset to be created or updated:`)
@@ -200,6 +222,9 @@ async function dryRunMode(ownerEmail: string, workspaceId: string): Promise<void
   console.log(`  Mensajes: ${summary.messages}`)
   console.log(`  Facturas: ${summary.invoices}`)
   console.log(`  ContentPieces: ${summary.contentPieces}`)
+  console.log(`  WorkspaceTasks: ${summary.workspaceTasks}`)
+  console.log(`  Tareas: ${summary.tareas}`)
+  console.log(`  Workspace.config: businessProfile (fill-missing) + serviceCatalog fallback`)
 
   console.log(`\n[dry-run] Sample data:`)
   console.log(`  First client: ${FINESSE_DEMO_CLIENTS[0].nombre} (${FINESSE_DEMO_CLIENTS[0].email})`)
@@ -279,7 +304,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
   // Execute seed inside a transaction
   try {
     await db.$transaction(async (tx) => {
-      await performSeed(tx, workspaceId, configParsed, ownerEmail)
+      await performSeed(tx, workspaceId, configParsed, ownerEmail, user.id, workspace.verticalKey)
     })
     console.log(`[seed] ✓ Demo data operation completed successfully`)
   } catch (error) {
@@ -297,6 +322,8 @@ async function performSeed(
   workspaceId: string,
   existingConfig: Record<string, unknown>,
   ownerEmail: string,
+  ownerUserId: string,
+  verticalKey: string,
 ): Promise<void> {
   const createdData = {
     clientes: 0,
@@ -306,6 +333,8 @@ async function performSeed(
     mensajes: 0,
     facturas: 0,
     contentPieces: 0,
+    workspaceTasks: 0,
+    tareas: 0,
   }
 
   const updatedData = {
@@ -313,6 +342,8 @@ async function performSeed(
     conversaciones: 0,
     facturas: 0,
     contentPieces: 0,
+    workspaceTasks: 0,
+    tareas: 0,
   }
 
   // === PHASE 1: Create or skip clients (no updates for clients) ===
@@ -387,6 +418,7 @@ async function performSeed(
   }
 
   // === PHASE 3: Create or update events ===
+  const eventoIdsByMarker = new Map<string, string>()
   for (const eventData of FINESSE_DEMO_EVENTS) {
     const demoClient = FINESSE_DEMO_CLIENTS[eventData.clientIndex]
     if (!demoClient) continue
@@ -419,11 +451,12 @@ async function performSeed(
           tipo: "cita",
         },
       })
+      eventoIdsByMarker.set(demoMarker, existing.id)
       updatedData.eventos++
       console.log(`  [update] Evento: ${eventData.titulo} (dates refreshed)`)
     } else {
       // Create new event
-      await tx.evento.create({
+      const created = await tx.evento.create({
         data: {
           titulo: eventData.titulo,
           descripcion: demoMarker,
@@ -434,12 +467,14 @@ async function performSeed(
           clienteId,
         },
       })
+      eventoIdsByMarker.set(demoMarker, created.id)
       createdData.eventos++
       console.log(`  [create] Evento: ${eventData.titulo}`)
     }
   }
 
   // === PHASE 4: Create or update conversations and messages ===
+  const conversationIdsByMarker = new Map<string, string>()
   for (const convData of FINESSE_DEMO_CONVERSATIONS) {
     const demoClient = FINESSE_DEMO_CLIENTS[convData.clientIndex]
     if (!demoClient) continue
@@ -502,6 +537,7 @@ async function performSeed(
         },
       })
 
+      conversationIdsByMarker.set(demoMarker, existing.id)
       updatedData.conversaciones++
       console.log(
         `  [update] Conversation: "${convData.subject}" (${convData.messages.length} messages refreshed)`,
@@ -550,6 +586,7 @@ async function performSeed(
         },
       })
 
+      conversationIdsByMarker.set(demoMarker, conversation.id)
       createdData.conversaciones++
       console.log(`  [create] Conversation: "${convData.subject}" (${convData.messages.length} messages)`)
     }
@@ -578,20 +615,28 @@ async function performSeed(
       )
     }
 
+    // Relative dates recalculated on every run so the demo never drifts:
+    // an overdue invoice stays overdue, a paid one keeps a recent paid date.
+    const fechaEmision = getRelativeDate(-invData.daysAgo)
+    const fechaVencimiento =
+      typeof invData.dueOffsetDays === "number" ? getRelativeDate(invData.dueOffsetDays) : null
+    const paidAt =
+      typeof invData.paidDaysAgo === "number" ? getRelativeDate(-invData.paidDaysAgo, 12, 0) : null
+
     if (existing) {
       // Update existing demo invoice (date recalculation, status preservation)
-      const fechaEmision = getRelativeDate(-invData.daysAgo)
       await tx.factura.update({
         where: { id: existing.id },
         data: {
           fechaEmision,
+          fechaVencimiento,
+          paidAt,
         },
       })
       updatedData.facturas++
-      console.log(`  [update] Factura: ${numero} (date refreshed)`)
+      console.log(`  [update] Factura: ${numero} (dates refreshed)`)
     } else {
       // Create new invoice
-      const fechaEmision = getRelativeDate(-invData.daysAgo)
       await tx.factura.create({
         data: {
           numero,
@@ -608,12 +653,153 @@ async function performSeed(
             },
           ]),
           fechaEmision,
+          fechaVencimiento,
+          paidAt,
           clienteId,
           workspaceId,
         },
       })
       createdData.facturas++
       console.log(`  [create] Factura: ${numero}`)
+    }
+  }
+
+  // === PHASE 5b: Create or update workspace tasks (Today's work lanes) ===
+  for (const taskData of FINESSE_DEMO_WORKSPACE_TASKS) {
+    const demoMarker = taskData.demoMarker
+
+    const clienteId =
+      typeof taskData.clientIndex === "number" &&
+      FINESSE_DEMO_CLIENTS[taskData.clientIndex]
+        ? resolveClientId(FINESSE_DEMO_CLIENTS[taskData.clientIndex], clientMap)
+        : null
+    const eventoId = taskData.eventMarker
+      ? eventoIdsByMarker.get(taskData.eventMarker) ?? null
+      : null
+    const conversationId = taskData.conversationMarker
+      ? conversationIdsByMarker.get(taskData.conversationMarker) ?? null
+      : null
+
+    // Today drops future-dated tasks and only shows undated tasks to their
+    // assignee — dated demo tasks are always due TODAY (see dataset docs).
+    const dueAt =
+      typeof taskData.dueHour === "number"
+        ? getRelativeDate(0, taskData.dueHour, taskData.dueMinute ?? 0)
+        : null
+
+    const assigneeType =
+      taskData.assign === "owner" ? "user" : taskData.assign === "ai" ? "ai" : "unassigned"
+    const assigneeId =
+      taskData.assign === "owner" ? ownerUserId : taskData.assign === "ai" ? "fanny" : null
+
+    const existing = await tx.workspaceTask.findFirst({
+      where: {
+        workspaceId,
+        sourceType: FINESSE_DEMO_TASK_SOURCE_TYPE,
+        sourceId: demoMarker,
+      },
+    })
+
+    if (existing) {
+      // Refresh dates and content; preserve a completion/dismissal the owner
+      // may have performed on the demo task (do not resurrect it).
+      const isTerminal = existing.completedAt !== null || existing.dismissedAt !== null
+      await tx.workspaceTask.update({
+        where: { id: existing.id },
+        data: {
+          title: taskData.title,
+          description: taskData.description,
+          priority: taskData.priority,
+          dueAt,
+          clienteId,
+          eventoId,
+          conversationId,
+          sourceLabel: taskData.sourceLabel,
+          ...(isTerminal ? {} : { status: taskData.status }),
+        },
+      })
+      updatedData.workspaceTasks++
+      console.log(`  [update] WorkspaceTask: ${taskData.title} (dates refreshed)`)
+    } else {
+      await tx.workspaceTask.create({
+        data: {
+          workspaceId,
+          title: taskData.title,
+          description: taskData.description,
+          status: taskData.status,
+          priority: taskData.priority,
+          assigneeType,
+          assigneeId,
+          dueAt,
+          sourceType: FINESSE_DEMO_TASK_SOURCE_TYPE,
+          sourceId: demoMarker,
+          sourceLabel: taskData.sourceLabel,
+          clienteId,
+          eventoId,
+          conversationId,
+          createdBy: ownerUserId,
+          suggestedBy: taskData.suggestedBy ?? "user",
+          executionMode: taskData.executionMode ?? "manual",
+        },
+      })
+      createdData.workspaceTasks++
+      console.log(`  [create] WorkspaceTask: ${taskData.title}`)
+    }
+  }
+
+  // === PHASE 5c: Create or update legacy CRM tasks (the /tareas page) ===
+  for (const tareaData of FINESSE_DEMO_TAREAS) {
+    const demoMarker = tareaData.demoMarker
+
+    const clienteId =
+      typeof tareaData.clientIndex === "number" &&
+      FINESSE_DEMO_CLIENTS[tareaData.clientIndex]
+        ? resolveClientId(FINESSE_DEMO_CLIENTS[tareaData.clientIndex], clientMap)
+        : null
+
+    // Tarea has no metadata column; the marker travels on its own line at the
+    // end of `descripcion` and idempotency matches with `contains`.
+    const descripcion = `${tareaData.descripcion}\n${demoMarker}`
+    const fechaLimite =
+      typeof tareaData.dueOffsetDays === "number"
+        ? getRelativeDate(tareaData.dueOffsetDays, 18, 0)
+        : null
+
+    const existing = await tx.tarea.findFirst({
+      where: { workspaceId, descripcion: { contains: demoMarker } },
+    })
+
+    if (existing) {
+      // Refresh deadline and content; preserve an estado the owner may have
+      // moved (e.g. completada) — demo runs never un-complete a task.
+      const isTerminal = existing.estado === "completada" || existing.estado === "cancelada"
+      await tx.tarea.update({
+        where: { id: existing.id },
+        data: {
+          titulo: tareaData.titulo,
+          descripcion,
+          prioridad: tareaData.prioridad,
+          fechaLimite,
+          clienteId,
+          ...(isTerminal ? {} : { estado: tareaData.estado }),
+        },
+      })
+      updatedData.tareas++
+      console.log(`  [update] Tarea: ${tareaData.titulo} (dates refreshed)`)
+    } else {
+      await tx.tarea.create({
+        data: {
+          titulo: tareaData.titulo,
+          descripcion,
+          estado: tareaData.estado,
+          prioridad: tareaData.prioridad,
+          fechaLimite,
+          clienteId,
+          workspaceId,
+        },
+      })
+      createdData.tareas++
+      console.log(`  [create] Tarea: ${tareaData.titulo}`)
     }
   }
 
@@ -665,14 +851,46 @@ async function performSeed(
     }
   }
 
-  // === PHASE 7: Merge demo metadata into Workspace.config ===
+  // === PHASE 7: Merge business profile, service catalog fallback and demo
+  // metadata into Workspace.config ===
+
+  // 7a. Business profile — fill ONLY fields the owner has not set yet, so a
+  // hand-edited profile is never overwritten by a re-run.
+  const profileMerge = mergeDemoBusinessProfile(existingConfig, FINESSE_DEMO_BUSINESS_PROFILE)
+  let workingConfig = profileMerge.config
+  if (profileMerge.filledKeys.length > 0) {
+    console.log(`  [config] businessProfile filled: ${profileMerge.filledKeys.join(", ")}`)
+  } else {
+    console.log(`  [skip] businessProfile already complete — untouched`)
+  }
+
+  // 7b. Service catalog fallback — only when neither the vertical defaults
+  // nor the workspace provide one (e.g. Beauty-alias verticalKey without a
+  // seeded Vertical row). The canonical source always wins.
+  const verticalRow = await tx.vertical.findUnique({
+    where: { key: verticalKey },
+    select: { defaultConfig: true },
+  })
+  const verticalDefaults = verticalRow
+    ? parseWorkspaceConfig(verticalRow.defaultConfig)
+    : verticalKey === BEAUTY_PACK.verticalKey
+      ? parseWorkspaceConfig(buildBeautyDefaultConfig())
+      : null
+  if (shouldWriteDemoServiceCatalog(workingConfig, verticalDefaults)) {
+    workingConfig = { ...workingConfig, serviceCatalog: FINESSE_DEMO_SERVICE_CATALOG }
+    console.log(`  [config] serviceCatalog fallback written (${FINESSE_DEMO_SERVICE_CATALOG.length} services)`)
+  } else {
+    console.log(`  [skip] serviceCatalog resolves from its canonical source — untouched`)
+  }
+
+  // 7c. Demo metadata + demo flag.
   const demoMetadata = {
     createdAt: new Date().toISOString(),
     created: createdData,
     updated: updatedData,
   }
 
-  const newConfig = mergeDemoWorkspaceConfig(existingConfig, demoMetadata, ownerEmail)
+  const newConfig = mergeDemoWorkspaceConfig(workingConfig, demoMetadata, ownerEmail)
 
   await tx.workspace.update({
     where: { id: workspaceId },

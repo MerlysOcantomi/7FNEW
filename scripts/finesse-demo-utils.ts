@@ -65,6 +65,71 @@ export function mergeDemoWorkspaceConfig(
 }
 
 /**
+ * Merge the demo business profile into a workspace config, filling ONLY the
+ * fields the workspace has not set yet. A profile value the owner already
+ * wrote (non-empty string / non-empty array) is never overwritten.
+ *
+ * Returns the new config plus the list of profile keys that were filled
+ * (empty list = nothing to do, caller may skip the write).
+ */
+export function mergeDemoBusinessProfile(
+  existingConfig: Record<string, unknown>,
+  demoProfile: Record<string, unknown>,
+): { config: Record<string, unknown>; filledKeys: string[] } {
+  const existingProfile =
+    typeof existingConfig.businessProfile === "object" &&
+    existingConfig.businessProfile !== null &&
+    !Array.isArray(existingConfig.businessProfile)
+      ? (existingConfig.businessProfile as Record<string, unknown>)
+      : {}
+
+  const filledKeys: string[] = []
+  const merged: Record<string, unknown> = { ...existingProfile }
+
+  for (const [key, demoValue] of Object.entries(demoProfile)) {
+    const current = existingProfile[key]
+    const isEmpty =
+      current === undefined ||
+      current === null ||
+      (typeof current === "string" && current.trim() === "") ||
+      (Array.isArray(current) && current.length === 0)
+    if (isEmpty) {
+      merged[key] = demoValue
+      filledKeys.push(key)
+    }
+  }
+
+  if (filledKeys.length === 0) {
+    return { config: existingConfig, filledKeys }
+  }
+
+  return {
+    config: { ...existingConfig, businessProfile: merged },
+    filledKeys,
+  }
+}
+
+/**
+ * Decide whether the demo service catalog should be written into the
+ * workspace config. It should ONLY happen when neither the vertical defaults
+ * nor the workspace override provide any catalog items — otherwise the
+ * canonical source (vertical seed or the workspace's own saved catalog)
+ * stays untouched.
+ */
+export function shouldWriteDemoServiceCatalog(
+  existingConfig: Record<string, unknown>,
+  verticalDefaultConfig: Record<string, unknown> | null,
+): boolean {
+  const workspaceCatalog = existingConfig.serviceCatalog
+  if (Array.isArray(workspaceCatalog) && workspaceCatalog.length > 0) return false
+
+  const defaultCatalog = verticalDefaultConfig?.serviceCatalog
+  if (Array.isArray(defaultCatalog) && defaultCatalog.length > 0) return false
+
+  return true
+}
+
+/**
  * Extract demo metadata from Workspace.config.
  * Returns the demo metadata object or empty object if not found.
  */
