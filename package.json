@@ -35,6 +35,7 @@
     "test:tasks-queue": "tsx --test modules/tareas/work-queue.test.ts",
     "test:calendar-grid": "tsx --test components/calendar/grid.test.ts",
     "test:calendar-lenses": "tsx --test components/calendar/lenses.test.ts",
+    "test:chrome": "tsx --test components/account-center/settings-items.test.ts components/topbar-i18n.test.ts",
     "test:calendar-event-dna": "tsx --test components/calendar/event-dna.test.ts",
     "test:finesse-demo": "tsx --test scripts/finesse-demo-data.test.ts",
     "demo:finesse:discover": "tsx scripts/seed-finesse-demo.ts discover",

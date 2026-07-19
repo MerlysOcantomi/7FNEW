@@ -68,6 +68,12 @@ export interface NavMessages {
   more: string
   new: string
   search: string
+  /** Global toolbar: Agents trigger label (and mobile aria-label). */
+  agents: string
+  /** Global toolbar: accessible name of the desktop Agents trigger. */
+  agentsOpen: string
+  /** Global toolbar: Ask Fanny trigger label — "Fanny" is a proper name. */
+  askFanny: string
   expandSidebar: string
   collapseSidebar: string
   openNavigation: string
