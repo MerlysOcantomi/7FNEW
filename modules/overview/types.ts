@@ -279,3 +279,68 @@ export interface BusinessOverviewSnapshot {
   signals: OverviewSignals
   dataQuality: OverviewDataQuality
 }
+
+// ─── Salon profile & operational "today" (real backend additions) ────────────
+
+/**
+ * The salon's identity as read from the canonical source
+ * (`Workspace.config.businessProfile` + the resolved service catalog). Values
+ * are the owner's own business data — never translated, never invented; every
+ * field is `null`/empty when the owner has not filled it.
+ */
+export interface SalonProfile {
+  businessName: string | null
+  description: string | null
+  region: string | null
+  workingHours: string | null
+  /** Active service names from the resolved catalog (vertical seed or workspace override). */
+  activeServices: string[]
+  /** Profile fields filled over the canonical field set, 0..1. */
+  completeness: number
+  completedFields: number
+  totalFields: number
+}
+
+/** One of today's appointments (an `Evento` of tipo "cita"). */
+export interface SalonTodayAppointment {
+  eventoId: string
+  clientId: string | null
+  /** Client display name — real business data, `null` when unlinked. */
+  clientName: string | null
+  title: string
+  /** ISO instant — the UI formats it with the viewer's locale. */
+  startsAt: string
+  endsAt: string | null
+}
+
+/**
+ * Operational cross-module counts for the salon's day. Each is `null` when the
+ * underlying module has no data yet — the UI hides that row instead of showing
+ * an invented zero.
+ */
+export interface SalonToday {
+  appointments: SalonTodayAppointment[]
+  /** Conversations awaiting a first response (`status: "new"`). */
+  pendingConversations: number | null
+  /** Open work items that are high priority or due today/overdue. */
+  priorityTasks: number | null
+  /** Clients currently marked active. */
+  activeClients: number | null
+  /** Sent, uncollected invoices. */
+  pendingInvoices: { count: number; amount: number } | null
+  /** Overdue invoices. */
+  overdueInvoices: { count: number; amount: number } | null
+}
+
+/**
+ * The full "Mi salón" payload the real backend returns: the period-scoped
+ * analytics snapshot plus the salon identity and today's operations. `source`
+ * makes the honesty policy explicit — the UI shows the preview chip ONLY when
+ * a payload is not `"real"`.
+ */
+export interface SalonOverviewPayload {
+  snapshot: BusinessOverviewSnapshot
+  salon: SalonProfile
+  today: SalonToday
+  source: "real"
+}

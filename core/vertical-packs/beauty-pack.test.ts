@@ -31,10 +31,12 @@ test("buildBeautyDefaultConfig produces valid, Beauty-shaped config", () => {
   assert.equal(cfg.modules.tasksPage, false)
 })
 
-test("Today is declared appointment_first but NOT auto-activated for real workspaces", () => {
+test("Today is appointment_first and IS activated for real workspaces (real backend exists)", () => {
   const cfg = JSON.parse(buildBeautyDefaultConfig())
   assert.equal(cfg.today.mode, "appointment_first")
-  assert.equal(cfg.today.activateRealForRealWorkspaces, false)
+  // Flipped ON in 7F-P01.B3 — the Beauty Today reads real data
+  // (GET /api/today/beauty), so real operators may land on it.
+  assert.equal(cfg.today.activateRealForRealWorkspaces, true)
 })
 
 test("service catalog seed has the 8 Beauty services", () => {

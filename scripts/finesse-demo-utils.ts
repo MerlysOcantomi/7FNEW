@@ -65,6 +65,126 @@ export function mergeDemoWorkspaceConfig(
 }
 
 /**
+ * Merge the demo business profile into a workspace config, filling ONLY the
+ * fields the workspace has not set yet. A profile value the owner already
+ * wrote (non-empty string / non-empty array) is never overwritten.
+ *
+ * Returns the new config plus the list of profile keys that were filled
+ * (empty list = nothing to do, caller may skip the write).
+ */
+export function mergeDemoBusinessProfile(
+  existingConfig: Record<string, unknown>,
+  demoProfile: Record<string, unknown>,
+): { config: Record<string, unknown>; filledKeys: string[] } {
+  const existingProfile =
+    typeof existingConfig.businessProfile === "object" &&
+    existingConfig.businessProfile !== null &&
+    !Array.isArray(existingConfig.businessProfile)
+      ? (existingConfig.businessProfile as Record<string, unknown>)
+      : {}
+
+  const filledKeys: string[] = []
+  const merged: Record<string, unknown> = { ...existingProfile }
+
+  for (const [key, demoValue] of Object.entries(demoProfile)) {
+    const current = existingProfile[key]
+    const isEmpty =
+      current === undefined ||
+      current === null ||
+      (typeof current === "string" && current.trim() === "") ||
+      (Array.isArray(current) && current.length === 0)
+    if (isEmpty) {
+      merged[key] = demoValue
+      filledKeys.push(key)
+    }
+  }
+
+  if (filledKeys.length === 0) {
+    return { config: existingConfig, filledKeys }
+  }
+
+  return {
+    config: { ...existingConfig, businessProfile: merged },
+    filledKeys,
+  }
+}
+
+/**
+ * Decide whether the demo service catalog should be written into the
+ * workspace config. It should ONLY happen when neither the vertical defaults
+ * nor the workspace override provide any catalog items — otherwise the
+ * canonical source (vertical seed or the workspace's own saved catalog)
+ * stays untouched.
+ */
+export function shouldWriteDemoServiceCatalog(
+  existingConfig: Record<string, unknown>,
+  verticalDefaultConfig: Record<string, unknown> | null,
+): boolean {
+  const workspaceCatalog = existingConfig.serviceCatalog
+  if (Array.isArray(workspaceCatalog) && workspaceCatalog.length > 0) return false
+
+  const defaultCatalog = verticalDefaultConfig?.serviceCatalog
+  if (Array.isArray(defaultCatalog) && defaultCatalog.length > 0) return false
+
+  return true
+}
+
+/**
+ * Preflight assessment of a seed target — the guard that keeps the seeder
+ * from ever writing into a REAL client workspace by mistake.
+ *
+ * Rules (pure, tested):
+ *   - `ok-flagged-demo`  → the workspace already carries the canonical demo
+ *     flag (`config.demo.enabled === true` + `type: "finesse-internal"`).
+ *     Re-runs are safe by construction (markers).
+ *   - `ok-fresh`         → not flagged yet, but it contains NO unmarked
+ *     clients/conversations — a fresh workspace being activated for the
+ *     first time.
+ *   - `blocked-unflagged-data` → not flagged AND it holds rows the seeder
+ *     did not create (clients/conversations without FINESSE_DEMO markers).
+ *     That is what a real operator's workspace looks like — the seeder must
+ *     STOP without writing.
+ */
+export interface DemoTargetCounts {
+  totalClients: number
+  demoClients: number
+  totalConversations: number
+  demoConversations: number
+}
+
+export interface DemoTargetAssessment {
+  status: "ok-flagged-demo" | "ok-fresh" | "blocked-unflagged-data"
+  flaggedDemo: boolean
+  nonDemoClients: number
+  nonDemoConversations: number
+}
+
+export function assessDemoTarget(
+  config: Record<string, unknown>,
+  counts: DemoTargetCounts,
+): DemoTargetAssessment {
+  const demo =
+    typeof config.demo === "object" && config.demo !== null && !Array.isArray(config.demo)
+      ? (config.demo as Record<string, unknown>)
+      : {}
+  const flaggedDemo = demo.enabled === true && demo.type === "finesse-internal"
+
+  const nonDemoClients = Math.max(0, counts.totalClients - counts.demoClients)
+  const nonDemoConversations = Math.max(
+    0,
+    counts.totalConversations - counts.demoConversations,
+  )
+
+  if (flaggedDemo) {
+    return { status: "ok-flagged-demo", flaggedDemo, nonDemoClients, nonDemoConversations }
+  }
+  if (nonDemoClients === 0 && nonDemoConversations === 0) {
+    return { status: "ok-fresh", flaggedDemo, nonDemoClients, nonDemoConversations }
+  }
+  return { status: "blocked-unflagged-data", flaggedDemo, nonDemoClients, nonDemoConversations }
+}
+
+/**
  * Extract demo metadata from Workspace.config.
  * Returns the demo metadata object or empty object if not found.
  */

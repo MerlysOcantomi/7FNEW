@@ -200,6 +200,33 @@ export const en = {
     },
     emptyPositive: "All good — nothing Finesse wants to flag today. ✨",
   },
+  salonProfile: {
+    title: "Salon profile",
+    regionLabel: "Area",
+    hoursLabel: "Hours",
+    servicesLabel: "Active services",
+    completeness: (pct) => `Profile ${pct} complete`,
+    editCta: "Edit profile",
+    empty: "Your salon profile is empty. Complete it so clients and Finesse know your business.",
+  },
+  todayOps: {
+    title: "Today at the salon",
+    appointmentsTitle: "Today's appointments",
+    appointmentsEmpty: "No appointments scheduled for today.",
+    pendingConversations: (count) =>
+      count === 1 ? "1 message awaiting reply" : `${count} messages awaiting reply`,
+    priorityTasks: (count) =>
+      count === 1 ? "1 priority task for today" : `${count} priority tasks for today`,
+    activeClients: (count) => (count === 1 ? "1 active client" : `${count} active clients`),
+    pendingInvoices: (count, amount) =>
+      count === 1 ? `1 invoice awaiting payment (${amount})` : `${count} invoices awaiting payment (${amount})`,
+    overdueInvoices: (count, amount) =>
+      count === 1 ? `1 overdue invoice (${amount})` : `${count} overdue invoices (${amount})`,
+    openInbox: "Open inbox",
+    openToday: "View tasks",
+    openBilling: "View billing",
+    openAgenda: "Open calendar",
+  },
   states: {
     loading: "Loading My salon",
     error: {

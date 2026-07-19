@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { ExportCSVButton } from "@/components/export-button"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
+import { useFetch } from "@/hooks/use-fetch"
 import { useI18n } from "@/components/i18n-provider"
 import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import type { CSVColumn } from "@/lib/export/csv"
@@ -31,8 +32,12 @@ import { resolveOverviewPeriod } from "@modules/overview/period"
 import type {
   BusinessOverviewSnapshot,
   OverviewPeriodPreset,
+  SalonOverviewPayload,
+  SalonProfile,
+  SalonToday,
 } from "@modules/overview/types"
 import { OverviewHeader } from "./overview-header"
+import { SalonProfileCard, SalonTodayCard } from "./salon-cards"
 import { FinesseBriefRow } from "./finesse-brief"
 import { OverviewKpiGrid } from "./overview-kpis"
 import { RevenueTrendCard } from "./revenue-trend-card"
@@ -59,10 +64,17 @@ import { BTN_PRIMARY, CARD_CLASS } from "./overview-ui"
  * via `display: contents` wrappers + `order-*`, with the deeper charts behind
  * a collapsed disclosure — no duplicated markup, no compressed dashboard.
  *
- * Data: the isolated demo adapter provides the snapshot (no overview backend
- * yet — the header shows the preview chip permanently). QA modes mirror
- * Marketing's `?marketingDemo=`:
- *   `?overviewDemo=empty|partial|error|negative|first`  (+ `?vertical=beauty`)
+ * Data policy (honesty first):
+ *   - DEFAULT: the REAL backend (`GET /api/overview` → `loadSalonOverview`)
+ *     aggregates the workspace's own `Evento`/`Factura`/`Cliente`/
+ *     `Conversation`/`WorkspaceTask` rows plus `Workspace.config` — demo and
+ *     real workspaces alike. Sections whose backend does not exist yet
+ *     (drivers, per-service visits, booking attribution) arrive empty and
+ *     render their honest empty states; real and invented figures are never
+ *     mixed in one payload.
+ *   - The demo adapter remains ONLY behind the explicit QA modes, which show
+ *     the preview chip:
+ *     `?overviewDemo=demo|empty|partial|error|negative|first` (+ `?vertical=beauty`)
  */
 
 // ─── Entry ───────────────────────────────────────────────────────────────────
@@ -74,6 +86,7 @@ export function BeautyBusinessOverviewPage() {
   const config = useMemo(() => getBeautyOverviewMessages(locale), [locale])
 
   const demoMode = searchParams.get("overviewDemo")
+  const [preset, setPreset] = useState<OverviewPeriodPreset>("month")
 
   // Gate on client mount before reading the clock: periods derive from "now",
   // and computing them during SSR would risk a hydration mismatch around day
@@ -83,7 +96,67 @@ export function BeautyBusinessOverviewPage() {
     setNow(new Date())
   }, [])
 
+  const timezone = useMemo(() => {
+    if (now === null) return null
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC"
+    } catch {
+      return "UTC"
+    }
+  }, [now])
+
   const workspaceId = workspace?.id ?? "preview"
+
+  // Real payload — fetched unless an explicit QA demo mode is active.
+  const realUrl =
+    demoMode === null && workspace?.id && timezone
+      ? `/api/overview?preset=${preset}&tz=${encodeURIComponent(timezone)}`
+      : null
+  const real = useFetch<SalonOverviewPayload>(realUrl)
+
+  let body: React.ReactNode
+  if (demoMode === "error") {
+    body = <OverviewErrorState config={config} />
+  } else if (now === null) {
+    body = <OverviewLoading config={config} />
+  } else if (demoMode !== null) {
+    // QA preview modes — clearly identified sample data, never the default.
+    body = (
+      <OverviewContent
+        // Locale in the key: the demo snapshot is product-owned sample data
+        // and regenerates in the new language (real data never would).
+        key={`${workspaceId}:${demoMode}:${config.locale}`}
+        config={config}
+        snapshot={resolveDemoSnapshot(workspaceId, preset, now, demoMode, config)}
+        salon={null}
+        todayOps={null}
+        showPreviewChip
+        isDemo
+        preset={preset}
+        onPresetChange={setPreset}
+        now={now}
+      />
+    )
+  } else if (real.error) {
+    body = <OverviewErrorState config={config} />
+  } else if (real.loading || !real.data) {
+    body = <OverviewLoading config={config} />
+  } else {
+    body = (
+      <OverviewContent
+        key={`${workspaceId}:real`}
+        config={config}
+        snapshot={real.data.snapshot}
+        salon={real.data.salon}
+        todayOps={real.data.today}
+        showPreviewChip={false}
+        isDemo={false}
+        preset={preset}
+        onPresetChange={setPreset}
+        now={now}
+      />
+    )
+  }
 
   return (
     <AppShell
@@ -91,21 +164,7 @@ export function BeautyBusinessOverviewPage() {
       breadcrumbs={[{ label: "7F" }, { label: config.header.title }]}
       contentClassName="max-w-7xl"
     >
-      {demoMode === "error" ? (
-        <OverviewErrorState config={config} />
-      ) : now === null ? (
-        <OverviewLoading config={config} />
-      ) : (
-        <OverviewContent
-          // Locale in the key: the demo snapshot is product-owned sample data
-          // and regenerates in the new language (real data never would).
-          key={`${workspaceId}:${demoMode ?? "demo"}:${config.locale}`}
-          config={config}
-          workspaceId={workspaceId}
-          now={now}
-          demoMode={demoMode}
-        />
-      )}
+      {body}
     </AppShell>
   )
 }
@@ -150,11 +209,12 @@ function OverviewErrorState({ config }: { config: BeautyOverviewMessages }) {
 
 // ─── Content ─────────────────────────────────────────────────────────────────
 
-function resolveSnapshot(
+/** QA-only demo snapshots — reachable exclusively via `?overviewDemo=`. */
+function resolveDemoSnapshot(
   workspaceId: string,
   preset: OverviewPeriodPreset,
   now: Date,
-  demoMode: string | null,
+  demoMode: string,
   config: BeautyOverviewMessages,
 ): BusinessOverviewSnapshot {
   const period = resolveOverviewPeriod(preset, now)
@@ -186,23 +246,29 @@ function buildExportColumns(config: BeautyOverviewMessages): CSVColumn[] {
 
 function OverviewContent({
   config,
-  workspaceId,
+  snapshot,
+  salon,
+  todayOps,
+  showPreviewChip,
+  isDemo,
+  preset,
+  onPresetChange,
   now,
-  demoMode,
 }: {
   config: BeautyOverviewMessages
-  workspaceId: string
+  /** ONE snapshot per (workspace, period, source) — every section derives from it. */
+  snapshot: BusinessOverviewSnapshot
+  /** Real salon identity — `null` in QA demo modes (cards are hidden). */
+  salon: SalonProfile | null
+  /** Real operational summary — `null` in QA demo modes. */
+  todayOps: SalonToday | null
+  showPreviewChip: boolean
+  isDemo: boolean
+  preset: OverviewPeriodPreset
+  onPresetChange: (preset: OverviewPeriodPreset) => void
   now: Date
-  demoMode: string | null
 }) {
   const { locale } = useI18n()
-  const [preset, setPreset] = useState<OverviewPeriodPreset>("month")
-
-  // ONE snapshot per (workspace, period, mode) — every section derives from it.
-  const snapshot = useMemo(
-    () => resolveSnapshot(workspaceId, preset, now, demoMode, config),
-    [workspaceId, preset, now, demoMode, config],
-  )
 
   const brief = useMemo(
     () => buildBeautyOverviewBrief(deriveBriefFacts(snapshot), { messages: config, locale }),
@@ -269,9 +335,10 @@ function OverviewContent({
       <OverviewHeader
         config={config}
         preset={preset}
-        onPresetChange={setPreset}
+        onPresetChange={onPresetChange}
         locale={locale}
         now={now}
+        showPreviewChip={showPreviewChip}
         exportSlot={
           exportRows.length > 0 ? (
             <ExportCSVButton
@@ -285,7 +352,20 @@ function OverviewContent({
       />
 
       {pageEmpty ? (
-        <OverviewEmptyState config={config} />
+        <>
+          {/* A workspace can have its identity filled while business data is
+              still empty — keep the real profile/today cards visible above
+              the honest empty state. */}
+          {salon || todayOps ? (
+            <div className="grid gap-5 md:gap-6 lg:grid-cols-2">
+              {todayOps ? (
+                <SalonTodayCard config={config} today={todayOps} locale={locale} currency={currency} />
+              ) : null}
+              {salon ? <SalonProfileCard config={config} salon={salon} locale={locale} /> : null}
+            </div>
+          ) : null}
+          <OverviewEmptyState config={config} />
+        </>
       ) : (
         <>
           <FinesseBriefRow
@@ -350,6 +430,16 @@ function OverviewContent({
 
             {/* Right rail */}
             <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
+              {todayOps ? (
+                <div className="order-first lg:order-none">
+                  <SalonTodayCard
+                    config={config}
+                    today={todayOps}
+                    locale={locale}
+                    currency={currency}
+                  />
+                </div>
+              ) : null}
               <div className="order-1 lg:order-none">
                 <BusinessRecommendationsCard
                   config={config}
@@ -367,14 +457,19 @@ function OverviewContent({
                   clients={snapshot.topClients}
                   locale={locale}
                   currency={currency}
-                  // Demo ids are not navigable — real adapters return raw client
-                  // ids and this becomes `/clientes/${id}`.
-                  clientHref={() => null}
+                  // Real client ids navigate to the profile; QA demo ids don't.
+                  clientHref={(clientId) => (isDemo ? null : `/clientes/${clientId}`)}
                 />
               </div>
               <div className="order-8 hidden lg:order-none lg:block">
                 <BookingSourcesCard config={config} sources={snapshot.bookingSources} locale={locale} />
               </div>
+
+              {salon ? (
+                <div className="order-10 lg:order-none">
+                  <SalonProfileCard config={config} salon={salon} locale={locale} />
+                </div>
+              ) : null}
 
               {/* Mobile-only: deeper analysis behind a collapsed disclosure. */}
               <div className="order-9 lg:hidden">

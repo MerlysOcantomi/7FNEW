@@ -184,6 +184,31 @@ export const FINESSE_DEMO_EVENTS: DemoEventData[] = [
   { clientIndex: 0, titulo: "Pedicura semipermanente", daysOffset: 7, hora: 13, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:10" },
   { clientIndex: 5, titulo: "Limpieza facial profunda", daysOffset: 1, hora: 16, minuto: 0, duracionMinutos: 75, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:11" },
   { clientIndex: 6, titulo: "Manicura expresss", daysOffset: 2, hora: 9, minuto: 0, duracionMinutos: 30, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:12" },
+  // ── Historical visits (negative offsets) — they give the business overview
+  // real month KPIs, weekday demand, client mix and a comparison baseline.
+  // Titles reuse active catalog service names so a future service↔cita link
+  // can attach cleanly.
+  { clientIndex: 2, titulo: "Masaje relajante", daysOffset: -1, hora: 17, minuto: 0, duracionMinutos: 90, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:13" },
+  { clientIndex: 0, titulo: "Manicura semipermanente", daysOffset: -2, hora: 10, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:14" },
+  { clientIndex: 5, titulo: "Limpieza facial", daysOffset: -4, hora: 12, minuto: 30, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:15" },
+  { clientIndex: 1, titulo: "Nail art", daysOffset: -6, hora: 16, minuto: 30, duracionMinutos: 75, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:16" },
+  { clientIndex: 6, titulo: "Pedicura", daysOffset: -8, hora: 11, minuto: 0, duracionMinutos: 45, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:17" },
+  { clientIndex: 2, titulo: "Facial rejuvenecedor", daysOffset: -11, hora: 15, minuto: 0, duracionMinutos: 120, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:18" },
+  { clientIndex: 0, titulo: "Manicura semipermanente", daysOffset: -13, hora: 10, minuto: 30, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:19" },
+  { clientIndex: 7, titulo: "Lifting de pestañas", daysOffset: -16, hora: 13, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:20" },
+  { clientIndex: 1, titulo: "Manicura semipermanente", daysOffset: -20, hora: 9, minuto: 30, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:21" },
+  { clientIndex: 6, titulo: "Depilación láser", daysOffset: -24, hora: 17, minuto: 30, duracionMinutos: 45, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:22" },
+  { clientIndex: 0, titulo: "Pedicura", daysOffset: -27, hora: 12, minuto: 0, duracionMinutos: 45, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:23" },
+  // Previous-month visits — the comparison baseline for deltas.
+  { clientIndex: 2, titulo: "Masaje relajante", daysOffset: -33, hora: 16, minuto: 0, duracionMinutos: 90, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:24" },
+  { clientIndex: 0, titulo: "Manicura semipermanente", daysOffset: -37, hora: 10, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:25" },
+  { clientIndex: 1, titulo: "Limpieza facial", daysOffset: -41, hora: 15, minuto: 30, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:26" },
+  { clientIndex: 5, titulo: "Nail art", daysOffset: -45, hora: 11, minuto: 30, duracionMinutos: 75, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:27" },
+  { clientIndex: 6, titulo: "Manicura semipermanente", daysOffset: -52, hora: 9, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:28" },
+  { clientIndex: 0, titulo: "Facial rejuvenecedor", daysOffset: -58, hora: 14, minuto: 0, duracionMinutos: 120, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:29" },
+  // Valentina's only visit is ~3 months back — she feeds the honest
+  // "clientas sin volver" signal (matches her rebooking task + notes).
+  { clientIndex: 4, titulo: "Manicura semipermanente", daysOffset: -95, hora: 12, minuto: 0, duracionMinutos: 60, tipo: "cita", demoMarker: "FINESSE_DEMO:cita:30" },
 ]
 
 /**
@@ -326,6 +351,13 @@ export interface DemoInvoiceData {
   impuesto: number
   descripcion: string
   daysAgo: number
+  /**
+   * Due date as an offset in days from today (negative = already overdue).
+   * Omitted for drafts, which have no due date yet.
+   */
+  dueOffsetDays?: number
+  /** Days ago the invoice was paid. Only for estado "pagada". */
+  paidDaysAgo?: number
   /** Demo marker for idempotent updates */
   demoMarker: string
 }
@@ -338,6 +370,8 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 21,
     descripcion: "Manicura + Pedicura",
     daysAgo: 0,
+    dueOffsetDays: 14,
+    paidDaysAgo: 0,
     demoMarker: "FINESSE_DEMO:invoice:001",
   },
   {
@@ -347,6 +381,8 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 31.5,
     descripcion: "Gel Nail Art",
     daysAgo: 3,
+    dueOffsetDays: 11,
+    paidDaysAgo: 2,
     demoMarker: "FINESSE_DEMO:invoice:002",
   },
   {
@@ -356,6 +392,7 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     impuesto: 42,
     descripcion: "Facial rejuvenecedor",
     daysAgo: 1,
+    dueOffsetDays: 13,
     demoMarker: "FINESSE_DEMO:invoice:003",
   },
   {
@@ -372,9 +409,134 @@ export const FINESSE_DEMO_INVOICES: DemoInvoiceData[] = [
     estado: "vencida",
     subtotal: 80,
     impuesto: 16.8,
-    descripcion: "Manicura mantencimiento",
+    descripcion: "Manicura mantenimiento",
     daysAgo: 15,
+    dueOffsetDays: -5,
     demoMarker: "FINESSE_DEMO:invoice:005",
+  },
+  // ── Collected history — real earnings KPI, revenue trend and comparison
+  // baseline for the business overview. Each matches a historical visit.
+  {
+    clientIndex: 2,
+    estado: "pagada",
+    subtotal: 90,
+    impuesto: 18.9,
+    descripcion: "Masaje relajante",
+    daysAgo: 1,
+    dueOffsetDays: 13,
+    paidDaysAgo: 1,
+    demoMarker: "FINESSE_DEMO:invoice:006",
+  },
+  {
+    clientIndex: 0,
+    estado: "pagada",
+    subtotal: 45,
+    impuesto: 9.45,
+    descripcion: "Manicura semipermanente",
+    daysAgo: 2,
+    dueOffsetDays: 12,
+    paidDaysAgo: 2,
+    demoMarker: "FINESSE_DEMO:invoice:007",
+  },
+  {
+    clientIndex: 5,
+    estado: "pagada",
+    subtotal: 65,
+    impuesto: 13.65,
+    descripcion: "Limpieza facial",
+    daysAgo: 4,
+    dueOffsetDays: 10,
+    paidDaysAgo: 3,
+    demoMarker: "FINESSE_DEMO:invoice:008",
+  },
+  {
+    clientIndex: 1,
+    estado: "pagada",
+    subtotal: 70,
+    impuesto: 14.7,
+    descripcion: "Nail art",
+    daysAgo: 6,
+    dueOffsetDays: 8,
+    paidDaysAgo: 5,
+    demoMarker: "FINESSE_DEMO:invoice:009",
+  },
+  {
+    clientIndex: 6,
+    estado: "pagada",
+    subtotal: 40,
+    impuesto: 8.4,
+    descripcion: "Pedicura",
+    daysAgo: 8,
+    dueOffsetDays: 6,
+    paidDaysAgo: 7,
+    demoMarker: "FINESSE_DEMO:invoice:010",
+  },
+  {
+    clientIndex: 2,
+    estado: "pagada",
+    subtotal: 160,
+    impuesto: 33.6,
+    descripcion: "Facial rejuvenecedor",
+    daysAgo: 11,
+    dueOffsetDays: 3,
+    paidDaysAgo: 10,
+    demoMarker: "FINESSE_DEMO:invoice:011",
+  },
+  {
+    clientIndex: 7,
+    estado: "pagada",
+    subtotal: 55,
+    impuesto: 11.55,
+    descripcion: "Lifting de pestañas",
+    daysAgo: 16,
+    dueOffsetDays: -2,
+    paidDaysAgo: 15,
+    demoMarker: "FINESSE_DEMO:invoice:012",
+  },
+  {
+    clientIndex: 0,
+    estado: "pagada",
+    subtotal: 45,
+    impuesto: 9.45,
+    descripcion: "Manicura semipermanente",
+    daysAgo: 27,
+    dueOffsetDays: -13,
+    paidDaysAgo: 26,
+    demoMarker: "FINESSE_DEMO:invoice:013",
+  },
+  // Previous-month collections — the earnings comparison baseline.
+  {
+    clientIndex: 2,
+    estado: "pagada",
+    subtotal: 90,
+    impuesto: 18.9,
+    descripcion: "Masaje relajante",
+    daysAgo: 33,
+    dueOffsetDays: -19,
+    paidDaysAgo: 32,
+    demoMarker: "FINESSE_DEMO:invoice:014",
+  },
+  {
+    clientIndex: 1,
+    estado: "pagada",
+    subtotal: 65,
+    impuesto: 13.65,
+    descripcion: "Limpieza facial",
+    daysAgo: 41,
+    dueOffsetDays: -27,
+    paidDaysAgo: 40,
+    demoMarker: "FINESSE_DEMO:invoice:015",
+  },
+  {
+    clientIndex: 6,
+    estado: "pagada",
+    subtotal: 45,
+    impuesto: 9.45,
+    descripcion: "Manicura semipermanente",
+    daysAgo: 52,
+    dueOffsetDays: -38,
+    paidDaysAgo: 51,
+    demoMarker: "FINESSE_DEMO:invoice:016",
   },
 ]
 
@@ -431,6 +593,235 @@ export const FINESSE_DEMO_CONTENT_PIECES: DemoContentPieceData[] = [
 ]
 
 /**
+ * Demo workspace tasks (WorkspaceTask) — what Today's "My work" / "AI work"
+ * lanes read. Visibility rules honored here (see modules/today/aggregator.ts):
+ *   - only statuses proposed | open | in_progress | waiting surface;
+ *   - tasks dated later than today are dropped by the Today buckets, so every
+ *     dated demo task is due today;
+ *   - undated tasks only surface for their assignee, so undated demo tasks are
+ *     always assigned to the owner.
+ */
+export interface DemoWorkspaceTaskData {
+  title: string
+  description: string
+  /** proposed | open | in_progress | waiting */
+  status: "proposed" | "open" | "in_progress" | "waiting"
+  /** low | normal | high | urgent */
+  priority: "low" | "normal" | "high" | "urgent"
+  /** owner → assigned to the seeding owner; ai → Fanny; unassigned */
+  assign: "owner" | "ai" | "unassigned"
+  /** Due today at this hour. Omitted = undated (must then be assign: "owner"). */
+  dueHour?: number
+  dueMinute?: number
+  /** Optional link to a demo client (index into FINESSE_DEMO_CLIENTS). */
+  clientIndex?: number
+  /** Optional link to a demo event (its demoMarker). */
+  eventMarker?: string
+  /** Optional link to a demo conversation (its demoMarker). */
+  conversationMarker?: string
+  /** Short human label of where the task comes from (shown by the UI). */
+  sourceLabel: string
+  /** user | fanny | system */
+  suggestedBy?: "user" | "fanny" | "system"
+  /** manual | ai_assisted | ai */
+  executionMode?: "manual" | "ai_assisted" | "ai"
+  /** Demo marker for idempotent updates (stored in sourceId). */
+  demoMarker: string
+}
+
+/** sourceType used for every demo WorkspaceTask — the idempotency lookup key. */
+export const FINESSE_DEMO_TASK_SOURCE_TYPE = "finesse_demo"
+
+export const FINESSE_DEMO_WORKSPACE_TASKS: DemoWorkspaceTaskData[] = [
+  {
+    title: "Confirmar la cita de Carla (consulta inicial de mañana)",
+    description: "Carla todavía no ha confirmado su primera consulta. Enviarle un recordatorio hoy.",
+    status: "open",
+    priority: "high",
+    assign: "owner",
+    dueHour: 18,
+    dueMinute: 0,
+    clientIndex: 3,
+    eventMarker: "FINESSE_DEMO:cita:04",
+    sourceLabel: "Agenda",
+    suggestedBy: "user",
+    executionMode: "manual",
+    demoMarker: "FINESSE_DEMO:task:01",
+  },
+  {
+    title: "Reclamar la factura vencida de Valentina",
+    description: "La factura DEMO de mantenimiento lleva 5 días vencida. Enviar recordatorio de pago.",
+    status: "open",
+    priority: "high",
+    assign: "owner",
+    dueHour: 12,
+    dueMinute: 0,
+    clientIndex: 4,
+    sourceLabel: "Facturación",
+    suggestedBy: "user",
+    executionMode: "manual",
+    demoMarker: "FINESSE_DEMO:task:02",
+  },
+  {
+    title: "Responder a Sofía: quiere manicura gel el viernes",
+    description: "Sofía pidió cita para una manicura gel este viernes. Proponerle hueco por la mañana.",
+    status: "in_progress",
+    priority: "high",
+    assign: "owner",
+    dueHour: 11,
+    dueMinute: 0,
+    clientIndex: 1,
+    conversationMarker: "FINESSE_DEMO:conv:02",
+    sourceLabel: "Inbox",
+    suggestedBy: "user",
+    executionMode: "manual",
+    demoMarker: "FINESSE_DEMO:task:03",
+  },
+  {
+    title: "Proponer nueva cita a Valentina (3 meses sin visita)",
+    description: "Valentina no viene desde hace 3 meses. Borrador de mensaje de rebooking listo para revisar.",
+    status: "proposed",
+    priority: "normal",
+    assign: "ai",
+    dueHour: 16,
+    dueMinute: 0,
+    clientIndex: 4,
+    sourceLabel: "Fanny",
+    suggestedBy: "fanny",
+    executionMode: "ai_assisted",
+    demoMarker: "FINESSE_DEMO:task:04",
+  },
+  {
+    title: "Esperando confirmación del proveedor de esmaltes",
+    description: "Pedido de esmaltes semipermanentes enviado; falta confirmación de entrega.",
+    status: "waiting",
+    priority: "normal",
+    assign: "owner",
+    dueHour: 17,
+    dueMinute: 30,
+    sourceLabel: "Inventario",
+    suggestedBy: "user",
+    executionMode: "manual",
+    demoMarker: "FINESSE_DEMO:task:05",
+  },
+  {
+    title: "Preparar la promo de primavera (20% nuevas clientas)",
+    description: "Definir servicios incluidos y texto del post antes de programarlo.",
+    status: "open",
+    priority: "normal",
+    assign: "owner",
+    sourceLabel: "Marketing",
+    suggestedBy: "user",
+    executionMode: "manual",
+    demoMarker: "FINESSE_DEMO:task:06",
+  },
+]
+
+/**
+ * Demo legacy CRM tasks (Tarea) — what the /tareas page reads. Kept distinct
+ * from the WorkspaceTask titles so Today (which merges both models) never
+ * shows near-duplicates. The demo marker lives on its own line inside
+ * `descripcion` (the model has no free metadata column); the seeder matches
+ * with `contains`.
+ */
+export interface DemoTareaData {
+  titulo: string
+  /** Human description; the marker is appended on its own line by the seeder. */
+  descripcion: string
+  /** pendiente | en_progreso | completada */
+  estado: "pendiente" | "en_progreso" | "completada"
+  /** baja | media | alta | urgente */
+  prioridad: "baja" | "media" | "alta" | "urgente"
+  /** Deadline offset in days from today. Omitted = no deadline. */
+  dueOffsetDays?: number
+  clientIndex?: number
+  /** Demo marker for idempotent updates */
+  demoMarker: string
+}
+
+export const FINESSE_DEMO_TAREAS: DemoTareaData[] = [
+  {
+    titulo: "Actualizar la lista de precios de tratamientos",
+    descripcion: "Revisar los precios de faciales y masajes antes de la temporada alta.",
+    estado: "pendiente",
+    prioridad: "media",
+    dueOffsetDays: 3,
+    demoMarker: "FINESSE_DEMO:tarea:01",
+  },
+  {
+    titulo: "Renovar el escaparate con la campaña de primavera",
+    descripcion: "Colocar la cartelería nueva y las muestras de color de esta temporada.",
+    estado: "pendiente",
+    prioridad: "baja",
+    dueOffsetDays: 5,
+    demoMarker: "FINESSE_DEMO:tarea:02",
+  },
+  {
+    titulo: "Preparar ficha de preferencias de Laura",
+    descripcion: "Completar la ficha VIP con sus tratamientos favoritos y alergias.",
+    estado: "en_progreso",
+    prioridad: "alta",
+    dueOffsetDays: 1,
+    clientIndex: 2,
+    demoMarker: "FINESSE_DEMO:tarea:03",
+  },
+]
+
+/**
+ * Demo business profile — the canonical `Workspace.config.businessProfile`
+ * shape (see `WorkspaceBusinessProfile` in core/verticals.ts). This is what
+ * /business-profile and the agent context read. Merged fill-only-missing so
+ * a profile the owner already edited is never overwritten.
+ */
+export const FINESSE_DEMO_BUSINESS_PROFILE: Record<string, unknown> = {
+  businessName: "Finesse Studio Beauty",
+  businessDescription:
+    "Salón boutique de manicura, estética facial y bienestar en el centro. Citas con reserva previa, atención personalizada y productos cruelty-free.",
+  services: [
+    "Manicura semipermanente",
+    "Pedicura",
+    "Nail art",
+    "Limpieza facial",
+    "Facial rejuvenecedor",
+    "Masaje relajante",
+    "Depilación láser",
+    "Lifting de pestañas",
+  ],
+  tone: "Cercano y profesional, con un toque cálido. Tuteamos a las clientas.",
+  region: "Madrid Centro, España",
+  languages: ["es", "en"],
+  workingHours: "Martes a sábado de 10:00 a 19:00. Lunes y domingo cerrado.",
+  attentionRules: [
+    "Confirmar cada cita el día anterior por mensaje.",
+    "Responder los mensajes nuevos en menos de 2 horas dentro del horario.",
+    "Ofrecer rebooking a clientas sin visita en los últimos 60 días.",
+  ],
+}
+
+/**
+ * Demo service catalog fallback — same shape as the Beauty pack seed
+ * (`BEAUTY_SERVICE_CATALOG_SEED`). Only written to `Workspace.config` when the
+ * workspace resolves to an EMPTY catalog (e.g. its verticalKey is a Beauty
+ * alias like "salon" with no Vertical row carrying defaults). If the vertical
+ * defaults or the workspace already provide a catalog, this is not used —
+ * the workspace keeps its canonical source.
+ */
+export const FINESSE_DEMO_SERVICE_CATALOG: Array<{
+  name: string
+  category: string
+  active: boolean
+}> = [
+  { name: "Manicura semipermanente", category: "Uñas", active: true },
+  { name: "Pedicura", category: "Uñas", active: true },
+  { name: "Nail art", category: "Uñas", active: true },
+  { name: "Limpieza facial", category: "Estética", active: true },
+  { name: "Facial rejuvenecedor", category: "Estética", active: true },
+  { name: "Masaje relajante", category: "Bienestar", active: true },
+  { name: "Depilación láser", category: "Estética", active: true },
+  { name: "Lifting de pestañas", category: "Pestañas", active: true },
+]
+
+/**
  * Validate demo data consistency.
  */
 export function validateDemoData(): { valid: boolean; errors: string[] } {
@@ -453,6 +844,54 @@ export function validateDemoData(): { valid: boolean; errors: string[] } {
     if (inv.clientIndex < 0 || inv.clientIndex >= FINESSE_DEMO_CLIENTS.length) {
       errors.push(`Invoice references invalid clientIndex ${inv.clientIndex}`)
     }
+    // Date coherence: an overdue invoice must actually be past due; a paid
+    // invoice must know when it was paid; a draft carries no due date.
+    if (inv.estado === "vencida" && !(typeof inv.dueOffsetDays === "number" && inv.dueOffsetDays < 0)) {
+      errors.push(`Overdue invoice ${inv.demoMarker} must have a negative dueOffsetDays`)
+    }
+    if (inv.estado === "pagada" && typeof inv.paidDaysAgo !== "number") {
+      errors.push(`Paid invoice ${inv.demoMarker} must have paidDaysAgo`)
+    }
+    if (inv.estado !== "pagada" && typeof inv.paidDaysAgo === "number") {
+      errors.push(`Invoice ${inv.demoMarker} has paidDaysAgo but is not "pagada"`)
+    }
+    if (inv.estado === "borrador" && typeof inv.dueOffsetDays === "number") {
+      errors.push(`Draft invoice ${inv.demoMarker} must not have a due date`)
+    }
+  }
+
+  // Workspace tasks: index bounds, cross-references and Today visibility rules.
+  const eventMarkers = new Set(FINESSE_DEMO_EVENTS.map((e) => e.demoMarker))
+  const convMarkers = new Set(FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker))
+  for (const task of FINESSE_DEMO_WORKSPACE_TASKS) {
+    if (
+      typeof task.clientIndex === "number" &&
+      (task.clientIndex < 0 || task.clientIndex >= FINESSE_DEMO_CLIENTS.length)
+    ) {
+      errors.push(`Workspace task ${task.demoMarker} references invalid clientIndex ${task.clientIndex}`)
+    }
+    if (task.eventMarker && !eventMarkers.has(task.eventMarker)) {
+      errors.push(`Workspace task ${task.demoMarker} references unknown eventMarker ${task.eventMarker}`)
+    }
+    if (task.conversationMarker && !convMarkers.has(task.conversationMarker)) {
+      errors.push(
+        `Workspace task ${task.demoMarker} references unknown conversationMarker ${task.conversationMarker}`,
+      )
+    }
+    // Today only surfaces undated tasks for their assignee — an undated task
+    // not assigned to the owner would be invisible everywhere.
+    if (task.dueHour === undefined && task.assign !== "owner") {
+      errors.push(`Undated workspace task ${task.demoMarker} must be assigned to the owner`)
+    }
+  }
+
+  for (const tarea of FINESSE_DEMO_TAREAS) {
+    if (
+      typeof tarea.clientIndex === "number" &&
+      (tarea.clientIndex < 0 || tarea.clientIndex >= FINESSE_DEMO_CLIENTS.length)
+    ) {
+      errors.push(`Tarea ${tarea.demoMarker} references invalid clientIndex ${tarea.clientIndex}`)
+    }
   }
 
   // Check email uniqueness
@@ -468,6 +907,8 @@ export function validateDemoData(): { valid: boolean; errors: string[] } {
     ...FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker),
     ...FINESSE_DEMO_INVOICES.map((i) => i.demoMarker),
     ...FINESSE_DEMO_CONTENT_PIECES.map((p) => p.demoMarker),
+    ...FINESSE_DEMO_WORKSPACE_TASKS.map((t) => t.demoMarker),
+    ...FINESSE_DEMO_TAREAS.map((t) => t.demoMarker),
   ]
   const seenMarkers = new Set<string>()
   for (const marker of allMarkers) {
@@ -496,6 +937,8 @@ export function getDemoDatasetSummary() {
     messages: FINESSE_DEMO_CONVERSATIONS.reduce((sum, c) => sum + c.messages.length, 0),
     invoices: FINESSE_DEMO_INVOICES.length,
     contentPieces: FINESSE_DEMO_CONTENT_PIECES.length,
+    workspaceTasks: FINESSE_DEMO_WORKSPACE_TASKS.length,
+    tareas: FINESSE_DEMO_TAREAS.length,
   }
 }
 

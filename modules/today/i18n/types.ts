@@ -69,6 +69,50 @@ export interface BeautyTodayMessages {
       connectMarketing: string
     }
   }
+  /** The REAL Beauty "Hoy" surface (agenda from Evento, actions from tasks). */
+  real: {
+    /** Header signals — real counts only (Evento has no price → no value figure). */
+    signals: {
+      appointments: (count: number) => string
+      remaining: (count: number) => string
+      gaps: (count: number) => string
+    }
+    nextTitle: string
+    nextNone: string
+    /** "Terminada"-style claims are banned — phases are time words only. */
+    phaseCurrent: string
+    agendaEmpty: string
+    openCalendar: string
+    openClient: string
+    gapRow: {
+      title: (start: string, end: string) => string
+      minutes: (minutes: number) => string
+    }
+    urgentTitle: string
+    suggestedTitle: string
+    /** "Based on:" prefix before an action's real basis chips. */
+    basisPrefix: string
+    proposedLabel: string
+    waitingLabel: string
+    overdueLabel: string
+    dueAtLabel: (time: string) => string
+    open: string
+    messagesRow: (count: number) => string
+    openInbox: string
+    overdueInvoicesRow: (count: number, amount: string) => string
+    pendingInvoicesRow: (count: number, amount: string) => string
+    openBilling: string
+    otherTasksRow: (count: number) => string
+    openWorkboard: string
+    allClear: string
+    emptyDay: {
+      title: string
+      description: string
+      cta: string
+    }
+    error: { title: string; description: string; retry: string }
+    loading: string
+  }
   /** Product-owned demo narrative + mock content. */
   demo: {
     assistantNote: string

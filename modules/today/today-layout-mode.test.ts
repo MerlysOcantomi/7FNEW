@@ -139,22 +139,23 @@ test("shouldActivateVerticalToday: real workspace activates only when the pack g
   )
 })
 
-test("CRITICAL: a REAL Beauty workspace stays on work_first (never demo appointment_first)", () => {
+test("CRITICAL: a REAL Beauty workspace auto-activates appointment_first (real backend on)", () => {
   const exp = resolveWorkspaceExperience("beauty")
-  // Beauty declares appointment_first but gates real activation off.
+  // Beauty declares appointment_first and — since 7F-P01.B3 — its pack gate is
+  // ON: the appointment Today reads REAL data (GET /api/today/beauty), so real
+  // operators land on it. The guardrail machinery stays in place for any pack
+  // whose layout still renders demo data.
   assert.equal(exp.todayMode, "appointment_first")
-  assert.equal(exp.todayActivatesRealWorkspaces, false)
+  assert.equal(exp.todayActivatesRealWorkspaces, true)
 
-  // Real workspace path (no explicit preview): the enable flag is derived from
-  // the pack gate → work_first. This is the exact bug the guardrail fixes.
   const realEnable = shouldActivateVerticalToday({
     isExplicitPreview: false,
     todayActivatesRealWorkspaces: exp.todayActivatesRealWorkspaces,
   })
-  assert.equal(realEnable, false)
+  assert.equal(realEnable, true)
   assert.equal(
     resolveTodayLayoutMode({ verticalKey: "beauty", enableVerticalAutoSwitch: realEnable }),
-    "work_first",
+    "appointment_first",
   )
 })
 

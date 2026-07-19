@@ -11,6 +11,11 @@ import {
   FINESSE_DEMO_CONVERSATIONS,
   FINESSE_DEMO_INVOICES,
   FINESSE_DEMO_CONTENT_PIECES,
+  FINESSE_DEMO_WORKSPACE_TASKS,
+  FINESSE_DEMO_TAREAS,
+  FINESSE_DEMO_BUSINESS_PROFILE,
+  FINESSE_DEMO_SERVICE_CATALOG,
+  FINESSE_DEMO_TASK_SOURCE_TYPE,
   validateDemoData,
   getDemoDatasetSummary,
   buildClientMap,
@@ -19,8 +24,18 @@ import {
 import {
   parseWorkspaceConfig,
   mergeDemoWorkspaceConfig,
+  mergeDemoBusinessProfile,
+  shouldWriteDemoServiceCatalog,
+  assessDemoTarget,
   extractDemoMetadata,
 } from "./finesse-demo-utils"
+import {
+  WORKSPACE_TASK_VALID_STATUSES,
+  WORKSPACE_TASK_VALID_PRIORITIES,
+  WORKSPACE_TASK_VALID_SUGGESTED_BY,
+  WORKSPACE_TASK_VALID_EXECUTION_MODES,
+} from "../modules/tasks/types"
+import { resolveServiceCatalog } from "../core/services/catalog"
 
 test("generateDemoInvoiceNumber: deterministic and globally unique", () => {
   const ws1 = "cuid1234567890abcdef"
@@ -162,6 +177,8 @@ test("getDemoDatasetSummary: returns correct counts", () => {
   )
   assert.equal(summary.invoices, FINESSE_DEMO_INVOICES.length, "should count invoices")
   assert.equal(summary.contentPieces, FINESSE_DEMO_CONTENT_PIECES.length, "should count content pieces")
+  assert.equal(summary.workspaceTasks, FINESSE_DEMO_WORKSPACE_TASKS.length, "should count workspace tasks")
+  assert.equal(summary.tareas, FINESSE_DEMO_TAREAS.length, "should count tareas")
 })
 
 test("FINESSE_DEMO_CONTENT_PIECES: estado values are valid", () => {
@@ -422,12 +439,302 @@ test("FINESSE_DEMO_CLIENTS: emails are deterministic for order independence", ()
   )
 })
 
+test("FINESSE_DEMO_INVOICES: date fields are coherent with estado", () => {
+  for (const inv of FINESSE_DEMO_INVOICES) {
+    if (inv.estado === "vencida") {
+      assert.ok(
+        typeof inv.dueOffsetDays === "number" && inv.dueOffsetDays < 0,
+        `overdue invoice ${inv.demoMarker} must have a past due date`,
+      )
+    }
+    if (inv.estado === "pagada") {
+      assert.ok(
+        typeof inv.paidDaysAgo === "number" && inv.paidDaysAgo >= 0,
+        `paid invoice ${inv.demoMarker} must have paidDaysAgo`,
+      )
+    } else {
+      assert.equal(
+        inv.paidDaysAgo,
+        undefined,
+        `unpaid invoice ${inv.demoMarker} must not have paidDaysAgo`,
+      )
+    }
+    if (inv.estado === "borrador") {
+      assert.equal(
+        inv.dueOffsetDays,
+        undefined,
+        `draft invoice ${inv.demoMarker} must not have a due date`,
+      )
+    }
+  }
+})
+
+test("FINESSE_DEMO_WORKSPACE_TASKS: statuses/priorities match the WorkspaceTask vocabulary", () => {
+  for (const task of FINESSE_DEMO_WORKSPACE_TASKS) {
+    assert.ok(
+      WORKSPACE_TASK_VALID_STATUSES.has(task.status),
+      `task ${task.demoMarker} status "${task.status}" must be a valid WorkspaceTask status`,
+    )
+    assert.ok(
+      WORKSPACE_TASK_VALID_PRIORITIES.has(task.priority),
+      `task ${task.demoMarker} priority "${task.priority}" must be a valid WorkspaceTask priority`,
+    )
+    if (task.suggestedBy) {
+      assert.ok(
+        WORKSPACE_TASK_VALID_SUGGESTED_BY.has(task.suggestedBy),
+        `task ${task.demoMarker} suggestedBy "${task.suggestedBy}" must be valid`,
+      )
+    }
+    if (task.executionMode) {
+      assert.ok(
+        WORKSPACE_TASK_VALID_EXECUTION_MODES.has(task.executionMode),
+        `task ${task.demoMarker} executionMode "${task.executionMode}" must be valid`,
+      )
+    }
+  }
+})
+
+test("FINESSE_DEMO_WORKSPACE_TASKS: every task is visible in Today's buckets", () => {
+  // modules/today/aggregator.ts drops future-dated tasks and hides undated
+  // tasks from everyone but their assignee. Every demo task must survive.
+  for (const task of FINESSE_DEMO_WORKSPACE_TASKS) {
+    if (task.dueHour === undefined) {
+      assert.equal(
+        task.assign,
+        "owner",
+        `undated task ${task.demoMarker} must be assigned to the owner or Today hides it`,
+      )
+    } else {
+      assert.ok(
+        task.dueHour >= 0 && task.dueHour <= 23,
+        `task ${task.demoMarker} dueHour must be a same-day hour`,
+      )
+    }
+  }
+})
+
+test("FINESSE_DEMO_WORKSPACE_TASKS: cross-references resolve to existing demo records", () => {
+  const eventMarkers = new Set(FINESSE_DEMO_EVENTS.map((e) => e.demoMarker))
+  const convMarkers = new Set(FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker))
+  for (const task of FINESSE_DEMO_WORKSPACE_TASKS) {
+    if (task.eventMarker) {
+      assert.ok(eventMarkers.has(task.eventMarker), `unknown eventMarker ${task.eventMarker}`)
+    }
+    if (task.conversationMarker) {
+      assert.ok(
+        convMarkers.has(task.conversationMarker),
+        `unknown conversationMarker ${task.conversationMarker}`,
+      )
+    }
+    if (typeof task.clientIndex === "number") {
+      assert.ok(
+        task.clientIndex >= 0 && task.clientIndex < FINESSE_DEMO_CLIENTS.length,
+        `task ${task.demoMarker} clientIndex out of bounds`,
+      )
+    }
+  }
+})
+
+test("FINESSE_DEMO_WORKSPACE_TASKS: includes the realistic risk scenarios", () => {
+  // The mission requires at least one honest risk. We ship three: an
+  // unconfirmed appointment, an overdue invoice chase and a pending rebooking.
+  const titles = FINESSE_DEMO_WORKSPACE_TASKS.map((t) => t.title.toLowerCase())
+  assert.ok(titles.some((t) => t.includes("confirmar la cita")), "unconfirmed appointment risk")
+  assert.ok(titles.some((t) => t.includes("factura vencida")), "overdue invoice risk")
+  assert.ok(
+    FINESSE_DEMO_WORKSPACE_TASKS.some((t) => t.status === "proposed" && t.suggestedBy === "fanny"),
+    "AI-proposed rebooking risk",
+  )
+})
+
+test("FINESSE_DEMO_TAREAS: estados/prioridades match the legacy Tarea vocabulary", () => {
+  const validEstados = new Set(["pendiente", "en_progreso", "completada"])
+  const validPrioridades = new Set(["baja", "media", "alta", "urgente"])
+  for (const tarea of FINESSE_DEMO_TAREAS) {
+    assert.ok(validEstados.has(tarea.estado), `tarea ${tarea.demoMarker} estado invalid`)
+    assert.ok(validPrioridades.has(tarea.prioridad), `tarea ${tarea.demoMarker} prioridad invalid`)
+  }
+})
+
+test("FINESSE_DEMO_TAREAS: titles never collide with WorkspaceTask titles", () => {
+  // Today merges both models without cross-model dedup — near-duplicate
+  // titles would look like duplicated work items.
+  const taskTitles = new Set(FINESSE_DEMO_WORKSPACE_TASKS.map((t) => t.title))
+  for (const tarea of FINESSE_DEMO_TAREAS) {
+    assert.ok(!taskTitles.has(tarea.titulo), `tarea title "${tarea.titulo}" duplicates a WorkspaceTask`)
+  }
+})
+
+test("FINESSE_DEMO_TASK_SOURCE_TYPE: stable idempotency key", () => {
+  assert.equal(FINESSE_DEMO_TASK_SOURCE_TYPE, "finesse_demo")
+})
+
+test("FINESSE_DEMO_BUSINESS_PROFILE: canonical shape with non-empty content", () => {
+  const profile = FINESSE_DEMO_BUSINESS_PROFILE
+  for (const key of ["businessName", "businessDescription", "tone", "region", "workingHours"]) {
+    const value = profile[key]
+    assert.ok(
+      typeof value === "string" && value.trim().length > 0,
+      `businessProfile.${key} must be a non-empty string`,
+    )
+  }
+  for (const key of ["services", "languages", "attentionRules"]) {
+    const value = profile[key]
+    assert.ok(Array.isArray(value) && value.length > 0, `businessProfile.${key} must be a non-empty array`)
+  }
+  // Locale codes stay technical identifiers (English/ISO), content may be Spanish.
+  assert.deepEqual(profile.languages, ["es", "en"])
+})
+
+test("FINESSE_DEMO_SERVICE_CATALOG: parses cleanly through the core catalog resolver", () => {
+  const resolved = resolveServiceCatalog(FINESSE_DEMO_SERVICE_CATALOG)
+  assert.equal(
+    resolved.length,
+    FINESSE_DEMO_SERVICE_CATALOG.length,
+    "every demo service must survive normalization",
+  )
+  const ids = new Set(resolved.map((s) => s.id))
+  assert.equal(ids.size, resolved.length, "resolved service ids must be unique")
+  for (const item of resolved) {
+    assert.ok(item.active, "demo services are all active")
+    assert.ok(item.category, "demo services carry a category")
+  }
+})
+
+test("mergeDemoBusinessProfile: fills only missing fields, never overwrites owner edits", () => {
+  const existing = {
+    businessProfile: {
+      businessName: "Mi Salón Real",
+      services: ["Corte"],
+      businessDescription: "",
+    },
+    otherKey: 1,
+  }
+
+  const { config, filledKeys } = mergeDemoBusinessProfile(existing, FINESSE_DEMO_BUSINESS_PROFILE)
+  const profile = config.businessProfile as Record<string, unknown>
+
+  assert.equal(profile.businessName, "Mi Salón Real", "owner-set name must win")
+  assert.deepEqual(profile.services, ["Corte"], "owner-set services must win")
+  assert.equal(
+    profile.businessDescription,
+    FINESSE_DEMO_BUSINESS_PROFILE.businessDescription,
+    "empty string counts as missing and gets filled",
+  )
+  assert.ok(filledKeys.includes("businessDescription"))
+  assert.ok(!filledKeys.includes("businessName"))
+  assert.equal(config.otherKey, 1, "unrelated config keys preserved")
+})
+
+test("mergeDemoBusinessProfile: no-op when profile is already complete", () => {
+  const complete = { businessProfile: { ...FINESSE_DEMO_BUSINESS_PROFILE } }
+  const { config, filledKeys } = mergeDemoBusinessProfile(complete, FINESSE_DEMO_BUSINESS_PROFILE)
+  assert.equal(filledKeys.length, 0, "nothing to fill")
+  assert.equal(config, complete, "config object returned unchanged")
+})
+
+test("mergeDemoBusinessProfile: fills everything on an empty config", () => {
+  const { config, filledKeys } = mergeDemoBusinessProfile({}, FINESSE_DEMO_BUSINESS_PROFILE)
+  assert.equal(filledKeys.length, Object.keys(FINESSE_DEMO_BUSINESS_PROFILE).length)
+  assert.deepEqual(config.businessProfile, FINESSE_DEMO_BUSINESS_PROFILE)
+})
+
+test("shouldWriteDemoServiceCatalog: only when no canonical catalog resolves", () => {
+  const demoCatalog = [{ name: "X", category: "Y", active: true }]
+
+  // Workspace already owns a catalog → never write.
+  assert.equal(shouldWriteDemoServiceCatalog({ serviceCatalog: demoCatalog }, null), false)
+
+  // Vertical defaults carry a catalog → never write.
+  assert.equal(shouldWriteDemoServiceCatalog({}, { serviceCatalog: demoCatalog }), false)
+
+  // Nothing anywhere → fallback applies.
+  assert.equal(shouldWriteDemoServiceCatalog({}, null), true)
+  assert.equal(shouldWriteDemoServiceCatalog({}, {}), true)
+  assert.equal(shouldWriteDemoServiceCatalog({ serviceCatalog: [] }, { serviceCatalog: [] }), true)
+})
+
+test("assessDemoTarget: flagged demo workspace is always seedable", () => {
+  const flagged = { demo: { enabled: true, type: "finesse-internal", ownerEmail: "o@x.com" } }
+  const result = assessDemoTarget(flagged, {
+    totalClients: 20,
+    demoClients: 8,
+    totalConversations: 9,
+    demoConversations: 5,
+  })
+  assert.equal(result.status, "ok-flagged-demo")
+  assert.equal(result.flaggedDemo, true)
+  // Non-demo counts are still reported for the operator's eyes.
+  assert.equal(result.nonDemoClients, 12)
+  assert.equal(result.nonDemoConversations, 4)
+})
+
+test("assessDemoTarget: fresh unflagged workspace (no unmarked rows) is seedable", () => {
+  const result = assessDemoTarget({}, {
+    totalClients: 0,
+    demoClients: 0,
+    totalConversations: 0,
+    demoConversations: 0,
+  })
+  assert.equal(result.status, "ok-fresh")
+
+  // Marker-only rows (a previous seed run before the flag write failed) still
+  // count as fresh — every row is ours.
+  const markersOnly = assessDemoTarget({}, {
+    totalClients: 8,
+    demoClients: 8,
+    totalConversations: 5,
+    demoConversations: 5,
+  })
+  assert.equal(markersOnly.status, "ok-fresh")
+})
+
+test("assessDemoTarget: unflagged workspace WITH unmarked data is BLOCKED (real-workspace shape)", () => {
+  const result = assessDemoTarget({}, {
+    totalClients: 34,
+    demoClients: 0,
+    totalConversations: 120,
+    demoConversations: 0,
+  })
+  assert.equal(result.status, "blocked-unflagged-data")
+  assert.equal(result.nonDemoClients, 34)
+  assert.equal(result.nonDemoConversations, 120)
+
+  // A single unmarked conversation is enough to block — better safe.
+  const oneRow = assessDemoTarget({}, {
+    totalClients: 0,
+    demoClients: 0,
+    totalConversations: 1,
+    demoConversations: 0,
+  })
+  assert.equal(oneRow.status, "blocked-unflagged-data")
+})
+
+test("assessDemoTarget: a wrong/partial demo flag does not unlock seeding", () => {
+  for (const demo of [
+    { enabled: true, type: "other" },
+    { enabled: false, type: "finesse-internal" },
+    "corrupted",
+    null,
+  ]) {
+    const result = assessDemoTarget({ demo }, {
+      totalClients: 5,
+      demoClients: 0,
+      totalConversations: 0,
+      demoConversations: 0,
+    })
+    assert.equal(result.status, "blocked-unflagged-data", JSON.stringify(demo))
+  }
+})
+
 test("marker fields enable safe restoration/deletion without touching real data", () => {
   // All demo records have markers that uniquely identify them
   const eventMarkers = new Set(FINESSE_DEMO_EVENTS.map((e) => e.demoMarker))
   const convMarkers = new Set(FINESSE_DEMO_CONVERSATIONS.map((c) => c.demoMarker))
   const invoiceMarkers = new Set(FINESSE_DEMO_INVOICES.map((i) => i.demoMarker))
   const contentMarkers = new Set(FINESSE_DEMO_CONTENT_PIECES.map((p) => p.demoMarker))
+  const taskMarkers = new Set(FINESSE_DEMO_WORKSPACE_TASKS.map((t) => t.demoMarker))
+  const tareaMarkers = new Set(FINESSE_DEMO_TAREAS.map((t) => t.demoMarker))
 
   assert.equal(
     eventMarkers.size,
@@ -445,9 +752,22 @@ test("marker fields enable safe restoration/deletion without touching real data"
     FINESSE_DEMO_CONTENT_PIECES.length,
     "all content markers should be unique",
   )
+  assert.equal(
+    taskMarkers.size,
+    FINESSE_DEMO_WORKSPACE_TASKS.length,
+    "all workspace task markers should be unique",
+  )
+  assert.equal(tareaMarkers.size, FINESSE_DEMO_TAREAS.length, "all tarea markers should be unique")
 
   // All markers follow the pattern FINESSE_DEMO:*
-  const allMarkers = [...eventMarkers, ...convMarkers, ...invoiceMarkers, ...contentMarkers]
+  const allMarkers = [
+    ...eventMarkers,
+    ...convMarkers,
+    ...invoiceMarkers,
+    ...contentMarkers,
+    ...taskMarkers,
+    ...tareaMarkers,
+  ]
   for (const marker of allMarkers) {
     assert.ok(
       marker.startsWith("FINESSE_DEMO:"),

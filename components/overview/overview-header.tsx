@@ -7,10 +7,12 @@ import type { OverviewPeriodPreset } from "@modules/overview/types"
 import { BTN_FOCUS, formatDateParts } from "./overview-ui"
 
 /**
- * "Mi salón" page header: title + Finesse brand chip + preview chip, current
- * date, one intro line, and the period selector. There is deliberately NO
- * "Preguntar a Finesse" button here — the global floating launcher is the one
- * persistent assistant entry (mission rule: never both).
+ * "Mi salón" page header: title + Finesse brand chip, current date, one intro
+ * line, and the period selector. The preview chip appears ONLY when demo data
+ * drives the page (`showPreviewChip` — the QA `?overviewDemo=` modes); with
+ * the real backend the chip is gone. There is deliberately NO "Preguntar a
+ * Finesse" button here — the global floating launcher is the one persistent
+ * assistant entry (mission rule: never both).
  */
 export function OverviewHeader({
   config,
@@ -18,6 +20,7 @@ export function OverviewHeader({
   onPresetChange,
   locale,
   now,
+  showPreviewChip,
   exportSlot,
 }: {
   config: BeautyOverviewMessages
@@ -25,6 +28,8 @@ export function OverviewHeader({
   onPresetChange: (preset: OverviewPeriodPreset) => void
   locale: FormatLocale
   now: Date
+  /** True only while clearly-identified sample data drives the page. */
+  showPreviewChip: boolean
   exportSlot?: React.ReactNode
 }) {
   const dateLabel = formatDateParts(now, { locale, weekday: "long", day: "numeric", month: "long" })
@@ -47,16 +52,18 @@ export function OverviewHeader({
             <Sparkles size={12} strokeWidth={2} aria-hidden="true" />
             {config.brandChip}
           </span>
-          <span
-            className="inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
-            style={{
-              borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)",
-              color: "var(--inbox-info)",
-            }}
-            title={config.preview.tooltip}
-          >
-            {config.preview.chip}
-          </span>
+          {showPreviewChip ? (
+            <span
+              className="inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+              style={{
+                borderColor: "color-mix(in srgb, var(--inbox-info) 40%, transparent)",
+                color: "var(--inbox-info)",
+              }}
+              title={config.preview.tooltip}
+            >
+              {config.preview.chip}
+            </span>
+          ) : null}
         </div>
 
         <p className="mt-2 max-w-xl text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">

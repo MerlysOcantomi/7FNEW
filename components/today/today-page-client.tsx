@@ -40,9 +40,11 @@ import {
 } from "@modules/today/today-layout-mode"
 import { toIntlLocale } from "@core/i18n/format"
 import { isBeautyTodayVertical } from "@modules/today/beauty-today"
+import { resolveBeautyTodayDataSource } from "@modules/today/beauty-real"
 import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
 import { TodayAppointmentLayout } from "./today-appointment-layout"
 import { BeautyStudioOverview } from "./beauty-studio-overview"
+import { BeautyTodayReal } from "./beauty-today-real"
 import { TodayJobRouteLayout } from "./today-job-route-layout"
 import { TodaySessionLayout } from "./today-session-layout"
 import { TodayBriefing } from "./today-briefing"
@@ -70,30 +72,28 @@ export function TodayPageClient() {
   const searchParams = useSearchParams()
   const { workspace } = useActiveWorkspace()
 
-  // Beauty is the first vertical with a visible verticalized Today. The REAL
-  // source of truth is the workspace: `workspace.verticalKey` →
-  // `resolveWorkspaceExperience(...)` (the foundation from PR #17). Beauty
-  // DECLARES `todayMode: "appointment_first"`, but that layout still renders
-  // DEMO bookings, so a REAL Beauty workspace deliberately stays on the safe
-  // work_first Today — see the P0 guardrail below. The Spanish, Finesse-branded
-  // Beauty "Hoy" (marked "Vista previa · datos de ejemplo") is reachable only as
-  // an explicit preview. Every other vertical stays on work_first too — Today
-  // normal is unchanged.
+  // Beauty is the first vertical with a REAL verticalized Today. The source of
+  // truth is the workspace: `workspace.verticalKey` →
+  // `resolveWorkspaceExperience(...)`. Beauty declares
+  // `todayMode: "appointment_first"` and — since 7F-P01.B3 — its pack gate
+  // `activateRealForRealWorkspaces` is ON: a real Beauty workspace lands on the
+  // REAL Beauty "Hoy" (`BeautyTodayReal`, fed by GET /api/today/beauty). Every
+  // other vertical stays on work_first — Today normal is unchanged.
   //
-  // `?vertical=beauty` is a preview/dev-only helper (clearly isolated) so the
-  // screen is demoable on a Vercel preview without flipping a workspace first.
+  // `?vertical=beauty` remains a preview/dev-only helper so the Beauty skin is
+  // demoable from a non-Beauty workspace; it renders the MOCK Studio preview
+  // (chip visible) because that workspace has no Beauty reality to show.
   const forcedBeauty = searchParams.get("vertical") === "beauty"
+  const workspaceIsBeauty = isBeautyTodayVertical(workspace?.verticalKey)
+  const forcedPreview = forcedBeauty && !workspaceIsBeauty
   const effectiveVerticalKey = forcedBeauty ? "beauty" : workspace?.verticalKey
   const experience = resolveWorkspaceExperience(effectiveVerticalKey)
   const beauty =
     experience.todayMode === "appointment_first" && isBeautyTodayVertical(effectiveVerticalKey)
-  // P0 guardrail: a REAL Beauty workspace must NOT auto-switch into the
-  // appointment_first layout while it renders demo bookings. Auto-switch is
-  // enabled ONLY for an explicit design-review preview (`?vertical=beauty`) or
-  // once the pack flips its own `activateRealForRealWorkspaces` gate on
-  // (surfaced as `experience.todayActivatesRealWorkspaces`, currently false for
-  // Beauty). The `?todayLayout=…` override is independent — it wins inside
-  // `resolveTodayLayoutMode` regardless of this flag.
+  // Guardrail (tested in today-layout-mode.test.ts): a vertical auto-activates
+  // its Today ONLY when its pack flips `activateRealForRealWorkspaces` on —
+  // true for Beauty since the real backend exists; still false for the other
+  // vertical layouts, which keep rendering demo data behind `?todayLayout=`.
   const enableVerticalAutoSwitch = shouldActivateVerticalToday({
     isExplicitPreview: forcedBeauty,
     todayActivatesRealWorkspaces: experience.todayActivatesRealWorkspaces,
@@ -105,14 +105,23 @@ export function TodayPageClient() {
   })
 
   if (mode === "appointment_first") {
-    // Beauty renders the native Finesse "Studio" overview (product-app layout,
-    // localized from the effective locale); every other appointment vertical
-    // keeps the generic English preview.
-    return beauty ? (
-      <BeautyStudioOverview businessName={workspace?.nombre ?? null} />
-    ) : (
-      <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={null} />
-    )
+    if (beauty) {
+      // Fallback policy (pure + tested in beauty-real.test.ts): REAL surface
+      // by default; the mock Studio preview survives only behind the explicit
+      // QA param `?todayData=mock` or the forced non-Beauty design preview.
+      const dataSource = resolveBeautyTodayDataSource({
+        todayDataParam: searchParams.get("todayData"),
+        isForcedPreview: forcedPreview,
+      })
+      return dataSource === "real" ? (
+        <BeautyTodayReal businessName={workspace?.nombre ?? null} />
+      ) : (
+        <BeautyStudioOverview businessName={workspace?.nombre ?? null} />
+      )
+    }
+    // Non-beauty appointment verticals keep the generic English mock preview
+    // (override-only — their packs have not flipped the activation gate).
+    return <TodayAppointmentLayout businessName={workspace?.nombre ?? null} beauty={null} />
   }
   if (mode === "job_route") {
     return <TodayJobRouteLayout businessName={workspace?.nombre ?? null} />
