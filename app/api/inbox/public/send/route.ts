@@ -7,6 +7,7 @@ import { notifyNewConversation, notifyInboundMessage } from "@core/notifications
 import { buildIdentityDescriptor } from "@modules/inbox/identity-resolution"
 import { recordInboundIdentity } from "@modules/inbox/identity-service"
 import { logInboxIntegrationEvent } from "@modules/inbox/integration-events"
+import { isWebChatReceptionEnabled } from "@core/inbox/channel-setup"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +41,16 @@ export async function POST(request: NextRequest) {
     const workspace = await db.workspace.findUnique({ where: { slug: siteKey } })
     if (!workspace) {
       return corsJson({ success: false, error: { code: "NOT_FOUND", message: "Invalid site key" } }, { status: 404 })
+    }
+
+    // Reception toggle from Business Profile → Channels. Blocks NEW inbound
+    // messages only; existing conversations stay readable via the public
+    // conversation endpoint.
+    if (!isWebChatReceptionEnabled(workspace.config)) {
+      return corsJson(
+        { success: false, error: { code: "CHANNEL_DISABLED", message: "Web chat is currently disabled for this business" } },
+        { status: 403 },
+      )
     }
 
     let targetConversationId = typeof conversationId === "string" ? conversationId : null
