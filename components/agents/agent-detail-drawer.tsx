@@ -10,8 +10,34 @@ import {
   X,
 } from "lucide-react"
 import type { AgentLiveState, AgentRosterEntry } from "@modules/agents/roster"
-import { autonomyLabel } from "@modules/agents/roster"
-import { ACCENT, agentIcon, statusVisual } from "./agent-visuals"
+import { useI18n } from "@/components/i18n-provider"
+import type { UIMessages } from "@core/i18n/ui"
+import {
+  ACCENT,
+  agentAutonomyLabel,
+  agentIcon,
+  agentStatusLabel,
+  rosterText,
+  statusVisual,
+} from "./agent-visuals"
+
+/**
+ * Section-button label ("Open in {section}"). The section names reuse the
+ * central `nav` catalog wherever the concept is identical; "Forte" is a brand
+ * name kept verbatim. Falls back to the roster's own label for any unmapped
+ * route.
+ */
+function sectionLabel(href: string, fallback: string, t: UIMessages): string {
+  switch (href) {
+    case "/inbox": return t.nav.inbox
+    case "/finanzas": return t.nav.finance
+    case "/clientes": return t.nav.clients
+    case "/today": return t.nav.today
+    case "/contenido": return t.nav.marketing
+    case "/forte": return "Forte"
+    default: return fallback
+  }
+}
 
 /**
  * Agent detail drawer — right-side overlay opened from an agent card.
@@ -31,6 +57,9 @@ export function AgentDetailDrawer({
   live: AgentLiveState
   onClose: () => void
 }) {
+  const { t } = useI18n()
+  const d = t.agents.detail
+  const rt = rosterText(entry, t.agents)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -59,14 +88,14 @@ export function AgentDetailDrawer({
     <div className="fixed inset-0 z-[60] flex justify-end">
       <button
         type="button"
-        aria-label="Close agent details"
+        aria-label={d.closeDetailsAria}
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-[rgba(8,5,18,0.62)] backdrop-blur-[2px]"
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${entry.name} details`}
+        aria-label={d.detailsAria(entry.name)}
         className="relative flex h-full w-[410px] max-w-[92vw] flex-col border-l border-[var(--border-dark-strong)] bg-[var(--app-surface-dark)] shadow-[-34px_0_70px_-30px_rgba(0,0,0,0.85)]"
       >
         {/* header */}
@@ -79,17 +108,18 @@ export function AgentDetailDrawer({
             <Icon size={24} strokeWidth={1.9} />
           </span>
           <div className="min-w-0 flex-1">
+            {/* entry.name is a proper name; role localizes via catalog. */}
             <p className="text-[17px] font-bold tracking-tight text-[var(--text-primary-light)]">{entry.name}</p>
-            <p className="mt-0.5 text-[12px] text-[var(--text-tertiary-light)]">{entry.role}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--text-tertiary-light)]">{rt.role}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {entry.autonomy ? (
                 <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ background: tokens.soft, color: tokens.fg }}>
-                  {autonomyLabel(entry.autonomy)}
+                  {agentAutonomyLabel(entry.autonomy, t.agents)}
                 </span>
               ) : null}
               <span className="inline-flex items-center gap-1 rounded-md bg-[var(--app-surface-dark-elevated)] px-2 py-0.5 text-[10px] font-bold" style={{ color: sv.color }}>
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: sv.color }} aria-hidden="true" />
-                {live.statusLabel}
+                {agentStatusLabel(live.status, t.agents)}
               </span>
             </div>
           </div>
@@ -97,7 +127,7 @@ export function AgentDetailDrawer({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={d.close}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--app-surface-dark-elevated)] text-[var(--text-tertiary-light)] transition-colors hover:text-[var(--text-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
           >
             <X size={15} strokeWidth={2} aria-hidden="true" />
@@ -106,18 +136,19 @@ export function AgentDetailDrawer({
 
         {/* body */}
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-5">
-          <DrawerSection label="Doing now">
+          <DrawerSection label={d.doingNow}>
             <div
               className="rounded-xl border p-3.5"
               style={{ borderColor: tokens.border, background: "var(--app-surface-dark-elevated)" }}
             >
+              {/* live.activity is content/agent-generated — kept verbatim; fallbacks localize. */}
               <p className="text-[13px] leading-relaxed text-[var(--text-primary-light)]">
-                {live.activity ?? (entry.active ? "Up to date — watching for new work." : "Ready in your registry — coming online.")}
+                {live.activity ?? (entry.active ? t.agents.page.roster.upToDate : t.agents.page.roster.readyInRegistry)}
               </p>
             </div>
           </DrawerSection>
 
-          <DrawerSection label="Today">
+          <DrawerSection label={d.today}>
             {live.items.length > 0 ? (
               <ul className="flex flex-col gap-2">
                 {live.items.slice(0, 6).map((item) => (
@@ -129,12 +160,13 @@ export function AgentDetailDrawer({
                     >
                       <CheckCircle2 size={11} strokeWidth={2.6} />
                     </span>
+                    {/* item.title is content/agent-generated — verbatim. */}
                     <span className="text-[12.5px] leading-snug text-[var(--text-secondary-light)]">{item.title}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[12px] text-[var(--text-tertiary-light)]">No activity yet today.</p>
+              <p className="text-[12px] text-[var(--text-tertiary-light)]">{d.todayEmpty}</p>
             )}
           </DrawerSection>
 
@@ -144,14 +176,14 @@ export function AgentDetailDrawer({
           >
             <div className="mb-1.5 flex items-center gap-1.5">
               <Link2 size={13} strokeWidth={2} style={{ color: "var(--accent-on-dark)" }} aria-hidden="true" />
-              <p className="text-[11px] font-bold text-[var(--accent-on-dark)]">Works with the team</p>
+              <p className="text-[11px] font-bold text-[var(--accent-on-dark)]">{d.worksWithTeam}</p>
             </div>
-            <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">{entry.collaborationNote}</p>
+            <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary-light)]">{rt.collaborationNote}</p>
           </div>
 
-          <DrawerSection label="Watching">
+          <DrawerSection label={d.watching}>
             <ul className="flex flex-col gap-1.5">
-              {entry.watching.map((w) => (
+              {rt.watching.map((w) => (
                 <li key={w} className="flex items-center gap-2 text-[12px] text-[var(--text-secondary-light)]">
                   <Eye size={12} strokeWidth={2} className="shrink-0 text-[var(--text-tertiary-light)]" aria-hidden="true" />
                   {w}
@@ -161,7 +193,7 @@ export function AgentDetailDrawer({
           </DrawerSection>
 
           {recentlyHandled.length > 0 ? (
-            <DrawerSection label="Recently handled">
+            <DrawerSection label={d.recentlyHandled}>
               <ul className="flex flex-col gap-1.5">
                 {recentlyHandled.map((item) => (
                   <li key={item.id} className="text-[12px] text-[var(--text-tertiary-light)]">{item.title}</li>
@@ -178,17 +210,17 @@ export function AgentDetailDrawer({
               href={entry.section.href}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-3 py-3 text-[13.5px] font-semibold text-white transition-colors hover:bg-[var(--accent-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
             >
-              Open in {entry.section.label}
+              {d.openInPrefix} {sectionLabel(entry.section.href, entry.section.label, t)}
               <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" />
             </Link>
           ) : (
             <button
               type="button"
               disabled
-              title="This agent's section is coming online"
+              title={d.sectionComingOnlineTitle}
               className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-3 text-[13.5px] font-semibold text-[var(--text-tertiary-light)] opacity-80"
             >
-              Section coming online
+              {d.sectionComingOnline}
             </button>
           )}
         </div>
