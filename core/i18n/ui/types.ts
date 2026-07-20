@@ -291,6 +291,24 @@ export interface TodayMessages {
     close: string
   }
   /**
+   * Compact Today quick view (toolbar peek + mobile drawer). ONLY the strings
+   * the compact surfaces don't already share with the workboard live here —
+   * lane titles, due phrases, source labels and the empty state are reused
+   * from `workboard` so the two surfaces can never drift apart.
+   */
+  quick: {
+    /** Drawer subtitle under the "Today" title. */
+    subtitle: string
+    /** Headline of the peek: how many actionable items need the user today. */
+    needsCount: (count: number) => string
+    /** Overflow CTA under the needs-you list. */
+    moreInToday: (count: number) => string
+    /** Short "AI" label for the 4-chip count row (pills.aiWork is longer). */
+    aiChip: string
+    /** Bare source labels for peek row metadata (not "From X" sentences). */
+    sources: { inbox: string; calendar: string; task: string }
+  }
+  /**
    * The work-first daily workboard — the production Today for every vertical
    * (including real Finesse workspaces). Counted phrases are typed functions;
    * lane/section labels are structural copy, not entity nouns.

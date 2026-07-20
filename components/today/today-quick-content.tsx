@@ -18,6 +18,8 @@ import {
   type TodayLaneBuckets,
 } from "@modules/today/lanes"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import type { TodayMessages } from "@core/i18n/ui"
 
 /**
  * Tone variants supported by the Today quick view.
@@ -95,12 +97,14 @@ export function TodayQuickContent({
   className?: string
 }) {
   const t = toneTokens(tone)
+  const { messages } = useI18n()
+  const today = messages.today
 
   if (loading) {
     return (
       <div
         role="status"
-        aria-label="Loading Today"
+        aria-label={today.workboard.loadingAria}
         className={cn("flex items-center justify-center py-10", className)}
       >
         <Loader2 className={cn("h-6 w-6 animate-spin", t.textMuted)} />
@@ -119,7 +123,7 @@ export function TodayQuickContent({
       >
         <AlertTriangle className="h-6 w-6 text-destructive" strokeWidth={1.5} aria-hidden="true" />
         <p className="text-xs font-medium text-destructive">{error}</p>
-        <p className="text-[11px] text-destructive/80">Today could not be loaded.</p>
+        <p className="text-[11px] text-destructive/80">{today.workboard.errorNote}</p>
       </div>
     )
   }
@@ -137,9 +141,9 @@ export function TodayQuickContent({
         )}
       >
         <Sun className={cn("h-5 w-5", t.accentDim)} strokeWidth={1.5} aria-hidden="true" />
-        <p className={cn("text-xs font-medium", t.text)}>Nothing pending. Nice.</p>
+        <p className={cn("text-xs font-medium", t.text)}>{today.workboard.emptyState.title}</p>
         <p className={cn("text-[11px] leading-relaxed", t.textMuted)}>
-          Anything that needs your attention will show up here.
+          {today.workboard.emptyState.body}
         </p>
       </div>
     )
@@ -154,20 +158,20 @@ export function TodayQuickContent({
       <div className="grid gap-4 md:grid-cols-2">
         <TodayQuickLane
           idPrefix="today-quick-mine"
-          title="My work"
+          title={today.workboard.lanes.myWork.title}
           icon={<UserRound size={16} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.mine}
-          emptyLabel="No work for you today."
+          emptyLabel={today.workboard.lanes.myWork.emptyTitle}
           accent="mine"
           tone={tone}
           onRowNavigate={onRowNavigate}
         />
         <TodayQuickLane
           idPrefix="today-quick-ai"
-          title="AI work"
+          title={today.workboard.lanes.aiWork.title}
           icon={<Sparkles size={16} strokeWidth={2} aria-hidden="true" />}
           buckets={lanes.ai}
-          emptyLabel="No AI work yet."
+          emptyLabel={today.workboard.lanes.aiWork.emptyTitle}
           accent="ai"
           tone={tone}
           onRowNavigate={onRowNavigate}
@@ -194,8 +198,10 @@ function TodayQuickSchedule({
   tone: TodayQuickTone
 }) {
   const t = toneTokens(tone)
+  const { messages } = useI18n()
+  const scheduleTitle = messages.today.workboard.lanes.schedule.title
   return (
-    <section aria-label="Schedule" className="flex flex-col gap-2">
+    <section aria-label={scheduleTitle} className="flex flex-col gap-2">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
@@ -209,7 +215,7 @@ function TodayQuickSchedule({
             <CalendarClock size={16} strokeWidth={2} />
           </span>
           <h3 className={cn("text-[11px] font-semibold uppercase tracking-widest", t.textMuted)}>
-            Schedule
+            {scheduleTitle}
           </h3>
         </div>
         <span className={cn("text-[10px] tabular-nums", t.textDim)}>{items.length}</span>
@@ -342,17 +348,19 @@ function CompactTaskRow({
   onRowNavigate?: () => void
   tone: TodayQuickTone
 }) {
+  const { messages } = useI18n()
+  const today = messages.today
   if (item.kind !== "task") return null
   const t = toneTokens(tone)
 
-  const due = formatDueCompact(item.dueAt)
-  const sourceLabel = compactSourceLabel(item)
+  const due = formatDueCompact(item.dueAt, today)
+  const sourceLabel = compactSourceLabel(item, today)
   const ariaLabel = [
-    "Task",
+    today.workboard.row.a11y.task,
     item.title,
-    item.isProposed ? "proposed by AI" : null,
-    item.isWaiting ? "waiting" : null,
-    due ? `due ${due}` : null,
+    item.isProposed ? today.workboard.row.proposedByAi : null,
+    item.isWaiting ? today.workboard.pills.waiting : null,
+    due ? `${today.workboard.row.a11y.duePrefix} ${due}` : null,
     sourceLabel,
   ]
     .filter(Boolean)
@@ -390,13 +398,13 @@ function CompactTaskRow({
           {item.isProposed ? (
             <>
               <span aria-hidden="true">·</span>
-              <span className={cn("font-medium", t.accent)}>Proposed</span>
+              <span className={cn("font-medium", t.accent)}>{today.workboard.row.proposed}</span>
             </>
           ) : null}
           {item.isWaiting ? (
             <>
               <span aria-hidden="true">·</span>
-              <span className={cn("font-medium", t.warningText)}>Waiting</span>
+              <span className={cn("font-medium", t.warningText)}>{today.workboard.pills.waiting}</span>
             </>
           ) : null}
         </div>
@@ -423,6 +431,8 @@ function CompactEventRow({
   onRowNavigate?: () => void
   tone: TodayQuickTone
 }) {
+  const { messages } = useI18n()
+  const row = messages.today.workboard.row
   if (item.kind !== "event" || item.source.kind !== "calendar") return null
   const t = toneTokens(tone)
   const time = formatEventTimeCompact(item.dueAt)
@@ -431,7 +441,7 @@ function CompactEventRow({
     <Link
       href={item.source.href}
       onClick={onRowNavigate}
-      aria-label={["Event", item.title, time ? `at ${time}` : null, "from Calendar"]
+      aria-label={[row.eventAria, item.title, time ? row.atTime(time) : null, row.fromCalendar]
         .filter(Boolean)
         .join(", ")}
       className={cn(
@@ -468,7 +478,7 @@ function CompactEventRow({
 
 // ─── Compact format helpers ────────────────────────────────────────────────
 
-function formatDueCompact(iso: string | null): string {
+function formatDueCompact(iso: string | null, today: TodayMessages): string {
   if (!iso) return ""
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
@@ -476,13 +486,14 @@ function formatDueCompact(iso: string | null): string {
   const now = new Date()
   const diffMs = date.getTime() - now.getTime()
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+  const due = today.workboard.row.due
 
   if (diffDays === 0) {
-    return `Today ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+    return due.todayAt(date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))
   }
-  if (diffDays === -1) return "Yesterday"
-  if (diffDays === 1) return "Tomorrow"
-  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`
+  if (diffDays === -1) return due.yesterday
+  if (diffDays === 1) return due.tomorrow
+  if (diffDays > -7 && diffDays < 0) return due.daysAgo(Math.abs(diffDays))
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
 }
 
@@ -493,12 +504,12 @@ function formatEventTimeCompact(iso: string | null): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
 }
 
-function compactSourceLabel(item: TodayItem): string {
-  if (item.source.kind === "inbox") return "Inbox"
+function compactSourceLabel(item: TodayItem, today: TodayMessages): string {
+  if (item.source.kind === "inbox") return today.quick.sources.inbox
   if (item.source.kind === "project") {
-    return item.source.projectName ? `${item.source.projectName}` : "Project"
+    return item.source.projectName ?? today.workboard.row.projectFallback
   }
-  if (item.source.kind === "manual") return "Task"
+  if (item.source.kind === "manual") return today.quick.sources.task
   return ""
 }
 

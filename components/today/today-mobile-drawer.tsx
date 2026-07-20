@@ -9,6 +9,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 import { TodayQuickContent } from "./today-quick-content"
 import { useTodayQuickData } from "./today-quick-data"
 
@@ -38,6 +39,7 @@ export function TodayMobileDrawer({
   open: boolean
   onOpenChange: (next: boolean) => void
 }) {
+  const { t } = useI18n()
   const { loading, error, lanes, scheduleItems, totalItems } =
     useTodayQuickData(open)
 
@@ -66,10 +68,10 @@ export function TodayMobileDrawer({
             </span>
             <div className="min-w-0">
               <DrawerTitle className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-                Today
+                {t.today.title}
               </DrawerTitle>
               <DrawerDescription className="text-[11px] leading-tight text-[var(--text-secondary-light)]">
-                Daily overview · workspace-wide
+                {t.today.quick.subtitle}
               </DrawerDescription>
             </div>
             {!loading && !error && totalItems > 0 ? (
@@ -84,13 +86,13 @@ export function TodayMobileDrawer({
               onClick={() => onOpenChange(false)}
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--accent-primary)] transition-colors hover:bg-white/[0.06]"
             >
-              Open full Today
+              {t.today.chrome.openFull}
               <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
             </Link>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              aria-label="Close Today drawer"
+              aria-label={t.today.chrome.close}
               className="rounded-md p-1 text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
             >
               <X size={14} strokeWidth={2} />

@@ -14,6 +14,14 @@ export const today: TodayMessages = {
     openFull: "Abrir Hoy completo",
     close: "Cerrar Hoy",
   },
+  quick: {
+    subtitle: "Resumen diario · todo el workspace",
+    needsCount: (count) =>
+      count === 1 ? "1 asunto te necesita hoy" : `${count} asuntos te necesitan hoy`,
+    moreInToday: (count) => `+${count} más en Hoy`,
+    aiChip: "IA",
+    sources: { inbox: "Mensajes", calendar: "Calendario", task: "Tarea" },
+  },
   workboard: {
     loadingAria: "Cargando Hoy",
     errorNote: "No se pudo cargar Hoy.",

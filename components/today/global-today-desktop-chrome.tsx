@@ -11,6 +11,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
 import { useTodayQuickData } from "./today-quick-data"
 import type { TodayItem, TodayPriority } from "@modules/today/types"
+import type { TodayMessages } from "@core/i18n/ui"
+
+type TodayCatalog = TodayMessages
 
 /**
  * Desktop Today "peek" — a compact anchored dropdown.
@@ -58,26 +61,28 @@ function measureAnchor(): Anchor {
   return { top: r.bottom + 8, left, width, caretLeft, scrimTop: r.bottom }
 }
 
-function formatDue(iso: string | null): string {
+/** Locale-aware compact due phrase — copy comes from the `today` catalog. */
+function formatDue(iso: string | null, today: TodayCatalog): string {
   if (!iso) return ""
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
+  const due = today.workboard.row.due
   const diffDays = Math.round((date.getTime() - Date.now()) / 86_400_000)
   if (diffDays === 0) {
-    return `Today ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+    return due.todayAt(date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))
   }
-  if (diffDays === -1) return "Yesterday"
-  if (diffDays === 1) return "Tomorrow"
-  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`
+  if (diffDays === -1) return due.yesterday
+  if (diffDays === 1) return due.tomorrow
+  if (diffDays > -7 && diffDays < 0) return due.daysAgo(Math.abs(diffDays))
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
 }
 
-function sourceLabel(item: TodayItem): string {
+function sourceLabel(item: TodayItem, today: TodayCatalog): string {
   const s = item.source
-  if (s.kind === "inbox") return "Inbox"
-  if (s.kind === "project") return s.projectName ?? "Project"
-  if (s.kind === "calendar") return "Calendar"
-  return "Task"
+  if (s.kind === "inbox") return today.quick.sources.inbox
+  if (s.kind === "project") return s.projectName ?? today.workboard.row.projectFallback
+  if (s.kind === "calendar") return today.quick.sources.calendar
+  return today.quick.sources.task
 }
 
 /** Priority → dot colour token (urgency / neutral / muted). */
@@ -91,7 +96,8 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
 
 function NeedsRow({ item, onNavigate }: { item: TodayItem; onNavigate: () => void }) {
-  const meta = [formatDue(item.dueAt), sourceLabel(item)].filter(Boolean).join(" · ")
+  const { t } = useI18n()
+  const meta = [formatDue(item.dueAt, t.today), sourceLabel(item, t.today)].filter(Boolean).join(" · ")
   return (
     <Link
       href={item.source.href}
@@ -194,7 +200,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
   const needN = needs.length
   const visible = needs.slice(0, 5)
   const moreCount = needN - visible.length
-  const waitingText = counts.waiting > 0 ? `${counts.waiting} waiting` : "nothing waiting"
+  const waitingText = t.today.workboard.summary.waiting(counts.waiting)
   const dateLabel = new Date().toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
@@ -202,10 +208,10 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
   })
 
   const chips: { label: string; value: number }[] = [
-    { label: "My work", value: counts.mine },
-    { label: "AI", value: counts.ai },
-    { label: "Schedule", value: counts.schedule },
-    { label: "Waiting", value: counts.waiting },
+    { label: t.today.workboard.pills.myWork, value: counts.mine },
+    { label: t.today.quick.aiChip, value: counts.ai },
+    { label: t.today.workboard.pills.schedule, value: counts.schedule },
+    { label: t.today.workboard.pills.waiting, value: counts.waiting },
   ]
 
   return createPortal(
@@ -285,7 +291,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5">
           {loading ? (
             <div role="status" aria-live="polite" className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary-light)]" aria-label="Loading Today" />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary-light)]" aria-label={t.today.workboard.loadingAria} />
             </div>
           ) : error ? (
             <div
@@ -293,7 +299,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
               className="flex flex-col items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-8 text-center"
             >
               <AlertTriangle className="h-6 w-6 text-destructive" strokeWidth={1.5} aria-hidden="true" />
-              <p className="text-[12.5px] text-[var(--text-secondary-light)]">Couldn&apos;t load Today.</p>
+              <p className="text-[12.5px] text-[var(--text-secondary-light)]">{t.today.workboard.errorNote}</p>
             </div>
           ) : (
             <>
@@ -307,21 +313,21 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
                   >
                     <Sun size={18} strokeWidth={1.9} />
                   </span>
-                  <p className="text-[13px] font-medium text-[var(--text-primary-light)]">Nothing pending. Nice.</p>
+                  <p className="text-[13px] font-medium text-[var(--text-primary-light)]">{t.today.workboard.emptyState.title}</p>
                   <p className="text-[12px] text-[var(--text-secondary-light)]">
-                    Anything that needs you will show up here.
+                    {t.today.workboard.emptyState.body}
                   </p>
                 </div>
               ) : (
                 <div className="mb-3.5">
                   <p className="text-[15px] font-semibold text-[var(--text-primary-light)]">
-                    {needN} {needN === 1 ? "thing needs" : "things need"} you today
+                    {t.today.quick.needsCount(needN)}
                   </p>
                   <p className="mt-0.5 text-[12px] text-[var(--text-secondary-light)]">
                     <span style={overdueCount > 0 ? { color: "var(--inbox-urgency)" } : undefined}>
-                      {overdueCount} overdue
+                      {t.today.workboard.summary.overdue(overdueCount)}
                     </span>{" "}
-                    · {todayCount} due today · {waitingText}
+                    · {t.today.workboard.summary.dueToday(todayCount)} · {waitingText}
                   </p>
                 </div>
               )}
@@ -358,7 +364,7 @@ export function GlobalTodayDesktopChrome({ variant }: { variant: "app" | "contex
                         FOCUS_RING,
                       )}
                     >
-                      +{moreCount} more in Today
+                      {t.today.quick.moreInToday(moreCount)}
                     </Link>
                   ) : null}
                 </div>

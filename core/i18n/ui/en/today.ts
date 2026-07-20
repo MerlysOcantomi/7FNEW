@@ -11,6 +11,14 @@ export const today: TodayMessages = {
     openFull: "Open full Today",
     close: "Close Today",
   },
+  quick: {
+    subtitle: "Daily overview · workspace-wide",
+    needsCount: (count) =>
+      count === 1 ? "1 thing needs you today" : `${count} things need you today`,
+    moreInToday: (count) => `+${count} more in Today`,
+    aiChip: "AI",
+    sources: { inbox: "Inbox", calendar: "Calendar", task: "Task" },
+  },
   workboard: {
     loadingAria: "Loading Today",
     errorNote: "Today could not be loaded.",
