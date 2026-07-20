@@ -2,6 +2,7 @@
 
 import { AppShell } from "@/components/app-shell"
 import { AgentsActivityBoard } from "@/components/agents/agents-activity-board"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * `/agents` — the AI Team Control Center.
@@ -20,9 +21,10 @@ import { AgentsActivityBoard } from "@/components/agents/agents-activity-board"
  * Widened to `max-w-7xl` for the roster + decision-rail split.
  */
 export default function AgentsPage() {
+  const { t } = useI18n()
   return (
     <AppShell
-      breadcrumbs={[{ label: "7F" }, { label: "Agents" }]}
+      breadcrumbs={[{ label: "7F" }, { label: t.nav.agents }]}
       contentClassName="max-w-7xl"
     >
       <AgentsActivityBoard />

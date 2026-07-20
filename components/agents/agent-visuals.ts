@@ -9,7 +9,13 @@ import {
   Telescope,
   Users,
 } from "lucide-react"
-import type { AgentAccent, AgentLiveStatus } from "@modules/agents/roster"
+import type { AgentsMessages } from "@core/i18n/ui"
+import type {
+  AgentAutonomy,
+  AgentAccent,
+  AgentLiveStatus,
+  AgentRosterEntry,
+} from "@modules/agents/roster"
 
 /**
  * Shared presentation helpers for the Agents surface (board + detail drawer).
@@ -98,14 +104,54 @@ export function fmtClock(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
 }
 
-/** "just now" / "5m ago" / "2h ago" / "9:12" — needs a client `now` (post-mount). */
-export function relativeTime(iso: string | null, now: Date | null): string {
+/**
+ * "now" / "5m ago" / "2h ago" / "9:12" — locale-aware, needs a client `now`
+ * (post-mount) and the `agents.time` catalog. The clock fallback stays
+ * locale-neutral (Intl formats it by the browser locale).
+ */
+export function relativeTime(
+  iso: string | null,
+  now: Date | null,
+  time: AgentsMessages["time"],
+): string {
   if (!iso || !now) return ""
   const diffMs = now.getTime() - new Date(iso).getTime()
   const mins = Math.round(diffMs / 60_000)
-  if (mins < 1) return "now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return time.now
+  if (mins < 60) return time.minutesAgo(mins)
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return time.hoursAgo(hours)
   return fmtClock(iso)
+}
+
+/**
+ * Visible status label for a canonical `AgentLiveStatus`. The technical value
+ * still drives colors/logic (see `statusVisual`); only this label localizes.
+ */
+export function agentStatusLabel(status: AgentLiveStatus, a: AgentsMessages): string {
+  return status === "coming_online" ? a.states.comingOnline : a.states[status]
+}
+
+/** Visible autonomy chip label for a canonical `AgentAutonomy` value. */
+export function agentAutonomyLabel(autonomy: AgentAutonomy, a: AgentsMessages): string {
+  return autonomy === "auto" ? a.autonomyLabels.auto : a.autonomyLabels.suggests
+}
+
+/**
+ * Per-agent DISPLAY text (role / watching / collaboration note) resolved from
+ * the catalog by roster id, falling back to the roster entry's own
+ * canonical-English literals for any agent not present in the catalog (e.g. a
+ * future vertical specialist before its keys land).
+ */
+export function rosterText(
+  entry: AgentRosterEntry,
+  a: AgentsMessages,
+): { role: string; watching: string[]; collaborationNote: string } {
+  return (
+    a.roster[entry.id] ?? {
+      role: entry.role,
+      watching: entry.watching,
+      collaborationNote: entry.collaborationNote,
+    }
+  )
 }

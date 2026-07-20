@@ -14,6 +14,8 @@ import {
 } from "lucide-react"
 import { useFetch } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import type { AgentsMessages } from "@core/i18n/ui"
 import type {
   AgentActivityItem,
   AgentsActivityLane,
@@ -23,7 +25,6 @@ import type {
 import {
   AGENT_ROSTER,
   SPECIALIST_ROSTER,
-  autonomyLabel,
   getVerticalSpecialists,
   projectAgentLiveStates,
   type AgentLiveState,
@@ -34,7 +35,16 @@ import {
   type VerticalSpecialistAgent,
 } from "@core/vertical-packs/specialists"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
-import { ACCENT, agentIcon, fmtClock, relativeTime, statusVisual } from "./agent-visuals"
+import {
+  ACCENT,
+  agentAutonomyLabel,
+  agentIcon,
+  agentStatusLabel,
+  fmtClock,
+  relativeTime,
+  rosterText,
+  statusVisual,
+} from "./agent-visuals"
 import { AgentDetailDrawer } from "./agent-detail-drawer"
 
 /**
@@ -57,6 +67,7 @@ const EMPTY_LANES: AgentsActivityLanes = {
 }
 
 export function AgentsActivityBoard() {
+  const { t } = useI18n()
   const { data, loading, error } = useFetch<AgentsActivityPayload>("/api/agents/activity")
   const [openId, setOpenId] = useState<string | null>(null)
   const [now, setNow] = useState<Date | null>(null)
@@ -98,7 +109,7 @@ export function AgentsActivityBoard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" role="status" aria-label="Loading Agents">
+      <div className="flex items-center justify-center py-20" role="status" aria-label={t.agents.page.loadingAria}>
         <Loader2 className="h-8 w-8 animate-spin text-[var(--text-secondary-light)]" />
       </div>
     )
@@ -109,7 +120,7 @@ export function AgentsActivityBoard() {
       <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
         <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-destructive" strokeWidth={1.5} />
         <p className="text-sm font-medium text-destructive">{error}</p>
-        <p className="mt-1 text-xs text-destructive/80">Agents could not be loaded.</p>
+        <p className="mt-1 text-xs text-destructive/80">{t.agents.page.loadError}</p>
       </div>
     )
   }
@@ -164,6 +175,9 @@ function SummaryBar({
   counts: Record<AgentsActivityLane, number>
   workingNow: number
 }) {
+  const { t } = useI18n()
+  const p = t.agents.page
+  const totalAgents = AGENT_ROSTER.length
   return (
     <header className="flex flex-col gap-3 rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-4 md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-3">
@@ -176,26 +190,26 @@ function SummaryBar({
         </span>
         <div className="min-w-0">
           <div className="flex items-baseline gap-2.5">
-            <h1 className="text-lg font-bold tracking-tight text-[var(--text-primary-light)]">Agents</h1>
+            <h1 className="text-lg font-bold tracking-tight text-[var(--text-primary-light)]">{t.nav.agents}</h1>
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--inbox-success)]">
               <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-[var(--inbox-success)]" aria-hidden="true" />
-              Live
+              {p.live}
             </span>
           </div>
           <p className="mt-0.5 text-[12.5px] text-[var(--text-secondary-light)]" aria-live="polite">
-            7 agents ·{" "}
-            <span style={{ color: "var(--agent-teal)" }}>{workingNow} working now</span> ·{" "}
+            {p.summary.agentsCount(totalAgents)} ·{" "}
+            <span style={{ color: "var(--agent-teal)" }}>{p.summary.workingNow(workingNow)}</span> ·{" "}
             <span style={counts.needs_review > 0 ? { color: "var(--inbox-lead)" } : undefined}>
-              {counts.needs_review} awaiting you
+              {p.summary.awaitingYou(counts.needs_review)}
             </span>
           </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <KpiPill label="Working now" value={workingNow} tone="teal" icon={<Radio size={12} strokeWidth={2} aria-hidden="true" />} />
-        <KpiPill label="Needs review" value={counts.needs_review} tone={counts.needs_review > 0 ? "accent" : "default"} icon={<ClipboardCheck size={12} strokeWidth={2} aria-hidden="true" />} />
-        <KpiPill label="Automated today" value={counts.automated} tone="default" icon={<Zap size={12} strokeWidth={2} aria-hidden="true" />} />
-        <KpiPill label="Attention" value={counts.attention} tone={counts.attention > 0 ? "urgency" : "default"} icon={<AlertTriangle size={12} strokeWidth={2} aria-hidden="true" />} />
+        <KpiPill label={p.kpis.workingNow} value={workingNow} tone="teal" icon={<Radio size={12} strokeWidth={2} aria-hidden="true" />} />
+        <KpiPill label={p.kpis.needsReview} value={counts.needs_review} tone={counts.needs_review > 0 ? "accent" : "default"} icon={<ClipboardCheck size={12} strokeWidth={2} aria-hidden="true" />} />
+        <KpiPill label={p.kpis.automatedToday} value={counts.automated} tone="default" icon={<Zap size={12} strokeWidth={2} aria-hidden="true" />} />
+        <KpiPill label={p.kpis.attention} value={counts.attention} tone={counts.attention > 0 ? "urgency" : "default"} icon={<AlertTriangle size={12} strokeWidth={2} aria-hidden="true" />} />
       </div>
     </header>
   )
@@ -230,13 +244,24 @@ function KpiPill({
 
 // ─── Francis hero ──────────────────────────────────────────────────────────────
 
-function francisBriefing(counts: Record<AgentsActivityLane, number>, workingNow: number): string {
+/**
+ * Compose Francis's briefing from catalog pieces — full-sentence functions per
+ * locale (no fragile English concatenation). "Fanny is on your inbox" keeps the
+ * proper name; the needs clause is joined with the locale's own joiner.
+ */
+function francisBriefing(
+  counts: Record<AgentsActivityLane, number>,
+  workingNow: number,
+  a: AgentsMessages,
+): string {
+  const h = a.page.hero
   const needs: string[] = []
-  if (counts.needs_review > 0) needs.push(`${counts.needs_review} proposal${counts.needs_review === 1 ? "" : "s"} waiting`)
-  if (counts.attention > 0) needs.push(`${counts.attention} need${counts.attention === 1 ? "s" : ""} attention`)
-  const opening = workingNow > 0 ? "Fanny is on your inbox" : "your inbox is calm"
-  const middle = needs.length ? ` — ${needs.join(" and ")} for you` : " — nothing is waiting on you"
-  return `Right now: ${opening}${middle}. The rest of your team is coming online.`
+  if (counts.needs_review > 0) needs.push(h.needsProposals(counts.needs_review))
+  if (counts.attention > 0) needs.push(h.needsAttention(counts.attention))
+  const opening = workingNow > 0 ? h.briefingWorking : h.briefingCalm
+  return needs.length
+    ? h.briefingWithNeeds(opening, needs.join(` ${h.needsJoiner} `))
+    : h.briefingNoNeeds(opening)
 }
 
 function FrancisHero({
@@ -248,6 +273,8 @@ function FrancisHero({
   workingNow: number
   onReview: () => void
 }) {
+  const { t } = useI18n()
+  const h = t.agents.page.hero
   const reviewable = counts.needs_review > 0
   return (
     <section className="relative overflow-hidden rounded-[20px] border border-[var(--accent-muted-border)] bg-[var(--app-surface-dark)] p-5">
@@ -260,11 +287,12 @@ function FrancisHero({
         <ConductorOrb />
         <div className="min-w-[260px] flex-1">
           <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-on-dark)]">Francis · CEO</span>
-            <span className="rounded-md px-2 py-0.5 text-[9.5px] font-bold text-[var(--accent-on-dark)]" style={{ background: "var(--accent-muted)" }}>Leads the team</span>
+            {/* "Francis" is a proper name; the role suffix localizes. */}
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-on-dark)]">Francis · {h.leadRoleSuffix}</span>
+            <span className="rounded-md px-2 py-0.5 text-[9.5px] font-bold text-[var(--accent-on-dark)]" style={{ background: "var(--accent-muted)" }}>{h.leadsTeam}</span>
           </div>
           <p className="max-w-[640px] text-[17px] font-medium leading-relaxed text-[var(--text-primary-light)] text-pretty">
-            {francisBriefing(counts, workingNow)}
+            {francisBriefing(counts, workingNow, t.agents)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2.5">
@@ -275,7 +303,7 @@ function FrancisHero({
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_8px_22px_-6px_rgba(139,92,255,0.55)] transition-colors hover:bg-[var(--accent-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50"
             >
               <ClipboardCheck size={15} strokeWidth={2} aria-hidden="true" />
-              Review {counts.needs_review} proposal{counts.needs_review === 1 ? "" : "s"}
+              {h.reviewProposals(counts.needs_review)}
             </button>
           ) : (
             <button
@@ -284,16 +312,16 @@ function FrancisHero({
               className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-4 py-2.5 text-[13.5px] font-semibold text-[var(--text-tertiary-light)] opacity-80"
             >
               <ClipboardCheck size={15} strokeWidth={2} aria-hidden="true" />
-              No proposals to review
+              {h.noProposals}
             </button>
           )}
           <button
             type="button"
             disabled
-            title="Autonomy settings are coming soon"
+            title={h.adjustAutonomyTitle}
             className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-[var(--border-dark-strong)] bg-[var(--app-surface-subtle)] px-4 py-2 text-[13px] font-medium text-[var(--text-secondary-light)] opacity-80"
           >
-            Adjust autonomy
+            {h.adjustAutonomy}
           </button>
         </div>
       </div>
@@ -346,12 +374,14 @@ function RosterGrid({
   /** The vertical specialist spec, for the brand line (e.g. Finesse for beauty). */
   brand: VerticalSpecialistAgent | null
 }) {
+  const { t } = useI18n()
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary-light)]">Your agents · live</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary-light)]">{t.agents.page.roster.heading}</span>
+        {/* Brand tagline is product content (kept verbatim); the fallback localizes. */}
         <span className="text-[11px] text-[var(--text-tertiary-light)]">
-          {brand ? brand.tagline : "6 specialists + Francis"}
+          {brand ? brand.tagline : t.agents.page.roster.defaultTagline}
         </span>
       </div>
       {specialists.length > 0 ? (
@@ -401,6 +431,9 @@ function AgentCard({
   /** Vertical lead (e.g. Finesse) — emphasized accent without implying "working". */
   lead?: boolean
 }) {
+  const { t } = useI18n()
+  const rt = rosterText(entry, t.agents)
+  const statusText = agentStatusLabel(live.status, t.agents)
   const tokens = ACCENT[entry.accent]
   const Icon = agentIcon(entry.id)
   const sv = statusVisual(live.status)
@@ -418,7 +451,7 @@ function AgentCard({
           onOpen()
         }
       }}
-      aria-label={`${entry.name} — ${live.statusLabel}. Open details`}
+      aria-label={`${entry.name} — ${statusText}. ${t.agents.page.roster.openDetailsSuffix}`}
       className={cn(
         "group relative cursor-pointer overflow-hidden rounded-[15px] border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40",
         working ? "bg-[var(--app-surface-dark-hover)]" : "bg-[var(--app-surface-dark)] hover:bg-[var(--app-surface-dark-elevated)]",
@@ -436,22 +469,23 @@ function AgentCard({
             <p className="truncate text-[14px] font-bold text-[var(--text-primary-light)]">{entry.name}</p>
             {entry.autonomy ? (
               <span className="shrink-0 rounded-[5px] px-1.5 py-0.5 text-[9px] font-bold" style={{ background: tokens.soft, color: tokens.fg }}>
-                {autonomyLabel(entry.autonomy)}
+                {agentAutonomyLabel(entry.autonomy, t.agents)}
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary-light)]">{entry.role}</p>
+          <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary-light)]">{rt.role}</p>
         </div>
         <span
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold"
           style={{ background: `color-mix(in srgb, ${sv.color} 14%, transparent)`, color: sv.color }}
         >
           <span className={cn("h-[5px] w-[5px] rounded-full", sv.pulse && "animate-pulse")} style={{ background: sv.color }} aria-hidden="true" />
-          {live.statusLabel}
+          {statusText}
         </span>
       </div>
 
       <div className="mt-3 min-h-[34px] border-t border-[var(--border-dark)] pt-3">
+        {/* live.activity is an activity item title — content/agent-generated, kept verbatim. */}
         {live.status === "waiting" ? (
           <div className="flex items-center justify-between gap-2">
             <p className="text-[12px] leading-snug text-[var(--inbox-lead)]">{live.activity}</p>
@@ -460,7 +494,7 @@ function AgentCard({
               onClick={(e) => { e.stopPropagation(); onReview() }}
               className="shrink-0 text-[11px] font-semibold text-[var(--accent-on-dark)] hover:underline"
             >
-              Review →
+              {t.agents.page.roster.review}
             </button>
           </div>
         ) : working ? (
@@ -474,17 +508,19 @@ function AgentCard({
           </div>
         ) : (
           <p className="text-[12px] leading-snug text-[var(--text-tertiary-light)]">
-            {live.activity ?? (entry.active ? "Up to date — watching for new work." : "Ready in your registry — coming online.")}
+            {live.activity ?? (entry.active ? t.agents.page.roster.upToDate : t.agents.page.roster.readyInRegistry)}
           </p>
         )}
       </div>
 
       <div className="mt-2.5 flex items-center justify-between">
         <span className="text-[10.5px] text-[var(--text-tertiary-light)]">
-          {live.handledToday > 0 ? `${live.handledToday} done today` : entry.active ? "Watching" : "Coming online"}
+          {live.handledToday > 0
+            ? t.agents.page.roster.handledToday(live.handledToday)
+            : entry.active ? t.agents.page.roster.watching : t.agents.page.roster.comingOnline}
         </span>
         <span suppressHydrationWarning className="text-[10.5px] text-[var(--text-tertiary-light)]">
-          {relativeTime(live.lastTimestamp, now)}
+          {relativeTime(live.lastTimestamp, now, t.agents.time)}
         </span>
       </div>
     </article>
@@ -494,18 +530,20 @@ function AgentCard({
 // ─── Live activity ───────────────────────────────────────────────────────────
 
 function LiveActivity({ items, now }: { items: AgentActivityItem[]; now: Date | null }) {
+  const { t } = useI18n()
+  const la = t.agents.page.liveActivity
   const rows = items.slice(0, 8)
   return (
     <section>
       <div className="mb-3 flex items-center gap-2.5">
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary-light)]">Live activity</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary-light)]">{la.title}</span>
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--inbox-success)]" aria-hidden="true" />
         <span className="h-px flex-1 bg-[var(--border-dark)]" aria-hidden="true" />
-        <span className="text-[10.5px] text-[var(--text-tertiary-light)]">Executed today · {items.length}</span>
+        <span className="text-[10.5px] text-[var(--text-tertiary-light)]">{la.executedToday(items.length)}</span>
       </div>
       <div className="rounded-2xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-1.5">
         {rows.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[12px] text-[var(--text-tertiary-light)]">No actions have run yet today.</p>
+          <p className="px-3 py-6 text-center text-[12px] text-[var(--text-tertiary-light)]">{la.empty}</p>
         ) : (
           <ul>
             {rows.map((item) => (
@@ -514,11 +552,12 @@ function LiveActivity({ items, now }: { items: AgentActivityItem[]; now: Date | 
                   {now ? fmtClock(item.timestamp) : ""}
                 </span>
                 <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: "var(--inbox-info)" }} aria-hidden="true" />
+                {/* item.agentName is a proper name; item.title is content/agent-generated — both verbatim. */}
                 <p className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--text-secondary-light)]">
                   <span className="font-semibold text-[var(--text-primary-light)]">{item.agentName}</span> · {item.title}
                 </p>
                 {item.source.kind === "inbox" ? (
-                  <span className="shrink-0 text-[10px] text-[var(--text-tertiary-light)]">From Inbox</span>
+                  <span className="shrink-0 text-[10px] text-[var(--text-tertiary-light)]">{t.agents.fromInbox}</span>
                 ) : null}
               </li>
             ))}
@@ -538,12 +577,14 @@ function DecisionRail({
   lanes: AgentsActivityLanes
   counts: Record<AgentsActivityLane, number>
 }) {
+  const { t } = useI18n()
+  const rail = t.agents.page.rail
   return (
     <aside id="agents-decision-rail" className="flex flex-col gap-6 scroll-mt-4">
       <div>
-        <RailHeader icon={<ClipboardCheck size={14} strokeWidth={2} aria-hidden="true" />} title="Needs your review" count={counts.needs_review} tone="accent" />
+        <RailHeader icon={<ClipboardCheck size={14} strokeWidth={2} aria-hidden="true" />} title={rail.needsReview} count={counts.needs_review} tone="accent" />
         {lanes.needs_review.length === 0 ? (
-          <RailEmpty>No proposals waiting for you.</RailEmpty>
+          <RailEmpty>{rail.needsReviewEmpty}</RailEmpty>
         ) : (
           <div className="flex flex-col gap-2.5">
             {lanes.needs_review.map((item) => <ProposalCard key={item.id} item={item} />)}
@@ -552,9 +593,9 @@ function DecisionRail({
       </div>
 
       <div>
-        <RailHeader icon={<AlertTriangle size={14} strokeWidth={2} aria-hidden="true" />} title="Attention" count={counts.attention} tone="urgency" />
+        <RailHeader icon={<AlertTriangle size={14} strokeWidth={2} aria-hidden="true" />} title={rail.attention} count={counts.attention} tone="urgency" />
         {lanes.attention.length === 0 ? (
-          <RailEmpty>Nothing needs your attention.</RailEmpty>
+          <RailEmpty>{rail.attentionEmpty}</RailEmpty>
         ) : (
           <div className="flex flex-col gap-2.5">
             {lanes.attention.map((item) => <AttentionCard key={item.id} item={item} />)}
@@ -587,24 +628,28 @@ function RailEmpty({ children }: { children: React.ReactNode }) {
 }
 
 function ProposalCard({ item }: { item: AgentActivityItem }) {
+  const { t } = useI18n()
+  const rail = t.agents.page.rail
   return (
     <div className="rounded-[14px] border border-[var(--accent-muted-border)] bg-[var(--app-surface-dark-elevated)] p-3.5">
       <div className="mb-2 flex items-center gap-2">
+        {/* "{agent} proposes" — name is a proper noun, verb localizes. */}
         <span className="text-[11px] text-[var(--text-tertiary-light)]">
-          <span className="font-semibold text-[var(--text-secondary-light)]">{item.agentName}</span> proposes
+          <span className="font-semibold text-[var(--text-secondary-light)]">{item.agentName}</span> {rail.proposes}
         </span>
       </div>
+      {/* item.title / item.subtitle are content/agent-generated — rendered verbatim. */}
       <p className="text-[13px] font-semibold leading-snug text-[var(--text-primary-light)]">{item.title}</p>
       {item.subtitle ? <p className="mt-1 text-[11.5px] leading-snug text-[var(--text-secondary-light)]">{item.subtitle}</p> : null}
       <div className="mt-3 flex items-center gap-2">
-        <DisabledAction primary>Approve</DisabledAction>
-        <DisabledAction>Dismiss</DisabledAction>
+        <DisabledAction primary>{rail.approve}</DisabledAction>
+        <DisabledAction>{rail.dismiss}</DisabledAction>
         {item.source.href ? (
           <Link
             href={item.source.href}
             className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent-on-dark)] hover:underline"
           >
-            View context <ArrowUpRight size={11} strokeWidth={2} aria-hidden="true" />
+            {rail.viewContext} <ArrowUpRight size={11} strokeWidth={2} aria-hidden="true" />
           </Link>
         ) : null}
       </div>
@@ -613,6 +658,7 @@ function ProposalCard({ item }: { item: AgentActivityItem }) {
 }
 
 function AttentionCard({ item }: { item: AgentActivityItem }) {
+  const { t } = useI18n()
   return (
     <div className="rounded-[14px] border p-3.5" style={{ borderColor: "color-mix(in srgb, var(--inbox-urgency) 28%, transparent)", background: "var(--inbox-urgency-soft)" }}>
       <div className="flex items-start gap-2.5">
@@ -626,7 +672,7 @@ function AttentionCard({ item }: { item: AgentActivityItem }) {
             <span className="text-[10px] text-[var(--text-tertiary-light)]">{item.agentName}</span>
             {item.source.href ? (
               <Link href={item.source.href} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--inbox-urgency)] hover:underline">
-                View <ArrowUpRight size={11} strokeWidth={2.2} aria-hidden="true" />
+                {t.agents.page.rail.view} <ArrowUpRight size={11} strokeWidth={2.2} aria-hidden="true" />
               </Link>
             ) : null}
           </div>
@@ -638,11 +684,12 @@ function AttentionCard({ item }: { item: AgentActivityItem }) {
 
 /** Approve / Dismiss are intentionally inert — no write wiring exists yet. */
 function DisabledAction({ children, primary = false }: { children: React.ReactNode; primary?: boolean }) {
+  const { t } = useI18n()
   return (
     <button
       type="button"
       disabled
-      title="Approve & dismiss from Agents is coming soon"
+      title={t.agents.page.rail.approveTitle}
       className={cn(
         "inline-flex cursor-not-allowed items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold opacity-80",
         primary
@@ -657,13 +704,15 @@ function DisabledAction({ children, primary = false }: { children: React.ReactNo
 }
 
 function AutonomyLegend() {
+  const { t } = useI18n()
+  const au = t.agents.page.autonomy
   return (
     <div className="rounded-[14px] border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-3.5">
-      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--text-tertiary-light)]">Autonomy</p>
+      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--text-tertiary-light)]">{au.title}</p>
       <div className="flex flex-col gap-2">
-        <LegendRow label="Auto" labelStyle={{ background: "var(--agent-teal-soft)", color: "var(--agent-teal)" }} text="Runs low-risk work on its own" />
-        <LegendRow label="Suggests" labelStyle={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }} text="Proposes, waits for your yes" />
-        <LegendRow label="Approval" labelStyle={{ background: "var(--app-surface-dark-elevated)", color: "var(--text-secondary-light)" }} text="Never acts without your approval" />
+        <LegendRow label={au.auto} labelStyle={{ background: "var(--agent-teal-soft)", color: "var(--agent-teal)" }} text={au.autoText} />
+        <LegendRow label={au.suggests} labelStyle={{ background: "var(--accent-muted)", color: "var(--accent-on-dark)" }} text={au.suggestsText} />
+        <LegendRow label={au.approval} labelStyle={{ background: "var(--app-surface-dark-elevated)", color: "var(--text-secondary-light)" }} text={au.approvalText} />
       </div>
     </div>
   )
