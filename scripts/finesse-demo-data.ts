@@ -769,15 +769,20 @@ export const FINESSE_DEMO_TAREAS: DemoTareaData[] = [
 
 /**
  * Demo channel connections — feed Business Profile → Channels
- * (BUSINESS-PROFILE-CHANNELS-03) so the demo workspace shows a connected
- * channel and a pending one. CLEARLY FICTITIOUS on purpose:
- *   - the email address uses the reserved `.invalid` TLD (can never send or
- *     receive anywhere) and provider "resend" so the IMAP sync cron
- *     (`provider: "imap_smtp"` only) never touches the row;
- *   - the WhatsApp row stays status "pending" — the setup model renders it
- *     as pending, never as a working integration (no fake product);
+ * (BUSINESS-PROFILE-CHANNELS-03B §7) so the demo workspace shows the Email
+ * channel with MULTIPLE mailboxes and zero external activity. CLEARLY
+ * FICTITIOUS and externally inert on purpose:
+ *   - every address uses the reserved `.invalid` TLD (RFC 2606 — can never
+ *     resolve, send or receive anywhere), which also triggers the "Demo
+ *     account" badge in the UI (`isDemoAccountAddress`);
+ *   - provider is "demo": the IMAP sync cron targets `provider:"imap_smtp"`
+ *     only and the outbound transport registry has no "demo" transport, so
+ *     no cron, Resend, SMTP or IMAP code path ever touches these rows;
  *   - no credentials, no syncState, no lastSyncAt — nothing pretends a sync
- *     or a provider session happened.
+ *     or a provider session happened;
+ *   - NO rows for WhatsApp/Instagram/etc.: a `pending` connection may only
+ *     exist when a REAL provider flow was started, so unintegrated channels
+ *     must show `coming_soon` in the demo too.
  * Idempotency key: `externalAccountId` (unique per workspace in the schema).
  */
 export interface DemoChannelConnectionData {
@@ -789,21 +794,49 @@ export interface DemoChannelConnectionData {
   isDefault: boolean
 }
 
+/**
+ * Demo connections written by earlier revisions of this seed that must be
+ * REMOVED on re-run: the 03 revision seeded a fictitious "pending" WhatsApp
+ * number and a resend email box, which 03B disallows (a pending connection
+ * must represent a real provider flow). Matched by externalAccountId within
+ * the target workspace only.
+ */
+export const FINESSE_DEMO_OBSOLETE_CONNECTION_IDS: string[] = [
+  "hola@finesse-demo.invalid",
+  "+34 600 000 000",
+]
+
 export const FINESSE_DEMO_CHANNEL_CONNECTIONS: DemoChannelConnectionData[] = [
   {
     channelType: "email",
-    provider: "resend",
-    name: "Buzón demo Finesse (ficticio)",
-    externalAccountId: "hola@finesse-demo.invalid",
+    provider: "demo",
+    name: "Hello",
+    externalAccountId: "hello@finesse-demo.invalid",
     status: "active",
     isDefault: true,
   },
   {
-    channelType: "whatsapp",
-    provider: "meta",
-    name: "WhatsApp demo Finesse (ficticio)",
-    externalAccountId: "+34 600 000 000",
-    status: "pending",
+    channelType: "email",
+    provider: "demo",
+    name: "Sales",
+    externalAccountId: "sales@finesse-demo.invalid",
+    status: "active",
+    isDefault: false,
+  },
+  {
+    channelType: "email",
+    provider: "demo",
+    name: "Complaints",
+    externalAccountId: "complaints@finesse-demo.invalid",
+    status: "active",
+    isDefault: false,
+  },
+  {
+    channelType: "email",
+    provider: "demo",
+    name: "Gmail",
+    externalAccountId: "finesse.demo@gmail.invalid",
+    status: "active",
     isDefault: false,
   },
 ]

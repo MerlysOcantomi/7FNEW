@@ -49,6 +49,7 @@ import {
   FINESSE_DEMO_SERVICE_CATALOG,
   FINESSE_DEMO_TASK_SOURCE_TYPE,
   FINESSE_DEMO_CHANNEL_CONNECTIONS,
+  FINESSE_DEMO_OBSOLETE_CONNECTION_IDS,
   generateDemoInvoiceNumber,
   getRelativeDate,
   getDemoDatasetSummary,
@@ -932,10 +933,20 @@ async function performSeed(
   }
 
   // === PHASE 6b: Create or update demo channel connections (Business
-  // Profile → Channels). Clearly fictitious rows (see the dataset comment):
-  // a "connected" resend email box on a .invalid address and a "pending"
-  // WhatsApp row. No credentials/sync data are ever written. Idempotency
+  // Profile → Channels, 03B). Clearly fictitious email mailboxes on the
+  // reserved .invalid TLD, provider "demo" so no cron/transport ever
+  // touches them. No credentials/sync data are ever written. Idempotency
   // key: [workspaceId, externalAccountId] (unique in the schema).
+
+  // 6b.0: remove connections an earlier seed revision created and 03B
+  // disallows (fictitious pending WhatsApp, old resend demo box).
+  const obsolete = await tx.channelConnection.deleteMany({
+    where: { workspaceId, externalAccountId: { in: FINESSE_DEMO_OBSOLETE_CONNECTION_IDS } },
+  })
+  if (obsolete.count > 0) {
+    console.log(`  [delete] ${obsolete.count} obsolete demo channel connection(s) removed`)
+  }
+
   for (const demoConnection of FINESSE_DEMO_CHANNEL_CONNECTIONS) {
     const existing = await tx.channelConnection.findFirst({
       where: { workspaceId, externalAccountId: demoConnection.externalAccountId },
