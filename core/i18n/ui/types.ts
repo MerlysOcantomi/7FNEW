@@ -197,13 +197,34 @@ export interface SettingsMessages {
     signOutDescription: string
     items: {
       workspaceSettings: { label: string; description: string }
-      /** Entry for the business identity editor at `/business-profile`. */
+      /**
+       * Entry for the business identity editor at `/business-profile`.
+       *
+       * PRODUCT DECISION (SETTINGS-BUSINESS-PROFILE-01): "Business Profile" is
+       * a COMMON 7F entity — verticals may adapt its inner content but never
+       * rename or replace the structural entry (e.g. Beauty must not present
+       * it as "Mi Salón"; that name belongs to the overview at `/`). Approved
+       * labels per locale — en: "Business Profile", es: "Perfil del negocio",
+       * and for future catalogs de: "Unternehmensprofil", fr: "Profil de
+       * l'entreprise", it: "Profilo dell'attività".
+       */
       businessProfile: { label: string; description: string }
       members: { label: string; description: string }
       planUsage: { label: string; description: string }
       profile: { label: string; description: string }
       security: { label: string; description: string }
     }
+  }
+  /**
+   * `/business-profile` page chrome (header + loading). Shares the entity name
+   * with `accountCenter.items.businessProfile.label` so the settings entry and
+   * the page it opens always agree; the form's field copy remains English-only
+   * for now (documented mix — see docs/i18n-localization-architecture.md).
+   */
+  businessProfilePage: {
+    title: string
+    description: string
+    loading: string
   }
   /** Administración page chrome (header + notices; capability catalog is NOT here). */
   adminPage: {

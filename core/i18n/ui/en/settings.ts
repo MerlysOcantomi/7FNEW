@@ -48,7 +48,7 @@ export const settings: SettingsMessages = {
         description: "General workspace configuration",
       },
       businessProfile: {
-        label: "Business profile",
+        label: "Business Profile",
         description: "Identity, services and business context",
       },
       members: { label: "Members", description: "Team invitations and roles" },
@@ -56,6 +56,12 @@ export const settings: SettingsMessages = {
       profile: { label: "My profile", description: "Personal details and preferences" },
       security: { label: "Account security", description: "Active sessions and authentication" },
     },
+  },
+  businessProfilePage: {
+    title: "Business Profile",
+    description:
+      "Define your business identity. This context is used by Fanny and other agents to understand who you are and what you offer.",
+    loading: "Loading profile...",
   },
   adminPage: {
     eyebrow: "Settings",

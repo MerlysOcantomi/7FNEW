@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
+import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import { Save, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
 
@@ -29,6 +30,15 @@ const EMPTY_PROFILE: ProfileData = {
 }
 
 export default function BusinessProfilePage() {
+  /**
+   * Page chrome resolves from the i18n catalog so the header always matches
+   * the Account Center settings entry (`accountCenter.items.businessProfile`):
+   * this is the canonical Business Profile entity for EVERY vertical — Beauty
+   * adapts inner content elsewhere, never this page's identity. Field copy
+   * below stays English for now (documented mix).
+   */
+  const { t } = useI18n()
+  const pageCopy = t.settings.businessProfilePage
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -123,10 +133,10 @@ export default function BusinessProfilePage() {
   if (loading) {
     return (
       <AppShell>
-        <SectionPage title="Business Profile" description="Loading...">
+        <SectionPage title={pageCopy.title} description={pageCopy.loading}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading profile...</span>
+            <span className="text-sm">{pageCopy.loading}</span>
           </div>
         </SectionPage>
       </AppShell>
@@ -136,8 +146,8 @@ export default function BusinessProfilePage() {
   return (
     <AppShell>
       <SectionPage
-        title="Business Profile"
-        description="Define your business identity. This context is used by Fanny and other agents to understand who you are and what you offer."
+        title={pageCopy.title}
+        description={pageCopy.description}
       >
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* Business Name */}

@@ -56,6 +56,47 @@ test("every settings entry has non-empty en + es copy", () => {
 test("business profile copy is localized (en/es differ and es is Spanish)", () => {
   const en = getUIMessages("en").settings.accountCenter.items.businessProfile
   const es = getUIMessages("es").settings.accountCenter.items.businessProfile
-  assert.equal(en.label, "Business profile")
+  // Approved entity labels (SETTINGS-BUSINESS-PROFILE-01): the structural
+  // entry shows the general concept in every vertical — never "Mi Salón".
+  assert.equal(en.label, "Business Profile")
   assert.equal(es.label, "Perfil del negocio")
+})
+
+// ─── Canonical entity contract (SETTINGS-BUSINESS-PROFILE-01) ────────────────
+
+test("the /business-profile page title matches the settings entry label per locale", () => {
+  for (const locale of ["en", "es"] as const) {
+    const settings = getUIMessages(locale).settings
+    assert.equal(
+      settings.businessProfilePage.title,
+      settings.accountCenter.items.businessProfile.label,
+      `${locale}: page header and settings entry must name the same entity`,
+    )
+  }
+})
+
+test("business profile page chrome is localized (en/es differ, no Spanish leaks into en)", () => {
+  const en = getUIMessages("en").settings.businessProfilePage
+  const es = getUIMessages("es").settings.businessProfilePage
+  assert.equal(en.title, "Business Profile")
+  assert.equal(es.title, "Perfil del negocio")
+  assert.notEqual(en.description, es.description)
+  assert.notEqual(en.loading, es.loading)
+  assert.ok(es.description.length > 0 && es.loading.length > 0)
+})
+
+test("no locale ever names the Business Profile entity 'Mi Salón'", () => {
+  for (const locale of ["en", "es"] as const) {
+    const settings = getUIMessages(locale).settings
+    const labels = [
+      settings.accountCenter.items.businessProfile.label,
+      settings.businessProfilePage.title,
+    ]
+    for (const label of labels) {
+      assert.ok(
+        !/mi salón/i.test(label),
+        `${locale}: "${label}" must not present the entity as the Beauty overview`,
+      )
+    }
+  }
 })
