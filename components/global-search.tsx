@@ -38,36 +38,63 @@ import {
 } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useI18n } from "@/components/i18n-provider"
+import type { GlobalSearchMessages, UIMessages } from "@core/i18n/ui"
 
 // ── Static quick-links (shown when query is empty) ──────────────────
-const quickLinks = [
-  { label: "Overview", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
-  { label: "Smart Inbox", href: "/inbox/overview", icon: Inbox, keywords: "inbox messages conversations overview briefing" },
-  { label: "Manual Intake", href: "/entrada", icon: PenLine, keywords: "manual intake capture" },
-  { label: "Clients", href: "/clientes", icon: Users, keywords: "clients companies contacts" },
-  { label: "Projects", href: "/proyectos", icon: FolderKanban, keywords: "projects work" },
-  { label: "Marketing", href: "/contenido", icon: FileText, keywords: "marketing content editorial calendar" },
-  { label: "Tasks", href: "/tareas", icon: CheckSquare, keywords: "tasks pending assignments" },
-  { label: "Files", href: "/archivos", icon: FolderOpen, keywords: "files documents assets" },
-  { label: "Departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
-  { label: "Improvements", href: "/forte/improvements", icon: Settings, keywords: "improvements optimize workspace modules forte" },
-  { label: "Finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
-  { label: "Invoices", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments billing" },
-  { label: "Communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },
-  { label: "Notifications", href: "/notificaciones", icon: BellRing, keywords: "alerts notices" },
-  { label: "AI workspace", href: "/motor", icon: Workflow, keywords: "ai workspace classification rules automations" },
-  { label: "Identity Resolution", href: "/identidad", icon: Fingerprint, keywords: "identity duplicates" },
-  { label: "History", href: "/historial", icon: History, keywords: "history activity log" },
-  { label: "Library", href: "/biblioteca", icon: BookOpen, keywords: "resources templates guides" },
-  { label: "Users", href: "/usuarios", icon: UserCircle, keywords: "team members roles" },
+//
+// IDENTITY + ROUTE only — labels resolve from the i18n catalogs at render
+// time via `quickLinkLabel`. Ids covered by the `nav` namespace (same
+// concept, same label) reuse it; the rest live in `globalSearch.quickLinks`.
+// `keywords` are hidden matching hints (never rendered) and stay English;
+// the localized label is matched as well, so each locale can search in its
+// own words.
+type QuickLinkId =
+  | keyof GlobalSearchMessages["quickLinks"]
+  | "smartInbox"
+  | "clients"
+  | "marketing"
+  | "tasks"
+  | "finance"
+
+const quickLinks: { id: QuickLinkId; href: string; icon: React.ElementType; keywords: string }[] = [
+  { id: "overview", href: "/", icon: LayoutDashboard, keywords: "dashboard home overview" },
+  { id: "smartInbox", href: "/inbox/overview", icon: Inbox, keywords: "inbox messages conversations overview briefing" },
+  { id: "manualIntake", href: "/entrada", icon: PenLine, keywords: "manual intake capture" },
+  { id: "clients", href: "/clientes", icon: Users, keywords: "clients companies contacts" },
+  { id: "projects", href: "/proyectos", icon: FolderKanban, keywords: "projects work" },
+  { id: "marketing", href: "/contenido", icon: FileText, keywords: "marketing content editorial calendar" },
+  { id: "tasks", href: "/tareas", icon: CheckSquare, keywords: "tasks pending assignments" },
+  { id: "files", href: "/archivos", icon: FolderOpen, keywords: "files documents assets" },
+  { id: "departments", href: "/departamentos", icon: Building2, keywords: "departments teams areas" },
+  { id: "improvements", href: "/forte/improvements", icon: Settings, keywords: "improvements optimize workspace modules forte" },
+  { id: "finance", href: "/finanzas", icon: DollarSign, keywords: "finance money revenue expenses" },
+  { id: "invoices", href: "/facturacion", icon: Receipt, keywords: "invoices collections payments billing" },
+  { id: "communication", href: "/comunicacion", icon: MessageSquare, keywords: "messages chat threads" },
+  { id: "notifications", href: "/notificaciones", icon: BellRing, keywords: "alerts notices" },
+  { id: "aiWorkspace", href: "/motor", icon: Workflow, keywords: "ai workspace classification rules automations" },
+  { id: "identityResolution", href: "/identidad", icon: Fingerprint, keywords: "identity duplicates" },
+  { id: "history", href: "/historial", icon: History, keywords: "history activity log" },
+  { id: "library", href: "/biblioteca", icon: BookOpen, keywords: "resources templates guides" },
+  { id: "users", href: "/usuarios", icon: UserCircle, keywords: "team members roles" },
 ]
 
-const EXAMPLE_SEARCH_CHIPS = [
-  "Ana factura",
-  "contrato Carlos",
-  "cita mañana",
-  "propuesta",
-] as const
+function quickLinkLabel(id: QuickLinkId, t: UIMessages): string {
+  switch (id) {
+    case "smartInbox":
+      return t.nav.smartInbox.title
+    case "clients":
+      return t.nav.clients
+    case "marketing":
+      return t.nav.marketing
+    case "tasks":
+      return t.nav.tasks
+    case "finance":
+      return t.nav.finance
+    default:
+      return t.globalSearch.quickLinks[id]
+  }
+}
 
 // ── Types ───────────────────────────────────────────────────────────
 interface SearchResults {
@@ -162,11 +189,14 @@ function formatWhen(iso: string | null | undefined) {
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-function contactLabel(c: { nombre: string | null; email: string | null; empresa: string | null }) {
-  return c.nombre?.trim() || c.empresa?.trim() || c.email?.trim() || "Contact"
+function contactLabel(
+  c: { nombre: string | null; email: string | null; empresa: string | null },
+  gs: GlobalSearchMessages,
+) {
+  return c.nombre?.trim() || c.empresa?.trim() || c.email?.trim() || gs.result.contactFallback
 }
 
-function flattenResults(raw: SearchResults): FlatResult[] {
+function flattenResults(raw: SearchResults, gs: GlobalSearchMessages): FlatResult[] {
   const conversations = raw.conversations ?? []
   const workspaceTasks = raw.workspaceTasks ?? []
   const eventos = raw.eventos ?? []
@@ -177,9 +207,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     const title =
       truncate(cv.subject?.trim() || "", 72) ||
       truncate(cv.summary?.trim() || "", 72) ||
-      `Conversation · ${contactLabel(cv.contact)}`
+      `${gs.result.conversationPrefix} · ${contactLabel(cv.contact, gs)}`
     const subtitleParts = [
-      `${contactLabel(cv.contact)} · ${cv.channel}`,
+      `${contactLabel(cv.contact, gs)} · ${cv.channel}`,
       cv.summary ? truncate(cv.summary, 96) : null,
       formatWhen(cv.lastMessageAt),
     ].filter(Boolean)
@@ -188,7 +218,7 @@ function flattenResults(raw: SearchResults): FlatResult[] {
       title,
       subtitle: subtitleParts.join(" · "),
       href: `/inbox?id=${encodeURIComponent(cv.id)}`,
-      group: "Inbox conversations",
+      group: gs.groups.conversations,
       icon: Mail,
       badge: cv.category || cv.status,
       badgeColor:
@@ -202,16 +232,16 @@ function flattenResults(raw: SearchResults): FlatResult[] {
   for (const wt of workspaceTasks) {
     const due = formatWhen(wt.dueAt || undefined)
     const subtitleParts = [
-      "Opens Today board (full workspace task)",
+      gs.result.opensTodayBoard,
       wt.sourceLabel ? truncate(wt.sourceLabel, 64) : null,
-      due ? `Due ${due}` : null,
+      due ? gs.result.due(due) : null,
     ].filter(Boolean)
     results.push({
       id: `workspace-task-${wt.id}`,
       title: wt.title,
       subtitle: subtitleParts.join(" · "),
       href: "/today",
-      group: "Today tasks",
+      group: gs.groups.todayTasks,
       icon: ListTodo,
       badge: wt.status,
       badgeColor: estadoChromeColors[wt.status] || estadoChromeColors.open || "",
@@ -222,9 +252,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     results.push({
       id: `tarea-${t.id}`,
       title: t.titulo,
-      subtitle: t.proyecto?.nombre || "Legacy task · no project",
+      subtitle: t.proyecto?.nombre || gs.result.legacyTaskNoProject,
       href: `/tareas/${t.id}`,
-      group: "Tasks",
+      group: gs.groups.tasks,
       icon: CheckSquare,
       badge: t.estado,
       badgeColor: estadoChromeColors[t.estado] || "",
@@ -235,9 +265,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     results.push({
       id: `cliente-${c.id}`,
       title: c.nombre,
-      subtitle: c.empresa || "Client",
+      subtitle: c.empresa || gs.result.clientFallback,
       href: `/clientes/${c.id}`,
-      group: "Clients",
+      group: gs.groups.clients,
       icon: Users,
       badge: c.estado,
       badgeColor: estadoChromeColors[c.estado] || "",
@@ -248,9 +278,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     results.push({
       id: `proyecto-${p.id}`,
       title: p.nombre,
-      subtitle: p.cliente?.nombre || "Project",
+      subtitle: p.cliente?.nombre || gs.result.projectFallback,
       href: `/proyectos/${p.id}`,
-      group: "Projects",
+      group: gs.groups.projects,
       icon: FolderKanban,
       badge: p.estado,
       badgeColor: estadoChromeColors[p.estado] || "",
@@ -260,10 +290,10 @@ function flattenResults(raw: SearchResults): FlatResult[] {
   for (const f of raw.facturas) {
     results.push({
       id: `factura-${f.id}`,
-      title: `Invoice ${f.numero}`,
-      subtitle: f.cliente?.nombre || "No client",
+      title: gs.result.invoiceTitle(f.numero),
+      subtitle: f.cliente?.nombre || gs.result.noClient,
       href: `/facturacion/${f.id}`,
-      group: "Invoices",
+      group: gs.groups.invoices,
       icon: Receipt,
       badge: f.estado,
       badgeColor: estadoChromeColors[f.estado] || "",
@@ -275,7 +305,7 @@ function flattenResults(raw: SearchResults): FlatResult[] {
       id: `evento-${ev.id}`,
       title: ev.titulo,
       subtitle: [
-        "Opens Calendar (workspace event)",
+        gs.result.opensCalendar,
         ev.tipo,
         formatWhen(ev.fechaInicio),
         ev.cliente?.nombre || null,
@@ -283,7 +313,7 @@ function flattenResults(raw: SearchResults): FlatResult[] {
         .filter(Boolean)
         .join(" · "),
       href: "/calendario",
-      group: "Schedule",
+      group: gs.groups.schedule,
       icon: Calendar,
       badge: ev.tipo,
       badgeColor: "",
@@ -296,9 +326,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     results.push({
       id: `nota-${n.id}`,
       title: n.titulo,
-      subtitle: n.cliente?.nombre ?? n.proyecto?.nombre ?? "Note",
+      subtitle: n.cliente?.nombre ?? n.proyecto?.nombre ?? gs.result.noteFallback,
       href,
-      group: "Notes",
+      group: gs.groups.notes,
       icon: StickyNote,
     })
   }
@@ -309,7 +339,7 @@ function flattenResults(raw: SearchResults): FlatResult[] {
       title: d.nombre,
       subtitle: d.proyecto?.nombre || d.tipo,
       href: `/archivos/${d.id}`,
-      group: "Documents",
+      group: gs.groups.documents,
       icon: FolderOpen,
     })
   }
@@ -318,9 +348,9 @@ function flattenResults(raw: SearchResults): FlatResult[] {
     results.push({
       id: `archivo-${a.id}`,
       title: a.nombre,
-      subtitle: `${a.module} · attachment`,
+      subtitle: `${a.module} · ${gs.result.attachment}`,
       href: `/${a.module}/${a.recordId}`,
-      group: "Attachments",
+      group: gs.groups.attachments,
       icon: Paperclip,
     })
   }
@@ -336,6 +366,8 @@ interface GlobalSearchProps {
 
 export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const router = useRouter()
+  const { t } = useI18n()
+  const gs = t.globalSearch
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<FlatResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -369,18 +401,21 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
       if (json.success && json.data) {
         const d = json.data as SearchResults
         setResults(
-          flattenResults({
-            clientes: d.clientes ?? [],
-            proyectos: d.proyectos ?? [],
-            tareas: d.tareas ?? [],
-            facturas: d.facturas ?? [],
-            documentos: d.documentos ?? [],
-            notas: d.notas ?? [],
-            archivos: d.archivos ?? [],
-            conversations: d.conversations ?? [],
-            workspaceTasks: d.workspaceTasks ?? [],
-            eventos: d.eventos ?? [],
-          }),
+          flattenResults(
+            {
+              clientes: d.clientes ?? [],
+              proyectos: d.proyectos ?? [],
+              tareas: d.tareas ?? [],
+              facturas: d.facturas ?? [],
+              documentos: d.documentos ?? [],
+              notas: d.notas ?? [],
+              archivos: d.archivos ?? [],
+              conversations: d.conversations ?? [],
+              workspaceTasks: d.workspaceTasks ?? [],
+              eventos: d.eventos ?? [],
+            },
+            gs,
+          ),
         )
       } else {
         setResults([])
@@ -390,7 +425,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [gs])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -404,7 +439,8 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, searchApi])
 
-  // Filtered quick links when no query
+  // Filtered quick links when no query — matches the LOCALIZED label plus
+  // the hidden English keywords, so both locales find their own words.
   const filteredLinks = useMemo(
     () =>
       query.length === 0
@@ -412,11 +448,11 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         : query.length < 2
           ? quickLinks.filter(
               (r) =>
-                r.label.toLowerCase().includes(query.toLowerCase()) ||
+                quickLinkLabel(r.id, t).toLowerCase().includes(query.toLowerCase()) ||
                 r.keywords.toLowerCase().includes(query.toLowerCase()),
             )
           : [],
-    [query],
+    [query, t],
   )
 
   // Combined items for keyboard navigation
@@ -586,7 +622,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search messages, tasks, clients, invoices..."
+            placeholder={gs.placeholder}
             value={query}
             autoComplete="off"
             onChange={(e) => setQuery(e.target.value)}
@@ -609,7 +645,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                 ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-[var(--text-secondary-light)] hover:bg-white/[0.08] hover:text-[var(--text-primary-light)]",
             )}
-            aria-label="Close"
+            aria-label={gs.close}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -649,17 +685,17 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                     />
                     <div className="min-w-0 flex-1 pt-0.5">
                       <h2 className={cn("text-[13px] font-semibold tracking-tight", textPrimaryTone)}>
-                        Search your workspace
+                        {gs.introTitle}
                       </h2>
                       <p className={cn("mt-1 max-w-none text-[11.5px] leading-relaxed", mutedSecondary)}>
-                        Find inbox conversations, Today tasks, clients, projects, invoices, events and files.
+                        {gs.introSubtitle}
                       </p>
                       <div
                         className="mt-2.5 flex flex-wrap gap-1.5"
                         role="group"
-                        aria-label="Example workspace searches"
+                        aria-label={gs.exampleSearchesAria}
                       >
-                        {EXAMPLE_SEARCH_CHIPS.map((chip) => (
+                        {gs.exampleChips.map((chip) => (
                           <button
                             key={chip}
                             type="button"
@@ -699,7 +735,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                       "text-[10px] font-medium uppercase tracking-[0.14em]",
                       toneLight ? "text-muted-foreground/80" : "text-[var(--text-secondary-light)]/55",
                     )}>
-                      Quick navigation
+                      {gs.quickNavigation}
                     </span>
                   </div>
                   <div className="flex flex-col gap-px pb-1">
@@ -717,7 +753,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                           )}
                         >
                           <Icon className={cn("h-3.5 w-3.5 shrink-0 opacity-85", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]/80")} />
-                          <span>{route.label}</span>
+                          <span>{quickLinkLabel(route.id, t)}</span>
                         </Link>
                       )
                     })}
@@ -733,7 +769,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
               {loading && results.length === 0 ? (
                 <div className="py-10 text-center">
                   <Loader2 className={cn("mx-auto mb-2 h-5 w-5 animate-spin opacity-85", accentIcon)} />
-                  <p className={cn("text-[13px]", mutedSecondary)}>Buscando…</p>
+                  <p className={cn("text-[13px]", mutedSecondary)}>{gs.loading}</p>
                 </div>
               ) : results.length === 0 && !loading ? (
                 <EmptyState query={query} toneLight={toneLight} />
@@ -813,26 +849,26 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
               "rounded border px-1 py-0.5 font-mono text-[10px]",
               toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>↓</kbd>
-            <span>navegar</span>
+            <span>{gs.footer.navigate}</span>
           </div>
           <div className={cn("flex items-center gap-1.5", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]")}>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
               toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>↵</kbd>
-            <span>abrir</span>
+            <span>{gs.footer.open}</span>
           </div>
           <div className={cn("flex items-center gap-1.5", toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]")}>
             <kbd className={cn(
               "rounded border px-1 py-0.5 font-mono text-[10px]",
               toneLight ? "border-border bg-card text-muted-foreground" : "border-[var(--border-dark)] bg-white/[0.05] text-[var(--text-secondary-light)]",
             )}>esc</kbd>
-            <span>close</span>
+            <span>{gs.footer.close}</span>
           </div>
           <span className={cn("ml-auto tabular-nums", toneLight ? "text-muted-foreground/90" : "text-[var(--text-secondary-light)]/80")}>
             {displayMode === "results"
-              ? `${results.length} result${results.length !== 1 ? "s" : ""}`
-              : `${filteredLinks.length} link${filteredLinks.length !== 1 ? "s" : ""}`
+              ? gs.counts.results(results.length)
+              : gs.counts.links(filteredLinks.length)
             }
           </span>
         </div>
@@ -877,7 +913,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         className="relative z-[1] isolate w-full max-w-xl animate-in fade-in zoom-in-[0.99] duration-150 [color-scheme:dark]"
         role="dialog"
         aria-modal="true"
-        aria-label="Workspace search"
+        aria-label={gs.dialogAria}
       >
         {innerShell}
       </div>
@@ -886,6 +922,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 }
 
 function EmptyState({ query, toneLight }: { query: string; toneLight?: boolean }) {
+  const { t } = useI18n()
   return (
     <div className="py-10 text-center">
       <Search
@@ -899,7 +936,7 @@ function EmptyState({ query, toneLight }: { query: string; toneLight?: boolean }
         "text-[13px]",
         toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]",
       )}>
-        No results for{" "}
+        {t.globalSearch.empty.noResultsPrefix}{" "}
         <span className={cn(
           "font-medium",
           toneLight ? "text-foreground" : "text-[var(--text-primary-light)]",
@@ -911,7 +948,7 @@ function EmptyState({ query, toneLight }: { query: string; toneLight?: boolean }
         "mt-1 text-[11px]",
         toneLight ? "text-muted-foreground" : "text-[var(--text-secondary-light)]/80",
       )}>
-        Try another search term
+        {t.globalSearch.empty.hint}
       </p>
     </div>
   )

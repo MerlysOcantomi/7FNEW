@@ -117,7 +117,15 @@ export interface NavMessages {
   }
 }
 
-/** Global search chrome (trigger, dialog frame, footer hints) — not results. */
+/**
+ * Global search — dialog chrome, quick-navigation labels, result-group
+ * headings and the structural strings inside result rows. Result TITLES,
+ * names, subjects and any other user/workspace content are data and are
+ * rendered verbatim. Quick links whose label already exists in `nav` with
+ * the exact same concept (clients, tasks, marketing, finance, Smart Inbox)
+ * reuse the nav catalog at the component — only search-specific labels
+ * live here.
+ */
 export interface GlobalSearchMessages {
   placeholder: string
   introTitle: string
@@ -131,6 +139,63 @@ export interface GlobalSearchMessages {
     navigate: string
     open: string
     close: string
+  }
+  /** Example query chips under the intro — locale-appropriate demo queries. */
+  exampleChips: string[]
+  /** Quick-navigation labels keyed by stable route id (nav-covered ids excluded). */
+  quickLinks: {
+    overview: string
+    manualIntake: string
+    projects: string
+    invoices: string
+    files: string
+    departments: string
+    improvements: string
+    communication: string
+    notifications: string
+    aiWorkspace: string
+    identityResolution: string
+    history: string
+    library: string
+    users: string
+  }
+  /** Result-group headings by entity family. */
+  groups: {
+    conversations: string
+    todayTasks: string
+    tasks: string
+    clients: string
+    projects: string
+    invoices: string
+    schedule: string
+    notes: string
+    documents: string
+    attachments: string
+  }
+  /** Structural strings composed into result rows (never user content). */
+  result: {
+    contactFallback: string
+    /** Title fallback rendered as `${conversationPrefix} · ${contact}`. */
+    conversationPrefix: string
+    opensTodayBoard: string
+    due: (when: string) => string
+    legacyTaskNoProject: string
+    clientFallback: string
+    projectFallback: string
+    invoiceTitle: (num: string) => string
+    noClient: string
+    opensCalendar: string
+    noteFallback: string
+    attachment: string
+  }
+  counts: {
+    results: (count: number) => string
+    links: (count: number) => string
+  }
+  empty: {
+    /** Rendered before the styled, quoted query. */
+    noResultsPrefix: string
+    hint: string
   }
 }
 

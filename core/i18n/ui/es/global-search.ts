@@ -1,6 +1,6 @@
 import type { GlobalSearchMessages } from "../types"
 
-/** Spanish source for the `globalSearch` UI namespace — dialog chrome only. */
+/** Spanish source for the `globalSearch` UI namespace — fully translated. */
 export const globalSearch: GlobalSearchMessages = {
   placeholder: "Busca mensajes, tareas, clientes, facturas...",
   introTitle: "Busca en tu workspace",
@@ -15,5 +15,56 @@ export const globalSearch: GlobalSearchMessages = {
     navigate: "navegar",
     open: "abrir",
     close: "cerrar",
+  },
+  exampleChips: ["Ana factura", "contrato Carlos", "cita mañana", "propuesta"],
+  quickLinks: {
+    overview: "Vista general",
+    manualIntake: "Entrada manual",
+    projects: "Proyectos",
+    invoices: "Facturas",
+    files: "Archivos",
+    departments: "Departamentos",
+    improvements: "Mejoras",
+    communication: "Comunicación",
+    notifications: "Notificaciones",
+    aiWorkspace: "Espacio de trabajo de IA",
+    identityResolution: "Resolución de identidades",
+    history: "Historial",
+    library: "Biblioteca",
+    users: "Usuarios",
+  },
+  groups: {
+    conversations: "Conversaciones de la bandeja",
+    todayTasks: "Tareas de Hoy",
+    tasks: "Tareas",
+    clients: "Clientes",
+    projects: "Proyectos",
+    invoices: "Facturas",
+    schedule: "Agenda",
+    notes: "Notas",
+    documents: "Documentos",
+    attachments: "Adjuntos",
+  },
+  result: {
+    contactFallback: "Contacto",
+    conversationPrefix: "Conversación",
+    opensTodayBoard: "Abre el panel de Hoy (tarea del workspace)",
+    due: (when) => `Vence ${when}`,
+    legacyTaskNoProject: "Tarea antigua · sin proyecto",
+    clientFallback: "Cliente",
+    projectFallback: "Proyecto",
+    invoiceTitle: (num) => `Factura ${num}`,
+    noClient: "Sin cliente",
+    opensCalendar: "Abre el calendario (evento del workspace)",
+    noteFallback: "Nota",
+    attachment: "adjunto",
+  },
+  counts: {
+    results: (count) => (count === 1 ? "1 resultado" : `${count} resultados`),
+    links: (count) => (count === 1 ? "1 enlace" : `${count} enlaces`),
+  },
+  empty: {
+    noResultsPrefix: "Sin resultados para",
+    hint: "Prueba con otro término",
   },
 }
