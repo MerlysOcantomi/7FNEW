@@ -91,19 +91,27 @@ test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
   assert.equal(spanish.common.saveChanges, "Guardar cambios")
 })
 
-test("getUIMessages: de/fr/it are official with FULL per-namespace English fallback", () => {
+test("getUIMessages: de/fr/it translate the toolbar family, English fallback for the rest", () => {
   const english = getUIMessages("en")
+  // Toolbar family really translated since I18N-TOP-ACTIONS-01.
+  const TRANSLATED = ["nav", "globalSearch", "globalNew", "agents", "today"] as const
   for (const code of ["de", "fr", "it"] as const) {
     const catalog = getUIMessages(code)
-    // Composed object (not the same reference) whose every namespace is the
-    // ENGLISH object — an explicit fallback, never an English copy.
     for (const ns of Object.keys(english) as Array<keyof typeof english>) {
-      assert.equal(catalog[ns], english[ns], `${code}.${ns} must reference the English namespace`)
+      if ((TRANSLATED as readonly string[]).includes(ns)) {
+        // A real contribution — never the English object served as-is.
+        assert.notEqual(catalog[ns], english[ns], `${code}.${ns} must be a native contribution`)
+      } else {
+        // Everything else stays an explicit English-reference fallback.
+        assert.equal(catalog[ns], english[ns], `${code}.${ns} must reference the English namespace`)
+      }
     }
   }
-  assert.equal(getUIMessages("de-CH").nav, english.nav)
-  assert.equal(getUIMessages("fr-CH").nav, english.nav)
-  assert.equal(getUIMessages("it-CH").nav, english.nav)
+  // Regional variants resolve to their base locale's composed catalog.
+  assert.equal(getUIMessages("de-CH").nav, getUIMessages("de").nav)
+  assert.equal(getUIMessages("fr-CH").nav, getUIMessages("fr").nav)
+  assert.equal(getUIMessages("it-CH").nav, getUIMessages("it").nav)
+  assert.equal(getUIMessages("de-CH").settings, english.settings)
 })
 
 // ─── locale registry (§5/§16, P4.CORE-5L) ──────────────────────────────────────
@@ -174,7 +182,7 @@ test("coverage: derived matrix matches the real composed catalogs", () => {
   }
 })
 
-test("coverage: expected snapshot — es complete, de/fr/it pending", () => {
+test("coverage: expected snapshot — es complete, de/fr/it cover the toolbar family", () => {
   assert.equal(UI_NAMESPACE_COVERAGE.es.clients, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.nav, "native")
   assert.equal(UI_NAMESPACE_COVERAGE.es.calendar, "native")
@@ -185,12 +193,53 @@ test("coverage: expected snapshot — es complete, de/fr/it pending", () => {
   // Every registered namespace has a real Spanish contribution now.
   assert.ok(!localeHasPendingCoverage("es"))
   assert.ok(!localeHasPendingCoverage("en"))
+  /**
+   * de/fr/it really translate the global toolbar family (I18N-TOP-ACTIONS-01)
+   * — nav + the four surfaces the toolbar opens — and still serve English for
+   * everything else (explicit, honest fallback).
+   */
+  const TOOLBAR_FAMILY = ["nav", "globalSearch", "globalNew", "agents", "today"] as const
   for (const code of ["de", "fr", "it"] as const) {
     assert.ok(localeHasPendingCoverage(code))
-    for (const status of Object.values(UI_NAMESPACE_COVERAGE[code])) {
-      assert.equal(status, "fallback-en")
+    for (const [ns, status] of Object.entries(UI_NAMESPACE_COVERAGE[code])) {
+      if ((TOOLBAR_FAMILY as readonly string[]).includes(ns)) {
+        assert.equal(status, "native", `${code}.${ns} must be native`)
+      } else {
+        assert.equal(status, "fallback-en", `${code}.${ns} must still be fallback`)
+      }
     }
   }
+})
+
+test("toolbar family renders in all five locales with agent names preserved", () => {
+  const expected = {
+    en: { today: "Today", search: "Search", agents: "Agents", newTrigger: "New" },
+    es: { today: "Hoy", search: "Buscar", agents: "Agentes", newTrigger: "Nuevo" },
+    de: { today: "Heute", search: "Suchen", agents: "Agenten", newTrigger: "Neu" },
+    fr: { today: "Aujourd'hui", search: "Rechercher", agents: "Agents", newTrigger: "Nouveau" },
+    it: { today: "Oggi", search: "Cerca", agents: "Agenti", newTrigger: "Nuovo" },
+  } as const
+  for (const [code, labels] of Object.entries(expected)) {
+    const t = getUIMessages(code)
+    assert.equal(t.nav.today, labels.today, `${code} today`)
+    assert.equal(t.nav.search, labels.search, `${code} search`)
+    assert.equal(t.nav.agents, labels.agents, `${code} agents`)
+    assert.equal(t.globalNew.trigger, labels.newTrigger, `${code} new`)
+    // "Fanny" is a proper name — it must survive every locale's askFanny label
+    // and the agents empty-state body.
+    assert.ok(t.nav.askFanny.includes("Fanny"), `${code} askFanny keeps the proper name`)
+    assert.ok(t.agents.empty.body.includes("Fanny"), `${code} agents empty keeps the proper name`)
+    // Counted phrases stay typed functions everywhere.
+    assert.equal(typeof t.agents.moreOnFullPage, "function")
+    assert.equal(typeof t.today.quick.needsCount, "function")
+    assert.equal(typeof t.globalSearch.counts.results, "function")
+  }
+  // The five locales must differ from each other where the language differs —
+  // no English copies pretending to be translations.
+  const subtitles = new Set(
+    (["en", "es", "de", "fr", "it"] as const).map((c) => getUIMessages(c).agents.subtitle),
+  )
+  assert.equal(subtitles.size, 5, "agents.subtitle must be distinct per locale")
 })
 
 test("getUIMessages: complete catalogs with no empty strings for ALL five locales", () => {

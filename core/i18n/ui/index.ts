@@ -14,6 +14,9 @@ import { SUPPORTED_LOCALES, type SupportedLocale } from "../types"
 import type { LocaleCatalogOverrides, UIMessages, UINamespace } from "./types"
 import { en } from "./en"
 import { es as esOverrides } from "./es"
+import { de as deOverrides } from "./de"
+import { fr as frOverrides } from "./fr"
+import { it as itOverrides } from "./it"
 
 export type { UIMessages, UINamespace } from "./types"
 export type {
@@ -35,17 +38,19 @@ export type {
 /**
  * Per-locale catalog CONTRIBUTIONS (§9, P4.CORE-5L). A locale contributes only
  * the namespaces it really translates; everything else falls back to English
- * at composition time below. `de`/`fr`/`it` are OFFICIAL locales with empty
- * contributions so far — an explicit, honest fallback, never English copies
- * pretending to be translations. To translate a namespace: add its complete
- * typed object to the locale's contribution — coverage below updates itself.
+ * at composition time below. `es` covers every namespace; `de`/`fr`/`it`
+ * cover the global toolbar family (nav, Search, New, Agents, Today —
+ * I18N-TOP-ACTIONS-01) and serve English for the rest — an explicit, honest
+ * fallback, never English copies pretending to be translations. To translate
+ * a namespace: add its complete typed object to the locale's contribution —
+ * coverage below updates itself.
  */
 const LOCALE_OVERRIDES: Record<SupportedLocale, LocaleCatalogOverrides> = {
   en,
   es: esOverrides,
-  de: {},
-  fr: {},
-  it: {},
+  de: deOverrides,
+  fr: frOverrides,
+  it: itOverrides,
 }
 
 const UI_NAMESPACES = Object.keys(en) as UINamespace[]
