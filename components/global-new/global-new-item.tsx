@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 import type { GlobalNewActionDef } from "@/lib/global-new-config"
 
 export type GlobalNewTone = "canvas" | "light"
@@ -26,6 +27,15 @@ export function GlobalNewItem({
   onSelect?: () => void
 }) {
   const Icon = action.icon
+  const { t } = useI18n()
+  /**
+   * Copy resolves from the catalog when the action declares a messageKey;
+   * the def's canonical-English literals are the safety net for future
+   * (vertical) actions whose catalog entry hasn't landed yet.
+   */
+  const copy = action.messageKey
+    ? t.globalNew.items[action.messageKey]
+    : { label: action.label, description: action.description }
 
   const titleClass =
     tone === "canvas"
@@ -57,10 +67,10 @@ export function GlobalNewItem({
       </span>
       <span className="min-w-0 flex-1 text-left">
         <span className={cn("block text-sm font-medium leading-snug", titleClass)}>
-          {action.label}
+          {copy.label}
         </span>
         <span className={cn("mt-0.5 block text-[11px] leading-snug", descClass)}>
-          {action.description}
+          {copy.description}
         </span>
       </span>
     </>

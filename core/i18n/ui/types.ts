@@ -199,7 +199,13 @@ export interface GlobalSearchMessages {
   }
 }
 
-/** Global "New" menu chrome (trigger, panel frame, group headings) — not items. */
+/**
+ * Global "New" menu — trigger, panel frame, group headings and the creation
+ * ACTION copy (label + description per action id). The action registry
+ * (`lib/global-new-config.ts`) declares identity/route/icon only; its literal
+ * label/description are canonical-English safety fallbacks for unregistered
+ * (future vertical) ids, mirroring the vertical-nav-profile pattern.
+ */
 export interface GlobalNewMessages {
   trigger: string
   title: string
@@ -210,6 +216,19 @@ export interface GlobalNewMessages {
     work: string
     assets: string
     vertical: string
+  }
+  items: {
+    conversation: { label: string; description: string }
+    manualIntake: { label: string; description: string }
+    request: { label: string; description: string }
+    quickNote: { label: string; description: string }
+    client: { label: string; description: string }
+    project: { label: string; description: string }
+    task: { label: string; description: string }
+    invoice: { label: string; description: string }
+    document: { label: string; description: string }
+    upload: { label: string; description: string }
+    contentCampaign: { label: string; description: string }
   }
 }
 
