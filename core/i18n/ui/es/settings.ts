@@ -66,6 +66,12 @@ export const settings: SettingsMessages = {
       },
     },
   },
+  businessProfilePage: {
+    title: "Perfil del negocio",
+    description:
+      "Define la identidad de tu negocio. Fanny y el resto de agentes usan este contexto para entender quién eres y qué ofreces.",
+    loading: "Cargando perfil...",
+  },
   adminPage: {
     eyebrow: "Ajustes",
     title: "Ajustes del workspace",
