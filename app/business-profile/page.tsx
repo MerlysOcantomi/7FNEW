@@ -29,16 +29,19 @@ const EMPTY_PROFILE: ProfileData = {
   attentionRules: [],
 }
 
+const MAX_SERVICES = 20
+
 export default function BusinessProfilePage() {
   /**
-   * Page chrome resolves from the i18n catalog so the header always matches
-   * the Account Center settings entry (`accountCenter.items.businessProfile`):
-   * this is the canonical Business Profile entity for EVERY vertical — Beauty
-   * adapts inner content elsewhere, never this page's identity. Field copy
-   * below stays English for now (documented mix).
+   * ALL system copy (chrome, labels, hints, placeholders, buttons, notices,
+   * remove-chip aria labels) resolves from the i18n catalog, so the page
+   * follows the viewer's effective locale like the settings entry that opens
+   * it. User-entered values (services, languages, rules…) are data — rendered
+   * verbatim, never translated.
    */
   const { t } = useI18n()
   const pageCopy = t.settings.businessProfilePage
+  const fieldCopy = pageCopy.fields
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -64,11 +67,11 @@ export default function BusinessProfilePage() {
         attentionRules: data.attentionRules ?? [],
       })
     } catch {
-      setError("Could not load business profile")
+      setError(pageCopy.loadError)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pageCopy.loadError])
 
   useEffect(() => { fetchProfile() }, [fetchProfile])
 
@@ -86,7 +89,7 @@ export default function BusinessProfilePage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {
-      setError("Could not save profile")
+      setError(pageCopy.saveError)
     } finally {
       setSaving(false)
     }
@@ -151,29 +154,29 @@ export default function BusinessProfilePage() {
       >
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* Business Name */}
-          <Field label="Business Name" hint="How your business is known to clients">
+          <Field label={fieldCopy.businessName.label} hint={fieldCopy.businessName.hint}>
             <input
               type="text"
               value={profile.businessName}
               onChange={(e) => setProfile((p) => ({ ...p, businessName: e.target.value }))}
-              placeholder="e.g. Skina Studio"
+              placeholder={fieldCopy.businessName.placeholder}
               className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </Field>
 
           {/* Description */}
-          <Field label="Description" hint="Brief description of what your business does">
+          <Field label={fieldCopy.businessDescription.label} hint={fieldCopy.businessDescription.hint}>
             <textarea
               value={profile.businessDescription}
               onChange={(e) => setProfile((p) => ({ ...p, businessDescription: e.target.value }))}
-              placeholder="e.g. Web design, branding and digital development studio"
+              placeholder={fieldCopy.businessDescription.placeholder}
               rows={3}
               className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
           </Field>
 
           {/* Services */}
-          <Field label="Services" hint="What your business offers (max 20)">
+          <Field label={fieldCopy.services.label} hint={fieldCopy.services.hint(MAX_SERVICES)}>
             <div className="flex flex-wrap gap-2 mb-2">
               {profile.services.map((svc, i) => (
                 <span
@@ -184,21 +187,21 @@ export default function BusinessProfilePage() {
                   <button
                     onClick={() => removeService(i)}
                     className="text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={`Remove ${svc}`}
+                    aria-label={fieldCopy.services.removeAria(svc)}
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
             </div>
-            {profile.services.length < 20 && (
+            {profile.services.length < MAX_SERVICES && (
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={newService}
                   onChange={(e) => setNewService(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addService() } }}
-                  placeholder="Add a service..."
+                  placeholder={fieldCopy.services.placeholder}
                   className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <button
@@ -206,25 +209,25 @@ export default function BusinessProfilePage() {
                   disabled={!newService.trim()}
                   className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Add
+                  <Plus className="h-3.5 w-3.5" /> {pageCopy.add}
                 </button>
               </div>
             )}
           </Field>
 
           {/* Tone */}
-          <Field label="Tone" hint="How should agents communicate on behalf of your business">
+          <Field label={fieldCopy.tone.label} hint={fieldCopy.tone.hint}>
             <input
               type="text"
               value={profile.tone}
               onChange={(e) => setProfile((p) => ({ ...p, tone: e.target.value }))}
-              placeholder="e.g. professional, approachable and direct"
+              placeholder={fieldCopy.tone.placeholder}
               className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </Field>
 
           {/* Languages */}
-          <Field label="Languages" hint="Languages your business operates in">
+          <Field label={fieldCopy.languages.label} hint={fieldCopy.languages.hint}>
             <div className="flex flex-wrap gap-2 mb-2">
               {profile.languages.map((lang, i) => (
                 <span
@@ -236,7 +239,7 @@ export default function BusinessProfilePage() {
                     type="button"
                     onClick={() => removeLanguage(i)}
                     className="text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={`Remove ${lang}`}
+                    aria-label={fieldCopy.languages.removeAria(lang)}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -249,7 +252,7 @@ export default function BusinessProfilePage() {
                 value={newLanguage}
                 onChange={(e) => setNewLanguage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLanguage() } }}
-                placeholder="Add a language..."
+                placeholder={fieldCopy.languages.placeholder}
                 className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <button
@@ -258,44 +261,42 @@ export default function BusinessProfilePage() {
                 disabled={!newLanguage.trim()}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Plus className="h-3.5 w-3.5" /> Add
+                <Plus className="h-3.5 w-3.5" /> {pageCopy.add}
               </button>
             </div>
           </Field>
 
           <div className="border-t border-border pt-6 flex flex-col gap-6">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Operating context</h2>
+              <h2 className="text-sm font-semibold text-foreground">{pageCopy.operatingContext.title}</h2>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Rules Fanny should consider when classifying, summarizing, and suggesting work. Examples:
-                payment questions require review, urgent complaints need operator attention, new leads should get a
-                follow-up task.
+                {pageCopy.operatingContext.description}
               </p>
             </div>
 
-            <Field label="Region / market" hint="Where you mainly operate or who you mainly serve">
+            <Field label={fieldCopy.region.label} hint={fieldCopy.region.hint}>
               <input
                 type="text"
                 value={profile.region}
                 onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
-                placeholder="e.g. Spain & LATAM, DACH, remote worldwide"
+                placeholder={fieldCopy.region.placeholder}
                 className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </Field>
 
-            <Field label="Working hours" hint="When customers can generally expect a reply (plain language is fine)">
+            <Field label={fieldCopy.workingHours.label} hint={fieldCopy.workingHours.hint}>
               <input
                 type="text"
                 value={profile.workingHours}
                 onChange={(e) => setProfile((p) => ({ ...p, workingHours: e.target.value }))}
-                placeholder="e.g. Mon–Fri 9:00–18:00 CET; emergencies via phone only"
+                placeholder={fieldCopy.workingHours.placeholder}
                 className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </Field>
 
             <Field
-              label="Attention rules"
-              hint={`Short reminders for how to treat certain kinds of messages (max ${MAX_ATTENTION_RULES})`}
+              label={fieldCopy.attentionRules.label}
+              hint={fieldCopy.attentionRules.hint(MAX_ATTENTION_RULES)}
             >
               <div className="flex flex-wrap gap-2 mb-2">
                 {profile.attentionRules.map((rule, i) => (
@@ -308,7 +309,7 @@ export default function BusinessProfilePage() {
                       type="button"
                       onClick={() => removeAttentionRule(i)}
                       className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={`Remove rule: ${rule.slice(0, 80)}`}
+                      aria-label={fieldCopy.attentionRules.removeAria(rule.slice(0, 80))}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -327,7 +328,7 @@ export default function BusinessProfilePage() {
                         addAttentionRule()
                       }
                     }}
-                    placeholder="Add a rule..."
+                    placeholder={fieldCopy.attentionRules.placeholder}
                     className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <button
@@ -336,7 +337,7 @@ export default function BusinessProfilePage() {
                     disabled={!newAttentionRule.trim()}
                     className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Add
+                    <Plus className="h-3.5 w-3.5" /> {pageCopy.add}
                   </button>
                 </div>
               )}
@@ -360,11 +361,11 @@ export default function BusinessProfilePage() {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {saving ? "Saving..." : "Save Profile"}
+              {saving ? pageCopy.saving : pageCopy.save}
             </button>
             {saved && (
               <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle2 className="h-4 w-4" /> Saved
+                <CheckCircle2 className="h-4 w-4" /> {pageCopy.saved}
               </span>
             )}
             {error && (

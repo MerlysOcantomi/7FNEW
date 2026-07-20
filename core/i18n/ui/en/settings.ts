@@ -62,6 +62,62 @@ export const settings: SettingsMessages = {
     description:
       "Define your business identity. This context is used by Fanny and other agents to understand who you are and what you offer.",
     loading: "Loading profile...",
+    loadError: "Could not load business profile",
+    saveError: "Could not save profile",
+    save: "Save Profile",
+    saving: "Saving...",
+    saved: "Saved",
+    add: "Add",
+    operatingContext: {
+      title: "Operating context",
+      description:
+        "Rules Fanny should consider when classifying, summarizing, and suggesting work. Examples: payment questions require review, urgent complaints need operator attention, new leads should get a follow-up task.",
+    },
+    fields: {
+      businessName: {
+        label: "Business Name",
+        hint: "How your business is known to clients",
+        placeholder: "e.g. Skina Studio",
+      },
+      businessDescription: {
+        label: "Description",
+        hint: "Brief description of what your business does",
+        placeholder: "e.g. Web design, branding and digital development studio",
+      },
+      services: {
+        label: "Services",
+        hint: (max) => `What your business offers (max ${max})`,
+        placeholder: "Add a service...",
+        removeAria: (name) => `Remove ${name}`,
+      },
+      tone: {
+        label: "Tone",
+        hint: "How should agents communicate on behalf of your business",
+        placeholder: "e.g. professional, approachable and direct",
+      },
+      languages: {
+        label: "Languages",
+        hint: "Languages your business operates in",
+        placeholder: "Add a language...",
+        removeAria: (name) => `Remove ${name}`,
+      },
+      region: {
+        label: "Region / market",
+        hint: "Where you mainly operate or who you mainly serve",
+        placeholder: "e.g. Spain & LATAM, DACH, remote worldwide",
+      },
+      workingHours: {
+        label: "Working hours",
+        hint: "When customers can generally expect a reply (plain language is fine)",
+        placeholder: "e.g. Mon–Fri 9:00–18:00 CET; emergencies via phone only",
+      },
+      attentionRules: {
+        label: "Attention rules",
+        hint: (max) => `Short reminders for how to treat certain kinds of messages (max ${max})`,
+        placeholder: "Add a rule...",
+        removeAria: (rule) => `Remove rule: ${rule}`,
+      },
+    },
   },
   adminPage: {
     eyebrow: "Settings",

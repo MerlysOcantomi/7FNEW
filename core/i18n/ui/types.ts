@@ -216,15 +216,56 @@ export interface SettingsMessages {
     }
   }
   /**
-   * `/business-profile` page chrome (header + loading). Shares the entity name
-   * with `accountCenter.items.businessProfile.label` so the settings entry and
-   * the page it opens always agree; the form's field copy remains English-only
-   * for now (documented mix — see docs/i18n-localization-architecture.md).
+   * `/business-profile` page — chrome AND full form copy (BUSINESS-PROFILE-
+   * I18N-02). Shares the entity name with `accountCenter.items.businessProfile
+   * .label` so the settings entry and the page it opens always agree. Only
+   * SYSTEM copy lives here: user-entered values (services, languages, rules…)
+   * are data and are never translated. Counted hints and remove-labels are
+   * typed functions, same pattern as the Today workboard phrases.
    */
   businessProfilePage: {
     title: string
     description: string
     loading: string
+    /** Fetch/save failure notices and the post-save confirmation. */
+    loadError: string
+    saveError: string
+    save: string
+    saving: string
+    saved: string
+    /** Shared label for every chip-list "add" button. */
+    add: string
+    /** "Operating context" section header + intro paragraph. */
+    operatingContext: {
+      title: string
+      description: string
+    }
+    fields: {
+      businessName: { label: string; hint: string; placeholder: string }
+      businessDescription: { label: string; hint: string; placeholder: string }
+      services: {
+        label: string
+        hint: (max: number) => string
+        placeholder: string
+        /** Accessible label for a chip's remove button — embeds the RAW value. */
+        removeAria: (name: string) => string
+      }
+      tone: { label: string; hint: string; placeholder: string }
+      languages: {
+        label: string
+        hint: string
+        placeholder: string
+        removeAria: (name: string) => string
+      }
+      region: { label: string; hint: string; placeholder: string }
+      workingHours: { label: string; hint: string; placeholder: string }
+      attentionRules: {
+        label: string
+        hint: (max: number) => string
+        placeholder: string
+        removeAria: (rule: string) => string
+      }
+    }
   }
   /** Administración page chrome (header + notices; capability catalog is NOT here). */
   adminPage: {

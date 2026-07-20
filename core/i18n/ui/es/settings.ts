@@ -69,8 +69,64 @@ export const settings: SettingsMessages = {
   businessProfilePage: {
     title: "Perfil del negocio",
     description:
-      "Define la identidad de tu negocio. Fanny y el resto de agentes usan este contexto para entender quién eres y qué ofreces.",
+      "Define la identidad de tu negocio. Este contexto ayuda a Fanny y a otros agentes a entender quién eres y qué ofreces.",
     loading: "Cargando perfil...",
+    loadError: "No se pudo cargar el perfil del negocio",
+    saveError: "No se pudo guardar el perfil",
+    save: "Guardar perfil",
+    saving: "Guardando...",
+    saved: "Guardado",
+    add: "Añadir",
+    operatingContext: {
+      title: "Contexto operativo",
+      description:
+        "Reglas que Fanny debe tener en cuenta al clasificar, resumir y sugerir trabajo. Ejemplos: las preguntas sobre pagos requieren revisión, las quejas urgentes necesitan atención del equipo, los nuevos leads deben recibir una tarea de seguimiento.",
+    },
+    fields: {
+      businessName: {
+        label: "Nombre del negocio",
+        hint: "Cómo conocen tus clientes tu negocio",
+        placeholder: "p. ej. Skina Studio",
+      },
+      businessDescription: {
+        label: "Descripción",
+        hint: "Breve descripción de lo que hace tu negocio",
+        placeholder: "p. ej. Estudio de diseño web, branding y desarrollo digital",
+      },
+      services: {
+        label: "Servicios",
+        hint: (max) => `Lo que ofrece tu negocio (máx. ${max})`,
+        placeholder: "Añadir un servicio...",
+        removeAria: (name) => `Quitar ${name}`,
+      },
+      tone: {
+        label: "Tono",
+        hint: "Cómo deben comunicarse los agentes en nombre de tu negocio",
+        placeholder: "p. ej. profesional, cercano y directo",
+      },
+      languages: {
+        label: "Idiomas",
+        hint: "Idiomas en los que trabaja tu negocio",
+        placeholder: "Añadir un idioma...",
+        removeAria: (name) => `Quitar ${name}`,
+      },
+      region: {
+        label: "Región o mercado",
+        hint: "Dónde trabajas principalmente o a qué público atiendes",
+        placeholder: "p. ej. España y LATAM, DACH, remoto internacional",
+      },
+      workingHours: {
+        label: "Horario de atención",
+        hint: "Cuándo pueden esperar una respuesta tus clientes",
+        placeholder: "p. ej. L–V 9:00–18:00 CET; urgencias solo por teléfono",
+      },
+      attentionRules: {
+        label: "Reglas de atención",
+        hint: (max) => `Indicaciones breves sobre cómo tratar determinados mensajes (máx. ${max})`,
+        placeholder: "Añadir una regla...",
+        removeAria: (rule) => `Quitar regla: ${rule}`,
+      },
+    },
   },
   adminPage: {
     eyebrow: "Ajustes",
