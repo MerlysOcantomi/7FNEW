@@ -7,22 +7,36 @@
  * (which answers what the INBOX surfaces). Same design rules:
  *   - Pure and DB-free — safe on client, server and tests. The DB-touching
  *     read path lives in `app/api/workspace/channels/route.ts`.
- *   - HONEST states only (no-fake-product rule): a channel reports
- *     `coming_soon` unless a real setup flow exists in this repository
- *     today. Nothing here may render a working-looking integration for a
- *     provider we have not integrated.
+ *   - HONEST states only (no-fake-product rule): a channel reports what the
+ *     PRODUCT can really do for the workspace today, not what the registry
+ *     or the data model could theoretically carry. Infrastructure existing
+ *     (a registry entry, an endpoint, a free-string channel value) is NOT a
+ *     visible connection (BUSINESS-PROFILE-CHANNELS-03B).
  *   - Actions are typed tokens resolved to labels/destinations by the UI
  *     layer; a channel with no real action gets an empty list, never a
  *     placeholder button.
  *
+ * Channel-specific reality rules (03B):
+ *   - PORTAL is excluded from this surface entirely. `portal` remains a
+ *     valid registry/data value (historical conversations, future client
+ *     portal), but there is no client-facing portal flow the owner could
+ *     configure or point customers to, so it must not render as a channel
+ *     here. See `BUSINESS_CHANNEL_IDS`.
+ *   - WEB CHAT is `coming_soon` unless the workspace carries an EXPLICIT
+ *     activation signal (`config.inbox.webChat.enabled === true`). The
+ *     public ingest endpoint existing — or the workspace having a slug —
+ *     is not an installation signal. Explicit `false` renders `disabled`.
+ *   - `pending` is only ever produced by a PERSISTED ChannelConnection row
+ *     in a non-active lifecycle state — never synthesized.
+ *
  * Status vocabulary (BUSINESS-PROFILE-CHANNELS-03):
- *   connected      — a live data path exists now (active connection, or a
- *                    connection-free channel that is switched on).
+ *   connected      — a live data path exists now (active connection, or an
+ *                    explicitly activated connection-free channel).
  *   available      — the owner can start a real setup flow right now.
  *   setup_required — setup was started (a connection row exists) but needs
  *                    completion before the channel works.
- *   pending        — setup is progressing and waiting on something
- *                    (provider verification, sync…), no action needed yet.
+ *   pending        — a persisted connection is progressing and waiting on
+ *                    something (provider verification…), no action yet.
  *   error          — the connection exists but is failing.
  *   plan_locked    — a real setup flow exists but the workspace plan's
  *                    channel limit is already reached (observational — the
@@ -60,6 +74,7 @@ export type ChannelSetupStatus =
 export type ChannelSetupActionId =
   | "connect_email" // → /administracion/canales (EmailConnectionsManager)
   | "manage_email_connections" // → /administracion/canales
+  | "connect_another_email" // → /administracion/canales
   | "review_email_connection" // → /administracion/canales (error/pending row)
   | "enable_web_chat_reception" // PUT /api/workspace/channels/web-chat
   | "disable_web_chat_reception" // PUT /api/workspace/channels/web-chat
@@ -82,7 +97,7 @@ export interface ChannelConnectionSummary {
    * `ChannelConnection.status` free string. Values written by the product
    * today: "active" (default) and "error" (imap-sync failures). The
    * lifecycle values "pending" / "setup_required" / "disabled" are accepted
-   * so rows created in those states (e.g. future provider flows, demo data)
+   * so rows created in those states (real provider flows in progress)
    * resolve honestly; unknown values degrade to "pending".
    */
   status: string
@@ -101,6 +116,29 @@ export interface ChannelIdentity {
   name: string | null
   /** Routable address: email address, phone number… `null` when none. */
   address: string | null
+}
+
+/**
+ * One mailbox/account behind the single Email channel. Email stays ONE
+ * channel in the roster; Gmail / Google Workspace / Outlook / IMAP are
+ * providers of accounts within it, never separate channel cards.
+ */
+export interface EmailAccountView {
+  name: string
+  address: string | null
+  /** Raw `ChannelConnection.provider` value ("imap_smtp", "resend"…). */
+  provider: string
+  /** Human provider label resolved via `emailProviderLabel`. */
+  providerLabel: string
+  status: "active" | "error" | "setup_required" | "pending" | "disabled"
+  isDefault: boolean
+  /**
+   * Clearly-fictitious demo account (reserved `.invalid` TLD). The UI must
+   * badge these so demo data can never read as a real mailbox.
+   */
+  isDemo: boolean
+  lastSyncAt: string | null
+  lastError: string | null
 }
 
 export interface ChannelSetupView {
@@ -124,20 +162,31 @@ export interface ChannelSetupView {
   /** Present only when the underlying row really carries the data. */
   lastSyncAt: string | null
   lastError: string | null
-  /** Number of active connections behind this channel (email can have several). */
+  /** Number of active connections behind this channel. */
   activeConnectionCount: number
+  /** Per-account detail — populated for the email channel only. */
+  emailAccounts: EmailAccountView[]
   actions: ChannelSetupAction[]
 }
 
 /** Section grouping for the Business Profile Channels layout. */
 export type ChannelSetupGroup = "connected" | "actionable" | "future"
 
+/**
+ * Web chat activation signal, parsed from `Workspace.config`:
+ *   "enabled"  — the owner explicitly switched web chat on.
+ *   "disabled" — the owner explicitly switched it off.
+ *   "unset"    — no explicit signal; the product must NOT present web chat
+ *                as installed/connected (03B: an existing public endpoint is
+ *                not an installation).
+ */
+export type WebChatActivation = "enabled" | "disabled" | "unset"
+
 export interface ChannelSetupInput {
   /** Resolved inbox channel config (core → vertical → workspace layers). */
   config: InboxChannelsConfig
   connections: ChannelConnectionSummary[]
-  /** Workspace toggle `config.inbox.webChat.enabled` (default true). */
-  webChatReceptionEnabled: boolean
+  webChatActivation: WebChatActivation
   /** Visitor-facing identity for connection-free channels (business name). */
   businessDisplayName: string | null
   /**
@@ -156,15 +205,22 @@ export interface ChannelSetupInput {
  */
 const CHANNELS_WITH_SETUP_FLOW: ReadonlySet<InboxChannelId> = new Set(["email"])
 
-/** Channel ids the Business Profile Channels section manages. Everything in
- * the registry except operator-internal records (`manual`). */
+/**
+ * Channel ids the Business Profile Channels section manages. Excludes:
+ *   - operator-internal records (`manual`) — nothing to configure;
+ *   - `portal` — the value exists in the registry and in historical
+ *     `Conversation.channel` data, but no client-facing portal flow (client
+ *     auth + client-side thread UI) exists today, so presenting it as a
+ *     configurable business channel would be fake product. Re-add it here
+ *     the day the portal ships.
+ */
 export const BUSINESS_CHANNEL_IDS: readonly InboxChannelId[] = INBOX_CHANNEL_IDS.filter(
-  (id) => INBOX_CHANNELS[id].kind !== "internal",
+  (id) => INBOX_CHANNELS[id].kind !== "internal" && id !== "portal",
 )
 
-function normalizeConnectionStatus(
-  raw: string,
-): "active" | "error" | "setup_required" | "pending" | "disabled" {
+type NormalizedRowStatus = "active" | "error" | "setup_required" | "pending" | "disabled"
+
+function normalizeConnectionStatus(raw: string): NormalizedRowStatus {
   const value = raw.trim().toLowerCase()
   if (value === "active") return "active"
   if (value === "error") return "error"
@@ -174,12 +230,48 @@ function normalizeConnectionStatus(
   return "pending"
 }
 
+/**
+ * Human labels for email account providers. Brand names are locale-stable
+ * (same convention as channel labels in `lib/inbox-labels.ts`), so this map
+ * lives in the model, not the i18n catalogs. Unknown providers fall back to
+ * the raw value rather than pretending to know it.
+ */
+const EMAIL_PROVIDER_LABELS: Record<string, string> = {
+  imap_smtp: "IMAP/SMTP",
+  resend: "Resend",
+  gmail: "Gmail",
+  google: "Google Workspace",
+  google_workspace: "Google Workspace",
+  microsoft: "Outlook / Microsoft 365",
+  outlook: "Outlook / Microsoft 365",
+  demo: "Demo",
+}
+
+export function emailProviderLabel(provider: string): string {
+  return EMAIL_PROVIDER_LABELS[provider.trim().toLowerCase()] ?? provider
+}
+
+/**
+ * Demo-data detector: the seed writes addresses on the reserved `.invalid`
+ * TLD only (guaranteed unroutable, see RFC 2606). The UI badges these as
+ * demo accounts so fictitious data can never read as a real mailbox.
+ */
+export function isDemoAccountAddress(address: string | null | undefined): boolean {
+  return typeof address === "string" && address.trim().toLowerCase().endsWith(".invalid")
+}
+
 /** Severity order when a channel has several rows: a live connection wins,
  * then the most actionable problem. */
-const ROW_STATUS_PRIORITY = ["active", "error", "setup_required", "pending", "disabled"] as const
+const ROW_STATUS_PRIORITY: readonly NormalizedRowStatus[] = [
+  "active",
+  "error",
+  "setup_required",
+  "pending",
+  "disabled",
+]
 
 function summarizeRows(rows: ChannelConnectionSummary[]): {
-  effective: (typeof ROW_STATUS_PRIORITY)[number] | null
+  effective: NormalizedRowStatus | null
   representative: ChannelConnectionSummary | null
   activeCount: number
 } {
@@ -202,15 +294,27 @@ function summarizeRows(rows: ChannelConnectionSummary[]): {
   }
 }
 
-function actionsFor(
-  id: InboxChannelId,
-  status: ChannelSetupStatus,
-): ChannelSetupAction[] {
+function toEmailAccountView(row: ChannelConnectionSummary): EmailAccountView {
+  return {
+    name: row.name,
+    address: row.externalAccountId,
+    provider: row.provider,
+    providerLabel: emailProviderLabel(row.provider),
+    status: normalizeConnectionStatus(row.status),
+    isDefault: row.isDefault,
+    isDemo: isDemoAccountAddress(row.externalAccountId),
+    lastSyncAt: row.lastSyncAt,
+    lastError: row.lastError,
+  }
+}
+
+function actionsFor(id: InboxChannelId, status: ChannelSetupStatus): ChannelSetupAction[] {
   if (id === "email") {
     switch (status) {
       case "connected":
         return [
           { id: "manage_email_connections", emphasis: "primary" },
+          { id: "connect_another_email", emphasis: "secondary" },
           { id: "open_inbox", emphasis: "secondary" },
         ]
       case "available":
@@ -224,6 +328,8 @@ function actionsFor(
     }
   }
   if (id === "web_chat") {
+    // Actions exist only once the workspace has an explicit activation
+    // signal — a "coming soon" web chat must not offer a toggle.
     switch (status) {
       case "connected":
         return [
@@ -236,9 +342,6 @@ function actionsFor(
         return []
     }
   }
-  if (id === "portal" && status === "connected") {
-    return [{ id: "open_inbox", emphasis: "secondary" }]
-  }
   // No real flow exists for the remaining channels — no actions, ever,
   // until their integrations land (no fake OAuth buttons).
   return []
@@ -247,20 +350,27 @@ function actionsFor(
 function resolveOne(
   id: InboxChannelId,
   input: ChannelSetupInput,
-  activeConnectionTotal: number,
+  connectedChannelTotal: number,
 ): ChannelSetupView {
   const def = INBOX_CHANNELS[id]
-  const rows = input.connections.filter(
-    (row) => row.channelType.trim().toLowerCase() === id,
-  )
+  const rows = input.connections.filter((row) => row.channelType.trim().toLowerCase() === id)
   const { effective, representative, activeCount } = summarizeRows(rows)
   const enabled = input.config.enabled.includes(id)
 
   let status: ChannelSetupStatus
-  if (!def.requiresConnection) {
-    // Connection-free channels (web_chat, portal): live unless switched off.
-    const receptionOn = id === "web_chat" ? input.webChatReceptionEnabled : true
-    status = enabled && receptionOn ? "connected" : "disabled"
+  if (id === "web_chat") {
+    // Connection-free, but NOT automatically live: only an explicit
+    // per-workspace activation signal may present it as connected (03B).
+    status =
+      input.webChatActivation === "enabled" && enabled
+        ? "connected"
+        : input.webChatActivation === "disabled"
+          ? "disabled"
+          : "coming_soon"
+  } else if (!def.requiresConnection) {
+    // Any future connection-free channel: never auto-connected; it must
+    // bring its own activation signal before rendering as live.
+    status = "coming_soon"
   } else if (effective === "active") {
     status = "connected"
   } else if (effective === "error") {
@@ -275,10 +385,7 @@ function resolveOne(
     status = "coming_soon"
   } else if (!enabled) {
     status = "disabled"
-  } else if (
-    input.planMaxChannels !== null &&
-    activeConnectionTotal >= input.planMaxChannels
-  ) {
+  } else if (input.planMaxChannels !== null && connectedChannelTotal >= input.planMaxChannels) {
     status = "plan_locked"
   } else {
     status = "available"
@@ -286,7 +393,7 @@ function resolveOne(
 
   const identity: ChannelIdentity | null = representative
     ? { name: representative.name || null, address: representative.externalAccountId }
-    : !def.requiresConnection && status === "connected"
+    : id === "web_chat" && status === "connected"
       ? { name: input.businessDisplayName, address: null }
       : null
 
@@ -309,8 +416,25 @@ function resolveOne(
     lastSyncAt: representative?.lastSyncAt ?? null,
     lastError: status === "error" ? (representative?.lastError ?? null) : null,
     activeConnectionCount: activeCount,
+    emailAccounts: id === "email" ? rows.map(toEmailAccountView) : [],
     actions: actionsFor(id, status),
   }
+}
+
+/**
+ * Count of DISTINCT channels with at least one active connection — the unit
+ * `TenantPlanLimits.maxChannels` describes. Several email mailboxes are one
+ * email channel; `coming_soon` channels and channels without persisted
+ * connections never count.
+ */
+export function countConnectedChannels(connections: ChannelConnectionSummary[]): number {
+  const channels = new Set<string>()
+  for (const row of connections) {
+    if (normalizeConnectionStatus(row.status) === "active") {
+      channels.add(row.channelType.trim().toLowerCase())
+    }
+  }
+  return channels.size
 }
 
 /**
@@ -319,9 +443,7 @@ function resolveOne(
  * with channels the config does not order appended in registry order.
  */
 export function resolveChannelSetupViews(input: ChannelSetupInput): ChannelSetupView[] {
-  const activeConnectionTotal = input.connections.filter(
-    (row) => normalizeConnectionStatus(row.status) === "active",
-  ).length
+  const connectedChannelTotal = countConnectedChannels(input.connections)
 
   const ordered: InboxChannelId[] = []
   for (const id of input.config.order) {
@@ -331,7 +453,7 @@ export function resolveChannelSetupViews(input: ChannelSetupInput): ChannelSetup
     if (!ordered.includes(id)) ordered.push(id)
   }
 
-  return ordered.map((id) => resolveOne(id, input, activeConnectionTotal))
+  return ordered.map((id) => resolveOne(id, input, connectedChannelTotal))
 }
 
 /**
@@ -357,26 +479,42 @@ export function channelSetupGroup(status: ChannelSetupStatus): ChannelSetupGroup
   }
 }
 
-// ── Web chat reception toggle (workspace config slice) ──────────────────────
+// ── Web chat activation (workspace config slice) ────────────────────────────
 
 /**
- * Parse the web chat reception toggle out of the raw `Workspace.config`
- * string. Default is ENABLED (`true`) — the public web chat data path
- * predates this toggle and must not turn off for existing workspaces.
- * Only an explicit `inbox.webChat.enabled === false` disables it.
+ * Parse the EXPLICIT web chat activation signal out of the raw
+ * `Workspace.config` string. Only a boolean `inbox.webChat.enabled` counts;
+ * anything else — missing key, malformed JSON, non-boolean — is "unset",
+ * which the setup model renders as `coming_soon` (never as connected).
  */
-export function isWebChatReceptionEnabled(rawConfig: string | null | undefined): boolean {
-  if (!rawConfig) return true
+export function getWebChatActivation(rawConfig: string | null | undefined): WebChatActivation {
+  if (!rawConfig) return "unset"
   let parsed: unknown
   try {
     parsed = JSON.parse(rawConfig)
   } catch {
-    return true
+    return "unset"
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return true
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "unset"
   const inbox = (parsed as Record<string, unknown>)["inbox"]
-  if (!inbox || typeof inbox !== "object" || Array.isArray(inbox)) return true
+  if (!inbox || typeof inbox !== "object" || Array.isArray(inbox)) return "unset"
   const webChat = (inbox as Record<string, unknown>)["webChat"]
-  if (!webChat || typeof webChat !== "object" || Array.isArray(webChat)) return true
-  return (webChat as Record<string, unknown>)["enabled"] !== false
+  if (!webChat || typeof webChat !== "object" || Array.isArray(webChat)) return "unset"
+  const enabled = (webChat as Record<string, unknown>)["enabled"]
+  if (enabled === true) return "enabled"
+  if (enabled === false) return "disabled"
+  return "unset"
+}
+
+/**
+ * Reception gate for the PUBLIC web chat ingest endpoint
+ * (`/api/inbox/public/send`). Deliberately DIFFERENT from the Business
+ * Profile activation signal above: ingestion stays open unless the owner
+ * explicitly switched it off, because the endpoint predates the activation
+ * concept and historical widget installs must keep delivering. Only the
+ * SETUP VIEW requires the explicit opt-in; the pipe requires an explicit
+ * opt-out. Documented in BUSINESS-PROFILE-CHANNELS-03B §3.
+ */
+export function isWebChatReceptionEnabled(rawConfig: string | null | undefined): boolean {
+  return getWebChatActivation(rawConfig) !== "disabled"
 }
