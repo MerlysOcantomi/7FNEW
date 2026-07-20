@@ -35,7 +35,15 @@ function getSecret() {
   return new TextEncoder().encode(secret)
 }
 
-export async function createSession(user: SessionUser): Promise<string> {
+export async function createSession(
+  user: SessionUser,
+  /**
+   * Optional session lifetime in seconds. Defaults to 7 days, preserving every
+   * existing caller. Mr Forte Lab (DEV-PREVIEW-01C) passes a shorter value so
+   * the demo app session never outlives its lab access window.
+   */
+  expiresInSeconds?: number,
+): Promise<string> {
   const token = await new SignJWT({
     userId: user.userId,
     email: user.email,
@@ -46,7 +54,11 @@ export async function createSession(user: SessionUser): Promise<string> {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(
+      expiresInSeconds && expiresInSeconds > 0
+        ? Math.floor(Date.now() / 1000) + Math.floor(expiresInSeconds)
+        : "7d",
+    )
     .sign(getSecret())
 
   return token
@@ -86,7 +98,7 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
   return verifySession(token)
 }
 
-export function buildSessionCookie(token: string) {
+export function buildSessionCookie(token: string, maxAgeSeconds?: number) {
   const isProduction = process.env.NODE_ENV === "production"
   return {
     name: COOKIE_NAME,
@@ -95,7 +107,7 @@ export function buildSessionCookie(token: string) {
     secure: isProduction,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: maxAgeSeconds && maxAgeSeconds > 0 ? Math.floor(maxAgeSeconds) : COOKIE_MAX_AGE,
   }
 }
 

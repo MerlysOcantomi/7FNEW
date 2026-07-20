@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
 import { decideLabGate, isLabNamespacePath } from "@core/lab/gate-policy"
 import { readLabGateEnv } from "@core/lab/config"
+import { isStaticAssetPath } from "@core/http/public-paths"
 
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
@@ -13,10 +14,12 @@ const CLIENT_COOKIE = "7f-client-session"
  * accepted:false — real integrations add per-provider signature checks.
  */
 const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites"]
-const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 function isPublic(pathname: string): boolean {
-  if (STATIC_PREFIXES.some((p) => pathname.startsWith(p))) return true
+  // Framework/static assets (incl. /_vercel analytics + metadata icons) are
+  // never auth-gated — see core/http/public-paths.ts for why this matters on
+  // unauthenticated pages like /login and /lab/enter.
+  if (isStaticAssetPath(pathname)) return true
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true
   return false
 }

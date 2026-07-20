@@ -3,7 +3,12 @@
 import { useActionState } from "react"
 import { enterLabAction, type LabEnterState } from "./actions"
 
-const INITIAL: LabEnterState = { error: false }
+const INITIAL: LabEnterState = { error: null }
+
+const ERROR_MESSAGES: Record<NonNullable<LabEnterState["error"]>, string> = {
+  "invalid-key": "Access could not be verified.",
+  "not-ready": "The preview environment is not ready.",
+}
 
 /**
  * Minimal access-key form (DEV-PREVIEW-01B). Uses `useActionState` so the
@@ -30,7 +35,7 @@ export function EnterForm() {
       </div>
       {state.error ? (
         <p role="alert" className="text-sm text-destructive">
-          Access could not be verified.
+          {ERROR_MESSAGES[state.error]}
         </p>
       ) : null}
       <button

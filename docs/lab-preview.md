@@ -201,15 +201,100 @@ layer. Never add any of these variables to the Sevenef production project.
   use `DISABLE_GOOGLE_AUTH`.
 - All Lab checks are server-side; public/browser variables are never trusted.
 
+## Level 3 — demo database, identity & application session (DEV-PREVIEW-01C)
+
+Once the access key is verified, the deployment confirms it is wired to the
+expected demo database and issues a real (demo) Sevenef session.
+
+### Isolated demo database
+
+- The Lab project points `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` at a
+  **dedicated demo Turso database**, never production. Create it separately and
+  push the schema (`npx prisma db push` against the demo DB).
+- `SEVENEF_LAB_EXPECTED_DATABASE_URL_SHA256` is a private SHA-256 of the
+  **normalized** URL (`core/lab/database-fingerprint.ts`: scheme + lowercased
+  host + path; query/`authToken` dropped; token never hashed or logged). At
+  runtime the connected URL is fingerprinted and compared with
+  `timingSafeEqual`. A database whose NAME merely contains "demo"/"lab" is not
+  accepted — only an exact fingerprint match is. Compute the expected value:
+
+  ```bash
+  npx tsx -e "import {computeTursoFingerprint} from './core/lab/database-fingerprint.ts'; console.log(computeTursoFingerprint(process.env.TURSO_DATABASE_URL))"
+  ```
+
+### Synthetic identity & workspace
+
+Fixed internal identity (`core/lab/demo-identity.ts`): user `lab-preview-user`
+(`lab-preview@sevenef.invalid`, reserved `.invalid` TLD, `User.role = editor`,
+never a platform admin), workspace `lab-preview-workspace`
+(slug `finesse-preview`, Beauty/Finesse vertical, flagged
+`config.demo = { enabled, type: "finesse-internal" }`), and exactly one
+`WorkspaceMember` with the canonical `ADMIN` role. "editor" (D5) is the session
+role; `ADMIN` is the workspace RBAC role — the two role systems reconciled.
+
+### Provisioning is CLI-only, never from a web request
+
+A web request may only verify, read, set cookies and redirect. Provisioning is
+an explicit, idempotent admin command:
+
+```bash
+npm run lab:provision-demo   # config → fingerprint → connect → safety preflight
+                             # → idempotent user/workspace/membership → Finesse
+                             # seed → post-assess → safe report
+npm run lab:verify-demo      # strictly read-only; non-zero exit on any failure
+```
+
+The provisioner refuses to write unless the fingerprint matches and the
+database is safe (only the demo workspace + synthetic user, or empty). It never
+deletes unknown rows, never prints secrets/token/full URL, and never falls back
+to another database. Two consecutive runs leave exactly one user, one
+workspace, one membership and the same logical rows (the Finesse seed is
+marker-idempotent; `performSeed` is exported and reused). If the seed is ever
+incomplete, re-run `lab:provision-demo` — it updates in place.
+
+### assessLabDemoEnvironment (fail-closed)
+
+`core/lab/demo-environment.ts` checks, in order: data config → fingerprint →
+connectivity → safe database (≤ 1 workspace, no foreign users, workspace
+demo-flagged) → synthetic user (id/email/role) → workspace (id/slug/vertical) →
+membership (`ADMIN`) → minimum dataset. Any failure returns a typed internal
+reason; the visitor only ever sees "The preview environment is not ready."
+
+### Enter flow & cookies
+
+`/lab/enter` (POST key) runs gate → origin → access config → key → data config
+→ fingerprint → provisioned environment, and only if ALL pass sets **three**
+cookies together: `sevenef-lab-access`, `7f-session`, `wf_workspace`. No cookie
+is set on any failure.
+
+- `7f-session`: the repo's official session (via `createSession`), claims
+  `{ userId, email, role: "editor", nombre, avatar: null, platformRole: null }`
+  — **no `isLab`/`demoMode` claim**; isolation is environmental. `HttpOnly`,
+  `Secure` (deployments), `SameSite=Lax`, `Path=/`.
+- `wf_workspace`: exactly `lab-preview-workspace` (never from query/body/header).
+- Both expire with the lab access window (same TTL as `sevenef-lab-access`), so
+  the demo app session never outlives approved access.
+
+`/lab` links into the REAL Sevenef surfaces (Today, Calendar, Clients, Tasks,
+Inbox, Finance, Business Profile) on the Lab deployment — no `/lab/*`
+duplicates. `POST /lab/exit` clears all three cookies; afterwards `/lab`
+requires the key again and `/today` / `/api/*` require login. A server-derived
+permanent banner (`components/lab/lab-demo-overlay-banner.tsx`) shows
+"Mr Forte Lab · Preview · Fictional data" on real routes ONLY when the active
+session is exactly the demo identity + workspace on a gated Lab deployment —
+never in production, never for another user/workspace, never via a public var.
+
+### Google OAuth in the Lab project
+
+The demo session never uses Google OAuth or `dev-login`. Do NOT put production
+Google OAuth credentials in the Lab project. (Fully hiding/blocking the Google
+login UI inside the Lab deployment is deferred to DEV-PREVIEW-01D.)
+
 ## Not implemented yet (later missions)
 
-- `DEV-PREVIEW-01C` — demo Turso database, schema push, Finesse demo seed, the
-  persisted `lab-preview-user`/`lab-preview-workspace` (with `editor` rights in
-  the reset-able demo DB) and entry into the real surfaces (Today, Calendar, …)
-  on the Lab deployment.
 - `DEV-PREVIEW-01D` — Vercel project creation/wiring, Deployment Protection
-  setup, distributed rate limiting on `/lab/enter`, final guardrail checks and
-  runbook completion.
+  setup, distributed rate limiting on `/lab/enter`, hiding Google OAuth UI in
+  the Lab deployment, final guardrail checks and runbook completion.
 
 ## Tests
 
