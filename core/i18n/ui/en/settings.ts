@@ -167,18 +167,25 @@ export const settings: SettingsMessages = {
     },
     actions: {
       connect_email: "Connect email",
-      manage_email_connections: "Manage connections",
+      manage_email_connections: "Manage accounts",
+      connect_another_email: "Connect another email",
       review_email_connection: "Review connection",
       enable_web_chat_reception: "Turn on reception",
       disable_web_chat_reception: "Turn off reception",
       open_inbox: "Open Inbox",
     },
+    emailAccounts: {
+      title: "Email accounts",
+      connectedCount: (count) =>
+        count === 1 ? "1 account connected" : `${count} accounts connected`,
+      primaryBadge: "Primary account",
+      providerLabel: "Provider",
+      demoBadge: "Demo account",
+    },
     identityLabel: "Identity",
     receiving: "Receiving",
     sending: "Sending",
     lastSync: (formatted) => `Last sync ${formatted}`,
-    activeConnections: (count) =>
-      count === 1 ? "1 active connection" : `${count} active connections`,
     errorLabel: "Error",
     planNote: (used, max) => `${used} of ${max} channels included in your plan in use`,
     planLockedHint:

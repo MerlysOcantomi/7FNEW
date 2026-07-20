@@ -176,18 +176,25 @@ export const settings: SettingsMessages = {
     },
     actions: {
       connect_email: "Conectar correo",
-      manage_email_connections: "Gestionar conexiones",
+      manage_email_connections: "Gestionar cuentas",
+      connect_another_email: "Conectar otro correo",
       review_email_connection: "Revisar conexión",
       enable_web_chat_reception: "Activar recepción",
       disable_web_chat_reception: "Desactivar recepción",
       open_inbox: "Abrir Inbox",
     },
+    emailAccounts: {
+      title: "Cuentas de correo",
+      connectedCount: (count) =>
+        count === 1 ? "1 cuenta conectada" : `${count} cuentas conectadas`,
+      primaryBadge: "Cuenta principal",
+      providerLabel: "Proveedor",
+      demoBadge: "Cuenta de demostración",
+    },
     identityLabel: "Identidad",
     receiving: "Recibe",
     sending: "Envía",
     lastSync: (formatted) => `Última sincronización ${formatted}`,
-    activeConnections: (count) =>
-      count === 1 ? "1 conexión activa" : `${count} conexiones activas`,
     errorLabel: "Error",
     planNote: (used, max) => `${used} de ${max} canales incluidos en tu plan en uso`,
     planLockedHint:

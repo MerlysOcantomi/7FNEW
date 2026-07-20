@@ -10,6 +10,7 @@ import {
   type ChannelSetupGroup,
   type ChannelSetupStatus,
   type ChannelSetupView,
+  type EmailAccountView,
 } from "@core/inbox/channel-setup"
 import { formatDateTime } from "@core/i18n/format"
 import { channelLabel } from "@/lib/inbox-labels"
@@ -18,31 +19,37 @@ import { ICON_BY_TOKEN } from "@/components/inbox/conversation-channel-badge"
 import { cn } from "@/lib/utils"
 
 /**
- * Business Profile → Channels (BUSINESS-PROFILE-CHANNELS-03).
+ * Business Profile → Channels (BUSINESS-PROFILE-CHANNELS-03/03B).
  *
  * CONFIGURATION surface only: setup state, identity and real next actions
  * per channel. Conversations, threads and composers belong to the Inbox and
  * must never appear here.
  *
+ * Reality rules this component relies on (enforced by the setup model):
+ *   - Only channels with real product flows can be connected. Portal is not
+ *     listed; web chat is coming_soon without an explicit activation signal.
+ *   - Email is ONE channel containing many accounts (mailboxes); providers
+ *     like Gmail / Google Workspace / IMAP-SMTP are account metadata, never
+ *     separate channel cards.
+ *   - Actions arrive from the API — this component never invents one, and
+ *     channels without a real flow render with no buttons.
+ *
  * Layout: three groups (connected / actionable / future) rendered as
  * single-column disclosure lists — the same structure works from 320px to
  * desktop, so there is no table/breakpoint fork. One channel expands at a
- * time; collapsed rows show only name + identity/short description + status
- * so small screens never show every detail at once.
- *
- * Honesty rules (mirroring the pure model): actions arrive from the API —
- * this component never invents one, and channels without a real flow render
- * with no buttons.
+ * time. On <sm the status moves to its own line under the identity so name,
+ * address and state never compete for one row (nothing important relies on
+ * truncation); bottom padding clears the floating assistant button.
  */
 
 interface ChannelsPayload {
   channels: ChannelSetupView[]
-  webChatReceptionEnabled: boolean
   plan: {
     key: string
     label: string
     maxChannels: number | null
-    activeConnections: number
+    /** Distinct channels with an active connection (email = 1, not N). */
+    connectedChannels: number
   }
 }
 
@@ -50,6 +57,7 @@ interface ChannelsPayload {
 const ACTION_HREFS: Partial<Record<ChannelSetupActionId, string>> = {
   connect_email: "/administracion/canales",
   manage_email_connections: "/administracion/canales",
+  connect_another_email: "/administracion/canales",
   review_email_connection: "/administracion/canales",
   open_inbox: "/inbox",
 }
@@ -169,11 +177,13 @@ export function ChannelsSection() {
 
   const planNote =
     data.plan.maxChannels !== null
-      ? copy.planNote(data.plan.activeConnections, data.plan.maxChannels)
+      ? copy.planNote(data.plan.connectedChannels, data.plan.maxChannels)
       : null
 
   return (
-    <div className="flex flex-col gap-8 max-w-2xl">
+    // pb clears the floating assistant button so the last row's status and
+    // actions are never covered on mobile.
+    <div className="flex flex-col gap-8 max-w-4xl pb-24">
       {planNote && <p className="text-xs text-muted-foreground -mt-4">{planNote}</p>}
 
       {GROUP_ORDER.map((group) => {
@@ -240,8 +250,10 @@ function ChannelRow({
   const label = channelLabel(view.id, locale)
   const description = copy.channelDescriptions[view.id as keyof ChannelsCopy["channelDescriptions"]]
   // Collapsed subtitle: the real identity when one exists, else what the
-  // channel is for. Never both — small screens show one line only.
+  // channel is for. Addresses wrap instead of truncating — identity must
+  // stay fully readable even at 320px.
   const subtitle = view.identity?.address ?? view.identity?.name ?? description
+  const isEmail = view.id === "email"
   const detailsId = `channel-details-${view.id}`
   const live = view.status === "connected"
 
@@ -253,11 +265,11 @@ function ChannelRow({
         aria-expanded={expanded}
         aria-controls={detailsId}
         aria-label={expanded ? copy.hideDetails(label) : copy.showDetails(label)}
-        className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-accent/50 transition-colors min-h-[3.5rem]"
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left hover:bg-accent/50 transition-colors min-h-[3.5rem]"
       >
-        <Icon className="h-4.5 w-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-sm font-medium text-foreground">{label}</span>
             {view.recommended && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -265,12 +277,26 @@ function ChannelRow({
               </span>
             )}
           </span>
-          <span className="truncate text-xs text-muted-foreground">{subtitle}</span>
+          <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+            {subtitle}
+          </span>
+          {isEmail && view.activeConnectionCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {copy.emailAccounts.connectedCount(view.activeConnectionCount)}
+            </span>
+          )}
+          {/* On small screens the status gets its own line so it never
+              competes with the identity; ≥sm it sits on the right. */}
+          <span className="mt-0.5 sm:hidden">
+            <StatusBadge status={view.status} copy={copy} />
+          </span>
         </span>
-        <StatusBadge status={view.status} copy={copy} />
+        <span className="hidden sm:flex sm:items-center sm:self-center">
+          <StatusBadge status={view.status} copy={copy} />
+        </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            "h-4 w-4 shrink-0 self-center text-muted-foreground transition-transform",
             expanded && "rotate-180",
           )}
           aria-hidden="true"
@@ -282,12 +308,20 @@ function ChannelRow({
           <div className="flex flex-col gap-3 px-4 py-4">
             <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
 
-            {view.identity && (view.identity.name || view.identity.address) && (
+            {isEmail && view.emailAccounts.length > 0 && (
+              <EmailAccountsList
+                accounts={view.emailAccounts}
+                locale={locale}
+                copy={copy}
+              />
+            )}
+
+            {!isEmail && view.identity && (view.identity.name || view.identity.address) && (
               <div className="text-xs">
                 <span className="font-medium text-foreground">
                   {view.id === "web_chat" ? copy.webChat.visitorNameLabel : copy.identityLabel}
                 </span>
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground [overflow-wrap:anywhere]">
                   {" — "}
                   {[view.identity.name, view.identity.address].filter(Boolean).join(" · ")}
                 </span>
@@ -301,19 +335,7 @@ function ChannelRow({
               </div>
             )}
 
-            {view.activeConnectionCount > 1 && (
-              <p className="text-xs text-muted-foreground">
-                {copy.activeConnections(view.activeConnectionCount)}
-              </p>
-            )}
-
-            {view.lastSyncAt && (
-              <p className="text-xs text-muted-foreground">
-                {copy.lastSync(formatDateTime(view.lastSyncAt, { locale: locale as never }))}
-              </p>
-            )}
-
-            {view.status === "error" && view.lastError && (
+            {!isEmail && view.status === "error" && view.lastError && (
               <p className="text-xs text-red-500" role="alert">
                 {copy.errorLabel}: {view.lastError}
               </p>
@@ -343,7 +365,7 @@ function ChannelRow({
             )}
 
             {view.actions.length > 0 && (
-              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {view.actions.map((action) => (
                   <ChannelAction
                     key={action.id}
@@ -360,6 +382,89 @@ function ChannelRow({
       </div>
     </li>
   )
+}
+
+/**
+ * Compact per-account list inside the expanded Email channel. Every field
+ * comes from a real `ChannelConnection` row; sync time and errors render
+ * only when the row carries them. `.invalid` demo accounts are badged so
+ * fictitious data can never read as a real mailbox.
+ */
+function EmailAccountsList({
+  accounts,
+  locale,
+  copy,
+}: {
+  accounts: EmailAccountView[]
+  locale: string
+  copy: ChannelsCopy
+}) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-foreground">{copy.emailAccounts.title}</h3>
+      <ul className="mt-2 flex flex-col divide-y divide-border/60 rounded-lg border border-border/60 bg-card">
+        {accounts.map((account, index) => (
+          <li key={`${account.address ?? account.name}-${index}`} className="px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="text-xs font-medium text-foreground">{account.name}</span>
+              {account.isDefault && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {copy.emailAccounts.primaryBadge}
+                </span>
+              )}
+              {account.isDemo && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {copy.emailAccounts.demoBadge}
+                </span>
+              )}
+            </div>
+            {account.address && (
+              <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                {account.address}
+              </p>
+            )}
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {account.providerLabel}
+              {" · "}
+              <span className={STATUS_TEXT[accountStatusToChannelStatus(account.status)]}>
+                {copy.status[accountStatusToChannelStatus(account.status)]}
+              </span>
+            </p>
+            {account.lastSyncAt && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {copy.lastSync(
+                  formatDateTime(account.lastSyncAt, { locale: locale as never }),
+                )}
+              </p>
+            )}
+            {account.status === "error" && account.lastError && (
+              <p className="mt-0.5 text-xs text-red-500" role="alert">
+                {copy.errorLabel}: {account.lastError}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Account lifecycle states reuse the channel status vocabulary/copy. */
+function accountStatusToChannelStatus(
+  status: EmailAccountView["status"],
+): ChannelSetupStatus {
+  switch (status) {
+    case "active":
+      return "connected"
+    case "error":
+      return "error"
+    case "setup_required":
+      return "setup_required"
+    case "disabled":
+      return "disabled"
+    default:
+      return "pending"
+  }
 }
 
 function StatusBadge({ status, copy }: { status: ChannelSetupStatus; copy: ChannelsCopy }) {

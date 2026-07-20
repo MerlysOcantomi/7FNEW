@@ -409,10 +409,25 @@ export interface SettingsMessages {
     actions: {
       connect_email: string
       manage_email_connections: string
+      connect_another_email: string
       review_email_connection: string
       enable_web_chat_reception: string
       disable_web_chat_reception: string
       open_inbox: string
+    }
+    /**
+     * Email is ONE channel with many accounts (mailboxes). Provider labels
+     * (Gmail, Google Workspace, IMAP/SMTP…) are brand-stable and resolve in
+     * the model (`emailProviderLabel`), never here.
+     */
+    emailAccounts: {
+      title: string
+      /** Collapsed-row summary: real count of connected accounts. */
+      connectedCount: (count: number) => string
+      primaryBadge: string
+      providerLabel: string
+      /** Badge for clearly-fictitious `.invalid` demo accounts. */
+      demoBadge: string
     }
     /** Detail rows inside an expanded channel. */
     identityLabel: string
@@ -420,7 +435,6 @@ export interface SettingsMessages {
     sending: string
     /** Rendered ONLY when the connection row really has a lastSyncAt. */
     lastSync: (formatted: string) => string
-    activeConnections: (count: number) => string
     errorLabel: string
     /** Plan context (observational — plans are not enforced yet). */
     planNote: (used: number, max: number) => string
