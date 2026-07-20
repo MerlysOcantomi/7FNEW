@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
+import { decideLabGate, isLabNamespacePath } from "@core/lab/gate-policy"
+import { readLabGateEnv } from "@core/lab/config"
 
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
@@ -63,6 +65,36 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (isPublic(pathname)) return NextResponse.next()
+
+  /**
+   * Mr Forte Lab namespace (DEV-PREVIEW-01A). `/lab` and `/lab/*` are gated
+   * HERE, at the edge: the lab policy is pure env + request-host, so the full
+   * fail-closed decision (`core/lab/gate-policy.ts`) runs before any lab code
+   * renders. Denials rewrite to a routeless path so Next serves its standard
+   * 404 page with a real 404 status — `notFound()` thrown from a layout would
+   * answer 200 and stream the page subtree in the RSC payload, which is why
+   * the edge is the primary enforcement point (the lab layout and pages still
+   * re-check as a second layer). Deliberately NOT added to PUBLIC_PATHS: the
+   * predicate is exact (`/lab` or `/lab/...` only — never `/laboratory`,
+   * never `/api/lab`), so this exemption cannot grow into a generic auth
+   * bypass, and no Sevenef session is ever issued here. Future `/api/lab/*`
+   * handlers stay behind the normal middleware auth and must apply the lab
+   * gate plus their own authentication explicitly.
+   */
+  if (isLabNamespacePath(pathname)) {
+    const decision = decideLabGate({
+      ...readLabGateEnv(process.env),
+      requestHost:
+        request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? undefined,
+    })
+    if (!decision.allowed) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/__lab-gate/not-found"
+      url.search = ""
+      return NextResponse.rewrite(url)
+    }
+    return NextResponse.next()
+  }
 
   // Client portal routes
   if (isClientPortalRoute(pathname)) {
