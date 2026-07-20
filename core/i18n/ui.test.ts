@@ -242,6 +242,90 @@ test("toolbar family renders in all five locales with agent names preserved", ()
   assert.equal(subtitles.size, 5, "agents.subtitle must be distinct per locale")
 })
 
+// ─── Agents full page (I18N-AGENTS-FULL-PAGE-02) ────────────────────────────────
+
+const AGENT_IDS = ["francis", "forte", "fanny", "freya", "fiona", "felix", "fathom", "finesse"] as const
+const ALL_LOCALES = ["en", "es", "de", "fr", "it"] as const
+
+test("agents page: contract is complete and non-empty in all five locales", () => {
+  for (const code of ALL_LOCALES) {
+    const a = getUIMessages(code).agents
+    // Scalar page strings.
+    for (const s of [
+      a.page.live, a.page.loadingAria, a.page.loadError,
+      a.page.kpis.workingNow, a.page.kpis.needsReview, a.page.kpis.automatedToday, a.page.kpis.attention,
+      a.page.hero.leadsTeam, a.page.hero.briefingWorking, a.page.hero.briefingCalm, a.page.hero.needsJoiner,
+      a.page.hero.noProposals, a.page.hero.adjustAutonomy, a.page.hero.adjustAutonomyTitle,
+      a.page.roster.heading, a.page.roster.defaultTagline, a.page.roster.review, a.page.roster.watching,
+      a.page.roster.comingOnline, a.page.roster.upToDate, a.page.roster.readyInRegistry, a.page.roster.openDetailsSuffix,
+      a.page.liveActivity.title, a.page.liveActivity.empty,
+      a.page.rail.needsReview, a.page.rail.attention, a.page.rail.needsReviewEmpty, a.page.rail.attentionEmpty,
+      a.page.rail.proposes, a.page.rail.approve, a.page.rail.dismiss, a.page.rail.viewContext, a.page.rail.view,
+      a.page.autonomy.title, a.page.autonomy.auto, a.page.autonomy.suggests, a.page.autonomy.approval,
+      a.page.autonomy.autoText, a.page.autonomy.suggestsText, a.page.autonomy.approvalText,
+      a.detail.doingNow, a.detail.today, a.detail.todayEmpty, a.detail.worksWithTeam, a.detail.watching,
+      a.detail.recentlyHandled, a.detail.openInPrefix, a.detail.sectionComingOnline, a.detail.close,
+      a.states.working, a.states.waiting, a.states.idle, a.states.comingOnline,
+      a.autonomyLabels.auto, a.autonomyLabels.suggests, a.time.now,
+    ]) {
+      assert.equal(typeof s, "string")
+      assert.ok(s.length > 0, `${code}: empty agents page string`)
+    }
+    // Typed functions produce non-empty, interpolated output.
+    assert.ok(a.page.summary.agentsCount(7).includes("7"))
+    assert.ok(a.page.summary.workingNow(3).includes("3"))
+    assert.ok(a.page.summary.awaitingYou(2).includes("2"))
+    assert.ok(a.page.hero.needsProposals(2).includes("2"))
+    assert.ok(a.page.hero.needsAttention(1).length > 0)
+    assert.ok(a.page.hero.reviewProposals(4).includes("4"))
+    assert.ok(a.page.roster.handledToday(5).includes("5"))
+    assert.ok(a.page.liveActivity.executedToday(6).includes("6"))
+    assert.ok(a.time.minutesAgo(9).includes("9"))
+    assert.ok(a.time.hoursAgo(2).includes("2"))
+    assert.ok(a.detail.detailsAria("Fanny").includes("Fanny"))
+    // Hero briefing composes without leaving dangling separators.
+    const withNeeds = a.page.hero.briefingWithNeeds(a.page.hero.briefingWorking, a.page.hero.needsProposals(2))
+    assert.ok(withNeeds.includes(a.page.hero.briefingWorking) && withNeeds.length > 20)
+    assert.ok(a.page.hero.briefingNoNeeds(a.page.hero.briefingCalm).includes(a.page.hero.briefingCalm))
+  }
+})
+
+test("agents roster: every agent has role/watching/collaborationNote in all locales", () => {
+  for (const code of ALL_LOCALES) {
+    const roster = getUIMessages(code).agents.roster
+    for (const id of AGENT_IDS) {
+      const entry = roster[id]
+      assert.ok(entry, `${code}: roster missing ${id}`)
+      assert.ok(entry.role.length > 0, `${code}.${id}.role empty`)
+      assert.ok(entry.collaborationNote.length > 0, `${code}.${id}.collaborationNote empty`)
+      assert.ok(Array.isArray(entry.watching) && entry.watching.length > 0, `${code}.${id}.watching empty`)
+      for (const w of entry.watching) assert.ok(w.length > 0, `${code}.${id} empty watching entry`)
+    }
+  }
+})
+
+test("agents: proper names survive translation (never localized)", () => {
+  for (const code of ALL_LOCALES) {
+    const a = getUIMessages(code).agents
+    // Agent proper names embedded in collaboration notes stay verbatim.
+    assert.ok(a.roster.forte.collaborationNote.includes("Mr. Forte"), `${code}: Mr. Forte name lost`)
+    assert.ok(a.roster.fanny.collaborationNote.includes("Fanny") && a.roster.fanny.collaborationNote.includes("Felix"))
+    assert.ok(a.roster.finesse.collaborationNote.includes("Fanny"), `${code}: core agent names lost in Finesse note`)
+    // The hero "Fanny is on your inbox" opening keeps the proper name.
+    assert.ok(a.page.hero.briefingWorking.includes("Fanny"), `${code}: hero lost Fanny`)
+  }
+})
+
+test("agents: de/fr/it are real translations of the page, not English copies", () => {
+  const en = getUIMessages("en").agents
+  for (const code of ["de", "fr", "it"] as const) {
+    const a = getUIMessages(code).agents
+    assert.notEqual(a.page.roster.heading, en.page.roster.heading, `${code} heading not translated`)
+    assert.notEqual(a.states.working, en.states.working, `${code} working state not translated`)
+    assert.notEqual(a.roster.fanny.role, en.roster.fanny.role, `${code} fanny role not translated`)
+  }
+})
+
 test("getUIMessages: complete catalogs with no empty strings for ALL five locales", () => {
   const walk = (value: unknown, path: string) => {
     if (typeof value === "string") {

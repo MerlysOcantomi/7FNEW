@@ -1613,6 +1613,117 @@ export interface AgentsMessages {
   }
   moreOnFullPage: (count: number) => string
   fromInbox: string
+  /**
+   * Live status labels keyed by the CANONICAL `AgentLiveStatus` value. The
+   * technical value (`working`/`waiting`/`idle`/`coming_online`) still drives
+   * colors, icons and logic — only this visible label localizes.
+   */
+  states: { working: string; waiting: string; idle: string; comingOnline: string }
+  /** Autonomy chip labels keyed by the canonical `AgentAutonomy` value. */
+  autonomyLabels: { auto: string; suggests: string }
+  /** Relative-time phrases for the roster cards (typed, count-driven). */
+  time: { now: string; minutesAgo: (n: number) => string; hoursAgo: (n: number) => string }
+  /**
+   * The full `/agents` page (AI Team Control Center) — every visible/ARIA
+   * string of the board. Agent proper names (Francis, Fanny, …) are never
+   * here; activity item TITLES come from the API as user/structured content
+   * and are rendered verbatim.
+   */
+  page: {
+    live: string
+    loadingAria: string
+    loadError: string
+    summary: {
+      agentsCount: (n: number) => string
+      workingNow: (n: number) => string
+      awaitingYou: (n: number) => string
+    }
+    kpis: { workingNow: string; needsReview: string; automatedToday: string; attention: string }
+    hero: {
+      /** Eyebrow rendered as `${name} · ${roleSuffix}` — name stays a proper noun. */
+      leadRoleSuffix: string
+      leadsTeam: string
+      /** "Fanny is on your inbox" — Fanny is a proper name kept verbatim. */
+      briefingWorking: string
+      briefingCalm: string
+      needsProposals: (n: number) => string
+      needsAttention: (n: number) => string
+      needsJoiner: string
+      briefingWithNeeds: (opening: string, needs: string) => string
+      briefingNoNeeds: (opening: string) => string
+      reviewProposals: (n: number) => string
+      noProposals: string
+      adjustAutonomy: string
+      adjustAutonomyTitle: string
+    }
+    roster: {
+      heading: string
+      defaultTagline: string
+      review: string
+      handledToday: (n: number) => string
+      watching: string
+      comingOnline: string
+      /** Fallbacks shown when an agent has no live activity to show. */
+      upToDate: string
+      readyInRegistry: string
+      /** ARIA for a card: `${name} — ${statusLabel}. ${openDetailsSuffix}`. */
+      openDetailsSuffix: string
+    }
+    liveActivity: {
+      title: string
+      executedToday: (n: number) => string
+      empty: string
+    }
+    rail: {
+      needsReview: string
+      attention: string
+      needsReviewEmpty: string
+      attentionEmpty: string
+      /** Rendered as `${name} ${proposes}` — name stays a proper noun. */
+      proposes: string
+      approve: string
+      dismiss: string
+      approveTitle: string
+      viewContext: string
+      view: string
+    }
+    autonomy: {
+      title: string
+      auto: string
+      suggests: string
+      approval: string
+      autoText: string
+      suggestsText: string
+      approvalText: string
+    }
+  }
+  /** Agent detail drawer — sections, states, footer actions and a11y. */
+  detail: {
+    doingNow: string
+    today: string
+    todayEmpty: string
+    worksWithTeam: string
+    watching: string
+    recentlyHandled: string
+    /** Footer CTA rendered as `${openInPrefix} ${section}` — section reuses nav. */
+    openInPrefix: string
+    sectionComingOnline: string
+    sectionComingOnlineTitle: string
+    close: string
+    /** ARIA labels composed with the agent proper name. */
+    closeDetailsAria: string
+    detailsAria: (name: string) => string
+  }
+  /**
+   * Per-agent DISPLAY text keyed by roster id (function, monitoring list and
+   * collaboration note). Proper names live in the roster, never here. The
+   * component falls back to the roster's canonical-English literals for any
+   * agent not present here (e.g. a future vertical specialist).
+   */
+  roster: Record<
+    string,
+    { role: string; watching: string[]; collaborationNote: string }
+  >
 }
 
 /** All UI namespaces available to `getUIMessages` / `getNamespace`. */
