@@ -10,6 +10,8 @@ import {
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import type { AgentsMessages } from "@core/i18n/ui"
 import type {
   AgentActivityItem,
   AgentsActivityLane,
@@ -32,30 +34,30 @@ import type {
  * board, until a later PR.
  */
 
-/** Lanes surfaced in the compact panel, in priority order. */
+/**
+ * Lanes surfaced in the compact panel, in priority order. Copy resolves from
+ * the `agents` i18n namespace by `msgKey` at render time — only IDENTITY and
+ * icon live here.
+ */
 const PANEL_LANES: {
   key: Exclude<AgentsActivityLane, "executed">
-  title: string
+  msgKey: keyof AgentsMessages["lanes"]
   icon: React.ReactNode
-  empty: string
 }[] = [
   {
     key: "needs_review",
-    title: "Needs your review",
+    msgKey: "needsReview",
     icon: <ClipboardCheck size={16} strokeWidth={2} aria-hidden="true" />,
-    empty: "No proposals waiting.",
   },
   {
     key: "automated",
-    title: "Recently handled",
+    msgKey: "automated",
     icon: <Zap size={16} strokeWidth={2} aria-hidden="true" />,
-    empty: "Nothing handled yet.",
   },
   {
     key: "attention",
-    title: "Attention",
+    msgKey: "attention",
     icon: <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />,
-    empty: "Nothing needs attention.",
   },
 ]
 
@@ -128,13 +130,15 @@ export function GlobalAgentsPanel({
   onRowNavigate?: () => void
 }) {
   const t = tokens()
+  const { messages } = useI18n()
+  const copy = messages.agents
 
   if (loading) {
     return (
       <div
         className="flex items-center justify-center py-12"
         role="status"
-        aria-label="Loading Agents activity"
+        aria-label={copy.loadingAria}
       >
         <Loader2 className={cn("h-6 w-6 animate-spin", t.spinner)} />
       </div>
@@ -153,7 +157,7 @@ export function GlobalAgentsPanel({
         />
         <p className="text-xs font-medium text-destructive">{error}</p>
         <p className="mt-1 text-[11px] text-destructive/80">
-          Agents activity could not be loaded.
+          {copy.loadErrorNote}
         </p>
       </div>
     )
@@ -175,12 +179,10 @@ export function GlobalAgentsPanel({
           <Sparkles size={16} strokeWidth={1.9} />
         </span>
         <p className={cn("text-sm font-medium", t.emptyHeading)}>
-          No agent activity yet
+          {copy.empty.title}
         </p>
         <p className={cn("max-w-xs text-[11px] leading-relaxed", t.emptyBody)}>
-          When Fanny automates work, proposes a task, or runs an action, it
-          will show up here — grouped by what needs review, what was
-          automated, and what needs your attention.
+          {copy.empty.body}
         </p>
       </div>
     )
@@ -217,9 +219,9 @@ export function GlobalAgentsPanel({
       {PANEL_LANES.map((lane) => (
         <AgentsPanelLane
           key={lane.key}
-          title={lane.title}
+          title={copy.lanes[lane.msgKey].title}
           icon={lane.icon}
-          empty={lane.empty}
+          empty={copy.lanes[lane.msgKey].empty}
           items={lanes[lane.key]}
           t={t}
           onRowNavigate={onRowNavigate}
@@ -244,6 +246,7 @@ function AgentsPanelLane({
   t: AgentsQuickTokens
   onRowNavigate?: () => void
 }) {
+  const { messages } = useI18n()
   const visible = items.slice(0, MAX_ROWS)
   const overflow = items.length - visible.length
 
@@ -282,7 +285,7 @@ function AgentsPanelLane({
           ))}
           {overflow > 0 ? (
             <li className={cn("pl-1 text-[10px]", t.emptyText)}>
-              +{overflow} more on the full Agents page
+              {messages.agents.moreOnFullPage(overflow)}
             </li>
           ) : null}
         </ul>
@@ -300,6 +303,7 @@ function AgentsPanelRow({
   t: AgentsQuickTokens
   onRowNavigate?: () => void
 }) {
+  const { messages } = useI18n()
   const interactive = Boolean(item.source.href)
 
   const body = (
@@ -331,7 +335,7 @@ function AgentsPanelRow({
           {item.agentName}
         </span>
         {item.source.kind === "inbox" ? (
-          <span className={cn("text-[9px]", t.cardSubtitle)}>From Inbox</span>
+          <span className={cn("text-[9px]", t.cardSubtitle)}>{messages.agents.fromInbox}</span>
         ) : null}
       </div>
     </div>

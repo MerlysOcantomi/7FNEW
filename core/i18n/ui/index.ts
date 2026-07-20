@@ -21,6 +21,7 @@ export type {
   NavMessages,
   GlobalSearchMessages,
   GlobalNewMessages,
+  AgentsMessages,
   SettingsMessages,
   TodayMessages,
   ClientsMessages,

@@ -210,6 +210,7 @@ test("getUIMessages: complete catalogs with no empty strings for ALL five locale
 
 test("getUIMessages: exposes exactly the canonical namespaces", () => {
   assert.deepEqual(Object.keys(getUIMessages("en")).sort(), [
+    "agents",
     "billing",
     "calendar",
     "clients",

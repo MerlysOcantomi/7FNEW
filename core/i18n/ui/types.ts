@@ -1506,12 +1506,38 @@ export interface VoiceMessages {
   voiceStatusRegion: string
 }
 
+/**
+ * Global Agents quick view (toolbar panel + mobile drawer) — chrome, lanes
+ * and states. The panel TITLE reuses `nav.agents` (same concept as the
+ * trigger); agent proper names (Fanny, Felix, …) are data and never live in
+ * a catalog. Activity titles/subtitles come from the API and are user/agent
+ * content — not localized here.
+ */
+export interface AgentsMessages {
+  /** Subtitle under the panel/drawer title. */
+  subtitle: string
+  openFull: string
+  closePanel: string
+  closeDrawer: string
+  loadingAria: string
+  loadErrorNote: string
+  empty: { title: string; body: string }
+  lanes: {
+    needsReview: { title: string; empty: string }
+    automated: { title: string; empty: string }
+    attention: { title: string; empty: string }
+  }
+  moreOnFullPage: (count: number) => string
+  fromInbox: string
+}
+
 /** All UI namespaces available to `getUIMessages` / `getNamespace`. */
 export interface UIMessages {
   common: CommonMessages
   nav: NavMessages
   globalSearch: GlobalSearchMessages
   globalNew: GlobalNewMessages
+  agents: AgentsMessages
   settings: SettingsMessages
   today: TodayMessages
   clients: ClientsMessages

@@ -3,6 +3,7 @@ import { common } from "./common"
 import { nav } from "./nav"
 import { globalSearch } from "./global-search"
 import { globalNew } from "./global-new"
+import { agents } from "./agents"
 import { settings } from "./settings"
 import { today } from "./today"
 import { clients } from "./clients"
@@ -20,6 +21,7 @@ export const en: UIMessages = {
   nav,
   globalSearch,
   globalNew,
+  agents,
   settings,
   today,
   clients,

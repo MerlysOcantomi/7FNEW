@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { ArrowUpRight, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useI18n } from "@/components/i18n-provider"
 import { useAgentsPanel } from "@/components/agents/agents-panel-provider"
 import { GlobalAgentsPanel } from "./global-agents-panel"
 import { useAgentsActivityData } from "./use-agents-activity-data"
@@ -46,6 +47,7 @@ import { useAgentsActivityData } from "./use-agents-activity-data"
  */
 export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "context" }) {
   const ref = useRef<HTMLDivElement>(null)
+  const { t } = useI18n()
   const { open, setOpen } = useAgentsPanel()
   const isMobile = useIsMobile()
   const pathname = usePathname()
@@ -144,10 +146,10 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
                 </span>
                 <div className="min-w-0">
                   <p className={cn("text-sm font-semibold tracking-tight", headerTitle)}>
-                    Agents
+                    {t.nav.agents}
                   </p>
                   <p className={cn("text-[11px] leading-tight", headerSubtitle)}>
-                    What your AI agents are doing · workspace-wide
+                    {t.agents.subtitle}
                   </p>
                 </div>
                 {!loading && !error && totalItems > 0 ? (
@@ -174,13 +176,13 @@ export function GlobalAgentsDesktopChrome({ variant }: { variant: "app" | "conte
                     focusRing,
                   )}
                 >
-                  Open full Agents
+                  {t.agents.openFull}
                   <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
                 </Link>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="Close Agents panel"
+                  aria-label={t.agents.closePanel}
                   className={cn(
                     "rounded-md p-1 transition-colors",
                     headerCloseColour,

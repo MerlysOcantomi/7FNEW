@@ -9,6 +9,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 import { GlobalAgentsPanel } from "./global-agents-panel"
 import { useAgentsActivityData } from "./use-agents-activity-data"
 
@@ -31,6 +32,7 @@ export function AgentsMobileDrawer({
   open: boolean
   onOpenChange: (next: boolean) => void
 }) {
+  const { t } = useI18n()
   const { loading, error, agents, lanes, totalItems } =
     useAgentsActivityData(open)
 
@@ -52,10 +54,10 @@ export function AgentsMobileDrawer({
             </span>
             <div className="min-w-0">
               <DrawerTitle className="text-sm font-semibold tracking-tight text-[var(--text-primary-light)]">
-                Agents
+                {t.nav.agents}
               </DrawerTitle>
               <DrawerDescription className="text-[11px] leading-tight text-[var(--text-secondary-light)]">
-                What your AI agents are doing · workspace-wide
+                {t.agents.subtitle}
               </DrawerDescription>
             </div>
             {!loading && !error && totalItems > 0 ? (
@@ -70,13 +72,13 @@ export function AgentsMobileDrawer({
               onClick={() => onOpenChange(false)}
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--accent-primary)] transition-colors hover:bg-white/[0.06]"
             >
-              Open full Agents
+              {t.agents.openFull}
               <ArrowUpRight size={11} strokeWidth={2} className="shrink-0" />
             </Link>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              aria-label="Close Agents drawer"
+              aria-label={t.agents.closeDrawer}
               className="rounded-md p-1 text-[var(--text-secondary-light)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary-light)]"
             >
               <X size={14} strokeWidth={2} />
