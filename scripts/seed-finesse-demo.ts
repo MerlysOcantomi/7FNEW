@@ -48,6 +48,7 @@ import {
   FINESSE_DEMO_BUSINESS_PROFILE,
   FINESSE_DEMO_SERVICE_CATALOG,
   FINESSE_DEMO_TASK_SOURCE_TYPE,
+  FINESSE_DEMO_CHANNEL_CONNECTIONS,
   generateDemoInvoiceNumber,
   getRelativeDate,
   getDemoDatasetSummary,
@@ -412,6 +413,7 @@ async function performSeed(
     contentPieces: 0,
     workspaceTasks: 0,
     tareas: 0,
+    channelConnections: 0,
   }
 
   const updatedData = {
@@ -421,6 +423,7 @@ async function performSeed(
     contentPieces: 0,
     workspaceTasks: 0,
     tareas: 0,
+    channelConnections: 0,
   }
 
   // === PHASE 1: Create or skip clients (no updates for clients) ===
@@ -925,6 +928,44 @@ async function performSeed(
       })
       createdData.contentPieces++
       console.log(`  [create] ContentPiece: ${contentData.titulo}`)
+    }
+  }
+
+  // === PHASE 6b: Create or update demo channel connections (Business
+  // Profile → Channels). Clearly fictitious rows (see the dataset comment):
+  // a "connected" resend email box on a .invalid address and a "pending"
+  // WhatsApp row. No credentials/sync data are ever written. Idempotency
+  // key: [workspaceId, externalAccountId] (unique in the schema).
+  for (const demoConnection of FINESSE_DEMO_CHANNEL_CONNECTIONS) {
+    const existing = await tx.channelConnection.findFirst({
+      where: { workspaceId, externalAccountId: demoConnection.externalAccountId },
+    })
+
+    if (existing) {
+      await tx.channelConnection.update({
+        where: { id: existing.id },
+        data: {
+          name: demoConnection.name,
+          status: demoConnection.status,
+          isDefault: demoConnection.isDefault,
+        },
+      })
+      updatedData.channelConnections++
+      console.log(`  [update] ChannelConnection: ${demoConnection.name} (status refreshed)`)
+    } else {
+      await tx.channelConnection.create({
+        data: {
+          workspaceId,
+          channelType: demoConnection.channelType,
+          provider: demoConnection.provider,
+          name: demoConnection.name,
+          externalAccountId: demoConnection.externalAccountId,
+          status: demoConnection.status,
+          isDefault: demoConnection.isDefault,
+        },
+      })
+      createdData.channelConnections++
+      console.log(`  [create] ChannelConnection: ${demoConnection.name}`)
     }
   }
 

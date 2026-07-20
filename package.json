@@ -18,7 +18,7 @@
     "test:agents-specialists": "tsx --test core/vertical-packs/specialists.test.ts agents/forte/verticals/beauty.test.ts",
     "test:agents-activity": "tsx --test modules/agents/activity-classify.test.ts",
     "test:agents-roster": "tsx --test modules/agents/roster.test.ts",
-    "test:inbox-channels": "tsx --test core/inbox/channel-registry.test.ts core/inbox/channel-config.test.ts",
+    "test:inbox-channels": "tsx --test core/inbox/channel-registry.test.ts core/inbox/channel-config.test.ts core/inbox/channel-setup.test.ts",
     "test:inbox-filters": "tsx --test core/inbox/filter-registry.test.ts core/inbox/filter-config.test.ts modules/inbox/unanswered.test.ts",
     "test:inbox-outbound": "tsx --test modules/inbox/outbound-service.integration.test.ts",
     "test:inbox-ingestion": "tsx --test modules/inbox/ingestion/pipeline.integration.test.ts modules/inbox/ingestion/envelope.test.ts",

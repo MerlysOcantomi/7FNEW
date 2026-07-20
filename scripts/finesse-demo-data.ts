@@ -768,6 +768,47 @@ export const FINESSE_DEMO_TAREAS: DemoTareaData[] = [
 ]
 
 /**
+ * Demo channel connections — feed Business Profile → Channels
+ * (BUSINESS-PROFILE-CHANNELS-03) so the demo workspace shows a connected
+ * channel and a pending one. CLEARLY FICTITIOUS on purpose:
+ *   - the email address uses the reserved `.invalid` TLD (can never send or
+ *     receive anywhere) and provider "resend" so the IMAP sync cron
+ *     (`provider: "imap_smtp"` only) never touches the row;
+ *   - the WhatsApp row stays status "pending" — the setup model renders it
+ *     as pending, never as a working integration (no fake product);
+ *   - no credentials, no syncState, no lastSyncAt — nothing pretends a sync
+ *     or a provider session happened.
+ * Idempotency key: `externalAccountId` (unique per workspace in the schema).
+ */
+export interface DemoChannelConnectionData {
+  channelType: string
+  provider: string
+  name: string
+  externalAccountId: string
+  status: string
+  isDefault: boolean
+}
+
+export const FINESSE_DEMO_CHANNEL_CONNECTIONS: DemoChannelConnectionData[] = [
+  {
+    channelType: "email",
+    provider: "resend",
+    name: "Buzón demo Finesse (ficticio)",
+    externalAccountId: "hola@finesse-demo.invalid",
+    status: "active",
+    isDefault: true,
+  },
+  {
+    channelType: "whatsapp",
+    provider: "meta",
+    name: "WhatsApp demo Finesse (ficticio)",
+    externalAccountId: "+34 600 000 000",
+    status: "pending",
+    isDefault: false,
+  },
+]
+
+/**
  * Demo business profile — the canonical `Workspace.config.businessProfile`
  * shape (see `WorkspaceBusinessProfile` in core/verticals.ts). This is what
  * /business-profile and the agent context read. Merged fill-only-missing so
