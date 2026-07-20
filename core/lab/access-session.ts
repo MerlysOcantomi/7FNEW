@@ -25,18 +25,7 @@ import {
   LAB_ACCESS_COOKIE_NAME,
 } from "./access-cookie"
 import { isTrustedLabOrigin } from "./access-origin"
-
-/**
- * Whether cookies must be Secure. Deployed environments (VERCEL_ENV set) always
- * require https; the explicit local-dev opt-in from 01A is the only http case.
- */
-function isSecureContext(): boolean {
-  const vercelEnv = process.env.VERCEL_ENV
-  const localDev =
-    process.env.SEVENEF_LAB_LOCAL_DEV_ENABLED === "true" &&
-    (vercelEnv === undefined || vercelEnv === "development")
-  return !localDev
-}
+import { isLabSecureContext } from "./secure-context"
 
 async function resolveRequestHost(): Promise<string | undefined> {
   const h = await headers()
@@ -53,10 +42,66 @@ function currentProjectId(): string {
   return readLabGateEnv(process.env).actualProjectId?.trim() ?? ""
 }
 
-/** Structured internal outcome for the enter action. Never shown to the user. */
-export type LabEnterResult =
-  | { ok: true }
+/**
+ * Structured internal outcome of validating an enter request (level-2 checks
+ * only, no cookie side effects). Never shown to the user.
+ */
+export type LabAccessValidation =
+  | { ok: true; ttlMinutes: number }
   | { ok: false; reason: "gate" | "origin" | "config" | "invalid-key" }
+
+/**
+ * Run the level-2 access checks for an enter request WITHOUT setting cookies:
+ *   gate → origin → access config → key.
+ * The caller (the application-session orchestrator) sets cookies only after
+ * ALL levels — including the demo environment — have passed.
+ */
+export async function validateLabAccessRequest(
+  submittedKey: unknown,
+): Promise<LabAccessValidation> {
+  const gate = await getLabGateDecision()
+  if (!gate.allowed) return { ok: false, reason: "gate" }
+
+  const requestHost = await resolveRequestHost()
+  if (!requestHost) return { ok: false, reason: "origin" }
+  const h = await headers()
+  const trusted = isTrustedLabOrigin({
+    origin: h.get("origin"),
+    requestHost,
+    requireHttps: isLabSecureContext(),
+  })
+  if (!trusted) return { ok: false, reason: "origin" }
+
+  const configResult = readLabAccessConfig(process.env)
+  if (!configResult.ok) return { ok: false, reason: "config" }
+
+  if (!verifyLabAccessKey(submittedKey, configResult.config.keyHashHex)) {
+    return { ok: false, reason: "invalid-key" }
+  }
+
+  return { ok: true, ttlMinutes: configResult.config.ttlMinutes }
+}
+
+/**
+ * Mint and set the level-2 access cookie. Called by the orchestrator only
+ * after every level has passed. Returns the TTL used, in seconds.
+ */
+export async function setLabAccessCookie(): Promise<void> {
+  const configResult = readLabAccessConfig(process.env)
+  if (!configResult.ok) return
+  const token = await createLabAccessToken({
+    secret: configResult.config.tokenSecret,
+    projectId: currentProjectId(),
+    ttlMinutes: configResult.config.ttlMinutes,
+  })
+  const cookieStore = await cookies()
+  cookieStore.set(
+    buildLabAccessCookie(token, {
+      ttlMinutes: configResult.config.ttlMinutes,
+      secure: isLabSecureContext(),
+    }),
+  )
+}
 
 /**
  * Read and validate the current lab access session, if any. Returns the
@@ -82,49 +127,6 @@ export async function getLabAccessSession(): Promise<LabAccessClaims | null> {
 }
 
 /**
- * Establish a lab access session from a submitted key. Order:
- *   gate → origin → config → key → token → cookie.
- * Returns a structured result; the caller maps every failure to one generic
- * message and never sets a cookie on failure.
- */
-export async function createLabAccessSession(submittedKey: unknown): Promise<LabEnterResult> {
-  const gate = await getLabGateDecision()
-  if (!gate.allowed) return { ok: false, reason: "gate" }
-
-  const requestHost = await resolveRequestHost()
-  const secure = isSecureContext()
-  if (!requestHost) return { ok: false, reason: "origin" }
-  const h = await headers()
-  const trusted = isTrustedLabOrigin({
-    origin: h.get("origin"),
-    requestHost,
-    requireHttps: secure,
-  })
-  if (!trusted) return { ok: false, reason: "origin" }
-
-  const configResult = readLabAccessConfig(process.env)
-  if (!configResult.ok) return { ok: false, reason: "config" }
-
-  if (!verifyLabAccessKey(submittedKey, configResult.config.keyHashHex)) {
-    return { ok: false, reason: "invalid-key" }
-  }
-
-  const token = await createLabAccessToken({
-    secret: configResult.config.tokenSecret,
-    projectId: currentProjectId(),
-    ttlMinutes: configResult.config.ttlMinutes,
-  })
-
-  const cookieStore = await cookies()
-  const cookie = buildLabAccessCookie(token, {
-    ttlMinutes: configResult.config.ttlMinutes,
-    secure,
-  })
-  cookieStore.set(cookie)
-  return { ok: true }
-}
-
-/**
  * Guard for the protected `/lab` zone: redirect to `/lab/enter` unless a valid
  * lab access session exists. Never reveals why (no token details), never mints
  * a normal session, never touches Prisma.
@@ -138,5 +140,5 @@ export async function requireLabAccessSession(): Promise<LabAccessClaims> {
 /** Destroy the lab access session cookie. */
 export async function clearLabAccessSession(): Promise<void> {
   const cookieStore = await cookies()
-  cookieStore.set(buildLabAccessClearCookie({ secure: isSecureContext() }))
+  cookieStore.set(buildLabAccessClearCookie({ secure: isLabSecureContext() }))
 }
