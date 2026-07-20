@@ -12,7 +12,8 @@ import {
   type InboxChannelsConfigInput,
 } from "@core/inbox/channel-config"
 import {
-  isWebChatReceptionEnabled,
+  countConnectedChannels,
+  getWebChatActivation,
   resolveChannelSetupViews,
   type ChannelConnectionSummary,
 } from "@core/inbox/channel-setup"
@@ -95,25 +96,27 @@ export async function GET() {
       parsedConfig.businessProfile?.businessName || ws?.nombre || null
 
     const plan = resolveWorkspacePlan({ plan: ws?.plan })
-    const webChatReceptionEnabled = isWebChatReceptionEnabled(ws?.config)
 
     const channels = resolveChannelSetupViews({
       config,
       connections,
-      webChatReceptionEnabled,
+      // Explicit per-workspace signal only — the public endpoint existing is
+      // not an installation (BUSINESS-PROFILE-CHANNELS-03B §3).
+      webChatActivation: getWebChatActivation(ws?.config),
       businessDisplayName,
       planMaxChannels: plan.limits.maxChannels,
     })
 
     return successResponse({
       channels,
-      webChatReceptionEnabled,
       // Observational plan context (core/system/plans.ts does not enforce).
+      // `connectedChannels` counts DISTINCT channels with an active
+      // connection — several email mailboxes are still one channel.
       plan: {
         key: plan.planKey,
         label: plan.label,
         maxChannels: plan.limits.maxChannels,
-        activeConnections: connections.filter((c) => c.status === "active").length,
+        connectedChannels: countConnectedChannels(connections),
       },
     })
   } catch (error) {
