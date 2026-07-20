@@ -12,8 +12,10 @@ import { manifest as documentosManifest } from "@modules/documentos/manifest"
 import { manifest as notasManifest } from "@modules/notas/manifest"
 import { manifest as automatizacionesManifest } from "@modules/automatizaciones/manifest"
 import { manifest as aiEngineManifest } from "@engines/ai/manifest"
+import { manifest as presenceEngineManifest } from "@engines/presence/manifest"
 import { manifest as scanToolManifest } from "@tools/scan.manifest"
 import { manifest as fannyManifest } from "@/agents/fanny/manifest"
+import { manifest as freyaManifest } from "@/agents/freya/manifest"
 import { registry } from "./module-registry"
 
 export const pilotModuleManifests = [
@@ -31,9 +33,9 @@ export const pilotModuleManifests = [
   notasManifest,
   automatizacionesManifest,
 ]
-export const pilotEngineManifests = [aiEngineManifest]
+export const pilotEngineManifests = [aiEngineManifest, presenceEngineManifest]
 export const pilotToolManifests = [scanToolManifest]
-export const pilotAgentManifests = [fannyManifest]
+export const pilotAgentManifests = [fannyManifest, freyaManifest]
 
 /**
  * Manual-only pilot registration.
