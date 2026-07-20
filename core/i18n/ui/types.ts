@@ -319,6 +319,18 @@ export interface SettingsMessages {
     saved: string
     /** Shared label for every chip-list "add" button. */
     add: string
+    /**
+     * Section switcher between `/business-profile` (identity form) and
+     * `/business-profile/channels` (BUSINESS-PROFILE-CHANNELS-03). Labels
+     * only — the tab bar itself is `components/business-profile/
+     * business-profile-tabs.tsx`.
+     */
+    tabs: {
+      profile: string
+      channels: string
+      /** Accessible name of the tab navigation landmark. */
+      aria: string
+    }
     /** "Operating context" section header + intro paragraph. */
     operatingContext: {
       title: string
@@ -350,6 +362,80 @@ export interface SettingsMessages {
         removeAria: (rule: string) => string
       }
     }
+  }
+  /**
+   * `/business-profile/channels` — Business Profile → Channels
+   * (BUSINESS-PROFILE-CHANNELS-03). CONFIGURATION copy only: which channels
+   * exist, their setup state, identity and real next steps. Conversation /
+   * inbox operation vocabulary must NOT appear here (that's the Inbox).
+   * Channel display names come from `lib/inbox-labels.ts#channelLabel`
+   * (brand names stay brand-stable); status/action/group copy lives here.
+   * Status keys mirror `core/inbox/channel-setup.ts#ChannelSetupStatus` and
+   * action keys mirror `ChannelSetupActionId` — the compiler keeps catalogs
+   * and model in sync.
+   */
+  businessProfileChannelsPage: {
+    title: string
+    description: string
+    loading: string
+    loadError: string
+    retry: string
+    groups: {
+      connected: { title: string; description: string }
+      actionable: { title: string; description: string }
+      future: { title: string; description: string }
+    }
+    status: {
+      connected: string
+      available: string
+      setup_required: string
+      pending: string
+      error: string
+      plan_locked: string
+      coming_soon: string
+      disabled: string
+    }
+    /** One short line per business channel: what the channel is FOR. */
+    channelDescriptions: {
+      email: string
+      web_chat: string
+      portal: string
+      whatsapp: string
+      instagram: string
+      messenger: string
+      tiktok: string
+      sms: string
+    }
+    actions: {
+      connect_email: string
+      manage_email_connections: string
+      review_email_connection: string
+      enable_web_chat_reception: string
+      disable_web_chat_reception: string
+      open_inbox: string
+    }
+    /** Detail rows inside an expanded channel. */
+    identityLabel: string
+    receiving: string
+    sending: string
+    /** Rendered ONLY when the connection row really has a lastSyncAt. */
+    lastSync: (formatted: string) => string
+    activeConnections: (count: number) => string
+    errorLabel: string
+    /** Plan context (observational — plans are not enforced yet). */
+    planNote: (used: number, max: number) => string
+    planLockedHint: string
+    comingSoonHint: string
+    /** Finesse & co.: badge for vertical-priority channels. */
+    recommendedBadge: string
+    webChat: {
+      visitorNameLabel: string
+      inboxNote: string
+      updateError: string
+    }
+    /** Disclosure a11y — embeds the channel display name. */
+    showDetails: (channel: string) => string
+    hideDetails: (channel: string) => string
   }
   /** Administración page chrome (header + notices; capability catalog is NOT here). */
   adminPage: {

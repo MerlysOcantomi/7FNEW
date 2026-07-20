@@ -77,6 +77,11 @@ export const settings: SettingsMessages = {
     saving: "Guardando...",
     saved: "Guardado",
     add: "Añadir",
+    tabs: {
+      profile: "Perfil",
+      channels: "Canales",
+      aria: "Secciones del perfil del negocio",
+    },
     operatingContext: {
       title: "Contexto operativo",
       description:
@@ -127,6 +132,76 @@ export const settings: SettingsMessages = {
         removeAria: (rule) => `Quitar regla: ${rule}`,
       },
     },
+  },
+  businessProfileChannelsPage: {
+    title: "Canales",
+    description:
+      "Por dónde pueden contactar los clientes con tu negocio y qué identidad ve cada canal. Las conversaciones del día a día viven en el Inbox.",
+    loading: "Cargando canales...",
+    loadError: "No se pudieron cargar tus canales",
+    retry: "Reintentar",
+    groups: {
+      connected: {
+        title: "Canales conectados",
+        description: "Activos ahora: los mensajes llegan a tu Inbox.",
+      },
+      actionable: {
+        title: "Listos para conectar",
+        description: "Canales que puedes configurar ahora o que necesitan tu atención.",
+      },
+      future: {
+        title: "Más canales",
+        description: "Aún no disponibles: no hay nada que configurar hasta que llegue cada integración.",
+      },
+    },
+    status: {
+      connected: "Conectado",
+      available: "Listo para conectar",
+      setup_required: "Completar configuración",
+      pending: "Pendiente",
+      error: "Error de conexión",
+      plan_locked: "No incluido en tu plan",
+      coming_soon: "Próximamente",
+      disabled: "Desactivado",
+    },
+    channelDescriptions: {
+      email: "Envía y recibe correo desde la dirección de tu negocio",
+      web_chat: "Chatea con las visitas de tu web",
+      portal: "Conversaciones con clientes desde su portal",
+      whatsapp: "Escribe con tus clientes por WhatsApp",
+      instagram: "Responde los mensajes directos de Instagram",
+      messenger: "Responde los mensajes de Facebook Messenger",
+      tiktok: "Responde los mensajes directos de TikTok",
+      sms: "Mensajes de texto a números de teléfono",
+    },
+    actions: {
+      connect_email: "Conectar correo",
+      manage_email_connections: "Gestionar conexiones",
+      review_email_connection: "Revisar conexión",
+      enable_web_chat_reception: "Activar recepción",
+      disable_web_chat_reception: "Desactivar recepción",
+      open_inbox: "Abrir Inbox",
+    },
+    identityLabel: "Identidad",
+    receiving: "Recibe",
+    sending: "Envía",
+    lastSync: (formatted) => `Última sincronización ${formatted}`,
+    activeConnections: (count) =>
+      count === 1 ? "1 conexión activa" : `${count} conexiones activas`,
+    errorLabel: "Error",
+    planNote: (used, max) => `${used} de ${max} canales incluidos en tu plan en uso`,
+    planLockedHint:
+      "El límite de canales de tu plan ya está en uso. Libera un canal para conectar este.",
+    comingSoonHint:
+      "Esta integración aún no está disponible. Podrás configurarla aquí cuando esté lista.",
+    recommendedBadge: "Recomendado",
+    webChat: {
+      visitorNameLabel: "Nombre que ven las visitas",
+      inboxNote: "Los mensajes de las visitas llegan a tu Inbox como conversaciones de Chat web.",
+      updateError: "No se pudo actualizar la recepción del chat web",
+    },
+    showDetails: (channel) => `Mostrar detalles de ${channel}`,
+    hideDetails: (channel) => `Ocultar detalles de ${channel}`,
   },
   adminPage: {
     eyebrow: "Ajustes",

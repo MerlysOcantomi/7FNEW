@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
+import { BusinessProfileTabs } from "@/components/business-profile/business-profile-tabs"
 import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import { Save, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
@@ -152,6 +153,7 @@ export default function BusinessProfilePage() {
         title={pageCopy.title}
         description={pageCopy.description}
       >
+        <BusinessProfileTabs />
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* Business Name */}
           <Field label={fieldCopy.businessName.label} hint={fieldCopy.businessName.hint}>

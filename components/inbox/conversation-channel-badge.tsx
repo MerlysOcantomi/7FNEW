@@ -31,7 +31,7 @@ interface ConversationChannelBadgeProps {
  * generic (we key on `Conversation.channel`, never a provider, so we don't
  * imply Gmail/Outlook/etc. without connection data to back it).
  */
-const ICON_BY_TOKEN: Record<InboxChannelIconToken, LucideIcon> = {
+export const ICON_BY_TOKEN: Record<InboxChannelIconToken, LucideIcon> = {
   mail: Mail,
   smartphone: Smartphone,
   "chat-bubble": MessageCircleMore,

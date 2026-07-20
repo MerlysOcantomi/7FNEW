@@ -239,6 +239,14 @@ test("Beauty (Finesse) order leads with WhatsApp and tiers whatsapp/instagram pr
   assert.equal(views.find((v) => v.id === "whatsapp")?.tier, "primary")
   assert.equal(views.find((v) => v.id === "instagram")?.tier, "primary")
   assert.equal(views.find((v) => v.id === "email")?.tier, "secondary")
+  assert.equal(views.find((v) => v.id === "whatsapp")?.recommended, true)
+  assert.equal(views.find((v) => v.id === "email")?.recommended, false)
+})
+
+test("untiered core config recommends nothing even though every tier is primary", () => {
+  const views = resolveChannelSetupViews(makeInput())
+  assert.ok(views.every((v) => v.tier === "primary"))
+  assert.ok(views.every((v) => v.recommended === false))
 })
 
 test("channels missing from the config order are appended, never dropped", () => {

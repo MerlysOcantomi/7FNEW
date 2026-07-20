@@ -68,6 +68,11 @@ export const settings: SettingsMessages = {
     saving: "Saving...",
     saved: "Saved",
     add: "Add",
+    tabs: {
+      profile: "Profile",
+      channels: "Channels",
+      aria: "Business Profile sections",
+    },
     operatingContext: {
       title: "Operating context",
       description:
@@ -118,6 +123,75 @@ export const settings: SettingsMessages = {
         removeAria: (rule) => `Remove rule: ${rule}`,
       },
     },
+  },
+  businessProfileChannelsPage: {
+    title: "Channels",
+    description:
+      "Where clients can reach your business, and what each channel presents to them. Day-to-day conversations live in the Inbox.",
+    loading: "Loading channels...",
+    loadError: "Could not load your channels",
+    retry: "Retry",
+    groups: {
+      connected: {
+        title: "Connected channels",
+        description: "Live now — messages arrive in your Inbox.",
+      },
+      actionable: {
+        title: "Ready to connect",
+        description: "Channels you can set up now, or that need your attention.",
+      },
+      future: {
+        title: "More channels",
+        description: "Not available yet — nothing to configure until each integration is ready.",
+      },
+    },
+    status: {
+      connected: "Connected",
+      available: "Ready to connect",
+      setup_required: "Finish setup",
+      pending: "Pending",
+      error: "Connection error",
+      plan_locked: "Not in your plan",
+      coming_soon: "Coming soon",
+      disabled: "Off",
+    },
+    channelDescriptions: {
+      email: "Send and receive email from your business address",
+      web_chat: "Chat with visitors on your website",
+      portal: "Conversations with clients inside their portal",
+      whatsapp: "Message your clients on WhatsApp",
+      instagram: "Reply to Instagram direct messages",
+      messenger: "Reply to Facebook Messenger messages",
+      tiktok: "Reply to TikTok direct messages",
+      sms: "Text messages to phone numbers",
+    },
+    actions: {
+      connect_email: "Connect email",
+      manage_email_connections: "Manage connections",
+      review_email_connection: "Review connection",
+      enable_web_chat_reception: "Turn on reception",
+      disable_web_chat_reception: "Turn off reception",
+      open_inbox: "Open Inbox",
+    },
+    identityLabel: "Identity",
+    receiving: "Receiving",
+    sending: "Sending",
+    lastSync: (formatted) => `Last sync ${formatted}`,
+    activeConnections: (count) =>
+      count === 1 ? "1 active connection" : `${count} active connections`,
+    errorLabel: "Error",
+    planNote: (used, max) => `${used} of ${max} channels included in your plan in use`,
+    planLockedHint:
+      "Your plan's channel limit is already in use. Free a channel to connect this one.",
+    comingSoonHint: "This integration isn't available yet. You'll be able to set it up here once it's ready.",
+    recommendedBadge: "Recommended",
+    webChat: {
+      visitorNameLabel: "Name visitors see",
+      inboxNote: "Visitor messages arrive in your Inbox as Web chat conversations.",
+      updateError: "Could not update web chat reception",
+    },
+    showDetails: (channel) => `Show ${channel} details`,
+    hideDetails: (channel) => `Hide ${channel} details`,
   },
   adminPage: {
     eyebrow: "Settings",

@@ -111,6 +111,12 @@ export interface ChannelSetupView {
   status: ChannelSetupStatus
   /** Vertical tiering from the resolved inbox config (Finesse: whatsapp/instagram primary). */
   tier: "primary" | "secondary"
+  /**
+   * True only when the vertical DECLARED this channel primary
+   * (`config.primary` non-empty and listing it). Untiered configs mark every
+   * channel tier "primary" but recommend none — the UI badge keys off this.
+   */
+  recommended: boolean
   identity: ChannelIdentity | null
   /** Honest current ability, not platform potential. */
   canReceive: boolean
@@ -285,10 +291,9 @@ function resolveOne(
       : null
 
   const live = status === "connected"
+  const declaredPrimary = input.config.primary.includes(id)
   const tier =
-    input.config.primary.length === 0 || input.config.primary.includes(id)
-      ? "primary"
-      : "secondary"
+    input.config.primary.length === 0 || declaredPrimary ? "primary" : "secondary"
 
   return {
     id,
@@ -297,6 +302,7 @@ function resolveOne(
     kind: def.kind,
     status,
     tier,
+    recommended: declaredPrimary,
     identity,
     canReceive: live && def.capabilities.inbound,
     canSend: live && def.capabilities.outbound,
