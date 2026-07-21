@@ -98,6 +98,46 @@ export type {
   PresenceStandaloneSubscription,
 } from "./resolve"
 
+// Slug & hostname normalization
+export {
+  normalizeSlug,
+  isValidSlug,
+  normalizeHostname,
+  isValidHostname,
+} from "./slug"
+
+// Pure write planners
+export {
+  planProposalSelection,
+  planPublish,
+  planUnpublish,
+  sanitizeVisualConfig,
+  FORBIDDEN_VISUAL_CONFIG_KEYS,
+} from "./planning"
+export type { ProposalSelectionPlan, PublicationPlan, VisualConfig } from "./planning"
+
+// Data-access layer (Prisma-backed; multi-tenant)
+export {
+  getOrCreateSiteForWorkspace,
+  findSiteBySlug,
+  findSiteByHostname,
+  updateVisualConfig,
+  selectFreyaProposal,
+  publishSite,
+  unpublishSite,
+  getPresenceEntitlement,
+  resolvePublicSite,
+  upsertDomain,
+  markDomainVerified,
+  recordMedia,
+  listMedia,
+} from "./repository"
+export type {
+  CreateSiteInput,
+  UpsertDomainInput,
+  RecordMediaInput,
+} from "./repository"
+
 // Freya providers
 export {
   HeuristicFreyaStyleProvider,

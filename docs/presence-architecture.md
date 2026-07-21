@@ -152,8 +152,10 @@ flowchart TD
 
 ## 5. Risks & pending
 
-- **No persistence yet.** The contracts must become Prisma models +
-  `workspaceId`-scoped queries in a follow-up PR (with a migration + Turso push).
+- **Persistence landed in PRESENCE-02** (see §7). Remaining: the remote Turso
+  push must run in the deploy env (credentials); one-site-per-workspace is
+  enforced now (`@@unique([workspaceId])`) — multi-site is a future drop-unique
+  migration.
 - **Business Profile is thin.** Prices, structured hours, location, team,
   socials and reviews are not modeled yet. They are **profile** extensions
   (owned there), not Presence data. `content-source.ts` already leaves the slots.
@@ -174,8 +176,62 @@ flowchart TD
   note appears on `*.test.ts`, which is the repo's pre-existing pattern (same on
   `core/services/catalog.test.ts`; tests run via `tsx`, not `tsc`).
 
-## 7. Explicitly not done (guardrails)
+## 7. Persistence (PRESENCE-02)
 
-No free CMS, no drag-and-drop builder, no v0 API integration, no repo/Vercel
-project per client, no Beauty-only logic in the shared engine, no photos in git,
-no mandatory AI-provider dependency, no changes to internal Finesse pages.
+The contracts above are now persisted as five additive, multi-tenant Prisma
+models (SQLite/Turso). They store PRESENTATION STATE and REFERENCES only — never
+business content, which stays in the Business Profile.
+
+| Model | Purpose | Key columns | Isolation |
+|---|---|---|---|
+| `PresenceSite` | The workspace's site (one per workspace) | `slug`, `templateId`, `templateVersion`, `themeKey`, `selectedProposalId`, `visualConfig` (JSON), `status`, `ownershipModel` | `workspaceId @unique`, `slug @unique` |
+| `PresencePublication` | Append-only publish/offline transitions | `state`, frozen `templateId/version/themeKey`, `reason`, `publishedAt`, `offlineAt` | FK `workspaceId`+`siteId` cascade |
+| `PresenceDomain` | Subdomain / custom domain | `hostname`, `kind`, `verification`, `ownership`, `isPrimary`, `verificationToken` | `hostname @unique` (no cross-workspace collision) |
+| `PresenceMedia` | External asset reference + variant lineage | `storageKey`, `url`, `kind`, `purpose`, dims, `sizeBytes`, `reviewStatus`, `isRealWorkSample`, `preserveIntegrity`, `checksum`, `sourceMediaId` | FK `workspaceId` cascade; `siteId` set-null |
+| `PresenceSubscription` | Minimal standalone-product state | `status`, `source`, `currentPeriodEnd` | `workspaceId @unique` |
+
+Three clearly-separated concerns:
+
+- **Persisted data:** `Workspace.plan` (existing) + `PresenceSubscription` +
+  site/publication rows.
+- **Computed entitlement:** `resolvePresenceEntitlement(plan, standalone)` — never
+  stored. Presence stays live after 7F SaaS is cancelled iff a standalone
+  subscription is `active`.
+- **Effective publication:** `isPresencePubliclyVisible(site, latestPublication,
+  entitlement)` — the fact a visitor experiences.
+
+**Data-access layer:** `engines/presence/repository.ts` (thin Prisma over the
+pure planners in `planning.ts` + `slug.ts` + `resolve.ts`). Every mutating call
+asserts `workspaceId` ownership; public resolution serves only VERIFIED custom
+domains. Not wired to any UI.
+
+**Migration & Turso:** additive SQL in
+`prisma/sql/2026-07-21-presence-persistence-additive.sql`, mirrored into the
+`tables`/`uniqueIndexes` arrays of `prisma/push-turso.ts` (the canonical deploy
+runner; remote `libsql://` only). Verified locally against SQLite (same engine
+as Turso): all tables/columns/indexes/FKs present, `foreign_key_check` clean,
+`PRAGMA integrity_check = ok`, statements idempotent on re-apply. The remote
+Turso push runs in the deploy environment (real credentials required).
+
+**No Business Profile duplication** is enforced structurally:
+`sanitizeVisualConfig` strips business keys before persisting `visualConfig`, and
+`engines/presence/no-profile-duplication.test.ts` fails CI if any Presence model
+ever declares a business-content column.
+
+### Freya Beauty vocabulary — PRESENCE-MERGE-01 decision
+
+The engine's duplicated Beauty-alias list was **removed**: `freya.ts` now detects
+the Beauty family via the shared, pure `mapVerticalKeyToBusinessType`
+(`@core/personalization`) — no circular dependency, more complete aliases, tested
+(`freya.test.ts` "barbershop" case). The curated Beauty STYLE PRESETS still live
+in the engine; relocating vertical-specific presets into the vertical-pack layer
+is deferred as **PRESENCE-03** (it touches `core/vertical-packs`, out of scope
+for a persistence mission).
+
+## 8. Explicitly not done (guardrails)
+
+No free CMS, no drag-and-drop builder, no free page editing, no v0 API
+integration, no image-provider connection, no repo/Vercel project per client, no
+Beauty-only logic in the shared common models, no photos in git, no mandatory
+AI-provider dependency, no autonomous Freya, no landings/renderer/management UI,
+no changes to internal Finesse pages.

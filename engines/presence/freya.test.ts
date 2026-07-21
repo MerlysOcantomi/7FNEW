@@ -58,6 +58,20 @@ test("non-beauty vertical uses the generic business-site family", async () => {
   assert.equal(proposals[0].templateId, "business-site-standard")
 })
 
+test("beauty classification comes from the shared vertical layer (PRESENCE-MERGE-01 dedup)", async () => {
+  // "barbershop" was NOT in the engine's old hardcoded alias list, but IS a
+  // beauty alias in @core/personalization — proving the engine now reuses the
+  // shared classifier instead of a duplicated list.
+  const proposals = await new HeuristicFreyaStyleProvider().proposeStyles({
+    workspaceId: "ws_3",
+    verticalKey: "barbershop",
+    content: content("ws_3"),
+    nowIso: NOW,
+  })
+  assert.equal(proposals[0].templateFamily, "finesse-vertical-landing")
+  assert.equal(proposals[0].themeKey, "rose-nude")
+})
+
 test("proposals are deterministic (same input → same ids/themes)", async () => {
   const provider = new HeuristicFreyaStyleProvider()
   const input = {

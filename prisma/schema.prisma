@@ -73,6 +73,11 @@ model Workspace {
   externalIdentities ExternalIdentity[]
   contactIdentityLinks ContactIdentityLink[]
   messageAttachments MessageAttachment[]
+  presenceSite        PresenceSite?
+  presencePublications PresencePublication[]
+  presenceDomains     PresenceDomain[]
+  presenceMedia       PresenceMedia[]
+  presenceSubscription PresenceSubscription?
 }
 
 model Cliente {
@@ -1392,4 +1397,185 @@ model ForteSnapshot {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+// ── Sevenef Presence (PRESENCE-02) ──
+//
+// Multi-tenant persistence for the shared website engine (`engines/presence`).
+// The site owns PRESENTATION STATE only. Public business content (name,
+// description, services, prices, hours, address, phone, WhatsApp, team,
+// promotions, social networks, reviews) is NEVER stored here — it stays in the
+// Business Profile (`Workspace.config.businessProfile` + `serviceCatalog` +
+// `ChannelConnection`) and is read via `engines/presence/content-source.ts`.
+//
+// Conventions mirror the rest of the schema: cuid string ids, `workspaceId`
+// REQUIRED with `onDelete: Cascade`, free `String` "kind" columns (validated in
+// the service layer, not Prisma enums), JSON stored as `String`. Files live in
+// external storage (Vercel Blob) — only references are stored. No Beauty/Finesse
+// logic in these common models.
+
+/// The workspace's website. One canonical site per workspace for now
+/// (`@@unique([workspaceId])`); multi-site is a future drop-unique migration.
+model PresenceSite {
+  id          String @id @default(cuid())
+  workspaceId String @unique
+
+  /// Public subdomain slug (`<slug>.sevenef.site`), globally unique. Normalized
+  /// by `engines/presence/slug.ts`. Distinct from `Workspace.slug`.
+  slug String @unique
+
+  /// included_in_saas | standalone | lab_produced — how the site is produced/sold.
+  ownershipModel String @default("included_in_saas")
+  /// draft | styling | ready | published | unpublished | archived (editorial).
+  status         String @default("draft")
+
+  /// Selected template + pinned version (registry: `engines/presence/templates.ts`).
+  templateId      String @default("business-site-standard")
+  templateVersion String @default("0.1.0")
+  /// Selected theme key — reuses existing 7F theme tokens (`core/theme.ts`).
+  themeKey        String @default("midnight")
+  /// The Freya proposal the client chose, if any (persisted selection).
+  selectedProposalId String?
+
+  /// Strictly-visual config as JSON: `{ sections: PresenceSectionInstance[],
+  /// presentation: {...} }`. NEVER business data.
+  visualConfig String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace    Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  publications PresencePublication[]
+  domains      PresenceDomain[]
+  media        PresenceMedia[]
+
+  @@index([status])
+}
+
+/// Immutable, append-only publish/offline transition records.
+model PresencePublication {
+  id          String @id @default(cuid())
+  workspaceId String
+  siteId      String
+
+  /// public | offline — the visibility fact this transition set.
+  state String
+
+  /// Template + theme frozen at transition time (reproducibility).
+  templateId      String
+  templateVersion String
+  themeKey        String
+
+  /// e.g. client_published | client_unpublished | saas_cancelled | suspended.
+  reason String @default("")
+
+  publishedAt DateTime?
+  offlineAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  site      PresenceSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, siteId, createdAt])
+  @@index([siteId, state])
+}
+
+/// A hostname a site is reached through. `hostname` is globally unique so two
+/// workspaces can never claim the same domain. Custom domains are only served
+/// publicly once `verification = "verified"`.
+model PresenceDomain {
+  id          String @id @default(cuid())
+  workspaceId String
+  siteId      String
+
+  /// Normalized FQDN (lowercased, no trailing dot) — `engines/presence/slug.ts`.
+  hostname String @unique
+  /// subdomain | custom.
+  kind     String @default("custom")
+  /// pending | verified | failed.
+  verification String @default("pending")
+  /// client_owned | managed | transferable (domain ownership policy).
+  ownership    String @default("client_owned")
+  isPrimary    Boolean @default(false)
+
+  /// Minimal token for future DNS TXT verification (no DNS/TLS automation yet).
+  verificationToken String?
+  verifiedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  site      PresenceSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, siteId])
+  @@index([siteId, isPrimary])
+}
+
+/// External reference to a photo/asset (the file lives in Vercel Blob, never in
+/// the DB or git). Variants are rows with `kind = "variant"` and a `sourceMediaId`.
+model PresenceMedia {
+  id          String  @id @default(cuid())
+  workspaceId String
+  /// Nullable: media may be workspace-level before being attached to a site.
+  siteId      String?
+
+  /// photo | logo | video | variant.
+  kind    String @default("photo")
+  /// work_sample | gallery | hero | team | brand (editorial purpose).
+  purpose String @default("gallery")
+
+  /// External storage key + public URL (Vercel Blob).
+  storageKey String
+  url        String
+  mimeType   String?
+  width      Int?
+  height     Int?
+  sizeBytes  Int?
+
+  /// pending | use | review | reject — Freya media review verdict.
+  reviewStatus     String  @default("pending")
+  /// True when the photo shows a REAL professional result.
+  isRealWorkSample Boolean @default(false)
+  /// Real work samples keep their integrity: variants are crop/resize/format only.
+  preserveIntegrity Boolean @default(false)
+  /// Provider id that produced the classification (e.g. "heuristic").
+  freyaAssessedBy  String?
+  /// Integrity hash when available.
+  checksum         String?
+
+  /// Variant lineage: source original this was derived from.
+  sourceMediaId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  site        PresenceSite?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  sourceMedia PresenceMedia?  @relation("PresenceMediaVariants", fields: [sourceMediaId], references: [id], onDelete: Cascade)
+  variants    PresenceMedia[] @relation("PresenceMediaVariants")
+
+  @@index([workspaceId, siteId])
+  @@index([workspaceId, kind])
+  @@index([sourceMediaId])
+}
+
+/// Minimal standalone-product state — the ONLY thing needed for Presence to keep
+/// running after 7F SaaS is cancelled. This is DATA; the ENTITLEMENT is computed
+/// (`resolvePresenceEntitlement`) and the EFFECTIVE visibility is computed
+/// (`isPresencePubliclyVisible`). Not a billing system — no payments modeled.
+model PresenceSubscription {
+  id          String @id @default(cuid())
+  workspaceId String @unique
+
+  /// active | canceled | none — is the standalone Presence product paid?
+  status String @default("none")
+  /// standalone | lab — how the standalone product is produced/billed.
+  source String @default("standalone")
+  currentPeriodEnd DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

@@ -20,6 +20,7 @@
  *     and testable (no clock, no randomness).
  */
 
+import { mapVerticalKeyToBusinessType } from "@core/personalization"
 import type { PresenceContentSource } from "./content-source"
 import type { PresenceMedia } from "./types"
 import { isPresenceThemeKey } from "./themes"
@@ -129,19 +130,21 @@ const DEFAULT_STYLE_ORDER: StylePreset[] = [
   { styleKey: "warm", name: "Warm", themeKey: "rose-nude", rationale: "Warmer, personable variant." },
 ]
 
-const BEAUTY_VERTICALS = new Set([
-  "beauty",
-  "salon",
-  "nails",
-  "barber",
-  "spa",
-  "lashes",
-  "estetica",
-])
+/**
+ * Whether a vertical belongs to the Beauty family. Sourced from the SHARED
+ * vertical-classification layer (`@core/personalization`) — the engine does not
+ * keep its own alias list (PRESENCE-MERGE-01 finding: deduplicated here). The
+ * curated Beauty STYLE PRESETS below still live in the engine; relocating those
+ * into the vertical-pack layer is a separate task (see PRESENCE-03 note in
+ * docs/presence-architecture.md), out of scope for a persistence mission.
+ */
+function isBeautyVertical(verticalKey: string | null | undefined): boolean {
+  if (!verticalKey) return false
+  return mapVerticalKeyToBusinessType(verticalKey) === "beauty"
+}
 
 function pickStyleOrder(verticalKey: string | null): StylePreset[] {
-  if (verticalKey && BEAUTY_VERTICALS.has(verticalKey.toLowerCase())) return BEAUTY_STYLE_ORDER
-  return DEFAULT_STYLE_ORDER
+  return isBeautyVertical(verticalKey) ? BEAUTY_STYLE_ORDER : DEFAULT_STYLE_ORDER
 }
 
 /**
@@ -152,8 +155,7 @@ export class HeuristicFreyaStyleProvider implements FreyaStyleProvider {
   readonly id = "heuristic"
 
   async proposeStyles(input: FreyaStyleProviderInput): Promise<FreyaSiteProposal[]> {
-    const isBeauty =
-      !!input.verticalKey && BEAUTY_VERTICALS.has(input.verticalKey.toLowerCase())
+    const isBeauty = isBeautyVertical(input.verticalKey)
     const templateId = isBeauty ? "finesse-vertical-landing" : "business-site-standard"
     const templateFamily = isBeauty ? "finesse-vertical-landing" : "business-site"
 
