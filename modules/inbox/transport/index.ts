@@ -8,6 +8,7 @@
 
 import { registerChannelTransport } from "./registry"
 import { createEmailTransports } from "./email-transport"
+import { createWebChatTransport } from "./web-chat-transport"
 
 let registered = false
 
@@ -17,6 +18,9 @@ export function ensureBuiltInTransportsRegistered(): void {
   for (const transport of createEmailTransports()) {
     registerChannelTransport(transport)
   }
+  // Web chat is a REAL integration: pull-delivery via the public
+  // conversation endpoint the first-party widget polls (WEB-CHAT-CONNECTION-01).
+  registerChannelTransport(createWebChatTransport())
 }
 
 ensureBuiltInTransportsRegistered()

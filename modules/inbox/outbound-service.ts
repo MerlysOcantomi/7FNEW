@@ -54,16 +54,21 @@ export interface SendConversationMessageOutcome {
 }
 
 /**
- * Transitional recipient resolution: email uses the contact's address; other
- * channels fall back to the contact's phone. Real channel integrations will
- * resolve recipients from the conversation's ExternalIdentity instead (the
- * WhatsApp mission) — this helper is the documented seam for that change.
+ * Transitional recipient resolution: email uses the contact's address; web
+ * chat addresses the visitor's SESSION (`Contact.source` carries the widget
+ * visitor id — pull delivery needs no external address, but the neutral
+ * contract still records who the send targets); other channels fall back to
+ * the contact's phone. Real channel integrations will resolve recipients
+ * from the conversation's ExternalIdentity instead (the WhatsApp mission) —
+ * this helper is the documented seam for that change.
  */
-function resolveOutboundRecipient(
+export function resolveOutboundRecipient(
+  channelId: string,
   channelKind: string,
-  contact: { email: string | null; telefono: string | null },
+  contact: { email: string | null; telefono: string | null; source: string | null },
 ): string | null {
   if (channelKind === "email") return contact.email?.trim() || null
+  if (channelId === "web_chat") return contact.source?.trim() || null
   return contact.telefono?.trim() || contact.email?.trim() || null
 }
 
@@ -77,7 +82,7 @@ export async function sendConversationMessage(
     select: {
       channel: true,
       connectionId: true,
-      contact: { select: { email: true, telefono: true } },
+      contact: { select: { email: true, telefono: true, source: true } },
       connection: { select: { id: true, provider: true } },
     },
   })
@@ -93,9 +98,12 @@ export async function sendConversationMessage(
 
   // ── Provider + transport resolution ──
   // Connection provider wins; email without a connection falls back to the
-  // env-level Resend sender (exactly the legacy behaviour).
+  // env-level Resend sender (exactly the legacy behaviour). Web chat has no
+  // ChannelConnection by design — its first-party widget transport lives
+  // under the virtual "web_chat" provider key (WEB-CHAT-CONNECTION-01).
   const provider =
-    conv.connection?.provider ?? (definition.id === "email" ? "resend" : null)
+    conv.connection?.provider ??
+    (definition.id === "email" ? "resend" : definition.id === "web_chat" ? "web_chat" : null)
   const resolution = resolveChannelTransport({ channel: conv.channel, provider })
   if (!resolution.ok) {
     logInboxIntegrationEvent({
@@ -120,9 +128,10 @@ export async function sendConversationMessage(
   }
 
   // ── Recipient ──
-  const recipient = resolveOutboundRecipient(definition.kind, {
+  const recipient = resolveOutboundRecipient(definition.id, definition.kind, {
     email: conv.contact?.email ?? null,
     telefono: conv.contact?.telefono ?? null,
+    source: conv.contact?.source ?? null,
   })
   if (!recipient) {
     // Legacy behaviour: no recipient → no attempt, message stays pending.

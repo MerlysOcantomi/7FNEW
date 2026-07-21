@@ -18,6 +18,7 @@ import {
   shouldBuildReplyThreading,
 } from "./email-threading"
 import type { ChannelSendInput, ChannelTransport } from "./contracts"
+import { resolveOutboundRecipient } from "../outbound-service"
 
 ensureBuiltInTransportsRegistered()
 
@@ -261,4 +262,66 @@ test("replies and reply-alls thread; forwards start a new thread", () => {
   assert.equal(shouldBuildReplyThreading("reply_all"), true)
   assert.equal(shouldBuildReplyThreading(undefined), true)
   assert.equal(shouldBuildReplyThreading("forward"), false)
+})
+
+// ─── Web chat pull-delivery transport (WEB-CHAT-CONNECTION-01) ──────────────
+
+test("web chat transport is registered under the virtual web_chat provider", () => {
+  const res = resolveChannelTransport({ channel: "web_chat", provider: "web_chat" })
+  assert.ok(res.ok)
+  // No other provider resolves the widget transport.
+  assert.equal(resolveChannelTransport({ channel: "web_chat", provider: "meta" }).ok, false)
+})
+
+test("web chat send reports pull delivery honestly: sent, never delivered/read", async () => {
+  const res = resolveChannelTransport({ channel: "web_chat", provider: "web_chat" })
+  assert.ok(res.ok)
+  const result = await res.transport.send({
+    workspaceId: "ws1",
+    conversationId: "conv1",
+    messageId: "msg1",
+    connectionId: null,
+    to: { address: "visitor-session-1" },
+    text: "hola",
+  })
+  assert.equal(result.accepted, true)
+  assert.equal(result.initialDeliveryStatus, "sent")
+  assert.equal(result.externalMessageId, null)
+  assert.equal(result.provider, "web_chat")
+  assert.ok(result.sentAt instanceof Date)
+  assert.equal(result.errorCode, null)
+})
+
+test("outbound recipient resolution addresses the web chat visitor session", () => {
+  // Web chat targets the widget session id (Contact.source), regardless of
+  // whether the visitor left an email.
+  assert.equal(
+    resolveOutboundRecipient("web_chat", "chat", {
+      email: "visitor@example.com",
+      telefono: null,
+      source: "visitor-uuid-1",
+    }),
+    "visitor-uuid-1",
+  )
+  assert.equal(
+    resolveOutboundRecipient("web_chat", "chat", { email: null, telefono: null, source: null }),
+    null,
+  )
+  // Email and phone channels keep their existing resolution.
+  assert.equal(
+    resolveOutboundRecipient("email", "email", {
+      email: "a@example.com",
+      telefono: "+34911111111",
+      source: "x",
+    }),
+    "a@example.com",
+  )
+  assert.equal(
+    resolveOutboundRecipient("whatsapp", "social", {
+      email: "a@example.com",
+      telefono: "+34911111111",
+      source: "x",
+    }),
+    "+34911111111",
+  )
 })
