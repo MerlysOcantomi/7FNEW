@@ -138,6 +138,39 @@ export type {
   RecordMediaInput,
 } from "./repository"
 
+// Render plan (pure composition of template + content + media)
+export {
+  buildRenderPlan,
+  isApprovedMedia,
+  PresenceTemplateNotFoundError,
+} from "./render-plan"
+export type {
+  PresenceRenderPlan,
+  PlannedSection,
+  PlannedImage,
+  PlannedCta,
+  PlannedNavItem,
+  RenderMedia,
+  BuildRenderPlanInput,
+} from "./render-plan"
+
+// Custom-domain host routing (Edge-safe, pure)
+export {
+  planHostRewrite,
+  appHostsFromEnv,
+  normalizeHostHeader,
+  hostFromUrl,
+} from "./host-routing"
+export type { HostRewriteInput, HostRewriteDecision } from "./host-routing"
+
+// DB-backed content loader + public-site composition
+export { loadPresenceContent, loadSiteMedia } from "./content-loader"
+export {
+  loadPublicSiteBySlug,
+  loadPublicSiteByHostname,
+} from "./public-site"
+export type { PublicSiteResult, PresenceSeoMeta, PublicSiteContext } from "./public-site"
+
 // Freya providers
 export {
   HeuristicFreyaStyleProvider,

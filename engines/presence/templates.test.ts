@@ -14,9 +14,10 @@ test("each of the four families has at least one foundation template", () => {
   }
 })
 
-test("initial templates are labeled foundation, not ready", () => {
+test("business-site-standard is the first active (functional) template; the rest stay foundation", () => {
   for (const tpl of presenceTemplateRegistry.getAll()) {
-    assert.equal(tpl.status, "foundation", `${tpl.id} should be foundation`)
+    const expected = tpl.id === "business-site-standard" ? "active" : "foundation"
+    assert.equal(tpl.status, expected, `${tpl.id} should be ${expected}`)
   }
 })
 

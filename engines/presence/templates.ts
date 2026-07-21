@@ -114,9 +114,9 @@ export const PRESENCE_TEMPLATES: readonly PresenceTemplate[] = [
     id: "business-site-standard",
     family: "business-site",
     name: "Business Site — Standard",
-    description: "Foundation template for generated client business websites (the core Presence product).",
+    description: "The first functional common template for generated client business websites (the core Presence product). Rendered by the public renderer (PRESENCE-03).",
     version: "0.1.0",
-    status: "foundation",
+    status: "active",
     sections: sectionRefs([
       "hero",
       "services",
