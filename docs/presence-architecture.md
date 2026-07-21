@@ -228,10 +228,75 @@ in the engine; relocating vertical-specific presets into the vertical-pack layer
 is deferred as **PRESENCE-03** (it touches `core/vertical-packs`, out of scope
 for a persistence mission).
 
-## 8. Explicitly not done (guardrails)
+## 8. Public renderer & first template (PRESENCE-03)
+
+A published site is now viewable publicly via a Sevenef-managed slug and via a
+verified custom domain, rendered from Business Profile data through the first
+functional common template.
+
+### Routing
+
+- **Managed slug:** `app/sites/[slug]/page.tsx` → `/sites/<slug>`. Added `/sites`
+  to `middleware.ts` `PUBLIC_PATHS` (anonymous-safe; the root layout tolerates no
+  auth). Nested under the root layout — no separate root layout needed.
+- **Verified custom domain:** `app/sites/by-host/[host]/page.tsx`. The middleware
+  performs a SAFE-BY-DEFAULT rewrite (`engines/presence/host-routing.ts`,
+  `planHostRewrite`): it is a **no-op unless a canonical app host is configured**
+  (`NEXT_PUBLIC_APP_URL`/`NEXTAUTH_URL`/`VERCEL_URL`) AND the request is on a
+  genuinely external host + non-internal path. The app's own hosts,
+  `*.vercel.app`, `localhost`, IPs and all internal/api/static/auth paths are
+  never rewritten, so existing routes, cookies and subdomains are untouched. Pure
+  and fully tested (`host-routing.test.ts`). DNS/TLS onboarding is out of scope.
+
+### Renderer
+
+`engines/presence/render-plan.ts` (pure) resolves the pinned template + theme,
+safely parses `visualConfig` (invalid JSON and unknown section kinds ignored),
+and builds a structured `PresenceRenderPlan` — only registered, enabled sections
+that have valid content. `components/presence/presence-site-view.tsx` (a SERVER
+component) renders the plan into responsive, accessible, semantic HTML wrapped in
+`<div data-theme>` (the site's own theme drives the tokens). No React/HTML/prompt
+is ever stored in or executed from the DB. `engines/presence/content-loader.ts`
+projects the Business Profile + service catalog + WhatsApp channel into the
+read-only content source; `public-site.ts` composes resolution + entitlement +
+content + plan + SEO into one testable result.
+
+### First template — `business-site-standard` (status `active`)
+
+Common, non-Beauty template: nav, hero, services, gallery, location & hours,
+WhatsApp contact, footer. Sections with no valid content are omitted cleanly
+(no logo → typographic name; no services/gallery/whatsapp/location → hidden; no
+fake data ever). Real work-sample media keeps its integrity (URL passed through
+untouched; only approved `reviewStatus = "use"` media is shown).
+
+### SEO & public states
+
+Dynamic `title`/`description`/Open Graph; `canonical` prefers the verified
+primary domain over the slug URL (dedupe); published+visible → `index,follow`,
+everything else → `noindex,nofollow`. Missing / draft / offline / suspended /
+no-entitlement / invalid-template / pending-or-unknown domain all render a
+**neutral not-found page** (`app/sites/not-found.tsx`) with no internal details.
+
+**404 decision (documented):** all non-visible states use Next's `notFound()`
+boundary → a neutral page with `noindex,nofollow`. Next 16.1.6 serves an
+on-demand dynamic `notFound()` as a **soft-404 (HTTP 200 body)**; crawlers are
+excluded by the robots directive regardless of status code. Emitting a hard 404
+status code for these routes is a known framework limitation and is left as a
+follow-up (a route handler or edge 404) if a strict status is later required.
+
+### Controlled demo
+
+`scripts/seed-presence-demo.ts` (`demo:presence:{status,seed,clean}`) — an
+idempotent, cleanable, confirmation-gated (`PRESENCE_DEMO_CONFIRM`) demo: a
+`config.demo` workspace with a rich profile, catalog, WhatsApp channel and a
+PUBLISHED site at `/sites/demo-studio`. Gallery uses inline SVG placeholders (no
+external image host, no real work photos). Never auto-runs. Verified end to end
+and the demo rows were removed after testing (Turso holds 0 Presence rows).
+
+## 9. Explicitly not done (guardrails)
 
 No free CMS, no drag-and-drop builder, no free page editing, no v0 API
 integration, no image-provider connection, no repo/Vercel project per client, no
-Beauty-only logic in the shared common models, no photos in git, no mandatory
-AI-provider dependency, no autonomous Freya, no landings/renderer/management UI,
-no changes to internal Finesse pages.
+Beauty-only logic in the shared engine or the common template, no photos in git,
+no mandatory AI-provider dependency, no autonomous Freya, no FINAL landings, no
+management UI, no changes to internal Finesse pages.
