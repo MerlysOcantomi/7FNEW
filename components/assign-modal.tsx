@@ -3,7 +3,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { X, Search, Loader2, Check, Link as LinkIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { apiFetch, apiPatch, displayLabel, estadoLabel } from "@/lib/api-client"
+import { apiFetch, apiPatch } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { toast } from "sonner"
 
 interface AssignModalProps {
@@ -31,6 +33,7 @@ export function AssignModal({
   statusField = "estado",
   alreadyLinkedIds = [],
 }: AssignModalProps) {
+  const { t } = useI18n()
   const [search, setSearch] = useState("")
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -140,7 +143,7 @@ export function AssignModal({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{name}</p>
                       {status && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{displayLabel(status, estadoLabel)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{resolveStatusLabel(t.statuses, status)}</p>
                       )}
                     </div>
                     {isAssigning ? (

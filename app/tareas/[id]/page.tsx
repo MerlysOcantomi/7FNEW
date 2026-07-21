@@ -5,7 +5,9 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { InlineText, InlineSelect, InlineTextarea, InlineDate } from "@/components/inline-edit"
-import { apiPatch, apiDelete, estadoLabel, prioridadLabel, displayLabel } from "@/lib/api-client"
+import { apiPatch, apiDelete } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { useFetch } from "@/hooks/use-fetch"
 import { ConfirmModal } from "@/components/confirm-modal"
 import { CanEdit, CanDelete } from "@/components/role-gate"
@@ -31,20 +33,10 @@ import {
   Plus,
 } from "lucide-react"
 
-const ESTADO_OPTIONS = [
-  { value: "pendiente", label: estadoLabel.pendiente ?? "Pendiente" },
-  { value: "en_progreso", label: estadoLabel.en_progreso ?? "En progreso" },
-  { value: "revision", label: estadoLabel.revision ?? "En revisión" },
-  { value: "completada", label: estadoLabel.completada ?? "Completada" },
-  { value: "cancelada", label: estadoLabel.cancelada ?? "Cancelada" },
-]
-
-const PRIORIDAD_OPTIONS = [
-  { value: "baja", label: prioridadLabel.baja ?? "Baja" },
-  { value: "media", label: prioridadLabel.media ?? "Media" },
-  { value: "alta", label: prioridadLabel.alta ?? "Alta" },
-  { value: "urgente", label: prioridadLabel.urgente ?? "Urgente" },
-]
+/** Canonical persisted enum VALUES — display labels resolve from the central
+ * `statuses` catalog via `resolveStatusLabel` (I18N-STATUSES-CENTRAL-04). */
+const ESTADO_VALUES = ["pendiente", "en_progreso", "revision", "completada", "cancelada"] as const
+const PRIORIDAD_VALUES = ["baja", "media", "alta", "urgente"] as const
 
 const estadoBadge = (v: string) =>
   ({
@@ -76,7 +68,17 @@ function formatDate(value: string | null | undefined): string {
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const { t } = useI18n()
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const estadoOptions = useMemo(
+    () => ESTADO_VALUES.map((value) => ({ value, label: resolveStatusLabel(t.statuses, value) })),
+    [t.statuses],
+  )
+  const prioridadOptions = useMemo(
+    () => PRIORIDAD_VALUES.map((value) => ({ value, label: resolveStatusLabel(t.statuses, value) })),
+    [t.statuses],
+  )
 
   const { data: taskData, loading, error, refetch } = useFetch<any>(id ? `/api/tareas/${id}` : null)
   const proyectoId = taskData?.proyectoId ?? null
@@ -100,10 +102,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const quickAction = useCallback(
     async (estado: string) => {
       await apiPatch(`/api/tareas/${id}`, { estado })
-      toast.success(`Tarea marcada como ${displayLabel(estado, estadoLabel)}`)
+      toast.success(`Tarea marcada como ${resolveStatusLabel(t.statuses, estado)}`)
       refetch()
     },
-    [id, refetch]
+    [id, refetch, t.statuses]
   )
 
   const handleDelete = useCallback(async () => {
@@ -180,7 +182,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             <div className="flex items-center gap-2">
               <InlineSelect
                 value={estado}
-                options={ESTADO_OPTIONS}
+                options={estadoOptions}
                 onSave={(v) => saveField("estado", v)}
                 badgeClassName={estadoBadge}
               />
@@ -261,7 +263,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 <MetaRow label="Estado">
                   <InlineSelect
                     value={estado}
-                    options={ESTADO_OPTIONS}
+                    options={estadoOptions}
                     onSave={(v) => saveField("estado", v)}
                     badgeClassName={estadoBadge}
                   />
@@ -269,7 +271,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 <MetaRow label="Prioridad">
                   <InlineSelect
                     value={task.prioridad ?? "media"}
-                    options={PRIORIDAD_OPTIONS}
+                    options={prioridadOptions}
                     onSave={(v) => saveField("prioridad", v)}
                     badgeClassName={prioridadBadge}
                   />

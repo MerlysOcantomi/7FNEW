@@ -93,8 +93,9 @@ test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
 
 test("getUIMessages: de/fr/it translate the toolbar family, English fallback for the rest", () => {
   const english = getUIMessages("en")
-  // Toolbar family really translated since I18N-TOP-ACTIONS-01.
-  const TRANSLATED = ["nav", "globalSearch", "globalNew", "agents", "today"] as const
+  // Toolbar family really translated since I18N-TOP-ACTIONS-01, plus the
+  // shared status/priority labels centralized in I18N-STATUSES-CENTRAL-04.
+  const TRANSLATED = ["nav", "globalSearch", "globalNew", "agents", "today", "statuses"] as const
   for (const code of ["de", "fr", "it"] as const) {
     const catalog = getUIMessages(code)
     for (const ns of Object.keys(english) as Array<keyof typeof english>) {
@@ -195,14 +196,16 @@ test("coverage: expected snapshot — es complete, de/fr/it cover the toolbar fa
   assert.ok(!localeHasPendingCoverage("en"))
   /**
    * de/fr/it really translate the global toolbar family (I18N-TOP-ACTIONS-01)
-   * — nav + the four surfaces the toolbar opens — and still serve English for
-   * everything else (explicit, honest fallback).
+   * — nav + the four surfaces the toolbar opens — plus the shared
+   * status/priority labels (I18N-STATUSES-CENTRAL-04, a small closed enum
+   * vocabulary), and still serve English for everything else (explicit,
+   * honest fallback).
    */
-  const TOOLBAR_FAMILY = ["nav", "globalSearch", "globalNew", "agents", "today"] as const
+  const NATIVE_NS = ["nav", "globalSearch", "globalNew", "agents", "today", "statuses"] as const
   for (const code of ["de", "fr", "it"] as const) {
     assert.ok(localeHasPendingCoverage(code))
     for (const [ns, status] of Object.entries(UI_NAMESPACE_COVERAGE[code])) {
-      if ((TOOLBAR_FAMILY as readonly string[]).includes(ns)) {
+      if ((NATIVE_NS as readonly string[]).includes(ns)) {
         assert.equal(status, "native", `${code}.${ns} must be native`)
       } else {
         assert.equal(status, "fallback-en", `${code}.${ns} must still be fallback`)

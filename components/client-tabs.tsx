@@ -25,7 +25,8 @@ import {
 import type { LucideIcon } from "lucide-react"
 import { ClientDocumentsTab } from "@/components/client-documents-tab"
 import { ClientBillingTab } from "@/components/client-billing-tab"
-import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 
 interface Tab {
   id: string
@@ -139,7 +140,8 @@ function TabContent({ tabId, client }: { tabId: string; client: ClientData }) {
 /* ─────────── Informacion ─────────── */
 
 function InformacionTab({ client }: { client: ClientData }) {
-  const estadoDisplay = displayLabel(client.estado ?? "", estadoLabel)
+  const { t } = useI18n()
+  const estadoDisplay = resolveStatusLabel(t.statuses, client.estado ?? "")
   return (
     <div className="flex flex-col gap-6">
       <h3 className="text-lg font-semibold text-foreground">General Information</h3>
@@ -222,14 +224,15 @@ function ProyectosTab({ proyectos }: { proyectos: ProyectoItem[] }) {
 }
 
 function ProjectCard({ project }: { project: ProyectoItem }) {
+  const { t } = useI18n()
   const statusColors: Record<string, string> = {
     planificacion: "bg-[var(--tab-tasks)] text-foreground/70",
     en_progreso: "bg-[var(--tab-info)] text-foreground/70",
     completado: "bg-[var(--tab-phases)] text-foreground/70",
     cancelado: "bg-muted text-muted-foreground",
   }
-  const statusDisplay = displayLabel(project.estado ?? "", estadoLabel)
-  const prioridadDisplay = displayLabel(project.prioridad ?? "", prioridadLabel)
+  const statusDisplay = resolveStatusLabel(t.statuses, project.estado ?? "")
+  const prioridadDisplay = resolveStatusLabel(t.statuses, project.prioridad ?? "")
   return (
     <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4 transition-shadow hover:shadow-sm">
       <div className="flex items-start justify-between gap-2">

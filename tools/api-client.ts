@@ -55,34 +55,8 @@ export async function apiDelete(path: string): Promise<void> {
   if (!json.success) throw new Error(json.error.message)
 }
 
-export const estadoLabel: Record<string, string> = {
-  activo: "Active",
-  inactivo: "Inactive",
-  prospecto: "Prospect",
-  planificacion: "Planning",
-  en_progreso: "In progress",
-  revision: "In review",
-  completado: "Completed",
-  cancelado: "Canceled",
-  pendiente: "Pending",
-  completada: "Completed",
-  cancelada: "Canceled",
-  borrador: "Draft",
-  enviada: "Sent",
-  pagada: "Paid",
-  vencida: "Overdue",
-  activa: "Active",
-  pausada: "Paused",
-  en_pausa: "On hold",
-}
-
-export const prioridadLabel: Record<string, string> = {
-  baja: "Low",
-  media: "Medium",
-  alta: "High",
-  urgente: "Urgent",
-}
-
-export function displayLabel(value: string, map: Record<string, string>): string {
-  return map[value] ?? value
-}
+// Status/priority DISPLAY labels are centralized in the `statuses` UI catalog
+// (I18N-STATUSES-CENTRAL-04). Resolve them with `resolveStatusLabel(t.statuses,
+// value)` from `@core/i18n/ui` — the former English-only `estadoLabel` /
+// `prioridadLabel` / `displayLabel` maps lived here and have been removed so no
+// parallel translation source can drift from the catalog.

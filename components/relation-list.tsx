@@ -4,7 +4,9 @@ import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useFetch } from "@/hooks/use-fetch"
-import { apiPatch, displayLabel, estadoLabel } from "@/lib/api-client"
+import { apiPatch } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { CanEdit } from "@/components/role-gate"
 import { DetailEmpty } from "@/components/detail-section"
 import { AssignModal } from "@/components/assign-modal"
@@ -71,6 +73,7 @@ export function RelationList({
   statusBadge,
   emptyMessage,
 }: RelationListProps) {
+  const { t } = useI18n()
   const [formOpen, setFormOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [unlinking, setUnlinking] = useState<string | null>(null)
@@ -165,7 +168,7 @@ export function RelationList({
                   </Link>
                   {status && (
                     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap", getBadgeClass(status))}>
-                      {displayLabel(status, estadoLabel)}
+                      {resolveStatusLabel(t.statuses, status)}
                     </span>
                   )}
                   {date && (

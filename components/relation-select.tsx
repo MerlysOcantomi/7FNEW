@@ -3,7 +3,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { apiFetch, apiPatch, displayLabel, estadoLabel } from "@/lib/api-client"
+import { apiFetch, apiPatch } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { CanEdit } from "@/components/role-gate"
 import { toast } from "sonner"
 import { Search, X, Loader2, ExternalLink, ChevronDown, Check } from "lucide-react"
@@ -36,6 +38,7 @@ export function RelationSelect({
   currentDisplay,
   onSaved,
 }: RelationSelectProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [records, setRecords] = useState<any[]>([])
@@ -197,7 +200,7 @@ export function RelationSelect({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-foreground truncate">{name}</p>
                       {status && (
-                        <p className="text-[10px] text-muted-foreground">{displayLabel(status, estadoLabel)}</p>
+                        <p className="text-[10px] text-muted-foreground">{resolveStatusLabel(t.statuses, status)}</p>
                       )}
                     </div>
                     {isSelected && <Check className="h-3.5 w-3.5 text-foreground flex-shrink-0" />}

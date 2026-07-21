@@ -28,7 +28,7 @@ import { ProyectoForm } from "@/components/forms/proyecto-form";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { useI18n } from "@/components/i18n-provider";
 import { useClientsNouns, capNoun } from "@/hooks/use-clients-nouns";
-import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
+import { resolveStatusLabel } from "@core/i18n/ui";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,6 +97,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── Tab content panels ────────────────────────────────────────────────────────
 
 function TabResumen({ project }: { project: any }) {
+  const { t } = useI18n();
   const statusStyle = STATUS_STYLE[project.estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
   const tareas = project.tareas ?? [];
   const completadas = tareas.filter((t: any) => t.estado === "completada").length;
@@ -132,8 +133,8 @@ function TabResumen({ project }: { project: any }) {
               { label: "Responsable", value: project.assignedTo || "—" },
               { label: "Inicio", value: formatDate(project.fechaInicio) },
               { label: "Vencimiento", value: formatDate(project.fechaFin) },
-              { label: "Prioridad", value: displayLabel(project.prioridad, prioridadLabel) },
-              { label: "Estado", value: displayLabel(project.estado, estadoLabel) },
+              { label: "Prioridad", value: resolveStatusLabel(t.statuses, project.prioridad) },
+              { label: "Estado", value: resolveStatusLabel(t.statuses, project.estado) },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
@@ -153,7 +154,7 @@ function TabResumen({ project }: { project: any }) {
           </div>
           <div className={cn("rounded-xl p-4", statusStyle.bg)}>
             <p className="text-[10px] font-bold uppercase tracking-widest mb-1">Estado</p>
-            <span className={cn("text-sm font-semibold", statusStyle.text)}>{displayLabel(project.estado, estadoLabel)}</span>
+            <span className={cn("text-sm font-semibold", statusStyle.text)}>{resolveStatusLabel(t.statuses, project.estado)}</span>
           </div>
         </div>
       </div>
@@ -162,6 +163,7 @@ function TabResumen({ project }: { project: any }) {
 }
 
 function TabTareas({ project }: { project: any }) {
+  const { t: ui } = useI18n();
   const tareas = project.tareas ?? [];
 
   if (tareas.length === 0) {
@@ -209,9 +211,9 @@ function TabTareas({ project }: { project: any }) {
             <span className="col-span-5 text-sm text-foreground pr-3 truncate">{t.titulo}</span>
             <span className="col-span-2 text-xs text-muted-foreground">{t.usuario?.nombre ?? "—"}</span>
             <span className="col-span-2 text-xs text-muted-foreground">{formatDate(t.fechaLimite)}</span>
-            <span className="col-span-2 text-xs text-muted-foreground">{displayLabel(t.prioridad, prioridadLabel)}</span>
+            <span className="col-span-2 text-xs text-muted-foreground">{resolveStatusLabel(ui.statuses, t.prioridad)}</span>
             <span className={cn("col-span-1 text-[10px] font-semibold px-2 py-0.5 rounded w-fit", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
-              {displayLabel(t.estado, estadoLabel)}
+              {resolveStatusLabel(ui.statuses, t.estado)}
             </span>
           </Link>
         ))}
@@ -223,7 +225,7 @@ function TabTareas({ project }: { project: any }) {
             <div className="flex items-start justify-between gap-2 mb-2">
               <p className="text-sm font-medium text-foreground leading-snug">{t.titulo}</p>
               <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded shrink-0", TAREA_ESTADO_STYLE[t.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
-                {displayLabel(t.estado, estadoLabel)}
+                {resolveStatusLabel(ui.statuses, t.estado)}
               </span>
             </div>
             <div className="flex items-center gap-3 flex-wrap text-[10px] text-muted-foreground">
@@ -231,7 +233,7 @@ function TabTareas({ project }: { project: any }) {
               <span>·</span>
               <span>Vence {formatDate(t.fechaLimite)}</span>
               <span>·</span>
-              <span>{displayLabel(t.prioridad, prioridadLabel)}</span>
+              <span>{resolveStatusLabel(ui.statuses, t.prioridad)}</span>
             </div>
           </Link>
         ))}
@@ -313,6 +315,7 @@ function TabArchivos({ project }: { project: any }) {
 }
 
 function TabFinanzas({ project }: { project: any }) {
+  const { t } = useI18n();
   const facturas = project.facturas ?? [];
   const transacciones = project.transacciones ?? [];
   const presupuesto = project.presupuesto;
@@ -371,7 +374,7 @@ function TabFinanzas({ project }: { project: any }) {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">{formatCurrency(f.total)}</span>
                   <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", FACTURA_ESTADO_STYLE[f.estado] ?? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]")}>
-                    {displayLabel(f.estado, estadoLabel)}
+                    {resolveStatusLabel(t.statuses, f.estado)}
                   </span>
                 </div>
               </Link>
@@ -493,9 +496,9 @@ export default function ProjectDetailPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-semibold text-foreground tracking-tight text-balance">{project.nombre}</h1>
             <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", statusStyle.bg, statusStyle.text)}>
-              {displayLabel(project.estado, estadoLabel)}
+              {resolveStatusLabel(t.statuses, project.estado)}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">{displayLabel(project.prioridad, prioridadLabel)}</span>
+            <span className="text-xs text-muted-foreground font-medium">{resolveStatusLabel(t.statuses, project.prioridad)}</span>
           </div>
         }
         meta={

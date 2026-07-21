@@ -29,7 +29,8 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { ProjectReviewTab } from "@/components/project-review-tab"
-import { estadoLabel, prioridadLabel, displayLabel } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 
 /* ═══════════════ TYPES & DATA ═══════════════ */
 
@@ -140,8 +141,9 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 function InformacionTab({ project, cliente }: { project?: any; cliente?: any }) {
-  const estadoDisplay = project ? displayLabel(project.estado ?? "", estadoLabel) : "—"
-  const prioridadDisplay = project ? displayLabel(project.prioridad ?? "", prioridadLabel) : "—"
+  const { t } = useI18n()
+  const estadoDisplay = project ? resolveStatusLabel(t.statuses, project.estado ?? "") : "—"
+  const prioridadDisplay = project ? resolveStatusLabel(t.statuses, project.prioridad ?? "") : "—"
   return (
     <div className="flex flex-col gap-6">
       <h3 className="text-lg font-semibold text-foreground">Project Information</h3>
@@ -497,6 +499,7 @@ function formatTaskDate(dateStr: string | null | undefined): string {
 }
 
 function TareasTab({ tareas = [] }: { tareas?: any[] }) {
+  const { t } = useI18n()
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [search, setSearch] = useState("")
@@ -574,8 +577,8 @@ function TareasTab({ tareas = [] }: { tareas?: any[] }) {
               <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
                 <Clock className="h-3 w-3" /> {formatTaskDate(task.fechaLimite)}
               </span>
-              <PriorityBadge priority={displayLabel(task.prioridad ?? "", prioridadLabel)} />
-              <StatusBadge status={displayLabel(task.estado ?? "", estadoLabel)} small />
+              <PriorityBadge priority={resolveStatusLabel(t.statuses, task.prioridad ?? "")} />
+              <StatusBadge status={resolveStatusLabel(t.statuses, task.estado ?? "")} small />
             </div>
           )
         })}

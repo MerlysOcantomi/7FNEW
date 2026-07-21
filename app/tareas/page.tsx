@@ -5,7 +5,9 @@ import { AppShell } from "@/components/app-shell"
 import { TaskContextualPanel, type TaskRecord } from "@/components/tasks/task-contextual-panel"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
-import { displayLabel, prioridadLabel, apiDelete } from "@/lib/api-client"
+import { apiDelete } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { useFetch } from "@/hooks/use-fetch"
 import {
   AlertTriangle,
@@ -236,6 +238,7 @@ function WorkTaskCard({
   now: number
   onSelect: (id: string) => void
 }) {
+  const { t } = useI18n()
   const StatusIcon = statusConfig[task.estado ?? ""]?.icon || Circle
   const statusColor = statusConfig[task.estado ?? ""]?.colorClass || "text-[var(--text-secondary-light)]"
   const prioClass = PRIORITY_ROW_BADGE[task.prioridad ?? ""] ?? PRIORITY_ROW_BADGE.media
@@ -258,7 +261,7 @@ function WorkTaskCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className={cn("min-w-0 flex-1 text-sm font-medium", shellText)}>{task.titulo}</p>
             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", prioClass)}>
-              {displayLabel(task.prioridad ?? "", prioridadLabel)}
+              {resolveStatusLabel(t.statuses, task.prioridad ?? "")}
             </span>
             <span className={cn("font-mono text-[11px] font-medium tabular-nums", TONE[due.tone].text)}>{due.label}</span>
           </div>

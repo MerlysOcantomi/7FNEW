@@ -24,27 +24,17 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useFetch } from "@/hooks/use-fetch";
 import { ProyectoForm } from "@/components/forms/proyecto-form";
-import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client";
+import { useI18n } from "@/components/i18n-provider";
+import { resolveStatusLabel } from "@core/i18n/ui";
 
 // API estado: planificacion, en_progreso, revision, completado, cancelado
 // API prioridad: baja, media, alta, urgente
 
-const ESTADO_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "planificacion", label: "Planning" },
-  { value: "en_progreso", label: "In progress" },
-  { value: "revision", label: "In review" },
-  { value: "completado", label: "Completed" },
-  { value: "cancelado", label: "Canceled" },
-];
-
-const PRIORIDAD_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "urgente", label: "Urgent" },
-  { value: "alta", label: "High" },
-  { value: "media", label: "Medium" },
-  { value: "baja", label: "Low" },
-];
+/** Canonical persisted enum VALUES for the filters. Status/priority display
+ * labels resolve from the central `statuses` catalog (I18N-STATUSES-CENTRAL-04);
+ * the empty "all" sentinel keeps its own label (pending I18N-PROJECTS-12). */
+const ESTADO_FILTER_VALUES = ["", "planificacion", "en_progreso", "revision", "completado", "cancelado"] as const;
+const PRIORIDAD_FILTER_VALUES = ["", "urgente", "alta", "media", "baja"] as const;
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   planificacion: { bg: "bg-[var(--status-info-bg)]", text: "text-[var(--status-info-text)]" },
@@ -63,8 +53,9 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function StatusBadge({ estado }: { estado: string }) {
+  const { t } = useI18n();
   const s = STATUS_STYLE[estado] ?? { bg: "bg-[var(--status-neutral-bg)]", text: "text-[var(--status-neutral-text)]" };
-  const label = displayLabel(estado, estadoLabel) || estado;
+  const label = resolveStatusLabel(t.statuses, estado) || estado;
   return (
     <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold", s.bg, s.text)}>
       {label}
@@ -83,6 +74,15 @@ function formatDate(value: string | Date | null | undefined): string {
 }
 
 export default function ProyectosPage() {
+  const { t } = useI18n();
+  const estadoOptions = useMemo(
+    () => ESTADO_FILTER_VALUES.map((value) => ({ value, label: value === "" ? "All" : resolveStatusLabel(t.statuses, value) })),
+    [t.statuses],
+  );
+  const prioridadOptions = useMemo(
+    () => PRIORIDAD_FILTER_VALUES.map((value) => ({ value, label: value === "" ? "All" : resolveStatusLabel(t.statuses, value) })),
+    [t.statuses],
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
@@ -175,12 +175,12 @@ export default function ProyectosPage() {
                 onClick={() => { setStatusOpen(!statusOpen); setPriorityOpen(false); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)]/45 transition-colors min-w-[130px] justify-between"
               >
-                <span>{ESTADO_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
+                <span>{estadoOptions.find((o) => o.value === statusFilter)?.label ?? "Status"}</span>
                 <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", statusOpen && "rotate-180")} />
               </button>
               {statusOpen && (
                 <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg overflow-hidden min-w-[130px]">
-                  {ESTADO_OPTIONS.map((opt) => (
+                  {estadoOptions.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setStatusFilter(opt.value); setStatusOpen(false); }}
@@ -202,12 +202,12 @@ export default function ProyectosPage() {
                 onClick={() => { setPriorityOpen(!priorityOpen); setStatusOpen(false); }}
                 className="flex w-full lg:w-auto items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-sm text-[var(--text-primary-light)] hover:border-[var(--accent-primary)]/45 transition-colors min-w-[130px] justify-between"
               >
-                <span>{PRIORIDAD_OPTIONS.find((o) => o.value === priorityFilter)?.label ?? "Priority"}</span>
+                <span>{prioridadOptions.find((o) => o.value === priorityFilter)?.label ?? "Priority"}</span>
                 <ChevronDown size={14} className={cn("text-[var(--text-secondary-light)] transition-transform", priorityOpen && "rotate-180")} />
               </button>
               {priorityOpen && (
                 <div className="absolute top-full left-0 right-0 lg:right-auto mt-1 z-30 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-dark)] shadow-lg overflow-hidden min-w-[130px]">
-                  {PRIORIDAD_OPTIONS.map((opt) => (
+                  {prioridadOptions.map((opt) => (
                     <button
                       key={opt.value || "all"}
                       onClick={() => { setPriorityFilter(opt.value); setPriorityOpen(false); }}
@@ -273,7 +273,7 @@ export default function ProyectosPage() {
                     <div key={p.id} className={cn("grid grid-cols-12 items-center px-5 py-4 transition-colors hover:bg-white/[0.04]", i < proyectos.length - 1 && "border-b border-[var(--border-dark)]")}>
                       <div className="col-span-4 min-w-0">
                         <p className="truncate text-sm font-medium text-[var(--text-primary-light)]">{p.nombre}</p>
-                        <p className="text-[10px] text-[var(--text-secondary-light)]">{p.tags || displayLabel(p.prioridad, prioridadLabel)}</p>
+                        <p className="text-[10px] text-[var(--text-secondary-light)]">{p.tags || resolveStatusLabel(t.statuses, p.prioridad ?? "")}</p>
                       </div>
                       <span className="col-span-2 truncate text-sm text-[var(--text-secondary-light)]">{p.cliente?.nombre ?? "—"}</span>
                       <div className="col-span-2"><StatusBadge estado={p.estado} /></div>
@@ -298,7 +298,7 @@ export default function ProyectosPage() {
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-[var(--text-primary-light)]">{p.nombre}</p>
-                          <p className="text-xs text-[var(--text-secondary-light)]">{p.cliente?.nombre ?? "—"} · {displayLabel(p.prioridad, prioridadLabel)}</p>
+                          <p className="text-xs text-[var(--text-secondary-light)]">{p.cliente?.nombre ?? "—"} · {resolveStatusLabel(t.statuses, p.prioridad ?? "")}</p>
                         </div>
                         <StatusBadge estado={p.estado} />
                       </div>

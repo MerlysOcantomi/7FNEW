@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { ExpandableText } from "@/components/ui/expandable-text"
 import { cn } from "@/lib/utils"
 import { apiPatch } from "@/lib/api-client"
-import { displayLabel, estadoLabel, prioridadLabel } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
+import { resolveStatusLabel } from "@core/i18n/ui"
 import { toast } from "sonner"
 import { CanDelete, CanEdit } from "@/components/role-gate"
 
@@ -113,6 +114,7 @@ export function TaskContextualPanel({
   onEdit,
   onRequestDelete,
 }: TaskContextualPanelProps) {
+  const { t } = useI18n()
   const [patching, setPatching] = useState(false)
 
   async function patchEstado(next: string) {
@@ -154,9 +156,9 @@ export function TaskContextualPanel({
             <p className="text-base font-semibold text-[var(--text-primary-light)]">{task.titulo}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", prioClass)}>
-                {displayLabel(task.prioridad ?? "", prioridadLabel)}
+                {resolveStatusLabel(t.statuses, task.prioridad ?? "")}
               </span>
-              <span className={ESTADO_BADGE}>{displayLabel(estado, estadoLabel)}</span>
+              <span className={ESTADO_BADGE}>{resolveStatusLabel(t.statuses, estado)}</span>
             </div>
           </div>
 
