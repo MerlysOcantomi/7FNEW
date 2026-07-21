@@ -309,7 +309,7 @@ function TodayWorkboardLayout({ showHero = false }: { showHero?: boolean }) {
     hero = (
       <section aria-label={wb.briefingAria} className="grid gap-5 lg:grid-cols-2">
         <TodayBriefing
-          line={buildBriefingLine(briefingCounts, partOfDay)}
+          line={buildBriefingLine(briefingCounts, partOfDay, t.today.briefing)}
           partOfDay={partOfDay}
         />
         <TodayStartHere protagonist={protagonist} onSendToAI={onSendToAI} />

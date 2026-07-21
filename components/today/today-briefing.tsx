@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 import type { PartOfDay } from "@modules/today/briefing"
 
 /**
@@ -24,11 +25,12 @@ export function TodayBriefing({
   line: string
   partOfDay: PartOfDay
 }) {
-  const label = partOfDay.charAt(0).toUpperCase() + partOfDay.slice(1)
+  const { t } = useI18n()
+  const briefing = t.today.briefing
 
   return (
     <section
-      aria-label="Daily briefing"
+      aria-label={briefing.ariaLabel}
       className="relative flex flex-col overflow-hidden rounded-[18px] border border-[var(--accent-muted-border)] bg-[var(--app-surface-dark)] p-5"
     >
       {/* Soft accent glow — decorative, static (no animation). */}
@@ -44,8 +46,9 @@ export function TodayBriefing({
           >
             <Sparkles size={14} strokeWidth={2} />
           </span>
+          {/* "Fanny" is a proper name; the part-of-day briefing label localizes. */}
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-on-dark)]">
-            Fanny · {label} briefing
+            Fanny · {briefing.eyebrow[partOfDay]}
           </span>
         </div>
         <p

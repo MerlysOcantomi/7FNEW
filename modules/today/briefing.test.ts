@@ -15,9 +15,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
+import { getUIMessages } from "@core/i18n/ui"
 import type { TodayBucketsByLane, TodayLaneBuckets } from "./lanes"
 import type { TodayItem } from "./types"
 import { buildBriefingLine, getPartOfDay, pickProtagonist } from "./briefing"
+
+/** English briefing catalog — the canonical source the assertions pin. */
+const EN = getUIMessages("en").today.briefing
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -69,6 +73,7 @@ test("briefing leads with overdue, singular copy + 'no meetings'", () => {
   const line = buildBriefingLine(
     { overdue: 1, dueToday: 3, waiting: 2, schedule: 0, ai: 0 },
     "morning",
+    EN,
   )
   assert.match(line, /^Good morning\./)
   assert.match(line, /1 overdue item /)
@@ -80,6 +85,7 @@ test("briefing pluralises overdue and surfaces real events", () => {
   const line = buildBriefingLine(
     { overdue: 2, dueToday: 0, waiting: 0, schedule: 3, ai: 0 },
     "afternoon",
+    EN,
   )
   assert.match(line, /^Good afternoon\./)
   assert.match(line, /2 overdue items/)
@@ -89,32 +95,45 @@ test("briefing pluralises overdue and surfaces real events", () => {
 
 test("briefing falls through overdue -> due today -> waiting -> clear", () => {
   assert.match(
-    buildBriefingLine({ overdue: 0, dueToday: 2, waiting: 1, schedule: 0, ai: 0 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 2, waiting: 1, schedule: 0, ai: 0 }, "morning", EN),
     /2 items are due today/,
   )
   assert.match(
-    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 1, schedule: 0, ai: 0 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 1, schedule: 0, ai: 0 }, "morning", EN),
     /1 item is waiting on others/,
   )
   assert.match(
-    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 2, ai: 0 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 2, ai: 0 }, "morning", EN),
     /just 2 events on the calendar\. Your queue is clear\./,
   )
   assert.match(
-    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 0 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 0 }, "morning", EN),
     /You're all clear\./,
   )
 })
 
 test("briefing adds an honest AI tail only when ai > 0", () => {
   assert.match(
-    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 2 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 2 }, "morning", EN),
     /7F is on 2 items alongside you\.$/,
   )
   assert.doesNotMatch(
-    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 0 }, "morning"),
+    buildBriefingLine({ overdue: 0, dueToday: 0, waiting: 0, schedule: 0, ai: 0 }, "morning", EN),
     /7F is on/,
   )
+})
+
+test("briefing renders in Spanish from the es catalog (same canonical branch)", () => {
+  const ES = getUIMessages("es").today.briefing
+  const line = buildBriefingLine(
+    { overdue: 2, dueToday: 0, waiting: 0, schedule: 3, ai: 1 },
+    "morning",
+    ES,
+  )
+  assert.match(line, /^Buenos días\./)
+  assert.match(line, /2 elementos atrasados/)
+  assert.match(line, /3 eventos en el calendario/)
+  assert.match(line, /7F está con 1 elemento junto a ti\.$/)
 })
 
 // ─── pickProtagonist ────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@
  * Kept pure so they unit-test without Prisma / React and stay reusable across
  * any future Today surface. Mirrors the `modules/today/lanes.ts` convention.
  */
+import type { TodayMessages } from "@core/i18n/ui"
 import type { TodayBucketsByLane } from "./lanes"
 import type { TodayItem } from "./types"
 
@@ -47,46 +48,43 @@ export function getPartOfDay(date: Date): PartOfDay {
   return "evening"
 }
 
-function plural(n: number, one: string, many: string): string {
-  return n === 1 ? one : many
-}
-
 /**
  * Deterministic morning-briefing line, assembled ONLY from real counts.
  *
  * Branch order matches the operator's mental model — lead with whatever is
  * most pressing (overdue → due today → waiting → calendar-only → all clear).
  * The calendar clause is honest about "no meetings today"; the optional AI
- * tail keeps a neutral verb ("is on") so proposed-but-unapproved rows are
- * never overstated as done.
+ * tail keeps a neutral verb so proposed-but-unapproved rows are never
+ * overstated as done.
+ *
+ * Copy is fully catalog-driven (I18N-TODAY-FULL-PAGE-02B): the canonical
+ * count values drive the branch; every sentence piece comes from
+ * `today.briefing` so the line renders in the viewer's locale. Pure — no I/O,
+ * no clock; the caller passes both the counts and the resolved catalog.
  */
 export function buildBriefingLine(
   counts: TodayBriefingCounts,
   partOfDay: PartOfDay,
+  briefing: TodayMessages["briefing"],
 ): string {
   const { overdue, dueToday, waiting, schedule, ai } = counts
-  const greeting = `Good ${partOfDay}.`
-
-  const meetings =
-    schedule > 0
-      ? `${schedule} ${plural(schedule, "event", "events")} on the calendar`
-      : "no meetings today"
+  const greeting = briefing.greeting[partOfDay]
+  const meetings = schedule > 0 ? briefing.meetings(schedule) : briefing.noMeetings
 
   let body: string
   if (overdue > 0) {
-    const clear = overdue === 1 ? "clear it first" : "clear the overdue work first"
-    body = `You have ${overdue} overdue ${plural(overdue, "item", "items")} and ${meetings}. I'd ${clear} — it's what's pulling the day behind.`
+    body = briefing.bodyOverdue(overdue, meetings)
   } else if (dueToday > 0) {
-    body = `${dueToday} ${plural(dueToday, "item is", "items are")} due today and ${meetings}. Start with what's due and the board stays ahead.`
+    body = briefing.bodyDueToday(dueToday, meetings)
   } else if (waiting > 0) {
-    body = `Nothing overdue or due today, and ${meetings}. ${waiting} ${plural(waiting, "item is", "items are")} waiting on others — a good moment to follow up.`
+    body = briefing.bodyWaiting(waiting, meetings)
   } else if (schedule > 0) {
-    body = `No overdue or due-today work — just ${meetings}. Your queue is clear.`
+    body = briefing.bodySchedule(meetings)
   } else {
-    body = `Nothing overdue, due today, or waiting, and no meetings. You're all clear.`
+    body = briefing.bodyAllClear
   }
 
-  const tail = ai > 0 ? ` 7F is on ${ai} ${plural(ai, "item", "items")} alongside you.` : ""
+  const tail = ai > 0 ? briefing.aiTail(ai) : ""
 
   return `${greeting} ${body}${tail}`
 }
