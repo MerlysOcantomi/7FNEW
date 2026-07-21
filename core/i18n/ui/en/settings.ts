@@ -170,6 +170,7 @@ export const settings: SettingsMessages = {
       manage_email_connections: "Manage accounts",
       connect_another_email: "Connect another email",
       review_email_connection: "Review connection",
+      activate_web_chat: "Activate web chat",
       enable_web_chat_reception: "Turn on reception",
       disable_web_chat_reception: "Turn off reception",
       open_inbox: "Open Inbox",
@@ -196,6 +197,13 @@ export const settings: SettingsMessages = {
       visitorNameLabel: "Name visitors see",
       inboxNote: "Visitor messages arrive in your Inbox as Web chat conversations.",
       updateError: "Could not update web chat reception",
+      snippetLabel: "Install snippet",
+      snippetHint:
+        "Paste this before the closing </body> tag of your website. The chat bubble appears on every page that includes it.",
+      copySnippet: "Copy snippet",
+      snippetCopied: "Copied",
+      activateHint:
+        "Activation marks the channel as live for your business. Visitor messages arrive in your Inbox, and your replies show up in the visitor's chat.",
     },
     showDetails: (channel) => `Show ${channel} details`,
     hideDetails: (channel) => `Hide ${channel} details`,

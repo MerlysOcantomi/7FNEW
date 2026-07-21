@@ -42,7 +42,7 @@ export async function GET() {
 
     const ws = await db.workspace.findUnique({
       where: { id: workspaceId },
-      select: { nombre: true, config: true, verticalKey: true, plan: true },
+      select: { nombre: true, slug: true, config: true, verticalKey: true, plan: true },
     })
 
     let verticalChannelsLayer: InboxChannelsConfigInput | null = null
@@ -109,6 +109,10 @@ export async function GET() {
 
     return successResponse({
       channels,
+      // Web chat install context: the site key IS the public workspace slug
+      // (the widget embed and the public ingest endpoint key on it), so it
+      // is not a secret — but nothing else from the workspace row travels.
+      webChat: { siteKey: ws?.slug ?? null },
       // Observational plan context (core/system/plans.ts does not enforce).
       // `connectedChannels` counts DISTINCT channels with an active
       // connection — several email mailboxes are still one channel.

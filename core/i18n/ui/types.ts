@@ -411,6 +411,7 @@ export interface SettingsMessages {
       manage_email_connections: string
       connect_another_email: string
       review_email_connection: string
+      activate_web_chat: string
       enable_web_chat_reception: string
       disable_web_chat_reception: string
       open_inbox: string
@@ -446,6 +447,13 @@ export interface SettingsMessages {
       visitorNameLabel: string
       inboxNote: string
       updateError: string
+      /** Install-snippet block (shown while available and once connected). */
+      snippetLabel: string
+      snippetHint: string
+      copySnippet: string
+      snippetCopied: string
+      /** Shown with the activate action: what activation actually does. */
+      activateHint: string
     }
     /** Disclosure a11y — embeds the channel display name. */
     showDetails: (channel: string) => string

@@ -71,12 +71,19 @@ test("every business channel resolves to exactly one view", () => {
 
 // ─── Web chat honesty ───────────────────────────────────────────────────────
 
-test("web chat WITHOUT an explicit activation signal is coming_soon with no actions", () => {
+test("web chat WITHOUT an explicit activation signal is available, never connected", () => {
   const view = viewFor(makeInput(), "web_chat")
-  assert.equal(view.status, "coming_soon")
-  assert.deepEqual(view.actions, [])
+  // The first-party widget + pull transport are a real setup flow
+  // (WEB-CHAT-CONNECTION-01), so the channel is ready to activate — but a
+  // slug/endpoint existing must never render it as already connected.
+  assert.equal(view.status, "available")
+  assert.deepEqual(
+    view.actions.map((a) => a.id),
+    ["activate_web_chat"],
+  )
   assert.equal(view.identity, null)
   assert.equal(view.canReceive, false)
+  assert.equal(view.canSend, false)
 })
 
 test("web chat explicitly enabled is connected with the business identity and a real toggle", () => {

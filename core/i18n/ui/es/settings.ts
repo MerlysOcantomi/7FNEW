@@ -179,6 +179,7 @@ export const settings: SettingsMessages = {
       manage_email_connections: "Gestionar cuentas",
       connect_another_email: "Conectar otro correo",
       review_email_connection: "Revisar conexión",
+      activate_web_chat: "Activar chat web",
       enable_web_chat_reception: "Activar recepción",
       disable_web_chat_reception: "Desactivar recepción",
       open_inbox: "Abrir Inbox",
@@ -206,6 +207,13 @@ export const settings: SettingsMessages = {
       visitorNameLabel: "Nombre que ven las visitas",
       inboxNote: "Los mensajes de las visitas llegan a tu Inbox como conversaciones de Chat web.",
       updateError: "No se pudo actualizar la recepción del chat web",
+      snippetLabel: "Código de instalación",
+      snippetHint:
+        "Pega este código antes de la etiqueta de cierre </body> de tu web. La burbuja de chat aparece en cada página que lo incluya.",
+      copySnippet: "Copiar código",
+      snippetCopied: "Copiado",
+      activateHint:
+        "La activación marca el canal como operativo para tu negocio. Los mensajes de las visitas llegan a tu Inbox y tus respuestas aparecen en el chat de la visita.",
     },
     showDetails: (channel) => `Mostrar detalles de ${channel}`,
     hideDetails: (channel) => `Ocultar detalles de ${channel}`,

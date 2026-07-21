@@ -22,10 +22,14 @@
  *     portal), but there is no client-facing portal flow the owner could
  *     configure or point customers to, so it must not render as a channel
  *     here. See `BUSINESS_CHANNEL_IDS`.
- *   - WEB CHAT is `coming_soon` unless the workspace carries an EXPLICIT
- *     activation signal (`config.inbox.webChat.enabled === true`). The
- *     public ingest endpoint existing — or the workspace having a slug —
- *     is not an installation signal. Explicit `false` renders `disabled`.
+ *   - WEB CHAT has a REAL setup flow since WEB-CHAT-CONNECTION-01: the
+ *     first-party widget (public/widget.js → /widget/chat → public send +
+ *     poll endpoints) plus a registered pull-delivery transport for
+ *     operator replies. Without the explicit activation signal
+ *     (`config.inbox.webChat.enabled === true`) it renders `available`
+ *     (install snippet + activate action) — NEVER connected: the endpoint
+ *     existing or the workspace having a slug is not an activation.
+ *     Explicit `true` renders `connected`; explicit `false`, `disabled`.
  *   - `pending` is only ever produced by a PERSISTED ChannelConnection row
  *     in a non-active lifecycle state — never synthesized.
  *
@@ -76,6 +80,7 @@ export type ChannelSetupActionId =
   | "manage_email_connections" // → /administracion/canales
   | "connect_another_email" // → /administracion/canales
   | "review_email_connection" // → /administracion/canales (error/pending row)
+  | "activate_web_chat" // PUT /api/workspace/channels/web-chat {enabled:true}
   | "enable_web_chat_reception" // PUT /api/workspace/channels/web-chat
   | "disable_web_chat_reception" // PUT /api/workspace/channels/web-chat
   | "open_inbox" // → /inbox (see conversations for a live channel)
@@ -197,11 +202,13 @@ export interface ChannelSetupInput {
 }
 
 /**
- * Channels with a REAL setup flow in the product today. Email is the only
- * one: `/administracion/canales` (EmailConnectionsManager + the
- * workspaces/[id]/connections API). WhatsApp/Instagram/Messenger/TikTok/SMS
- * have webhook routing skeletons but no way to create a connection, so they
- * must resolve `coming_soon` until their flows land.
+ * Connection-backed channels with a REAL setup flow in the product today.
+ * Email is the only one: `/administracion/canales` (EmailConnectionsManager
+ * + the workspaces/[id]/connections API). Web chat's setup flow is separate
+ * (activation signal, handled in its own branch below).
+ * WhatsApp/Instagram/Messenger/TikTok/SMS have webhook routing skeletons but
+ * no way to create a connection, so they must resolve `coming_soon` until
+ * their flows land.
  */
 const CHANNELS_WITH_SETUP_FLOW: ReadonlySet<InboxChannelId> = new Set(["email"])
 
@@ -328,9 +335,12 @@ function actionsFor(id: InboxChannelId, status: ChannelSetupStatus): ChannelSetu
     }
   }
   if (id === "web_chat") {
-    // Actions exist only once the workspace has an explicit activation
-    // signal — a "coming soon" web chat must not offer a toggle.
     switch (status) {
+      case "available":
+        // Real activation: writes the explicit signal via the existing
+        // PUT /api/workspace/channels/web-chat endpoint. The UI pairs it
+        // with the install snippet for the first-party widget.
+        return [{ id: "activate_web_chat", emphasis: "primary" }]
       case "connected":
         return [
           { id: "disable_web_chat_reception", emphasis: "secondary" },
@@ -359,14 +369,18 @@ function resolveOne(
 
   let status: ChannelSetupStatus
   if (id === "web_chat") {
-    // Connection-free, but NOT automatically live: only an explicit
-    // per-workspace activation signal may present it as connected (03B).
+    // Connection-free, but NOT automatically live: only the explicit
+    // per-workspace activation signal presents it as connected. Without it
+    // the channel is `available` — the widget + pull transport are a real,
+    // verified setup flow (install snippet, then activate).
     status =
       input.webChatActivation === "enabled" && enabled
         ? "connected"
         : input.webChatActivation === "disabled"
           ? "disabled"
-          : "coming_soon"
+          : enabled
+            ? "available"
+            : "disabled"
   } else if (!def.requiresConnection) {
     // Any future connection-free channel: never auto-connected; it must
     // bring its own activation signal before rendering as live.

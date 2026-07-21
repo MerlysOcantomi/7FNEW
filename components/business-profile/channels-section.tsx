@@ -44,6 +44,8 @@ import { cn } from "@/lib/utils"
 
 interface ChannelsPayload {
   channels: ChannelSetupView[]
+  /** Web chat install context — the siteKey is the public workspace slug. */
+  webChat: { siteKey: string | null }
   plan: {
     key: string
     label: string
@@ -208,6 +210,7 @@ export function ChannelsSection() {
                   view={view}
                   locale={locale}
                   copy={copy}
+                  webChatSiteKey={data.webChat?.siteKey ?? null}
                   expanded={expandedId === view.id}
                   onToggleExpanded={() =>
                     setExpandedId((current) => (current === view.id ? null : view.id))
@@ -231,6 +234,7 @@ function ChannelRow({
   view,
   locale,
   copy,
+  webChatSiteKey,
   expanded,
   onToggleExpanded,
   togglePending,
@@ -240,6 +244,7 @@ function ChannelRow({
   view: ChannelSetupView
   locale: string
   copy: ChannelsCopy
+  webChatSiteKey: string | null
   expanded: boolean
   onToggleExpanded: () => void
   togglePending: boolean
@@ -347,6 +352,18 @@ function ChannelRow({
               </p>
             )}
 
+            {view.id === "web_chat" && view.status === "available" && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {copy.webChat.activateHint}
+              </p>
+            )}
+
+            {view.id === "web_chat" &&
+              (view.status === "available" || live) &&
+              webChatSiteKey && (
+                <WebChatSnippet siteKey={webChatSiteKey} copy={copy} />
+              )}
+
             {view.status === "plan_locked" && (
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {copy.planLockedHint}
@@ -449,6 +466,49 @@ function EmailAccountsList({
   )
 }
 
+/**
+ * Install snippet for the first-party web chat widget. The siteKey is the
+ * public workspace slug (the same value the widget embed and the public
+ * ingest endpoint key on) — no secret travels here. The origin comes from
+ * the current app host: the widget script is served by this deployment.
+ */
+function WebChatSnippet({ siteKey, copy }: { siteKey: string; copy: ChannelsCopy }) {
+  const [copied, setCopied] = useState(false)
+  const origin = typeof window !== "undefined" ? window.location.origin : ""
+  const snippet = `<script src="${origin}/widget.js" data-key="${siteKey}" async></script>`
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(snippet)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // Clipboard unavailable (permissions/http): the code stays selectable.
+    }
+  }
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-foreground">{copy.webChat.snippetLabel}</h3>
+      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+        {copy.webChat.snippetHint}
+      </p>
+      <div className="mt-2 rounded-lg border border-border/60 bg-card px-3 py-2.5 overflow-x-auto">
+        <code className="block whitespace-pre text-[11px] leading-relaxed text-foreground select-all">
+          {snippet}
+        </code>
+      </div>
+      <button
+        type="button"
+        onClick={copyToClipboard}
+        className="mt-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+      >
+        {copied ? copy.webChat.snippetCopied : copy.webChat.copySnippet}
+      </button>
+    </div>
+  )
+}
+
 /** Account lifecycle states reuse the channel status vocabulary/copy. */
 function accountStatusToChannelStatus(
   status: EmailAccountView["status"],
@@ -519,6 +579,7 @@ function ChannelAction({
   }
 
   if (
+    action.id === "activate_web_chat" ||
     action.id === "enable_web_chat_reception" ||
     action.id === "disable_web_chat_reception"
   ) {
@@ -526,7 +587,7 @@ function ChannelAction({
       <button
         type="button"
         disabled={pending}
-        onClick={() => onSetWebChatReception(action.id === "enable_web_chat_reception")}
+        onClick={() => onSetWebChatReception(action.id !== "disable_web_chat_reception")}
         className={className}
       >
         {pending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
