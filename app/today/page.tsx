@@ -2,6 +2,7 @@
 
 import { AppShell } from "@/components/app-shell"
 import { TodayPageClient } from "@/components/today/today-page-client"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * `/today` — read-only unified daily view.
@@ -24,9 +25,10 @@ import { TodayPageClient } from "@/components/today/today-page-client"
  * width on smaller screens, so this is a no-op below ~1280px.
  */
 export default function TodayPage() {
+  const { t } = useI18n()
   return (
     <AppShell
-      breadcrumbs={[{ label: "7F" }, { label: "Today" }]}
+      breadcrumbs={[{ label: "7F" }, { label: t.nav.today }]}
       contentClassName="max-w-7xl"
     >
       {/* Header is the workboard's own summary bar (TodayPageClient) — no
