@@ -555,6 +555,61 @@ export interface TodayMessages {
       }
     }
   }
+  /**
+   * "Start Here" protagonist hero (work_first_v2 preview). Structural product
+   * copy only — the protagonist's `item.title` is user content, rendered
+   * verbatim. `why*` lines take the already-localized date/time fragment so
+   * word order stays natural per language.
+   */
+  startHere: {
+    eyebrow: string
+    ariaLabel: string
+    allClearTitle: string
+    allClearBody: string
+    openTask: string
+    sendToAI: string
+    /** Reason badges — reuse the same concepts as `workboard.sections`. */
+    badges: { overdue: string; today: string; waiting: string; undated: string }
+    /** Bare source labels for the protagonist row. */
+    source: {
+      inbox: string
+      projectFallback: string
+      fromProject: (name: string) => string
+      manual: string
+      calendar: string
+    }
+    /** Explanation line per reason; date/time fragments arrive pre-formatted. */
+    why: {
+      overdue: (since: string) => string
+      today: (at: string) => string
+      waiting: string
+      undated: string
+    }
+    /** " since 5 Jun" / " at 4:00 PM" fragments (leading space intentional). */
+    sinceDate: (formatted: string) => string
+    atTime: (formatted: string) => string
+  }
+  /**
+   * Fanny morning briefing (work_first_v2 preview). `buildBriefingLine`
+   * composes a deterministic sentence from REAL counts via these pieces — the
+   * canonical count values drive the branch; only the copy localizes. "Fanny"
+   * is a proper name and lives in the component, never here.
+   */
+  briefing: {
+    ariaLabel: string
+    /** Eyebrow suffix per part of day: rendered as `Fanny · {eyebrow}`. */
+    eyebrow: { morning: string; afternoon: string; evening: string }
+    /** Full greeting per part of day (not a template — grammar varies). */
+    greeting: { morning: string; afternoon: string; evening: string }
+    meetings: (count: number) => string
+    noMeetings: string
+    bodyOverdue: (overdue: number, meetings: string) => string
+    bodyDueToday: (dueToday: number, meetings: string) => string
+    bodyWaiting: (waiting: number, meetings: string) => string
+    bodySchedule: (meetings: string) => string
+    bodyAllClear: string
+    aiTail: (ai: number) => string
+  }
 }
 
 /**

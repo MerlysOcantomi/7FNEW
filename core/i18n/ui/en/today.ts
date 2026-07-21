@@ -111,4 +111,49 @@ export const today: TodayMessages = {
       },
     },
   },
+  startHere: {
+    eyebrow: "Start here · now",
+    ariaLabel: "Start here",
+    allClearTitle: "You're all clear",
+    allClearBody:
+      "Nothing needs you right now. New work and AI proposals will surface here as the day moves.",
+    openTask: "Open task",
+    sendToAI: "Send to AI",
+    badges: { overdue: "Overdue", today: "Due today", waiting: "Waiting", undated: "No date" },
+    source: {
+      inbox: "From Inbox · assigned to you",
+      projectFallback: "From a project",
+      fromProject: (name) => `From ${name}`,
+      manual: "Task",
+      calendar: "From Calendar",
+    },
+    why: {
+      overdue: (since) => `Overdue${since} — clearing it resets your board and gets the day moving.`,
+      today: (at) => `Due today${at}. The clearest win on the board right now.`,
+      waiting: "Waiting on someone else. A quick nudge keeps it from stalling the day.",
+      undated: "No due date yet — a good one to close while the day is open.",
+    },
+    sinceDate: (formatted) => ` since ${formatted}`,
+    atTime: (formatted) => ` at ${formatted}`,
+  },
+  briefing: {
+    ariaLabel: "Daily briefing",
+    eyebrow: { morning: "Morning briefing", afternoon: "Afternoon briefing", evening: "Evening briefing" },
+    greeting: { morning: "Good morning.", afternoon: "Good afternoon.", evening: "Good evening." },
+    meetings: (count) => `${count} ${count === 1 ? "event" : "events"} on the calendar`,
+    noMeetings: "no meetings today",
+    bodyOverdue: (overdue, meetings) =>
+      `You have ${overdue} overdue ${overdue === 1 ? "item" : "items"} and ${meetings}. I'd ${
+        overdue === 1 ? "clear it first" : "clear the overdue work first"
+      } — it's what's pulling the day behind.`,
+    bodyDueToday: (dueToday, meetings) =>
+      `${dueToday} ${dueToday === 1 ? "item is" : "items are"} due today and ${meetings}. Start with what's due and the board stays ahead.`,
+    bodyWaiting: (waiting, meetings) =>
+      `Nothing overdue or due today, and ${meetings}. ${waiting} ${
+        waiting === 1 ? "item is" : "items are"
+      } waiting on others — a good moment to follow up.`,
+    bodySchedule: (meetings) => `No overdue or due-today work — just ${meetings}. Your queue is clear.`,
+    bodyAllClear: "Nothing overdue, due today, or waiting, and no meetings. You're all clear.",
+    aiTail: (ai) => ` 7F is on ${ai} ${ai === 1 ? "item" : "items"} alongside you.`,
+  },
 }

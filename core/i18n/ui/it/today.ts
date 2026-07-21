@@ -111,4 +111,49 @@ export const today: TodayMessages = {
       },
     },
   },
+  startHere: {
+    eyebrow: "Inizia qui · ora",
+    ariaLabel: "Inizia qui",
+    allClearTitle: "Sei in pari",
+    allClearBody:
+      "Al momento non c'è nulla che ti richieda. Il nuovo lavoro e le proposte dell'IA compariranno qui man mano che la giornata procede.",
+    openTask: "Apri attività",
+    sendToAI: "Affida all'IA",
+    badges: { overdue: "In ritardo", today: "Per oggi", waiting: "In attesa", undated: "Senza data" },
+    source: {
+      inbox: "Dalla posta · assegnata a te",
+      projectFallback: "Da un progetto",
+      fromProject: (name) => `Da ${name}`,
+      manual: "Attività",
+      calendar: "Dal calendario",
+    },
+    why: {
+      overdue: (since) => `In ritardo${since} — risolverla riordina la tua bacheca e rimette in moto la giornata.`,
+      today: (at) => `Per oggi${at}. In questo momento è la vittoria più chiara della bacheca.`,
+      waiting: "In attesa di qualcun altro. Un rapido sollecito evita che blocchi la giornata.",
+      undated: "Ancora senza scadenza — una buona da chiudere finché la giornata è aperta.",
+    },
+    sinceDate: (formatted) => ` dal ${formatted}`,
+    atTime: (formatted) => ` alle ${formatted}`,
+  },
+  briefing: {
+    ariaLabel: "Resoconto giornaliero",
+    eyebrow: { morning: "resoconto del mattino", afternoon: "resoconto del pomeriggio", evening: "resoconto della sera" },
+    greeting: { morning: "Buongiorno.", afternoon: "Buon pomeriggio.", evening: "Buonasera." },
+    meetings: (count) => `${count} ${count === 1 ? "evento" : "eventi"} in calendario`,
+    noMeetings: "nessuna riunione oggi",
+    bodyOverdue: (overdue, meetings) =>
+      `Hai ${overdue} ${overdue === 1 ? "elemento in ritardo" : "elementi in ritardo"} e ${meetings}. Io ${
+        overdue === 1 ? "lo risolverei per primo" : "risolverei prima gli arretrati"
+      } — è ciò che frena la giornata.`,
+    bodyDueToday: (dueToday, meetings) =>
+      `${dueToday} ${dueToday === 1 ? "elemento scade" : "elementi scadono"} oggi e ${meetings}. Inizia da ciò che scade e la bacheca resta avanti.`,
+    bodyWaiting: (waiting, meetings) =>
+      `Niente in ritardo né per oggi, e ${meetings}. ${waiting} ${
+        waiting === 1 ? "elemento è" : "elementi sono"
+      } in attesa di altri — un buon momento per fare un sollecito.`,
+    bodySchedule: (meetings) => `Nessun lavoro in ritardo o per oggi — solo ${meetings}. La tua coda è libera.`,
+    bodyAllClear: "Niente in ritardo, per oggi o in attesa, e nessuna riunione. Sei in pari.",
+    aiTail: (ai) => ` 7F si occupa di ${ai} ${ai === 1 ? "elemento" : "elementi"} al tuo fianco.`,
+  },
 }
