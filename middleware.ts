@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
+import { planHostRewrite, appHostsFromEnv } from "@engines/presence/host-routing"
 
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
@@ -10,7 +11,7 @@ const CLIENT_COOKIE = "7f-client-session"
  * tenant from [provider, providerAccountId] and currently answers
  * accepted:false — real integrations add per-provider signature checks.
  */
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget"]
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 function isPublic(pathname: string): boolean {
@@ -61,6 +62,27 @@ function isPlatformPath(p: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  /**
+   * Sevenef Presence custom-domain routing (PRESENCE-03). SAFE-BY-DEFAULT:
+   * `planHostRewrite` returns null (no-op) unless a canonical app host is
+   * configured (`NEXT_PUBLIC_APP_URL`/`NEXTAUTH_URL`/`VERCEL_URL`) AND the
+   * request is on a genuinely EXTERNAL host and a non-internal path. The app's
+   * own hosts, `*.vercel.app`, `localhost`, and all internal/api/static/auth
+   * paths are never rewritten — so existing routes, cookies and subdomains are
+   * untouched. The rewritten `/sites/by-host/<host>` route resolves the site
+   * only through a VERIFIED domain.
+   */
+  const hostRewrite = planHostRewrite({
+    hostHeader: request.headers.get("host"),
+    pathname,
+    appHosts: appHostsFromEnv(process.env as Record<string, string | undefined>),
+  })
+  if (hostRewrite) {
+    const url = request.nextUrl.clone()
+    url.pathname = hostRewrite.rewritePath
+    return NextResponse.rewrite(url)
+  }
 
   if (isPublic(pathname)) return NextResponse.next()
 
