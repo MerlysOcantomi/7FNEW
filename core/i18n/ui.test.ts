@@ -326,6 +326,53 @@ test("agents: de/fr/it are real translations of the page, not English copies", (
   }
 })
 
+// ─── Today full page (I18N-TODAY-FULL-PAGE-02B) ─────────────────────────────────
+
+test("today.startHere + today.briefing: complete and non-empty in all five locales", () => {
+  const PARTS = ["morning", "afternoon", "evening"] as const
+  for (const code of ALL_LOCALES) {
+    const today = getUIMessages(code).today
+    const sh = today.startHere
+    for (const s of [
+      sh.eyebrow, sh.ariaLabel, sh.allClearTitle, sh.allClearBody, sh.openTask, sh.sendToAI,
+      sh.badges.overdue, sh.badges.today, sh.badges.waiting, sh.badges.undated,
+      sh.source.inbox, sh.source.projectFallback, sh.source.manual, sh.source.calendar,
+      sh.why.waiting, sh.why.undated,
+    ]) {
+      assert.equal(typeof s, "string")
+      assert.ok(s.length > 0, `${code}: empty startHere string`)
+    }
+    assert.ok(sh.source.fromProject("Aurora").includes("Aurora"), `${code}: project name not preserved`)
+    assert.ok(sh.why.overdue(" X").length > 0 && sh.why.today(" X").length > 0)
+    assert.ok(sh.sinceDate("5 Jun").includes("5 Jun"))
+    assert.ok(sh.atTime("4:00").includes("4:00"))
+
+    const b = today.briefing
+    assert.ok(b.ariaLabel.length > 0 && b.noMeetings.length > 0 && b.bodyAllClear.length > 0)
+    for (const part of PARTS) {
+      assert.ok(b.eyebrow[part].length > 0, `${code}.briefing.eyebrow.${part} empty`)
+      assert.ok(b.greeting[part].length > 0, `${code}.briefing.greeting.${part} empty`)
+    }
+    assert.ok(b.meetings(3).includes("3"))
+    assert.ok(b.bodyOverdue(2, "X").includes("2") && b.bodyOverdue(2, "X").includes("X"))
+    assert.ok(b.bodyDueToday(1, "X").includes("1"))
+    assert.ok(b.bodyWaiting(4, "X").includes("4"))
+    assert.ok(b.bodySchedule("X").includes("X"))
+    assert.ok(b.aiTail(2).includes("2"))
+  }
+})
+
+test("today full page: de/fr/it are real translations, not English copies", () => {
+  const en = getUIMessages("en").today
+  for (const code of ["de", "fr", "it"] as const) {
+    const t = getUIMessages(code).today
+    assert.notEqual(t.startHere.allClearTitle, en.startHere.allClearTitle, `${code} allClear not translated`)
+    assert.notEqual(t.startHere.openTask, en.startHere.openTask, `${code} openTask not translated`)
+    assert.notEqual(t.briefing.greeting.morning, en.briefing.greeting.morning, `${code} greeting not translated`)
+    assert.notEqual(t.briefing.bodyAllClear, en.briefing.bodyAllClear, `${code} briefing body not translated`)
+  }
+})
+
 test("getUIMessages: complete catalogs with no empty strings for ALL five locales", () => {
   const walk = (value: unknown, path: string) => {
     if (typeof value === "string") {
