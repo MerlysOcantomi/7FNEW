@@ -239,14 +239,23 @@ functional common template.
 - **Managed slug:** `app/sites/[slug]/page.tsx` → `/sites/<slug>`. Added `/sites`
   to `middleware.ts` `PUBLIC_PATHS` (anonymous-safe; the root layout tolerates no
   auth). Nested under the root layout — no separate root layout needed.
-- **Verified custom domain:** `app/sites/by-host/[host]/page.tsx`. The middleware
-  performs a SAFE-BY-DEFAULT rewrite (`engines/presence/host-routing.ts`,
-  `planHostRewrite`): it is a **no-op unless a canonical app host is configured**
-  (`NEXT_PUBLIC_APP_URL`/`NEXTAUTH_URL`/`VERCEL_URL`) AND the request is on a
-  genuinely external host + non-internal path. The app's own hosts,
-  `*.vercel.app`, `localhost`, IPs and all internal/api/static/auth paths are
-  never rewritten, so existing routes, cookies and subdomains are untouched. Pure
-  and fully tested (`host-routing.test.ts`). DNS/TLS onboarding is out of scope.
+- **Verified custom domain:** `app/sites/by-host/[host]/page.tsx`, reachable via
+  the explicit `/sites/by-host/<host>` path, which resolves a site ONLY through
+  an exact-match, VERIFIED `PresenceDomain` (`findSiteByHostname`); pending /
+  disabled / unknown → 404.
+
+  **Custom-domain AUTO-routing from the middleware is intentionally DISCONNECTED.**
+  A first attempt rewrote "any host not in an env allowlist" into
+  `/sites/by-host/<host>`, which hijacked the app's own production domain
+  (`sevenef.com`) whenever that host was not present in
+  `NEXT_PUBLIC_APP_URL`/`VERCEL_URL` — since Vercel only exposes the `*.vercel.app`
+  `VERCEL_URL`, the real domain looked "external" and was sent to Presence. That
+  rewrite was removed. The middleware now performs NO host-based routing;
+  `middleware.test.ts` locks this in (sevenef.com, www.sevenef.com, localhost,
+  Vercel hosts and unknown hosts are never routed to Presence). A safe redesign —
+  an explicit reserved-domains policy + exact match against `PresenceDomain` at
+  request time — is deferred (see §5 risks). DNS/TLS onboarding remains out of
+  scope.
 
 ### Renderer
 
