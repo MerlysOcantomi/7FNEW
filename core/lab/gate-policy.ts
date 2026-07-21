@@ -123,3 +123,24 @@ export function decideLabGate(input: LabGateInput): LabGateDecision {
 export function isLabNamespacePath(pathname: string): boolean {
   return pathname === "/lab" || pathname.startsWith("/lab/")
 }
+
+export type LabProjectConfigResult =
+  | { ready: true }
+  | { ready: false; reason: Exclude<LabGateDenyReason, "missing-host" | "host-not-allowed"> }
+
+/**
+ * Config-level gate readiness WITHOUT a request host (DEV-PREVIEW-01D preflight).
+ * Runs every `decideLabGate` check except the live hostname match, which is an
+ * HTTP-only concern. Lets an admin CLI confirm project/flag/env/allowlist wiring
+ * before a deployment exists; the actual host match must still be smoke-tested.
+ */
+export function evaluateLabProjectConfig(
+  input: Omit<LabGateInput, "requestHost">,
+): LabProjectConfigResult {
+  const probe = decideLabGate({ ...input, requestHost: "__preflight_no_host__" })
+  if (probe.allowed) return { ready: true }
+  // The only failures a missing real host can cause are host-related; treat
+  // reaching the host stage as "config ready".
+  if (probe.reason === "missing-host" || probe.reason === "host-not-allowed") return { ready: true }
+  return { ready: false, reason: probe.reason }
+}

@@ -2,10 +2,61 @@ import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import test from "node:test"
 import {
+  assertTursoUrlAllowed,
   computeTursoFingerprint,
   normalizeTursoUrl,
   verifyTursoFingerprint,
 } from "./database-fingerprint"
+
+const DEPLOYMENT = { VERCEL_ENV: "production" }
+const LOCAL_OPTIN = { SEVENEF_LAB_LOCAL_DEV_ENABLED: "true" }
+const LOCAL_NO_OPTIN = {}
+
+test("deployment: libsql:// allowed", () => {
+  assert.deepEqual(assertTursoUrlAllowed("libsql://demo.turso.io", DEPLOYMENT), { ok: true })
+})
+
+test("deployment: https:// allowed", () => {
+  assert.deepEqual(assertTursoUrlAllowed("https://demo.turso.io", DEPLOYMENT), { ok: true })
+})
+
+test("deployment: file: rejected", () => {
+  assert.deepEqual(assertTursoUrlAllowed("file:/data/dev.db", DEPLOYMENT), {
+    ok: false,
+    reason: "local-url-in-deployment",
+  })
+})
+
+test("deployment: http://localhost rejected", () => {
+  assert.deepEqual(assertTursoUrlAllowed("http://localhost:8080", DEPLOYMENT), {
+    ok: false,
+    reason: "local-url-in-deployment",
+  })
+})
+
+test("local opt-in: file: allowed", () => {
+  assert.deepEqual(assertTursoUrlAllowed("file:/data/dev.db", LOCAL_OPTIN), { ok: true })
+})
+
+test("local opt-in: http://127.0.0.1 allowed", () => {
+  assert.deepEqual(assertTursoUrlAllowed("http://127.0.0.1:8080", LOCAL_OPTIN), { ok: true })
+})
+
+test("no local opt-in: local URL rejected", () => {
+  assert.deepEqual(assertTursoUrlAllowed("file:/data/dev.db", LOCAL_NO_OPTIN), {
+    ok: false,
+    reason: "local-url-not-opted-in",
+  })
+})
+
+test("remote http (non-localhost) is never accepted", () => {
+  assert.equal(assertTursoUrlAllowed("http://evil.example.com", LOCAL_OPTIN).ok, false)
+  assert.equal(assertTursoUrlAllowed("http://evil.example.com", DEPLOYMENT).ok, false)
+})
+
+test("unsupported scheme rejected regardless of context", () => {
+  assert.deepEqual(assertTursoUrlAllowed("ftp://x", DEPLOYMENT), { ok: false, reason: "unsupported-scheme" })
+})
 
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex")
 

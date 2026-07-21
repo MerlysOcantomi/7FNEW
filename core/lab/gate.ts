@@ -33,3 +33,13 @@ export async function requireLabAvailability(): Promise<void> {
   const decision = await getLabGateDecision()
   if (!decision.allowed) notFound()
 }
+
+/**
+ * True iff this request is served by the authorized Mr Forte Lab deployment
+ * (DEV-PREVIEW-01D). Used to isolate Google OAuth: it is derived from the full
+ * gate (project id + host + env + flags), never from a public variable.
+ */
+export async function isLabDeployment(): Promise<boolean> {
+  const decision = await getLabGateDecision()
+  return decision.allowed
+}

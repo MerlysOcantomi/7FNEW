@@ -56,6 +56,14 @@ test("database unreachable → database-unavailable", () => {
   assert.deepEqual(evaluateLabDemoEnvironment({ ...VALID, dbReachable: false }), denied("database-unavailable"))
 })
 
+test("local URL on a deployment (urlContextOk false) → database-unavailable, before connecting", () => {
+  assert.deepEqual(evaluateLabDemoEnvironment({ ...VALID, urlContextOk: false }), denied("database-unavailable"))
+})
+
+test("urlContextOk undefined is treated as allowed (01C compatibility)", () => {
+  assert.equal(evaluateLabDemoEnvironment({ ...VALID, urlContextOk: undefined }).allowed, true)
+})
+
 test("too many workspaces → unsafe-database", () => {
   assert.deepEqual(evaluateLabDemoEnvironment({ ...VALID, workspaceCount: 2 }), denied("unsafe-database"))
 })

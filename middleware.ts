@@ -3,6 +3,7 @@ import { jwtVerify } from "jose"
 import { decideLabGate, isLabNamespacePath } from "@core/lab/gate-policy"
 import { readLabGateEnv } from "@core/lab/config"
 import { isStaticAssetPath } from "@core/http/public-paths"
+import { decideOnMissingSecret } from "@core/auth/secret-guard"
 
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
@@ -143,8 +144,14 @@ export async function middleware(request: NextRequest) {
   // Internal routes — Google OAuth authentication
   const secret = getSecret()
   if (!secret) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.next()
+    // FAIL CLOSED (DEV-PREVIEW-01D). A protected route must never be reachable
+    // because AUTH_SECRET is missing. Public assets, public paths and the /lab
+    // namespace were already allowed above, so this path is protected.
+    if (decideOnMissingSecret(pathname) === "block-api") {
+      return NextResponse.json(
+        { success: false, error: { code: "SERVICE_UNAVAILABLE" } },
+        { status: 503 },
+      )
     }
     return NextResponse.redirect(new URL("/login?error=config", request.url))
   }

@@ -13,7 +13,7 @@
  */
 
 import { readLabDataConfig, type LabDataConfigError } from "./data-config"
-import { verifyTursoFingerprint } from "./database-fingerprint"
+import { assertTursoUrlAllowed, verifyTursoFingerprint } from "./database-fingerprint"
 import {
   LAB_DEMO_DATASET_MINIMUMS,
   LAB_DEMO_IDENTITY,
@@ -52,6 +52,12 @@ export type LabDemoEnvironmentInput = {
   /** null when the data config validated; otherwise its error. */
   configError: LabDataConfigError | null
   fingerprintOk: boolean
+  /**
+   * Whether the Turso URL scheme is allowed for the current context
+   * (DEV-PREVIEW-01D). `false` = a local URL on a deployment → fail closed
+   * BEFORE connecting. Optional; `undefined` is treated as allowed.
+   */
+  urlContextOk?: boolean
   dbReachable: boolean
   workspaceCount: number
   foreignUserCount: number
@@ -82,6 +88,8 @@ export function evaluateLabDemoEnvironment(
   if (input.configError === "disabled") return deny("disabled")
   if (input.configError !== null) return deny("invalid-configuration")
   if (!input.fingerprintOk) return deny("database-fingerprint-mismatch")
+  // A local (file:/http:) URL on a deployment fails closed before connecting.
+  if (input.urlContextOk === false) return deny("database-unavailable")
   if (!input.dbReachable) return deny("database-unavailable")
 
   // 4. Safety guard: only the demo workspace + the synthetic user may exist.
@@ -183,12 +191,14 @@ export async function assessLabDemoEnvironment(
   }
   const config = configResult.config
 
-  const fingerprintOk = verifyTursoFingerprint(
-    env.TURSO_DATABASE_URL ?? env.DATABASE_URL,
-    config.expectedDbFingerprint,
-  )
+  const rawUrl = env.TURSO_DATABASE_URL ?? env.DATABASE_URL
+  const fingerprintOk = verifyTursoFingerprint(rawUrl, config.expectedDbFingerprint)
   if (!fingerprintOk) {
     return evaluateLabDemoEnvironment({ ...baseInput(null), fingerprintOk: false })
+  }
+  // Protocol policy: refuse a local URL on a deployment BEFORE connecting.
+  if (!assertTursoUrlAllowed(rawUrl, env).ok) {
+    return evaluateLabDemoEnvironment({ ...baseInput(null), fingerprintOk: true, urlContextOk: false })
   }
 
   try {

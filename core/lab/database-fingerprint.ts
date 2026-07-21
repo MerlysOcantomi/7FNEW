@@ -49,6 +49,66 @@ export function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex")
 }
 
+/**
+ * Context-aware protocol policy (DEV-PREVIEW-01D). 01C accepted `file:` and
+ * `http:` so local development could point at a file/localhost database. In a
+ * real deployment those must be refused BEFORE connecting — only a remote
+ * `libsql:`/`https:` Turso URL is allowed. Local schemes are permitted only
+ * when the explicit local-dev opt-in is on AND we are not on a deployment.
+ */
+export type TursoUrlPolicyResult =
+  | { ok: true }
+  | {
+      ok: false
+      reason: "empty" | "invalid-url" | "unsupported-scheme" | "local-url-in-deployment" | "local-url-not-opted-in"
+    }
+
+const REMOTE_SCHEMES = new Set(["libsql:", "https:"])
+const LOCAL_SCHEMES = new Set(["file:", "http:"])
+
+function isLocalHttpHost(host: string): boolean {
+  const h = host.toLowerCase()
+  return h === "localhost" || h.startsWith("localhost:") || h === "127.0.0.1" || h.startsWith("127.0.0.1:")
+}
+
+/**
+ * Whether `rawUrl` may be used given the environment. Deployment vs local is
+ * derived from the same signals as the 01A gate: a deployment is VERCEL_ENV in
+ * {production, preview}; local requires SEVENEF_LAB_LOCAL_DEV_ENABLED==="true"
+ * with VERCEL_ENV absent/development. Pure and env-injected.
+ */
+export function assertTursoUrlAllowed(
+  rawUrl: string | undefined | null,
+  env: Record<string, string | undefined>,
+): TursoUrlPolicyResult {
+  if (typeof rawUrl !== "string" || rawUrl.trim().length === 0) return { ok: false, reason: "empty" }
+  let url: URL
+  try {
+    url = new URL(rawUrl.trim())
+  } catch {
+    return { ok: false, reason: "invalid-url" }
+  }
+  if (!REMOTE_SCHEMES.has(url.protocol) && !LOCAL_SCHEMES.has(url.protocol)) {
+    return { ok: false, reason: "unsupported-scheme" }
+  }
+
+  const vercelEnv = env.VERCEL_ENV
+  const isDeployment = vercelEnv === "production" || vercelEnv === "preview" || env.VERCEL === "1"
+  const localOptIn =
+    env.SEVENEF_LAB_LOCAL_DEV_ENABLED === "true" && (vercelEnv === undefined || vercelEnv === "development")
+
+  if (REMOTE_SCHEMES.has(url.protocol)) return { ok: true }
+
+  // Local scheme (file: / http:).
+  if (url.protocol === "http:" && !isLocalHttpHost(url.host)) {
+    // Remote http is never acceptable (would be plaintext to a remote host).
+    return { ok: false, reason: isDeployment ? "local-url-in-deployment" : "unsupported-scheme" }
+  }
+  if (isDeployment) return { ok: false, reason: "local-url-in-deployment" }
+  if (!localOptIn) return { ok: false, reason: "local-url-not-opted-in" }
+  return { ok: true }
+}
+
 /** SHA-256 of the normalized URL, or null if the URL cannot be normalized. */
 export function computeTursoFingerprint(raw: string | undefined | null): string | null {
   const normalized = normalizeTursoUrl(raw)

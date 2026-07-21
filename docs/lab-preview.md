@@ -1,7 +1,8 @@
 # Mr Forte Lab Preview — deployment & security
 
-Status after `DEV-PREVIEW-01A`: gate + namespace only. No access flow, no
-identity, no demo data yet. Design background: `docs/lab-preview-audit.md`.
+Design background: `docs/lab-preview-audit.md`. Three defence layers (gate →
+access key → demo database/session) are described below, followed by the
+DEV-PREVIEW-01D operational runbook.
 
 ## Purpose
 
@@ -318,3 +319,112 @@ with no leak; gate-open no-session → `/lab/enter` without catalog leak; wrong
 key → generic error, no cookie; correct key → catalog + lab cookie and NO
 `7f-session`/`wf_workspace`; exit clears the cookie; and `/today`, `/api/*`,
 `/laboratory` remain protected exactly as before.
+
+---
+
+# Operational runbook (DEV-PREVIEW-01D)
+
+The Lab runs on a **dedicated Vercel project** connected to this repository and
+an **isolated demo Turso database**. Sevenef Production and Mr Forte Lab never
+share secrets, database or Google OAuth. The table below is the contract.
+
+## Project / secret matrix
+
+| Variable        | Sevenef Production | Mr Forte Lab  |
+| --------------- | -----------------: | ------------: |
+| Lab flags       |           Absent   |     Present   |
+| `AUTH_SECRET`   |         Production | Lab-exclusive |
+| Turso URL       |         Production |          Demo |
+| Turso token     |         Production |          Demo |
+| Google OAuth    |            Present |        Absent |
+
+Never copy variables between projects (`vercel env pull` from Production, `.env`
+copies, secret cloning). Never seed from Production Turso.
+
+## Additional 01D hardening (already in code)
+
+- **Turso protocol policy** (`assertTursoUrlAllowed`): on a deployment only
+  `libsql:`/`https:` remote URLs are accepted; `file:`/`http:` (and remote
+  `http:`) fail closed BEFORE connecting. `file:`/`localhost` are allowed only
+  under the explicit local-dev opt-in with no `VERCEL_ENV`. The fingerprint is
+  still mandatory; the URL/token are never logged.
+- **Google OAuth isolation** (`core/lab/oauth-policy.ts` + `isLabDeployment()`):
+  on the authorized Lab deployment `/login` redirects to `/lab/enter`, the
+  Google button never renders, and `/api/auth/login/google` +
+  `/api/auth/callback/google` return 404. Derived from the private gate
+  (project id verified), never a public var, never `DISABLE_GOOGLE_AUTH`.
+  Production is unchanged. Missing Google secrets never break the build.
+- **`AUTH_SECRET` fail-closed** (`core/auth/secret-guard.ts` + middleware): a
+  protected API with no `AUTH_SECRET` returns a generic **503** (never reaches
+  the handler); protected pages get a safe unavailability redirect to the
+  public `/login?error=config` (no loop). Public assets, `/login`, `/lab/enter`,
+  `/_next`, `/_vercel` and metadata icons stay reachable.
+
+## Deployment Protection & WAF (manual, Vercel dashboard/CLI)
+
+These are external to the code and MUST be configured + smoke-tested on the
+running deployment (`lab:preflight` cannot assert them):
+
+- **Deployment Protection**: prefer *Vercel Authentication → All Deployments*
+  for internal use; *Password Protection* for external reviewers (that password
+  must differ from the `/lab/enter` key, `AUTH_SECRET`, the token secret and the
+  Turso token). Do NOT use Protection Exceptions, public Shareable Links,
+  query-param bypasses, `--public` or broad exclusions for routine access.
+  A protected Preview URL does NOT imply the Production domain is protected —
+  test the domain in a private window before trusting it.
+- **WAF rate limit on `POST /lab/enter`**: rule `path = /lab/enter` +
+  `method = POST`, key = IP, **10 requests / 10 minutes → 429**. Roll out in
+  Log/observe mode first, confirm the real path Vercel receives (Server Actions
+  may issue >1 request per attempt — adjust the threshold accordingly), verify a
+  normal entry is not blocked, then enable, confirm 429 past the threshold and
+  recovery after the window. No in-memory limiter is added to the app.
+
+## Initial deployment
+
+1. Create the dedicated Vercel project (`sevenef-mr-forte-lab`), same repo,
+   Next.js, System Environment Variables enabled. Do NOT import Production vars.
+2. Create the demo Turso database (clearly named demo) and a token scoped to
+   that database (never an admin/global token).
+3. Apply the schema to the demo DB (`npx prisma db push`).
+4. Compute the fingerprint:
+   `npx tsx -e "import {computeTursoFingerprint} from './core/lab/database-fingerprint.ts'; console.log(computeTursoFingerprint(process.env.TURSO_DATABASE_URL))"`.
+5. Set the Lab variables (Sensitive where possible) in the Lab project only:
+   the gate vars, the access vars, the data vars, a Lab-exclusive `AUTH_SECRET`,
+   and the demo `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`. Capture the real
+   `VERCEL_PROJECT_ID` into `SEVENEF_LAB_EXPECTED_PROJECT_ID` (never in Git).
+6. Add the exact deployment hostname to `SEVENEF_LAB_ALLOWED_HOSTS` (no
+   wildcards). Redeploy so the new deployment receives the variables.
+7. `npm run lab:provision-demo` (twice — idempotent), then
+   `npm run lab:verify-demo` and `npm run lab:preflight` (all READY).
+8. Enable Deployment Protection + the WAF rule; run the remote smoke matrix.
+
+## Normal operation
+
+- Check status: `lab:verify-demo` / `lab:preflight`.
+- Regenerate dataset: `lab:provision-demo` (idempotent; updates in place).
+- Change the access key: recompute `SEVENEF_LAB_ACCESS_KEY_SHA256`, update the
+  Lab var, redeploy. Old key stops working immediately.
+- Revoke sessions / rotate secrets: rotate `SEVENEF_LAB_ACCESS_TOKEN_SECRET`
+  and/or `AUTH_SECRET` and redeploy — all existing lab access + app sessions
+  become invalid.
+- Rotate the Turso token: issue a new token for the demo DB, update the Lab var,
+  redeploy; revoke the old token.
+
+## Emergency shutdown
+
+1. Set `SEVENEF_LAB_PREVIEW_ENABLED=false` (gate closes → `/lab` 404 everywhere).
+2. Redeploy.
+3. Remove any Deployment Protection bypasses if they were ever created.
+4. Revoke the demo Turso token.
+5. Pause or delete the Lab deployment if required.
+
+## Recovery
+
+Recreate the demo DB → apply schema → `lab:provision-demo` → `lab:verify-demo`
+→ redeploy. Never restore a Production backup into the demo database.
+
+## Do NOT configure in the Lab project
+
+Production `AUTH_SECRET`, Production Turso URL/token, Production Google OAuth
+credentials, `DISABLE_GOOGLE_AUTH`, wildcard hosts, any `NEXT_PUBLIC_*` Lab
+flag, or a public custom domain before its protection is verified.

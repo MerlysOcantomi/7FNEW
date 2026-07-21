@@ -3,6 +3,9 @@ import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@core/auth
 import { createSession, buildSessionCookie } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 import { checkMembership, ensureUserHasDefaultWorkspace } from "@/lib/workspace"
+import { isLabDeployment } from "@core/lab/gate"
+
+export const dynamic = "force-dynamic"
 
 /** Default invite-only when unset (preserves existing deployments). Self-serve only when `AUTH_INVITE_ONLY=false`. */
 function isAuthInviteOnly(): boolean {
@@ -85,6 +88,11 @@ async function resolvePlatformRoleForLogin(
 }
 
 export async function GET(request: NextRequest) {
+  // Mr Forte Lab (DEV-PREVIEW-01D): the Google callback is disabled on the
+  // authorized Lab deployment. Production is unaffected.
+  if (await isLabDeployment()) {
+    return new NextResponse(null, { status: 404 })
+  }
   try {
     const { searchParams } = request.nextUrl
     const code = searchParams.get("code")

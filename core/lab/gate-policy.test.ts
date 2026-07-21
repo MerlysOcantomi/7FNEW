@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import {
   decideLabGate,
+  evaluateLabProjectConfig,
   isLabNamespacePath,
   normalizeHost,
   parseAllowedHosts,
@@ -301,6 +302,43 @@ test("isLabNamespacePath rejects /laboratory and /labyrinth", () => {
   assert.equal(isLabNamespacePath("/laboratory"), false)
   assert.equal(isLabNamespacePath("/labyrinth"), false)
   assert.equal(isLabNamespacePath("/labsomething"), false)
+})
+
+// --- Config-level gate readiness (preflight, no request host) --------------
+
+const CFG_OK = {
+  enabled: "true",
+  deploymentMode: "dedicated",
+  expectedProjectId: "prj_lab_123",
+  actualProjectId: "prj_lab_123",
+  allowedHosts: "lab.example.com",
+  vercelEnv: "production",
+  localDevEnabled: undefined,
+}
+
+test("evaluateLabProjectConfig: full valid config (allowlist non-empty) → ready", () => {
+  assert.deepEqual(evaluateLabProjectConfig(CFG_OK), { ready: true })
+})
+
+test("evaluateLabProjectConfig: flag off → not ready (disabled)", () => {
+  assert.deepEqual(evaluateLabProjectConfig({ ...CFG_OK, enabled: undefined }), {
+    ready: false,
+    reason: "disabled",
+  })
+})
+
+test("evaluateLabProjectConfig: project mismatch → not ready", () => {
+  assert.deepEqual(evaluateLabProjectConfig({ ...CFG_OK, actualProjectId: "prj_other" }), {
+    ready: false,
+    reason: "project-mismatch",
+  })
+})
+
+test("evaluateLabProjectConfig: empty allowlist → not ready (invalid-configuration)", () => {
+  assert.deepEqual(evaluateLabProjectConfig({ ...CFG_OK, allowedHosts: "" }), {
+    ready: false,
+    reason: "invalid-configuration",
+  })
 })
 
 test("isLabNamespacePath rejects /api/lab and normal app routes", () => {
