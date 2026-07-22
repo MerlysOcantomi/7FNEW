@@ -1903,12 +1903,137 @@ export interface UIMessages {
   today: TodayMessages
   clients: ClientsMessages
   calendar: CalendarMessages
+  appointments: AppointmentsMessages
   billing: BillingMessages
   services: ServicesMessages
   team: TeamMessages
   inbox: InboxMessages
   statuses: StatusesMessages
   voice: VoiceMessages
+}
+
+/**
+ * `appointments` — the Finesse (Beauty) appointment experience layered over the
+ * shared Calendar Engine (`/calendario` for beauty workspaces). Beauty-specific
+ * vocabulary ONLY; the day/week/month/today/navigation labels are reused from
+ * `calendar.*` and the save/cancel/edit/close/confirm primitives from
+ * `common.*` (no concept is duplicated). Persisted `Evento` values never change
+ * — these are visible labels resolved from the runtime locale.
+ *
+ * Natively translated in ALL FIVE locales (en/es/de/fr/it): this surface is
+ * born localized, unlike the en/es-only `calendar` namespace it composes with.
+ *
+ * HONESTY: `Evento` has no attendance/confirmation state, so there is NO
+ * confirmed/completed/no-show vocabulary here — only the time-derived `phase`
+ * (past/current/upcoming), matching the Beauty Today truth rules. Price is
+ * likewise absent (no canonical currency amount on `Evento`).
+ */
+export interface AppointmentsMessages {
+  /** Agenda heading + the "new appointment" primary action. */
+  title: string
+  subtitle: string
+  new: string
+  count: (count: number) => string
+  /** One appointment as a noun (card aria, detail heading). */
+  appointment: string
+  /** Field / relation labels shown on cards and in the detail sheet. */
+  fields: {
+    client: string
+    service: string
+    professional: string
+    date: string
+    time: string
+    duration: string
+    notes: string
+    when: string
+  }
+  /** Time-derived phase — never an attendance claim. */
+  phase: {
+    past: string
+    current: string
+    upcoming: string
+  }
+  /** Duration rendered from start/end (never a stored minutes column). */
+  durationLabel: (minutes: number) => string
+  /** A free stretch between two citas. */
+  openSlot: string
+  /** Overlap flagged by the shared conflict engine. */
+  conflict: string
+  conflictHint: string
+  /** Detail sheet. */
+  detail: {
+    heading: string
+    openClient: string
+    noClient: string
+    noService: string
+    noNotes: string
+    noEnd: string
+  }
+  /** Create / edit / reschedule form. */
+  form: {
+    createHeading: string
+    editHeading: string
+    rescheduleHeading: string
+    clientLabel: string
+    clientPlaceholder: string
+    serviceLabel: string
+    servicePlaceholder: string
+    customServiceLabel: string
+    dateLabel: string
+    timeLabel: string
+    durationLabel: string
+    notesLabel: string
+    notesPlaceholder: string
+    submitCreate: string
+    submitSave: string
+    submitting: string
+    clientRequired: string
+    serviceRequired: string
+    dateRequired: string
+    timeRequired: string
+    conflictWarning: string
+    noServicesYet: string
+    manageServices: string
+    noClientsYet: string
+    addClient: string
+  }
+  /** Lifecycle actions that map to a REAL persisted operation. */
+  actions: {
+    reschedule: string
+    cancel: string
+    cancelConfirmHeading: string
+    cancelConfirmBody: string
+    open: string
+  }
+  /** Toast / status messages after a real mutation. */
+  toast: {
+    created: string
+    updated: string
+    rescheduled: string
+    cancelled: string
+    error: string
+  }
+  /** Empty / loading / error surfaces (honest, no fabricated data). */
+  states: {
+    loading: string
+    emptyTitle: string
+    emptyBody: string
+    emptyCreate: string
+    emptyDayTitle: string
+    emptyDayBody: string
+    errorTitle: string
+    errorBody: string
+    retry: string
+  }
+  /** Accessible names. */
+  aria: {
+    previousPeriod: string
+    nextPeriod: string
+    goToday: string
+    openAppointment: (title: string) => string
+    closeDetail: string
+    closeForm: string
+  }
 }
 
 /** Union of valid namespace keys. */
