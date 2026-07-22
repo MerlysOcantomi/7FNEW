@@ -1,6 +1,7 @@
 "use client"
 
 import { AlertTriangle, X } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 
 interface ConfirmModalProps {
   open: boolean
@@ -17,12 +18,17 @@ export function ConfirmModal({
   open,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   variant = "default",
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useI18n()
+  // Explicit props always win; the catalog only supplies the default label.
+  const confirmText = confirmLabel ?? t.common.confirm
+  const cancelText = cancelLabel ?? t.common.cancel
+
   if (!open) return null
 
   return (
@@ -35,7 +41,7 @@ export function ConfirmModal({
         <button
           onClick={onCancel}
           className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Close"
+          aria-label={t.common.close}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -62,7 +68,7 @@ export function ConfirmModal({
             onClick={onCancel}
             className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
           >
-            {cancelLabel}
+            {cancelText}
           </button>
           <button
             onClick={onConfirm}
@@ -72,7 +78,7 @@ export function ConfirmModal({
                 : "bg-foreground text-background"
             }`}
           >
-            {confirmLabel}
+            {confirmText}
           </button>
         </div>
       </div>

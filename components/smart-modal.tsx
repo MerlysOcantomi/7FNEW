@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 interface SmartModalProps {
   open: boolean
@@ -21,6 +22,7 @@ const SIZE_MAP = {
 }
 
 export function SmartModal({ open, onClose, children, title, size = "md", className }: SmartModalProps) {
+  const { t } = useI18n()
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -59,7 +61,7 @@ export function SmartModal({ open, onClose, children, title, size = "md", classN
             <button
               onClick={onClose}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Cerrar"
+              aria-label={t.common.close}
             >
               <X className="h-4 w-4" />
             </button>
