@@ -91,6 +91,34 @@ test("getUIMessages: es/es-MX resolve the real Spanish catalog (P4.1)", () => {
   assert.equal(spanish.common.saveChanges, "Guardar cambios")
 })
 
+test("common: shared action labels are natively translated in all five locales (I18N-SHARED-PRIMITIVES-05)", () => {
+  // These back the shared modal/sheet/toast primitives (confirm-modal,
+  // smart-modal, ui/sheet, ui/dialog, toast-provider). They must resolve
+  // natively — never the English fallback — in every official locale.
+  const expected = {
+    en: { close: "Close", confirm: "Confirm", cancel: "Cancel" },
+    es: { close: "Cerrar", confirm: "Confirmar", cancel: "Cancelar" },
+    de: { close: "Schließen", confirm: "Bestätigen", cancel: "Abbrechen" },
+    fr: { close: "Fermer", confirm: "Confirmer", cancel: "Annuler" },
+    it: { close: "Chiudi", confirm: "Conferma", cancel: "Annulla" },
+  } as const
+  for (const [code, vals] of Object.entries(expected)) {
+    const common = getNamespace(code, "common")
+    assert.equal(common.close, vals.close, `${code}.common.close`)
+    assert.equal(common.confirm, vals.confirm, `${code}.common.confirm`)
+    assert.equal(common.cancel, vals.cancel, `${code}.common.cancel`)
+  }
+  // de/fr/it serve a genuine native contribution, not the English object.
+  for (const code of ["de", "fr", "it"] as const) {
+    assert.equal(UI_NAMESPACE_COVERAGE[code].common, "native", `${code}.common must be native`)
+    assert.notEqual(
+      getNamespace(code, "common").confirm,
+      getNamespace("en", "common").confirm,
+      `${code}.common.confirm must differ from English`,
+    )
+  }
+})
+
 test("getUIMessages: de/fr/it translate the toolbar family, English fallback for the rest", () => {
   const english = getUIMessages("en")
   // Toolbar family really translated since I18N-TOP-ACTIONS-01, plus the
