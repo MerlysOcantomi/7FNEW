@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/app-shell"
-import { CalendarShell } from "@/components/calendar/calendar-shell"
+import { CalendarExperienceRouter } from "@/components/calendar/calendar-experience-router"
 import { getRequestLocale } from "@core/i18n/server"
 import { getNamespace } from "@core/i18n/ui"
 
@@ -16,6 +16,9 @@ import { getNamespace } from "@core/i18n/ui"
  *
  * Server Component: breadcrumb labels resolve via `getRequestLocale` +
  * `getNamespace` (the client shell localizes everything else via useI18n).
+ * `CalendarExperienceRouter` then selects the Core calendar or the Finesse
+ * Beauty appointment experience from the workspace vertical — both over the one
+ * shared Calendar Engine.
  */
 export default async function CalendarioPage() {
   const { locale } = await getRequestLocale()
@@ -26,7 +29,7 @@ export default async function CalendarioPage() {
       breadcrumbs={[{ label: "7F" }, { label: calendar.title }]}
       contentClassName="min-h-0 flex-1 max-w-[1500px]"
     >
-      <CalendarShell />
+      <CalendarExperienceRouter />
     </AppShell>
   )
 }
