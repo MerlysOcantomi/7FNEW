@@ -2,6 +2,7 @@ import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { loadPublicSiteBySlug, type PublicSiteResult } from "@engines/presence/public-site"
+import { resolveReceptionModel } from "@engines/presence/reception-service"
 import { PresenceSiteView } from "@/components/presence/presence-site-view"
 
 /**
@@ -53,5 +54,12 @@ export default async function PresenceSitePage({
   const { slug } = await params
   const result = await load(slug)
   if (!result.ok) notFound()
-  return <PresenceSiteView plan={result.plan} />
+  // Server-resolved dual reception (Fanny + server-resolved WhatsApp number).
+  const reception = await resolveReceptionModel(slug)
+  return (
+    <PresenceSiteView
+      plan={result.plan}
+      reception={reception.ok && reception.model ? { slug, model: reception.model } : null}
+    />
+  )
 }

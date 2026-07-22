@@ -21,6 +21,16 @@ import type {
   PlannedImage,
   PlannedCta,
 } from "@engines/presence/render-plan"
+import { FannyReception } from "./fanny-reception"
+
+/** The dual-reception model (Fanny + WhatsApp), resolved server-side. */
+export interface PresenceReception {
+  slug: string
+  model: {
+    fanny: { enabled: boolean; greeting: string; quickActions: Array<{ id: string; label: string }> }
+    whatsapp: { available: boolean; connected: boolean; link: { href: string; display: string } | null }
+  }
+}
 
 const CONTAINER = "mx-auto w-full max-w-5xl px-5 sm:px-8"
 
@@ -199,7 +209,13 @@ function renderSection(section: PlannedSection, siteName: string) {
   }
 }
 
-export function PresenceSiteView({ plan }: { plan: PresenceRenderPlan }) {
+export function PresenceSiteView({
+  plan,
+  reception,
+}: {
+  plan: PresenceRenderPlan
+  reception?: PresenceReception | null
+}) {
   return (
     <div
       data-theme={plan.themeKey}
@@ -269,6 +285,10 @@ export function PresenceSiteView({ plan }: { plan: PresenceRenderPlan }) {
           </div>
         </div>
       </footer>
+
+      {reception && reception.model.fanny.enabled ? (
+        <FannyReception slug={reception.slug} model={reception.model} />
+      ) : null}
     </div>
   )
 }
