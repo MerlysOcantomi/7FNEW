@@ -29,6 +29,7 @@ export type {
   TodayMessages,
   ClientsMessages,
   CalendarMessages,
+  AppointmentsMessages,
   BillingMessages,
   ServicesMessages,
   TeamMessages,

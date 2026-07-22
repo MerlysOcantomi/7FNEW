@@ -122,9 +122,10 @@ test("common: shared action labels are natively translated in all five locales (
 test("getUIMessages: de/fr/it translate the toolbar family, English fallback for the rest", () => {
   const english = getUIMessages("en")
   // Toolbar family really translated since I18N-TOP-ACTIONS-01, plus the
-  // shared status/priority labels (I18N-STATUSES-CENTRAL-04) and the shared
-  // common action labels (I18N-SHARED-PRIMITIVES-05).
-  const TRANSLATED = ["nav", "globalSearch", "globalNew", "agents", "today", "statuses", "common"] as const
+  // shared status/priority labels (I18N-STATUSES-CENTRAL-04), the shared
+  // common action labels (I18N-SHARED-PRIMITIVES-05) and the Finesse
+  // appointments surface born localized in all five (FINESSE-CALENDAR-APPOINTMENTS-02).
+  const TRANSLATED = ["nav", "globalSearch", "globalNew", "agents", "today", "appointments", "statuses", "common"] as const
   for (const code of ["de", "fr", "it"] as const) {
     const catalog = getUIMessages(code)
     for (const ns of Object.keys(english) as Array<keyof typeof english>) {
@@ -231,7 +232,7 @@ test("coverage: expected snapshot — es complete, de/fr/it cover the toolbar fa
    * (I18N-SHARED-PRIMITIVES-05), and still serve English for everything else
    * (explicit, honest fallback).
    */
-  const NATIVE_NS = ["nav", "globalSearch", "globalNew", "agents", "today", "statuses", "common"] as const
+  const NATIVE_NS = ["nav", "globalSearch", "globalNew", "agents", "today", "appointments", "statuses", "common"] as const
   for (const code of ["de", "fr", "it"] as const) {
     assert.ok(localeHasPendingCoverage(code))
     for (const [ns, status] of Object.entries(UI_NAMESPACE_COVERAGE[code])) {
@@ -424,6 +425,7 @@ test("getUIMessages: complete catalogs with no empty strings for ALL five locale
 test("getUIMessages: exposes exactly the canonical namespaces", () => {
   assert.deepEqual(Object.keys(getUIMessages("en")).sort(), [
     "agents",
+    "appointments",
     "billing",
     "calendar",
     "clients",
