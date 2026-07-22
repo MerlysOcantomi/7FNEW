@@ -3,6 +3,7 @@
 import { useState, createContext, useContext, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 
 type ToastType = "success" | "error" | "warning" | "info"
 
@@ -38,6 +39,7 @@ const colors: Record<ToastType, string> = {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n()
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const addToast = useCallback((toast: Omit<Toast, "id">) => {
@@ -76,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => removeToast(toast.id)}
                 className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground hover:text-foreground flex-shrink-0"
-                aria-label="Cerrar"
+                aria-label={t.common.close}
               >
                 <X className="h-3 w-3" />
               </button>
