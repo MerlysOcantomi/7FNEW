@@ -88,6 +88,8 @@ test("a visitor message creates a web_chat / web conversation and Fanny answers"
   assert.equal(r.ok, true)
   assert.match(r.reply, /Consultation/)
   assert.equal(r.intent, "services")
+  assert.equal(r.suggestWhatsapp, false) // plain answer → no in-chat WhatsApp
+  assert.ok(!r.quickActions.some((a: any) => a.id === "whatsapp"), "no WhatsApp in initial actions")
 
   const conv = await db.conversation.findUnique({ where: { id: r.conversationId } })
   assert.equal(conv.channel, "web_chat")
@@ -152,6 +154,7 @@ test("asking for a person creates a WorkspaceTask (needs human) without leaving 
   const { ws } = await publishedWorkspace({ slug: "human-a" })
   const r = await svc.handleReceptionMessage({ slug: "human-a", visitorId: "visitor-human-1", action: "human", message: "" })
   assert.equal(r.handoff, true)
+  assert.equal(r.suggestWhatsapp, true) // WhatsApp offered in context (human request)
   const tasks = await db.workspaceTask.findMany({ where: { workspaceId: ws.id, conversationId: r.conversationId } })
   assert.equal(tasks.length, 1)
   assert.equal(tasks[0].suggestedBy, "fanny")
@@ -169,6 +172,7 @@ test("appointment request → structured message + task + consent recorded", asy
   })
   assert.equal(r.ok, true)
   assert.equal(r.contactPreference, "whatsapp")
+  assert.equal(r.suggestWhatsapp, true) // WhatsApp offered after finishing an appointment
 
   const tasks = await db.workspaceTask.findMany({ where: { workspaceId: ws.id, conversationId: r.conversationId } })
   assert.equal(tasks.length, 1)

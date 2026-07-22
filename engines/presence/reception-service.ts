@@ -189,6 +189,8 @@ export interface ReceptionReply {
   quickActions?: QuickAction[]
   offerAppointmentForm?: boolean
   handoff?: boolean
+  /** Show the contextual "Continue on WhatsApp" affordance inside the chat. */
+  suggestWhatsapp?: boolean
   whatsapp?: Awaited<ReturnType<typeof resolveWhatsapp>>
 }
 
@@ -247,6 +249,7 @@ export async function handleReceptionMessage(input: HandleMessageInput): Promise
     quickActions: fanny.quickActions,
     offerAppointmentForm: fanny.offerAppointmentForm,
     handoff: fanny.handoff,
+    suggestWhatsapp: fanny.suggestWhatsapp,
     whatsapp: await resolveWhatsapp(workspaceId, content),
   }
 }
@@ -317,6 +320,9 @@ export async function handleReceptionAppointment(input: HandleAppointmentInput):
     reply: ack,
     intent: "appointment",
     contactPreference: validation.request.contactPreference,
+    // Offer WhatsApp continuity after finishing an appointment request, and
+    // especially when the visitor chose WhatsApp as their preferred channel.
+    suggestWhatsapp: true,
     whatsapp: await resolveWhatsapp(workspaceId, content, validation.request.service),
   }
 }

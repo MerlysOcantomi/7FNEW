@@ -44,12 +44,13 @@ test("buildWhatsappLink rejects implausible numbers", () => {
 
 // ---- quick actions (only backed by real data) -----------------------------
 
-test("quick actions include only channels/data that exist", () => {
+test("initial quick actions never include WhatsApp (Fanny leads); services/hours gated by data", () => {
   const ids = buildQuickActions(content()).map((a) => a.id)
-  assert.deepEqual(ids, ["services", "hours", "location", "appointment", "whatsapp", "human"])
+  assert.deepEqual(ids, ["services", "hours", "appointment", "human"])
+  assert.ok(!ids.includes("whatsapp"), "WhatsApp must not be an initial action")
 })
 
-test("no whatsapp / services / hours → those actions are omitted (no empty controls)", () => {
+test("no services / hours → those actions are omitted (no empty controls)", () => {
   const ids = buildQuickActions(
     content({ services: [], hours: null, region: null, channels: { whatsapp: null, phone: null, social: {} } }),
   ).map((a) => a.id)
@@ -88,10 +89,17 @@ test("missing data degrades gracefully (no invented info)", () => {
   assert.ok(!/Mon–Fri/.test(r.reply))
 })
 
-test("human request sets handoff", () => {
+test("human request sets handoff and suggests WhatsApp (context)", () => {
   const r = fanny.respond({ message: "I want to talk to a person", content: content() })
   assert.equal(r.intent, "human")
   assert.equal(r.handoff, true)
+  assert.equal(r.suggestWhatsapp, true)
+})
+
+test("plain answers (services/hours) do NOT suggest WhatsApp", () => {
+  assert.equal(fanny.respond({ message: "services?", content: content() }).suggestWhatsapp, false)
+  assert.equal(fanny.respond({ message: "hours?", content: content() }).suggestWhatsapp, false)
+  assert.equal(fanny.respond({ message: "hi", content: content() }).suggestWhatsapp, false)
 })
 
 test("appointment intent offers the form", () => {
@@ -105,16 +113,18 @@ test("a quick action short-circuits classification", () => {
   assert.equal(r.intent, "hours")
 })
 
-test("whatsapp intent suggests WhatsApp without forcing the visitor out", () => {
+test("explicit whatsapp question suggests WhatsApp without forcing the visitor out", () => {
   const r = fanny.respond({ message: "do you have whatsapp?", content: content() })
   assert.equal(r.intent, "whatsapp")
   assert.equal(r.handoff, false)
+  assert.equal(r.suggestWhatsapp, true)
 })
 
-test("fallback offers safe options, never errors", () => {
+test("fallback offers safe options and WhatsApp continuity, never errors", () => {
   const r = fanny.respond({ message: "asdfqwer zzz", content: content() })
   assert.equal(r.intent, "fallback")
   assert.ok(r.reply.length > 0)
+  assert.equal(r.suggestWhatsapp, true)
 })
 
 test("resolveFannyProvider defaults to the deterministic engine (no AI required)", () => {

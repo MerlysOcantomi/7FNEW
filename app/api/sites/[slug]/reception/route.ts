@@ -105,6 +105,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       conversationId: result.conversationId,
       reply: result.reply,
       contactPreference: result.contactPreference,
+      suggestWhatsapp: result.suggestWhatsapp,
       whatsapp: result.whatsapp,
     })
   }
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     quickActions: result.quickActions,
     offerAppointmentForm: result.offerAppointmentForm,
     handoff: result.handoff,
+    suggestWhatsapp: result.suggestWhatsapp,
     whatsapp: result.whatsapp,
   })
 }

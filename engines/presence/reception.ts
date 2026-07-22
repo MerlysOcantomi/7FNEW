@@ -71,24 +71,24 @@ const QUICK_ACTION_LABELS: Record<QuickActionId, string> = {
   hours: "Opening hours",
   location: "Location",
   appointment: "Request an appointment",
-  whatsapp: "Message on WhatsApp",
+  whatsapp: "Continue on WhatsApp",
   human: "Talk to a person",
 }
 
+/** Contextual label for the WhatsApp affordance shown INSIDE the chat. */
+export const WHATSAPP_CONTINUE_LABEL = "Continue on WhatsApp"
+
 /**
- * Build the quick actions available for a site — only those backed by real
- * public data. `appointment` and `human` are always available; `whatsapp` only
- * when a public number exists; `services`/`hours`/`location` only when present.
- * WhatsApp sits at the same visual level as the rest (the widget renders it as a
- * primary action, never hidden behind a failure).
+ * Initial quick actions — Fanny leads the reception. WhatsApp is deliberately
+ * NOT one of the initial actions (it stays visible OUTSIDE the chat and appears
+ * inside only in context — see `FannyReply.suggestWhatsapp`). `appointment` and
+ * `human` are always offered; `services`/`hours` only when backed by real data.
  */
 export function buildQuickActions(content: PresenceContentSource): QuickAction[] {
   const actions: QuickActionId[] = []
   if (content.services.some((s) => s.active)) actions.push("services")
   if (content.hours) actions.push("hours")
-  if (content.region) actions.push("location")
   actions.push("appointment")
-  if (content.channels.whatsapp) actions.push("whatsapp")
   actions.push("human")
   return actions.map((id) => ({ id, label: QUICK_ACTION_LABELS[id] }))
 }
@@ -156,6 +156,13 @@ export interface FannyReply {
   handoff: boolean
   /** True when Fanny is inviting the visitor to open the appointment form. */
   offerAppointmentForm: boolean
+  /**
+   * True ONLY when the context justifies offering WhatsApp inside the chat:
+   * a human request, an explicit WhatsApp question, or an unresolved query.
+   * The widget shows a single "Continue on WhatsApp" affordance in that case —
+   * WhatsApp is never a permanent in-chat control.
+   */
+  suggestWhatsapp: boolean
 }
 
 export interface FannyReceptionInput {
@@ -235,15 +242,15 @@ export class DeterministicFannyProvider implements FannyReceptionProvider {
           : reply(`We'll share our channels soon.`, "social", quickActions)
       }
       case "whatsapp":
-        return reply(`You can message us directly on WhatsApp — tap the WhatsApp button. I'm also here if you'd rather continue in the chat.`, "whatsapp", quickActions)
+        return reply(`Of course — you can continue on WhatsApp, or stay here and I'll help you.`, "whatsapp", quickActions, { suggestWhatsapp: true })
       case "appointment":
         return reply(`Great — I can take an appointment request. Tell me your name, the service, and a preferred day, and the team will confirm.`, "appointment", quickActions, { offerAppointmentForm: true })
       case "human":
-        return reply(`I've noted your request for the team. You can wait for a reply here in the chat, or message us on WhatsApp.`, "human", quickActions, { handoff: true })
+        return reply(`I've prepared your request for the team. You can wait for a reply here in the chat, or continue on WhatsApp.`, "human", quickActions, { handoff: true, suggestWhatsapp: true })
       case "greeting":
         return reply(`Hi! I'm Fanny, the virtual receptionist for ${name}. I can help with our services, hours or an appointment request.`, "greeting", quickActions)
       default:
-        return reply(`I can help with our services, opening hours, location, or an appointment request. You can also talk to a person or message us on WhatsApp.`, "fallback", quickActions)
+        return reply(`I can help with our services, opening hours, location, or an appointment request. You can also talk to a person if you prefer.`, "fallback", quickActions, { suggestWhatsapp: true })
     }
   }
 }
@@ -263,9 +270,16 @@ function reply(
   text: string,
   intent: ReceptionIntent,
   quickActions: QuickAction[],
-  opts: { handoff?: boolean; offerAppointmentForm?: boolean } = {},
+  opts: { handoff?: boolean; offerAppointmentForm?: boolean; suggestWhatsapp?: boolean } = {},
 ): FannyReply {
-  return { reply: text, intent, quickActions, handoff: opts.handoff ?? false, offerAppointmentForm: opts.offerAppointmentForm ?? false }
+  return {
+    reply: text,
+    intent,
+    quickActions,
+    handoff: opts.handoff ?? false,
+    offerAppointmentForm: opts.offerAppointmentForm ?? false,
+    suggestWhatsapp: opts.suggestWhatsapp ?? false,
+  }
 }
 
 function cap(s: string): string {

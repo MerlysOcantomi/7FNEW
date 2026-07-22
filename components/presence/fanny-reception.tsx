@@ -71,6 +71,10 @@ export function FannyReception({
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  // Contextual WhatsApp affordance inside the chat — shown only when the latest
+  // reply justifies it (human request, explicit WhatsApp, unresolved, or after
+  // an appointment). Never a permanent in-chat control.
+  const [showWhatsapp, setShowWhatsapp] = useState(false)
   const [appt, setAppt] = useState<AppointmentForm>(EMPTY_APPOINTMENT)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -103,6 +107,8 @@ export function FannyReception({
         if (data.reply) setLines((l) => [...l, { from: "fanny", text: data.reply }])
         if (Array.isArray(data.quickActions)) setQuickActions(data.quickActions)
         if (data.offerAppointmentForm) setShowForm(true)
+        // Contextual only: tie WhatsApp to the latest reply, not permanent.
+        setShowWhatsapp(!!data.suggestWhatsapp && model.whatsapp.available)
       } else {
         setLines((l) => [...l, { from: "fanny", text: "Sorry, I couldn't process that right now." }])
       }
@@ -111,11 +117,11 @@ export function FannyReception({
     }
   }
 
+  function openWhatsapp() {
+    if (model.whatsapp.link) window.open(model.whatsapp.link.href, "_blank", "noopener,noreferrer")
+  }
+
   function onQuickAction(id: string) {
-    if (id === "whatsapp") {
-      if (model.whatsapp.link) window.open(model.whatsapp.link.href, "_blank", "noopener,noreferrer")
-      return
-    }
     if (id === "appointment") {
       setShowForm(true)
       return
@@ -143,6 +149,8 @@ export function FannyReception({
         setLines((l) => [...l, { from: "visitor", text: `Appointment request: ${appt.name}` }, { from: "fanny", text: data.reply }])
         setShowForm(false)
         setAppt(EMPTY_APPOINTMENT)
+        // Offer WhatsApp continuity after finishing the request.
+        setShowWhatsapp(!!data.suggestWhatsapp && model.whatsapp.available)
       }
     } finally {
       setSending(false)
@@ -154,31 +162,23 @@ export function FannyReception({
 
   return (
     <>
-      {/* Floating action stack — WhatsApp stays visible alongside Fanny. */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
-        {model.whatsapp.available && model.whatsapp.link ? (
-          <a
-            href={model.whatsapp.link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Message us on WhatsApp"
-            className="flex h-12 items-center gap-2 rounded-full bg-[var(--accent-primary)] px-4 text-sm font-semibold text-[var(--accent-on-dark)] shadow-lg transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100"
-          >
-            <Phone className="h-5 w-5" aria-hidden="true" />
-            WhatsApp
-          </a>
-        ) : null}
-        {!open ? (
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Open the Fanny reception chat"
-            className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-dark)] text-[var(--text-primary-light)] shadow-lg transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100"
-          >
-            <MessageCircle className="h-6 w-6" aria-hidden="true" />
-          </button>
-        ) : null}
-      </div>
+      {/*
+       * Single floating action: Fanny. WhatsApp is NOT a competing floating
+       * button — it stays prominent OUTSIDE the chat (hero + contact CTAs) and
+       * appears inside the chat only in context. The button is labelled so a
+       * first-time visitor understands it.
+       */}
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ask Fanny — the virtual reception"
+          className="fixed bottom-5 right-5 z-50 flex h-14 items-center gap-2 rounded-full border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-5 text-sm font-semibold text-[var(--text-primary-light)] shadow-lg transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100"
+        >
+          <MessageCircle className="h-5 w-5" aria-hidden="true" />
+          Ask Fanny
+        </button>
+      ) : null}
 
       {/* Chat panel */}
       {open ? (
@@ -240,7 +240,21 @@ export function FannyReception({
             ) : null}
           </div>
 
-          {/* Quick actions */}
+          {/* Contextual WhatsApp — only when the latest reply justifies it. */}
+          {showWhatsapp && model.whatsapp.available && model.whatsapp.link && !showForm ? (
+            <div className="border-t border-[var(--border-dark)] px-4 py-3">
+              <button
+                type="button"
+                onClick={openWhatsapp}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-primary)] px-4 py-2 text-sm font-semibold text-[var(--accent-on-dark)]"
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+                Continue on WhatsApp
+              </button>
+            </div>
+          ) : null}
+
+          {/* Quick actions (WhatsApp is intentionally not among them) */}
           {quickActions.length > 0 && !showForm ? (
             <div className="flex flex-wrap gap-2 border-t border-[var(--border-dark)] px-4 py-3">
               {quickActions.map((a) => (
@@ -248,12 +262,7 @@ export function FannyReception({
                   key={a.id}
                   type="button"
                   onClick={() => onQuickAction(a.id)}
-                  className={
-                    (a.id === "whatsapp"
-                      ? "border-[var(--accent-primary)] text-[var(--accent-on-dark)] bg-[var(--accent-primary)]"
-                      : "border-[var(--border-dark)] text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-dark-hover)]") +
-                    " rounded-full border px-3 py-1.5 text-xs font-medium"
-                  }
+                  className="rounded-full border border-[var(--border-dark)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-dark-hover)]"
                 >
                   {a.label}
                 </button>
