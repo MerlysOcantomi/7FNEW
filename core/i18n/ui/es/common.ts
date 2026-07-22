@@ -7,6 +7,7 @@ export const common: CommonMessages = {
   edit: "Editar",
   delete: "Eliminar",
   close: "Cerrar",
+  confirm: "Confirmar",
   search: "Buscar",
   loading: "Cargando…",
   saveChanges: "Guardar cambios",

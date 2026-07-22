@@ -30,6 +30,7 @@ export interface CommonMessages {
   edit: string
   delete: string
   close: string
+  confirm: string
   search: string
   loading: string
   saveChanges: string
