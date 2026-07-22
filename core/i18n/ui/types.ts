@@ -338,6 +338,8 @@ export interface SettingsMessages {
       description: string
     }
     fields: {
+      /** Public social networks shown on the Presence website (label/hint/placeholder). */
+      social: { label: string; hint: string; placeholder: string }
       businessName: { label: string; hint: string; placeholder: string }
       businessDescription: { label: string; hint: string; placeholder: string }
       services: {

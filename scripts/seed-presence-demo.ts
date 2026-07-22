@@ -40,6 +40,13 @@ const DEMO_CONFIG = {
     businessDescription: "A calm, modern studio for everyday self-care in the heart of the city.",
     workingHours: "Mon–Fri 9:00–19:00\nSat 10:00–14:00",
     region: "Madrid, Spain",
+    // Fictional demo handles (not real accounts). A username or a full URL both
+    // work; Presence normalizes and validates them to safe public URLs.
+    social: {
+      instagram: "@estudioaurora.demo",
+      tiktok: "@estudio.aurora.demo",
+      facebook: "https://facebook.com/estudioaurorademo",
+    },
   },
   serviceCatalog: [
     { id: "svc-consultation", name: "Consultation", category: "General", active: true },

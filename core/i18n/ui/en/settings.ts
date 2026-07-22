@@ -79,6 +79,11 @@ export const settings: SettingsMessages = {
         "Rules Fanny should consider when classifying, summarizing, and suggesting work. Examples: payment questions require review, urgent complaints need operator attention, new leads should get a follow-up task.",
     },
     fields: {
+      social: {
+        label: "Social networks",
+        hint: "Public profiles shown on your website. Enter a username (e.g. @studio) or a full URL. Empty or invalid entries are hidden.",
+        placeholder: "@username or full URL",
+      },
       businessName: {
         label: "Business Name",
         hint: "How your business is known to clients",

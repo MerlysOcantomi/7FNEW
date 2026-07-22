@@ -7,6 +7,7 @@ import { BusinessProfileTabs } from "@/components/business-profile/business-prof
 import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import { Save, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
+import { PRESENCE_SOCIAL_PLATFORMS } from "@engines/presence/social"
 
 interface ProfileData {
   businessName: string
@@ -17,6 +18,7 @@ interface ProfileData {
   region: string
   workingHours: string
   attentionRules: string[]
+  social: Record<string, string>
 }
 
 const EMPTY_PROFILE: ProfileData = {
@@ -28,6 +30,7 @@ const EMPTY_PROFILE: ProfileData = {
   region: "",
   workingHours: "",
   attentionRules: [],
+  social: {},
 }
 
 const MAX_SERVICES = 20
@@ -66,6 +69,7 @@ export default function BusinessProfilePage() {
         region: data.region ?? "",
         workingHours: data.workingHours ?? "",
         attentionRules: data.attentionRules ?? [],
+        social: data.social ?? {},
       })
     } catch {
       setError(pageCopy.loadError)
@@ -267,6 +271,33 @@ export default function BusinessProfilePage() {
               </button>
             </div>
           </Field>
+
+          {/* Social networks (public links shown on the Presence website) */}
+          <div className="border-t border-border pt-6 flex flex-col gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{fieldCopy.social.label}</h2>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{fieldCopy.social.hint}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {PRESENCE_SOCIAL_PLATFORMS.map((platform) => (
+                <div key={platform.key} className="flex flex-col gap-1.5">
+                  <label htmlFor={`social-${platform.key}`} className="text-sm font-medium text-foreground">
+                    {platform.label}
+                  </label>
+                  <input
+                    id={`social-${platform.key}`}
+                    type="text"
+                    value={profile.social[platform.key] ?? ""}
+                    onChange={(e) =>
+                      setProfile((p) => ({ ...p, social: { ...p.social, [platform.key]: e.target.value } }))
+                    }
+                    placeholder={fieldCopy.social.placeholder}
+                    className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="border-t border-border pt-6 flex flex-col gap-6">
             <div>
