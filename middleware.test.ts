@@ -73,6 +73,14 @@ test("/sites/<slug> is public and passes through (Presence slug route still work
   assert.equal(rewritesToPresence(res), false)
 })
 
+test("/api/sites/<slug>/reception is public (the Fanny reception API is not auth-gated)", async () => {
+  const res = await middleware(req("sevenef.com", "/api/sites/demo-studio/reception"))
+  const location = res.headers.get("location") ?? ""
+  assert.ok(!location.includes("/login"), "public reception API must not be auth-redirected")
+  // A public API route returns next() (no 401 JSON, no rewrite).
+  assert.equal(res.status, 200)
+})
+
 test("internal routes, login and verticals are unaffected", async () => {
   // /login is public → passes through.
   const login = await middleware(req("sevenef.com", "/login"))

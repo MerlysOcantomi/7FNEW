@@ -166,6 +166,44 @@ export {
 } from "./social"
 export type { PresenceSocialPlatform, PresenceSocialLink } from "./social"
 
+// Digital reception (Fanny web chat + WhatsApp) — pure engine
+export {
+  buildWhatsappLink,
+  whatsappContextMessage,
+  buildQuickActions,
+  buildReceptionModel,
+  DeterministicFannyProvider,
+  resolveFannyProvider,
+  validateAppointmentRequest,
+  normalizeConsent,
+} from "./reception"
+export type {
+  ReceptionModel,
+  QuickAction,
+  QuickActionId,
+  FannyReply,
+  FannyReceptionProvider,
+  ReceptionIntent,
+  AppointmentRequest,
+  AppointmentRequestInput,
+  ContactPreference,
+  ReceptionConsent,
+  WhatsappLink,
+} from "./reception"
+export {
+  sanitizeVisitorText,
+  isValidVisitorId,
+  isRateLimited,
+  MAX_MESSAGE_LENGTH,
+  DEFAULT_RATE_LIMIT,
+} from "./reception-security"
+// Reception service (DB-backed; reuses Smart Inbox primitives)
+export {
+  resolveReceptionModel,
+  handleReceptionMessage,
+  handleReceptionAppointment,
+} from "./reception-service"
+
 // DB-backed content loader + public-site composition
 export { loadPresenceContent, loadSiteMedia } from "./content-loader"
 export {

@@ -10,7 +10,7 @@ const CLIENT_COOKIE = "7f-client-session"
  * tenant from [provider, providerAccountId] and currently answers
  * accepted:false — real integrations add per-provider signature checks.
  */
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites"]
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 function isPublic(pathname: string): boolean {
