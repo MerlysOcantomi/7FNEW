@@ -240,9 +240,33 @@ export function PresenceSiteView({ plan }: { plan: PresenceRenderPlan }) {
       <main>{plan.sections.map((s) => renderSection(s, plan.siteName))}</main>
 
       <footer className="border-t border-[var(--border-dark)]">
-        <div className={`${CONTAINER} flex flex-col items-center justify-between gap-2 py-8 text-sm text-[var(--text-tertiary-light)] sm:flex-row`}>
-          <span>© {plan.siteName}</span>
-          <span>Powered by Sevenef Presence</span>
+        <div className={`${CONTAINER} flex flex-col gap-6 py-8`}>
+          {plan.social.length > 0 ? (
+            <nav aria-label="Social networks" className="flex flex-col items-center gap-3 sm:items-start">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--text-tertiary-light)]">
+                Follow us
+              </span>
+              <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                {plan.social.map((s) => (
+                  <li key={s.platform}>
+                    <a
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      aria-label={`${plan.siteName} on ${s.label}`}
+                      className="text-sm text-[var(--text-secondary-light)] hover:text-[var(--text-primary-light)]"
+                    >
+                      {s.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
+          <div className="flex flex-col items-center justify-between gap-2 text-sm text-[var(--text-tertiary-light)] sm:flex-row">
+            <span>© {plan.siteName}</span>
+            <span>Powered by Sevenef Presence</span>
+          </div>
         </div>
       </footer>
     </div>

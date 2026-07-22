@@ -20,6 +20,7 @@ import type { PresenceContentSource } from "./content-source"
 import { presenceSectionRegistry, type PresenceSectionKind } from "./sections"
 import { presenceTemplateRegistry, type PresenceTemplate } from "./templates"
 import { isPresenceThemeKey } from "./themes"
+import { socialMapToLinks, type PresenceSocialLink } from "./social"
 
 // ---------------------------------------------------------------------------
 // Media (subset the renderer needs — mirrors PresenceMedia rows)
@@ -82,6 +83,8 @@ export interface PresenceRenderPlan {
   nav: PlannedNavItem[]
   primaryCta: PlannedCta | null
   sections: PlannedSection[]
+  /** Validated public social links (footer/contact); empty when none. */
+  social: PresenceSocialLink[]
   /** Sanitized presentation hints (unknown keys already stripped upstream). */
   presentation: Record<string, unknown>
 }
@@ -301,6 +304,7 @@ export function buildRenderPlan(input: BuildRenderPlanInput): PresenceRenderPlan
     nav,
     primaryCta,
     sections,
+    social: socialMapToLinks(content.channels.social),
     presentation,
   }
 }

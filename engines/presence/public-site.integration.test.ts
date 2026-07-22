@@ -28,6 +28,11 @@ const PROFILE = {
     businessDescription: "Beauty studio in Madrid",
     workingHours: "Mon–Fri 9–18",
     region: "Madrid",
+    social: {
+      instagram: "@studio",
+      facebook: "https://facebook.com/studio",
+      x: "https://evil.com/x", // invalid (wrong domain) → must be dropped
+    },
   },
   serviceCatalog: [
     { id: "s1", name: "Manicure", category: "Nails", active: true },
@@ -160,6 +165,31 @@ test("only approved media renders; real work samples keep integrity", async () =
   const real = gallery.data.images.find((i: any) => i.isRealWorkSample)
   assert.ok(real)
   assert.equal(real.url, "https://blob/real.jpg", "work-sample URL passed through unmodified")
+})
+
+// ---- social links (projected from Business Profile, not stored in Presence) --
+
+test("valid social links are projected from the profile; invalid ones dropped", async () => {
+  const { ws, site } = await setupWorkspace({ slug: "social-co", plan: "enterprise" })
+  await repo.publishSite(ws.id, site.id)
+  const r = await pub.loadPublicSiteBySlug(site.slug)
+  assert.equal(r.ok, true)
+  // instagram + facebook valid; the wrong-domain "x" entry is rejected.
+  assert.deepEqual(r.plan.social.map((s: any) => s.platform), ["instagram", "facebook"])
+  assert.ok(r.plan.social.every((s: any) => s.href.startsWith("https://")))
+
+  // The PresenceSite row must NOT store social data (source of truth = profile).
+  const row = await db.presenceSite.findUnique({ where: { id: site.id } })
+  assert.ok(!(row.visualConfig ?? "").includes("instagram"), "social must not be duplicated into visualConfig")
+})
+
+test("a workspace with no social profile yields no links (isolation, no empty slot)", async () => {
+  const noSocial = await db.workspace.create({ data: { nombre: "No Social", slug: "nosocial-ws", plan: "enterprise", config: JSON.stringify({ businessProfile: { businessName: "No Social" } }) } })
+  const site = await repo.getOrCreateSiteForWorkspace(noSocial.id, { slug: "nosocial-co" })
+  await repo.publishSite(noSocial.id, site.id)
+  const r = await pub.loadPublicSiteBySlug(site.slug)
+  assert.equal(r.ok, true)
+  assert.deepEqual(r.plan.social, [])
 })
 
 // ---- invalid template ------------------------------------------------------

@@ -10,6 +10,14 @@ export interface WorkspaceBusinessProfile {
   languages?: string[]
   workingHours?: string
   attentionRules?: string[]
+  /**
+   * Public social handles/links keyed by platform (e.g. `{ instagram:
+   * "@studio", facebook: "https://facebook.com/studio" }`). Raw client input —
+   * a username or a full URL — normalized to a safe public URL at projection
+   * time (`engines/presence/social.ts`). A public LINK only; adding one here
+   * NEVER creates a connected messaging channel (`ChannelConnection`).
+   */
+  social?: Record<string, string>
 }
 
 export interface WorkspaceServiceCatalogItem {

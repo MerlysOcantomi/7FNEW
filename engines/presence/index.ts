@@ -154,6 +154,18 @@ export type {
   BuildRenderPlanInput,
 } from "./render-plan"
 
+// Public social links (validated public URLs from the Business Profile)
+export {
+  PRESENCE_SOCIAL_PLATFORMS,
+  PRESENCE_SOCIAL_KEYS,
+  normalizeSocialLink,
+  normalizeSocialLinks,
+  socialLinksToMap,
+  socialMapToLinks,
+  publicSocialForAssistant,
+} from "./social"
+export type { PresenceSocialPlatform, PresenceSocialLink } from "./social"
+
 // DB-backed content loader + public-site composition
 export { loadPresenceContent, loadSiteMedia } from "./content-loader"
 export {

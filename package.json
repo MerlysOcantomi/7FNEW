@@ -51,7 +51,7 @@
     "demo:finesse:discover": "tsx scripts/seed-finesse-demo.ts discover",
     "demo:finesse:dry-run": "tsx scripts/seed-finesse-demo.ts dry-run",
     "demo:finesse:seed": "tsx scripts/seed-finesse-demo.ts seed",
-    "test:presence": "tsx --test engines/presence/sections.test.ts engines/presence/templates.test.ts engines/presence/content-source.test.ts engines/presence/resolve.test.ts engines/presence/freya.test.ts engines/presence/slug.test.ts engines/presence/planning.test.ts engines/presence/no-profile-duplication.test.ts engines/presence/render-plan.test.ts engines/presence/repository.integration.test.ts engines/presence/public-site.integration.test.ts middleware.test.ts",
+    "test:presence": "tsx --test engines/presence/sections.test.ts engines/presence/templates.test.ts engines/presence/content-source.test.ts engines/presence/resolve.test.ts engines/presence/freya.test.ts engines/presence/slug.test.ts engines/presence/planning.test.ts engines/presence/no-profile-duplication.test.ts engines/presence/render-plan.test.ts engines/presence/social.test.ts engines/presence/repository.integration.test.ts engines/presence/public-site.integration.test.ts middleware.test.ts",
     "demo:presence:status": "tsx scripts/seed-presence-demo.ts status",
     "demo:presence:seed": "tsx scripts/seed-presence-demo.ts seed",
     "demo:presence:clean": "tsx scripts/seed-presence-demo.ts clean"

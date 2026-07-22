@@ -18,6 +18,7 @@ import {
   type PresenceContentSource,
   type PresenceChannelSource,
 } from "./content-source"
+import { normalizeSocialLinks, socialLinksToMap } from "./social"
 import type { RenderMedia } from "./render-plan"
 
 /** Derive the public contact channels from ChannelConnection rows. */
@@ -47,6 +48,9 @@ export async function loadPresenceContent(
   const profile = ws.resolvedConfig.businessProfile ?? {}
   const serviceCatalog = resolveServiceCatalog(ws.resolvedConfig.serviceCatalog)
   const channels = await loadChannels(workspaceId)
+  // Public social links come from the Business Profile (validated public URLs),
+  // NOT from ChannelConnection — a public link is never a connected channel.
+  channels.social = socialLinksToMap(normalizeSocialLinks(profile.social))
 
   return buildPresenceContentSource({
     workspaceId,

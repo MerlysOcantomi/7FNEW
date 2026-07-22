@@ -164,6 +164,34 @@ test("nav is built from present non-hero sections; whatsapp drives the primary C
   assert.ok(plan.nav.some((n) => n.href === "#services"))
 })
 
+// ---- social links ----------------------------------------------------------
+
+test("validated social links from the content source appear in the plan, in order", () => {
+  const plan = buildRenderPlan({
+    site: site(),
+    content: content({
+      channels: { whatsapp: null, phone: null, social: { x: "https://x.com/s", instagram: "https://instagram.com/s" } },
+    }),
+    media: [],
+  })
+  assert.deepEqual(plan.social.map((s) => s.platform), ["instagram", "x"])
+  assert.equal(plan.social[0].href, "https://instagram.com/s")
+})
+
+test("one social network → single link", () => {
+  const plan = buildRenderPlan({
+    site: site(),
+    content: content({ channels: { whatsapp: null, phone: null, social: { instagram: "https://instagram.com/s" } } }),
+    media: [],
+  })
+  assert.equal(plan.social.length, 1)
+})
+
+test("no social networks → empty social array (renderer renders nothing)", () => {
+  const plan = buildRenderPlan({ site: site(), content: content(), media: [] })
+  assert.deepEqual(plan.social, [])
+})
+
 // ---- structural snapshot (stable) -----------------------------------------
 
 test("structural snapshot is stable for fixed input", () => {
