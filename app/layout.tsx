@@ -10,6 +10,7 @@ import { GlobalNewProvider } from '@/components/global-new/global-new-provider'
 import { I18nProvider } from '@/components/i18n-provider'
 import { resolveWorkspaceDefaultThemeKey } from '@core/theme'
 import { getRequestLocale } from '@core/i18n/server'
+import { LabDemoOverlayBanner } from '@/components/lab/lab-demo-overlay-banner'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -109,6 +110,12 @@ export default async function RootLayout({
             </UserProvider>
           </I18nProvider>
         </ThemeProvider>
+        {/**
+         * DEV-PREVIEW-01C: permanent "fictional data" marker for the real
+         * surfaces. Server-derived; renders null unless the active session is
+         * exactly the Lab demo identity + workspace on a gated Lab deployment.
+         */}
+        <LabDemoOverlayBanner />
         <Analytics />
       </body>
     </html>
