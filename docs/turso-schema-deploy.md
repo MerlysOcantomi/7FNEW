@@ -116,6 +116,12 @@ That number is not a target to maintain by hand — it is whatever
 npm run test:turso-drift
 ```
 
+This also runs automatically in CI
+(`.github/workflows/turso-schema-drift.yml`) on pull requests to `master` and
+on pushes to `master`, but only when a relevant file changes — the schema, the
+provisioning code, the drift test, `package.json`, the lockfile, or the
+workflow itself. The job needs no credentials or secrets.
+
 Runs entirely against throwaway local SQLite files — no credentials, no proxy,
 no remote connection. It fails when:
 

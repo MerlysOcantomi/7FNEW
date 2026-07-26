@@ -1,0 +1,55 @@
+name: Turso schema drift
+
+# Fails when the Turso provisioning mechanism stops matching the source of
+# truth (`prisma/schema.prisma`). The check runs entirely against throwaway
+# local SQLite files: no credentials, no secrets, no remote database.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - prisma/schema.prisma
+      - prisma/turso-schema.ts
+      - prisma/push-turso.ts
+      - scripts/turso-schema-drift.test.ts
+      - package.json
+      - package-lock.json
+      - .github/workflows/turso-schema-drift.yml
+  push:
+    branches: [master]
+    paths:
+      - prisma/schema.prisma
+      - prisma/turso-schema.ts
+      - prisma/push-turso.ts
+      - scripts/turso-schema-drift.test.ts
+      - package.json
+      - package-lock.json
+      - .github/workflows/turso-schema-drift.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Check schema drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run drift detector
+        run: npm run test:turso-drift
