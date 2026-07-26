@@ -206,12 +206,14 @@ asserts `workspaceId` ownership; public resolution serves only VERIFIED custom
 domains. Not wired to any UI.
 
 **Migration & Turso:** additive SQL in
-`prisma/sql/2026-07-21-presence-persistence-additive.sql`, mirrored into the
-`tables`/`uniqueIndexes` arrays of `prisma/push-turso.ts` (the canonical deploy
-runner; remote `libsql://` only). Verified locally against SQLite (same engine
-as Turso): all tables/columns/indexes/FKs present, `foreign_key_check` clean,
-`PRAGMA integrity_check = ok`, statements idempotent on re-apply. The remote
-Turso push runs in the deploy environment (real credentials required).
+`prisma/sql/2026-07-21-presence-persistence-additive.sql` for existing
+databases. New tables/indexes need no mirroring into the deploy runner:
+`prisma/push-turso.ts` derives its DDL from `prisma/schema.prisma`, so adding
+the models is enough (see `docs/turso-schema-deploy.md`). Verified locally
+against SQLite (same engine as Turso): all tables/columns/indexes/FKs present,
+`foreign_key_check` clean, `PRAGMA integrity_check = ok`, statements idempotent
+on re-apply. The remote Turso push runs in the deploy environment (real
+credentials required).
 
 **No Business Profile duplication** is enforced structurally:
 `sanitizeVisualConfig` strips business keys before persisting `visualConfig`, and

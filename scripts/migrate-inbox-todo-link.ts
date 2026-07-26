@@ -12,8 +12,8 @@ import { createClient } from "@libsql/client"
  *
  * Idempotent:
  *   - `ALTER TABLE ADD COLUMN` is wrapped in try/catch and treats
- *     "duplicate column" as success (matching the convention in
- *     `prisma/push-turso.ts`).
+ *     "duplicate column" as success (the standard convention for additive
+ *     migrations under sqlite/libSQL).
  *   - `CREATE INDEX IF NOT EXISTS` is naturally idempotent.
  *
  * Pairs with `scripts/migrate-workspace-task.ts` (PR 2) and
@@ -47,8 +47,7 @@ async function main() {
   /**
    * `ADD COLUMN` requires special handling under sqlite/libSQL: there
    * is no `IF NOT EXISTS` clause for ADD COLUMN, so we run it and
-   * tolerate the duplicate-column error. This mirrors the
-   * `alterColumns` loop in `prisma/push-turso.ts`.
+   * tolerate the duplicate-column error.
    */
   try {
     await db.execute(`ALTER TABLE "InboxTodo" ADD COLUMN "workspaceTaskId" TEXT`)

@@ -438,7 +438,8 @@ Superseded from rev. 04A: the single `ContactIdentity` model and its
 
 Sequence: additive migration → dual-write deploy → idempotent backfills →
 count verification → read-with-fallback → observe → fallback removal in a
-later mission. `push-turso.ts` gains the three new tables. Index set is the
+later mission. The three new tables reach Turso automatically once they are in
+`schema.prisma` — `push-turso.ts` derives its DDL from it. Index set is the
 one justified in §8 — nothing speculative. Privacy: value hashes in logs,
 no secrets outside `ChannelConnection.credentials`, Cascade on contact
 delete for links (identities survive, unresolved), identities included in

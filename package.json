@@ -48,6 +48,8 @@
     "test:chrome": "tsx --test components/account-center/settings-items.test.ts components/topbar-i18n.test.ts components/agents/agents-page-i18n.test.ts components/today/today-page-i18n.test.ts",
     "test:calendar-event-dna": "tsx --test components/calendar/event-dna.test.ts",
     "test:finesse-demo": "tsx --test scripts/finesse-demo-data.test.ts",
+    "test:turso-drift": "tsx --test scripts/turso-schema-drift.test.ts",
+    "turso:push": "tsx prisma/push-turso.ts",
     "demo:finesse:discover": "tsx scripts/seed-finesse-demo.ts discover",
     "demo:finesse:dry-run": "tsx scripts/seed-finesse-demo.ts dry-run",
     "demo:finesse:seed": "tsx scripts/seed-finesse-demo.ts seed",
