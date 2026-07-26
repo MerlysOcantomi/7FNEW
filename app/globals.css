@@ -22,7 +22,7 @@
 :root,
 .dark,
 [data-theme="midnight"] {
-  /* 7F Copilot — Monochromatic Corporate Blue */
+  /* 7F — Monochromatic Corporate Blue */
   --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;

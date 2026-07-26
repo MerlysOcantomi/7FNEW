@@ -1,7 +1,6 @@
 "use client";
 
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
-import { CopilotPanel } from "@/components/copilot-panel";
 import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -227,8 +226,6 @@ export default function FinanzasPage() {
 
         </div>
       </main>
-
-      <CopilotPanel defaultContext="Finance" />
 
       <LegacyTodayChrome />
     </div>

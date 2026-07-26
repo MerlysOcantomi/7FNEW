@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
-import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
 import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { cn } from "@/lib/utils";
 import {
@@ -518,12 +517,10 @@ function HistorialAnalisis() {
 
 export default function AgentePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [copilotCollapsed, setCopilotCollapsed] = useState(false);
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
+      <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
@@ -587,12 +584,8 @@ export default function AgentePage() {
             </div>
           </main>
 
-          {/* Copilot Panel */}
-          <CopilotPanel defaultContext="Overview" />
-
           <LegacyTodayChrome />
-        </div>
-      </CopilotCollapseContext.Provider>
+      </div>
     </SidebarCollapseContext.Provider>
   );
 }

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
-import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { useGlobalSearch } from "@/components/global-search-provider";
@@ -45,7 +44,6 @@ export interface ContextShellProps {
   tabs: TabItem[];
   defaultTab?: string;
   children: (activeTab: string) => React.ReactNode;
-  copilotContext?: string;
 }
 
 /**
@@ -151,11 +149,9 @@ export function ContextShell({
   tabs,
   defaultTab,
   children,
-  copilotContext,
 }: ContextShellProps) {
   const [activeTab, setActiveTab] = useState(defaultTab ?? tabs[0]?.key ?? "");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [copilotCollapsed, setCopilotCollapsed] = useState(false);
   /**
    * Defensive parity with `AppShell`: ContextShell is currently only used by
    * detail routes (`/clientes/[id]`, `/proyectos/[id]`, `/facturacion/[id]`),
@@ -168,7 +164,6 @@ export function ContextShell({
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
         {/*
           Today drawer state is scoped to THIS shell instance via its own
           provider. AppShell does the same on its side — at runtime only one
@@ -261,8 +256,6 @@ export function ContextShell({
             </div>
           </main>
 
-          <CopilotPanel defaultContext={copilotContext} />
-
           {/*
             Single Today mount via `<GlobalTodayChrome>` — only mounts the
             mobile vaul drawer. Desktop Today surface lives inline in the
@@ -286,7 +279,6 @@ export function ContextShell({
         </FinesseAssistantProvider>
         </AgentsPanelProvider>
         </TodayDrawerProvider>
-      </CopilotCollapseContext.Provider>
     </SidebarCollapseContext.Provider>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { SidebarNav, MobileSidebarNav } from "@/components/sidebar-nav";
-import { CopilotPanel } from "@/components/copilot-panel";
 import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -339,8 +338,6 @@ export default function FacturacionPage() {
           </section>
         </div>
       </main>
-
-      <CopilotPanel defaultContext="Billing" />
 
       <LegacyTodayChrome />
 

@@ -7,7 +7,7 @@ import { GlobalTodayChrome } from "@/components/today/global-today-chrome"
 /**
  * Drop-in Today chrome for direct legacy workspace pages that don't
  * use `AppShell` or `ContextShell` (e.g. `/`, `/clientes`,
- * `/proyectos`, `/finanzas`, `/facturacion`, `/agente`, `/assistant`,
+ * `/proyectos`, `/finanzas`, `/facturacion`, `/agente`,
  * `/motor`).
  *
  * The two real shells already provide their own `<TodayDrawerProvider>`

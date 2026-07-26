@@ -503,7 +503,6 @@ export default function ClientDetailPage() {
         }
         tabs={tabs}
         defaultTab="resumen"
-        copilotContext={capNoun(nouns.clients)}
       >
         {(activeTab) => {
           if (activeTab === "resumen") return <TabResumen client={client} />;
