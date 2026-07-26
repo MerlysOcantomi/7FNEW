@@ -35,6 +35,7 @@
  */
 
 import "dotenv/config"
+import { pathToFileURL } from "url"
 import { PrismaLibSql } from "@prisma/adapter-libsql"
 import { PrismaClient } from "../generated/prisma/client"
 import {
@@ -396,7 +397,7 @@ async function seedMode(ownerEmail: string, workspaceId: string): Promise<void> 
  * Core seeding logic wrapped in transaction.
  * This function receives a Prisma transaction client and uses it for all writes.
  */
-async function performSeed(
+export async function performSeed(
   tx: any, // Prisma transaction client
   workspaceId: string,
   existingConfig: Record<string, unknown>,
@@ -1079,4 +1080,12 @@ async function main(): Promise<void> {
   }
 }
 
-main()
+/**
+ * Only run the CLI when executed directly (e.g. `tsx scripts/seed-finesse-demo.ts`).
+ * When imported (the Lab provisioner reuses `performSeed`), `main()` must not
+ * fire and the module must not connect on its own.
+ */
+const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : ""
+if (import.meta.url === invokedPath) {
+  main()
+}

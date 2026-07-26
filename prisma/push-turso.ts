@@ -1,843 +1,272 @@
+/**
+ * Turso schema pusher (hardened — DEV-PREVIEW-01D).
+ *
+ * Applies the OFFICIAL repository schema (derived directly from
+ * `prisma/schema.prisma`, the single source of truth) to a remote Turso/libSQL
+ * database over `@libsql/client`.
+ *
+ * Hardening contract (why this file was rewritten):
+ *   - Never announce success when any statement failed.
+ *   - Count succeeded / skipped / failed statements and report them.
+ *   - Capture and report every error WITHOUT revealing secrets (token, URL).
+ *   - Exit with a non-zero code if a single statement fails.
+ *   - Do not continue silently after a critical (connection/auth) error.
+ *
+ * The schema is generated from Prisma so the pushed shape can never drift from
+ * the app's data model (the previous hand-maintained list was missing tables
+ * such as Workspace / WorkspaceMember / WorkspaceTask). Re-running is
+ * idempotent: "already exists" / "duplicate column" are treated as skips.
+ */
+
 import "dotenv/config"
+import { execFileSync } from "child_process"
+import { pathToFileURL } from "url"
 import { createClient } from "@libsql/client"
 
-const dbUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
-const dbToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN
+// ── Secret redaction ─────────────────────────────────────────────────────────
 
-if (!dbUrl || !dbUrl.startsWith("libsql://")) {
-  console.error("TURSO_DATABASE_URL no configurada. Agrega al .env:")
-  console.error('TURSO_DATABASE_URL="libsql://..."')
-  console.error('TURSO_AUTH_TOKEN="..."')
-  process.exit(1)
+/**
+ * Remove anything secret from a string before it is logged. Redacts the exact
+ * values of the known secret env vars and, defensively, any libsql/https URL
+ * or JWT-shaped token that might appear inside a driver error message.
+ */
+export function sanitizeSecret(input: unknown): string {
+  let msg = input instanceof Error ? input.message || String(input) : String(input)
+
+  const secrets = [
+    process.env.TURSO_DATABASE_URL,
+    process.env.TURSO_AUTH_TOKEN,
+    process.env.DATABASE_URL,
+    process.env.DATABASE_AUTH_TOKEN,
+  ].filter((s): s is string => typeof s === "string" && s.length > 0)
+
+  for (const secret of secrets) {
+    msg = msg.split(secret).join("[REDACTED]")
+  }
+
+  // Defensive: redact any remote DB URL or JWT even if it did not come from env.
+  msg = msg.replace(/(libsql|https?|wss?):\/\/[^\s"'`]+/gi, "[REDACTED_URL]")
+  msg = msg.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[REDACTED_TOKEN]")
+  return msg
 }
 
-const client = createClient({
-  url: dbUrl,
-  authToken: dbToken,
-})
+// ── Statement handling ───────────────────────────────────────────────────────
 
-const tables = [
-  `CREATE TABLE IF NOT EXISTS "Cliente" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "customId" TEXT,
-    "nombre" TEXT NOT NULL,
-    "email" TEXT,
-    "telefono" TEXT,
-    "empresa" TEXT,
-    "tipo" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "notas" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Proyecto" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "customId" TEXT,
-    "nombre" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'planificacion',
-    "prioridad" TEXT NOT NULL DEFAULT 'media',
-    "progreso" INTEGER NOT NULL DEFAULT 0,
-    "presupuesto" REAL,
-    "fechaInicio" DATETIME,
-    "fechaFin" DATETIME,
-    "estimatedDelivery" DATETIME,
-    "actualDelivery" DATETIME,
-    "tags" TEXT,
-    "internalNotes" TEXT,
-    "assignedTo" TEXT,
-    "clienteId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Proyecto_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Tarea" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'pendiente',
-    "prioridad" TEXT NOT NULL DEFAULT 'media',
-    "fechaLimite" DATETIME,
-    "completedAt" DATETIME,
-    "proyectoId" TEXT,
-    "clienteId" TEXT,
-    "usuarioId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Tarea_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Tarea_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Tarea_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Transaccion" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "tipo" TEXT NOT NULL,
-    "monto" REAL NOT NULL,
-    "descripcion" TEXT NOT NULL,
-    "categoria" TEXT NOT NULL,
-    "fecha" DATETIME NOT NULL,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Transaccion_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Transaccion_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Factura" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "numero" TEXT NOT NULL,
-    "estado" TEXT NOT NULL DEFAULT 'borrador',
-    "subtotal" REAL NOT NULL DEFAULT 0,
-    "impuesto" REAL NOT NULL DEFAULT 0,
-    "total" REAL NOT NULL DEFAULT 0,
-    "items" TEXT,
-    "fechaEmision" DATETIME,
-    "fechaVencimiento" DATETIME,
-    "paidAt" DATETIME,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Factura_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Factura_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Documento" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "tipo" TEXT NOT NULL DEFAULT 'documento',
-    "url" TEXT,
-    "tamano" INTEGER,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Documento_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Documento_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Evento" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "tipo" TEXT NOT NULL DEFAULT 'reunion',
-    "fechaInicio" DATETIME NOT NULL,
-    "fechaFin" DATETIME,
-    "todoElDia" BOOLEAN NOT NULL DEFAULT false,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Evento_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Evento_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Nota" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "contenido" TEXT,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Nota_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Nota_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Usuario" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "rol" TEXT NOT NULL DEFAULT 'miembro',
-    "departamento" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Automatizacion" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "trigger" TEXT NOT NULL,
-    "condiciones" TEXT,
-    "acciones" TEXT NOT NULL,
-    "estado" TEXT NOT NULL DEFAULT 'activa',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "User" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'viewer',
-    "nombre" TEXT,
-    "avatar" TEXT,
-    "locale" TEXT,
-    "googleId" TEXT,
-    "lastLogin" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "AllowedEmail" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'viewer',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Notification" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "link" TEXT,
-    "read" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Activity" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "module" TEXT NOT NULL,
-    "recordId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "userId" TEXT,
-    "userName" TEXT,
-    "userEmail" TEXT,
-    "data" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "InboxEntry" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT,
-    "email" TEXT,
-    "telefono" TEXT,
-    "mensaje" TEXT NOT NULL,
-    "fuente" TEXT NOT NULL DEFAULT 'manual',
-    "tipo" TEXT NOT NULL DEFAULT 'consulta',
-    "categoria" TEXT,
-    "urgencia" TEXT NOT NULL DEFAULT 'media',
-    "intencion" TEXT,
-    "resumen" TEXT,
-    "datosCliente" TEXT,
-    "datosProyecto" TEXT,
-    "notas" TEXT,
-    "tags" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'nuevo',
-    "aiRaw" TEXT,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "tareaId" TEXT,
-    "archivedAt" DATETIME,
-    "processedAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Contact" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT,
-    "email" TEXT,
-    "telefono" TEXT,
-    "empresa" TEXT,
-    "tipo" TEXT NOT NULL DEFAULT 'visitante',
-    "canal" TEXT NOT NULL DEFAULT 'manual',
-    "source" TEXT,
-    "leadScore" INTEGER,
-    "metadata" TEXT,
-    "notas" TEXT,
-    "clienteId" TEXT,
-    "workspaceId" TEXT NOT NULL,
-    "firstSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Conversation" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "contactId" TEXT NOT NULL,
-    "channel" TEXT NOT NULL DEFAULT 'manual',
-    "source" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'new',
-    "subject" TEXT,
-    "summary" TEXT,
-    "intent" TEXT,
-    "sector" TEXT,
-    "leadScore" INTEGER,
-    "urgency" TEXT NOT NULL DEFAULT 'media',
-    "sentiment" TEXT,
-    "assignedTo" TEXT,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "isPublic" BOOLEAN NOT NULL DEFAULT false,
-    "lastMessageAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "messageCount" INTEGER NOT NULL DEFAULT 0,
-    "closedAt" DATETIME,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Message" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "role" TEXT NOT NULL,
-    "direction" TEXT NOT NULL DEFAULT 'inbound',
-    "content" TEXT NOT NULL,
-    "contentType" TEXT NOT NULL DEFAULT 'text',
-    "metadata" TEXT,
-    "isInternal" BOOLEAN NOT NULL DEFAULT false,
-    "sourceMessageId" TEXT,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ConversationAction" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'suggested',
-    "source" TEXT NOT NULL DEFAULT 'system',
-    "confidence" REAL,
-    "sourceMessageId" TEXT,
-    "data" TEXT,
-    "resultId" TEXT,
-    "resultModule" TEXT,
-    "approvedBy" TEXT,
-    "approvedAt" DATETIME,
-    "dismissedAt" DATETIME,
-    "executionNotes" TEXT,
-    "errorMessage" TEXT,
-    "reviewedBy" TEXT,
-    "reviewedAt" DATETIME,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "AIClassification" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "intent" TEXT,
-    "sector" TEXT,
-    "urgency" TEXT,
-    "leadScore" INTEGER,
-    "sentiment" TEXT,
-    "summary" TEXT,
-    "suggestedTags" TEXT,
-    "briefData" TEXT,
-    "facts" TEXT,
-    "pendingItems" TEXT,
-    "risks" TEXT,
-    "nextBestAction" TEXT,
-    "confidence" REAL,
-    "model" TEXT,
-    "promptVersion" TEXT,
-    "pipelineVersion" TEXT,
-    "scoreReasoning" TEXT,
-    "lastProcessedMessageId" TEXT,
-    "lastProcessedAt" DATETIME,
-    "reviewedBy" TEXT,
-    "reviewedAt" DATETIME,
-    "sourceConversationId" TEXT,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ConversationHandoff" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'generated',
-    "headline" TEXT,
-    "summary" TEXT,
-    "facts" TEXT,
-    "decisions" TEXT,
-    "pendingItems" TEXT,
-    "risks" TEXT,
-    "nextRecommendedAction" TEXT,
-    "sourceMessageId" TEXT,
-    "confidence" REAL,
-    "model" TEXT,
-    "promptVersion" TEXT,
-    "reviewedBy" TEXT,
-    "reviewedAt" DATETIME,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ConversationDraft" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "type" TEXT NOT NULL DEFAULT 'ghost_reply',
-    "status" TEXT NOT NULL DEFAULT 'draft',
-    "title" TEXT,
-    "content" TEXT NOT NULL,
-    "tone" TEXT,
-    "targetChannel" TEXT,
-    "sourceMessageId" TEXT,
-    "generatedFrom" TEXT,
-    "model" TEXT,
-    "promptVersion" TEXT,
-    "reviewedBy" TEXT,
-    "reviewedAt" DATETIME,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Attachment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "tipo" TEXT NOT NULL,
-    "tamano" INTEGER NOT NULL,
-    "module" TEXT NOT NULL,
-    "recordId" TEXT NOT NULL,
-    "userId" TEXT,
-    "userName" TEXT,
-    "ocrText" TEXT,
-    "scanStatus" TEXT NOT NULL DEFAULT 'pending',
-    "scanResult" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "QRCode" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "module" TEXT NOT NULL,
-    "recordId" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "imageData" TEXT NOT NULL,
-    "label" TEXT,
-    "createdBy" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientProject" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ClientProject_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientInvoice" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "monto" REAL NOT NULL,
-    "estado" TEXT NOT NULL DEFAULT 'pendiente',
-    "qrCodeUrl" TEXT,
-    "paymentUrl" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ClientInvoice_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientFile" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "nombre" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "mimeType" TEXT NOT NULL,
-    "tamano" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ClientFile_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "Campaign" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'idea',
-    "marca" TEXT NOT NULL DEFAULT 'general',
-    "fechaInicio" DATETIME,
-    "fechaFin" DATETIME,
-    "presupuesto" REAL,
-    "objetivos" TEXT,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "visibility" TEXT NOT NULL DEFAULT 'public',
-    "allowedUsers" TEXT,
-    "createdBy" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Campaign_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Campaign_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ContentPiece" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "copy" TEXT,
-    "plataforma" TEXT NOT NULL DEFAULT 'instagram',
-    "tipo" TEXT NOT NULL DEFAULT 'post',
-    "estado" TEXT NOT NULL DEFAULT 'idea',
-    "fechaProgramada" DATETIME,
-    "fechaPublicada" DATETIME,
-    "hashtags" TEXT,
-    "mediaUrl" TEXT,
-    "mediaType" TEXT,
-    "enlace" TEXT,
-    "notas" TEXT,
-    "responsable" TEXT,
-    "prioridad" TEXT NOT NULL DEFAULT 'media',
-    "campaignId" TEXT,
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "visibility" TEXT NOT NULL DEFAULT 'public',
-    "createdBy" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ContentPiece_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ContentIdea" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "categoria" TEXT,
-    "plataforma" TEXT,
-    "tags" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'nueva',
-    "fuente" TEXT NOT NULL DEFAULT 'manual',
-    "clienteId" TEXT,
-    "proyectoId" TEXT,
-    "createdBy" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientAuth" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
-    "clienteId" TEXT NOT NULL,
-    "lastLogin" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ClientAuth_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ConversationRead" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "conversationId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "workspaceId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ConversationRead_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ConversationRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ChannelConnection" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "channelType" TEXT NOT NULL,
-    "provider" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "config" TEXT,
-    "credentials" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'active',
-    "externalAccountId" TEXT,
-    "isDefault" BOOLEAN NOT NULL DEFAULT false,
-    "syncState" TEXT,
-    "lastSyncAt" DATETIME,
-    "lastError" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ChannelConnection_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "InboxTodo" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "conversationId" TEXT,
-    "sourceMessageId" TEXT,
-    "sourceActionId" TEXT,
-    "sourceNoteId" TEXT,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'open',
-    "priority" TEXT NOT NULL DEFAULT 'normal',
-    "assigneeType" TEXT NOT NULL DEFAULT 'me',
-    "assigneeId" TEXT,
-    "dueAt" DATETIME,
-    "remindAt" DATETIME,
-    "createdBy" TEXT NOT NULL,
-    "createdSource" TEXT NOT NULL DEFAULT 'operator',
-    "completedAt" DATETIME,
-    "completedBy" TEXT,
-    "dismissedAt" DATETIME,
-    "dismissedReason" TEXT,
-    "metadata" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "InboxTodo_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "InboxTodo_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ExternalIdentity" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "channel" TEXT NOT NULL,
-    "provider" TEXT NOT NULL DEFAULT 'unknown',
-    "scopeKey" TEXT NOT NULL DEFAULT '',
-    "kind" TEXT NOT NULL,
-    "externalKey" TEXT NOT NULL,
-    "displayValue" TEXT,
-    "primaryContactId" TEXT,
-    "resolutionStatus" TEXT NOT NULL DEFAULT 'unresolved',
-    "firstSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "metadata" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ExternalIdentity_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ExternalIdentity_primaryContactId_fkey" FOREIGN KEY ("primaryContactId") REFERENCES "Contact" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ContactIdentityLink" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "externalIdentityId" TEXT NOT NULL,
-    "contactId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'suggested',
-    "source" TEXT NOT NULL DEFAULT 'ingestion',
-    "createdBy" TEXT,
-    "confirmedAt" DATETIME,
-    "rejectedAt" DATETIME,
-    "metadata" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ContactIdentityLink_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ContactIdentityLink_externalIdentityId_fkey" FOREIGN KEY ("externalIdentityId") REFERENCES "ExternalIdentity" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ContactIdentityLink_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "MessageAttachment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "messageId" TEXT NOT NULL,
-    "kind" TEXT NOT NULL DEFAULT 'file',
-    "fileName" TEXT,
-    "mimeType" TEXT,
-    "sizeBytes" INTEGER,
-    "storageKey" TEXT,
-    "externalUrl" TEXT,
-    "provider" TEXT,
-    "externalMediaId" TEXT,
-    "width" INTEGER,
-    "height" INTEGER,
-    "durationMs" INTEGER,
-    "checksum" TEXT,
-    "caption" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'stored',
-    "position" INTEGER NOT NULL DEFAULT 0,
-    "attachmentKey" TEXT NOT NULL,
-    "metadata" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "MessageAttachment_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "MessageAttachment_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "Message" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  // ── Sevenef Presence (PRESENCE-02) ──
-  `CREATE TABLE IF NOT EXISTS "PresenceSite" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "ownershipModel" TEXT NOT NULL DEFAULT 'included_in_saas',
-    "status" TEXT NOT NULL DEFAULT 'draft',
-    "templateId" TEXT NOT NULL DEFAULT 'business-site-standard',
-    "templateVersion" TEXT NOT NULL DEFAULT '0.1.0',
-    "themeKey" TEXT NOT NULL DEFAULT 'midnight',
-    "selectedProposalId" TEXT,
-    "visualConfig" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "PresenceSite_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "PresencePublication" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "siteId" TEXT NOT NULL,
-    "state" TEXT NOT NULL,
-    "templateId" TEXT NOT NULL,
-    "templateVersion" TEXT NOT NULL,
-    "themeKey" TEXT NOT NULL,
-    "reason" TEXT NOT NULL DEFAULT '',
-    "publishedAt" DATETIME,
-    "offlineAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "PresencePublication_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PresencePublication_siteId_fkey" FOREIGN KEY ("siteId") REFERENCES "PresenceSite" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "PresenceDomain" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "siteId" TEXT NOT NULL,
-    "hostname" TEXT NOT NULL,
-    "kind" TEXT NOT NULL DEFAULT 'custom',
-    "verification" TEXT NOT NULL DEFAULT 'pending',
-    "ownership" TEXT NOT NULL DEFAULT 'client_owned',
-    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
-    "verificationToken" TEXT,
-    "verifiedAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "PresenceDomain_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PresenceDomain_siteId_fkey" FOREIGN KEY ("siteId") REFERENCES "PresenceSite" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "PresenceMedia" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "siteId" TEXT,
-    "kind" TEXT NOT NULL DEFAULT 'photo',
-    "purpose" TEXT NOT NULL DEFAULT 'gallery',
-    "storageKey" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "mimeType" TEXT,
-    "width" INTEGER,
-    "height" INTEGER,
-    "sizeBytes" INTEGER,
-    "reviewStatus" TEXT NOT NULL DEFAULT 'pending',
-    "isRealWorkSample" BOOLEAN NOT NULL DEFAULT false,
-    "preserveIntegrity" BOOLEAN NOT NULL DEFAULT false,
-    "freyaAssessedBy" TEXT,
-    "checksum" TEXT,
-    "sourceMediaId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "PresenceMedia_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PresenceMedia_siteId_fkey" FOREIGN KEY ("siteId") REFERENCES "PresenceSite" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "PresenceMedia_sourceMediaId_fkey" FOREIGN KEY ("sourceMediaId") REFERENCES "PresenceMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "PresenceSubscription" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "workspaceId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'none',
-    "source" TEXT NOT NULL DEFAULT 'standalone',
-    "currentPeriodEnd" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "PresenceSubscription_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-]
+/**
+ * Split a DDL script into individual executable statements. Strips `--` line
+ * comments and blank lines, then splits on `;`. The Prisma-generated SQLite DDL
+ * contains no `;` inside string literals, so a plain split is safe here.
+ */
+export function splitSqlStatements(sql: string): string[] {
+  const withoutComments = sql
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
 
-const uniqueIndexes = [
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ClientAuth_email_key" ON "ClientAuth"("email")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ClientAuth_clienteId_key" ON "ClientAuth"("clienteId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "Factura_numero_key" ON "Factura"("numero")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "Usuario_email_key" ON "Usuario"("email")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "User_googleId_key" ON "User"("googleId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "AllowedEmail_email_key" ON "AllowedEmail"("email")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "AIClassification_conversationId_key" ON "AIClassification"("conversationId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationHandoff_conversationId_key" ON "ConversationHandoff"("conversationId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ConversationRead_conversationId_userId_key" ON "ConversationRead"("conversationId", "userId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_externalAccountId_key" ON "ChannelConnection"("workspaceId", "externalAccountId")`,
-  `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_channelType_idx" ON "ChannelConnection"("workspaceId", "channelType")`,
-  `CREATE INDEX IF NOT EXISTS "ChannelConnection_workspaceId_status_idx" ON "ChannelConnection"("workspaceId", "status")`,
-  `CREATE INDEX IF NOT EXISTS "InboxTodo_workspaceId_status_dueAt_idx" ON "InboxTodo"("workspaceId", "status", "dueAt")`,
-  `CREATE INDEX IF NOT EXISTS "InboxTodo_workspaceId_assigneeId_status_idx" ON "InboxTodo"("workspaceId", "assigneeId", "status")`,
-  `CREATE INDEX IF NOT EXISTS "InboxTodo_conversationId_status_idx" ON "InboxTodo"("conversationId", "status")`,
-  `CREATE INDEX IF NOT EXISTS "InboxTodo_sourceActionId_idx" ON "InboxTodo"("sourceActionId")`,
-  `CREATE INDEX IF NOT EXISTS "InboxTodo_sourceMessageId_idx" ON "InboxTodo"("sourceMessageId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ExternalIdentity_workspaceId_channel_provider_scopeKey_externalKey_key" ON "ExternalIdentity"("workspaceId", "channel", "provider", "scopeKey", "externalKey")`,
-  `CREATE INDEX IF NOT EXISTS "ExternalIdentity_workspaceId_primaryContactId_idx" ON "ExternalIdentity"("workspaceId", "primaryContactId")`,
-  `CREATE INDEX IF NOT EXISTS "ExternalIdentity_workspaceId_kind_externalKey_idx" ON "ExternalIdentity"("workspaceId", "kind", "externalKey")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ContactIdentityLink_externalIdentityId_contactId_key" ON "ContactIdentityLink"("externalIdentityId", "contactId")`,
-  `CREATE INDEX IF NOT EXISTS "ContactIdentityLink_workspaceId_contactId_idx" ON "ContactIdentityLink"("workspaceId", "contactId")`,
-  `CREATE INDEX IF NOT EXISTS "ContactIdentityLink_workspaceId_status_idx" ON "ContactIdentityLink"("workspaceId", "status")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "MessageAttachment_messageId_attachmentKey_key" ON "MessageAttachment"("messageId", "attachmentKey")`,
-  `CREATE INDEX IF NOT EXISTS "MessageAttachment_messageId_position_idx" ON "MessageAttachment"("messageId", "position")`,
-  `CREATE INDEX IF NOT EXISTS "MessageAttachment_workspaceId_createdAt_idx" ON "MessageAttachment"("workspaceId", "createdAt")`,
-  `CREATE INDEX IF NOT EXISTS "MessageAttachment_workspaceId_externalMediaId_idx" ON "MessageAttachment"("workspaceId", "externalMediaId")`,
-  `CREATE INDEX IF NOT EXISTS "Message_workspaceId_deliveryStatus_idx" ON "Message"("workspaceId", "deliveryStatus")`,
-  `CREATE INDEX IF NOT EXISTS "Message_workspaceId_connectionId_sourceMessageId_idx" ON "Message"("workspaceId", "connectionId", "sourceMessageId")`,
-  `CREATE INDEX IF NOT EXISTS "ChannelConnection_provider_providerAccountId_idx" ON "ChannelConnection"("provider", "providerAccountId")`,
-  // ── Sevenef Presence (PRESENCE-02) ──
-  `CREATE UNIQUE INDEX IF NOT EXISTS "PresenceSite_workspaceId_key" ON "PresenceSite"("workspaceId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "PresenceSite_slug_key" ON "PresenceSite"("slug")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceSite_status_idx" ON "PresenceSite"("status")`,
-  `CREATE INDEX IF NOT EXISTS "PresencePublication_workspaceId_siteId_createdAt_idx" ON "PresencePublication"("workspaceId", "siteId", "createdAt")`,
-  `CREATE INDEX IF NOT EXISTS "PresencePublication_siteId_state_idx" ON "PresencePublication"("siteId", "state")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "PresenceDomain_hostname_key" ON "PresenceDomain"("hostname")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceDomain_workspaceId_siteId_idx" ON "PresenceDomain"("workspaceId", "siteId")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceDomain_siteId_isPrimary_idx" ON "PresenceDomain"("siteId", "isPrimary")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceMedia_workspaceId_siteId_idx" ON "PresenceMedia"("workspaceId", "siteId")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceMedia_workspaceId_kind_idx" ON "PresenceMedia"("workspaceId", "kind")`,
-  `CREATE INDEX IF NOT EXISTS "PresenceMedia_sourceMediaId_idx" ON "PresenceMedia"("sourceMediaId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "PresenceSubscription_workspaceId_key" ON "PresenceSubscription"("workspaceId")`,
-]
+  return withoutComments
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
 
-async function main() {
-  console.log("Conectando a Turso...")
-  console.log("URL:", process.env.TURSO_DATABASE_URL)
+/** A re-run of an idempotent create is not a failure. */
+export function isIdempotentSkip(message: string): boolean {
+  return /already exists|duplicate column/i.test(message)
+}
 
-  for (const sql of tables) {
-    const name = sql.match(/"(\w+)"/)?.[1] ?? "?"
-    try {
-      await client.execute(sql)
-      console.log(`  Tabla ${name} OK`)
-    } catch (err) {
-      console.error(`  Error en ${name}:`, err)
-    }
+/**
+ * A critical error means the whole run is doomed (bad URL/token, no network,
+ * permission denied). We must stop rather than plough through hundreds of
+ * statements that will all fail — and never do so silently.
+ */
+export function isCriticalError(message: string): boolean {
+  return /UNAUTHORIZED|authenticat|forbidden|denied|not authorized|URL_INVALID|unable to (open|connect)|connection (refused|reset|closed)|network|DNS|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|proxy|TLS|certificate/i.test(
+    message,
+  )
+}
+
+/** A short human label for a statement, for logs (never contains secrets). */
+export function statementLabel(sql: string): string {
+  const create = sql.match(/CREATE (?:UNIQUE )?(TABLE|INDEX)(?: IF NOT EXISTS)? "?(\w+)"?/i)
+  if (create) return `${create[1].toUpperCase()} ${create[2]}`
+  const alter = sql.match(/ALTER TABLE "?(\w+)"?\s+ADD COLUMN "?(\w+)"?/i)
+  if (alter) return `ALTER ${alter[1]}.${alter[2]}`
+  return sql.slice(0, 40).replace(/\s+/g, " ")
+}
+
+// ── Result model ─────────────────────────────────────────────────────────────
+
+export interface StatementFailure {
+  index: number
+  label: string
+  error: string
+}
+
+export interface SchemaPushResult {
+  total: number
+  succeeded: number
+  skipped: number
+  failed: number
+  aborted: boolean
+  failures: StatementFailure[]
+}
+
+export interface SqlExecutor {
+  execute(sql: string): Promise<unknown>
+}
+
+export interface Logger {
+  log: (msg: string) => void
+  error: (msg: string) => void
+}
+
+const silentLogger: Logger = { log: () => {}, error: () => {} }
+
+/**
+ * Execute every statement, counting outcomes. Idempotent re-creates are
+ * skipped, real errors are recorded (sanitized), and a critical error aborts
+ * the remaining statements loudly. Pure with respect to I/O beyond the injected
+ * executor + logger, so it is fully unit-testable.
+ */
+export async function runSchemaStatements(
+  executor: SqlExecutor,
+  statements: string[],
+  logger: Logger = silentLogger,
+): Promise<SchemaPushResult> {
+  const result: SchemaPushResult = {
+    total: statements.length,
+    succeeded: 0,
+    skipped: 0,
+    failed: 0,
+    aborted: false,
+    failures: [],
   }
 
-  for (const sql of uniqueIndexes) {
-    const name = sql.match(/\"(\w+)\"/)?.[1] ?? "?"
+  for (let i = 0; i < statements.length; i++) {
+    const sql = statements[i]
+    const label = statementLabel(sql)
     try {
-      await client.execute(sql)
-      console.log(`  Index ${name} OK`)
+      await executor.execute(sql)
+      result.succeeded++
+      logger.log(`  ✓ ${label}`)
     } catch (err) {
-      console.error(`  Error en index ${name}:`, err)
-    }
-  }
-
-  const alterColumns = [
-    `ALTER TABLE "Cliente" ADD COLUMN "customId" TEXT`,
-    `ALTER TABLE "Cliente" ADD COLUMN "preferredPaymentMethod" TEXT`,
-    `ALTER TABLE "Cliente" ADD COLUMN "currency" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "customId" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "estimatedDelivery" DATETIME`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "actualDelivery" DATETIME`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "tags" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "internalNotes" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "assignedTo" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "visibility" TEXT NOT NULL DEFAULT 'public'`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "allowedUsers" TEXT`,
-    `ALTER TABLE "Proyecto" ADD COLUMN "createdBy" TEXT`,
-    `ALTER TABLE "User" ADD COLUMN "isPrivate" BOOLEAN NOT NULL DEFAULT false`,
-    `ALTER TABLE "User" ADD COLUMN "visibleProjects" TEXT`,
-    `ALTER TABLE "User" ADD COLUMN "locale" TEXT`,
-    `ALTER TABLE "InboxEntry" ADD COLUMN "contactId" TEXT`,
-    `ALTER TABLE "InboxEntry" ADD COLUMN "conversationId" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "facts" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "pendingItems" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "risks" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "nextBestAction" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "pipelineVersion" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "scoreReasoning" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "lastProcessedMessageId" TEXT`,
-    `ALTER TABLE "AIClassification" ADD COLUMN "lastProcessedAt" DATETIME`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'system'`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "confidence" REAL`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "sourceMessageId" TEXT`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "approvedBy" TEXT`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "approvedAt" DATETIME`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "dismissedAt" DATETIME`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "executionNotes" TEXT`,
-    `ALTER TABLE "ConversationAction" ADD COLUMN "errorMessage" TEXT`,
-    `ALTER TABLE "Conversation" ADD COLUMN "detectedLanguage" TEXT`,
-    `ALTER TABLE "InboxEntry" ADD COLUMN "workspaceId" TEXT`,
-    `ALTER TABLE "Notification" ADD COLUMN "workspaceId" TEXT`,
-    `ALTER TABLE "Conversation" ADD COLUMN "connectionId" TEXT`,
-    `ALTER TABLE "Conversation" ADD COLUMN "trashedAt" DATETIME`,
-    `ALTER TABLE "Message" ADD COLUMN "connectionId" TEXT`,
-    `ALTER TABLE "Message" ADD COLUMN "deliveryStatus" TEXT NOT NULL DEFAULT 'none'`,
-    `ALTER TABLE "Message" ADD COLUMN "sentAt" DATETIME`,
-    `ALTER TABLE "Message" ADD COLUMN "deliveredAt" DATETIME`,
-    `ALTER TABLE "Message" ADD COLUMN "readAt" DATETIME`,
-    `ALTER TABLE "Message" ADD COLUMN "readSource" TEXT`,
-    `ALTER TABLE "Message" ADD COLUMN "failedAt" DATETIME`,
-    `ALTER TABLE "Message" ADD COLUMN "failureCode" TEXT`,
-    `ALTER TABLE "Message" ADD COLUMN "deliveryUpdatedAt" DATETIME`,
-    `ALTER TABLE "ChannelConnection" ADD COLUMN "providerAccountId" TEXT`,
-    `ALTER TABLE "ChannelConnection" ADD COLUMN "tokenExpiresAt" DATETIME`,
-    `ALTER TABLE "ChannelConnection" ADD COLUMN "numberUsage" TEXT NOT NULL DEFAULT 'unknown'`,
-  ]
-
-  console.log("\nAgregando columnas nuevas (si no existen)...")
-  for (const sql of alterColumns) {
-    const col = sql.match(/"(\w+)" ADD COLUMN "(\w+)"/)?.[0] ?? "?"
-    try {
-      await client.execute(sql)
-      console.log(`  ALTER ${col} OK`)
-    } catch (err: any) {
-      if (err?.message?.includes("duplicate column") || err?.message?.includes("already exists")) {
-        console.log(`  ALTER ${col} — ya existe, skip`)
-      } else {
-        console.error(`  ALTER ${col} error:`, err?.message)
+      const message = sanitizeSecret(err)
+      if (isIdempotentSkip(message)) {
+        result.skipped++
+        logger.log(`  • ${label} — already present, skipped`)
+        continue
+      }
+      result.failed++
+      result.failures.push({ index: i, label, error: message })
+      logger.error(`  ✗ ${label} — ${message}`)
+      if (isCriticalError(message)) {
+        result.aborted = true
+        logger.error(
+          `  ! critical error — aborting after ${i + 1}/${statements.length} statements`,
+        )
+        break
       }
     }
   }
 
-  console.log("\nSchema pusheado a Turso correctamente")
-  client.close()
+  return result
 }
 
-main().catch(console.error)
+/** Non-zero exit if anything failed or the run was aborted. */
+export function computeExitCode(result: SchemaPushResult): number {
+  return result.failed > 0 || result.aborted ? 1 : 0
+}
+
+/** True only when it is honest to announce success. */
+export function isSuccess(result: SchemaPushResult): boolean {
+  return result.failed === 0 && !result.aborted
+}
+
+/** A summary line that never claims success in the presence of failures. */
+export function formatReport(result: SchemaPushResult): string {
+  const base =
+    `statements=${result.total} ok=${result.succeeded} ` +
+    `skipped=${result.skipped} failed=${result.failed}`
+  if (isSuccess(result)) return `Schema applied successfully (${base})`
+  const suffix = result.aborted ? " [ABORTED on critical error]" : ""
+  return `Schema push FAILED (${base})${suffix}`
+}
+
+// ── Official schema source (Prisma = source of truth) ────────────────────────
+
+/**
+ * Generate the complete official schema SQL from `prisma/schema.prisma` via
+ * `prisma migrate diff`. This guarantees the pushed schema matches the app's
+ * data model exactly and cannot silently drift.
+ */
+export function loadOfficialSchemaSql(): string {
+  const args = [
+    "migrate",
+    "diff",
+    "--from-empty",
+    "--to-schema",
+    "prisma/schema.prisma",
+    "--script",
+  ]
+  const candidates = ["node_modules/.bin/prisma", "prisma"]
+  let lastErr: unknown
+  for (const bin of candidates) {
+    try {
+      return execFileSync(bin, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    } catch (err) {
+      lastErr = err
+    }
+  }
+  // Last resort: npx.
+  try {
+    return execFileSync("npx", ["prisma", ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+  } catch {
+    throw new Error(`unable to generate official schema SQL: ${sanitizeSecret(lastErr)}`)
+  }
+}
+
+// ── CLI ──────────────────────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
+  const dbUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
+  const dbToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN
+
+  if (!dbUrl || !dbUrl.startsWith("libsql://")) {
+    console.error("TURSO_DATABASE_URL is not configured (expected a libsql:// URL).")
+    process.exit(1)
+  }
+
+  console.log("Connecting to Turso (host hidden)…")
+  const client = createClient({ url: dbUrl, authToken: dbToken })
+
+  const statements = splitSqlStatements(loadOfficialSchemaSql())
+  console.log(`Applying official schema: ${statements.length} statements`)
+
+  const result = await runSchemaStatements(client, statements, console)
+  client.close()
+
+  console.log("")
+  const report = formatReport(result)
+  if (isSuccess(result)) {
+    console.log(report)
+  } else {
+    console.error(report)
+    for (const f of result.failures) {
+      console.error(`    - [${f.index}] ${f.label}: ${f.error}`)
+    }
+  }
+
+  process.exit(computeExitCode(result))
+}
+
+const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : ""
+if (import.meta.url === invokedPath) {
+  main().catch((err) => {
+    // Never let an unexpected throw masquerade as success.
+    console.error(`Fatal: ${sanitizeSecret(err)}`)
+    process.exit(1)
+  })
+}

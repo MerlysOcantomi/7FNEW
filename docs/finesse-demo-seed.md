@@ -197,3 +197,14 @@ Notes:
   The mock Studio preview survives only behind `?todayData=mock` (or the
   `?vertical=beauty` forced preview on a non-Beauty workspace); the work-first
   workboard stays reachable via `/today?todayLayout=work_first`.
+
+## Reuse by Mr Forte Lab (DEV-PREVIEW-01C)
+
+The seeding core is exported as `performSeed(tx, workspaceId, config, ownerEmail,
+ownerUserId, verticalKey)` and the CLI `main()` only runs when the file is
+executed directly (`import.meta.url` guard), so importing the module does not
+connect or seed. The Lab provisioner (`scripts/provision-lab-preview.ts`)
+reuses `performSeed` inside its own transaction against the ISOLATED demo Turso
+database, after creating the `lab-preview-user` / `lab-preview-workspace`
+(flagged `config.demo`) and the `editor`/`ADMIN` membership. The existing
+`demo:finesse:*` commands keep working unchanged. See `docs/lab-preview.md`.
