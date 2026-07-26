@@ -1,30 +1,31 @@
 name: Turso schema drift
 
 # Fails when the Turso provisioning mechanism stops matching the source of
-# truth (`prisma/schema.prisma`). The check runs entirely against throwaway
-# local SQLite files: no credentials, no secrets, no remote database.
+# truth (`prisma/schema.prisma`), or when the target guard stops refusing
+# ambiguous databases. Runs entirely against throwaway local SQLite files: no
+# credentials, no secrets, no remote database.
+#
+# It also runs on every branch push, not just on `master`: this repository
+# ships straight to `master`, so a check that only ran there would report drift
+# after the fact instead of preventing it.
 
 on:
   pull_request:
     branches: [master]
-    paths:
+    paths: &watched
       - prisma/schema.prisma
       - prisma/turso-schema.ts
       - prisma/push-turso.ts
+      - prisma.config.ts
       - scripts/turso-schema-drift.test.ts
+      - scripts/turso-target-guard.test.ts
+      - tsconfig.json
       - package.json
       - package-lock.json
       - .github/workflows/turso-schema-drift.yml
   push:
-    branches: [master]
-    paths:
-      - prisma/schema.prisma
-      - prisma/turso-schema.ts
-      - prisma/push-turso.ts
-      - scripts/turso-schema-drift.test.ts
-      - package.json
-      - package-lock.json
-      - .github/workflows/turso-schema-drift.yml
+    branches: ['**']
+    paths: *watched
 
 permissions:
   contents: read
@@ -37,7 +38,7 @@ jobs:
   drift:
     name: Check schema drift
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -51,5 +52,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run drift detector
-        run: npm run test:turso-drift
+      # `npm run typecheck` runs `prisma generate` first: the generated client
+      # lives outside the repository, so a clean checkout cannot typecheck
+      # without it.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run target guard and drift detector
+        run: npm run test:turso

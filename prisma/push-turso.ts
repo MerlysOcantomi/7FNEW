@@ -1,77 +1,102 @@
 /**
- * Canonical Turso deploy runner.
+ * Canonical Turso deploy runner — additive bootstrap only.
  *
  * `schema.prisma` is the single source of truth. This script renders the
- * schema's DDL with the Prisma CLI, makes it idempotent, and applies it to the
- * remote Turso database with `@libsql/client` (Prisma's migration engine cannot
- * reach `libsql://` directly — see `prisma/turso-schema.ts`). There is no
- * hand-maintained SQL list anymore, so it can never drift from the schema.
+ * schema's DDL with the Prisma CLI, derives the canonical structure from a
+ * throwaway local SQLite database, compares it against the target, and applies
+ * ONLY additive differences (new tables, new columns, new indexes).
+ *
+ * Any non-additive difference — a type / nullability / default / primary-key
+ * change, a foreign key that does not exist on an existing table, a renamed or
+ * removed object, an incompatible index — aborts with `manual migration
+ * required` BEFORE anything is written. See `docs/turso-schema-deploy.md`.
  *
  * Usage (behind this environment's egress proxy, Node needs the proxy opt-in):
  *
- *     NODE_USE_ENV_PROXY=1 npx tsx prisma/push-turso.ts
+ *     NODE_USE_ENV_PROXY=1 npm run turso:push
  *
  * Environment variables (precedence documented in `resolveTursoTarget`):
  *   URL:   TURSO_DATABASE_URL  →  DATABASE_URL (libsql:// only)
- *   TOKEN: TURSO_AUTH_TOKEN    →  DATABASE_AUTH_TOKEN
+ *   TOKEN: paired with whichever variable supplied the URL
  *
- * A production-looking target is refused unless
- * `TURSO_PROVISION_ALLOW_PRODUCTION` equals its name.
+ * Only databases whose name carries an explicit non-production marker are
+ * provisioned automatically; anything else requires
+ * `TURSO_PROVISION_ALLOW_PRODUCTION=<exact database name>`.
  */
 
 import "dotenv/config"
 import { createClient } from "@libsql/client"
 import {
-  resolveTursoTarget,
+  ManualMigrationRequiredError,
   assertWritableTarget,
   generateCanonicalDdl,
   provisionSchema,
+  resolveTursoTarget,
 } from "./turso-schema"
+
+function list(label: string, values: string[]): void {
+  if (!values.length) return
+  console.log(`  ${label} (${values.length}):`)
+  for (const value of values) console.log(`    + ${value}`)
+}
 
 async function main() {
   const target = resolveTursoTarget()
 
-  // Identify the target explicitly BEFORE writing (name only — never the URL
-  // or token).
+  // Identify the target explicitly BEFORE writing. Only the database NAME and
+  // the variable it came from are printed — never the URL, host or token.
   console.log(`Target database: ${target.dbName} (from ${target.urlSource})`)
-  if (target.looksLikeProduction) {
-    console.log("⚠️  Target name looks like PRODUCTION.")
-  }
+  console.log(
+    `  classification: ${target.classification.safe ? "non-production" : "PRODUCTION"} — ` +
+      target.classification.reason,
+  )
+  console.log(`  auth token:     ${target.tokenSource ?? "(none configured)"}`)
   assertWritableTarget(target)
 
   const ddl = generateCanonicalDdl()
 
   const client = createClient({ url: target.url, authToken: target.authToken })
   try {
-    console.log("Applying canonical schema derived from prisma/schema.prisma…")
+    console.log("Comparing the live database against prisma/schema.prisma…")
     const report = await provisionSchema(client, ddl)
 
-    // Verify against the live database.
-    const tableCount = await client.execute(
-      "SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_litestream%'",
+    const expectedTables = report.canonical.tables.length
+    const expectedIndexes = report.canonical.tables.reduce(
+      (n, t) => n + t.indexes.filter((i) => i.origin === "c").length,
+      0,
     )
-    const indexCount = await client.execute(
-      "SELECT count(*) AS n FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'",
-    )
-    const fkCheck = await client.execute("PRAGMA foreign_key_check")
 
-    console.log(`  Expected tables:  ${report.tables.length}`)
-    console.log(`  Expected indexes: ${report.indexes.length}`)
-    console.log(`  Live tables:      ${Number(tableCount.rows[0].n)}`)
-    console.log(`  Live indexes:     ${Number(indexCount.rows[0].n)}`)
-    console.log(`  FK violations:    ${fkCheck.rows.length}`)
-    if (report.addedColumns.length) {
-      console.log(`  Columns added:    ${report.addedColumns.join(", ")}`)
-    }
-    for (const w of report.warnings) console.warn(`  ⚠️  ${w}`)
-
-    if (Number(tableCount.rows[0].n) < report.tables.length) {
-      throw new Error("Live table count is lower than expected — provisioning incomplete.")
-    }
-    if (fkCheck.rows.length > 0) {
-      throw new Error("Foreign key violations detected after provisioning.")
+    console.log(`  Tables before:   ${report.before.tables.length}`)
+    console.log(`  Tables after:    ${report.after.tables.length} (schema declares ${expectedTables})`)
+    console.log(`  Indexes:         ${expectedIndexes} declared by schema.prisma`)
+    list("Tables created", report.applied.tables)
+    list("Columns added", report.applied.columns)
+    list("Indexes created", report.applied.indexes)
+    if (
+      !report.applied.tables.length &&
+      !report.applied.columns.length &&
+      !report.applied.indexes.length
+    ) {
+      console.log("  No changes needed — the database already matches schema.prisma.")
     }
 
+    console.log(`  FK violations:   ${report.integrity.foreignKeyViolations}`)
+    console.log(`  integrity_check: ${report.integrity.integrityCheck}`)
+
+    if (report.integrity.foreignKeyViolations > 0) {
+      throw new Error(
+        `Foreign key violations detected after provisioning (${report.integrity.foreignKeyViolations}). ` +
+          "The schema is in place but the DATA is inconsistent — resolve it before using this database.",
+      )
+    }
+    if (report.integrity.integrityCheck !== "ok") {
+      throw new Error(
+        `PRAGMA integrity_check returned "${report.integrity.integrityCheck}" (expected "ok").`,
+      )
+    }
+
+    // Reached only when the post-apply structural comparison found no
+    // difference at all and both integrity checks passed.
     console.log("✓ Schema provisioned successfully from prisma/schema.prisma")
   } finally {
     client.close()
@@ -79,6 +104,10 @@ async function main() {
 }
 
 main().catch((err) => {
+  if (err instanceof ManualMigrationRequiredError) {
+    console.error(err.message)
+    process.exit(2)
+  }
   console.error(err instanceof Error ? err.message : err)
   process.exit(1)
 })

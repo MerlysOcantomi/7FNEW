@@ -209,7 +209,10 @@ domains. Not wired to any UI.
 `prisma/sql/2026-07-21-presence-persistence-additive.sql` for existing
 databases. New tables/indexes need no mirroring into the deploy runner:
 `prisma/push-turso.ts` derives its DDL from `prisma/schema.prisma`, so adding
-the models is enough (see `docs/turso-schema-deploy.md`). Verified locally
+the models is enough. A change that is *not* purely additive — a new relation
+on an existing table, a type/nullability change, a rename — still needs a
+hand-written migration; the runner refuses it with `manual migration required`
+rather than half-applying it (see `docs/turso-schema-deploy.md`). Verified locally
 against SQLite (same engine as Turso): all tables/columns/indexes/FKs present,
 `foreign_key_check` clean, `PRAGMA integrity_check = ok`, statements idempotent
 on re-apply. The remote Turso push runs in the deploy environment (real
