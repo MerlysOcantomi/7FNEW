@@ -14,6 +14,12 @@
  * already has tables is refused outright — use `turso:verify` to inspect it, or
  * create a fresh database.
  *
+ * THE GUARD CANNOT BE SKIPPED
+ * ---------------------------
+ * `bootstrapTursoTarget()` is the only exported way in, and it runs
+ * `assertBootstrapTarget()` before a DDL is rendered and before any connection
+ * exists. The primitive that accepts an already-open writable client is module
+ * private, so no caller can reach a write path with an unvalidated target.
  * There is also **no production override**: no environment variable can unlock
  * a production or unrecognised name. Provisioning production is a different,
  * deliberate procedure.
@@ -31,7 +37,7 @@ import { fileURLToPath } from "node:url"
 import "dotenv/config"
 import { createClient } from "@libsql/client"
 import {
-  applicationTableNames,
+  applicationObjects,
   assertBootstrapTarget,
   asReadOnly,
   canonicalStructureFromDdl,
@@ -42,8 +48,10 @@ import {
   introspectStructure,
   resolveTursoTarget,
   sanitizeForLog,
+  type DatabaseObject,
   type DatabaseStructure,
   type SqlExecutor,
+  type TursoTarget,
 } from "./turso-schema"
 
 /** The exact refusal the contract requires for a non-empty database. */
@@ -51,12 +59,21 @@ export const NOT_EMPTY_MESSAGE =
   "Database is not empty.\nBootstrap refused.\nUse turso:verify or create a fresh database."
 
 export class DatabaseNotEmptyError extends Error {
-  readonly tables: string[]
+  /** Every non-internal object found: tables, indexes, views and triggers. */
+  readonly objects: DatabaseObject[]
 
-  constructor(tables: string[]) {
-    super(`${NOT_EMPTY_MESSAGE}\n\nApplication tables found (${tables.length}): ${tables.join(", ")}`)
+  constructor(objects: DatabaseObject[]) {
+    super(
+      `${NOT_EMPTY_MESSAGE}\n\nObjects found (${objects.length}): ` +
+        objects.map((o) => `${o.type} ${o.name}`).join(", "),
+    )
     this.name = "DatabaseNotEmptyError"
-    this.tables = tables
+    this.objects = objects
+  }
+
+  /** Convenience for callers that only care about tables. */
+  get tables(): string[] {
+    return this.objects.filter((o) => o.type === "table").map((o) => o.name)
   }
 }
 
@@ -77,9 +94,24 @@ export interface BootstrapTransaction extends SqlExecutor {
   close(): void
 }
 
-/** The client surface bootstrap needs: a write transaction, nothing else. */
+/** The client surface bootstrap needs: a write transaction, and a way to close. */
 export interface BootstrapClient {
   transaction(mode: "write"): Promise<BootstrapTransaction>
+  close(): void
+}
+
+/**
+ * Opens the write connection. Only ever invoked AFTER the target has passed
+ * `assertBootstrapTarget`, and always with that validated target — which is why
+ * a factory may be injected for tests without weakening the guard.
+ */
+export type BootstrapClientFactory = (target: TursoTarget) => BootstrapClient
+
+export interface BootstrapOptions {
+  /** Canonical DDL. Rendered from `schema.prisma` when omitted. */
+  ddl?: string
+  /** How to open the write connection. Defaults to a real libsql client. */
+  createClient?: BootstrapClientFactory
 }
 
 export interface BootstrapResult {
@@ -91,18 +123,26 @@ export interface BootstrapResult {
   structure: DatabaseStructure
 }
 
+function defaultClientFactory(target: TursoTarget): BootstrapClient {
+  return createClient({ url: target.url, authToken: target.authToken })
+}
+
 /**
  * Create the canonical schema inside a single exclusive transaction.
  *
  *   1. `BEGIN IMMEDIATE` — take the write lock before reading, so two
  *      concurrent runs cannot both decide the database is empty.
  *   2. Read `sqlite_master`; refuse if any application table exists.
- *   3. Apply the whole canonical DDL.
+ *   3. Apply the whole canonical DDL — the ONLY write this tool ever issues.
  *   4. Introspect and require the result to match the canonical structure.
  *   5. `PRAGMA foreign_key_check` and `PRAGMA integrity_check`.
  *   6. Commit only if every step passed; otherwise roll back.
+ *
+ * Module private on purpose: it takes an already-open writable client, so
+ * exporting it would be a path around `assertBootstrapTarget`. Reach it through
+ * `bootstrapTursoTarget()`.
  */
-export async function bootstrapSchema(
+async function bootstrapSchemaInternal(
   client: BootstrapClient,
   ddl: string,
 ): Promise<BootstrapResult> {
@@ -112,25 +152,31 @@ export async function bootstrapSchema(
 
   const tx = await client.transaction("write")
   try {
-    const existing = await applicationTableNames(asReadOnly(tx))
+    // Every read goes through the read-only guard; the only statement that is
+    // not is the canonical DDL below.
+    const reader = asReadOnly(tx)
+
+    // Not just tables: a leftover view or trigger also makes a database
+    // non-empty, and a trigger would survive to run against what we create.
+    const existing = await applicationObjects(reader)
     if (existing.length) throw new DatabaseNotEmptyError(existing)
 
     await tx.executeMultiple(ddl)
 
-    const structure = await introspectStructure(asReadOnly(tx))
+    const structure = await introspectStructure(reader)
     const report = compareStructures(canonical, structure)
     if (report.verdict !== "identical") {
       throw new BootstrapVerificationError(formatReport(report))
     }
 
-    const fkCheck = await tx.execute("PRAGMA foreign_key_check")
+    const fkCheck = await reader.execute("PRAGMA foreign_key_check")
     if (fkCheck.rows.length > 0) {
       throw new BootstrapVerificationError(
         `PRAGMA foreign_key_check returned ${fkCheck.rows.length} violation(s).`,
       )
     }
 
-    const integrity = await tx.execute("PRAGMA integrity_check")
+    const integrity = await reader.execute("PRAGMA integrity_check")
     const integrityCheck = String(Object.values(integrity.rows[0] ?? {})[0] ?? "unknown")
     if (integrityCheck !== "ok") {
       throw new BootstrapVerificationError(
@@ -153,9 +199,43 @@ export async function bootstrapSchema(
     }
   } catch (err) {
     // `close()` rolls back when the transaction was not committed, and is a
-    // no-op once it is closed — safe on every path.
-    tx.close()
+    // no-op once it is closed — safe on every path. Its own failure must never
+    // replace the error that caused the rollback.
+    try {
+      tx.close()
+    } catch {
+      /* best effort: the original error below is what the operator needs */
+    }
     throw err
+  }
+}
+
+/**
+ * The one and only entry point that can write a schema.
+ *
+ * The guard runs FIRST — before a DDL is rendered and before a connection
+ * exists — so a production or unrecognised target is refused without the client
+ * factory ever being invoked.
+ */
+export async function bootstrapTursoTarget(
+  target: TursoTarget,
+  options: BootstrapOptions = {},
+): Promise<BootstrapResult> {
+  assertBootstrapTarget(target)
+
+  const ddl = options.ddl ?? generateCanonicalDdl()
+  const client = (options.createClient ?? defaultClientFactory)(target)
+  try {
+    return await bootstrapSchemaInternal(client, ddl)
+  } finally {
+    // Releasing the connection is best effort. A failure here must not mask the
+    // real outcome — neither a successful bootstrap nor the refusal that has to
+    // reach the operator with its own exit code.
+    try {
+      client.close()
+    } catch {
+      /* intentionally ignored */
+    }
   }
 }
 
@@ -165,25 +245,24 @@ function isDirectRun(): boolean {
   return Boolean(entry) && resolve(entry) === fileURLToPath(import.meta.url)
 }
 
-async function main() {
-  const target = resolveTursoTarget()
-
-  // Only the database NAME and the variable it came from are ever printed —
-  // never the URL, the host or the token.
-  console.log(`Target database: ${target.dbName} (from ${target.urlSource})`)
-  console.log(
-    `  classification: ${target.classification.safe ? "non-production" : "PRODUCTION"} — ` +
-      target.classification.reason,
-  )
-  console.log(`  auth token:     ${target.tokenSource ?? "(none configured)"}`)
-  assertBootstrapTarget(target)
-
-  const ddl = generateCanonicalDdl()
-
-  const client = createClient({ url: target.url, authToken: target.authToken })
+async function main(): Promise<number> {
+  // Populated as soon as the target resolves, so the error path can redact the
+  // token and hostname literally instead of relying on pattern matching.
+  const secrets: Array<string | undefined> = []
   try {
-    console.log("Bootstrapping schema from prisma/schema.prisma…")
-    const result = await bootstrapSchema(client, ddl)
+    const target = resolveTursoTarget()
+    secrets.push(target.authToken, target.host, target.url)
+
+    // Only the database NAME and the variable it came from are ever printed —
+    // never the URL, the host or the token.
+    console.log(`Target database: ${target.dbName} (from ${target.urlSource})`)
+    console.log(
+      `  classification: ${target.classification.safe ? "non-production" : "PRODUCTION"} — ` +
+        target.classification.reason,
+    )
+    console.log(`  auth token:     ${target.tokenSource ?? "(none configured)"}`)
+
+    const result = await bootstrapTursoTarget(target)
 
     console.log(`  Tables created:  ${result.tables}`)
     console.log(`  Indexes created: ${result.indexes}`)
@@ -191,15 +270,14 @@ async function main() {
     console.log(`  FK violations:   ${result.foreignKeyViolations}`)
     console.log(`  integrity_check: ${result.integrityCheck}`)
     console.log("✓ Schema created and verified. Re-run `npm run turso:verify` at any time.")
-  } finally {
-    client.close()
+    return 0
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(sanitizeForLog(message, secrets))
+    return err instanceof DatabaseNotEmptyError || err instanceof BootstrapVerificationError ? 2 : 1
   }
 }
 
 if (isDirectRun()) {
-  main().catch((err) => {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error(sanitizeForLog(message))
-    process.exit(err instanceof DatabaseNotEmptyError || err instanceof BootstrapVerificationError ? 2 : 1)
-  })
+  main().then((code) => process.exit(code))
 }

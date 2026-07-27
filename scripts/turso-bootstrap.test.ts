@@ -1,10 +1,10 @@
 /**
  * `turso:bootstrap` — empty-only schema creation.
  *
- * Proves the contract: it creates the whole schema on an empty database, it
- * refuses every non-empty database without touching it, it never issues a
- * column-adding or repairing statement, and a failure anywhere rolls the whole
- * thing back to an empty database.
+ * Proves the contract: the production guard cannot be skipped, it creates the
+ * whole schema on an empty database, it refuses every non-empty database
+ * without touching it, it never issues a column-adding or repairing statement,
+ * and a failure anywhere rolls the whole thing back to an empty database.
  *
  * Runs entirely against throwaway LOCAL SQLite files — it never connects to
  * any remote database, so it is safe in CI without credentials or the proxy.
@@ -13,17 +13,19 @@
  */
 
 import assert from "node:assert/strict"
+import { execFileSync } from "node:child_process"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test, { type TestContext } from "node:test"
 
 import { createClient, type Client } from "@libsql/client"
+import * as bootstrapModule from "../prisma/bootstrap-turso"
 import {
   BootstrapVerificationError,
   DatabaseNotEmptyError,
   NOT_EMPTY_MESSAGE,
-  bootstrapSchema,
+  bootstrapTursoTarget,
   type BootstrapClient,
   type BootstrapTransaction,
 } from "../prisma/bootstrap-turso"
@@ -37,6 +39,8 @@ import {
   generateCanonicalDdl,
   introspectStructure,
   parseSchemaModels,
+  resolveTursoTarget,
+  type TursoTarget,
 } from "../prisma/turso-schema"
 
 // ---------------------------------------------------------------------------
@@ -48,6 +52,13 @@ let cachedDdl: string | undefined
 function realDdl(): string {
   cachedDdl ??= generateCanonicalDdl()
   return cachedDdl
+}
+
+/** A target whose name passes the guard, so tests exercise the real entry point. */
+function labTarget(name = "bootstrap-sandbox"): TursoTarget {
+  const target = resolveTursoTarget({ TURSO_DATABASE_URL: `libsql://${name}.turso.io` })
+  assert.equal(target.classification.safe, true, `fixture target "${name}" must be non-production`)
+  return target
 }
 
 /** A throwaway file-backed SQLite database, cleaned up when the test ends. */
@@ -67,35 +78,149 @@ interface SpiedCall {
   sql: string
 }
 
-/** Records every statement issued, so we can prove what was NOT run. */
-function spyOn(client: Client): { client: BootstrapClient; calls: SpiedCall[] } {
+interface Injection {
+  factory: bootstrapModule.BootstrapClientFactory
+  /** Targets the factory was called with — empty when the guard refused first. */
+  targets: TursoTarget[]
+  calls: SpiedCall[]
+}
+
+/**
+ * A client factory backed by a local SQLite file. Records every statement so we
+ * can prove what was NOT run, and every factory invocation so we can prove the
+ * guard refused before a connection was ever opened.
+ *
+ * `close()` is a no-op: the entry point closes what it opened, and the tests
+ * keep inspecting the same database afterwards.
+ */
+function inject(client: Client): Injection {
+  const targets: TursoTarget[] = []
   const calls: SpiedCall[] = []
   return {
+    targets,
     calls,
-    client: {
-      async transaction(mode: "write") {
-        const tx = await client.transaction(mode)
-        const wrapped: BootstrapTransaction = {
-          async execute(sql: string) {
-            calls.push({ via: "execute", sql })
-            return tx.execute(sql)
-          },
-          async executeMultiple(sql: string) {
-            calls.push({ via: "executeMultiple", sql })
-            return tx.executeMultiple(sql)
-          },
-          commit: () => tx.commit(),
-          rollback: () => tx.rollback(),
-          close: () => tx.close(),
-        }
-        return wrapped
-      },
+    factory: (target) => {
+      targets.push(target)
+      const wrapped: BootstrapClient = {
+        async transaction(mode: "write") {
+          const tx = await client.transaction(mode)
+          const tracked: BootstrapTransaction = {
+            async execute(sql: string) {
+              calls.push({ via: "execute", sql })
+              return tx.execute(sql)
+            },
+            async executeMultiple(sql: string) {
+              calls.push({ via: "executeMultiple", sql })
+              return tx.executeMultiple(sql)
+            },
+            commit: () => tx.commit(),
+            rollback: () => tx.rollback(),
+            close: () => tx.close(),
+          }
+          return tracked
+        },
+        close: () => {},
+      }
+      return wrapped
     },
   }
 }
 
 // ---------------------------------------------------------------------------
-// 1. Empty database — the only supported case
+// 1. The guard cannot be skipped
+// ---------------------------------------------------------------------------
+
+const REFUSED_NAMES = ["sevenef-prod", "7f", "sevenef-live", "unknown-name", "7f-prod-test"]
+
+test("a refused target never reaches the client factory", async (t) => {
+  for (const name of REFUSED_NAMES) {
+    await t.test(`refuses "${name}" before opening a connection`, async () => {
+      const target = resolveTursoTarget({ TURSO_DATABASE_URL: `libsql://${name}.turso.io` })
+      let invocations = 0
+
+      await assert.rejects(
+        () =>
+          bootstrapTursoTarget(target, {
+            ddl: `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY);`,
+            createClient: () => {
+              invocations++
+              throw new Error("the client factory must never be reached for a refused target")
+            },
+          }),
+        /Refusing to bootstrap/,
+      )
+
+      assert.equal(invocations, 0, `the factory was invoked for "${name}"`)
+    })
+  }
+})
+
+test("no environment variable can unlock a refused target", async () => {
+  const target = resolveTursoTarget({ TURSO_DATABASE_URL: "libsql://7f-7frames.turso.io" })
+  const previous = { ...process.env }
+  for (const key of [
+    "TURSO_PROVISION_ALLOW_PRODUCTION",
+    "TURSO_ALLOW_PRODUCTION",
+    "TURSO_FORCE",
+    "FORCE",
+  ]) {
+    process.env[key] = "7f-7frames"
+  }
+  try {
+    let invocations = 0
+    await assert.rejects(
+      () =>
+        bootstrapTursoTarget(target, {
+          ddl: `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY);`,
+          createClient: () => {
+            invocations++
+            throw new Error("unreachable")
+          },
+        }),
+      /Refusing to bootstrap/,
+    )
+    assert.equal(invocations, 0)
+  } finally {
+    process.env = previous
+  }
+})
+
+test("the module exposes no write path that takes a client directly", () => {
+  const exported = Object.entries(bootstrapModule)
+    .filter(([, value]) => typeof value === "function")
+    .map(([name]) => name)
+    .sort()
+
+  // Only the guarded entry point and the two error classes are callable.
+  assert.deepEqual(exported, [
+    "BootstrapVerificationError",
+    "DatabaseNotEmptyError",
+    "bootstrapTursoTarget",
+  ])
+
+  for (const gone of ["bootstrapSchema", "bootstrapSchemaInternal", "provisionSchema"]) {
+    assert.equal(
+      (bootstrapModule as unknown as Record<string, unknown>)[gone],
+      undefined,
+      `${gone} must not be exported — it would bypass assertBootstrapTarget`,
+    )
+  }
+})
+
+test("a safe target invokes the factory exactly once, with the validated target", async (t) => {
+  const { client } = tempDb(t, "factory-once")
+  const injection = inject(client)
+  const target = labTarget()
+
+  const result = await bootstrapTursoTarget(target, { ddl: realDdl(), createClient: injection.factory })
+
+  assert.equal(injection.targets.length, 1)
+  assert.equal(injection.targets[0], target)
+  assert.ok(result.tables > 0)
+})
+
+// ---------------------------------------------------------------------------
+// 2. Empty database — the only supported case
 // ---------------------------------------------------------------------------
 
 test("an empty database gets the complete schema", async (t) => {
@@ -104,7 +229,10 @@ test("an empty database gets the complete schema", async (t) => {
   const models = parseSchemaModels(readFileSync(join(PROJECT_ROOT, "prisma/schema.prisma"), "utf8"))
 
   const { client } = tempDb(t, "empty")
-  const result = await bootstrapSchema(client, ddl)
+  const result = await bootstrapTursoTarget(labTarget(), {
+    ddl,
+    createClient: inject(client).factory,
+  })
 
   await t.test("every model reaches the database as a table", async () => {
     const tables = await applicationTableNames(asReadOnly(client))
@@ -131,18 +259,18 @@ test("an empty database gets the complete schema", async (t) => {
 })
 
 // ---------------------------------------------------------------------------
-// 2. Non-empty databases are refused, untouched
+// 3. Non-empty databases are refused, untouched
 // ---------------------------------------------------------------------------
 
 test("a second run is refused and changes nothing", async (t) => {
   const ddl = realDdl()
   const { client } = tempDb(t, "twice")
-  await bootstrapSchema(client, ddl)
+  await bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory })
 
   const before = await introspectStructure(asReadOnly(client))
 
   await assert.rejects(
-    () => bootstrapSchema(client, ddl),
+    () => bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.ok(
@@ -161,7 +289,7 @@ test("a database with a single unrelated table is refused", async (t) => {
   await client.executeMultiple(`CREATE TABLE "Leftover" ("id" TEXT NOT NULL PRIMARY KEY);`)
 
   await assert.rejects(
-    () => bootstrapSchema(client, realDdl()),
+    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.deepEqual(err.tables, ["Leftover"])
@@ -185,7 +313,7 @@ test("a partially created database is refused, not completed", async (t) => {
   const before = await introspectStructure(asReadOnly(client))
 
   await assert.rejects(
-    () => bootstrapSchema(client, ddl),
+    () => bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.equal(err.tables.length, 5)
@@ -197,36 +325,112 @@ test("a partially created database is refused, not completed", async (t) => {
   assert.deepEqual(await introspectStructure(asReadOnly(client)), before)
 })
 
-test("internal tables do not make a database look non-empty", async (t) => {
-  const { client } = tempDb(t, "internal")
-  await client.executeMultiple(`CREATE TABLE "_prisma_migrations" ("id" TEXT NOT NULL PRIMARY KEY);`)
-  const result = await bootstrapSchema(client, realDdl())
+test("_prisma_migrations makes a database non-empty", async (t) => {
+  const { client } = tempDb(t, "prisma-migrations")
+  await client.executeMultiple(
+    `CREATE TABLE "_prisma_migrations" ("id" TEXT NOT NULL PRIMARY KEY, "migration_name" TEXT);
+     INSERT INTO "_prisma_migrations" ("id","migration_name") VALUES ('m1','20260101_init');`,
+  )
+
+  await assert.rejects(
+    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: inject(client).factory }),
+    (err: unknown) => {
+      assert.ok(err instanceof DatabaseNotEmptyError)
+      assert.deepEqual(err.tables, ["_prisma_migrations"])
+      return true
+    },
+  )
+
+  // Non-destructive: the migration history is still there, untouched.
+  const rows = await client.execute(`SELECT "migration_name" FROM "_prisma_migrations"`)
+  assert.equal(rows.rows.length, 1)
+  assert.equal(String(rows.rows[0].migration_name), "20260101_init")
+  assert.deepEqual(await applicationTableNames(asReadOnly(client)), ["_prisma_migrations"])
+})
+
+test("a leftover view or trigger makes a database non-empty", async (t) => {
+  // The adversarial finding this closes: neither shows up in a `type='table'`
+  // query, so bootstrap used to write into the database — and the trigger then
+  // survived to fire against the tables it had just created.
+  for (const [label, seed, expected] of [
+    ["a view", `CREATE TABLE "Seed" ("id" TEXT PRIMARY KEY);\nCREATE VIEW "v_secret" AS SELECT * FROM "Seed";`, ["table Seed", "view v_secret"]],
+    [
+      "a trigger on a view",
+      `CREATE TABLE "Seed" ("id" TEXT PRIMARY KEY);
+       CREATE VIEW "v_gate" AS SELECT * FROM "Seed";
+       CREATE TRIGGER "evil_exfil" INSTEAD OF INSERT ON "v_gate" BEGIN UPDATE "Seed" SET "id" = 'pwned'; END;`,
+      ["table Seed", "trigger evil_exfil", "view v_gate"],
+    ],
+  ] as const) {
+    await t.test(`refuses ${label}`, async () => {
+      const { client } = tempDb(t, label.replace(/\W+/g, "-"))
+      await client.executeMultiple(seed)
+      const injection = inject(client)
+
+      await assert.rejects(
+        () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: injection.factory }),
+        (err: unknown) => {
+          assert.ok(err instanceof DatabaseNotEmptyError)
+          assert.deepEqual(
+            err.objects.map((o) => `${o.type} ${o.name}`).sort(),
+            [...expected].sort(),
+          )
+          return true
+        },
+      )
+
+      // Nothing was written at all.
+      assert.deepEqual(
+        injection.calls.filter((c) => c.via === "executeMultiple"),
+        [],
+        "the DDL must never be applied to a non-empty database",
+      )
+    })
+  }
+})
+
+test("only engine-internal tables are ignored by the empty check", async (t) => {
+  // `libsql_*` is a documented engine prefix and can exist in a fresh database.
+  const { client } = tempDb(t, "engine-internal")
+  await client.executeMultiple(`CREATE TABLE "libsql_wasm_func_table" ("name" TEXT);`)
+
+  const result = await bootstrapTursoTarget(labTarget(), {
+    ddl: realDdl(),
+    createClient: inject(client).factory,
+  })
   assert.ok(result.tables > 0)
+
+  // …and the allow-list really is just those two prefixes.
+  assert.equal(tursoSchema.isInternalTable("sqlite_sequence"), true)
+  assert.equal(tursoSchema.isInternalTable("libsql_wasm_func_table"), true)
+  for (const name of ["_prisma_migrations", "_litestream_seq", "_litestream_lock", "Workspace"]) {
+    assert.equal(tursoSchema.isInternalTable(name), false, name)
+  }
 })
 
 // ---------------------------------------------------------------------------
-// 3. The forbidden operations really are absent
+// 4. The forbidden operations really are absent
 // ---------------------------------------------------------------------------
 
 test("bootstrap issues no repairing statement of any kind", async (t) => {
   const { client } = tempDb(t, "spy")
-  const spy = spyOn(client)
-  await bootstrapSchema(spy.client, realDdl())
+  const injection = inject(client)
+  await bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: injection.factory })
 
   const forbidden = [/\bALTER\s+TABLE\b/i, /\bDROP\b/i, /\bDELETE\s+FROM\b/i, /\bUPDATE\s+"/i]
   for (const pattern of forbidden) {
-    const offending = spy.calls.filter((c) => pattern.test(c.sql))
+    const offending = injection.calls.filter((c) => pattern.test(c.sql))
     assert.deepEqual(offending, [], `bootstrap issued ${pattern}: ${offending[0]?.sql.slice(0, 80)}`)
   }
 
   // The only thing ever written is the canonical DDL, verbatim, in one go.
-  const writes = spy.calls.filter((c) => c.via === "executeMultiple")
+  const writes = injection.calls.filter((c) => c.via === "executeMultiple")
   assert.equal(writes.length, 1, "the schema is applied as a single canonical script")
   assert.equal(writes[0].sql, realDdl())
 
-  // Everything else is a read: sqlite_master and PRAGMAs, nothing more.
-  for (const call of spy.calls.filter((c) => c.via === "execute")) {
-    assert.match(call.sql.trim(), /^(SELECT|PRAGMA)\b/i, call.sql.slice(0, 80))
+  // Everything else is a read that passed the read-only guard.
+  for (const call of injection.calls.filter((c) => c.via === "execute")) {
+    assert.doesNotThrow(() => tursoSchema.assertReadOnlySql(call.sql), call.sql.slice(0, 80))
   }
 })
 
@@ -244,22 +448,25 @@ test("the additive planner is gone from the public surface", () => {
   for (const name of removed) {
     assert.ok(!surface.includes(name), `${name} should no longer be exported`)
   }
-  // …and the read-only comparison is what replaced it.
   assert.ok(surface.includes("compareStructures"))
   assert.ok(surface.includes("asReadOnly"))
 })
 
-test("there is no production override for bootstrap", () => {
-  const source = readFileSync(join(PROJECT_ROOT, "prisma/turso-schema.ts"), "utf8")
-  const bootstrap = readFileSync(join(PROJECT_ROOT, "prisma/bootstrap-turso.ts"), "utf8")
+test("there is no production override anywhere in the sources", () => {
+  const sources = ["prisma/turso-schema.ts", "prisma/bootstrap-turso.ts", "prisma/verify-turso.ts"]
+    .map((f) => readFileSync(join(PROJECT_ROOT, f), "utf8"))
+    .join("\n")
   assert.ok(
-    !/TURSO_PROVISION_ALLOW_PRODUCTION/.test(source + bootstrap),
+    !/TURSO_PROVISION_ALLOW_PRODUCTION/.test(sources),
     "the production override must be gone entirely",
   )
+  // The guard takes a target and nothing else — there is no env parameter to
+  // read an override from.
+  assert.equal(tursoSchema.assertBootstrapTarget.length, 1)
 })
 
 // ---------------------------------------------------------------------------
-// 4. Atomicity: rollback and concurrency
+// 5. Atomicity: rollback and concurrency
 // ---------------------------------------------------------------------------
 
 test("a failure mid-run rolls back to an empty database", async (t) => {
@@ -272,7 +479,10 @@ CREATE TABLE "B" ("id" TEXT NOT NULL PRIMARY KEY);
 CREATE INDEX "A_label_idx" ON "A"("label");
 CREATE INDEX "B_nope_idx" ON "B"("nope");`
 
-  await assert.rejects(() => bootstrapSchema(client, brokenDdl), /no such column: nope/)
+  await assert.rejects(
+    () => bootstrapTursoTarget(labTarget(), { ddl: brokenDdl, createClient: inject(client).factory }),
+    /no such column: nope/,
+  )
 
   assert.deepEqual(
     await applicationTableNames(asReadOnly(client)),
@@ -293,7 +503,11 @@ test("a database that fails verification is rolled back, not committed", async (
   const uncheckableDdl = `CREATE TABLE "A" ("id" TEXT NOT NULL PRIMARY KEY, "n" INTEGER CHECK ("n" > 0));`
 
   await assert.rejects(
-    () => bootstrapSchema(client, uncheckableDdl),
+    () =>
+      bootstrapTursoTarget(labTarget(), {
+        ddl: uncheckableDdl,
+        createClient: inject(client).factory,
+      }),
     (err: unknown) => {
       assert.ok(err instanceof BootstrapVerificationError)
       assert.match(err.message, /rolled back/)
@@ -303,6 +517,41 @@ test("a database that fails verification is rolled back, not committed", async (
   )
 
   assert.deepEqual(await applicationTableNames(asReadOnly(client)), [])
+})
+
+test("a failing close() never masks the real outcome", async (t) => {
+  const { client } = tempDb(t, "close-throws")
+
+  // A refusal must still reach the caller as a DatabaseNotEmptyError (exit 2),
+  // not as whatever the connection threw on its way out.
+  await client.executeMultiple(`CREATE TABLE "Leftover" ("id" TEXT NOT NULL PRIMARY KEY);`)
+  const explode: BootstrapClient = {
+    transaction: (mode) => client.transaction(mode),
+    close: () => {
+      throw new Error("close blew up")
+    },
+  }
+  await assert.rejects(
+    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: () => explode }),
+    (err: unknown) => {
+      assert.ok(err instanceof DatabaseNotEmptyError, `got ${(err as Error).message}`)
+      return true
+    },
+  )
+
+  // …and a successful bootstrap still succeeds.
+  const { client: fresh } = tempDb(t, "close-throws-ok")
+  const explodeOnFresh: BootstrapClient = {
+    transaction: (mode) => fresh.transaction(mode),
+    close: () => {
+      throw new Error("close blew up")
+    },
+  }
+  const result = await bootstrapTursoTarget(labTarget(), {
+    ddl: realDdl(),
+    createClient: () => explodeOnFresh,
+  })
+  assert.ok(result.tables > 0)
 })
 
 test("two concurrent bootstraps leave no partial state and only one succeeds", async (t) => {
@@ -316,7 +565,10 @@ test("two concurrent bootstraps leave no partial state and only one succeeds", a
     b.close()
   })
 
-  const results = await Promise.allSettled([bootstrapSchema(a, ddl), bootstrapSchema(b, ddl)])
+  const results = await Promise.allSettled([
+    bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(a).factory }),
+    bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(b).factory }),
+  ])
   const fulfilled = results.filter((r) => r.status === "fulfilled")
   const rejected = results.filter((r) => r.status === "rejected")
 
@@ -339,24 +591,23 @@ test("two concurrent bootstraps leave no partial state and only one succeeds", a
 })
 
 // ---------------------------------------------------------------------------
-// 5. Error hygiene
+// 6. Error hygiene and import safety
 // ---------------------------------------------------------------------------
 
-test("errors never carry credentials", async (t) => {
-  const { client } = tempDb(t, "sanitize")
+test("errors never carry credentials", async () => {
   const secret = "libsql://leaky-lab.turso.io?authToken=leakedsecret"
 
-  const failing: BootstrapClient = {
-    async transaction() {
-      throw new Error(`connection to ${secret} failed (Bearer leakedbearer)`)
-    },
-  }
-
   await assert.rejects(
-    () => bootstrapSchema(failing, realDdl()),
+    () =>
+      bootstrapTursoTarget(labTarget(), {
+        ddl: realDdl(),
+        createClient: () => {
+          throw new Error(`connection to ${secret} failed (Bearer leakedbearer)`)
+        },
+      }),
     (err: unknown) => {
       assert.ok(err instanceof Error)
-      // The raw error still has it; what we print must not.
+      // The raw error still has it; what the CLI prints must not.
       const printed = tursoSchema.sanitizeForLog(err.message)
       assert.ok(!printed.includes("leakedsecret"), printed)
       assert.ok(!printed.includes("leakedbearer"), printed)
@@ -364,12 +615,32 @@ test("errors never carry credentials", async (t) => {
       return true
     },
   )
+})
 
-  assert.deepEqual(await applicationTableNames(asReadOnly(client)), [])
+test("importing the CLI modules runs nothing and opens no connection", () => {
+  const script =
+    "Promise.all([import('./prisma/bootstrap-turso.ts'), import('./prisma/verify-turso.ts')])" +
+    ".then(() => console.log('imported-clean'))"
+
+  const out = execFileSync(process.execPath, ["--import", "tsx", "--eval", script], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    // No Turso configuration at all: a CLI that ran on import would fail here.
+    env: {
+      ...process.env,
+      TURSO_DATABASE_URL: "",
+      TURSO_AUTH_TOKEN: "",
+      DATABASE_URL: "",
+      DATABASE_AUTH_TOKEN: "",
+    },
+  })
+
+  assert.equal(out.trim(), "imported-clean")
 })
 
 // ---------------------------------------------------------------------------
-// 6. Environment independence
+// 7. Environment independence
 // ---------------------------------------------------------------------------
 
 test("bootstrap works from any working directory", async (t) => {
@@ -383,7 +654,10 @@ test("bootstrap works from any working directory", async (t) => {
   const { client } = tempDb(t, "from-tmp")
   process.chdir(elsewhere)
   const ddl = generateCanonicalDdl()
-  const result = await bootstrapSchema(client, ddl)
+  const result = await bootstrapTursoTarget(labTarget(), {
+    ddl,
+    createClient: inject(client).factory,
+  })
   process.chdir(original)
 
   assert.equal(ddl, realDdl(), "the DDL must not change with the caller's cwd")

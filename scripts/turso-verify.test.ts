@@ -14,13 +14,13 @@
  */
 
 import assert from "node:assert/strict"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test, { type TestContext } from "node:test"
 
 import { createClient, type Client } from "@libsql/client"
-import { bootstrapSchema } from "../prisma/bootstrap-turso"
+import { bootstrapTursoTarget, type BootstrapClient } from "../prisma/bootstrap-turso"
 import { exitCodeFor, verifySchema } from "../prisma/verify-turso"
 import {
   PROJECT_ROOT,
@@ -31,6 +31,12 @@ import {
   generateCanonicalDdl,
   introspectStructure,
   parseSchemaModels,
+  READ_ONLY_PRAGMAS,
+  READ_ONLY_STATEMENTS,
+  assertReadOnlySql as tursoAssert,
+  resolveTursoTarget,
+  sanitizeForLog,
+  SQLITE_MASTER_QUERY,
   splitSqlStatements,
   stripSqlLiterals,
   type FindingCategory,
@@ -56,6 +62,22 @@ function tempDb(t: TestContext, label = "db"): Client {
     rmSync(dir, { recursive: true, force: true })
   })
   return client
+}
+
+/**
+ * Bootstrap a local SQLite database through the guarded entry point. The target
+ * name is non-production so the guard passes; the injected factory redirects the
+ * write to the throwaway file.
+ */
+async function bootstrapInto(client: Client, ddl: string): Promise<void> {
+  const nonClosing: BootstrapClient = {
+    transaction: (mode) => client.transaction(mode),
+    close: () => {},
+  }
+  await bootstrapTursoTarget(
+    resolveTursoTarget({ TURSO_DATABASE_URL: "libsql://verify-sandbox.turso.io" }),
+    { ddl, createClient: () => nonClosing },
+  )
 }
 
 /** A database built from arbitrary SQL, for the drift scenarios. */
@@ -110,7 +132,7 @@ test("a database created by bootstrap verifies as identical", async (t) => {
   )
 
   const client = tempDb(t, "identical")
-  await bootstrapSchema(client, ddl)
+  await bootstrapInto(client, ddl)
 
   const report = await verifySchema(asReadOnly(client), ddl)
   assert.equal(report.verdict, "identical")
@@ -292,7 +314,7 @@ test("identical unverifiable constructs still refuse the identical verdict", asy
 test("verify issues no write against the target", async (t) => {
   const ddl = realDdl()
   const client = tempDb(t, "readonly")
-  await bootstrapSchema(client, ddl)
+  await bootstrapInto(client, ddl)
 
   const issued: string[] = []
   const recording: ReadOnlyExecutor = {
@@ -320,28 +342,239 @@ test("verify issues no write against the target", async (t) => {
   }
 })
 
-test("the read-only wrapper refuses a write even if one is attempted", async () => {
+/**
+ * Statements that must never reach the client. `PRAGMA name(value)` matters as
+ * much as `PRAGMA name = value`: SQLite accepts the functional form as a write
+ * too, which is how `PRAGMA user_version(42)` slipped past the previous guard.
+ */
+const REFUSED_STATEMENTS: Array<[label: string, sql: string]> = [
+  // Mutating pragmas in functional form.
+  ["writable_schema(1)", "PRAGMA writable_schema(1)"],
+  ["user_version(42)", "PRAGMA user_version(42)"],
+  ["journal_mode(WAL)", "PRAGMA journal_mode(WAL)"],
+  ["foreign_keys(ON)", "PRAGMA foreign_keys(ON)"],
+  ["application_id(123)", "PRAGMA application_id(123)"],
+  ["cache_size(-1000)", "PRAGMA cache_size(-1000)"],
+  ["secure_delete(1)", "PRAGMA secure_delete(1)"],
+  // Assignment form.
+  ["user_version = 42", "PRAGMA user_version = 42"],
+  ["foreign_keys = ON", "PRAGMA foreign_keys = ON"],
+  ["writable_schema=1", "PRAGMA writable_schema=1"],
+  // Schema-qualified names.
+  ["main.user_version", "PRAGMA main.user_version"],
+  ["main.writable_schema(1)", "PRAGMA main.writable_schema(1)"],
+  ["temp.journal_mode", "PRAGMA temp.journal_mode"],
+  // An allow-listed pragma with an argument shape it never uses.
+  ["integrity_check(42)", "PRAGMA integrity_check(42)"],
+  ["table_xinfo with no argument", "PRAGMA table_xinfo"],
+  ["table_xinfo with a bare word", "PRAGMA table_xinfo(Workspace)"],
+  // Statement chaining and comment smuggling.
+  ["two statements", "PRAGMA integrity_check; PRAGMA user_version(42)"],
+  ["select then pragma", "SELECT 1; PRAGMA user_version(42)"],
+  ["introspection then DROP", 'PRAGMA table_xinfo("T"); DROP TABLE "T"'],
+  ["line comment suffix", "PRAGMA integrity_check -- ; PRAGMA user_version(42)"],
+  ["block comment suffix", "PRAGMA integrity_check /* hidden */"],
+  ["leading comment", "/* hide */ PRAGMA user_version(42)"],
+  // Case must not help.
+  ["lower-case pragma", "pragma USER_VERSION(42)"],
+  // SELECT is NOT blanket-allowed: the bundled libSQL build registers
+  // writefile/readfile/load_extension, so a SELECT can destroy the target file.
+  ["writefile truncating the database", "SELECT writefile('/tmp/victim.db', '')"],
+  ["writefile replacing the database", "SELECT writefile('/tmp/victim.db', readfile('/tmp/evil.db'))"],
+  ["writefile creating a new file", "SELECT writefile('/tmp/outside.txt', 'x')"],
+  ["readfile exfiltration", "SELECT hex(readfile('/etc/hostname'))"],
+  ["load_extension", "SELECT load_extension('/tmp/evil.so')"],
+  ["an unrelated SELECT", 'SELECT * FROM "User"'],
+  ["a near-miss of the allow-listed query", "SELECT type, name, sql FROM sqlite_master"],
+  // Plain writes.
+  ["CREATE TABLE", 'CREATE TABLE "X" ("id" TEXT)'],
+  ["DROP TABLE", 'DROP TABLE "X"'],
+  ["INSERT", 'INSERT INTO "X" VALUES (1)'],
+  ["UPDATE", 'UPDATE "X" SET "id" = 1'],
+  ["DELETE", 'DELETE FROM "X"'],
+  ["BEGIN", "BEGIN IMMEDIATE"],
+  ["VACUUM", "VACUUM"],
+  ["ATTACH", "ATTACH DATABASE 'other.db' AS other"],
+  ["empty", "   "],
+]
+
+/** Exactly what the runtime issues against a target, and nothing more. */
+const ALLOWED_STATEMENTS = [
+  SQLITE_MASTER_QUERY,
+  'PRAGMA table_xinfo("Workspace")',
+  'PRAGMA foreign_key_list("Workspace")',
+  'PRAGMA index_list("Workspace")',
+  'PRAGMA index_xinfo("Workspace_slug_key")',
+  "PRAGMA integrity_check",
+  "PRAGMA foreign_key_check",
+]
+
+test("the read-only guard forwards nothing outside its allow-list", async (t) => {
+  for (const [label, sql] of REFUSED_STATEMENTS) {
+    await t.test(`refuses ${label}`, async () => {
+      let forwarded = 0
+      const reader = asReadOnly({
+        async execute() {
+          forwarded++
+          throw new Error("the underlying client must never be reached")
+        },
+      })
+      await assert.rejects(() => reader.execute(sql), /Read-only guard refused/, sql)
+      assert.equal(forwarded, 0, `"${sql}" reached the client`)
+    })
+  }
+})
+
+test("the allow-listed introspection statements still work", async () => {
+  const forwarded: string[] = []
   const reader = asReadOnly({
-    async execute() {
-      throw new Error("the underlying client must never be reached")
+    async execute(sql: string) {
+      forwarded.push(sql)
+      return { rows: [] }
     },
   })
+  for (const sql of ALLOWED_STATEMENTS) {
+    await assert.doesNotReject(() => reader.execute(sql), sql)
+  }
+  assert.deepEqual(forwarded, ALLOWED_STATEMENTS)
+})
 
-  for (const sql of [
-    'CREATE TABLE "X" ("id" TEXT)',
-    'DROP TABLE "X"',
-    'INSERT INTO "X" VALUES (1)',
-    "PRAGMA foreign_keys = ON",
-    "BEGIN IMMEDIATE",
-  ]) {
+test("the allow-list is exactly the six pragmas the runtime needs", () => {
+  assert.deepEqual(Object.keys(READ_ONLY_PRAGMAS).sort(), [
+    "foreign_key_check",
+    "foreign_key_list",
+    "index_list",
+    "index_xinfo",
+    "integrity_check",
+    "table_xinfo",
+  ])
+  // Nothing mutating can be on it, in any argument shape.
+  for (const name of ["user_version", "writable_schema", "journal_mode", "foreign_keys"]) {
+    assert.equal((READ_ONLY_PRAGMAS as Record<string, unknown>)[name], undefined, name)
+  }
+})
+
+test("a real database is provably unchanged after every refused statement", async (t) => {
+  const client = tempDb(t, "pragma-attack")
+  await client.executeMultiple(
+    `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY, "label" TEXT);
+     INSERT INTO "T" ("id","label") VALUES ('r1','keep me');`,
+  )
+  // Set a known, observable value directly on the client (not through the guard).
+  await client.execute("PRAGMA user_version = 7")
+  await client.execute("PRAGMA application_id = 99")
+
+  const reader = asReadOnly(client)
+  for (const [, sql] of REFUSED_STATEMENTS) {
     await assert.rejects(() => reader.execute(sql), /Read-only guard refused/, sql)
   }
 
-  // The read surface it does allow.
-  const ok = asReadOnly({ async execute() { return { rows: [] } } })
-  await assert.doesNotReject(() => ok.execute("SELECT name FROM sqlite_master"))
-  await assert.doesNotReject(() => ok.execute('PRAGMA table_xinfo("T")'))
-  await assert.doesNotReject(() => ok.execute("PRAGMA integrity_check"))
+  const userVersion = await client.execute("PRAGMA user_version")
+  assert.equal(Number(userVersion.rows[0].user_version), 7, "user_version was mutated")
+  const applicationId = await client.execute("PRAGMA application_id")
+  assert.equal(Number(applicationId.rows[0].application_id), 99, "application_id was mutated")
+
+  const rows = await client.execute(`SELECT "id","label" FROM "T"`)
+  assert.equal(rows.rows.length, 1)
+  assert.equal(String(rows.rows[0].label), "keep me")
+  const tables = await client.execute(
+    "SELECT count(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+  )
+  assert.equal(Number(tables.rows[0].n), 1)
+})
+
+test("a SELECT that can write is refused, and the database file survives", async (t) => {
+  // The adversarial finding this closes: `SELECT writefile(<db>, '')` truncates
+  // the target to zero bytes, contains no write keyword, no ';' and no comment,
+  // and needs nothing beyond execute(). A blanket "SELECT is read-only" rule
+  // forwards it. The literal allow-list does not.
+  const dir = mkdtempSync(join(tmpdir(), "turso-writefile-"))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const path = join(dir, "victim.db")
+  const client = createClient({ url: `file:${path}` })
+  t.after(() => client.close())
+
+  await client.executeMultiple(
+    `CREATE TABLE "Invoice" ("id" INTEGER PRIMARY KEY, "total" REAL);
+     INSERT INTO "Invoice" VALUES (1, 1234.5);`,
+  )
+  const before = statSync(path).size
+  assert.ok(before > 0)
+
+  const reader = asReadOnly(client)
+  for (const payload of [
+    `SELECT writefile('${path}', '')`,
+    `SELECT writefile('${join(dir, "outside.txt")}', 'escaped')`,
+    "SELECT hex(readfile('/etc/hostname'))",
+  ]) {
+    await assert.rejects(() => reader.execute(payload), /Read-only guard refused/, payload)
+  }
+
+  // The database is byte-for-byte intact and its rows are still readable.
+  assert.equal(statSync(path).size, before)
+  const rows = await client.execute(`SELECT "total" FROM "Invoice"`)
+  assert.equal(Number(rows.rows[0].total), 1234.5)
+  assert.equal(existsSync(join(dir, "outside.txt")), false, "a file was written outside the database")
+})
+
+test("the SELECT allow-list is literal, not a shape", () => {
+  assert.deepEqual([...READ_ONLY_STATEMENTS], [SQLITE_MASTER_QUERY])
+  // Whitespace is normalized, so the runtime's own formatting still matches…
+  assert.doesNotThrow(() => tursoAssert(`  ${SQLITE_MASTER_QUERY.replace(/ /g, "  ")}  `))
+  // …but a near-miss does not.
+  assert.throws(() => tursoAssert(SQLITE_MASTER_QUERY.replace("ORDER BY type, name", "")), /Read-only guard/)
+})
+
+test("verify reports a stray view or trigger instead of calling it identical", async (t) => {
+  const canonical = `CREATE TABLE "User" ("id" TEXT NOT NULL PRIMARY KEY, "email" TEXT);`
+
+  const clean = await reportFor(t, canonical, canonical, "objects-clean")
+  assert.equal(clean.verdict, "identical")
+
+  const hostile = `${canonical}
+CREATE VIEW "v_gate" AS SELECT * FROM "User";
+CREATE TRIGGER "evil_exfil" INSTEAD OF INSERT ON "v_gate" BEGIN UPDATE "User" SET "email" = 'pwned@evil'; END;`
+
+  const report = await reportFor(t, canonical, hostile, "objects-hostile")
+  assert.equal(report.verdict, "drift detected")
+  const objects = report.drift.filter((f) => f.category === "extra-object")
+  assert.deepEqual(objects.map((f) => f.object).sort(), ["trigger evil_exfil", "view v_gate"])
+  assert.match(objects.find((f) => f.object.startsWith("trigger"))!.detail, /runs against/)
+})
+
+test("sanitizeForLog redacts by construction as well as by pattern", () => {
+  // 1. A bare hostname repeated by the network layer — no URL pattern matches it,
+  //    so the CLIs pass the known host in as a secret.
+  const host = "lab-sevenef-mr-forte.aws-eu-west-1.turso.io"
+  const dnsError = `request to libsql://${host} failed, reason: getaddrinfo ENOTFOUND ${host}`
+  const withSecret = sanitizeForLog(dnsError, [host, `libsql://${host}`])
+  assert.ok(!withSecret.includes(host), withSecret)
+  // …and even without the secret list, a bare *.turso.io host is caught.
+  assert.ok(!sanitizeForLog(dnsError).includes(host), sanitizeForLog(dnsError))
+
+  // 2. Connection strings for other engines, which a Prisma error can quote back.
+  for (const url of [
+    "postgres://admin:S3cr3tP4ss@db.internal:5432/app",
+    "mongodb+srv://admin:S3cr3tP4ss@cluster0.mongodb.net/app",
+    "sqlserver://sa:S3cr3tP4ss@10.0.0.4:1433;database=app",
+    "prisma+postgres://accelerate.prisma-data.net/?api_key=ey_secret_value",
+  ]) {
+    const clean = sanitizeForLog(`error: ${url}`)
+    assert.ok(!clean.includes("S3cr3tP4ss"), clean)
+    assert.ok(!clean.includes("ey_secret_value"), clean)
+  }
+
+  // 3. Env-var names whose underscore prefix defeated the old word boundary.
+  for (const line of [
+    "TURSO_AUTH_TOKEN=ts_5f3a2b1c9d8e7f6a",
+    "DATABASE_AUTH_TOKEN: ts_5f3a2b1c9d8e7f6a",
+    "MY_API_KEY=ts_5f3a2b1c9d8e7f6a",
+  ]) {
+    assert.ok(!sanitizeForLog(line).includes("ts_5f3a2b1c9d8e7f6a"), sanitizeForLog(line))
+  }
+
+  // 4. A short or empty "secret" must not blank out the whole message.
+  assert.equal(sanitizeForLog("all fine", ["", undefined, "ab"]), "all fine")
 })
 
 test("verify exposes no write method on the target type", () => {

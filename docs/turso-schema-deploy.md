@@ -97,8 +97,30 @@ deliberate: pretending creation is idempotent would hide the fact that the
 database's contents were never actually checked against the schema. Use
 `turso:verify` for that.
 
-Tables owned by the engine or other tooling (`sqlite_*`, `libsql_*`,
-`_litestream*`, `_prisma_migrations`) do not count as application tables.
+### What counts as "empty"
+
+Only tables the storage engine itself creates are ignored, because only those
+can exist in a genuinely fresh database:
+
+| Pattern | Why it is ignored |
+|---|---|
+| `sqlite_*` | SQLite's own objects (`sqlite_sequence`, `sqlite_stat1`, `sqlite_autoindex_*`). The prefix is reserved by SQLite, so no application table can occupy it. |
+| `libsql_*` | libSQL/Turso server-side internals, e.g. `libsql_wasm_func_table`. |
+
+Everything else makes the database non-empty. In particular
+**`_prisma_migrations` counts as an application table**: it records that
+migrations have already been applied, which is exactly the state bootstrap must
+refuse. The same goes for anything another tool left behind.
+
+The check covers the **whole catalogue**, not just tables. A leftover `VIEW` or
+`TRIGGER` does not appear in a `type = 'table'` query, and a trigger is not
+cosmetic: it would survive the bootstrap and then fire against the tables that
+were just created. Both make the database non-empty, and the refusal names them
+by type:
+
+```text
+Objects found (2): table Seed, trigger evil_exfil
+```
 
 ### What bootstrap will never do
 
@@ -108,22 +130,59 @@ drift, rebuild a table or migrate data. The test suite proves this by recording
 every statement the tool issues: exactly one write — the canonical DDL,
 verbatim — and reads.
 
-### There is no production override
+### There is no production override, and no way around the guard
 
 A production or unrecognised name **cannot be unlocked**. The guard takes no
 environment argument at all, so no variable — however it is spelled — can
 enable it. Provisioning production is a different, deliberate procedure that
 does not live here.
 
+The guard also cannot be skipped by importing something lower-level.
+`bootstrapTursoTarget(target, options?)` is the only exported way in, and it
+runs `assertBootstrapTarget()` **before** a DDL is rendered and before any
+connection exists. The primitive that takes an already-open writable client is
+module private, so there is no exported function that accepts a client and DDL.
+
+Tests may inject `options.createClient` to redirect the write to a local SQLite
+file, but that factory is only ever invoked *after* the target passed the guard,
+and always with the validated target — a refused name fails before the factory
+is called even once.
+
 ## `turso:verify`
 
 ### Contract
 
 Strictly read-only. The canonical structure is materialised locally; the target
-is only ever read. The target is handed to the comparison through
-`asReadOnly()`, whose type exposes **no write method at all** and whose runtime
-guard refuses any statement that is not a `SELECT` or a read-only `PRAGMA`. It
-emits no corrective SQL and suggests no repair.
+is only ever read. It emits no corrective SQL and suggests no repair.
+
+The target is reached only through `asReadOnly()`, which enforces that twice:
+
+1. **Type** — the surface exposes a single `execute`. There is no
+   `executeMultiple`, no `transaction`, no `batch`.
+2. **Runtime allow-list** — every statement is checked before it is forwarded,
+   and a refused statement never reaches the client. Exactly two classes pass:
+
+   - one of the **literal** queries the introspection issues — currently a
+     single `SELECT type, name, sql FROM sqlite_master ORDER BY type, name`;
+   - a single `PRAGMA` from this closed list, in its exact argument shape:
+
+     | Pragma | Argument |
+     |---|---|
+     | `table_xinfo`, `foreign_key_list`, `index_list`, `index_xinfo` | exactly one double-quoted identifier |
+     | `integrity_check`, `foreign_key_check` | none |
+
+   Anything else is refused: a pragma outside the list, an assignment
+   (`PRAGMA user_version = 42`), the functional write form
+   (`PRAGMA user_version(42)` — SQLite treats that as a write too), a
+   schema-qualified name (`PRAGMA main.user_version`), a statement separator,
+   or a comment marker that could hide a second statement.
+
+> **Why not "any SELECT"?** Because it is not read-only on the engine this
+> repository ships. The bundled libSQL build registers `writefile`, `readfile`,
+> `fsdir` and `load_extension`, so `SELECT writefile('<db>', '')` truncates the
+> target file — no write keyword, no `;`, no comment. Statement *class* is not a
+> safe test, so the guard matches the exact statements this tool issues. Adding
+> a query means adding it to `READ_ONLY_STATEMENTS` on purpose.
 
 Because it cannot write, it is safe against any database, including production
 — that is the point of keeping it separate from bootstrap.
@@ -149,6 +208,15 @@ everything else is not.
 
 Defaults are compared **raw**, exactly as SQLite reports them. A default
 differing only in whitespace is a real difference and is never normalized away.
+
+Views and triggers too: `schema.prisma` declares none, so any that exist are
+reported as `extra-object` drift rather than ignored. A database carrying a
+hostile trigger can therefore never verify as `identical`.
+
+Both tools share one definition of "internal", so an object that makes a
+database non-empty for bootstrap is also reported by verify. A database carrying
+`_prisma_migrations` verifies as `drift detected` with an `extra-table` finding;
+`sqlite_*` and `libsql_*` objects are ignored on both sides.
 
 ### Conservative by construction
 
@@ -192,6 +260,15 @@ came from are ever printed. The URL, the hostname, the query string and the
 token never reach a log line, and every error surfaced by either CLI passes
 through the sanitizer first.
 
+The sanitizer works in two layers, because patterns alone are not enough. It
+first removes the exact values this process holds — the auth token, the
+hostname, the URL — so redaction does not depend on a regex anticipating the
+surrounding text. That matters for errors like
+`getaddrinfo ENOTFOUND lab-x.turso.io`, where the hostname is repeated as bare
+words no URL pattern matches. It then makes a generic pass for credentials that
+came from elsewhere: any `scheme://` URL, bare `*.turso.io` hosts,
+`NAME_TOKEN=…` style pairs, `Bearer …` and JWTs.
+
 ### The production guard is an allow-list
 
 A database can be bootstrapped **only** when its name contains one of these
@@ -217,7 +294,7 @@ anticipated. A production marker (`prod`, `production`, `live`, `main`,
 
 ```sql
 SELECT count(*) FROM sqlite_master
-  WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_litestream%';
+  WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'libsql_%';
 SELECT count(*) FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%';
 PRAGMA foreign_key_check;   -- expect zero rows
 PRAGMA integrity_check;     -- expect "ok"

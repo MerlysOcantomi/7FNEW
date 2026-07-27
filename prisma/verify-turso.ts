@@ -6,8 +6,10 @@
  * Strictly read-only. The canonical structure is materialised in a throwaway
  * LOCAL SQLite file; the target is only ever read. The target is handed to the
  * comparison through `asReadOnly()`, whose type exposes no write method and
- * whose runtime guard refuses any statement that is not a `SELECT` or a
- * read-only `PRAGMA`. It emits no corrective SQL and suggests no repair.
+ * whose runtime guard forwards only a `SELECT` or one of the six allow-listed
+ * introspection pragmas (`READ_ONLY_PRAGMAS`) in its exact argument shape.
+ * A mutating pragma such as `PRAGMA user_version(42)` is refused before it
+ * reaches the client. It emits no corrective SQL and suggests no repair.
  *
  * Because it cannot write, it is safe to run against ANY database, including
  * production — that is the point of having it separate from `turso:bootstrap`.
@@ -72,34 +74,38 @@ function isDirectRun(): boolean {
 }
 
 async function main(): Promise<number> {
-  const target = resolveTursoTarget()
-
-  // Read-only: the classification is reported for context, not enforced.
-  console.log(`Target database: ${target.dbName} (from ${target.urlSource})`)
-  console.log(
-    `  classification: ${target.classification.safe ? "non-production" : "production"} — ` +
-      target.classification.reason,
-  )
-  console.log("  access:         read-only (no statement other than SELECT/PRAGMA is issued)")
-
-  const ddl = generateCanonicalDdl()
-
-  const client = createClient({ url: target.url, authToken: target.authToken })
+  // Populated as soon as the target resolves, so the error path can redact the
+  // token and hostname literally instead of relying on pattern matching.
+  const secrets: Array<string | undefined> = []
   try {
-    const report = await verifySchema(asReadOnly(client), ddl)
-    console.log("")
-    console.log(formatReport(report))
-    return exitCodeFor(report)
-  } finally {
-    client.close()
+    const target = resolveTursoTarget()
+    secrets.push(target.authToken, target.host, target.url)
+
+    // Read-only: the classification is reported for context, not enforced.
+    console.log(`Target database: ${target.dbName} (from ${target.urlSource})`)
+    console.log(
+      `  classification: ${target.classification.safe ? "non-production" : "production"} — ` +
+        target.classification.reason,
+    )
+    console.log("  access:         read-only (only allow-listed reads are issued)")
+
+    const ddl = generateCanonicalDdl()
+
+    const client = createClient({ url: target.url, authToken: target.authToken })
+    try {
+      const report = await verifySchema(asReadOnly(client), ddl)
+      console.log("")
+      console.log(formatReport(report))
+      return exitCodeFor(report)
+    } finally {
+      client.close()
+    }
+  } catch (err) {
+    console.error(sanitizeForLog(err instanceof Error ? err.message : String(err), secrets))
+    return 1
   }
 }
 
 if (isDirectRun()) {
-  main()
-    .then((code) => process.exit(code))
-    .catch((err) => {
-      console.error(sanitizeForLog(err instanceof Error ? err.message : String(err)))
-      process.exit(1)
-    })
+  main().then((code) => process.exit(code))
 }

@@ -43,14 +43,43 @@ export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..
  * Strip anything credential-shaped from text that is about to be logged or
  * embedded in an error message. Applied to child-process stderr and to every
  * error surfaced by the two CLIs.
+ *
+ * Two layers, because pattern matching alone cannot be trusted here:
+ *
+ * 1. **By construction** — `secrets` are the exact values this process holds
+ *    (the auth token, the host, the URL). They are removed literally, so a leak
+ *    does not depend on a regex anticipating the shape of the surrounding text.
+ *    That matters: a DNS failure repeats the hostname as bare text
+ *    (`getaddrinfo ENOTFOUND lab-x.turso.io`), where no URL pattern matches.
+ * 2. **By pattern** — a generic sweep for credentials that did not come from
+ *    this process, such as a connection string quoted back by the Prisma CLI.
+ *
+ * @param secrets values known to be sensitive; short or empty entries are
+ *   ignored so a one-character value cannot blank out the whole message.
  */
-export function sanitizeForLog(text: string): string {
-  return text
-    .replace(/\b[a-z+]*sql:\/\/\S+/gi, "<redacted-url>")
-    .replace(/\bhttps?:\/\/\S+/gi, "<redacted-url>")
-    .replace(/\b(authToken|auth_token|token|password|secret)\s*[=:]\s*\S+/gi, "$1=<redacted>")
-    .replace(/\bBearer\s+\S+/gi, "Bearer <redacted>")
-    .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "<redacted-jwt>")
+export function sanitizeForLog(text: string, secrets: ReadonlyArray<string | undefined> = []): string {
+  let out = text
+
+  for (const secret of secrets) {
+    if (secret && secret.length >= 4) out = out.split(secret).join("<redacted>")
+  }
+
+  return (
+    out
+      // Any scheme, not just libsql/https: a Prisma error can quote a
+      // postgres://, mongodb+srv://, sqlserver:// or prisma+postgres:// URL.
+      .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<redacted-url>")
+      // A bare Turso hostname left in error text after the URL was redacted.
+      .replace(/\b(?:[a-z0-9-]+\.)+turso\.io\b/gi, "<redacted-host>")
+      // key=value, including env-var names such as TURSO_AUTH_TOKEN=… where the
+      // underscore prefix defeats a leading word boundary.
+      .replace(
+        /[A-Za-z0-9_]*(?:auth_?token|token|password|secret|api_?key)\s*[=:]\s*\S+/gi,
+        "<redacted-credential>",
+      )
+      .replace(/\bBearer\s+\S+/gi, "Bearer <redacted>")
+      .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "<redacted-jwt>")
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +230,12 @@ export function parseTursoUrl(raw: string, source: string): ParsedTursoUrl {
 export interface TursoTarget {
   /** Sanitized URL (scheme + host + port). Contains no credentials. */
   url: string
+  /**
+   * Full hostname. NOT for logging — it is carried so the CLIs can hand it to
+   * `sanitizeForLog` as a known secret, because error text from the network
+   * layer repeats it as bare words no URL pattern matches.
+   */
+  host: string
   /** Auth token, if any. Never logged. */
   authToken?: string
   /** First host label, e.g. `sevenef-mr-forte-lab`. Safe to log. */
@@ -246,7 +281,7 @@ export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget
     )
   }
 
-  const { url, dbName } = parseTursoUrl(raw, urlSource)
+  const { url, host, dbName } = parseTursoUrl(raw, urlSource)
 
   const tokenOrder: Array<NonNullable<TursoTarget["tokenSource"]>> =
     urlSource === "TURSO_DATABASE_URL"
@@ -256,6 +291,7 @@ export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget
 
   return {
     url,
+    host,
     authToken: tokenSource ? env[tokenSource] : undefined,
     dbName,
     urlSource,
@@ -561,24 +597,126 @@ export interface SqlExecutor extends ReadOnlyExecutor {
   executeMultiple(sql: string): Promise<void>
 }
 
-/** Statements the read-only wrapper will pass through. */
-function assertReadOnlySql(sql: string): void {
-  const head = stripSqlLiterals(sql).replace(/\s+/g, " ").trim()
-  const isSelect = /^SELECT\b/i.test(head)
-  // Read-only pragmas only: `PRAGMA name` or `PRAGMA name(arg)`, never an
-  // assignment such as `PRAGMA foreign_keys = ON`.
-  const isReadPragma = /^PRAGMA\s+[a-z_]+\s*(\([^)]*\))?$/i.test(head)
-  if (!isSelect && !isReadPragma) {
-    throw new Error(
-      `Read-only guard refused a statement: ${head.slice(0, 60)}… ` +
-        "verify never writes to the target database.",
+/**
+ * The one query every introspection path issues against a target. Keeping it a
+ * single compile-time constant is what lets the read-only guard match statements
+ * literally instead of trying to decide whether an arbitrary SELECT is safe.
+ */
+export const SQLITE_MASTER_QUERY = "SELECT type, name, sql FROM sqlite_master ORDER BY type, name"
+
+/**
+ * The complete set of pragmas the read-only guard will forward, with the exact
+ * argument shape each one accepts.
+ *
+ * This is an allow-list, not a pattern: a pragma name that is not a key here is
+ * refused, so mutating pragmas — `user_version`, `writable_schema`,
+ * `journal_mode`, `foreign_keys`, `application_id`, `cache_size`, … — can never
+ * reach the client, in assignment form (`PRAGMA x = 1`) or in the functional
+ * form (`PRAGMA x(1)`) that SQLite also accepts as a write.
+ *
+ * `identifier` — exactly one double-quoted identifier, the form `quoteIdent()`
+ *                produces; nothing else, and the argument is required.
+ * `none`       — no argument at all.
+ *
+ * These six are precisely what `introspectStructure` and the bootstrap
+ * verification issue. Adding one here is a deliberate act that must be
+ * justified: it widens what a "read-only" surface may do.
+ */
+export const READ_ONLY_PRAGMAS: Readonly<Record<string, "identifier" | "none">> = Object.freeze({
+  table_xinfo: "identifier",
+  foreign_key_list: "identifier",
+  index_list: "identifier",
+  index_xinfo: "identifier",
+  foreign_key_check: "none",
+  integrity_check: "none",
+})
+
+/**
+ * Whole-statement grammar for an allowed pragma. Anchored at both ends, so a
+ * schema prefix (`main.user_version`), an `=` assignment, a bare-word or
+ * numeric argument, or any trailing text fails to match.
+ */
+const READ_ONLY_PRAGMA_RE = /^PRAGMA\s+([A-Za-z_]+)\s*(?:\(\s*"((?:[^"]|"")*)"\s*\))?$/i
+
+/**
+ * The complete set of non-PRAGMA statements the read-only guard will forward —
+ * literal, not a shape.
+ *
+ * A blanket "any SELECT is read-only" rule would be wrong for the engine this
+ * repository actually ships: the bundled libSQL build registers `writefile`,
+ * `readfile`, `fsdir` and `load_extension`, so `SELECT writefile('<db>', '')`
+ * truncates the target file without a single write keyword, without a `;` and
+ * without a comment. Since every query the introspection issues is a compile-
+ * time constant, the guard matches those constants exactly and refuses the rest.
+ */
+export const READ_ONLY_STATEMENTS: readonly string[] = Object.freeze([
+  SQLITE_MASTER_QUERY,
+])
+
+/** Raised when the read-only guard refuses to forward a statement. */
+export class ReadOnlyGuardError extends Error {
+  constructor(reason: string, statement: string) {
+    const shown = statement.length > 80 ? `${statement.slice(0, 80)}…` : statement
+    super(
+      `Read-only guard refused a statement (${reason}): ${shown}\n` +
+        "This surface never writes to the target database.",
     )
+    this.name = "ReadOnlyGuardError"
+  }
+}
+
+/**
+ * Fail-closed check applied to every statement issued against a target
+ * database. Exactly two things are accepted and nothing else:
+ *
+ *   - one of the literal queries in `READ_ONLY_STATEMENTS`;
+ *   - a single `PRAGMA` from `READ_ONLY_PRAGMAS`, in its exact argument shape.
+ *
+ * Note what is deliberately NOT accepted: an arbitrary `SELECT`. The bundled
+ * libSQL build registers `writefile`, `readfile`, `fsdir` and `load_extension`,
+ * so a SELECT can truncate or replace the database file — the read-only guard
+ * cannot be a check on statement *class*, only on the exact statements this
+ * tool is known to issue.
+ *
+ * Statement separators and comment markers are refused outright, so no suffix
+ * can smuggle a second statement past the check.
+ */
+export function assertReadOnlySql(sql: string): void {
+  const statement = sql.trim()
+
+  if (!statement) throw new ReadOnlyGuardError("empty statement", sql)
+  if (statement.includes(";")) throw new ReadOnlyGuardError("statement separator", statement)
+  if (statement.includes("--") || statement.includes("/*")) {
+    throw new ReadOnlyGuardError("comment marker", statement)
+  }
+
+  if (READ_ONLY_STATEMENTS.includes(statement.replace(/\s+/g, " "))) return
+  if (/^SELECT\b/i.test(statement)) {
+    throw new ReadOnlyGuardError("SELECT is not one of the allow-listed queries", statement)
+  }
+
+  const match = READ_ONLY_PRAGMA_RE.exec(statement)
+  if (!match) throw new ReadOnlyGuardError("not a SELECT or an allow-listed PRAGMA", statement)
+
+  const name = match[1].toLowerCase()
+  const argument = match[2]
+  const shape = Object.prototype.hasOwnProperty.call(READ_ONLY_PRAGMAS, name)
+    ? READ_ONLY_PRAGMAS[name]
+    : undefined
+
+  if (!shape) throw new ReadOnlyGuardError(`pragma "${name}" is not on the allow-list`, statement)
+  if (shape === "identifier" && argument === undefined) {
+    throw new ReadOnlyGuardError(`pragma "${name}" requires a quoted identifier`, statement)
+  }
+  if (shape === "none" && argument !== undefined) {
+    throw new ReadOnlyGuardError(`pragma "${name}" takes no argument`, statement)
   }
 }
 
 /**
  * Narrow a client down to a read-only view, enforced twice: the returned type
- * exposes only `execute`, and every statement is checked at runtime.
+ * exposes only `execute`, and `assertReadOnlySql` checks every statement before
+ * it reaches the wrapped client. A refused statement is never forwarded.
  */
 export function asReadOnly(client: ReadOnlyExecutor): ReadOnlyExecutor {
   return {
@@ -643,16 +781,30 @@ export interface TableStructure {
 
 export interface DatabaseStructure {
   tables: TableStructure[]
+  /**
+   * Views and triggers. `schema.prisma` produces none, so anything here is a
+   * difference the comparison reports — a stray trigger is not cosmetic, it
+   * runs against the application's own tables.
+   */
+  objects: DatabaseObject[]
 }
 
-/** Tables owned by the engine or by other tooling; never part of the schema. */
+/**
+ * Tables the storage engine itself creates, and which can therefore exist in a
+ * genuinely fresh database. Deliberately short — every pattern here is a hole
+ * in the "is this database empty?" check, so each one is justified:
+ *
+ *   `sqlite_*`  SQLite's own objects (`sqlite_sequence`, `sqlite_stat1`,
+ *               `sqlite_autoindex_*`). The prefix is reserved by SQLite, so no
+ *               application table can occupy it.
+ *   `libsql_*`  libSQL/Turso server-side internals (e.g. `libsql_wasm_func_table`).
+ *
+ * Everything else counts as an application table. In particular
+ * `_prisma_migrations` is NOT internal: it records that migrations have already
+ * been applied, which is exactly the state `turso:bootstrap` must refuse.
+ */
 export function isInternalTable(name: string): boolean {
-  return (
-    name.startsWith("sqlite_") ||
-    name.startsWith("_litestream") ||
-    name.startsWith("libsql_") ||
-    name === "_prisma_migrations"
-  )
+  return name.startsWith("sqlite_") || name.startsWith("libsql_")
 }
 
 function normalizeSql(sql: unknown): string | null {
@@ -679,12 +831,31 @@ export function indexKey(index: IndexStructure): string {
   return index.origin === "c" ? `c:${index.name}` : `${index.origin}:${index.columns.join(",")}`
 }
 
+/** Anything `sqlite_master` records: a table, index, view or trigger. */
+export interface DatabaseObject {
+  type: string
+  name: string
+}
+
+/**
+ * Every non-internal object in a database — not just tables.
+ *
+ * The emptiness gate has to look at views and triggers too. A trigger left
+ * behind in an otherwise "empty" database survives the bootstrap and then fires
+ * on the tables it creates; a view can shadow a name. Neither shows up in a
+ * `type = 'table'` query, so the gate has to consider the whole catalogue.
+ */
+export async function applicationObjects(reader: ReadOnlyExecutor): Promise<DatabaseObject[]> {
+  const result = await reader.execute(SQLITE_MASTER_QUERY)
+  return result.rows
+    .map((r) => ({ type: String(r.type), name: String(r.name) }))
+    .filter((o) => !isInternalTable(o.name))
+}
+
 /** Application (non-internal) table names present in a database. */
 export async function applicationTableNames(reader: ReadOnlyExecutor): Promise<string[]> {
-  const result = await reader.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
-  )
-  return result.rows.map((r) => String(r.name)).filter((name) => !isInternalTable(name))
+  const objects = await applicationObjects(reader)
+  return objects.filter((o) => o.type === "table").map((o) => o.name)
 }
 
 /**
@@ -697,16 +868,23 @@ export async function applicationTableNames(reader: ReadOnlyExecutor): Promise<s
  * reference and the live target without ever being able to modify either.
  */
 export async function introspectStructure(reader: ReadOnlyExecutor): Promise<DatabaseStructure> {
-  const master = await reader.execute(
-    "SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name",
-  )
-  const tableRows = master.rows
-    .map((r) => ({ name: String(r.name), sql: normalizeSql(r.sql) }))
-    .filter((t) => !isInternalTable(t.name))
+  const master = await reader.execute(SQLITE_MASTER_QUERY)
+  const catalogue = master.rows.map((r) => ({
+    type: String(r.type),
+    name: String(r.name),
+    sql: normalizeSql(r.sql),
+  }))
 
-  const indexMaster = await reader.execute("SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+  const tableRows = catalogue.filter((r) => r.type === "table" && !isInternalTable(r.name))
+
   const indexSql = new Map<string, string | null>()
-  for (const r of indexMaster.rows) indexSql.set(String(r.name), normalizeSql(r.sql))
+  for (const r of catalogue) if (r.type === "index") indexSql.set(r.name, r.sql)
+
+  // Views and triggers: schema.prisma declares none, so any that exist are
+  // objects the comparison must report rather than quietly ignore.
+  const objects: DatabaseObject[] = catalogue
+    .filter((r) => (r.type === "view" || r.type === "trigger") && !isInternalTable(r.name))
+    .map((r) => ({ type: r.type, name: r.name }))
 
   const tables: TableStructure[] = []
   for (const { name, sql } of tableRows) {
@@ -773,7 +951,7 @@ export async function introspectStructure(reader: ReadOnlyExecutor): Promise<Dat
     tables.push({ name, columns, foreignKeys, indexes, createSql: sql })
   }
 
-  return { tables }
+  return { tables, objects }
 }
 
 /**
@@ -805,6 +983,8 @@ export type FindingKind = "drift" | "unverifiable"
 export type FindingCategory =
   | "missing-table"
   | "extra-table"
+  | "missing-object"
+  | "extra-object"
   | "missing-column"
   | "extra-column"
   | "column-mismatch"
@@ -1061,6 +1241,26 @@ export function compareStructures(
     if (!expectedByName.has(table.name)) {
       driftAt("extra-table", table.name, "present in the database, absent from schema.prisma")
       unverifiable.push(...unverifiableIn(table, "database"))
+    }
+  }
+
+  // --- views and triggers ---------------------------------------------------
+  const objectKey = (o: DatabaseObject) => `${o.type} ${o.name}`
+  const expectedObjects = new Set(expected.objects.map(objectKey))
+  const actualObjects = new Set(actual.objects.map(objectKey))
+  for (const o of expected.objects) {
+    if (!actualObjects.has(objectKey(o))) {
+      driftAt("missing-object", objectKey(o), "declared in schema.prisma, absent from the database")
+    }
+  }
+  for (const o of actual.objects) {
+    if (!expectedObjects.has(objectKey(o))) {
+      driftAt(
+        "extra-object",
+        objectKey(o),
+        `${o.type} present in the database, absent from schema.prisma` +
+          (o.type === "trigger" ? " — a trigger runs against the application's own tables" : ""),
+      )
     }
   }
 
