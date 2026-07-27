@@ -1,34 +1,27 @@
 /**
- * Turso schema provisioning — derived from `prisma/schema.prisma`.
+ * Turso schema tooling — shared foundation for `bootstrap-turso.ts` and
+ * `verify-turso.ts`.
  *
- * WHAT THIS IS
- * ------------
- * An **additive bootstrap** tool, not a migration engine. Prisma's migration
- * engine cannot talk to a remote Turso database (the datasource in
- * `schema.prisma` is `sqlite`/`file:` and the engine has no `libsql://`
- * connector), so this module:
+ * SCOPE
+ * -----
+ * This is **not** a migration engine, and it deliberately never repairs an
+ * existing database. It supports exactly two operations:
  *
- *   1. asks the Prisma CLI to render the canonical DDL for the CURRENT
- *      `schema.prisma` (`migrate diff --from-empty --to-schema --script`);
- *   2. materialises that DDL in a throwaway LOCAL SQLite file and introspects
- *      it — that introspection, not a regex over the DDL text, is the
- *      canonical structure;
- *   3. introspects the target database with the same code;
- *   4. compares the two structures and splits the differences into
- *      *supported additive* work and *everything else*;
- *   5. applies only the additive work, then re-introspects and proves the
- *      target now matches the canonical structure.
+ *   `turso:bootstrap` — create the whole schema on an EMPTY database.
+ *   `turso:verify`    — compare a database against `schema.prisma`, read-only.
  *
- * WHAT IT DELIBERATELY DOES NOT DO
- * --------------------------------
- * It never drops, rewrites or rebuilds an existing table. Any non-additive
- * difference (type / nullability / default / primary key change, a new or
- * changed foreign key on an existing table, a renamed or removed table or
- * column, an incompatible index) aborts with `manual migration required`
- * BEFORE anything is written. See `docs/turso-schema-deploy.md`.
+ * Anything else — adding a column, completing a half-created database,
+ * reconciling drift, deciding which changes are "safe" — is out of scope by
+ * design. A database that has drifted needs a hand-written migration; this
+ * module's job is to tell you so, precisely, and never to guess.
  *
- * Every exported piece is pure or takes an injected client, so the drift
- * detector (`scripts/turso-schema-drift.test.ts`) exercises the real code.
+ * HOW THE CANONICAL STRUCTURE IS OBTAINED
+ * ---------------------------------------
+ * Prisma's migration engine cannot reach a remote Turso database, so the
+ * Prisma CLI renders the schema's DDL, that DDL is materialised in a throwaway
+ * LOCAL SQLite file, and the result is introspected. That introspection — not
+ * a regex over SQL text — is the canonical structure both tools compare
+ * against. The target database is read with the same introspection code.
  */
 
 import { execFileSync } from "node:child_process"
@@ -48,12 +41,13 @@ export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..
 
 /**
  * Strip anything credential-shaped from text that is about to be logged or
- * embedded in an error message. Applied to every child-process stderr.
+ * embedded in an error message. Applied to child-process stderr and to every
+ * error surfaced by the two CLIs.
  */
 export function sanitizeForLog(text: string): string {
   return text
-    .replace(/\b[a-z+]*sql:\/\/\S*/gi, "<redacted-url>")
-    .replace(/\bhttps?:\/\/[^\s/]*:[^\s/]*@\S*/gi, "<redacted-url>")
+    .replace(/\b[a-z+]*sql:\/\/\S+/gi, "<redacted-url>")
+    .replace(/\bhttps?:\/\/\S+/gi, "<redacted-url>")
     .replace(/\b(authToken|auth_token|token|password|secret)\s*[=:]\s*\S+/gi, "$1=<redacted>")
     .replace(/\bBearer\s+\S+/gi, "Bearer <redacted>")
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "<redacted-jwt>")
@@ -64,9 +58,9 @@ export function sanitizeForLog(text: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * A database is provisioned automatically ONLY when its name carries one of
- * these markers as a whole token (split on `-`, `_`, `.`). Anything else —
- * including every name we do not recognise — is treated as production.
+ * A database may be written to ONLY when its name carries one of these markers
+ * as a whole token (split on `-`, `_`, `.`). Anything else — including every
+ * name we do not recognise — is treated as production.
  */
 export const SAFE_ENVIRONMENT_MARKERS = [
   "lab",
@@ -159,7 +153,7 @@ export function parseTursoUrl(raw: string, source: string): ParsedTursoUrl {
   if (parsed.protocol !== "libsql:") {
     throw new Error(
       `${source} must use the libsql: protocol (got "${parsed.protocol}"). ` +
-        "A file: URL is refused on purpose so local dev is never provisioned as Turso.",
+        "A file: URL is refused on purpose so local dev is never mistaken for Turso.",
     )
   }
   if (parsed.username || parsed.password) {
@@ -229,9 +223,8 @@ export interface TursoTarget {
  *
  * Pairing the token with its URL avoids sending one database's token to
  * another. This is intentionally the OPPOSITE default from `core/db.ts` (which
- * prefers `DATABASE_URL`): this is a Turso-specific provisioning tool, so a
- * local `DATABASE_URL=file:./dev.db` must never be mistaken for the remote
- * target.
+ * prefers `DATABASE_URL`): these are Turso-specific tools, so a local
+ * `DATABASE_URL=file:./dev.db` must never be mistaken for the remote target.
  */
 export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget {
   let raw: string | undefined
@@ -249,7 +242,7 @@ export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget
     throw new Error(
       "No Turso target configured. Set TURSO_DATABASE_URL to a libsql:// URL " +
         "(or DATABASE_URL to a libsql:// URL). A file: DATABASE_URL is ignored " +
-        "on purpose so local dev is never provisioned as Turso.",
+        "on purpose so local dev is never mistaken for Turso.",
     )
   }
 
@@ -272,27 +265,25 @@ export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget
 }
 
 /**
- * Throw unless the target is safe to write. A target that is not classified as
- * a non-production environment is refused unless
- * `TURSO_PROVISION_ALLOW_PRODUCTION` exactly equals its name (reinforced,
- * opt-in override — there is no global "force" switch).
+ * Throw unless the target may be written to.
+ *
+ * There is **no override**. A production or unrecognised name cannot be
+ * unlocked by any environment variable, because the only writing tool
+ * (`turso:bootstrap`) is for creating fresh non-production databases.
+ * Provisioning production is a different, deliberate procedure.
  */
-export function assertWritableTarget(
-  target: TursoTarget,
-  env: ProvisionEnv = process.env,
-): void {
+export function assertBootstrapTarget(target: TursoTarget): void {
   if (target.classification.safe) return
-  if (env.TURSO_PROVISION_ALLOW_PRODUCTION === target.dbName) return
   throw new Error(
-    `Refusing to provision "${target.dbName}": ${target.classification.reason}. ` +
+    `Refusing to bootstrap "${target.dbName}": ${target.classification.reason}. ` +
       "Only databases explicitly marked as a non-production environment " +
-      `(${SAFE_ENVIRONMENT_MARKERS.join(", ")}) are provisioned automatically. ` +
-      `If this is intentional, set TURSO_PROVISION_ALLOW_PRODUCTION="${target.dbName}".`,
+      `(${SAFE_ENVIRONMENT_MARKERS.join(", ")}) can be bootstrapped, and there is no ` +
+      "override. Use turso:verify to inspect this database read-only.",
   )
 }
 
 // ---------------------------------------------------------------------------
-// Canonical DDL generation (cwd-independent)
+// Canonical DDL generation (cwd-independent, local CLI, no network)
 // ---------------------------------------------------------------------------
 
 export interface GenerateDdlOptions {
@@ -429,7 +420,64 @@ export function splitSqlStatements(sql: string): string[] {
   return statements
 }
 
-export type DdlStatementKind = "table" | "index" | "pragma"
+/**
+ * Replace every string literal, quoted identifier and comment with a space, so
+ * keyword scanning cannot be fooled by a keyword inside a value or a name.
+ */
+export function stripSqlLiterals(sql: string): string {
+  let out = ""
+  let i = 0
+
+  while (i < sql.length) {
+    const ch = sql[i]
+
+    if (ch === "'" || ch === '"' || ch === "`") {
+      const quote = ch
+      i++
+      while (i < sql.length) {
+        if (sql[i] === quote) {
+          if (sql[i + 1] === quote) {
+            i += 2
+            continue
+          }
+          i++
+          break
+        }
+        i++
+      }
+      out += " "
+      continue
+    }
+
+    if (ch === "[") {
+      while (i < sql.length && sql[i] !== "]") i++
+      i++
+      out += " "
+      continue
+    }
+
+    if (ch === "-" && sql[i + 1] === "-") {
+      while (i < sql.length && sql[i] !== "\n") i++
+      out += " "
+      continue
+    }
+
+    if (ch === "/" && sql[i + 1] === "*") {
+      i += 2
+      while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) i++
+      i += 2
+      out += " "
+      continue
+    }
+
+    out += ch
+    i++
+  }
+
+  return out
+}
+
+export type DdlStatementKind = "table" | "index"
 
 export interface ClassifiedStatement {
   kind: DdlStatementKind
@@ -439,27 +487,26 @@ export interface ClassifiedStatement {
 /**
  * Classify every statement of the canonical DDL. Unknown statement classes are
  * a hard error — they are never silently treated as tables, because a future
- * Prisma release emitting e.g. `CREATE TRIGGER` or `ALTER TABLE` would
- * otherwise be applied blindly by a bootstrap tool that cannot reason about it.
+ * Prisma release emitting e.g. `CREATE TRIGGER` would otherwise be applied
+ * blindly by a tool that cannot reason about it or verify the result.
  */
 export function classifyDdlStatements(ddl: string): ClassifiedStatement[] {
   const classified: ClassifiedStatement[] = []
   const unknown: string[] = []
 
   for (const sql of splitSqlStatements(ddl)) {
-    const head = sql.replace(/\s+/g, " ").trim()
+    const head = stripSqlLiterals(sql).replace(/\s+/g, " ").trim()
     if (/^CREATE\s+TABLE\b/i.test(head)) classified.push({ kind: "table", sql })
     else if (/^CREATE\s+(UNIQUE\s+)?INDEX\b/i.test(head)) classified.push({ kind: "index", sql })
-    else if (/^PRAGMA\b/i.test(head)) classified.push({ kind: "pragma", sql })
     else unknown.push(head.slice(0, 120))
   }
 
   if (unknown.length) {
     throw new Error(
-      "manual migration required — the canonical DDL contains statement classes this " +
-        "additive bootstrap tool does not support:\n" +
+      "The canonical DDL contains statement classes these tools do not support:\n" +
         unknown.map((s) => `  - ${s}…`).join("\n") +
-        "\nApply these by hand and extend prisma/turso-schema.ts before re-running.",
+        "\nBootstrap and verify only understand CREATE TABLE and CREATE [UNIQUE] INDEX. " +
+        "Apply anything else by hand.",
     )
   }
   if (!classified.some((s) => s.kind === "table")) {
@@ -476,11 +523,11 @@ export function parseSchemaModels(schemaSource: string): string[] {
 /**
  * Explicit non-support guard for `@@map`.
  *
- * Everything the provisioner does is derived from the DDL, so a `@@map` would
- * be applied correctly — but the drift detector's independent cross-check
- * ("every model in schema.prisma exists as a table") assumes model name ===
- * table name. Rather than let that check silently compare the wrong things,
- * `@@map` is refused until the cross-check is taught about it.
+ * Everything these tools do is derived from the DDL, so a `@@map` would be
+ * handled correctly — but the independent cross-check ("every model in
+ * schema.prisma exists as a table") assumes model name === table name. Rather
+ * than let that check silently compare the wrong things, `@@map` is refused
+ * until the cross-check is taught about it.
  *
  * Field-level `@map` is fully supported: the physical column name comes from
  * the DDL on both sides of every comparison.
@@ -490,9 +537,55 @@ export function assertModelNamesMatchTables(schemaSource: string): void {
   if (mapped.length) {
     throw new Error(
       `schema.prisma uses @@map (${mapped.join(", ")}), so a model name is no longer its table ` +
-        "name. The Turso drift detector's model↔table cross-check must be updated before this " +
-        "can land — see scripts/turso-schema-drift.test.ts.",
+        "name. The model↔table cross-check must be updated before this can land — see " +
+        "scripts/turso-verify.test.ts.",
     )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Read-only access
+// ---------------------------------------------------------------------------
+
+/**
+ * The only surface `verify` is ever given for the target database. It has no
+ * write methods at all — no `executeMultiple`, no `transaction`, no `batch` —
+ * so a corrective statement cannot be issued even by mistake.
+ */
+export interface ReadOnlyExecutor {
+  execute(sql: string): Promise<{ rows: Array<Record<string, unknown>> }>
+}
+
+/** A surface that can also write. Used by `bootstrap` inside its transaction. */
+export interface SqlExecutor extends ReadOnlyExecutor {
+  executeMultiple(sql: string): Promise<void>
+}
+
+/** Statements the read-only wrapper will pass through. */
+function assertReadOnlySql(sql: string): void {
+  const head = stripSqlLiterals(sql).replace(/\s+/g, " ").trim()
+  const isSelect = /^SELECT\b/i.test(head)
+  // Read-only pragmas only: `PRAGMA name` or `PRAGMA name(arg)`, never an
+  // assignment such as `PRAGMA foreign_keys = ON`.
+  const isReadPragma = /^PRAGMA\s+[a-z_]+\s*(\([^)]*\))?$/i.test(head)
+  if (!isSelect && !isReadPragma) {
+    throw new Error(
+      `Read-only guard refused a statement: ${head.slice(0, 60)}… ` +
+        "verify never writes to the target database.",
+    )
+  }
+}
+
+/**
+ * Narrow a client down to a read-only view, enforced twice: the returned type
+ * exposes only `execute`, and every statement is checked at runtime.
+ */
+export function asReadOnly(client: ReadOnlyExecutor): ReadOnlyExecutor {
+  return {
+    async execute(sql: string) {
+      assertReadOnlySql(sql)
+      return client.execute(sql)
+    },
   }
 }
 
@@ -500,18 +593,16 @@ export function assertModelNamesMatchTables(schemaSource: string): void {
 // Structural introspection
 // ---------------------------------------------------------------------------
 
-/** Minimal libsql-client surface used here. */
-export interface SqlExecutor {
-  execute(sql: string): Promise<{ rows: Array<Record<string, unknown>> }>
-  executeMultiple(sql: string): Promise<void>
-}
-
 export interface ColumnStructure {
   name: string
-  /** Declared type, normalized (upper-case, whitespace collapsed). */
+  /** Declared type, upper-cased (SQLite type names are case-insensitive). */
   type: string
   notNull: boolean
-  /** Default expression as SQLite reports it, normalized. */
+  /**
+   * Default expression EXACTLY as SQLite reports it. Never normalized: a
+   * default differing only in whitespace is a real difference, and collapsing
+   * it would hide meaning.
+   */
   defaultValue: string | null
   /** 1-based position within the primary key; 0 when not part of it. */
   pkPosition: number
@@ -534,6 +625,8 @@ export interface IndexStructure {
   origin: string
   /** Key columns in order; `DESC` suffixed when descending. */
   columns: string[]
+  /** Collation of each key column, in the same order. */
+  collations: string[]
   partial: boolean
   /** Normalized `sqlite_master.sql`; null for engine-managed indexes. */
   sql: string | null
@@ -544,7 +637,7 @@ export interface TableStructure {
   columns: ColumnStructure[]
   foreignKeys: ForeignKeyStructure[]
   indexes: IndexStructure[]
-  /** Normalized `sqlite_master.sql` — used verbatim to create the table. */
+  /** Normalized `sqlite_master.sql` for the table. */
   createSql: string | null
 }
 
@@ -567,22 +660,6 @@ function normalizeSql(sql: unknown): string | null {
   return String(sql).replace(/\s+/g, " ").trim()
 }
 
-function normalizeType(type: unknown): string {
-  return String(type ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase()
-}
-
-function normalizeDefault(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  const text = String(value).replace(/\s+/g, " ").trim()
-  if (!text) return null
-  return /^(current_timestamp|current_date|current_time|null|true|false)$/i.test(text)
-    ? text.toUpperCase()
-    : text
-}
-
 /** Escape a SQLite identifier for interpolation into a PRAGMA / DDL string. */
 function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`
@@ -602,23 +679,32 @@ export function indexKey(index: IndexStructure): string {
   return index.origin === "c" ? `c:${index.name}` : `${index.origin}:${index.columns.join(",")}`
 }
 
+/** Application (non-internal) table names present in a database. */
+export async function applicationTableNames(reader: ReadOnlyExecutor): Promise<string[]> {
+  const result = await reader.execute(
+    "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
+  )
+  return result.rows.map((r) => String(r.name)).filter((name) => !isInternalTable(name))
+}
+
 /**
  * Read the full structure of a database: tables, columns (type, nullability,
  * default, primary-key position, hidden flag), foreign keys (grouped, with
- * their actions) and indexes (uniqueness, key columns and order, partiality).
+ * their actions) and indexes (uniqueness, key columns, order, collation,
+ * partiality).
  *
- * The same function reads the canonical reference and the live target, so both
- * sides of every comparison are produced identically.
+ * Takes a read-only surface, so the same function reads the canonical
+ * reference and the live target without ever being able to modify either.
  */
-export async function introspectStructure(client: SqlExecutor): Promise<DatabaseStructure> {
-  const master = await client.execute(
+export async function introspectStructure(reader: ReadOnlyExecutor): Promise<DatabaseStructure> {
+  const master = await reader.execute(
     "SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name",
   )
   const tableRows = master.rows
     .map((r) => ({ name: String(r.name), sql: normalizeSql(r.sql) }))
     .filter((t) => !isInternalTable(t.name))
 
-  const indexMaster = await client.execute("SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+  const indexMaster = await reader.execute("SELECT name, sql FROM sqlite_master WHERE type = 'index'")
   const indexSql = new Map<string, string | null>()
   for (const r of indexMaster.rows) indexSql.set(String(r.name), normalizeSql(r.sql))
 
@@ -626,17 +712,20 @@ export async function introspectStructure(client: SqlExecutor): Promise<Database
   for (const { name, sql } of tableRows) {
     const ident = quoteIdent(name)
 
-    const info = await client.execute(`PRAGMA table_xinfo(${ident})`)
+    const info = await reader.execute(`PRAGMA table_xinfo(${ident})`)
     const columns: ColumnStructure[] = info.rows.map((r) => ({
       name: String(r.name),
-      type: normalizeType(r.type),
+      type: String(r.type ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase(),
       notNull: Number(r.notnull) === 1,
-      defaultValue: normalizeDefault(r.dflt_value),
+      defaultValue: r.dflt_value === null || r.dflt_value === undefined ? null : String(r.dflt_value),
       pkPosition: Number(r.pk ?? 0),
       hidden: Number(r.hidden ?? 0),
     }))
 
-    const fkRows = await client.execute(`PRAGMA foreign_key_list(${ident})`)
+    const fkRows = await reader.execute(`PRAGMA foreign_key_list(${ident})`)
     const grouped = new Map<number, Array<Record<string, unknown>>>()
     for (const r of fkRows.rows) {
       const id = Number(r.id)
@@ -658,23 +747,23 @@ export async function introspectStructure(client: SqlExecutor): Promise<Database
       })
       .sort((a, b) => foreignKeyKey(a).localeCompare(foreignKeyKey(b)))
 
-    const idxRows = await client.execute(`PRAGMA index_list(${ident})`)
+    const idxRows = await reader.execute(`PRAGMA index_list(${ident})`)
     const indexes: IndexStructure[] = []
     for (const r of idxRows.rows) {
       const idxName = String(r.name)
-      const xinfo = await client.execute(`PRAGMA index_xinfo(${quoteIdent(idxName)})`)
-      const keyColumns = xinfo.rows
+      const xinfo = await reader.execute(`PRAGMA index_xinfo(${quoteIdent(idxName)})`)
+      const keyRows = xinfo.rows
         .filter((c) => Number(c.key) === 1)
         .sort((a, b) => Number(a.seqno) - Number(b.seqno))
-        .map(
-          (c) =>
-            `${c.name === null ? "<expr>" : String(c.name)}${Number(c.desc) === 1 ? " DESC" : ""}`,
-        )
       indexes.push({
         name: idxName,
         unique: Number(r.unique) === 1,
         origin: String(r.origin ?? "c"),
-        columns: keyColumns,
+        columns: keyRows.map(
+          (c) =>
+            `${c.name === null ? "<expr>" : String(c.name)}${Number(c.desc) === 1 ? " DESC" : ""}`,
+        ),
+        collations: keyRows.map((c) => String(c.coll ?? "BINARY").toUpperCase()),
         partial: Number(r.partial ?? 0) === 1,
         sql: indexSql.get(idxName) ?? null,
       })
@@ -690,7 +779,8 @@ export async function introspectStructure(client: SqlExecutor): Promise<Database
 /**
  * Materialise the canonical DDL in a throwaway local SQLite file and read its
  * structure back. This — not a regex over the DDL text — is the source of
- * truth every comparison and every generated statement is built from.
+ * truth every comparison is made against. Nothing here ever touches the target
+ * database.
  */
 export async function canonicalStructureFromDdl(ddl: string): Promise<DatabaseStructure> {
   classifyDdlStatements(ddl)
@@ -699,7 +789,7 @@ export async function canonicalStructureFromDdl(ddl: string): Promise<DatabaseSt
   const client = createClient({ url: `file:${join(dir, "canonical.db")}` })
   try {
     await client.executeMultiple(`PRAGMA foreign_keys=OFF;\n${ddl}`)
-    return await introspectStructure(client)
+    return await introspectStructure(asReadOnly(client))
   } finally {
     client.close()
     rmSync(dir, { recursive: true, force: true })
@@ -707,62 +797,103 @@ export async function canonicalStructureFromDdl(ddl: string): Promise<DatabaseSt
 }
 
 // ---------------------------------------------------------------------------
-// Structural comparison
+// Read-only structural comparison
 // ---------------------------------------------------------------------------
 
-export type IssueKind =
-  | "missing-table"
-  | "missing-column"
-  | "missing-index"
-  | "column-mismatch"
-  | "primary-key-mismatch"
-  | "foreign-key-missing"
-  | "foreign-key-mismatch"
-  | "foreign-key-extra"
-  | "index-mismatch"
-  | "extra-table"
-  | "extra-column"
-  | "extra-index"
-  | "column-not-addable"
-  | "unique-index-duplicates"
+export type FindingKind = "drift" | "unverifiable"
 
-export interface StructuralIssue {
-  kind: IssueKind
+export type FindingCategory =
+  | "missing-table"
+  | "extra-table"
+  | "missing-column"
+  | "extra-column"
+  | "column-mismatch"
+  | "missing-foreign-key"
+  | "extra-foreign-key"
+  | "foreign-key-mismatch"
+  | "missing-index"
+  | "extra-index"
+  | "index-mismatch"
+  | "check-constraint"
+  | "generated-column"
+  | "expression-index"
+  | "collation"
+  | "unsupported-construct"
+
+export interface StructuralFinding {
+  kind: FindingKind
+  category: FindingCategory
   /** `Table`, `Table.column` or an index name. Safe to log. */
   object: string
   detail: string
 }
 
-export interface PlannedColumn {
-  table: string
-  column: ColumnStructure
-  /** SQLite only accepts this `ADD COLUMN` while the table is empty. */
-  requiresEmptyTable: boolean
+export type VerificationVerdict = "identical" | "drift detected" | "structure not verifiable"
+
+export interface StructuralReport {
+  verdict: VerificationVerdict
+  /** Differences proven to exist. */
+  drift: StructuralFinding[]
+  /** Constructs this tool cannot compare faithfully, on either side. */
+  unverifiable: StructuralFinding[]
 }
 
-export interface PlannedIndex {
-  table: string
-  index: IndexStructure
-  sql: string
-  /** UNIQUE index over a pre-existing table: existing rows may violate it. */
-  requiresUniquenessCheck: boolean
-}
+/**
+ * Constructs SQLite's PRAGMAs do not describe faithfully. Rather than compare
+ * what we can see and silently assume the rest matches, we report them and
+ * refuse the `identical` verdict.
+ */
+function unverifiableIn(table: TableStructure, side: string): StructuralFinding[] {
+  const findings: StructuralFinding[] = []
+  const add = (category: FindingCategory, object: string, detail: string) =>
+    findings.push({ kind: "unverifiable", category, object, detail: `${detail} (${side})` })
 
-export interface SchemaPlan {
-  /** Tables to create verbatim from the canonical `CREATE TABLE`. */
-  createTables: TableStructure[]
-  addColumns: PlannedColumn[]
-  createIndexes: PlannedIndex[]
-  /** Differences this tool refuses to apply. Non-empty ⇒ abort. */
-  blocking: StructuralIssue[]
-  /** Objects present in the target but absent from the schema. */
-  extra: StructuralIssue[]
-}
+  if (!table.createSql) {
+    add("unsupported-construct", table.name, "no CREATE TABLE statement is recorded for this table")
+    return findings
+  }
 
-/** A default SQLite cannot evaluate while adding a column to an existing table. */
-export function isNonConstantDefault(value: string | null): boolean {
-  if (value === null) return false
-  return /^\(/.test(value) || /^(CURRENT_TIMESTAMP|CURRENT_DATE|CURRENT_TIME)$/i.test(value)
+  const bare = stripSqlLiterals(table.createSql)
+  if (/\bCHECK\s*\(/i.test(bare)) {
+    add("check-constraint", table.name, "CHECK constraints are not exposed by PRAGMA and cannot be compared")
+  }
+  if (/\bCOLLATE\b/i.test(bare)) {
+    add("collation", table.name, "column collations are not exposed by PRAGMA table_xinfo")
+  }
+  if (/\bGENERATED\s+ALWAYS\b/i.test(bare) || /\bAS\s*\(/i.test(bare)) {
+    add("generated-column", table.name, "generated-column expressions are not exposed by PRAGMA")
+  }
+  if (/\bWITHOUT\s+ROWID\b/i.test(bare)) {
+    add("unsupported-construct", table.name, "WITHOUT ROWID tables are not modelled")
+  }
+  if (/\bSTRICT\b/i.test(bare)) {
+    add("unsupported-construct", table.name, "STRICT tables are not modelled")
+  }
+  if (/\bAUTOINCREMENT\b/i.test(bare)) {
+    add("unsupported-construct", table.name, "AUTOINCREMENT is not exposed by PRAGMA table_xinfo")
+  }
+
+  for (const column of table.columns) {
+    if (column.hidden !== 0) {
+      add(
+        "generated-column",
+        `${table.name}.${column.name}`,
+        `hidden/generated column (hidden=${column.hidden}) cannot be compared faithfully`,
+      )
+    }
+  }
+
+  for (const index of table.indexes) {
+    if (index.columns.some((c) => c.startsWith("<expr>"))) {
+      add(
+        "expression-index",
+        `${table.name}.${index.name}`,
+        "expression indexes are not exposed as columns by PRAGMA index_xinfo",
+      )
+    }
+  }
+
+  return findings
 }
 
 function describeColumn(c: ColumnStructure): string {
@@ -775,96 +906,45 @@ function describeColumn(c: ColumnStructure): string {
 }
 
 /**
- * Compare the canonical structure against a live one and split every
- * difference into work we can safely apply and work that requires a human.
+ * Compare a live structure against the canonical one and produce a read-only
+ * report. This function never produces a plan, a statement, or a suggestion of
+ * how to fix anything — it only states what differs.
  *
- * Pure and synchronous: checks that need to read data (an empty-table check, a
- * uniqueness check) are flagged here and resolved by `preflightPlan`.
+ * The verdict is `identical` **only** when nothing differs AND nothing on
+ * either side falls outside what PRAGMAs describe faithfully.
  */
-export function diffStructures(expected: DatabaseStructure, actual: DatabaseStructure): SchemaPlan {
-  const plan: SchemaPlan = {
-    createTables: [],
-    addColumns: [],
-    createIndexes: [],
-    blocking: [],
-    extra: [],
-  }
+export function compareStructures(
+  expected: DatabaseStructure,
+  actual: DatabaseStructure,
+): StructuralReport {
+  const drift: StructuralFinding[] = []
+  const unverifiable: StructuralFinding[] = []
+  const driftAt = (category: FindingCategory, object: string, detail: string) =>
+    drift.push({ kind: "drift", category, object, detail })
 
   const actualByName = new Map(actual.tables.map((t) => [t.name, t]))
   const expectedByName = new Map(expected.tables.map((t) => [t.name, t]))
 
   for (const table of expected.tables) {
-    const live = actualByName.get(table.name)
+    unverifiable.push(...unverifiableIn(table, "schema.prisma"))
 
+    const live = actualByName.get(table.name)
     if (!live) {
-      if (!table.createSql) {
-        plan.blocking.push({
-          kind: "missing-table",
-          object: table.name,
-          detail: "canonical CREATE TABLE statement unavailable",
-        })
-        continue
-      }
-      plan.createTables.push(table)
-      for (const index of table.indexes) {
-        if (index.origin !== "c" || !index.sql) continue
-        plan.createIndexes.push({
-          table: table.name,
-          index,
-          sql: index.sql,
-          requiresUniquenessCheck: false,
-        })
-      }
+      driftAt("missing-table", table.name, "declared in schema.prisma, absent from the database")
       continue
     }
+    unverifiable.push(...unverifiableIn(live, "database"))
 
     // --- columns -----------------------------------------------------------
     const liveColumns = new Map(live.columns.map((c) => [c.name, c]))
-    const fkColumns = new Set(table.foreignKeys.flatMap((fk) => fk.columns))
-
     for (const column of table.columns) {
       const liveColumn = liveColumns.get(column.name)
-
       if (!liveColumn) {
-        if (column.pkPosition > 0) {
-          plan.blocking.push({
-            kind: "primary-key-mismatch",
-            object: `${table.name}.${column.name}`,
-            detail: "missing column belongs to the primary key; SQLite cannot add it",
-          })
-          continue
-        }
-        if (column.hidden !== 0) {
-          plan.blocking.push({
-            kind: "column-not-addable",
-            object: `${table.name}.${column.name}`,
-            detail: `generated/hidden column (hidden=${column.hidden}) cannot be added safely`,
-          })
-          continue
-        }
-        if (fkColumns.has(column.name)) {
-          plan.blocking.push({
-            kind: "foreign-key-missing",
-            object: `${table.name}.${column.name}`,
-            detail:
-              "missing column participates in a foreign key; SQLite cannot add a foreign key " +
-              "to an existing table",
-          })
-          continue
-        }
-        if (isNonConstantDefault(column.defaultValue)) {
-          plan.blocking.push({
-            kind: "column-not-addable",
-            object: `${table.name}.${column.name}`,
-            detail: `SQLite cannot ADD COLUMN with the non-constant default ${column.defaultValue}`,
-          })
-          continue
-        }
-        plan.addColumns.push({
-          table: table.name,
-          column,
-          requiresEmptyTable: column.notNull && column.defaultValue === null,
-        })
+        driftAt(
+          "missing-column",
+          `${table.name}.${column.name}`,
+          `expected ${describeColumn(column)}`,
+        )
         continue
       }
 
@@ -877,38 +957,32 @@ export function diffStructures(expected: DatabaseStructure, actual: DatabaseStru
           `${liveColumn.notNull ? "NOT NULL" : "NULL"} → ${column.notNull ? "NOT NULL" : "NULL"}`,
         )
       }
+      // Raw comparison: a default differing only in whitespace is a real
+      // difference and must never be normalized away.
       if (liveColumn.defaultValue !== column.defaultValue) {
         differences.push(
           `default ${liveColumn.defaultValue ?? "(none)"} → ${column.defaultValue ?? "(none)"}`,
         )
       }
+      if (liveColumn.pkPosition !== column.pkPosition) {
+        differences.push(`primary-key position ${liveColumn.pkPosition} → ${column.pkPosition}`)
+      }
       if (liveColumn.hidden !== column.hidden) {
         differences.push(`hidden ${liveColumn.hidden} → ${column.hidden}`)
       }
       if (differences.length) {
-        plan.blocking.push({
-          kind: "column-mismatch",
-          object: `${table.name}.${column.name}`,
-          detail: `${differences.join("; ")} (expected: ${describeColumn(column)})`,
-        })
-      }
-      if (liveColumn.pkPosition !== column.pkPosition) {
-        plan.blocking.push({
-          kind: "primary-key-mismatch",
-          object: `${table.name}.${column.name}`,
-          detail: `primary-key position ${liveColumn.pkPosition} → ${column.pkPosition}`,
-        })
+        driftAt("column-mismatch", `${table.name}.${column.name}`, differences.join("; "))
       }
     }
 
     const expectedColumns = new Set(table.columns.map((c) => c.name))
     for (const column of live.columns) {
       if (!expectedColumns.has(column.name)) {
-        plan.extra.push({
-          kind: "extra-column",
-          object: `${table.name}.${column.name}`,
-          detail: "column exists in the database but not in schema.prisma",
-        })
+        driftAt(
+          "extra-column",
+          `${table.name}.${column.name}`,
+          "present in the database, absent from schema.prisma",
+        )
       }
     }
 
@@ -918,34 +992,22 @@ export function diffStructures(expected: DatabaseStructure, actual: DatabaseStru
       const key = foreignKeyKey(fk)
       const liveFk = liveFks.get(key)
       if (!liveFk) {
-        plan.blocking.push({
-          kind: "foreign-key-missing",
-          object: `${table.name} ${key}`,
-          detail:
-            "foreign key declared in schema.prisma is absent; SQLite cannot add one to an " +
-            "existing table",
-        })
+        driftAt("missing-foreign-key", `${table.name} ${key}`, "declared in schema.prisma, absent from the database")
         continue
       }
       if (liveFk.onDelete !== fk.onDelete || liveFk.onUpdate !== fk.onUpdate) {
-        plan.blocking.push({
-          kind: "foreign-key-mismatch",
-          object: `${table.name} ${key}`,
-          detail:
-            `ON DELETE ${liveFk.onDelete} → ${fk.onDelete}, ` +
-            `ON UPDATE ${liveFk.onUpdate} → ${fk.onUpdate}`,
-        })
+        driftAt(
+          "foreign-key-mismatch",
+          `${table.name} ${key}`,
+          `ON DELETE ${liveFk.onDelete} → ${fk.onDelete}, ON UPDATE ${liveFk.onUpdate} → ${fk.onUpdate}`,
+        )
       }
     }
     const expectedFks = new Set(table.foreignKeys.map(foreignKeyKey))
     for (const fk of live.foreignKeys) {
       const key = foreignKeyKey(fk)
       if (!expectedFks.has(key)) {
-        plan.blocking.push({
-          kind: "foreign-key-extra",
-          object: `${table.name} ${key}`,
-          detail: "foreign key exists in the database but not in schema.prisma",
-        })
+        driftAt("extra-foreign-key", `${table.name} ${key}`, "present in the database, absent from schema.prisma")
       }
     }
 
@@ -954,22 +1016,8 @@ export function diffStructures(expected: DatabaseStructure, actual: DatabaseStru
     for (const index of table.indexes) {
       const key = indexKey(index)
       const liveIndex = liveIndexes.get(key)
-
       if (!liveIndex) {
-        if (index.origin !== "c" || !index.sql) {
-          plan.blocking.push({
-            kind: "index-mismatch",
-            object: `${table.name} ${key}`,
-            detail: "engine-managed index is absent; it belongs to a table definition change",
-          })
-          continue
-        }
-        plan.createIndexes.push({
-          table: table.name,
-          index,
-          sql: index.sql,
-          requiresUniquenessCheck: index.unique,
-        })
+        driftAt("missing-index", `${table.name} ${key}`, "declared in schema.prisma, absent from the database")
         continue
       }
 
@@ -982,6 +1030,11 @@ export function diffStructures(expected: DatabaseStructure, actual: DatabaseStru
       if (liveIndex.columns.join(",") !== index.columns.join(",")) {
         differences.push(`columns (${liveIndex.columns.join(", ")}) → (${index.columns.join(", ")})`)
       }
+      if (liveIndex.collations.join(",") !== index.collations.join(",")) {
+        differences.push(
+          `collations (${liveIndex.collations.join(", ")}) → (${index.collations.join(", ")})`,
+        )
+      }
       if (liveIndex.partial !== index.partial) {
         differences.push(`${liveIndex.partial ? "partial" : "full"} → ${index.partial ? "partial" : "full"}`)
       }
@@ -989,250 +1042,47 @@ export function diffStructures(expected: DatabaseStructure, actual: DatabaseStru
         differences.push("partial-index predicate differs")
       }
       if (differences.length) {
-        plan.blocking.push({
-          kind: "index-mismatch",
-          object: `${table.name}.${index.name}`,
-          detail: differences.join("; "),
-        })
+        driftAt("index-mismatch", `${table.name}.${index.name}`, differences.join("; "))
       }
     }
     const expectedIndexes = new Set(table.indexes.map(indexKey))
     for (const index of live.indexes) {
       if (!expectedIndexes.has(indexKey(index))) {
-        plan.extra.push({
-          kind: "extra-index",
-          object: `${table.name}.${index.name}`,
-          detail: "index exists in the database but not in schema.prisma",
-        })
+        driftAt(
+          "extra-index",
+          `${table.name}.${index.name}`,
+          "present in the database, absent from schema.prisma",
+        )
       }
     }
   }
 
   for (const table of actual.tables) {
     if (!expectedByName.has(table.name)) {
-      plan.extra.push({
-        kind: "extra-table",
-        object: table.name,
-        detail: "table exists in the database but not in schema.prisma",
-      })
+      driftAt("extra-table", table.name, "present in the database, absent from schema.prisma")
+      unverifiable.push(...unverifiableIn(table, "database"))
     }
   }
 
-  return plan
+  const verdict: VerificationVerdict = drift.length
+    ? "drift detected"
+    : unverifiable.length
+      ? "structure not verifiable"
+      : "identical"
+
+  return { verdict, drift, unverifiable }
 }
 
-/**
- * Resolve the data-dependent checks the pure diff could only flag: a NOT NULL
- * column without a default can only be added while the table is empty, and a
- * UNIQUE index can only be created when the existing rows do not violate it.
- *
- * Runs BEFORE anything is written, so a database that needs a manual migration
- * is never left half-provisioned.
- */
-export async function preflightPlan(client: SqlExecutor, plan: SchemaPlan): Promise<SchemaPlan> {
-  const addColumns: PlannedColumn[] = []
-  for (const planned of plan.addColumns) {
-    if (!planned.requiresEmptyTable) {
-      addColumns.push(planned)
-      continue
-    }
-    const count = await client.execute(`SELECT count(*) AS n FROM ${quoteIdent(planned.table)}`)
-    const rows = Number(count.rows[0].n)
-    if (rows === 0) {
-      addColumns.push(planned)
-      continue
-    }
-    plan.blocking.push({
-      kind: "column-not-addable",
-      object: `${planned.table}.${planned.column.name}`,
-      detail:
-        `NOT NULL without a default, and ${rows} row(s) already exist — ` +
-        "SQLite cannot add this column",
-    })
+/** Render a report for a terminal. Contains no URL, host or credential. */
+export function formatReport(report: StructuralReport): string {
+  const lines = [`Verdict: ${report.verdict}`]
+  if (report.drift.length) {
+    lines.push("", `Differences (${report.drift.length}):`)
+    for (const f of report.drift) lines.push(`  [${f.category}] ${f.object}: ${f.detail}`)
   }
-  plan.addColumns = addColumns
-
-  // Columns that do not exist yet: an index over one of them cannot have
-  // duplicates, because every existing row will read NULL there.
-  const pending = new Set(addColumns.map((c) => `${c.table}.${c.column.name}`))
-
-  const createIndexes: PlannedIndex[] = []
-  for (const planned of plan.createIndexes) {
-    const columns = planned.index.columns
-    const bare = columns.map((c) => c.replace(/ DESC$/, ""))
-    if (
-      !planned.requiresUniquenessCheck ||
-      !columns.length ||
-      columns.some((c) => c.startsWith("<expr>")) ||
-      bare.some((c) => pending.has(`${planned.table}.${c}`))
-    ) {
-      createIndexes.push(planned)
-      continue
-    }
-
-    const cols = bare.map(quoteIdent)
-    let groups: number
-    try {
-      const duplicates = await client.execute(
-        `SELECT count(*) AS n FROM (SELECT ${cols.join(", ")} FROM ${quoteIdent(planned.table)} ` +
-          `WHERE ${cols.map((c) => `${c} IS NOT NULL`).join(" AND ")} ` +
-          `GROUP BY ${cols.join(", ")} HAVING count(*) > 1)`,
-      )
-      groups = Number(duplicates.rows[0].n)
-    } catch (err) {
-      // The index references something the target does not have — a column
-      // that is itself blocked, for instance. Refuse rather than guess.
-      plan.blocking.push({
-        kind: "index-mismatch",
-        object: `${planned.table}.${planned.index.name}`,
-        detail:
-          `cannot verify the UNIQUE index over (${columns.join(", ")}): ` +
-          sanitizeForLog(err instanceof Error ? err.message : String(err)),
-      })
-      continue
-    }
-
-    if (groups === 0) {
-      createIndexes.push(planned)
-      continue
-    }
-    plan.blocking.push({
-      kind: "unique-index-duplicates",
-      object: `${planned.table}.${planned.index.name}`,
-      detail:
-        `${groups} duplicate value group(s) already exist on (${columns.join(", ")}) — ` +
-        "the UNIQUE index cannot be created",
-    })
+  if (report.unverifiable.length) {
+    lines.push("", `Not verifiable (${report.unverifiable.length}):`)
+    for (const f of report.unverifiable) lines.push(`  [${f.category}] ${f.object}: ${f.detail}`)
   }
-  plan.createIndexes = createIndexes
-
-  return plan
-}
-
-// ---------------------------------------------------------------------------
-// Applying the additive plan
-// ---------------------------------------------------------------------------
-
-/** Rebuild an `ADD COLUMN` definition from the introspected canonical column. */
-export function columnDefinition(column: ColumnStructure): string {
-  const parts = [quoteIdent(column.name)]
-  if (column.type) parts.push(column.type)
-  if (column.notNull) parts.push("NOT NULL")
-  if (column.defaultValue !== null) parts.push(`DEFAULT ${column.defaultValue}`)
-  return parts.join(" ")
-}
-
-export class ManualMigrationRequiredError extends Error {
-  readonly issues: StructuralIssue[]
-
-  constructor(issues: StructuralIssue[], context: string) {
-    super(
-      `manual migration required — ${context}\n` +
-        issues.map((i) => `  [${i.kind}] ${i.object}: ${i.detail}`).join("\n") +
-        "\n\nThis tool only performs additive bootstrap (new tables, new columns, new " +
-        "indexes). It never rewrites or rebuilds an existing table. Resolve the " +
-        "differences above with a hand-written migration, then re-run.",
-    )
-    this.name = "ManualMigrationRequiredError"
-    this.issues = issues
-  }
-}
-
-export interface ProvisionReport {
-  canonical: DatabaseStructure
-  before: DatabaseStructure
-  after: DatabaseStructure
-  applied: { tables: string[]; columns: string[]; indexes: string[] }
-  integrity: { foreignKeyViolations: number; integrityCheck: string }
-}
-
-/**
- * Bring `client` up to the canonical structure, additively, and prove it.
- *
- *   1. build the canonical structure from `ddl` (local throwaway database);
- *   2. introspect the target;
- *   3. diff, then resolve the data-dependent checks;
- *   4. abort with `manual migration required` if ANY non-additive difference
- *      remains — nothing has been written at this point;
- *   5. apply tables → columns → indexes (indexes last: they may reference a
- *      column the previous step has just added);
- *   6. re-introspect and require the result to match the canonical structure
- *      exactly;
- *   7. run `PRAGMA foreign_key_check` and `PRAGMA integrity_check`.
- */
-export async function provisionSchema(client: SqlExecutor, ddl: string): Promise<ProvisionReport> {
-  const canonical = await canonicalStructureFromDdl(ddl)
-  const before = await introspectStructure(client)
-
-  const plan = await preflightPlan(client, diffStructures(canonical, before))
-
-  const blockers = [...plan.blocking, ...plan.extra]
-  if (blockers.length) {
-    throw new ManualMigrationRequiredError(
-      blockers,
-      `${blockers.length} structural difference(s) cannot be applied additively`,
-    )
-  }
-
-  const applied = { tables: [] as string[], columns: [] as string[], indexes: [] as string[] }
-
-  if (plan.createTables.length) {
-    const sql = plan.createTables.map((t) => `${t.createSql};`).join("\n")
-    await client.executeMultiple(`PRAGMA foreign_keys=OFF;\n${sql}`)
-    applied.tables = plan.createTables.map((t) => t.name)
-  }
-
-  for (const planned of plan.addColumns) {
-    await client.execute(
-      `ALTER TABLE ${quoteIdent(planned.table)} ADD COLUMN ${columnDefinition(planned.column)}`,
-    )
-    applied.columns.push(`${planned.table}.${planned.column.name}`)
-  }
-
-  if (plan.createIndexes.length) {
-    const sql = plan.createIndexes.map((i) => `${i.sql};`).join("\n")
-    await client.executeMultiple(`PRAGMA foreign_keys=OFF;\n${sql}`)
-    applied.indexes = plan.createIndexes.map((i) => i.index.name)
-  }
-
-  // --- verification --------------------------------------------------------
-  const after = await introspectStructure(client)
-  const residual = diffStructures(canonical, after)
-  const remaining: StructuralIssue[] = [
-    ...residual.blocking,
-    ...residual.extra,
-    ...residual.createTables.map((t) => ({
-      kind: "missing-table" as const,
-      object: t.name,
-      detail: "still missing after provisioning",
-    })),
-    ...residual.addColumns.map((c) => ({
-      kind: "missing-column" as const,
-      object: `${c.table}.${c.column.name}`,
-      detail: "still missing after provisioning",
-    })),
-    ...residual.createIndexes.map((i) => ({
-      kind: "missing-index" as const,
-      object: `${i.table}.${i.index.name}`,
-      detail: "still missing after provisioning",
-    })),
-  ]
-  if (remaining.length) {
-    throw new ManualMigrationRequiredError(
-      remaining,
-      "the database still differs from schema.prisma after provisioning",
-    )
-  }
-
-  const fkCheck = await client.execute("PRAGMA foreign_key_check")
-  const integrity = await client.execute("PRAGMA integrity_check")
-  const integrityCheck = String(Object.values(integrity.rows[0] ?? {})[0] ?? "unknown")
-
-  return {
-    canonical,
-    before,
-    after,
-    applied,
-    integrity: { foreignKeyViolations: fkCheck.rows.length, integrityCheck },
-  }
+  return lines.join("\n")
 }

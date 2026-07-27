@@ -2,8 +2,9 @@
  * Turso target guard — conservative allow-list policy.
  *
  * Proves that only databases whose name carries an explicit non-production
- * marker are provisioned automatically, that every ambiguous or unparseable
- * URL is refused, and that nothing credential-shaped can reach a log line.
+ * marker can be bootstrapped, that there is no override of any kind, that
+ * every ambiguous or unparseable URL is refused, and that nothing
+ * credential-shaped can reach a log line.
  *
  * Runs entirely offline: no database, no network, no credentials.
  *
@@ -14,7 +15,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
-  assertWritableTarget,
+  assertBootstrapTarget,
   classifyDatabaseName,
   parseTursoUrl,
   resolveTursoTarget,
@@ -190,31 +191,29 @@ test("a file: DATABASE_URL is ignored so local dev is never provisioned as Turso
   assert.throws(() => resolveTursoTarget({ DATABASE_URL: "file:./dev.db" }), /No Turso target configured/)
 })
 
-test("assertWritableTarget refuses production unless the exact name is opted in", () => {
+test("assertBootstrapTarget refuses production, and NOTHING unlocks it", () => {
   const env = { TURSO_DATABASE_URL: "libsql://7f-7frames.aws-eu-west-1.turso.io" }
   const target = resolveTursoTarget(env)
   assert.equal(target.dbName, "7f-7frames")
   assert.equal(target.classification.safe, false)
 
-  assert.throws(() => assertWritableTarget(target, env), /Refusing to provision "7f-7frames"/)
+  assert.throws(() => assertBootstrapTarget(target), /Refusing to bootstrap "7f-7frames"/)
 
-  // A near-miss override must not unlock it.
-  assert.throws(
-    () => assertWritableTarget(target, { ...env, TURSO_PROVISION_ALLOW_PRODUCTION: "7f" }),
-    /Refusing to provision/,
-  )
-
-  // The exact name does.
-  assert.doesNotThrow(() =>
-    assertWritableTarget(target, { ...env, TURSO_PROVISION_ALLOW_PRODUCTION: "7f-7frames" }),
-  )
+  // There is no override any more: the guard takes no environment at all, so
+  // no variable — however it is spelled — can unlock a production name.
+  assert.equal(assertBootstrapTarget.length, 1, "the guard must not accept an env argument")
+  for (const name of ["7f", "sevenef", "sevenef-prod", "sevenef-live", "sevenef-production"]) {
+    const t = resolveTursoTarget({ TURSO_DATABASE_URL: `libsql://${name}.turso.io` })
+    assert.throws(() => assertBootstrapTarget(t), /Refusing to bootstrap/, name)
+  }
 })
 
-test("a lab target needs no override", () => {
-  const env = { TURSO_DATABASE_URL: "libsql://sevenef-mr-forte-lab.aws-eu-west-1.turso.io" }
-  const target = resolveTursoTarget(env)
+test("a lab target passes the bootstrap guard", () => {
+  const target = resolveTursoTarget({
+    TURSO_DATABASE_URL: "libsql://sevenef-mr-forte-lab.aws-eu-west-1.turso.io",
+  })
   assert.equal(target.classification.safe, true)
-  assert.doesNotThrow(() => assertWritableTarget(target, env))
+  assert.doesNotThrow(() => assertBootstrapTarget(target))
 })
 
 // ---------------------------------------------------------------------------

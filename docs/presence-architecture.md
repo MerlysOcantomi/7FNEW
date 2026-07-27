@@ -206,13 +206,12 @@ asserts `workspaceId` ownership; public resolution serves only VERIFIED custom
 domains. Not wired to any UI.
 
 **Migration & Turso:** additive SQL in
-`prisma/sql/2026-07-21-presence-persistence-additive.sql` for existing
-databases. New tables/indexes need no mirroring into the deploy runner:
-`prisma/push-turso.ts` derives its DDL from `prisma/schema.prisma`, so adding
-the models is enough. A change that is *not* purely additive — a new relation
-on an existing table, a type/nullability change, a rename — still needs a
-hand-written migration; the runner refuses it with `manual migration required`
-rather than half-applying it (see `docs/turso-schema-deploy.md`). Verified locally
+`prisma/sql/2026-07-21-presence-persistence-additive.sql` — that hand-written
+migration is what brings an EXISTING database up to date. The Turso tooling
+does not apply it and does not repair databases: `turso:bootstrap` only creates
+a schema on an empty database, and `turso:verify` only reports what differs
+(see `docs/turso-schema-deploy.md`). Adding the models to `schema.prisma` is
+enough for a freshly bootstrapped database. Verified locally
 against SQLite (same engine as Turso): all tables/columns/indexes/FKs present,
 `foreign_key_check` clean, `PRAGMA integrity_check = ok`, statements idempotent
 on re-apply. The remote Turso push runs in the deploy environment (real

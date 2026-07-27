@@ -1,12 +1,16 @@
-name: Turso schema drift
+name: Turso schema
 
-# Fails when the Turso provisioning mechanism stops matching the source of
-# truth (`prisma/schema.prisma`), or when the target guard stops refusing
-# ambiguous databases. Runs entirely against throwaway local SQLite files: no
-# credentials, no secrets, no remote database.
+# Guards the two Turso tools:
+#   turso:bootstrap — creates the schema on an EMPTY database, nothing else
+#   turso:verify    — compares a database against schema.prisma, read-only
 #
-# It also runs on every branch push, not just on `master`: this repository
-# ships straight to `master`, so a check that only ran there would report drift
+# Fails when the target guard stops refusing ambiguous databases, when
+# bootstrap stops being empty-only or atomic, or when the read-only comparison
+# stops detecting a structural difference. Runs entirely against throwaway
+# local SQLite files: no credentials, no secrets, no remote database.
+#
+# It runs on every branch push, not just on `master`: this repository ships
+# straight to `master`, so a check that only ran there would report a problem
 # after the fact instead of preventing it.
 
 on:
@@ -15,10 +19,12 @@ on:
     paths: &watched
       - prisma/schema.prisma
       - prisma/turso-schema.ts
-      - prisma/push-turso.ts
+      - prisma/bootstrap-turso.ts
+      - prisma/verify-turso.ts
       - prisma.config.ts
-      - scripts/turso-schema-drift.test.ts
       - scripts/turso-target-guard.test.ts
+      - scripts/turso-bootstrap.test.ts
+      - scripts/turso-verify.test.ts
       - tsconfig.json
       - package.json
       - package-lock.json
@@ -35,8 +41,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  drift:
-    name: Check schema drift
+  schema:
+    name: Guard, bootstrap and verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -58,5 +64,5 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run target guard and drift detector
+      - name: Run Turso guard, bootstrap and verify suites
         run: npm run test:turso
