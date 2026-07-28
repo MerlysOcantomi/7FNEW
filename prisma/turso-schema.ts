@@ -57,6 +57,38 @@ export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..
  * @param secrets values known to be sensitive; short or empty entries are
  *   ignored so a one-character value cannot blank out the whole message.
  */
+const SENSITIVE_ASSIGNMENT_RE =
+  /([A-Za-z0-9_]*(?:auth_?token|token|password|secret|api_?key|database_url|libsql_url|db_url|connection_string))(\s*[=:]\s*)\S+/gi
+
+/**
+ * Flatten an error and its `cause` chain into one readable string.
+ *
+ * The CLIs print this rather than `err.message` alone: a libsql failure keeps
+ * the useful part (`getaddrinfo ENOTFOUND …`) in a nested cause, and dropping
+ * it would leave an operator with nothing to act on. The result still goes
+ * through `sanitizeForLog`, so surfacing the chain does not surface secrets.
+ *
+ * The top-level message is reproduced verbatim — the CLI contract text
+ * ("Database is not empty. / Bootstrap refused. / …") must not gain a prefix.
+ */
+export function describeError(err: unknown, maxDepth = 4): string {
+  const parts: string[] = []
+  let current: unknown = err
+
+  for (let depth = 0; current !== undefined && current !== null && depth < maxDepth; depth++) {
+    if (current instanceof Error) {
+      const named = depth > 0 && current.name && current.name !== "Error"
+      parts.push(`${depth > 0 ? "caused by: " : ""}${named ? `${current.name}: ` : ""}${current.message}`)
+      current = (current as { cause?: unknown }).cause
+    } else {
+      parts.push(`${depth > 0 ? "caused by: " : ""}${String(current)}`)
+      break
+    }
+  }
+
+  return parts.join("\n  ")
+}
+
 export function sanitizeForLog(text: string, secrets: ReadonlyArray<string | undefined> = []): string {
   let out = text
 
@@ -71,12 +103,14 @@ export function sanitizeForLog(text: string, secrets: ReadonlyArray<string | und
       .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<redacted-url>")
       // A bare Turso hostname left in error text after the URL was redacted.
       .replace(/\b(?:[a-z0-9-]+\.)+turso\.io\b/gi, "<redacted-host>")
-      // key=value, including env-var names such as TURSO_AUTH_TOKEN=… where the
-      // underscore prefix defeats a leading word boundary.
-      .replace(
-        /[A-Za-z0-9_]*(?:auth_?token|token|password|secret|api_?key)\s*[=:]\s*\S+/gi,
-        "<redacted-credential>",
-      )
+      // key=value pairs. The key set covers both credentials and connection
+      // strings, because a connection string without a scheme
+      // (`DATABASE_URL=secret-host.internal/path?token=x`) is invisible to the
+      // URL rule above. The key is kept so the message still says WHAT was
+      // redacted; the whole value goes, including host, path, query and userinfo.
+      // No leading \b: an env-var prefix such as `TURSO_` is made of word
+      // characters, which would defeat one.
+      .replace(SENSITIVE_ASSIGNMENT_RE, "$1$2<redacted>")
       .replace(/\bBearer\s+\S+/gi, "Bearer <redacted>")
       .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "<redacted-jwt>")
   )
@@ -303,15 +337,42 @@ export function resolveTursoTarget(env: ProvisionEnv = process.env): TursoTarget
 /**
  * Throw unless the target may be written to.
  *
+ * Nothing the caller supplies is trusted. The URL is re-parsed, the host and
+ * database name are re-derived from it, any disagreement with the fields on the
+ * target is refused, and the classification is recomputed from the derived name
+ * — `target.classification` is never read.
+ *
  * There is **no override**. A production or unrecognised name cannot be
  * unlocked by any environment variable, because the only writing tool
  * (`turso:bootstrap`) is for creating fresh non-production databases.
  * Provisioning production is a different, deliberate procedure.
  */
 export function assertBootstrapTarget(target: TursoTarget): void {
-  if (target.classification.safe) return
+  // Re-parse the URL and re-derive everything. `target.host`, `target.dbName`
+  // and above all `target.classification` are treated as untrusted input: a
+  // caller that hand-builds a TursoTarget with `classification.safe = true`
+  // must not be able to talk its way past this.
+  const derived = parseTursoUrl(target.url, "the resolved target URL")
+
+  if (derived.host !== target.host) {
+    throw new Error(
+      `Refusing to bootstrap: the target's host does not match its URL ` +
+        `("${target.host}" vs "${derived.host}" derived from the URL).`,
+    )
+  }
+  if (derived.dbName !== target.dbName) {
+    throw new Error(
+      `Refusing to bootstrap: the target's database name does not match its URL ` +
+        `("${target.dbName}" vs "${derived.dbName}" derived from the URL).`,
+    )
+  }
+
+  // Derived, never read from the target.
+  const classification = classifyDatabaseName(derived.dbName)
+  if (classification.safe) return
+
   throw new Error(
-    `Refusing to bootstrap "${target.dbName}": ${target.classification.reason}. ` +
+    `Refusing to bootstrap "${derived.dbName}": ${classification.reason}. ` +
       "Only databases explicitly marked as a non-production environment " +
       `(${SAFE_ENVIRONMENT_MARKERS.join(", ")}) can be bootstrapped, and there is no ` +
       "override. Use turso:verify to inspect this database read-only.",

@@ -138,15 +138,31 @@ enable it. Provisioning production is a different, deliberate procedure that
 does not live here.
 
 The guard also cannot be skipped by importing something lower-level.
-`bootstrapTursoTarget(target, options?)` is the only exported way in, and it
-runs `assertBootstrapTarget()` **before** a DDL is rendered and before any
-connection exists. The primitive that takes an already-open writable client is
-module private, so there is no exported function that accepts a client and DDL.
+`bootstrapTursoFromEnv(env, options?)` is the only exported way in, and it takes
+the **environment, not a target**. Every value the decision rests on is derived
+inside the module:
+
+1. resolve the URL and token from `env`;
+2. parse the URL, deriving the host and database name from it;
+3. classify from that derived name;
+4. run the guard — which re-parses and re-derives all of it again;
+5. only then render the DDL;
+6. only then open a connection.
+
+Because the signature has no `target` parameter, a caller cannot hand in a
+`TursoTarget` whose `classification.safe` claims `true` about a production URL.
+The primitive that takes an already-open writable client is module private, so
+there is no exported function accepting a client and DDL.
+
+`assertBootstrapTarget()` is exported for testing, but it is a pure check and it
+trusts nothing it is given: it re-parses `target.url`, re-derives the host and
+database name, refuses any disagreement with the fields on the target, and
+recomputes the classification. `target.classification` is never read.
 
 Tests may inject `options.createClient` to redirect the write to a local SQLite
-file, but that factory is only ever invoked *after* the target passed the guard,
-and always with the validated target — a refused name fails before the factory
-is called even once.
+file, but that factory is only ever invoked *after* the guard passed, and always
+with the internally-derived target — a refused name fails before the factory is
+called even once.
 
 ## `turso:verify`
 
@@ -265,9 +281,33 @@ first removes the exact values this process holds — the auth token, the
 hostname, the URL — so redaction does not depend on a regex anticipating the
 surrounding text. That matters for errors like
 `getaddrinfo ENOTFOUND lab-x.turso.io`, where the hostname is repeated as bare
-words no URL pattern matches. It then makes a generic pass for credentials that
-came from elsewhere: any `scheme://` URL, bare `*.turso.io` hosts,
-`NAME_TOKEN=…` style pairs, `Bearer …` and JWTs.
+words no URL pattern matches. It then makes a generic pass:
+
+| Pattern | Example |
+|---|---|
+| any `scheme://` URL | `postgres://user:pass@host/db`, `mongodb+srv://…` |
+| bare `*.turso.io` hosts | left over after a URL was redacted |
+| `KEY=value` for credential **and connection-string** keys | `TURSO_AUTH_TOKEN=…`, `DATABASE_URL=…`, `LIBSQL_URL=…` |
+| `Bearer …` | authorization headers |
+| JWTs | `eyJ…` |
+
+The connection-string keys matter because a value without a scheme —
+`DATABASE_URL=secret-host.internal/path?token=x` — is invisible to the URL rule.
+The key name is kept and the whole value goes, so the message still says what
+was redacted while host, path, query and userinfo all disappear:
+
+```text
+DATABASE_URL=<redacted>
+```
+
+Errors are flattened with `describeError()` before sanitizing, so a nested
+`cause` — where libsql keeps the part worth reading — is surfaced *and* cleaned
+rather than dropped:
+
+```text
+request to <redacted-url> failed
+  caused by: SystemError: getaddrinfo ENOTFOUND <redacted>
+```
 
 ### The production guard is an allow-list
 

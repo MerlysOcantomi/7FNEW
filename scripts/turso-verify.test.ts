@@ -20,7 +20,7 @@ import { join } from "node:path"
 import test, { type TestContext } from "node:test"
 
 import { createClient, type Client } from "@libsql/client"
-import { bootstrapTursoTarget, type BootstrapClient } from "../prisma/bootstrap-turso"
+import { bootstrapTursoFromEnv, type BootstrapClient } from "../prisma/bootstrap-turso"
 import { exitCodeFor, verifySchema } from "../prisma/verify-turso"
 import {
   PROJECT_ROOT,
@@ -34,6 +34,7 @@ import {
   READ_ONLY_PRAGMAS,
   READ_ONLY_STATEMENTS,
   assertReadOnlySql as tursoAssert,
+  describeError,
   resolveTursoTarget,
   sanitizeForLog,
   SQLITE_MASTER_QUERY,
@@ -74,8 +75,8 @@ async function bootstrapInto(client: Client, ddl: string): Promise<void> {
     transaction: (mode) => client.transaction(mode),
     close: () => {},
   }
-  await bootstrapTursoTarget(
-    resolveTursoTarget({ TURSO_DATABASE_URL: "libsql://verify-sandbox.turso.io" }),
+  await bootstrapTursoFromEnv(
+    { TURSO_DATABASE_URL: "libsql://verify-sandbox.turso.io" },
     { ddl, createClient: () => nonClosing },
   )
 }
@@ -575,6 +576,127 @@ test("sanitizeForLog redacts by construction as well as by pattern", () => {
 
   // 4. A short or empty "secret" must not blank out the whole message.
   assert.equal(sanitizeForLog("all fine", ["", undefined, "ab"]), "all fine")
+})
+
+/**
+ * Every shape the CLIs can surface. `leaks` are substrings that must be gone;
+ * `keeps` are what an operator still needs in order to act on the message.
+ */
+const SANITIZER_MATRIX: Array<{
+  label: string
+  input: string
+  secrets?: string[]
+  leaks: string[]
+  keeps?: string[]
+}> = [
+  {
+    label: "a scheme-less connection string with a path and a query",
+    input: "TURSO_DATABASE_URL=secret-host.internal/path?token=x",
+    leaks: ["secret-host.internal", "/path", "token=x"],
+    keeps: ["TURSO_DATABASE_URL"],
+  },
+  {
+    label: "a scheme-less host",
+    input: "DATABASE_URL=secret-host.internal",
+    leaks: ["secret-host.internal"],
+    keeps: ["DATABASE_URL"],
+  },
+  {
+    label: "a credentialed postgres URL behind a key",
+    input: "DATABASE_URL=postgres://user:pass@host/db",
+    leaks: ["user:pass", "postgres://", "@host"],
+    keeps: ["DATABASE_URL"],
+  },
+  {
+    label: "LIBSQL_URL with a port and path",
+    input: "LIBSQL_URL=private.internal:8080/db",
+    leaks: ["private.internal", "8080"],
+    keeps: ["LIBSQL_URL"],
+  },
+  { label: "TURSO_AUTH_TOKEN", input: "TURSO_AUTH_TOKEN=abc", leaks: ["abc"], keeps: ["TURSO_AUTH_TOKEN"] },
+  {
+    label: "DATABASE_AUTH_TOKEN",
+    input: "DATABASE_AUTH_TOKEN=abc",
+    leaks: ["abc"],
+    keeps: ["DATABASE_AUTH_TOKEN"],
+  },
+  {
+    label: "mongodb+srv with userinfo",
+    input: "connecting to mongodb+srv://admin:S3cr3t@cluster0.mongodb.net/app",
+    leaks: ["S3cr3t", "cluster0.mongodb.net"],
+    keeps: ["connecting to"],
+  },
+  {
+    label: "postgresql with userinfo",
+    input: "connecting to postgresql://user:pw@db.internal/app",
+    leaks: ["db.internal", "user:pw"],
+    keeps: ["connecting to"],
+  },
+  {
+    label: "a Bearer header",
+    input: "Authorization: Bearer sk-live-abc123",
+    leaks: ["sk-live-abc123"],
+    keeps: ["Bearer"],
+  },
+  {
+    label: "a JWT",
+    input: "token eyJhbGciOiJFZERTQSJ9.eyJhIjoicncifQ.signature-part",
+    leaks: ["eyJhbGciOiJFZERTQSJ9"],
+  },
+  {
+    label: "a known host repeated by DNS resolution",
+    input: "request to libsql://lab-x.aws-eu-west-1.turso.io failed, reason: getaddrinfo ENOTFOUND lab-x.aws-eu-west-1.turso.io",
+    secrets: ["lab-x.aws-eu-west-1.turso.io", "libsql://lab-x.aws-eu-west-1.turso.io"],
+    leaks: ["lab-x.aws-eu-west-1.turso.io"],
+    keeps: ["getaddrinfo ENOTFOUND"],
+  },
+  {
+    label: "a private host that only the secret list can know",
+    input: "connect ECONNREFUSED private.internal:443",
+    secrets: ["private.internal"],
+    leaks: ["private.internal"],
+    keeps: ["ECONNREFUSED"],
+  },
+]
+
+test("the sanitizer matrix leaves nothing sensitive and stays useful", async (t) => {
+  for (const c of SANITIZER_MATRIX) {
+    await t.test(c.label, () => {
+      const out = sanitizeForLog(c.input, c.secrets ?? [])
+      for (const leak of c.leaks) {
+        assert.ok(!out.includes(leak), `"${leak}" survived sanitization: ${out}`)
+      }
+      for (const keep of c.keeps ?? []) {
+        assert.ok(out.includes(keep), `"${keep}" was lost, the message is no longer actionable: ${out}`)
+      }
+    })
+  }
+})
+
+test("describeError keeps the cause chain, and the sanitizer cleans all of it", () => {
+  const host = "lab-x.aws-eu-west-1.turso.io"
+  const nested = new Error(`request to libsql://${host} failed`, {
+    cause: Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { name: "SystemError" }),
+  })
+
+  const described = describeError(nested)
+  assert.match(described, /^request to libsql:\/\//, "the top-level message must stay verbatim")
+  assert.match(described, /caused by: SystemError: getaddrinfo ENOTFOUND/)
+
+  const clean = sanitizeForLog(described, [host, `libsql://${host}`])
+  assert.ok(!clean.includes(host), clean)
+  // The class of failure survives — that is the point of walking the chain.
+  assert.match(clean, /caused by: SystemError: getaddrinfo ENOTFOUND/)
+
+  // A contract message must not gain a prefix from its own error class.
+  const named = Object.assign(new Error("Database is not empty."), { name: "DatabaseNotEmptyError" })
+  assert.equal(describeError(named), "Database is not empty.")
+
+  // A cycle cannot spin forever.
+  const a = new Error("a")
+  const b = new Error("b", { cause: a })
+  ;(a as { cause?: unknown }).cause = b
+  assert.ok(describeError(a).split("caused by").length <= 4)
 })
 
 test("verify exposes no write method on the target type", () => {

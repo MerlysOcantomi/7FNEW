@@ -16,10 +16,13 @@
  *
  * THE GUARD CANNOT BE SKIPPED
  * ---------------------------
- * `bootstrapTursoTarget()` is the only exported way in, and it runs
- * `assertBootstrapTarget()` before a DDL is rendered and before any connection
- * exists. The primitive that accepts an already-open writable client is module
- * private, so no caller can reach a write path with an unvalidated target.
+ * `bootstrapTursoFromEnv()` is the only exported way in, and it takes **raw
+ * environment values, not a target**. Everything the guard depends on — the
+ * URL, the host, the database name, the classification — is derived inside this
+ * module from that environment, so there is nothing for a caller to hand in
+ * pre-decided. The primitive that accepts an already-open writable client is
+ * module private.
+ *
  * There is also **no production override**: no environment variable can unlock
  * a production or unrecognised name. Provisioning production is a different,
  * deliberate procedure.
@@ -46,10 +49,12 @@ import {
   formatReport,
   generateCanonicalDdl,
   introspectStructure,
+  describeError,
   resolveTursoTarget,
   sanitizeForLog,
   type DatabaseObject,
   type DatabaseStructure,
+  type ProvisionEnv,
   type SqlExecutor,
   type TursoTarget,
 } from "./turso-schema"
@@ -101,9 +106,10 @@ export interface BootstrapClient {
 }
 
 /**
- * Opens the write connection. Only ever invoked AFTER the target has passed
- * `assertBootstrapTarget`, and always with that validated target — which is why
- * a factory may be injected for tests without weakening the guard.
+ * Opens the write connection. Only ever invoked AFTER the environment has been
+ * resolved and the derived target has passed `assertBootstrapTarget`, and always
+ * with that internally-derived target — which is why a factory may be injected
+ * for tests without weakening the guard.
  */
 export type BootstrapClientFactory = (target: TursoTarget) => BootstrapClient
 
@@ -140,7 +146,7 @@ function defaultClientFactory(target: TursoTarget): BootstrapClient {
  *
  * Module private on purpose: it takes an already-open writable client, so
  * exporting it would be a path around `assertBootstrapTarget`. Reach it through
- * `bootstrapTursoTarget()`.
+ * `bootstrapTursoFromEnv()`.
  */
 async function bootstrapSchemaInternal(
   client: BootstrapClient,
@@ -213,14 +219,29 @@ async function bootstrapSchemaInternal(
 /**
  * The one and only entry point that can write a schema.
  *
- * The guard runs FIRST — before a DDL is rendered and before a connection
- * exists — so a production or unrecognised target is refused without the client
- * factory ever being invoked.
+ * It deliberately takes the **environment**, not a target. Every value the
+ * guard rests on is derived here:
+ *
+ *   1. resolve the URL and token from `env` (precedence in `resolveTursoTarget`);
+ *   2. parse the URL, deriving `host` and `dbName` from it;
+ *   3. classify from that derived name;
+ *   4. run the guard — which re-derives and cross-checks all of it again;
+ *   5. only then render the DDL;
+ *   6. only then open a connection;
+ *   7. hand the internally-derived target to the private transactional
+ *      primitive.
+ *
+ * Because there is no `target` parameter, a caller cannot supply a hand-built
+ * `TursoTarget` whose `classification.safe` says `true` about a production URL.
  */
-export async function bootstrapTursoTarget(
-  target: TursoTarget,
+export async function bootstrapTursoFromEnv(
+  env: ProvisionEnv = process.env,
   options: BootstrapOptions = {},
 ): Promise<BootstrapResult> {
+  // Steps 1-3: derived here, from the environment, and nowhere else.
+  const target = resolveTursoTarget(env)
+  // Step 4: the guard re-parses the URL and recomputes the classification; it
+  // reads nothing the caller could have influenced.
   assertBootstrapTarget(target)
 
   const ddl = options.ddl ?? generateCanonicalDdl()
@@ -262,7 +283,7 @@ async function main(): Promise<number> {
     )
     console.log(`  auth token:     ${target.tokenSource ?? "(none configured)"}`)
 
-    const result = await bootstrapTursoTarget(target)
+    const result = await bootstrapTursoFromEnv(process.env)
 
     console.log(`  Tables created:  ${result.tables}`)
     console.log(`  Indexes created: ${result.indexes}`)
@@ -272,8 +293,7 @@ async function main(): Promise<number> {
     console.log("✓ Schema created and verified. Re-run `npm run turso:verify` at any time.")
     return 0
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error(sanitizeForLog(message, secrets))
+    console.error(sanitizeForLog(describeError(err), secrets))
     return err instanceof DatabaseNotEmptyError || err instanceof BootstrapVerificationError ? 2 : 1
   }
 }

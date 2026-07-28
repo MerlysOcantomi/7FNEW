@@ -25,7 +25,7 @@ import {
   BootstrapVerificationError,
   DatabaseNotEmptyError,
   NOT_EMPTY_MESSAGE,
-  bootstrapTursoTarget,
+  bootstrapTursoFromEnv,
   type BootstrapClient,
   type BootstrapTransaction,
 } from "../prisma/bootstrap-turso"
@@ -40,6 +40,9 @@ import {
   introspectStructure,
   parseSchemaModels,
   resolveTursoTarget,
+  assertBootstrapTarget,
+  classifyDatabaseName,
+  type ProvisionEnv,
   type TursoTarget,
 } from "../prisma/turso-schema"
 
@@ -54,11 +57,20 @@ function realDdl(): string {
   return cachedDdl
 }
 
-/** A target whose name passes the guard, so tests exercise the real entry point. */
-function labTarget(name = "bootstrap-sandbox"): TursoTarget {
-  const target = resolveTursoTarget({ TURSO_DATABASE_URL: `libsql://${name}.turso.io` })
-  assert.equal(target.classification.safe, true, `fixture target "${name}" must be non-production`)
-  return target
+/** An environment whose database name passes the guard. */
+function labEnv(name = "bootstrap-sandbox"): ProvisionEnv {
+  const env = { TURSO_DATABASE_URL: `libsql://${name}.turso.io` }
+  assert.equal(
+    resolveTursoTarget(env).classification.safe,
+    true,
+    `fixture target "${name}" must be non-production`,
+  )
+  return env
+}
+
+/** An environment for a name the guard must refuse. */
+function refusedEnv(name: string): ProvisionEnv {
+  return { TURSO_DATABASE_URL: `libsql://${name}.turso.io` }
 }
 
 /** A throwaway file-backed SQLite database, cleaned up when the test ends. */
@@ -130,17 +142,24 @@ function inject(client: Client): Injection {
 // 1. The guard cannot be skipped
 // ---------------------------------------------------------------------------
 
-const REFUSED_NAMES = ["sevenef-prod", "7f", "sevenef-live", "unknown-name", "7f-prod-test"]
+const REFUSED_NAMES = [
+  "sevenef-prod",
+  "7f",
+  "sevenef-live",
+  "unknown-name",
+  "7f-prod-test",
+  "main",
+  "master",
+]
 
 test("a refused target never reaches the client factory", async (t) => {
   for (const name of REFUSED_NAMES) {
     await t.test(`refuses "${name}" before opening a connection`, async () => {
-      const target = resolveTursoTarget({ TURSO_DATABASE_URL: `libsql://${name}.turso.io` })
       let invocations = 0
 
       await assert.rejects(
         () =>
-          bootstrapTursoTarget(target, {
+          bootstrapTursoFromEnv(refusedEnv(name), {
             ddl: `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY);`,
             createClient: () => {
               invocations++
@@ -156,21 +175,39 @@ test("a refused target never reaches the client factory", async (t) => {
 })
 
 test("no environment variable can unlock a refused target", async () => {
-  const target = resolveTursoTarget({ TURSO_DATABASE_URL: "libsql://7f-7frames.turso.io" })
+  let invocations = 0
+  await assert.rejects(
+    () =>
+      bootstrapTursoFromEnv(
+        {
+          TURSO_DATABASE_URL: "libsql://7f-7frames.turso.io",
+          TURSO_PROVISION_ALLOW_PRODUCTION: "7f-7frames",
+          TURSO_ALLOW_PRODUCTION: "7f-7frames",
+          TURSO_FORCE: "1",
+          FORCE: "1",
+          ALLOW_PRODUCTION: "true",
+        },
+        {
+          ddl: `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY);`,
+          createClient: () => {
+            invocations++
+            throw new Error("unreachable")
+          },
+        },
+      ),
+    /Refusing to bootstrap/,
+  )
+  assert.equal(invocations, 0)
+
+  // The same variables set on the real process environment change nothing.
   const previous = { ...process.env }
-  for (const key of [
-    "TURSO_PROVISION_ALLOW_PRODUCTION",
-    "TURSO_ALLOW_PRODUCTION",
-    "TURSO_FORCE",
-    "FORCE",
-  ]) {
+  for (const key of ["TURSO_PROVISION_ALLOW_PRODUCTION", "TURSO_FORCE", "FORCE"]) {
     process.env[key] = "7f-7frames"
   }
   try {
-    let invocations = 0
     await assert.rejects(
       () =>
-        bootstrapTursoTarget(target, {
+        bootstrapTursoFromEnv(refusedEnv("7f-7frames"), {
           ddl: `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY);`,
           createClient: () => {
             invocations++
@@ -179,43 +216,118 @@ test("no environment variable can unlock a refused target", async () => {
         }),
       /Refusing to bootstrap/,
     )
-    assert.equal(invocations, 0)
   } finally {
     process.env = previous
   }
+  assert.equal(invocations, 0)
 })
 
-test("the module exposes no write path that takes a client directly", () => {
+test("the entry point takes an environment, so no target can be forged", () => {
+  // The signature itself is the defence: there is no `target` parameter for a
+  // caller to hand a pre-decided classification to.
   const exported = Object.entries(bootstrapModule)
     .filter(([, value]) => typeof value === "function")
     .map(([name]) => name)
     .sort()
 
-  // Only the guarded entry point and the two error classes are callable.
   assert.deepEqual(exported, [
     "BootstrapVerificationError",
     "DatabaseNotEmptyError",
-    "bootstrapTursoTarget",
+    "bootstrapTursoFromEnv",
   ])
 
-  for (const gone of ["bootstrapSchema", "bootstrapSchemaInternal", "provisionSchema"]) {
+  for (const gone of [
+    "bootstrapSchema",
+    "bootstrapSchemaInternal",
+    "bootstrapTursoTarget",
+    "provisionSchema",
+  ]) {
     assert.equal(
       (bootstrapModule as unknown as Record<string, unknown>)[gone],
       undefined,
-      `${gone} must not be exported — it would bypass assertBootstrapTarget`,
+      `${gone} must not be exported — it would bypass the internal resolution`,
     )
   }
 })
 
-test("a safe target invokes the factory exactly once, with the validated target", async (t) => {
+test("assertBootstrapTarget ignores a forged classification", () => {
+  // The exact escalation the audit found: a hand-built target claiming to be
+  // safe about a production URL. The guard recomputes from the URL instead.
+  const forged: TursoTarget = {
+    url: "libsql://7f-7frames.aws-eu-west-1.turso.io",
+    host: "7f-7frames.aws-eu-west-1.turso.io",
+    dbName: "7f-7frames",
+    urlSource: "TURSO_DATABASE_URL",
+    classification: { safe: true, reason: "trust me" },
+  }
+  assert.throws(() => assertBootstrapTarget(forged), /Refusing to bootstrap "7f-7frames"/)
+
+  // A forged *reason* on a genuinely safe name changes nothing either way.
+  const genuine = resolveTursoTarget(labEnv())
+  assert.doesNotThrow(() =>
+    assertBootstrapTarget({ ...genuine, classification: { safe: false, reason: "nonsense" } }),
+  )
+})
+
+test("assertBootstrapTarget refuses a target whose fields disagree with its URL", () => {
+  const base = resolveTursoTarget({ TURSO_DATABASE_URL: "libsql://sevenef-prod.turso.io" })
+
+  const cases: Array<[label: string, target: TursoTarget, pattern: RegExp]> = [
+    [
+      "production URL relabelled as a dev database",
+      { ...base, dbName: "sevenef-dev", classification: { safe: true, reason: "forged" } },
+      /database name does not match its URL/,
+    ],
+    [
+      "host that does not come from the URL",
+      { ...base, host: "sevenef-dev.turso.io" },
+      /host does not match its URL/,
+    ],
+    [
+      "dbName that is not the first label of the host",
+      { ...base, dbName: "turso" },
+      /database name does not match its URL/,
+    ],
+    [
+      "safe-looking host pasted onto a production URL",
+      {
+        ...base,
+        host: "bootstrap-sandbox.turso.io",
+        dbName: "bootstrap-sandbox",
+        classification: { safe: true, reason: "forged" },
+      },
+      /host does not match its URL/,
+    ],
+  ]
+
+  for (const [label, target, pattern] of cases) {
+    assert.throws(() => assertBootstrapTarget(target), pattern, label)
+  }
+
+  // …and a coherent, genuinely safe target still passes.
+  assert.doesNotThrow(() => assertBootstrapTarget(resolveTursoTarget(labEnv())))
+})
+
+test("a safe environment invokes the factory once, with the internally derived target", async (t) => {
   const { client } = tempDb(t, "factory-once")
   const injection = inject(client)
-  const target = labTarget()
+  const env = labEnv()
 
-  const result = await bootstrapTursoTarget(target, { ddl: realDdl(), createClient: injection.factory })
+  const result = await bootstrapTursoFromEnv(env, {
+    ddl: realDdl(),
+    createClient: injection.factory,
+  })
 
   assert.equal(injection.targets.length, 1)
-  assert.equal(injection.targets[0], target)
+
+  // Everything the factory received was derived inside the module from `env`.
+  const expected = resolveTursoTarget(env)
+  const handed = injection.targets[0]
+  assert.equal(handed.url, expected.url)
+  assert.equal(handed.host, expected.host)
+  assert.equal(handed.dbName, expected.dbName)
+  assert.equal(handed.urlSource, expected.urlSource)
+  assert.deepEqual(handed.classification, classifyDatabaseName(expected.dbName))
   assert.ok(result.tables > 0)
 })
 
@@ -229,7 +341,7 @@ test("an empty database gets the complete schema", async (t) => {
   const models = parseSchemaModels(readFileSync(join(PROJECT_ROOT, "prisma/schema.prisma"), "utf8"))
 
   const { client } = tempDb(t, "empty")
-  const result = await bootstrapTursoTarget(labTarget(), {
+  const result = await bootstrapTursoFromEnv(labEnv(), {
     ddl,
     createClient: inject(client).factory,
   })
@@ -265,12 +377,12 @@ test("an empty database gets the complete schema", async (t) => {
 test("a second run is refused and changes nothing", async (t) => {
   const ddl = realDdl()
   const { client } = tempDb(t, "twice")
-  await bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory })
+  await bootstrapTursoFromEnv(labEnv(), { ddl, createClient: inject(client).factory })
 
   const before = await introspectStructure(asReadOnly(client))
 
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl, createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.ok(
@@ -289,7 +401,7 @@ test("a database with a single unrelated table is refused", async (t) => {
   await client.executeMultiple(`CREATE TABLE "Leftover" ("id" TEXT NOT NULL PRIMARY KEY);`)
 
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: inject(client).factory }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl: realDdl(), createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.deepEqual(err.tables, ["Leftover"])
@@ -313,7 +425,7 @@ test("a partially created database is refused, not completed", async (t) => {
   const before = await introspectStructure(asReadOnly(client))
 
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(client).factory }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl, createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.equal(err.tables.length, 5)
@@ -333,7 +445,7 @@ test("_prisma_migrations makes a database non-empty", async (t) => {
   )
 
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: inject(client).factory }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl: realDdl(), createClient: inject(client).factory }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError)
       assert.deepEqual(err.tables, ["_prisma_migrations"])
@@ -368,7 +480,7 @@ test("a leftover view or trigger makes a database non-empty", async (t) => {
       const injection = inject(client)
 
       await assert.rejects(
-        () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: injection.factory }),
+        () => bootstrapTursoFromEnv(labEnv(), { ddl: realDdl(), createClient: injection.factory }),
         (err: unknown) => {
           assert.ok(err instanceof DatabaseNotEmptyError)
           assert.deepEqual(
@@ -394,7 +506,7 @@ test("only engine-internal tables are ignored by the empty check", async (t) => 
   const { client } = tempDb(t, "engine-internal")
   await client.executeMultiple(`CREATE TABLE "libsql_wasm_func_table" ("name" TEXT);`)
 
-  const result = await bootstrapTursoTarget(labTarget(), {
+  const result = await bootstrapTursoFromEnv(labEnv(), {
     ddl: realDdl(),
     createClient: inject(client).factory,
   })
@@ -415,7 +527,7 @@ test("only engine-internal tables are ignored by the empty check", async (t) => 
 test("bootstrap issues no repairing statement of any kind", async (t) => {
   const { client } = tempDb(t, "spy")
   const injection = inject(client)
-  await bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: injection.factory })
+  await bootstrapTursoFromEnv(labEnv(), { ddl: realDdl(), createClient: injection.factory })
 
   const forbidden = [/\bALTER\s+TABLE\b/i, /\bDROP\b/i, /\bDELETE\s+FROM\b/i, /\bUPDATE\s+"/i]
   for (const pattern of forbidden) {
@@ -480,7 +592,7 @@ CREATE INDEX "A_label_idx" ON "A"("label");
 CREATE INDEX "B_nope_idx" ON "B"("nope");`
 
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl: brokenDdl, createClient: inject(client).factory }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl: brokenDdl, createClient: inject(client).factory }),
     /no such column: nope/,
   )
 
@@ -504,7 +616,7 @@ test("a database that fails verification is rolled back, not committed", async (
 
   await assert.rejects(
     () =>
-      bootstrapTursoTarget(labTarget(), {
+      bootstrapTursoFromEnv(labEnv(), {
         ddl: uncheckableDdl,
         createClient: inject(client).factory,
       }),
@@ -532,7 +644,7 @@ test("a failing close() never masks the real outcome", async (t) => {
     },
   }
   await assert.rejects(
-    () => bootstrapTursoTarget(labTarget(), { ddl: realDdl(), createClient: () => explode }),
+    () => bootstrapTursoFromEnv(labEnv(), { ddl: realDdl(), createClient: () => explode }),
     (err: unknown) => {
       assert.ok(err instanceof DatabaseNotEmptyError, `got ${(err as Error).message}`)
       return true
@@ -547,7 +659,7 @@ test("a failing close() never masks the real outcome", async (t) => {
       throw new Error("close blew up")
     },
   }
-  const result = await bootstrapTursoTarget(labTarget(), {
+  const result = await bootstrapTursoFromEnv(labEnv(), {
     ddl: realDdl(),
     createClient: () => explodeOnFresh,
   })
@@ -566,8 +678,8 @@ test("two concurrent bootstraps leave no partial state and only one succeeds", a
   })
 
   const results = await Promise.allSettled([
-    bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(a).factory }),
-    bootstrapTursoTarget(labTarget(), { ddl, createClient: inject(b).factory }),
+    bootstrapTursoFromEnv(labEnv(), { ddl, createClient: inject(a).factory }),
+    bootstrapTursoFromEnv(labEnv(), { ddl, createClient: inject(b).factory }),
   ])
   const fulfilled = results.filter((r) => r.status === "fulfilled")
   const rejected = results.filter((r) => r.status === "rejected")
@@ -599,7 +711,7 @@ test("errors never carry credentials", async () => {
 
   await assert.rejects(
     () =>
-      bootstrapTursoTarget(labTarget(), {
+      bootstrapTursoFromEnv(labEnv(), {
         ddl: realDdl(),
         createClient: () => {
           throw new Error(`connection to ${secret} failed (Bearer leakedbearer)`)
@@ -654,7 +766,7 @@ test("bootstrap works from any working directory", async (t) => {
   const { client } = tempDb(t, "from-tmp")
   process.chdir(elsewhere)
   const ddl = generateCanonicalDdl()
-  const result = await bootstrapTursoTarget(labTarget(), {
+  const result = await bootstrapTursoFromEnv(labEnv(), {
     ddl,
     createClient: inject(client).factory,
   })

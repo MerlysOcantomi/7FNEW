@@ -43,6 +43,7 @@ import {
   formatReport,
   generateCanonicalDdl,
   introspectStructure,
+  describeError,
   resolveTursoTarget,
   sanitizeForLog,
   type ReadOnlyExecutor,
@@ -101,7 +102,7 @@ async function main(): Promise<number> {
       client.close()
     }
   } catch (err) {
-    console.error(sanitizeForLog(err instanceof Error ? err.message : String(err), secrets))
+    console.error(sanitizeForLog(describeError(err), secrets))
     return 1
   }
 }
