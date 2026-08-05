@@ -14,6 +14,7 @@
     "test:i18n": "tsx --test core/i18n/i18n.test.ts core/i18n/ui.test.ts core/i18n/user-locale.test.ts core/i18n/resolve.test.ts core/i18n/format.test.ts core/personalization/compose.test.ts core/i18n/finesse-routes.test.ts",
     "test:services": "tsx --test core/services/catalog.test.ts",
     "test:governance": "tsx --test core/auth/workspace-governance.test.ts",
+    "test:usuarios": "tsx --test modules/usuarios/scope.test.ts",
     "test:verticals": "tsx --test core/vertical-packs/nav-profile.test.ts core/vertical-packs/beauty-pack.test.ts core/vertical-packs/specialists.test.ts core/vertical-packs/experience.test.ts agents/forte/verticals/beauty.test.ts",
     "test:agents-specialists": "tsx --test core/vertical-packs/specialists.test.ts agents/forte/verticals/beauty.test.ts",
     "test:agents-activity": "tsx --test modules/agents/activity-classify.test.ts",
