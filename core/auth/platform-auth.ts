@@ -1,5 +1,6 @@
 import { getSessionFromCookies, type SessionUser } from "@core/auth/session"
 import { db } from "@core/db"
+import { PublicApiError } from "@core/errors"
 
 /**
  * Roles del control plane (SevenF System Admin / `/system`).
@@ -30,18 +31,22 @@ export function isPlatformRole(value: unknown): value is PlatformRole {
   return typeof value === "string" && VALID_PLATFORM_ROLES.has(value)
 }
 
-export class PlatformError extends Error {
-  status: number
-  code: "UNAUTHORIZED" | "NOT_PLATFORM_ADMIN" | "INSUFFICIENT_PLATFORM_ROLE"
+/**
+ * Control-plane error surfaced to the client verbatim by `handleError`.
+ *
+ * Extends `PublicApiError` (CORE-02A) so its identity is proven by
+ * construction rather than asserted by its `name`.
+ */
+export class PlatformError extends PublicApiError {
+  declare readonly code: "UNAUTHORIZED" | "NOT_PLATFORM_ADMIN" | "INSUFFICIENT_PLATFORM_ROLE"
+
   constructor(
     code: "UNAUTHORIZED" | "NOT_PLATFORM_ADMIN" | "INSUFFICIENT_PLATFORM_ROLE",
     message: string,
     status?: number,
   ) {
-    super(message)
-    this.code = code
+    super(code, message, status ?? (code === "UNAUTHORIZED" ? 401 : 403))
     this.name = "PlatformError"
-    this.status = status ?? (code === "UNAUTHORIZED" ? 401 : 403)
   }
 }
 

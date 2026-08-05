@@ -1,6 +1,7 @@
 import { getSessionFromCookies, type SessionUser } from "@core/auth/session"
 import { resolveRequiredWorkspace, type WorkspaceResolveSource } from "@core/workspace-context"
 import { checkMembership } from "@core/workspace"
+import { PublicApiError } from "@core/errors"
 
 export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
@@ -13,15 +14,20 @@ const WS_ROLE_LEVEL: Record<WorkspaceRole, number> = {
 
 const HEADER_ALLOWLIST = ["/api/ai/agent", "/api/admin"]
 
-export class RbacError extends Error {
-  status = 403
-  code: string
+/**
+ * Role-check failure surfaced to the client verbatim by `handleError`.
+ *
+ * Extends `PublicApiError` (CORE-02A) so its identity is proven by
+ * construction rather than asserted by its `name`. Always a 403.
+ */
+export class RbacError extends PublicApiError {
+  declare readonly code: "INSUFFICIENT_ROLE" | "WRITE_NOT_ALLOWED" | "HEADER_NOT_ALLOWED"
+
   constructor(
     code: "INSUFFICIENT_ROLE" | "WRITE_NOT_ALLOWED" | "HEADER_NOT_ALLOWED",
     message: string,
   ) {
-    super(message)
-    this.code = code
+    super(code, message, 403)
     this.name = "RbacError"
   }
 }

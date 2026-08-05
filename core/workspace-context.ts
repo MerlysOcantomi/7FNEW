@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { getSessionFromCookies } from "@core/auth/session"
 import { db } from "@core/db"
+import { PublicApiError } from "@core/errors"
 
 export const WORKSPACE_COOKIE = "wf_workspace"
 
@@ -10,13 +11,17 @@ export type WorkspaceResolveSource =
   | "first_membership_fallback"
   | "path-param"
 
-export class WorkspaceError extends Error {
-  status: number
-  code: string
+/**
+ * Tenancy error surfaced to the client verbatim by `handleError`.
+ *
+ * Extends `PublicApiError` (CORE-02A) so its identity is proven by
+ * construction rather than asserted by its `name`. `code`, `status` and the
+ * `message` are inherited from that contract — every message this class
+ * carries must stay safe for an unauthenticated reader.
+ */
+export class WorkspaceError extends PublicApiError {
   constructor(code: string, message: string, status: number) {
-    super(message)
-    this.code = code
-    this.status = status
+    super(code, message, status)
     this.name = "WorkspaceError"
   }
 }

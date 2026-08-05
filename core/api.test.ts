@@ -59,11 +59,23 @@ async function readBody(response: Response): Promise<string> {
   return response.text()
 }
 
-async function readJson(response: Response): Promise<{
+interface ErrorBody {
   success: boolean
   error?: { code?: string; message?: string; reference?: string }
-}> {
+}
+
+async function readJson(response: Response): Promise<ErrorBody> {
   return response.json()
+}
+
+/**
+ * A `Response` body can only be consumed once, so tests that need both the raw
+ * bytes (for sentinel scanning) and the parsed shape read it a single time and
+ * derive both from that.
+ */
+async function readBoth(response: Response): Promise<{ text: string; json: ErrorBody }> {
+  const text = await response.text()
+  return { text, json: JSON.parse(text) as ErrorBody }
 }
 
 /** Assert that not one sentinel value survives into the wire format. */
@@ -239,15 +251,112 @@ test("RbacError and PlatformError keep their status instead of degrading to 500"
   assert.equal((await readJson(forbidden)).error?.code, "NOT_PLATFORM_ADMIN")
 })
 
-test("a public error with an impossible status is clamped, never crashed on", async () => {
-  const bogus = new WorkspaceError("FORBIDDEN", "Sin acceso", 200)
-  assert.equal(handleError(bogus, "Usuario").status, 403, "a 2xx must not report a failure")
+test("an authentic public error with an invalid status falls back to the generic 500", async () => {
+  /**
+   * An impossible status means the error's contract is broken, and a broken
+   * contract is not evidence that the message is publishable. Rather than
+   * inventing a status for it, treat it exactly like an unknown failure: a
+   * generic 500 with nothing from the original error in the body.
+   */
+  const cases: Array<[string, number]> = [
+    ["2xx", 200],
+    ["non-integer", 4.5],
+    ["out of range", 999],
+    ["below 400", 302],
+    ["not a number", Number.NaN],
+  ]
 
-  const nonInteger = new WorkspaceError("FORBIDDEN", "Sin acceso", 4.5)
-  assert.equal(handleError(nonInteger, "Usuario").status, 403)
+  for (const [label, status] of cases) {
+    const error = new WorkspaceError("FORBIDDEN", `Sin acceso ${SENTINELS.token}`, status)
+    const response = handleError(error, "Usuario")
+    assert.equal(response.status, 500, `${label}: must fall back to a generic 500`)
 
-  const outOfRange = new WorkspaceError("FORBIDDEN", "Sin acceso", 999)
-  assert.equal(handleError(outOfRange, "Usuario").status, 403)
+    const { text, json } = await readBoth(response)
+    assertNoSentinels(text, `invalid-status public error (${label})`)
+    assert.ok(!text.includes("Sin acceso"), `${label}: the message must not be published`)
+    assert.equal(json.error?.code, "INTERNAL_ERROR")
+    assert.equal(json.error?.message, "Internal server error")
+    assert.ok(json.error?.reference, "the generic path always carries a reference")
+  }
+})
+
+// ── Identity, not shape: spoofed public errors must not be trusted ───────────
+
+const PUBLIC_ERROR_NAMES = ["WorkspaceError", "RbacError", "PlatformError"] as const
+
+for (const spoofedName of PUBLIC_ERROR_NAMES) {
+  test(`a plain Error renamed to "${spoofedName}" is not treated as public`, async () => {
+    /**
+     * `Error.name` is a writable data property, so any error — including one
+     * built from attacker-influenced upstream data — can claim to be one of
+     * ours. Identity has to be proven by construction, never asserted by a
+     * string the object carries.
+     */
+    const spoofed = new Error(SENTINELS.token)
+    spoofed.name = spoofedName
+    Object.assign(spoofed, { code: "UNAUTHORIZED", status: 401 })
+
+    const response = handleError(spoofed, "Usuario")
+    const { text, json } = await readBoth(response)
+
+    assert.equal(response.status, 500, "the forged 401 must not be honoured")
+    assertNoSentinels(text, `spoofed ${spoofedName}`)
+    assert.ok(!text.includes("UNAUTHORIZED"), "the forged code must not be echoed")
+    assert.equal(json.error?.code, "INTERNAL_ERROR")
+    assert.equal(json.error?.message, "Internal server error")
+  })
+}
+
+test("an external Error subclass imitating name, code and status is not trusted", async () => {
+  class ForgedWorkspaceError extends Error {
+    code = "FORBIDDEN"
+    status = 403
+    constructor() {
+      super(`forged ${SENTINELS.sql}`)
+      this.name = "WorkspaceError"
+    }
+  }
+
+  const response = handleError(new ForgedWorkspaceError(), "Conversation")
+  assert.equal(response.status, 500)
+  assertNoSentinels(await readBody(response), "external Error subclass")
+})
+
+test("a matching constructor.name without the real identity is not trusted", async () => {
+  /**
+   * Declared locally so its `constructor.name` is literally "WorkspaceError",
+   * defeating any check based on the constructor's own name.
+   */
+  class WorkspaceError extends Error {
+    code = "NO_WORKSPACE"
+    status = 404
+    constructor() {
+      super(`constructor-name forgery ${SENTINELS.dbUrl}`)
+    }
+  }
+  const forged = new WorkspaceError()
+  assert.equal(forged.constructor.name, "WorkspaceError")
+
+  const response = handleError(forged, "Workspace")
+  assert.equal(response.status, 500, "constructor.name proves nothing")
+  assertNoSentinels(await readBody(response), "constructor.name forgery")
+})
+
+test("prototype grafting alone does not grant public identity", async () => {
+  /**
+   * The strongest structural attack available to in-process code that does not
+   * go through our constructors: take a foreign error and re-point it at the
+   * real prototype. The brand is an own property written by the base
+   * constructor, so grafting the prototype does not bring it along.
+   */
+  const authentic = new WorkspaceError("FORBIDDEN", "Sin acceso", 403)
+  const grafted = new Error(`grafted ${SENTINELS.token}`)
+  Object.setPrototypeOf(grafted, Object.getPrototypeOf(authentic))
+  Object.assign(grafted, { code: "FORBIDDEN", status: 403 })
+
+  const response = handleError(grafted, "Usuario")
+  assert.equal(response.status, 500)
+  assertNoSentinels(await readBody(response), "prototype-grafted error")
 })
 
 // ── 7. Validation errors stay useful ─────────────────────────────────────────

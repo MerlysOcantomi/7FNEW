@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { ZodError } from "zod"
 import { Prisma } from "@/generated/prisma/client"
+import { isPublicApiError, isValidPublicErrorStatus } from "@core/errors"
 
 export function successResponse(data: unknown, meta?: Record<string, unknown>) {
   return NextResponse.json({
@@ -17,32 +18,6 @@ export function errorResponse(code: string, message: string, status = 400) {
   )
 }
 
-/**
- * Error classes DEFINED IN THIS REPOSITORY whose `code`, `message` and
- * `status` are authored by us and are therefore safe to return verbatim.
- *
- * This allow-list replaces the structural ("duck typed") check this function
- * used to perform. Matching on the mere PRESENCE of `code` + `status` trusted
- * any object that happened to have those two properties — which is the exact
- * shape most third-party SDK errors use (HTTP clients, the OpenAI SDK, Resend,
- * nodemailer, …). Such an error was previously echoed to the client with its
- * own message AND its own HTTP status, so an upstream "Incorrect API key
- * provided: sk-…" surfaced verbatim in a 401 to the caller. Identity, not
- * shape, is the only safe discriminator here.
- *
- * Adding a name to this set is a deliberate decision: it declares that every
- * message that class can carry is safe for an unauthenticated reader to see.
- *
- *   - `WorkspaceError` — core/workspace-context.ts (401/403/404/400 tenancy)
- *   - `RbacError`      — core/auth/workspace-auth.ts (403 role checks)
- *   - `PlatformError`  — core/auth/platform-auth.ts (401/403 control plane)
- *
- * `PlatformError` is the reason the previous branch could not simply be
- * deleted: it was the ONLY consumer of the structural check, so dropping it
- * would have silently degraded every `/api/system/**` 401/403 into a 500.
- */
-const PUBLIC_ERROR_NAMES = new Set(["WorkspaceError", "RbacError", "PlatformError"])
-
 interface PublicAppError {
   code: string
   message: string
@@ -50,35 +25,39 @@ interface PublicAppError {
 }
 
 /**
- * Clamp a status to a real HTTP error code.
+ * Recognise one of our own publishable errors. Returns `null` for everything
+ * else — including any object that merely *looks* like one.
  *
- * Defensive on two fronts: a non-integer or out-of-range value would make
- * `NextResponse.json` throw a `RangeError` (turning a handled error into an
- * unhandled one), and a stray 2xx would report a failure as a success.
- */
-function normalizeErrorStatus(status: unknown, fallback: number): number {
-  if (typeof status !== "number" || !Number.isInteger(status)) return fallback
-  if (status < 400 || status > 599) return fallback
-  return status
-}
-
-/**
- * Recognise one of our own public errors. Returns `null` for everything else,
- * including any object that merely looks like one.
+ * Identity comes from `isPublicApiError`, which tests membership in a
+ * module-private `WeakSet` that only the `PublicApiError` constructor writes
+ * to (see `core/errors.ts`). Nothing about the object's `name`, its
+ * `constructor.name`, or the presence of `code`/`status`/`message` is
+ * consulted, because every one of those is forgeable:
+ *
+ *     const spoofed = new Error("sk-REAL-SECRET")
+ *     spoofed.name = "WorkspaceError"
+ *     Object.assign(spoofed, { code: "UNAUTHORIZED", status: 401 })
+ *
+ * An earlier revision of this function did trust exactly that description, so
+ * such an error — or any third-party SDK error carrying `code` + `status`,
+ * which is the common shape — had its message published under its own forged
+ * status.
+ *
+ * The contract is then validated rather than repaired. A public error whose
+ * `code`, `message` or `status` is malformed is NOT coerced into something
+ * usable: a broken contract is not evidence that the message is safe to
+ * publish, so it falls through to the same generic 500 as an unknown failure.
+ * Validating the status here also keeps an out-of-range value away from
+ * `NextResponse.json`, where it would throw a `RangeError` and convert a
+ * handled error into an unhandled one.
  */
 function asPublicAppError(error: unknown): PublicAppError | null {
-  if (!(error instanceof Error)) return null
-  if (!PUBLIC_ERROR_NAMES.has(error.name)) return null
-
-  const candidate = error as Error & { code?: unknown; status?: unknown }
-  if (typeof candidate.code !== "string" || candidate.code.length === 0) return null
+  if (!isPublicApiError(error)) return null
+  if (typeof error.code !== "string" || error.code.length === 0) return null
   if (typeof error.message !== "string" || error.message.length === 0) return null
+  if (!isValidPublicErrorStatus(error.status)) return null
 
-  return {
-    code: candidate.code,
-    message: error.message,
-    status: normalizeErrorStatus(candidate.status, 403),
-  }
+  return { code: error.code, message: error.message, status: error.status }
 }
 
 /**
@@ -110,8 +89,9 @@ const GENERIC_ERROR_MESSAGE = "Internal server error"
  *
  * Four categories are recognised, in order:
  *
- *   1. Our own public errors (`PUBLIC_ERROR_NAMES`) — returned verbatim,
- *      preserving their code and status.
+ *   1. Genuine `PublicApiError` instances — proven by construction, not by
+ *      name or shape (see `core/errors.ts`) — returned verbatim, preserving
+ *      their code and status.
  *   2. `ZodError` — validation messages are authored in this repository and
  *      are the point of the response, so the first issue message is public.
  *   3. Prisma `P2025` / `P2002` — mapped to a 404 / 409 built from the
@@ -121,8 +101,8 @@ const GENERIC_ERROR_MESSAGE = "Internal server error"
  *      full error (message, stack, cause and all) goes to the server log
  *      only.
  *
- * Statuses are never downgraded: a recognised 401/403/404/409 keeps its
- * status, and only genuinely unknown failures become a 500.
+ * A recognised 401/403/404/409 keeps its status; only genuinely unknown
+ * failures — and public errors whose own contract is malformed — become a 500.
  */
 export function handleError(error: unknown, entity: string) {
   const publicError = asPublicAppError(error)
