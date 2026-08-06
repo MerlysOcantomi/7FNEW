@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSessionFromCookies } from "@/lib/auth/session"
 import { ShieldCheck, ArrowLeft, LogOut } from "lucide-react"
@@ -64,13 +65,13 @@ export default async function SystemLayout({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-md border border-amber-300/60 bg-white/60 px-2.5 py-1 text-xs font-medium text-amber-900 transition-colors hover:bg-white/90 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/60"
             >
               <ArrowLeft size={12} />
               <span>Volver al workspace</span>
-            </a>
+            </Link>
             <a
               href="/api/auth/logout"
               className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 text-xs font-medium text-amber-900/80 transition-colors hover:bg-amber-200/60 dark:text-amber-100/80 dark:hover:bg-amber-950/40"

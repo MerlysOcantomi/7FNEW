@@ -34,15 +34,17 @@ export async function GET(request: NextRequest) {
   try {
     const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
-    const module = searchParams.get("module")
+    // Named `moduleName` rather than `module`: shadowing the CommonJS `module`
+    // binding is flagged by @next/next/no-assign-module-variable.
+    const moduleName = searchParams.get("module")
     const recordId = searchParams.get("recordId")
 
-    if (!module || !recordId) {
+    if (!moduleName || !recordId) {
       return errorResponse("VALIDATION_ERROR", "module y recordId son requeridos")
     }
 
     const attachments = await db.attachment.findMany({
-      where: { module, recordId, workspaceId },
+      where: { module: moduleName, recordId, workspaceId },
       orderBy: { createdAt: "desc" },
     })
 
@@ -57,10 +59,12 @@ export async function POST(request: NextRequest) {
     const { workspaceId, session } = await requireWriteAccess()
     const formData = await request.formData()
     const file = formData.get("file") as File | null
-    const module = formData.get("module") as string | null
+    // Named `moduleName` rather than `module`: shadowing the CommonJS `module`
+    // binding is flagged by @next/next/no-assign-module-variable.
+    const moduleName = formData.get("module") as string | null
     const recordId = formData.get("recordId") as string | null
 
-    if (!file || !module || !recordId) {
+    if (!file || !moduleName || !recordId) {
       return errorResponse("VALIDATION_ERROR", "file, module y recordId son requeridos")
     }
 
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
         url,
         tipo: file.type,
         tamano: file.size,
-        module,
+        module: moduleName,
         recordId,
         userId: session.userId,
         userName: session.nombre ?? session.email,

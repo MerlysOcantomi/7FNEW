@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import {
   Info,
@@ -835,12 +836,12 @@ function FacturacionProyectoTab() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-semibold text-foreground">Project Billing</h3>
-        <a
+        <Link
           href="/facturacion"
           className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           View billing overview <ArrowUpRight className="h-3 w-3" />
-        </a>
+        </Link>
       </div>
 
       {/* Financial summary */}

@@ -9,16 +9,18 @@ export async function GET(request: NextRequest) {
   try {
     const { workspaceId } = await requireReadAccess()
     const { searchParams } = request.nextUrl
-    const module = searchParams.get("module")
+    // Named `moduleName` rather than `module`: shadowing the CommonJS `module`
+    // binding is flagged by @next/next/no-assign-module-variable.
+    const moduleName = searchParams.get("module")
     const recordId = searchParams.get("recordId")
     const type = searchParams.get("type")
     const search = searchParams.get("search")?.trim()
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50")))
 
     // Modo global: sin module/recordId → listado por workspace
-    if (!module || !recordId) {
+    if (!moduleName || !recordId) {
       const where: Record<string, unknown> = { workspaceId }
-      if (module) where.module = module
+      if (moduleName) where.module = moduleName
       if (type) where.type = type
 
       let activities = await db.activity.findMany({
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Modo por entidad: module + recordId
     const activities = await db.activity.findMany({
-      where: { module, recordId, workspaceId },
+      where: { module: moduleName, recordId, workspaceId },
       orderBy: { createdAt: "desc" },
       take: limit,
     })
