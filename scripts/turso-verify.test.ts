@@ -35,7 +35,6 @@ import {
   READ_ONLY_STATEMENTS,
   assertReadOnlySql as tursoAssert,
   describeError,
-  resolveTursoTarget,
   sanitizeForLog,
   SQLITE_MASTER_QUERY,
   splitSqlStatements,
