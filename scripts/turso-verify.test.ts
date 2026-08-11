@@ -20,8 +20,9 @@ import { join } from "node:path"
 import test, { type TestContext } from "node:test"
 
 import { createClient, type Client } from "@libsql/client"
-import { bootstrapTursoFromEnv, type BootstrapClient } from "../prisma/bootstrap-turso"
+import { bootstrapTursoFromEnv } from "../prisma/bootstrap-turso"
 import { exitCodeFor, verifySchema } from "../prisma/verify-turso"
+import { substituteLibsqlClient } from "./turso-test-support"
 import {
   PROJECT_ROOT,
   asReadOnly,
@@ -66,18 +67,18 @@ function tempDb(t: TestContext, label = "db"): Client {
 
 /**
  * Bootstrap a local SQLite database through the guarded entry point. The target
- * name is non-production so the guard passes; the injected factory redirects the
- * write to the throwaway file.
+ * name is non-production so the guard passes; the module-level substitution in
+ * `turso-test-support` redirects the write to the throwaway file. The entry
+ * point takes no options, so there is nothing to inject — it renders the real
+ * canonical DDL itself.
  */
-async function bootstrapInto(client: Client, ddl: string): Promise<void> {
-  const nonClosing: BootstrapClient = {
-    transaction: (mode) => client.transaction(mode),
-    close: () => {},
+async function bootstrapInto(client: Client): Promise<void> {
+  const substitute = substituteLibsqlClient({ redirectTo: client })
+  try {
+    await bootstrapTursoFromEnv({ TURSO_DATABASE_URL: "libsql://verify-sandbox.turso.io" })
+  } finally {
+    substitute.restore()
   }
-  await bootstrapTursoFromEnv(
-    { TURSO_DATABASE_URL: "libsql://verify-sandbox.turso.io" },
-    { ddl, createClient: () => nonClosing },
-  )
 }
 
 /** A database built from arbitrary SQL, for the drift scenarios. */
@@ -132,7 +133,7 @@ test("a database created by bootstrap verifies as identical", async (t) => {
   )
 
   const client = tempDb(t, "identical")
-  await bootstrapInto(client, ddl)
+  await bootstrapInto(client)
 
   const report = await verifySchema(asReadOnly(client), ddl)
   assert.equal(report.verdict, "identical")
@@ -314,7 +315,7 @@ test("identical unverifiable constructs still refuse the identical verdict", asy
 test("verify issues no write against the target", async (t) => {
   const ddl = realDdl()
   const client = tempDb(t, "readonly")
-  await bootstrapInto(client, ddl)
+  await bootstrapInto(client)
 
   const issued: string[] = []
   const recording: ReadOnlyExecutor = {

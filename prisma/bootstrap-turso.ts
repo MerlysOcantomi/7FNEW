@@ -16,12 +16,21 @@
  *
  * THE GUARD CANNOT BE SKIPPED
  * ---------------------------
- * `bootstrapTursoFromEnv()` is the only exported way in, and it takes **raw
- * environment values, not a target**. Everything the guard depends on — the
- * URL, the host, the database name, the classification — is derived inside this
- * module from that environment, so there is nothing for a caller to hand in
- * pre-decided. The primitive that accepts an already-open writable client is
- * module private.
+ * `bootstrapTursoFromEnv(env)` is the only exported way in, and it takes **raw
+ * environment values and nothing else**. It has exactly one parameter: there is
+ * no second argument, no options object, and therefore no `createClient` and no
+ * `ddl` for a caller to supply. Everything the run depends on — the URL, the
+ * host, the database name, the classification, the DDL and the connection
+ * itself — is derived inside this module from that environment.
+ *
+ * That last part is the point of the single-parameter signature. While an
+ * options object existed, a caller could pass a factory that ignored the
+ * validated URL and opened a writable connection somewhere else entirely: the
+ * guard still approved the derived target, but nothing tied the connection that
+ * was actually opened to the target that was approved. Now the only code that
+ * can open a write connection is `openWriteConnection`, module private, called
+ * with the validated target and no other input. The primitive that accepts an
+ * already-open writable client is module private for the same reason.
  *
  * There is also **no production override**: no environment variable can unlock
  * a production or unrecognised name. Provisioning production is a different,
@@ -105,21 +114,6 @@ export interface BootstrapClient {
   close(): void
 }
 
-/**
- * Opens the write connection. Only ever invoked AFTER the environment has been
- * resolved and the derived target has passed `assertBootstrapTarget`, and always
- * with that internally-derived target — which is why a factory may be injected
- * for tests without weakening the guard.
- */
-export type BootstrapClientFactory = (target: TursoTarget) => BootstrapClient
-
-export interface BootstrapOptions {
-  /** Canonical DDL. Rendered from `schema.prisma` when omitted. */
-  ddl?: string
-  /** How to open the write connection. Defaults to a real libsql client. */
-  createClient?: BootstrapClientFactory
-}
-
 export interface BootstrapResult {
   tables: number
   indexes: number
@@ -129,7 +123,15 @@ export interface BootstrapResult {
   structure: DatabaseStructure
 }
 
-function defaultClientFactory(target: TursoTarget): BootstrapClient {
+/**
+ * Opens the write connection, from the target this module derived itself.
+ *
+ * Module private, and the only place a writable connection is ever created. It
+ * is reached exclusively from `bootstrapTursoFromEnv`, after the guard passed,
+ * and it is handed nothing a caller could have chosen: the URL and token come
+ * from the validated target and nowhere else.
+ */
+function openWriteConnection(target: TursoTarget): BootstrapClient {
   return createClient({ url: target.url, authToken: target.authToken })
 }
 
@@ -226,17 +228,19 @@ async function bootstrapSchemaInternal(
  *   2. parse the URL, deriving `host` and `dbName` from it;
  *   3. classify from that derived name;
  *   4. run the guard — which re-derives and cross-checks all of it again;
- *   5. only then render the DDL;
- *   6. only then open a connection;
- *   7. hand the internally-derived target to the private transactional
- *      primitive.
+ *   5. only then render the DDL, internally, from `schema.prisma`;
+ *   6. only then open the connection, internally, from the validated target;
+ *   7. hand that connection to the private transactional primitive.
  *
- * Because there is no `target` parameter, a caller cannot supply a hand-built
- * `TursoTarget` whose `classification.safe` says `true` about a production URL.
+ * The signature is the enforcement. There is no `target` parameter, so a
+ * hand-built `TursoTarget` claiming `classification.safe === true` about a
+ * production URL cannot be handed in; and there is no options parameter, so the
+ * connection that gets opened is necessarily the one derived from the target
+ * that was just approved. A caller passing extra arguments in plain JavaScript
+ * changes nothing, because none are read.
  */
 export async function bootstrapTursoFromEnv(
   env: ProvisionEnv = process.env,
-  options: BootstrapOptions = {},
 ): Promise<BootstrapResult> {
   // Steps 1-3: derived here, from the environment, and nowhere else.
   const target = resolveTursoTarget(env)
@@ -244,8 +248,11 @@ export async function bootstrapTursoFromEnv(
   // reads nothing the caller could have influenced.
   assertBootstrapTarget(target)
 
-  const ddl = options.ddl ?? generateCanonicalDdl()
-  const client = (options.createClient ?? defaultClientFactory)(target)
+  // Steps 5-6: both internal. The DDL comes from `schema.prisma` through the
+  // local Prisma CLI, and the connection from the validated target — neither is
+  // reachable from the argument list.
+  const ddl = generateCanonicalDdl()
+  const client = openWriteConnection(target)
   try {
     return await bootstrapSchemaInternal(client, ddl)
   } finally {

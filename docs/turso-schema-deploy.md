@@ -138,31 +138,53 @@ enable it. Provisioning production is a different, deliberate procedure that
 does not live here.
 
 The guard also cannot be skipped by importing something lower-level.
-`bootstrapTursoFromEnv(env, options?)` is the only exported way in, and it takes
-the **environment, not a target**. Every value the decision rests on is derived
-inside the module:
+`bootstrapTursoFromEnv(env)` is the only exported way in, it takes the
+**environment, not a target**, and it takes **nothing else**. Every value the
+run rests on is derived inside the module:
 
 1. resolve the URL and token from `env`;
 2. parse the URL, deriving the host and database name from it;
 3. classify from that derived name;
 4. run the guard — which re-parses and re-derives all of it again;
-5. only then render the DDL;
-6. only then open a connection.
+5. only then render the DDL, internally, from `schema.prisma`;
+6. only then open the connection, internally, from the validated target.
 
 Because the signature has no `target` parameter, a caller cannot hand in a
 `TursoTarget` whose `classification.safe` claims `true` about a production URL.
 The primitive that takes an already-open writable client is module private, so
 there is no exported function accepting a client and DDL.
 
+### The caller supplies no dependencies either
+
+There is no second parameter. An options object with `createClient` or `ddl`
+used to exist for tests, and it was a real hole: the guard approved the target
+derived from the environment, but a caller-supplied factory was free to ignore
+that URL and open a writable connection somewhere else entirely. Nothing tied
+the connection that was opened to the target that was approved.
+
+Now the only code that can open a write connection is `openWriteConnection`,
+module private, called with the validated target and nothing else; and the only
+DDL that can be applied is the one `generateCanonicalDdl()` renders from
+`schema.prisma`. A caller passing extra arguments in plain JavaScript changes
+nothing, because none are read — `scripts/turso-bootstrap.test.ts` asserts
+exactly that, with a spy factory that records zero calls and a malicious DDL
+that never reaches the database.
+
 `assertBootstrapTarget()` is exported for testing, but it is a pure check and it
 trusts nothing it is given: it re-parses `target.url`, re-derives the host and
 database name, refuses any disagreement with the fields on the target, and
 recomputes the classification. `target.classification` is never read.
 
-Tests may inject `options.createClient` to redirect the write to a local SQLite
-file, but that factory is only ever invoked *after* the guard passed, and always
-with the internally-derived target — a refused name fails before the factory is
-called even once.
+Because there is nothing to inject, the tests reach the positive path a
+different way: `scripts/turso-test-support.ts` substitutes `createClient` on the
+cached `@libsql/client` module, so production's own call site resolves to a
+stand-in bound to a throwaway local file. The real resolution, the real guard,
+the real DDL and the real transaction all still run.
+
+That harness is test-only and cannot weaken production: nothing under `prisma/`
+imports it, it never reads `process.env`, and the single place it opens a
+connection refuses `libsql:`, `http:` and `https:` outright — a remote URL that
+production asks for is recorded and redirected to a local file, never dialled.
 
 ## `turso:verify`
 
