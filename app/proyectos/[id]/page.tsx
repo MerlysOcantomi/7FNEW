@@ -539,7 +539,6 @@ export default function ProjectDetailPage() {
         }
         tabs={TABS}
         defaultTab="resumen"
-        copilotContext="Projects"
       >
         {(activeTab) => {
           if (activeTab === "resumen") return <TabResumen project={project} />;

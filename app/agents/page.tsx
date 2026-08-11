@@ -15,7 +15,7 @@ import { useI18n } from "@/components/i18n-provider"
  * `modules/agents/roster.ts`). No new persistence, no writes.
  *
  * NOT to be confused with `/agente` (the static "Francis" business-insights
- * mock) or `/assistant` (the chat). Layout: AppShell (viewport-bounded per
+ * mock). Layout: AppShell (viewport-bounded per
  * docs/app-shell-contract.md); the board owns its own summary header, so the
  * page renders it directly (no SectionPage title) to avoid a duplicate "Agents".
  * Widened to `max-w-7xl` for the roster + decision-rail split.

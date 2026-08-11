@@ -4,7 +4,6 @@ import { useState, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
-import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel"
 import { Save, ToggleLeft, ToggleRight, ChevronDown, Bot, X, Check, Loader2, Languages } from "lucide-react"
 import type { ForteSettingsHandoff } from "@/agents/forte/runtime/business/settings-handoff"
 import type { EntityVocabulary } from "@core/personalization"
@@ -473,7 +472,6 @@ export function AdministracionContent({
   const adminStrings = t.settings.adminPage
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [copilotCollapsed, setCopilotCollapsed] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const isAdmin = wsRole === "ADMIN" || wsRole === "OWNER"
@@ -579,8 +577,7 @@ export function AdministracionContent({
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
+      <div className="flex flex-col md:flex-row min-h-screen bg-background font-sans overflow-x-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
@@ -873,10 +870,7 @@ export function AdministracionContent({
 
             </div>
           </main>
-
-          <CopilotPanel defaultContext="Overview" />
-        </div>
-      </CopilotCollapseContext.Provider>
+      </div>
     </SidebarCollapseContext.Provider>
   )
 }

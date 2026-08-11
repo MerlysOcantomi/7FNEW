@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav";
-import { CopilotPanel, CopilotCollapseContext } from "@/components/copilot-panel";
 import { LegacyTodayChrome } from "@/components/today/legacy-today-chrome";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -109,7 +108,6 @@ function getRecommendationIcon(recommendationId: DashboardRecommendationPreview[
  */
 export function DashboardCorePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [copilotCollapsed, setCopilotCollapsed] = useState(false);
 
   const { data: summary, loading, error } = useFetch<DashboardData>("/api/dashboard/summary");
 
@@ -172,8 +170,7 @@ export function DashboardCorePage() {
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
-      <CopilotCollapseContext.Provider value={{ copilotCollapsed, setCopilotCollapsed }}>
-        <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
+      <div className="flex flex-col md:flex-row h-dvh bg-background font-sans overflow-hidden">
           <SidebarNav />
           <MobileSidebarNav />
 
@@ -589,11 +586,8 @@ export function DashboardCorePage() {
             </div>
           </main>
 
-          <CopilotPanel defaultContext="Overview" />
-
           <LegacyTodayChrome />
-        </div>
-      </CopilotCollapseContext.Provider>
+      </div>
     </SidebarCollapseContext.Provider>
   );
 }

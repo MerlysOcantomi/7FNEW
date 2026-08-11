@@ -5,6 +5,7 @@ import { globalSearch } from "./global-search"
 import { globalNew } from "./global-new"
 import { agents } from "./agents"
 import { today } from "./today"
+import { appointments } from "./appointments"
 import { statuses } from "./statuses"
 
 /**
@@ -24,5 +25,6 @@ export const de: LocaleCatalogOverrides = {
   globalNew,
   agents,
   today,
+  appointments,
   statuses,
 }

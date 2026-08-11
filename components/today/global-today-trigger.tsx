@@ -110,7 +110,7 @@ export function GlobalTodayTriggerDesktop({ variant }: { variant: "app" | "conte
  *     `MobileSidebarNav` IS inside the provider, so the trigger calls
  *     `openToday()` and the existing mobile vaul drawer slides up.
  *   - On legacy pages (`/`, `/clientes`, `/proyectos`, `/finanzas`,
- *     `/facturacion`, `/agente`, `/assistant`, `/motor`)
+ *     `/facturacion`, `/agente`, `/motor`)
  *     `MobileSidebarNav` is rendered ABOVE `<LegacyTodayChrome>`, so
  *     the provider is not visible from here. The hook returns the noop
  *     fallback (`available: false`) and we route to `/today` instead —

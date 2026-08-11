@@ -852,7 +852,6 @@ export default function InvoiceDetailPage() {
       }
       tabs={tabs}
       defaultTab="resumen"
-      copilotContext="Billing"
     >
       {(activeTab) => {
         if (activeTab === "resumen")  return <TabResumen factura={factura} />;
