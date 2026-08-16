@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { askMotorIA, VALID_MODES, type AIMode } from "@/lib/ai"
 
 const MAX_INPUT_LENGTH = 15000
 
 export async function POST(request: NextRequest) {
   try {
+    // CORE-02B (F-AUTH-05): require a valid session + workspace membership
+    // in-handler, before reading the body or contacting any AI provider.
+    await requireReadAccess(request)
+
     const body = await request.json()
     const { prompt, text, mode, options } = body as {
       prompt?: string
@@ -39,8 +44,6 @@ export async function POST(request: NextRequest) {
     const result = await askMotorIA(finalPrompt, mode as AIMode)
     return successResponse({ result, mode })
   } catch (error) {
-    console.error("[7F Motor IA] API error:", error)
-    const message = error instanceof Error ? error.message : "Error interno del Motor IA"
-    return errorResponse("AI_ERROR", message, 500)
+    return handleError(error, "MotorIA")
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { askMotorIA } from "@/lib/ai"
 import { promptResumenFacturacion, promptExplicarVencimiento } from "@/lib/ai"
 
@@ -8,6 +9,10 @@ const VALID_ACTIONS: FacturacionAction[] = ["resumen", "vencimiento"]
 
 export async function POST(request: NextRequest) {
   try {
+    // CORE-02B (F-AUTH-05): require a valid session + workspace membership
+    // in-handler, before reading the body or contacting any AI provider.
+    await requireReadAccess(request)
+
     const body = await request.json()
     const { action, data } = body as { action?: string; data?: Record<string, unknown> }
 
@@ -48,8 +53,6 @@ export async function POST(request: NextRequest) {
     const result = await askMotorIA(prompt, mode)
     return successResponse({ result, action })
   } catch (error) {
-    console.error("[7F Motor IA] Facturacion AI error:", error)
-    const message = error instanceof Error ? error.message : "Error del Motor IA"
-    return errorResponse("AI_ERROR", message, 500)
+    return handleError(error, "FacturacionAI")
   }
 }

@@ -167,7 +167,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     } catch (encErr) {
       const msg = encErr instanceof Error ? encErr.message : String(encErr)
       console.error(`${TAG} Encryption failed: ${msg}`)
-      return errorResponse("ENCRYPTION_ERROR", "No se pudieron cifrar las credenciales. Verifica AUTH_SECRET.")
+      return errorResponse("ENCRYPTION_ERROR", "No se pudieron cifrar las credenciales. El cifrado de credenciales no está configurado en el servidor.")
     }
 
     step = "build-config"

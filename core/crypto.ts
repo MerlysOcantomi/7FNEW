@@ -6,14 +6,30 @@ const TAG_LENGTH = 16
 const SALT = "7f-channel-credentials"
 
 /**
- * Derive a 32-byte key from AUTH_SECRET using scrypt.
- * Falls back to a zero-filled key in dev if AUTH_SECRET is missing (logged as warning).
+ * Derive the 32-byte channel-credential key from CHANNEL_ENCRYPTION_KEY
+ * using scrypt (CORE-02B, closes F-AUTH-02).
+ *
+ * Fail-closed contract:
+ *   - The key comes EXCLUSIVELY from `CHANNEL_ENCRYPTION_KEY`. `AUTH_SECRET`
+ *     is no longer consulted — session signing and credential encryption are
+ *     separate security purposes and must not share key material.
+ *   - A missing, empty or whitespace-only value throws instead of falling
+ *     back. The all-zero `Buffer.alloc(32, 0)` fallback is gone: it made
+ *     every stored credential decryptable from a DB dump alone.
+ *   - The error message never includes the secret's value.
+ *
+ * Compatibility: the derivation (scrypt over the same constant salt) and the
+ * payload format are unchanged, so setting `CHANNEL_ENCRYPTION_KEY` to the
+ * historical key material keeps existing ciphertexts decryptable. Rotating
+ * the key and re-encrypting existing rows is a separate, controlled mission.
+ *
+ * The environment variable is read at call time, never at module scope, so
+ * importing this module stays safe in builds and tests without credentials.
  */
 function deriveKey(): Buffer {
-  const secret = process.env.AUTH_SECRET
-  if (!secret) {
-    console.warn("[crypto] AUTH_SECRET is not set — credentials will use insecure fallback key")
-    return Buffer.alloc(32, 0)
+  const secret = process.env.CHANNEL_ENCRYPTION_KEY
+  if (!secret || secret.trim().length === 0) {
+    throw new Error("Channel credential encryption is not configured")
   }
   return scryptSync(secret, SALT, 32)
 }

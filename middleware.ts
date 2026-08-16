@@ -13,10 +13,32 @@ const CLIENT_COOKIE = "7f-client-session"
 const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
+/**
+ * Segment-boundary prefix match (CORE-02B). A public prefix authorises the
+ * path itself and its sub-segments ONLY: "/api/auth" covers "/api/auth" and
+ * "/api/auth/callback/google", but never "/api/auth-malicious" or
+ * "/api/authx", which a bare `startsWith` would have made public.
+ */
+function matchesSegmentPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/")
+}
+
 function isPublic(pathname: string): boolean {
-  if (STATIC_PREFIXES.some((p) => pathname.startsWith(p))) return true
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true
+  if (STATIC_PREFIXES.some((p) => matchesSegmentPrefix(pathname, p))) return true
+  if (PUBLIC_PATHS.some((p) => matchesSegmentPrefix(pathname, p))) return true
   return false
+}
+
+/**
+ * Fail-closed response for protected APIs when AUTH_SECRET is missing or
+ * unusable (CORE-02B, closes F-AUTH-01). Deterministic and generic: no
+ * secret name, length or value, no internal detail.
+ */
+function serviceUnavailable(): NextResponse {
+  return NextResponse.json(
+    { success: false, error: { code: "SERVICE_UNAVAILABLE", message: "Servicio no disponible" } },
+    { status: 503 },
+  )
 }
 
 function isClientPortalRoute(pathname: string): boolean {
@@ -73,17 +95,22 @@ export async function middleware(request: NextRequest) {
 
   // Client portal routes
   if (isClientPortalRoute(pathname)) {
+    // Fail closed BEFORE looking at the token: without a usable secret no
+    // portal API may proceed, token or not (CORE-02B).
+    const secret = getSecret()
+    if (!secret) {
+      if (pathname.startsWith("/api/")) {
+        return serviceUnavailable()
+      }
+      return NextResponse.redirect(new URL("/cliente/login?error=config", request.url))
+    }
+
     const token = request.cookies.get(CLIENT_COOKIE)?.value
     if (!token) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 })
       }
       return NextResponse.redirect(new URL("/cliente/login", request.url))
-    }
-
-    const secret = getSecret()
-    if (!secret) {
-      return NextResponse.redirect(new URL("/cliente/login?error=config", request.url))
     }
 
     try {
@@ -108,8 +135,10 @@ export async function middleware(request: NextRequest) {
   // Internal routes — Google OAuth authentication
   const secret = getSecret()
   if (!secret) {
+    // Fail CLOSED (CORE-02B, F-AUTH-01): a protected API must never proceed
+    // without a verifiable session. Pages keep the config-error redirect.
     if (pathname.startsWith("/api/")) {
-      return NextResponse.next()
+      return serviceUnavailable()
     }
     return NextResponse.redirect(new URL("/login?error=config", request.url))
   }

@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { askMotorIA } from "@/lib/ai"
 
 const MAX_TEXT_LENGTH = 15000
 
 export async function POST(request: NextRequest) {
   try {
+    // CORE-02B (F-AUTH-05): require a valid session + workspace membership
+    // in-handler, before reading the body or contacting any AI provider.
+    await requireReadAccess(request)
+
     const body = await request.json()
     const { text, idioma = "espanol", formalidad = "profesional" } = body as {
       text?: string
@@ -46,8 +51,6 @@ ${text.trim()}
       idioma,
     })
   } catch (error) {
-    console.error("[7F AI Correct] Error:", error)
-    const message = error instanceof Error ? error.message : "Error al corregir texto"
-    return errorResponse("AI_ERROR", message, 500)
+    return handleError(error, "CorrectAI")
   }
 }

@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { askMotorIA } from "@/lib/ai"
 
 const MAX_CV_LENGTH = 20000
 
 export async function POST(request: NextRequest) {
   try {
+    // CORE-02B (F-AUTH-05): require a valid session + workspace membership
+    // in-handler, before reading the body or contacting any AI provider.
+    await requireReadAccess(request)
+
     const body = await request.json()
     const { text, idioma = "espanol", nivel = "medio" } = body as {
       text?: string
@@ -53,8 +58,6 @@ Responde en formato estructurado con las 4 secciones claramente separadas.`
       idioma,
     })
   } catch (error) {
-    console.error("[7F AI Resume] Error:", error)
-    const message = error instanceof Error ? error.message : "Error al procesar el CV"
-    return errorResponse("AI_ERROR", message, 500)
+    return handleError(error, "ResumeAI")
   }
 }

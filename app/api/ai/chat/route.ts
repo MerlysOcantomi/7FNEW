@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
-import { successResponse, errorResponse } from "@/lib/api"
+import { successResponse, errorResponse, handleError } from "@/lib/api"
+import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { askMotorIAWithHistory, type AIMode } from "@/lib/ai"
 
 const MAX_HISTORY = 20
@@ -8,6 +9,10 @@ const CHAT_MODES: AIMode[] = ["skina", "7f", "general"]
 
 export async function POST(request: NextRequest) {
   try {
+    // CORE-02B (F-AUTH-05): require a valid session + workspace membership
+    // in-handler, before reading the body or contacting any AI provider.
+    await requireReadAccess(request)
+
     const body = await request.json()
     const { mode, message, history } = body as {
       mode?: string
@@ -55,8 +60,6 @@ export async function POST(request: NextRequest) {
       mode,
     })
   } catch (error) {
-    console.error("[7F AI Chat] Error:", error)
-    const message = error instanceof Error ? error.message : "Error en el chat"
-    return errorResponse("AI_ERROR", message, 500)
+    return handleError(error, "ChatAI")
   }
 }
