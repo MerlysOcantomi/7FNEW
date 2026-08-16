@@ -48,7 +48,10 @@ function isClientPortalRoute(pathname: string): boolean {
 
 function getSecret(): Uint8Array | null {
   const secret = process.env.AUTH_SECRET
-  if (!secret) return null
+  // Whitespace-only is as unusable as absent (CORE-02B.1): it would "verify"
+  // tokens signed with a blank key. The check trims; the encoded value is the
+  // ORIGINAL secret, never a trimmed copy.
+  if (!secret || secret.trim().length === 0) return null
   return new TextEncoder().encode(secret)
 }
 

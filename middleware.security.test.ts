@@ -87,6 +87,49 @@ test("the 503 body is generic JSON: no secret name, length or internals", async 
   assert.ok(body.includes("SERVICE_UNAVAILABLE"))
 })
 
+test("whitespace-only AUTH_SECRET is as invalid as an absent one (CORE-02B.1)", async () => {
+  const token = await signToken({ userId: "u1", email: "a@b.test", role: "admin" })
+  const clientToken = await signToken({ type: "client", clienteId: "c1", email: "c@x.test" })
+
+  for (const blank of [" ", "   ", "\t", "\n", " \t\n "]) {
+    process.env.AUTH_SECRET = blank
+
+    // Protected internal API → 503, never next().
+    const internal = await middleware(req("/api/clientes", { "7f-session": token }))
+    assert.equal(internal.status, 503, `internal API must fail closed for ${JSON.stringify(blank)}`)
+
+    // Protected portal API → 503, never next().
+    const portal = await middleware(req("/api/cliente/dashboard", { "7f-client-session": clientToken }))
+    assert.equal(portal.status, 503, `portal API must fail closed for ${JSON.stringify(blank)}`)
+
+    // Protected pages keep the config redirect.
+    const internalPage = await middleware(req("/inbox"))
+    assert.ok((internalPage.headers.get("location") ?? "").includes("/login?error=config"))
+    const portalPage = await middleware(req("/cliente/panel", { "7f-client-session": clientToken }))
+    assert.ok((portalPage.headers.get("location") ?? "").includes("/cliente/login?error=config"))
+
+    // Nothing above may be a pass-through.
+    for (const res of [internal, portal, internalPage, portalPage]) {
+      assert.ok(!isPassThrough(res), `no protected route may pass through with a blank secret`)
+    }
+  }
+})
+
+test("a valid secret is used as-is: surrounding whitespace is not trimmed away", async () => {
+  // A token signed with the padded secret must verify (the middleware encodes
+  // the ORIGINAL value), and one signed with the trimmed variant must not.
+  const paddedSecret = `  ${TEST_SECRET}  `
+  process.env.AUTH_SECRET = paddedSecret
+
+  const padded = await signToken({ userId: "u1", email: "a@b.test", role: "viewer" }, paddedSecret)
+  const okRes = await middleware(req("/api/clientes", { "7f-session": padded }))
+  assert.ok(isPassThrough(okRes), "token signed with the original (padded) secret must verify")
+
+  const trimmed = await signToken({ userId: "u1", email: "a@b.test", role: "viewer" }, TEST_SECRET)
+  const badRes = await middleware(req("/api/clientes", { "7f-session": trimmed }))
+  assert.equal(badRes.status, 401, "token signed with a trimmed copy must NOT verify")
+})
+
 test("protected pages + missing AUTH_SECRET keep the config redirect", async () => {
   delete process.env.AUTH_SECRET
   const internal = await middleware(req("/inbox"))
