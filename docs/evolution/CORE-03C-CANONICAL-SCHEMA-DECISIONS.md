@@ -3,7 +3,7 @@
 - **Date:** 2026-08-16
 - **Branch:** `7f-evolution`
 - **Starting SHA:** `49a0b7c0d099dd44d47f9adf1cbba601b9b5ba1b` (= `origin/7f-evolution`; `origin/master` at `312785fb270ed334ff2af121e280c1a03bed02bd`, 8 ahead / 0 behind)
-- **Status:** decision record — **nothing here was implemented**. No schema, config, migration, database or data change was made. The only file this mission produced is this document.
+- **Status:** decision record, updated by **CORE-03C-2A** (2026-08-16), which implemented Stage 1 (C1–C3) locally — see the *Implementation status* block in §13. Everything else remains unimplemented. **No migration has been applied to Turso, no `_prisma_migrations` exists on Turso, no remote database was touched, and no data changed.**
 
 ---
 
@@ -14,7 +14,7 @@ Sevenef's main database currently has **no reproducible history**: 52 Prisma mod
 This record decides, with repository evidence:
 
 1. **Source of truth** becomes a four-layer architecture (§4): one canonical Prisma schema (Layer 1), the immutable CORE-03B deployed-state baseline (Layer 2), a SQLite/Turso migration history (Layer 3), and a separate, generated PostgreSQL/Neon history (Layer 4). One canonical schema file remains the single hand-maintained source; provider variants are **generated and mechanically verified, never hand-maintained in parallel** (owner directive).
-2. **Model classification (§5):** 41 `CANONICAL_KEEP`, 7 `LEGACY_RETAIN` — of which 4 are working legacy (Usuario, Tarea, InboxTodo, InboxEntry) and 3 are flagged `RETIREMENT_CANDIDATE` (ClientProject, ClientInvoice, ClientFile — zero productive references after a two-pass audit, but their deployed tables may hold data, so they stay in the schema and their retirement is **blocked until the aggregate count audit runs and the owner approves**) — 3 `CANONICAL_ADD` (ClientRequest, ClientRequestAsset, ClientAsset — live portal routes fail today because their tables were never deployed), 1 `OWNER_DECISION_REQUIRED` (ForteSnapshot, per owner instruction — regardless of its productive references).
+2. **Model classification (§5):** 41 `CANONICAL_KEEP`, 7 `LEGACY_RETAIN` — of which 4 are working legacy (Usuario, Tarea, InboxTodo, InboxEntry) and 3 are flagged `RETIREMENT_CANDIDATE` (ClientProject, ClientInvoice, ClientFile — zero productive references after a two-pass audit, but their deployed tables may hold data, so they stay in the schema and their retirement is **blocked until the aggregate count audit runs and the owner approves**) — and 4 `CANONICAL_ADD` (ClientRequest, ClientRequestAsset, ClientAsset — live portal routes fail today because their tables were never deployed — and **ForteSnapshot, approved by the owner in CORE-03C-2A**, see §6.C). `OWNER_DECISION_REQUIRED`, `REMOVE_FROM_CANONICAL` and `DEFERRED_NOT_DEPLOYED` are all empty.
 3. **Local experiments on Prisma 7.4.1 (§11)** proved: the CORE-03B baseline still reconstructs the deployed state exactly (48 tables / 61 indexes, integrity ok); `prisma migrate diff` can generate both the canonical SQLite DDL and the deployed→canonical drift script fully offline; the drift requires **28 full table rebuilds** — decisive evidence against any single-shot correction; and, critically, Prisma 7.4.1 does **not** refuse a cross-provider diff — it silently emits a drop-everything script (§11, E4b). Provider isolation must therefore be enforced by repository structure and CI, not by trust in the tool.
 4. **CORE-03C-2 is sequenced (§13)** into small, individually verifiable commits following a strict order: local/CI SQLite baseline → safe additive corrections (21 immediately applicable indexes, then the 2 link columns with their 2 dependent indexes) → the read-only aggregate data audit → final legacy model/data decisions → PostgreSQL/Neon history generation and testing → and **only after all of that**, any SQLite table rebuild or Turso ledger adoption. Rebuild-class work on SQLite is deliberately last: if Neon is approved as the destination, most of the 28 measured rebuilds never need to happen on Turso at all.
 
@@ -157,15 +157,16 @@ The first four are working legacy — still productively referenced today:
 
 Risk if nothing is done: none immediate (they work today); the risk is *permanent* duplication and drift — hence scheduled convergence missions, not silent removal.
 
-### CANONICAL_ADD — 3 models
+### CANONICAL_ADD — 4 models
 
-Declared in Prisma, **productively wired, and missing from the deployed database** — every request that reaches them fails today (CORE-03B classified these routes CRITICAL). Future migration action: create the tables (order and DDL in §6.B / §13-C6). Risk if nothing is done: standing production outage on the client-portal request/asset features.
+Declared in Prisma, **productively wired, and missing from the deployed database** — every request that reaches them fails today (CORE-03B classified these routes CRITICAL). Future migration action: create the tables (order and DDL in §6.B / §13-C6). Risk if nothing is done: standing production outage on the client-portal request/asset features and on Forte snapshot persistence.
 
 | Model | p / t / s | Productive evidence |
 |---|---|---|
 | ClientRequest | 8/0/0 | `app/api/cliente/requests/route.ts` (list/create), `app/api/cliente/requests/[id]/route.ts`, `app/api/requests/route.ts` (internal view), `app/api/cliente/dashboard/route.ts`; UI `app/cliente/solicitudes/page.tsx` |
 | ClientRequestAsset | 0 direct/0/0 — **used via relation** | nested `assets: { create: … }` in `app/api/cliente/requests/route.ts:74-83`; `include: { assets: true }` in the same file (L19, L86), `[id]/route.ts:47`, `app/api/requests/route.ts` (L16, L55) |
 | ClientAsset | 4/0/0 | `app/api/cliente/archivos/route.ts` (list/upload), `app/api/cliente/dashboard/route.ts`; UI `app/cliente/archivos/page.tsx` |
+| ForteSnapshot | 3/0/0 | `agents/forte/runtime/business/snapshot-store.ts` (upsert/findUnique/deleteMany), called from `agents/forte/runtime/business/index.ts` and `improvements-loader.ts`; **owner-approved in CORE-03C-2A** — see §6.C |
 
 The remaining three are **`LEGACY_RETAIN — RETIREMENT_CANDIDATE`**: deployed tables with **zero productive references** after the two-pass audit (direct accessors: 0; relation traversal from `Cliente`: no `include`/`select`/nested access anywhere in runtime code; portal pages fetch only `/api/cliente/{dashboard,facturas,proyectos,archivos,requests,perfil,auth}`, all served by tenant models + ClientAsset/ClientRequest). Because the deployed tables may nevertheless hold data, **they are NOT removed from `schema.prisma` yet**:
 
@@ -177,13 +178,11 @@ The remaining three are **`LEGACY_RETAIN — RETIREMENT_CANDIDATE`**: deployed t
 
 Nothing is removed in CORE-03C-2: the models stay in the canonical schema, the tables stay deployed, and Layer 2 keeps recording them. Their retirement — from the model, from the Neon history, and eventually from the database — is a single gated decision that cannot precede the row-count evidence. (This is also why creating tables "solely because Prisma declares them" is wrong in general — Prisma declaration is intent, not evidence; see §6.B/C.)
 
-### OWNER_DECISION_REQUIRED — 1 model
+### OWNER_DECISION_REQUIRED — 0 models
 
-| Model | p / t / s | Evidence | Decision needed |
-|---|---|---|---|
-| ForteSnapshot | 3/0/0 | `agents/forte/runtime/business/snapshot-store.ts` (upsert/findUnique/deleteMany), called from `agents/forte/runtime/business/index.ts` and `improvements-loader.ts`; workspace-scoped ("one workspace, one latest snapshot"), unique `workspaceId`, FK → Workspace; exercised by `npm run test:forte-business` | Whether Forte business-analysis memory belongs in the **main Sevenef database** (→ CANONICAL_ADD, create the table) or in a separate/an internal store, and whether the capability is production-committed at all. Per owner instruction this model is **always** OWNER_DECISION_REQUIRED regardless of its productive references. §15-D1 states the trade-offs and a recommendation. |
+Formerly held `ForteSnapshot`. **Resolved in CORE-03C-2A: the owner approved `ForteSnapshot = CANONICAL_ADD`** (see §6.C and §15-D1); it now appears in the CANONICAL_ADD table above.
 
-Tally: 41 CANONICAL_KEEP + 7 LEGACY_RETAIN (4 working + 3 RETIREMENT_CANDIDATE) + 3 CANONICAL_ADD + 1 OWNER_DECISION_REQUIRED = **52**. ✓ (`REMOVE_FROM_CANONICAL` and `DEFERRED_NOT_DEPLOYED` end this record with zero members: the former is deliberately empty until the audit-gated retirement decision, the latter because every undeployed model resolved to CANONICAL_ADD or owner decision.)
+Tally: 41 CANONICAL_KEEP + 7 LEGACY_RETAIN (4 working + 3 RETIREMENT_CANDIDATE) + 4 CANONICAL_ADD + 0 OWNER_DECISION_REQUIRED = **52**. ✓ (`REMOVE_FROM_CANONICAL` and `DEFERRED_NOT_DEPLOYED` end this record with zero members: the former is deliberately empty until the audit-gated retirement decision, the latter because every undeployed model resolved to CANONICAL_ADD.)
 
 ---
 
@@ -206,11 +205,13 @@ Productive functionality exists (§5 CANONICAL_ADD): the portal's "solicitudes" 
 
 **Creation order** (FK dependency order, one additive migration, §13-C6): 1. `ClientAsset` (FK → Cliente), 2. `ClientRequest` (FKs → Cliente, Proyecto), 3. `ClientRequestAsset` (FK → ClientRequest). All parent tables already exist. Include their declared indexes in the same migration. No backfill needed — the tables start empty by definition.
 
-### C. ForteSnapshot
+### C. ForteSnapshot — RESOLVED: CANONICAL_ADD (owner-approved, CORE-03C-2A)
 
-Runtime evidence (recorded for the owner, not to preempt the decision): real Sevenef runtime code uses it — `agents/forte/runtime/business/snapshot-store.ts` is called by the Forte business runtime (`business/index.ts`, `improvements-loader.ts`); it stores per-workspace analysis state (workspace-scoped, unique `workspaceId`, JSON-serialized payload marked "no secrets"); tests exercise it via mocked/local flows. It is not referenced by any non-Sevenef system in this repository. Today every snapshot persist/load in production fails (table absent), which the Forte runtime tolerates as "no snapshot".
+Runtime evidence: real Sevenef runtime code uses it — `agents/forte/runtime/business/snapshot-store.ts` is called by the Forte business runtime (`business/index.ts`, `improvements-loader.ts`); it stores per-workspace analysis state (workspace-scoped, unique `workspaceId`, FK → Workspace, JSON-serialized payload marked "no secrets"); tests exercise it via mocked/local flows. Today every snapshot persist/load in production fails (table absent), which the Forte runtime tolerates as "no snapshot".
 
-**Classification: OWNER_DECISION_REQUIRED** (owner directive — automatic CANONICAL_ADD is expressly ruled out). The decision and its consequences are stated in §15-D1. No external database was investigated and the table is not created.
+**The owner approved `ForteSnapshot = CANONICAL_ADD` in CORE-03C-2A**, on these grounds: it is **internal memory of Sevenef's own Forte agent**, keyed by `workspaceId`; it is part of the 7F runtime; it **neither represents nor connects to the separate Mr. Forte Lab database** and does not belong to Mission Control — it is purely internal Sevenef storage that belongs in the main database. No external database or branch was consulted for this decision.
+
+The table is **not created in CORE-03C-2A**: its creation lands in CORE-03C-2B together with the three portal tables (§13-C6, which no longer carries a pending gate).
 
 ### D. InboxTodo.workspaceTaskId
 
@@ -312,7 +313,7 @@ prisma/
     0_baseline/migration.sql     #   verbatim CORE-03B deployed state (48 tables, 61 indexes)
     1_add_missing_indexes/…      #   §9 (the 21 immediately applicable indexes)
     2_add_link_columns/…         #   §6.D InboxTodo.workspaceTaskId, §6.E QRCode.workspaceId (+2 indexes)
-    3_create_portal_tables/…     #   §6.B trio (+ ForteSnapshot iff owner approves)
+    3_create_portal_tables/…     #   §6.B trio + ForteSnapshot (D1 approved)
     …                            #   rebuild-class corrections (§7 relaxations, NOT NULL
                                  #   tightenings, FK subset) only in the gated endgame:
                                  #   after the §12 audit, owner decisions AND the Neon
@@ -435,6 +436,12 @@ Execution rules for that future mission: read-only transaction; aggregates only;
 
 Small commits, each independently checkable and revertable, in the owner-mandated order: **local/CI baseline → safe additive corrections → read-only aggregate audit → final legacy decisions → PostgreSQL/Neon generation and testing → only then rebuild-class work or Turso ledger adoption.** SQLite table rebuilds come last on purpose: if Neon is approved as the destination, the 28 measured rebuilds (§11-E3b) largely never need to run against Turso.
 
+> **Implementation status — CORE-03C-2A (2026-08-16): Stage 1 complete.**
+> - **C1 done** — root `migration.sql` (PowerShell error transcript, 0 DDL statements, no importers) deleted. Commit `22fee8f`.
+> - **C2 done** — declarative convergence: `User.googleId String? @unique` (deprecated legacy-compat), `@@index([status])` on Workspace, `@@index([workspaceId, category])` on Conversation. Generated DDL names verified identical to the deployed `User_googleId_key`, `Workspace_status_idx`, `Conversation_workspaceId_category_idx`. Commit `1d7a9b4`.
+> - **C3 done** — `prisma/migrations/migration_lock.toml` (`provider = "sqlite"`) + `prisma/migrations/0_baseline/migration.sql` (the CORE-03B deployed-state DDL verbatim: 48 tables + 61 indexes = 109 statements; only header comments adapted). **Local verification passed:** a reference DB built from the CORE-03B draft and a DB built via `migrate deploy` over this history are semantically identical (columns, types, nullability, defaults, PKs, FKs + actions, indexes + uniqueness), both with clean `integrity_check`/`foreign_key_check`, and both reproduce the CORE-03B canonical SHA-256 `6347f71d88f32d7943eef0c86ae39c49d1beede05522f7b0faf5d42bd8400638` exactly; `migrate status` reports the baseline applied and the history up to date — **on the throwaway local database only. Nothing was applied to Turso and no `_prisma_migrations` exists there.** Commit `de94c39`.
+> - **C4 and everything after remain pending** — the 21 immediately applicable indexes, the 2 link columns with their 2 dependent indexes, C6 table creation (now including ForteSnapshot), the drift-manifest CI harness, M1/M2, the Neon track and the gated endgame are all future work (CORE-03C-2B onward).
+
 **Stage 1 — repo hygiene and baseline (no production effect)**
 
 | # | Commit | Files | Exact change | Checks | Risk | Rollback |
@@ -449,7 +456,7 @@ Small commits, each independently checkable and revertable, in the owner-mandate
 |---|---|---|---|---|---|---|
 | C4 | `feat(db): additive index migration (21 immediately applicable)` | `prisma/migrations/1_add_missing_indexes/` | the **21** missing indexes whose columns already exist (§9); the 2 column-dependent indexes are NOT here | build fresh DB from history; diff against schema shrinks by exactly those 21 | very low — additive | drop-index down-script documented |
 | C5 | `feat(db): additive link columns + their dependent indexes` | `prisma/migrations/2_add_link_columns/` | nullable `InboxTodo.workspaceTaskId` **+ `InboxTodo_workspaceId_workspaceTaskId_idx`**; nullable `QRCode.workspaceId` **+ `QRCode_workspaceId_module_recordId_idx`** (the 2 dependent indexes, completing 21+2=23); QR runtime write-path change (set workspaceId from context, refuse without) | history rebuild + targeted route tests | low — additive; QR route change behind tests | revert; columns nullable and unused until backfill |
-| C6 | `feat(db): create portal tables` **(owner gate: ForteSnapshot inclusion, §15-D1)** | `prisma/migrations/3_create_portal_tables/` | CREATE ClientAsset → ClientRequest → ClientRequestAsset (+indexes, FKs); ForteSnapshot only if D1 approves | history rebuild; portal route tests with local DB | low — new empty tables | drop tables (empty) |
+| C6 | `feat(db): create portal + forte tables` | `prisma/migrations/3_create_portal_tables/` | CREATE ClientAsset → ClientRequest → ClientRequestAsset → ForteSnapshot (+indexes, FKs) — **no pending gate: ForteSnapshot was owner-approved in CORE-03C-2A (D1 resolved)** | history rebuild; portal route tests with local DB | low — new empty tables | drop tables (empty) |
 | C7 | `test(db): from-scratch harness + drift CI with explicit drift manifest` | `scripts/build-db-from-history.ts` (new), `prisma/migrations/drift-manifest.json` (new), CI job | harness builds an empty DB from `prisma/migrations`, then `migrate diff --from-config-datasource --to-schema --exit-code`. Temporary history↔schema gaps are governed by a **versioned, machine-readable drift manifest**: each entry names one difference (object type, object name, direction, reason) and carries an explicit expiry condition (`expiresWith: "C<N>" \| "AUDIT_DECISION:<id>" \| "NEON_CUTOVER"`). CI fails on (a) any difference not named in the manifest, and (b) any manifest entry whose expiry condition has been met but whose entry — or difference — still exists. When the manifest is empty, the check is strict equality. No implicit or prose-only allowlist exists | the harness IS the check; manifest schema-validated in CI | none | remove job |
 
 **Stage 3 — evidence and decisions (missions, not commits)**
@@ -496,11 +503,8 @@ Deliberately **excluded** from CORE-03C-2: any write to Turso (including `_prism
 
 Each with consequences and a recommendation; none is executed until decided.
 
-- **D1 — ForteSnapshot placement.** *Question:* does Forte's per-workspace analysis memory belong in the main Sevenef DB? Only two outcomes are consistent — a model kept in the canonical schema but excluded from the migration histories is not one of them (code, model and history must never disagree):
-  - **Approve as CANONICAL_ADD:** the table is created in C6, and code, model and history stay aligned; the runtime's persist/load stops failing.
-  - **Defer:** first retire or adapt the runtime (make `snapshot-store.ts` target another store, or remove the persistence call sites), **then** remove the model from the canonical schema — in that order, so the schema never declares a table the histories refuse to create.
-  *Recommendation:* approve as CANONICAL_ADD (it is real Sevenef runtime code, workspace-scoped, tested), but the classification stays OWNER_DECISION_REQUIRED per your instruction until you rule. Not implemented either way.
-- **D2 — Physical drop of ClientProject / ClientInvoice / ClientFile tables.** Model removal (C2) is evidence-backed; dropping the deployed tables destroys whatever rows they hold. *Recommendation:* keep tables until the §12 row counts are known; drop in a later mission if counts are 0 or data is confirmed obsolete.
+- **D1 — ForteSnapshot placement. ✅ RESOLVED (CORE-03C-2A): the owner approved `CANONICAL_ADD`.** Rationale recorded in §6.C: internal memory of Sevenef's Forte agent, workspace-keyed, part of the 7F runtime, with no representation of or connection to the separate Mr. Forte Lab database and no Mission Control involvement. Code, model and history stay aligned: the table is created in C6 (CORE-03C-2B) alongside the portal trio. Not yet created — the decision is recorded here; C6 implements it.
+- **D2 — Retirement of ClientProject / ClientInvoice / ClientFile.** C2 removes **no** models — all three remain in `schema.prisma` as `LEGACY_RETAIN — RETIREMENT_CANDIDATE` (§5). The zero-productive-reference evidence supports eventual retirement, but dropping the deployed tables destroys whatever rows they hold. *Recommendation:* keep models and tables until the §12/M1 row counts are known; retire (model + Neon exclusion + eventual drop) in a later mission only if counts are 0 or the data is confirmed obsolete, with owner approval.
 - **D3 — FK completion on Turso.** Full 37-FK completion on SQLite = heavy rebuilds. *Recommendation:* complete FKs only in the Neon history; optionally an audited Inbox-table subset on Turso after §12-B.
 - **D4 — `User.googleId` retirement.** Unused by runtime; declared for safety. *Recommendation:* confirm no external consumer, then schedule a drop mission; zero urgency.
 - **D5 — `Factura.items` / `Documento.url` NULL repair values.** Backfill `'[]'` / quarantine broken documents need product sign-off (§7). *Recommendation:* as stated in §7 after §12-A counts.
@@ -515,4 +519,4 @@ Adopt the four-layer source-of-truth architecture (§4) with the single hand-mai
 
 Nothing in this mission changed the schema, the configuration, any migration state, or any data. The single change is this document.
 
-**READY FOR OWNER DECISION** — specifically §15 D1–D7; Stages 1–2 (C1–C7) and Stage 4 (C8) of §13 are recommended for approval as-is, since every input they need is already evidence-backed; Stage 3 (M1/M2) and Stage 5 (C9 behind its VERIFIED REPLACEMENT OR NEON CUTOVER gate, C10) run strictly in order afterward. Standing guarantees reaffirmed: zero writes to Turso, zero creation of `_prisma_migrations`, zero applied migrations, zero changes to code, schema or configuration in this mission.
+**Status after CORE-03C-2A:** D1 is resolved (ForteSnapshot = CANONICAL_ADD, owner-approved) and Stage 1 (C1–C3) is implemented locally and verified — see §13's implementation-status block. Open owner decisions: **D2–D7**. Next: **CORE-03C-2B** (C4 — the 21 immediately applicable indexes; C5 — the 2 link columns + their 2 dependent indexes; C6 — the four CANONICAL_ADD tables; C7 — the drift-manifest harness), then Stage 3 onward strictly in order. Standing guarantees, reaffirmed for CORE-03C-2A as well: **zero writes to Turso, zero creation of `_prisma_migrations` anywhere but throwaway local databases, zero migrations applied to any shared environment, zero changes to runtime code or configuration** (the only code-adjacent change is the declarative schema convergence of already-deployed objects).
