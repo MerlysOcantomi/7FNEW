@@ -78,6 +78,8 @@ model Workspace {
   presenceDomains     PresenceDomain[]
   presenceMedia       PresenceMedia[]
   presenceSubscription PresenceSubscription?
+
+  @@index([status])
 }
 
 model Cliente {
@@ -321,6 +323,13 @@ model User {
   /// canonical source of "which workspaces does this user belong to" is the
   /// `memberships` relation below.
   workspaceId     String?
+  /// @deprecated Legacy compatibility field already deployed in Turso (with
+  /// its unique index `User_googleId_key`, created by `push-turso.ts`).
+  /// Unused by the current runtime — Google OAuth resolves users by `email`
+  /// (`app/api/auth/callback/google`). Declared so generated migrations do
+  /// not try to drop the deployed column; retirement requires a separate
+  /// audited migration (CORE-03C decisions doc, §6.I / D4).
+  googleId        String?  @unique
   lastLogin       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -524,6 +533,7 @@ model Conversation {
 
   @@index([workspaceId, status])
   @@index([workspaceId, lastMessageAt])
+  @@index([workspaceId, category])
   @@index([contactId])
   @@index([clienteId])
   @@index([proyectoId])
