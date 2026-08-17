@@ -18,7 +18,7 @@ This record decides, with repository evidence:
 3. **Local experiments on Prisma 7.4.1 (§11)** proved: the CORE-03B baseline still reconstructs the deployed state exactly (48 tables / 61 indexes, integrity ok); `prisma migrate diff` can generate both the canonical SQLite DDL and the deployed→canonical drift script fully offline; the drift requires **28 full table rebuilds** — decisive evidence against any single-shot correction; and, critically, Prisma 7.4.1 does **not** refuse a cross-provider diff — it silently emits a drop-everything script (§11, E4b). Provider isolation must therefore be enforced by repository structure and CI, not by trust in the tool.
 4. **CORE-03C-2 is sequenced (§13)** into small, individually verifiable commits following a strict order: local/CI SQLite baseline → safe additive corrections (21 immediately applicable indexes, then the 2 link columns with their 2 dependent indexes) → the read-only aggregate data audit → final legacy model/data decisions → PostgreSQL/Neon history generation and testing → and **only after all of that**, any SQLite table rebuild or Turso ledger adoption. Rebuild-class work on SQLite is deliberately last: if Neon is approved as the destination, most of the 28 measured rebuilds never need to happen on Turso at all.
 
-Verdict: **READY FOR OWNER DECISION** (§15 lists the seven decisions that need the owner; §16 states the recommended default for each).
+Verdict: **READY FOR CORE-03C-2B**. D1 (ForteSnapshot) is resolved — owner-approved as CANONICAL_ADD in CORE-03C-2A. D2–D7 remain open, and none of them blocks the execution of CORE-03C-2B under the approved sequence (§13): the next stage's inputs are already evidence-backed.
 
 ---
 
@@ -501,7 +501,7 @@ Deliberately **excluded** from CORE-03C-2: any write to Turso (including `_prism
 
 ## 15. Open owner decisions
 
-Each with consequences and a recommendation; none is executed until decided.
+D1 was resolved in CORE-03C-2A (owner-approved). D2–D7 remain open, each stated below with consequences and a recommendation; no action that depends on D2–D7 has been executed.
 
 - **D1 — ForteSnapshot placement. ✅ RESOLVED (CORE-03C-2A): the owner approved `CANONICAL_ADD`.** Rationale recorded in §6.C: internal memory of Sevenef's Forte agent, workspace-keyed, part of the 7F runtime, with no representation of or connection to the separate Mr. Forte Lab database and no Mission Control involvement. Code, model and history stay aligned: the table is created in C6 (CORE-03C-2B) alongside the portal trio. Not yet created — the decision is recorded here; C6 implements it.
 - **D2 — Retirement of ClientProject / ClientInvoice / ClientFile.** C2 removes **no** models — all three remain in `schema.prisma` as `LEGACY_RETAIN — RETIREMENT_CANDIDATE` (§5). The zero-productive-reference evidence supports eventual retirement, but dropping the deployed tables destroys whatever rows they hold. *Recommendation:* keep models and tables until the §12/M1 row counts are known; retire (model + Neon exclusion + eventual drop) in a later mission only if counts are 0 or the data is confirmed obsolete, with owner approval.
@@ -517,6 +517,6 @@ Each with consequences and a recommendation; none is executed until decided.
 
 Adopt the four-layer source-of-truth architecture (§4) with the single hand-maintained canonical schema and generated, CI-verified provider variants; classify the 52 models as decided in §5; execute CORE-03C-2 exactly as sequenced in §13, whose only production-affecting steps are deferred behind the §12 aggregate audit, the disposable-Turso rehearsal, and the §15 owner decisions.
 
-Nothing in this mission changed the schema, the configuration, any migration state, or any data. The single change is this document.
+CORE-03C-2A implemented Stage 1: it removed the stale `migration.sql` transcript, declared three already-deployed objects in `prisma/schema.prisma` (`User.googleId` and the two Turso-only indexes), added the local SQLite migration baseline (`prisma/migrations/0_baseline`, verified locally against the CORE-03B capture), and updated this document. It changed no runtime code, no configuration and no data, and it applied no migration to Turso or to any shared or remote environment.
 
 **Status after CORE-03C-2A:** D1 is resolved (ForteSnapshot = CANONICAL_ADD, owner-approved) and Stage 1 (C1–C3) is implemented locally and verified — see §13's implementation-status block. Open owner decisions: **D2–D7**. Next: **CORE-03C-2B** (C4 — the 21 immediately applicable indexes; C5 — the 2 link columns + their 2 dependent indexes; C6 — the four CANONICAL_ADD tables; C7 — the drift-manifest harness), then Stage 3 onward strictly in order. Standing guarantees, reaffirmed for CORE-03C-2A as well: **zero writes to Turso, zero creation of `_prisma_migrations` anywhere but throwaway local databases, zero migrations applied to any shared environment, zero changes to runtime code or configuration** (the only code-adjacent change is the declarative schema convergence of already-deployed objects).
