@@ -1,0 +1,575 @@
+{
+  "$comment": "Explicit machine-readable allowlist of the KNOWN residual drift between the SQLite migration history and prisma/schema.prisma (CORE-03C-2B, C7). Validated and enforced by scripts/build-db-from-history.ts: any difference not listed here, and any entry no longer matching real drift, fails CI. Every entry is drift already approved and documented in the CORE-03C decision record; no credentials, URLs or environment-derived values.",
+  "entries": [
+    {
+      "id": "column-default:ClientAuth.updatedAt",
+      "kind": "column-default",
+      "table": "ClientAuth",
+      "identifier": "updatedAt",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Cliente.tipo",
+      "kind": "column-default",
+      "table": "Cliente",
+      "identifier": "tipo",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Documento.tipo",
+      "kind": "column-default",
+      "table": "Documento",
+      "identifier": "tipo",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Factura.fechaEmision",
+      "kind": "column-default",
+      "table": "Factura",
+      "identifier": "fechaEmision",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Factura.subtotal",
+      "kind": "column-default",
+      "table": "Factura",
+      "identifier": "subtotal",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Factura.total",
+      "kind": "column-default",
+      "table": "Factura",
+      "identifier": "total",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Transaccion.fecha",
+      "kind": "column-default",
+      "table": "Transaccion",
+      "identifier": "fecha",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Vertical.updatedAt",
+      "kind": "column-default",
+      "table": "Vertical",
+      "identifier": "updatedAt",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-default:Workspace.updatedAt",
+      "kind": "column-default",
+      "table": "Workspace",
+      "identifier": "updatedAt",
+      "direction": "differs",
+      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column-nullability:Cliente.tipo",
+      "kind": "column-nullability",
+      "table": "Cliente",
+      "identifier": "tipo",
+      "direction": "differs",
+      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Documento.url",
+      "kind": "column-nullability",
+      "table": "Documento",
+      "identifier": "url",
+      "direction": "differs",
+      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Factura.fechaEmision",
+      "kind": "column-nullability",
+      "table": "Factura",
+      "identifier": "fechaEmision",
+      "direction": "differs",
+      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Factura.items",
+      "kind": "column-nullability",
+      "table": "Factura",
+      "identifier": "items",
+      "direction": "differs",
+      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Notification.message",
+      "kind": "column-nullability",
+      "table": "Notification",
+      "identifier": "message",
+      "direction": "differs",
+      "reason": "Deployed column is NOT NULL while the canonical model declares it nullable (active write-failure path). Relaxing requires a SQLite table rebuild, gated to Stage 5 after the M1 audit.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Transaccion.categoria",
+      "kind": "column-nullability",
+      "table": "Transaccion",
+      "identifier": "categoria",
+      "direction": "differs",
+      "reason": "Deployed column is NOT NULL while the canonical model declares it nullable (active write-failure path). Relaxing requires a SQLite table rebuild, gated to Stage 5 after the M1 audit.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "column-nullability:Transaccion.descripcion",
+      "kind": "column-nullability",
+      "table": "Transaccion",
+      "identifier": "descripcion",
+      "direction": "differs",
+      "reason": "Deployed column is NOT NULL while the canonical model declares it nullable (active write-failure path). Relaxing requires a SQLite table rebuild, gated to Stage 5 after the M1 audit.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
+      "expiresWith": "AUDIT_DECISION:M2"
+    },
+    {
+      "id": "foreign-key:Activity:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Activity",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:AIClassification:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "AIClassification",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:AIClassification:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "AIClassification",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Attachment:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Attachment",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Automatizacion:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Automatizacion",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Campaign:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Campaign",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Cliente:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Cliente",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Contact:Cliente(clienteId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Contact",
+      "identifier": "Cliente(clienteId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Contact:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "Contact",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ContentIdea:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "ContentIdea",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ContentPiece:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "ContentPiece",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Conversation:ChannelConnection(connectionId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Conversation",
+      "identifier": "ChannelConnection(connectionId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Conversation:Cliente(clienteId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Conversation",
+      "identifier": "Cliente(clienteId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Conversation:Contact(contactId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "Conversation",
+      "identifier": "Contact(contactId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Conversation:Proyecto(proyectoId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Conversation",
+      "identifier": "Proyecto(proyectoId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Conversation:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "Conversation",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationAction:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationAction",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationAction:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationAction",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationDraft:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationDraft",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationDraft:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationDraft",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationHandoff:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationHandoff",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationHandoff:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationHandoff",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationRead:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationRead",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Deployed FK exists but with ON UPDATE NO ACTION instead of the declared CASCADE (see the paired history-has-extra entry); aligning the action requires a SQLite table rebuild, deferred to the gated endgame.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationRead:Conversation(conversationId->id)[update:NO ACTION,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationRead",
+      "identifier": "Conversation(conversationId->id)[update:NO ACTION,delete:CASCADE]",
+      "direction": "history-has-extra",
+      "reason": "Deployed variant of a declared FK carrying ON UPDATE NO ACTION; pairs with the history-lacks entry for the same relation. Rebuild-class alignment, deferred.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationRead:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationRead",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Deployed FK exists but with ON UPDATE NO ACTION instead of the declared CASCADE (see the paired history-has-extra entry); aligning the action requires a SQLite table rebuild, deferred to the gated endgame.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:ConversationRead:Workspace(workspaceId->id)[update:NO ACTION,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "ConversationRead",
+      "identifier": "Workspace(workspaceId->id)[update:NO ACTION,delete:CASCADE]",
+      "direction": "history-has-extra",
+      "reason": "Deployed variant of a declared FK carrying ON UPDATE NO ACTION; pairs with the history-lacks entry for the same relation. Rebuild-class alignment, deferred.",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #9; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Documento:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Documento",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Evento:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Evento",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Factura:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Factura",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:InboxEntry:Contact(contactId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "InboxEntry",
+      "identifier": "Contact(contactId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:InboxEntry:Conversation(conversationId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "InboxEntry",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:InboxEntry:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "InboxEntry",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Message:ChannelConnection(connectionId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Message",
+      "identifier": "ChannelConnection(connectionId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Message:Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "Message",
+      "identifier": "Conversation(conversationId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Message:Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "kind": "foreign-key",
+      "table": "Message",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:CASCADE]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Nota:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Nota",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Notification:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Notification",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Proyecto:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Proyecto",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Tarea:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Tarea",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:Transaccion:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "Transaccion",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "foreign-key:User:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "kind": "foreign-key",
+      "table": "User",
+      "identifier": "Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
+      "direction": "history-lacks",
+      "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
+      "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    }
+  ]
+}

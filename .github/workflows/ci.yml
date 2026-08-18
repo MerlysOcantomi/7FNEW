@@ -62,5 +62,17 @@ jobs:
       - name: Test
         run: npm test
 
+      # CORE-03C-2B: builds a throwaway LOCAL SQLite database from
+      # prisma/migrations and fails on any structural drift against
+      # prisma/schema.prisma that is not explicitly declared in
+      # prisma/migrations/drift-manifest.json (unknown drift, stale or
+      # malformed manifest entries, missing/unexpected migrations all fail).
+      # Local file: databases only — no credentials, no network, no writes
+      # outside the runner's temp directory.
+      - name: Verify migration history
+        run: npm run db:verify-history
+        env:
+          DOTENV_CONFIG_PATH: /dev/null
+
       - name: Build
         run: npm run build
