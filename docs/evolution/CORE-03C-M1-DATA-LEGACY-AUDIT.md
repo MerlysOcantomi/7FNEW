@@ -164,6 +164,8 @@ D2 (needs counts + owner), D5 (needs content states + owner), D3 (needs orphan c
 
 **Status after 2026-08-19:** the *evidence* inputs above are satisfied; what remains blocked is exclusively **OWNER DECISION REQUIRED** territory: D2 sign-off per model; D5 confirmation of the tightenings; D3 repair rule for the 3 dirty relations (re-parent / null out / delete) and the NULL-workspace rows in 8 tables; treatment of the 3 unlinked InboxTodo rows (`NO_MATCH`); D6 adoption timing (needs the disposable-Turso rehearsal, unchanged). No recommendation in this document has been converted into a decision.
 
+**Status after 2026-08-20:** those owner decisions were closed in **CORE-03C-M2** — see `CORE-03C-M2-FINAL-DATA-LEGACY-DECISIONS.md` (decision matrix, per-model repair plans, pre-migration gates, D6 rehearsal spec). D6 execution itself remains gated on the rehearsal.
+
 ## 19. Recommended M2 inputs
 
 1. The production run of `npm run db:audit-m1` (owner-authorized, read-only), committed as `CORE-03C-M1-PRODUCTION-COUNTS` evidence. *(Done 2026-08-19 — the evidence lives in §21 of this document.)*
