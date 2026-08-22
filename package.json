@@ -16,6 +16,7 @@
     "db:adopt-core03c": "tsx scripts/apply-core-03c-production-adoption.ts",
     "db:repair-d3": "tsx scripts/apply-core-03c-d3-deterministic-repairs.ts",
     "db:tighten-d5": "tsx scripts/apply-core-03c-d5-tightenings.ts",
+    "db:retire-d2": "tsx scripts/apply-core-03c-d2-legacy-portal-retirement.ts",
     "test:db": "tsx --test core/db.test.ts",
     "test:isolation": "tsx --test modules/usuarios/scope.test.ts core/auth/workspace-governance.test.ts",
     "test:forte-runtime": "tsx --test agents/forte/runtime/runtime.test.ts",

@@ -50,13 +50,15 @@ function makeInsert(db: DatabaseSync, table: string, values: Record<string, unkn
 before(() => {
   symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"))
   // This fixture audits a LEGACY-shaped database: it seeds the dirty rows
-  // (NULL items, empty urls, …) that the M1 audit exists to detect. The D5
-  // tightenings (4_d5_schema_tightenings) forbid creating such rows, so the
-  // scenario is built from the history UP TO migration 3 — the exact
-  // pre-tightening shape those legacy databases had.
+  // (NULL items, empty urls, D2 rows, …) that the M1 audit exists to detect.
+  // The D5 tightenings (4_d5_schema_tightenings) forbid creating such rows
+  // and the D2 retirement (5_d2_retire_legacy_portal_tables) drops the
+  // legacy tables the scenario seeds, so the scenario is built from the
+  // history UP TO migration 3 — the exact shape those legacy databases had.
   const migrationsCopy = join(dir, "migrations")
   cpSync(join(REPO, "prisma", "migrations"), migrationsCopy, { recursive: true })
   rmSync(join(migrationsCopy, "4_d5_schema_tightenings"), { recursive: true, force: true })
+  rmSync(join(migrationsCopy, "5_d2_retire_legacy_portal_tables"), { recursive: true, force: true })
   const configPath = join(dir, "prisma.config.ts")
   writeFileSync(
     configPath,

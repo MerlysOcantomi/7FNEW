@@ -54,9 +54,10 @@ export const EXPECTED_MIGRATIONS = [
   "2_add_link_columns",
   "3_create_portal_tables",
   "4_d5_schema_tightenings",
+  "5_d2_retire_legacy_portal_tables",
 ] as const
 
-export const EXPECTED_TABLES = 52
+export const EXPECTED_TABLES = 49
 export const EXPECTED_INDEXES = 93
 
 const EXPIRY_PATTERN = /^(C[0-9]+|AUDIT_DECISION:[A-Za-z0-9_.-]+|NEON_CUTOVER)$/

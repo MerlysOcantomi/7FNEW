@@ -107,9 +107,6 @@ model Cliente {
   eventos            Evento[]
   notasProfesionales Nota[]
   clientAuth         ClientAuth?
-  clientProjects     ClientProject[]
-  clientInvoices     ClientInvoice[]
-  clientFiles        ClientFile[]
   clientAssets       ClientAsset[]
   clientRequests     ClientRequest[]
   campaigns          Campaign[]
@@ -890,42 +887,6 @@ model ClientAuth {
   lastLogin    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-}
-
-model ClientProject {
-  id          String   @id @default(cuid())
-  clienteId   String
-  titulo      String
-  descripcion String?
-  estado      String   @default("activo")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-}
-
-model ClientInvoice {
-  id         String   @id @default(cuid())
-  clienteId  String
-  monto      Float
-  estado     String   @default("pendiente")
-  qrCodeUrl  String?
-  paymentUrl String?
-  createdAt  DateTime @default(now())
-
-  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-}
-
-model ClientFile {
-  id        String   @id @default(cuid())
-  clienteId String
-  nombre    String
-  url       String
-  mimeType  String
-  tamano    Int
-  createdAt DateTime @default(now())
 
   cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }

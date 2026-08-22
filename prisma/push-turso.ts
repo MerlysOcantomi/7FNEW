@@ -397,36 +397,6 @@ const tables = [
     "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  `CREATE TABLE IF NOT EXISTS "ClientProject" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ClientProject_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientInvoice" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "monto" REAL NOT NULL,
-    "estado" TEXT NOT NULL DEFAULT 'pendiente',
-    "qrCodeUrl" TEXT,
-    "paymentUrl" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ClientInvoice_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "ClientFile" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "clienteId" TEXT NOT NULL,
-    "nombre" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "mimeType" TEXT NOT NULL,
-    "tamano" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ClientFile_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
   `CREATE TABLE IF NOT EXISTS "Campaign" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "nombre" TEXT NOT NULL,
