@@ -219,3 +219,5 @@ No migration applied to Turso; no backfill; no row repaired, deleted or archived
 **CORE-03C-D6-REHEARSAL** — execute §10 on a disposable Turso/libSQL instance (unblocks the production HIGH and the QR/InboxTodo link columns). After a green rehearsal: the production adoption window (gates §8), then the repair missions (§5–§7) and the D2/D5 executions in their gated stages.
 
 > **Status (2026-08-20): executed — PASS 8/8.** See `CORE-03C-D6-MIGRATION-REHEARSAL.md`. The production window remains a separate, owner-authorized mission.
+
+> **Status (2026-08-22): production adoption executed — COMPLETE.** The §8 gates ran fresh in-window (all green, zero delta) and migrations 1–3 were adopted in production (52/93, Option A no-ledger). See `CORE-03C-D6-PRODUCTION-ADOPTION.md`. The repair missions (§5–§7) and the D2/D5 executions remain owner-gated and were NOT executed.

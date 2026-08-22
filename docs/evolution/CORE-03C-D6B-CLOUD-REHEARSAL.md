@@ -172,3 +172,5 @@ Repository: this document; `scripts/rehearse-core-03c-d6b.ts`; `scripts/rehearse
 ### 8.13 Exit — PASS, and what it does NOT mean
 
 All mission gates (§A–§P) demonstrated above. **PASS makes this record evidence for owner review of CORE-03C-D6-PRODUCTION-ADOPTION. It does not authorize, schedule or start any production write.** The production window remains a separate mission requiring: owner authorization, in-window M2 §8 gate re-run, in-window snapshot + verified restore path, an explicitly authorized production-target applier variant with its own guard, and the post-adoption InboxTodo smoke test.
+
+> **Status (2026-08-22): the production adoption mission executed — COMPLETE.** Owner-authorized with the exact gate phrase; migrations 1–3 adopted in production (52/93, Option A no-ledger, rows intact). See `CORE-03C-D6-PRODUCTION-ADOPTION.md`. This rehearsal branch was not touched and its deletion remains an owner decision.
