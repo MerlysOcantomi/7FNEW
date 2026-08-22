@@ -221,3 +221,5 @@ No migration applied to Turso; no backfill; no row repaired, deleted or archived
 > **Status (2026-08-20): executed — PASS 8/8.** See `CORE-03C-D6-MIGRATION-REHEARSAL.md`. The production window remains a separate, owner-authorized mission.
 
 > **Status (2026-08-22): production adoption executed — COMPLETE.** The §8 gates ran fresh in-window (all green, zero delta) and migrations 1–3 were adopted in production (52/93, Option A no-ledger). See `CORE-03C-D6-PRODUCTION-ADOPTION.md`. The repair missions (§5–§7) and the D2/D5 executions remain owner-gated and were NOT executed.
+
+> **Status (2026-08-22, later): D3 deterministic repairs executed — COMPLETE.** 38 UPDATEs, 0 DELETEs: Activity orphan-ref SetNull (4) + derivation (4), Conversation/Message connection SetNull (5 + 25) — all fkOrphans now 0. The §5 NULL-workspace populations produced **zero** deterministic candidates (a self-contained pre-tenancy cluster with no non-NULL witness): 28 ORPHANED rows + 21 deferred Activities remain owner decisions. See `CORE-03C-D3-DETERMINISTIC-REPAIRS.md`. D2/D5 remain NOT executed.
