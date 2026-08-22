@@ -12,30 +12,10 @@
       "expiresWith": "NEON_CUTOVER"
     },
     {
-      "id": "column-default:Cliente.tipo",
-      "kind": "column-default",
-      "table": "Cliente",
-      "identifier": "tipo",
-      "direction": "differs",
-      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
-      "expiresWith": "NEON_CUTOVER"
-    },
-    {
       "id": "column-default:Documento.tipo",
       "kind": "column-default",
       "table": "Documento",
       "identifier": "tipo",
-      "direction": "differs",
-      "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
-      "expiresWith": "NEON_CUTOVER"
-    },
-    {
-      "id": "column-default:Factura.fechaEmision",
-      "kind": "column-default",
-      "table": "Factura",
-      "identifier": "fechaEmision",
       "direction": "differs",
       "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
       "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
@@ -90,46 +70,6 @@
       "reason": "Deployed default differs from the canonical declaration (CORE-03B compatible/informational difference). Harmless at runtime: callers supply the value or Prisma manages the column client-side (@updatedAt).",
       "source": "CORE-03B-SCHEMA-AUDIT.md #9-#11 (default-value differences; ClientAuth/Vertical/Workspace hand-written DDL)",
       "expiresWith": "NEON_CUTOVER"
-    },
-    {
-      "id": "column-nullability:Cliente.tipo",
-      "kind": "column-nullability",
-      "table": "Cliente",
-      "identifier": "tipo",
-      "direction": "differs",
-      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
-      "expiresWith": "AUDIT_DECISION:M2"
-    },
-    {
-      "id": "column-nullability:Documento.url",
-      "kind": "column-nullability",
-      "table": "Documento",
-      "identifier": "url",
-      "direction": "differs",
-      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
-      "expiresWith": "AUDIT_DECISION:M2"
-    },
-    {
-      "id": "column-nullability:Factura.fechaEmision",
-      "kind": "column-nullability",
-      "table": "Factura",
-      "identifier": "fechaEmision",
-      "direction": "differs",
-      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
-      "expiresWith": "AUDIT_DECISION:M2"
-    },
-    {
-      "id": "column-nullability:Factura.items",
-      "kind": "column-nullability",
-      "table": "Factura",
-      "identifier": "items",
-      "direction": "differs",
-      "reason": "Canonical model declares NOT NULL while the deployed column is nullable; tightening is blocked behind the M1 NULL-count audit and an approved backfill.",
-      "source": "CORE-03B-SCHEMA-AUDIT.md #11; CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #7",
-      "expiresWith": "AUDIT_DECISION:M2"
     },
     {
       "id": "column-nullability:Notification.message",

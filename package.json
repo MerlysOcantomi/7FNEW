@@ -15,6 +15,7 @@
     "db:rehearse-d6b": "tsx scripts/rehearse-core-03c-d6b.ts",
     "db:adopt-core03c": "tsx scripts/apply-core-03c-production-adoption.ts",
     "db:repair-d3": "tsx scripts/apply-core-03c-d3-deterministic-repairs.ts",
+    "db:tighten-d5": "tsx scripts/apply-core-03c-d5-tightenings.ts",
     "test:db": "tsx --test core/db.test.ts",
     "test:isolation": "tsx --test modules/usuarios/scope.test.ts core/auth/workspace-governance.test.ts",
     "test:forte-runtime": "tsx --test agents/forte/runtime/runtime.test.ts",

@@ -119,5 +119,5 @@ test("an unexpected extra migration fails the run", async () => {
 })
 
 test("the expected migration list is the four-entry CORE-03C-2B history", () => {
-  assert.deepEqual([...EXPECTED_MIGRATIONS], ["0_baseline", "1_add_missing_indexes", "2_add_link_columns", "3_create_portal_tables"])
+  assert.deepEqual([...EXPECTED_MIGRATIONS], ["0_baseline", "1_add_missing_indexes", "2_add_link_columns", "3_create_portal_tables", "4_d5_schema_tightenings"])
 })

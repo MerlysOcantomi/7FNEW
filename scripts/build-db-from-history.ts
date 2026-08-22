@@ -53,6 +53,7 @@ export const EXPECTED_MIGRATIONS = [
   "1_add_missing_indexes",
   "2_add_link_columns",
   "3_create_portal_tables",
+  "4_d5_schema_tightenings",
 ] as const
 
 export const EXPECTED_TABLES = 52

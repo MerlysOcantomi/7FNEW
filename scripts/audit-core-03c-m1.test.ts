@@ -20,7 +20,7 @@
 import assert from "node:assert/strict"
 import test, { before, after } from "node:test"
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync, readFileSync } from "node:fs"
+import { cpSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -49,6 +49,14 @@ function makeInsert(db: DatabaseSync, table: string, values: Record<string, unkn
 
 before(() => {
   symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"))
+  // This fixture audits a LEGACY-shaped database: it seeds the dirty rows
+  // (NULL items, empty urls, …) that the M1 audit exists to detect. The D5
+  // tightenings (4_d5_schema_tightenings) forbid creating such rows, so the
+  // scenario is built from the history UP TO migration 3 — the exact
+  // pre-tightening shape those legacy databases had.
+  const migrationsCopy = join(dir, "migrations")
+  cpSync(join(REPO, "prisma", "migrations"), migrationsCopy, { recursive: true })
+  rmSync(join(migrationsCopy, "4_d5_schema_tightenings"), { recursive: true, force: true })
   const configPath = join(dir, "prisma.config.ts")
   writeFileSync(
     configPath,
@@ -56,7 +64,7 @@ before(() => {
       'import { defineConfig } from "prisma/config"',
       "export default defineConfig({",
       `  schema: ${JSON.stringify(join(REPO, "prisma", "schema.prisma"))},`,
-      `  migrations: { path: ${JSON.stringify(join(REPO, "prisma", "migrations"))} },`,
+      `  migrations: { path: ${JSON.stringify(migrationsCopy)} },`,
       `  datasource: { url: ${JSON.stringify(`file:${dbPath}`)} },`,
       "})",
       "",
