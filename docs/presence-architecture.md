@@ -206,9 +206,12 @@ asserts `workspaceId` ownership; public resolution serves only VERIFIED custom
 domains. Not wired to any UI.
 
 **Migration & Turso:** additive SQL in
-`prisma/sql/2026-07-21-presence-persistence-additive.sql`, mirrored into the
-`tables`/`uniqueIndexes` arrays of `prisma/push-turso.ts` (the canonical deploy
-runner; remote `libsql://` only). Verified locally against SQLite (same engine
+`prisma/sql/2026-07-21-presence-persistence-additive.sql`, mirrored at the time
+into the `tables`/`uniqueIndexes` arrays of `prisma/push-turso.ts` (then the
+canonical deploy runner; retired post-Evolution — the migration history `0`–`5`
+under `prisma/migrations/` plus the Prisma migration workflow are the current
+source of truth, see `docs/evolution/EVOLUTION-CLOSED.md`). Verified locally
+against SQLite (same engine
 as Turso): all tables/columns/indexes/FKs present, `foreign_key_check` clean,
 `PRAGMA integrity_check = ok`, statements idempotent on re-apply. The remote
 Turso push runs in the deploy environment (real credentials required).
