@@ -20,6 +20,8 @@ This record decides, with repository evidence:
 
 Verdict: **READY FOR CORE-03C-2B**. D1 (ForteSnapshot) is resolved — owner-approved as CANONICAL_ADD in CORE-03C-2A. D2–D7 remain open, and none of them blocks the execution of CORE-03C-2B under the approved sequence (§13): the next stage's inputs are already evidence-backed.
 
+> **Status pointer (2026-08-22, appended by FINAL VALIDATION — everything above is HISTORICAL STATE as of its own dates):** the sequence this document planned has been executed. CURRENT STATE: production is **49 business tables / 93 explicit indexes**, migration history `0_baseline`…`5_d2_retire_legacy_portal_tables`, drift 51 = manifest 51 (41 FK `NEON_CUTOVER` + 3 §7 "relax" nullability Stage-5 + 7 column-default `NEON_CUTOVER`). D6 production adoption, D3 deterministic repairs, D5 tightenings (§7 "tighten" quartet) and D2 retirement (the three `RETIREMENT_CANDIDATE` models) are all COMPLETE — see `CORE-03C-D6-PRODUCTION-ADOPTION.md`, `CORE-03C-D3-DETERMINISTIC-REPAIRS.md`, `CORE-03C-D5-SCHEMA-TIGHTENINGS.md`, `CORE-03C-D2-LEGACY-PORTAL-RETIREMENT.md` and `FINAL-EVOLUTION-VALIDATION.md`. Still open by design: Stage-5 relaxations, FK enforcement, Neon/Layer-4, and the D3 legacy-cluster owner decisions.
+
 ---
 
 ## 2. Scope and database boundary
