@@ -143,6 +143,7 @@ the single Person — it must never gain a fourth representation.
 
 Target architecture for product enablement. **Not implemented — do not
 implement it as a side effect of another change (see §16).**
+Detailed design: [`7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md`](7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md) (ARCH-02).
 
 ```txt
 ENTITLEMENTS  →  what the Workspace has contracted/enabled
@@ -439,5 +440,7 @@ per-product AI stack, or a new permission side-channel.
 
 ## 18. Next
 
-Recommended next mission: **ARCH-02 — Entitlements / Capabilities / Tools
-design** (design only, building on §5).
+**ARCH-02 — Entitlements / Capabilities / Tools design: COMPLETE** →
+[`7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md`](7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md).
+Recommended next mission: **ARCH-03 — SevenF Intelligence / AI Gateway
+design** (building on §7 and ARCH-02 §10/§14).
