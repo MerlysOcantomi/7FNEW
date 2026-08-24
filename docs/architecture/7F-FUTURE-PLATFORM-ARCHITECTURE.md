@@ -218,6 +218,7 @@ layer**, not independent AI stacks. The existing shared pieces
 (`engines/ai` provider facade, `core/registry` agent/tool manifests, shared
 Business Profile context) are the seeds; the unified runtime is future work
 and is **not** to be implemented under ARCH-01.
+Detailed design: [`7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md`](7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md) (ARCH-03).
 
 ---
 
@@ -442,5 +443,7 @@ per-product AI stack, or a new permission side-channel.
 
 **ARCH-02 — Entitlements / Capabilities / Tools design: COMPLETE** →
 [`7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md`](7F-ENTITLEMENTS-CAPABILITIES-TOOLS.md).
-Recommended next mission: **ARCH-03 — SevenF Intelligence / AI Gateway
-design** (building on §7 and ARCH-02 §10/§14).
+**ARCH-03 — SevenF Intelligence / AI Gateway design: COMPLETE** →
+[`7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md`](7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md).
+Recommended next mission: **FOUND-01 — shared capability/tool vocabulary**
+(joint ARCH-02 Phase 1 + ARCH-03 tool catalog; see ARCH-03 §26).

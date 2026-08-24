@@ -676,4 +676,5 @@ read; billing last (it only *writes* what everything else already reads).
 
 *Next design mission recommended by ARCH-02: ARCH-03 — SevenF Intelligence /
 AI Gateway design (tool runtime, provider abstraction, usage capture), which
-consumes §10 and §14 of this document.*
+consumes §10 and §14 of this document.
+**COMPLETE** → [`7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md`](7F-SEVENF-INTELLIGENCE-AI-GATEWAY.md).*
