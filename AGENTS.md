@@ -1,5 +1,12 @@
 # 7F — Agent guidance
 
+## Future platform architecture (guardrail)
+
+Before designing changes that affect Core, product boundaries, client identity,
+AI/tools, entitlements, telemetry, usage or verticals, read
+**[docs/architecture/7F-FUTURE-PLATFORM-ARCHITECTURE.md](docs/architecture/7F-FUTURE-PLATFORM-ARCHITECTURE.md)**.
+New work must not contradict these guardrails without explicit owner decision.
+
 ## Ways of working (read first)
 
 The permanent operating contract for building 7F — workflow, product principles,

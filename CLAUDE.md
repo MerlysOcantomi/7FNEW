@@ -3,6 +3,16 @@
 > Read `AGENTS.md` and `docs/ways-of-working.md` for product/architecture rules.
 > This file records how the owner wants Claude Code to **deliver** changes.
 
+## Architecture guardrail (read before designing)
+
+Before designing changes that affect Core, product boundaries, standalone
+packaging, client/person identity, permissions, billing, AI/agents/tools,
+entitlements, telemetry, usage metering or verticals, read
+**`docs/architecture/7F-FUTURE-PLATFORM-ARCHITECTURE.md`**. New work must not
+contradict those guardrails without an explicit owner decision — if a design
+conflicts, flag it and propose a compatible alternative instead of
+implementing it silently.
+
 ## Delivery flow (owner preference — takes precedence)
 
 The owner ships **directly to `master` (production)**. No separate feature
