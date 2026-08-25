@@ -8,6 +8,7 @@ import {
   buildAssistantForteContext,
   executeBridgedLegacyTool,
 } from "./runtime/agent-adapter"
+import { isLegacyToolPermittedForRole } from "./legacy-tool-guardrail"
 
 export interface ToolResult {
   success: boolean
@@ -30,6 +31,17 @@ export async function executeToolCall(
   context: ToolExecutionContext
 ): Promise<ToolResult> {
   try {
+    // FOUND-03 fail-closed guardrail: gated legacy tools (writes, image
+    // generation) require the canonical role permission for the
+    // capabilities they exercise. Missing/unknown roles deny. Executed
+    // BEFORE any tool logic so a model-invented call gains no authority.
+    if (!isLegacyToolPermittedForRole(name, context.wsRole)) {
+      return {
+        success: false,
+        error: "No autorizado: tu rol en este workspace no permite esta herramienta",
+      }
+    }
+
     if (context.wsRole) {
       const forteContext = buildAssistantForteContext({
         tenantId: context.tenantId,

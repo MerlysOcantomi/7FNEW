@@ -6,6 +6,7 @@ import { evaluateFortePlan } from "./policy-guard"
 import type { ForteActionHandler, ForteContext, ForteSurface } from "./types"
 import type { ToolDefinition } from "../tools"
 import { getForteActionHandler, listForteActionHandlers } from "./handlers"
+import { isLegacyToolPermittedForRole } from "../legacy-tool-guardrail"
 
 interface LegacyToolBridge {
   legacyName: string
@@ -110,7 +111,14 @@ export async function getAgentToolsForForteContext(
     }))
 
   const bridgedNames = new Set(bridgedTools.map((tool) => tool.function.name))
-  const remainingLegacy = legacyTools.filter((tool) => !bridgedNames.has(tool.function.name))
+  // FOUND-03: non-bridged legacy tools are no longer appended unfiltered —
+  // discovery is narrowed by the same canonical role-permission guardrail
+  // the executor enforces (defense in depth; execution re-checks anyway).
+  const remainingLegacy = legacyTools.filter(
+    (tool) =>
+      !bridgedNames.has(tool.function.name) &&
+      isLegacyToolPermittedForRole(tool.function.name, context.wsRole),
+  )
 
   return [...bridgedTools, ...remainingLegacy]
 }

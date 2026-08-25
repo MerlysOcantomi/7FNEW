@@ -644,8 +644,14 @@ product edits the entitlement list, never the data (§7).
 > `canWorkspace`/`canUser`) — see
 > [`7F-FOUND-02A-ACCESS-RESOLVER.md`](7F-FOUND-02A-ACCESS-RESOLVER.md).
 > Owner decision recorded there: the permission atom IS `CapabilityKey`
-> (§11) — no parallel permission namespace. No enforcement, no entitlement
-> data model exist yet; Phases 3–7 remain unimplemented.
+> (§11) — no parallel permission namespace.
+> **Implementation note (FOUND-03, 2026-08-25):** the §2 resolution chain
+> now exists for tools as read-only decisions
+> (`core/platform/tool-authorization.ts`), plus a bounded canonical
+> guardrail on the legacy agent executor — see
+> [`7F-FOUND-03-TOOL-AUTHORIZATION.md`](7F-FOUND-03-TOOL-AUTHORIZATION.md).
+> No entitlement data model, no platform-wide enforcement; Phases 3–7
+> remain unimplemented.
 
 ```txt
 Phase 1  Canonical vocabulary       CapabilityDefinition / ProductDefinition /

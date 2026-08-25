@@ -67,3 +67,13 @@ export {
   type AccessDecisionReason,
   type MembershipEvidence,
 } from "./access"
+export {
+  TOOL_ACCESS_REASONS,
+  authorizeToolInvocation,
+  resolveAvailableTools,
+  type ToolAccessDecision,
+  type ToolAccessReason,
+  type ToolNarrowingContext,
+  type ToolResolutionContext,
+  type ToolResolutionResult,
+} from "./tool-authorization"

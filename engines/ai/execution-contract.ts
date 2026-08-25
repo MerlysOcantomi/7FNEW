@@ -16,6 +16,7 @@
 import type { ActivityKey } from "@core/platform/activities"
 import type { CapabilityKey } from "@core/platform/capabilities"
 import type { ProductKey } from "@core/platform/products"
+import type { ToolKey } from "@core/platform/tool-catalog"
 
 /** Providers the foundation knows today. Extend by appending. */
 export const AI_PROVIDERS = ["openai", "deepseek"] as const
@@ -35,9 +36,15 @@ export interface AIChatMessage {
 export interface AIExecutionAttribution {
   workspaceId?: string
   product?: ProductKey
+  /**
+   * A single explicit canonical capability, only when the execution context
+   * provides one. Never fabricate a "primary" capability for a tool that
+   * requires several — the tool-authorization layer (FOUND-03) retains the
+   * complete required-capability set; this field is not a substitute.
+   */
   capability?: CapabilityKey
-  /** Canonical tool key when the execution serves a platform tool. */
-  tool?: string
+  /** Canonical tool key when the execution serves a platform tool (FOUND-03). */
+  tool?: ToolKey
   experience?: string
 }
 

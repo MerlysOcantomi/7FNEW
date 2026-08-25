@@ -672,8 +672,16 @@ foundations proceed without ever becoming parallel stacks:
 > implemented in `engines/ai/` (`executeAI`, chat adapter, usage-preserving
 > result; `askMotorIA` is now a compat wrapper) — see
 > [`7F-FOUND-02B-AI-EXECUTION-FOUNDATION.md`](7F-FOUND-02B-AI-EXECUTION-FOUNDATION.md).
-> AI-04+ remain unimplemented: no tool runtime, no capability-gated
-> discovery, no usage persistence, no streaming, no provider fallback.
+> **Implementation note (FOUND-03, 2026-08-25):** the fail-closed tool
+> authorization layer of §7–§8 exists read-only
+> (`core/platform/tool-authorization.ts` — discovery vs execution split,
+> deny-wins reasons, narrowing-only context), and the legacy agent
+> executor/adapter now enforce a bounded canonical permission guardrail
+> closing the unfiltered-write bypass — see
+> [`7F-FOUND-03-TOOL-AUTHORIZATION.md`](7F-FOUND-03-TOOL-AUTHORIZATION.md).
+> AI-04+ remain unimplemented: no tool runtime/bindings, no live
+> `getAllowedTools` consumption, no usage persistence, no streaming, no
+> provider fallback; the agent route migration is AI-06.
 
 ```txt
 FOUND-01  Shared vocabulary (joint)     ARCH-02 Phase 1 capability/product
