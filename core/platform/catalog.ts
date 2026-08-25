@@ -158,6 +158,17 @@ export function validateToolDefinition(tool: PlatformToolDefinition): string[] {
       violations.push(`tool "${key}": unknown permission key "${permission}"`)
     }
   }
+  if (tool.requiresPermissions) {
+    // Stricter-only: an explicit permission list must still require every
+    // capability the tool needs — it may add requirements, never drop them.
+    for (const capability of tool.requiresCapabilities) {
+      if (!tool.requiresPermissions.includes(capability)) {
+        violations.push(
+          `tool "${key}": requiresPermissions must include required capability "${capability}" (stricter-only)`,
+        )
+      }
+    }
+  }
   if (!new Set<string>(TOOL_EFFECTS).has(tool.effect)) {
     violations.push(`tool "${key}": unknown effect "${tool.effect}"`)
   }

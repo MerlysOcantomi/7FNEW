@@ -18,6 +18,7 @@ import {
 import { PRODUCT_KEYS } from "./products"
 import { TOOL_CATALOG, TOOL_KEYS } from "./tool-catalog"
 import {
+  getToolRequiredPermissions,
   parseToolInput,
   parseToolOutput,
   type PlatformToolDefinition,
@@ -94,6 +95,27 @@ test("tools requiring ai.* capabilities declare an activity", () => {
       assert.ok(tool.activity, `AI tool without activity: ${key}`)
     }
   }
+})
+
+test("tool permissions default to required capabilities and are stricter-only", () => {
+  // Omitted permissions default to the tool's capabilities.
+  assert.deepEqual(
+    getToolRequiredPermissions(TOOL_CATALOG.search_client),
+    TOOL_CATALOG.search_client.requiresCapabilities,
+  )
+  // An explicit list that drops a required capability is a violation.
+  const widened = {
+    ...TOOL_CATALOG.summarize_conversation,
+    requiresPermissions: ["conversation.read"],
+  } as unknown as PlatformToolDefinition
+  const violations = validateToolDefinition(widened)
+  assert.ok(violations.some((violation) => violation.includes("stricter-only")))
+  // An explicit list that adds a requirement is valid (stricter).
+  const stricter = {
+    ...TOOL_CATALOG.summarize_conversation,
+    requiresPermissions: ["conversation.read", "ai.summarize", "person.read"],
+  } as unknown as PlatformToolDefinition
+  assert.deepEqual(validateToolDefinition(stricter), [])
 })
 
 test("no catalog tool is bound to a handler in FOUND-01", () => {

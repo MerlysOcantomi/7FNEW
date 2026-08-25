@@ -68,10 +68,17 @@ export interface PlatformToolDefinition {
   readonly requiresCapabilities: readonly CapabilityKey[]
   /**
    * User-level requirement, STRICTER-ONLY. Omitted = defaults to
-   * `requiresCapabilities` (ARCH-02 §11: the role's permission set must
-   * include the capability). No separate permission catalog exists yet;
-   * introducing one is an owner decision for FOUND-02a+ — until then these
-   * are capability keys.
+   * `requiresCapabilities`. INTENTIONAL ARCHITECTURE (owner decision,
+   * ARCH-02 §11): the permission atom IS the canonical `CapabilityKey` —
+   * there is no parallel permission namespace. The same key passes two
+   * independent gates: the WORKSPACE must have the capability
+   * (entitlements) AND the user's role permission set must include it.
+   * Sharing keys never merges the gates: they are separate resolved sets
+   * with separate denial reasons (see `access.ts`). When listed explicitly,
+   * this array must contain every required capability and may only ADD
+   * requirements (validated) — it can never widen access. A finer
+   * permission namespace would require a future explicit owner decision
+   * backed by product evidence.
    */
   readonly requiresPermissions?: readonly CapabilityKey[]
   readonly effect: ToolEffect
@@ -112,6 +119,17 @@ export type ToolHandlerFor<TDef extends PlatformToolDefinition> = (
   input: ToolInputOf<TDef>,
   context: ToolExecutionContext,
 ) => Promise<ToolOutputOf<TDef>>
+
+/**
+ * The user-permission requirement of a tool: explicit `requiresPermissions`
+ * when declared, otherwise its `requiresCapabilities` (the default). Always
+ * capability keys; always at least as strict as the capability requirement.
+ */
+export function getToolRequiredPermissions(
+  definition: PlatformToolDefinition,
+): readonly CapabilityKey[] {
+  return definition.requiresPermissions ?? definition.requiresCapabilities
+}
 
 export type ToolParseResult<T> =
   | { readonly ok: true; readonly value: T }

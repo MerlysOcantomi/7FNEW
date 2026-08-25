@@ -639,8 +639,13 @@ product edits the entitlement list, never the data (§7).
 > **Implementation note (FOUND-01, 2026-08-25):** Phase 1's canonical
 > vocabulary is implemented in `core/platform/` — see
 > [`7F-FOUND-01-SHARED-VOCABULARY.md`](7F-FOUND-01-SHARED-VOCABULARY.md).
-> Vocabulary and types only: no resolver, no entitlement data model, no
-> enforcement exist yet; Phases 2–7 remain unimplemented.
+> **Implementation note (FOUND-02a, 2026-08-25):** Phase 2's read-only
+> resolver is implemented (role policy, workspace capability snapshot,
+> `canWorkspace`/`canUser`) — see
+> [`7F-FOUND-02A-ACCESS-RESOLVER.md`](7F-FOUND-02A-ACCESS-RESOLVER.md).
+> Owner decision recorded there: the permission atom IS `CapabilityKey`
+> (§11) — no parallel permission namespace. No enforcement, no entitlement
+> data model exist yet; Phases 3–7 remain unimplemented.
 
 ```txt
 Phase 1  Canonical vocabulary       CapabilityDefinition / ProductDefinition /

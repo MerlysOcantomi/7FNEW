@@ -2,15 +2,17 @@ import { getSessionFromCookies, type SessionUser } from "@core/auth/session"
 import { resolveRequiredWorkspace, type WorkspaceResolveSource } from "@core/workspace-context"
 import { checkMembership } from "@core/workspace"
 import { PublicApiError } from "@core/errors"
+import {
+  WORKSPACE_ROLE_LEVELS,
+  parseWorkspaceRole,
+  type WorkspaceRole,
+} from "@core/platform/roles"
 
-export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
+// FOUND-02a: the canonical role vocabulary lives in `core/platform/roles.ts`.
+// Re-exported here so existing `WorkspaceRole` imports keep working.
+export type { WorkspaceRole } from "@core/platform/roles"
 
-const WS_ROLE_LEVEL: Record<WorkspaceRole, number> = {
-  OWNER: 4,
-  ADMIN: 3,
-  MEMBER: 2,
-  VIEWER: 1,
-}
+const WS_ROLE_LEVEL = WORKSPACE_ROLE_LEVELS
 
 const HEADER_ALLOWLIST = ["/api/ai/agent", "/api/admin"]
 
@@ -68,7 +70,20 @@ export async function requireWorkspaceRole(
     await resolveRequiredWorkspace(effectiveReq)
 
   const member = await checkMembership(session.userId, workspaceId)
-  const wsRole = (member?.role as WorkspaceRole) ?? "VIEWER"
+  // FOUND-02a fail-closed hardening: `resolveRequiredWorkspace` already
+  // validates membership, so a missing row here is data drift/TOCTOU — deny,
+  // never default to VIEWER. Unknown/corrupt role strings also deny: with
+  // the old cast, `WS_ROLE_LEVEL[unknownRole]` was `undefined` and
+  // `undefined < level` is `false`, so a corrupt role passed EVERY threshold.
+  if (!member) {
+    const { WorkspaceError } = await import("@core/workspace-context")
+    throw new WorkspaceError("FORBIDDEN", "Sin acceso a este workspace", 403)
+  }
+  const wsRole = parseWorkspaceRole(member.role)
+  if (!wsRole) {
+    const { WorkspaceError } = await import("@core/workspace-context")
+    throw new WorkspaceError("FORBIDDEN", "Rol de workspace inválido", 403)
+  }
 
   if (headerPresent && headerAllowed) {
     if (WS_ROLE_LEVEL[wsRole] < WS_ROLE_LEVEL["ADMIN"]) {
@@ -146,9 +161,14 @@ export async function requireRoleInWorkspace(
     throw new WorkspaceError("FORBIDDEN", "Sin acceso a este workspace", 403)
   }
 
-  const wsRole = (member.role as WorkspaceRole) ?? "VIEWER"
-  const userLevel = WS_ROLE_LEVEL[wsRole]
-  if (!userLevel || userLevel < WS_ROLE_LEVEL[minRole]) {
+  // FOUND-02a fail-closed hardening: strict parse — a missing or corrupt
+  // role string denies instead of falling back to VIEWER.
+  const wsRole = parseWorkspaceRole(member.role)
+  if (!wsRole) {
+    const { WorkspaceError } = await import("@core/workspace-context")
+    throw new WorkspaceError("FORBIDDEN", "Rol de workspace inválido", 403)
+  }
+  if (WS_ROLE_LEVEL[wsRole] < WS_ROLE_LEVEL[minRole]) {
     throw new RbacError(
       "INSUFFICIENT_ROLE",
       `Requiere rol ${minRole} o superior en este workspace`,

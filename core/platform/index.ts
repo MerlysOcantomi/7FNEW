@@ -37,4 +37,33 @@ export {
   getCapabilitiesForProduct,
   getToolsForCapability,
   validatePlatformFoundation,
+  validateToolDefinition,
 } from "./catalog"
+export { getToolRequiredPermissions } from "./tool-definition"
+export {
+  WORKSPACE_ROLES,
+  WORKSPACE_ROLE_LEVELS,
+  isWorkspaceRole,
+  parseWorkspaceRole,
+  type WorkspaceRole,
+} from "./roles"
+export {
+  getRolePermissions,
+  roleMay,
+  resolveEffectiveCapabilities,
+} from "./role-policy"
+export {
+  PRESENCE_ADDON_CAPABILITIES,
+  resolveWorkspaceCapabilitySnapshot,
+  type InferredProduct,
+  type WorkspaceCapabilitySnapshot,
+  type WorkspaceCapabilitySources,
+} from "./workspace-capabilities"
+export {
+  ACCESS_DECISION_REASONS,
+  canUser,
+  canWorkspace,
+  type AccessDecision,
+  type AccessDecisionReason,
+  type MembershipEvidence,
+} from "./access"

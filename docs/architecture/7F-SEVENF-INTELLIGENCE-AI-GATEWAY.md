@@ -663,8 +663,13 @@ foundations proceed without ever becoming parallel stacks:
 > The shared tool contract is `PlatformToolDefinition` (the legacy
 > `ToolDefinition` in `agents/forte/tools.ts` keeps its name until AI-04),
 > and voice's effect/policy vocabularies now re-export from
-> `core/platform/vocabulary.ts`. FOUND-02a/02b and AI-01+ remain
-> unimplemented; no gateway, no usage capture, no tool runtime exist yet.
+> `core/platform/vocabulary.ts`.
+> **Implementation note (FOUND-02a, 2026-08-25):** the read-only capability
+> resolver and role policy exist (`core/platform/` — see
+> [`7F-FOUND-02A-ACCESS-RESOLVER.md`](7F-FOUND-02A-ACCESS-RESOLVER.md)),
+> giving AI-05's future `getAllowedTools` its authorization source. FOUND-02b
+> and AI-01+ remain unimplemented; no gateway, no usage capture, no tool
+> runtime exist yet.
 
 ```txt
 FOUND-01  Shared vocabulary (joint)     ARCH-02 Phase 1 capability/product

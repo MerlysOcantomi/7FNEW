@@ -51,18 +51,18 @@ All four key catalogs are partial by design and extend by appending only:
 - Products: `finesse` (offering), `growth.presence` (add-on) and limit
   add-ons are entitlement-kind constructs → typed in FOUND-02a.
   `voice.session` is listed as a declared add-on-granted capability.
-- No permission catalog exists yet: `requiresPermissions` uses capability
-  keys (ARCH-02 §11 "stricter-only"); a finer permission vocabulary is an
-  explicit future owner decision.
+- Permissions use `CapabilityKey` as the atom **by owner decision**
+  (ARCH-02 §11; recorded in FOUND-02a): the same key passes two independent
+  gates (workspace capability AND role permission). This is the intentional
+  near-term architecture — not a temporary absence of a permission catalog.
 - Tool catalog holds contract demonstrations over real operations only; no
   speculative future tools.
 
 ## Explicitly left for the next missions
 
-- **FOUND-02a** — read-only Entitlements → Capabilities resolver
-  (`resolveWorkspaceCapabilities`, `canWorkspace`/`canUser`), reconciling
-  `plans.ts` / `config.modules` / `PresenceSubscription` behind this
-  vocabulary.
+- **FOUND-02a** — read-only Entitlements → Capabilities resolver —
+  **implemented 2026-08-25**, see
+  [`7F-FOUND-02A-ACCESS-RESOLVER.md`](7F-FOUND-02A-ACCESS-RESOLVER.md).
 - **FOUND-02b (AI-01 → AI-03)** — usage-preserving shared execution contract
   over `engines/ai`.
 - Later: tool registry runtime + handler binding (AI-04), capability-based
