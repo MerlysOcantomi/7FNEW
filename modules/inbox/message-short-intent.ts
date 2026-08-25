@@ -1,4 +1,4 @@
-import { askMotorIA } from "@engines/ai"
+import { buildMotorIARequest, executeAI } from "@engines/ai"
 import { db } from "@core/db"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { formatSenderIntentPhrase } from "@/lib/inbox/format-sender-intent"
@@ -99,14 +99,29 @@ Hard rules:
 MESSAGE:
 ${body}`
 
+  // FOUND-02b: first migrated path — same prompt/mode semantics as the old
+  // `askMotorIA(prompt, "operativo")` call (request built by the same
+  // shared builder), but through the usage-preserving foundation with
+  // canonical attribution. Usage is surfaced in diagnostics only; nothing
+  // is persisted (Usage Meter is a later phase).
   let raw: string
   try {
-    raw = await askMotorIA(prompt, MODEL)
+    const execution = await executeAI({
+      ...buildMotorIARequest(prompt, MODEL),
+      activity: "ai.message_classification",
+      attribution: { workspaceId: input.workspaceId, product: "smart_inbox" },
+      requestMetadata: { caller: "inbox.message-short-intent" },
+    })
+    raw = execution.output
+    const usage =
+      execution.usage.status === "reported"
+        ? `in=${execution.usage.inputTokens ?? "?"} out=${execution.usage.outputTokens ?? "?"}`
+        : "unavailable"
     console.log(
-      `${SHORT_INTENT_DEBUG} askMotorIA ok msg=${input.messageId} rawLen=${raw.length} rawPreview=${JSON.stringify(raw.slice(0, 320))}`,
+      `${SHORT_INTENT_DEBUG} executeAI ok msg=${input.messageId} provider=${execution.provider} model=${execution.model} usage=${usage} latencyMs=${execution.latencyMs} rawLen=${raw.length} rawPreview=${JSON.stringify(raw.slice(0, 320))}`,
     )
   } catch (err) {
-    console.error(`${SHORT_INTENT_DEBUG} askMotorIA failed msg=${input.messageId}`, err)
+    console.error(`${SHORT_INTENT_DEBUG} executeAI failed msg=${input.messageId}`, err)
     return
   }
 

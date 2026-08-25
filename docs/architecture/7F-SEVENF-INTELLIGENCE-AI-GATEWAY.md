@@ -667,9 +667,13 @@ foundations proceed without ever becoming parallel stacks:
 > **Implementation note (FOUND-02a, 2026-08-25):** the read-only capability
 > resolver and role policy exist (`core/platform/` — see
 > [`7F-FOUND-02A-ACCESS-RESOLVER.md`](7F-FOUND-02A-ACCESS-RESOLVER.md)),
-> giving AI-05's future `getAllowedTools` its authorization source. FOUND-02b
-> and AI-01+ remain unimplemented; no gateway, no usage capture, no tool
-> runtime exist yet.
+> giving AI-05's future `getAllowedTools` its authorization source.
+> **Implementation note (FOUND-02b, 2026-08-25):** AI-01 → AI-03 are
+> implemented in `engines/ai/` (`executeAI`, chat adapter, usage-preserving
+> result; `askMotorIA` is now a compat wrapper) — see
+> [`7F-FOUND-02B-AI-EXECUTION-FOUNDATION.md`](7F-FOUND-02B-AI-EXECUTION-FOUNDATION.md).
+> AI-04+ remain unimplemented: no tool runtime, no capability-gated
+> discovery, no usage persistence, no streaming, no provider fallback.
 
 ```txt
 FOUND-01  Shared vocabulary (joint)     ARCH-02 Phase 1 capability/product

@@ -1,5 +1,12 @@
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-const DEFAULT_MODEL = "gpt-4.1"
+/**
+ * Legacy OpenAI entry points, preserved as thin delegates over the
+ * FOUND-02b execution foundation (`execution.ts` + `chat-adapter.ts`).
+ * The duplicated raw fetch that used to live here — and silently discarded
+ * the provider `usage` object — is gone; signatures and observable behavior
+ * (defaults, error strings) are unchanged for existing callers.
+ */
+
+import { executeAI } from "./execution"
 
 interface ChatMessage {
   role: "system" | "user" | "assistant"
@@ -13,47 +20,18 @@ interface OpenAIOptions {
   systemPrompt?: string
 }
 
-function getApiKey(): string {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) throw new Error("OPENAI_API_KEY no configurada")
-  return key
-}
-
 export async function chatCompletion(
   messages: ChatMessage[],
   options: OpenAIOptions = {},
 ): Promise<string> {
-  const {
-    model = DEFAULT_MODEL,
-    temperature = 0.7,
-    maxTokens = 4096,
-  } = options
-
-  const res = await fetch(OPENAI_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
+  const result = await executeAI({
+    provider: "openai",
+    messages,
+    model: options.model,
+    temperature: options.temperature,
+    maxTokens: options.maxTokens,
   })
-
-  if (!res.ok) {
-    const body = await res.text()
-    console.error("[OpenAI] Error:", res.status, body)
-    throw new Error(`OpenAI API error (${res.status})`)
-  }
-
-  const json = await res.json()
-  const content = json.choices?.[0]?.message?.content?.trim()
-  if (!content) throw new Error("OpenAI devolvio respuesta vacia")
-
-  return content
+  return result.output
 }
 
 export async function askWithMode(
