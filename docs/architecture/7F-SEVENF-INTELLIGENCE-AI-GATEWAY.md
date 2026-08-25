@@ -657,6 +657,15 @@ what to implement next is **option C of the mission's §37: one minimal
 joint mission for the shared capability/tool vocabulary**, then the two
 foundations proceed without ever becoming parallel stacks:
 
+> **Implementation note (FOUND-01, 2026-08-25):** the joint vocabulary
+> mission is implemented in `core/platform/` — see
+> [`7F-FOUND-01-SHARED-VOCABULARY.md`](7F-FOUND-01-SHARED-VOCABULARY.md).
+> The shared tool contract is `PlatformToolDefinition` (the legacy
+> `ToolDefinition` in `agents/forte/tools.ts` keeps its name until AI-04),
+> and voice's effect/policy vocabularies now re-export from
+> `core/platform/vocabulary.ts`. FOUND-02a/02b and AI-01+ remain
+> unimplemented; no gateway, no usage capture, no tool runtime exist yet.
+
 ```txt
 FOUND-01  Shared vocabulary (joint)     ARCH-02 Phase 1 capability/product
                                         catalogs + ARCH-03 ToolDefinition

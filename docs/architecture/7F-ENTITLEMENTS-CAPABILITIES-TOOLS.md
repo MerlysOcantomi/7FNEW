@@ -636,6 +636,12 @@ product edits the entitlement list, never the data (§7).
 
 ## 23. Implementation phases (future missions — none executed here)
 
+> **Implementation note (FOUND-01, 2026-08-25):** Phase 1's canonical
+> vocabulary is implemented in `core/platform/` — see
+> [`7F-FOUND-01-SHARED-VOCABULARY.md`](7F-FOUND-01-SHARED-VOCABULARY.md).
+> Vocabulary and types only: no resolver, no entitlement data model, no
+> enforcement exist yet; Phases 2–7 remain unimplemented.
+
 ```txt
 Phase 1  Canonical vocabulary       CapabilityDefinition / ProductDefinition /
          (code-only)                ToolDefinition catalogs as typed constants;

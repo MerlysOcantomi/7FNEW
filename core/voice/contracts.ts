@@ -20,6 +20,8 @@
  *     re-validates on every tool call.
  */
 
+import type { ToolEffect, ToolExecutionPolicy } from "@core/platform/vocabulary"
+
 /** BCP-47 language tag, e.g. "es-ES", "de-DE" (Hochdeutsch), "de-CH". */
 export type BCP47 = string
 
@@ -132,15 +134,15 @@ export interface VoiceTurn {
 
 // ─── Tools (adjustment 3 — five effects, three execution policies) ───────────
 
-export const TOOL_EFFECTS = ["read", "navigate", "draft", "propose", "write"] as const
-export type ToolEffect = (typeof TOOL_EFFECTS)[number]
-
-export const TOOL_EXECUTION_POLICIES = [
-  "immediate",
-  "controlled",
-  "confirmation_required",
-] as const
-export type ToolExecutionPolicy = (typeof TOOL_EXECUTION_POLICIES)[number]
+// FOUND-01: these two vocabularies were adopted platform-wide (ARCH-03 §6).
+// Their single canonical source is `core/platform/vocabulary.ts`; this
+// re-export keeps every voice import path and value exactly as before.
+export {
+  TOOL_EFFECTS,
+  TOOL_EXECUTION_POLICIES,
+  type ToolEffect,
+  type ToolExecutionPolicy,
+} from "@core/platform/vocabulary"
 
 export interface VoiceToolDef {
   name: string
