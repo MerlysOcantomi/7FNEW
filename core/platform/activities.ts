@@ -20,6 +20,7 @@ export const ACTIVITY_KEYS = [
   "ai.document_scan", //           tools/scan.ts document extraction
   "ai.image_generation", //        tools/image-generator.ts (DALL·E path)
   "ai.voice_session", //           Finesse voice realtime sessions
+  "ai.agent_turn", //              Mr. Forte agent tool-loop chat rounds (app/api/ai/agent)
 ] as const
 
 export type ActivityKey = (typeof ACTIVITY_KEYS)[number]

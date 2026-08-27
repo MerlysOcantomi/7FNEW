@@ -50,7 +50,7 @@ test("authorized workspace + authorized user is allowed at discovery level", () 
 })
 
 test("unbound tool execution is denied at invocation time (default semantics)", () => {
-  // Every FOUND-01 catalog tool is unbound today, so a real invocation-time
+  // `summarize_conversation` remains unbound, so a real invocation-time
   // authorization must fail closed with tool_not_executable even when
   // capability + permission gates pass.
   const decision = authorizeToolInvocation(contextFor("MEMBER"), "summarize_conversation")
@@ -66,11 +66,15 @@ test("discovery result is not a durable token: invocation-time recheck denies", 
   const discovered = discovery.discoverable.find((d) => d.toolKey === "summarize_conversation")
   assert.ok(discovered && discovered.allowed)
   // Re-authorizing the same tool for actual execution must be re-evaluated
-  // and (today) denies because no executable binding exists.
+  // and denies because no executable binding exists for this definition.
   const invocation = authorizeToolInvocation(context, "summarize_conversation")
   assert.equal(invocation.allowed, false)
-  // And no discovered tool is reported executable while unbound.
-  assert.deepEqual(discovery.executable, [])
+  // Only definitions with a reference binding are reported executable
+  // (AI-06 bound the migrated agent tools; unbound ones never appear).
+  for (const decision of discovery.executable) {
+    assert.equal(decision.definition?.handler.kind, "reference", decision.toolKey)
+  }
+  assert.ok(!discovery.executable.some((d) => d.toolKey === "summarize_conversation"))
 })
 
 // ─── Workspace gate ──────────────────────────────────────────────────────────

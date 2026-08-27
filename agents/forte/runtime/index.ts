@@ -35,13 +35,9 @@ export {
 } from "./approved-execution"
 export { executeApprovedPlan } from "./approved-execution-service"
 export { runFortePipeline } from "./pipeline"
-export {
-  buildAssistantForteContext,
-  getAgentToolsForForteContext,
-  getBridgedHandlerByLegacyToolName,
-  listLegacyToolBridges,
-  executeBridgedLegacyTool,
-} from "./agent-adapter"
+// AI-06: the legacy agent adapter (OpenAI-shaped tool bridges for the old
+// /api/ai/agent path) was retired — the agent route now runs on the shared
+// canonical loop (`engines/ai/agent-loop.ts` + FOUND-03 authorization).
 export {
   registerForteActionHandler,
   getForteActionHandler,

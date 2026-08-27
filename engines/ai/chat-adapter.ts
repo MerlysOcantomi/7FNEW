@@ -18,8 +18,10 @@
 
 import {
   AIExecutionError,
-  type AIChatMessage,
+  type AIAgentMessage,
   type AIProviderKey,
+  type AIProviderToolDefinition,
+  type AIToolCall,
   type AIUsage,
 } from "./execution-contract"
 
@@ -44,10 +46,22 @@ export interface ChatAdapterConfig {
 }
 
 export interface ChatAdapterInput {
-  messages: readonly AIChatMessage[]
+  messages: readonly AIAgentMessage[]
   model?: string
   temperature: number
   maxTokens: number
+  /**
+   * AI-06: canonical tools offered to the provider for this call. When
+   * absent the request body is byte-identical to the pre-AI-06 adapter
+   * (legacy single-shot callers see no change).
+   */
+  tools?: readonly AIProviderToolDefinition[]
+  /**
+   * AI-06: when tool calls are an acceptable outcome, the empty-content
+   * guard is relaxed for tool-call responses and normalized tool calls are
+   * returned. Off for legacy string executions.
+   */
+  allowToolCalls?: boolean
 }
 
 export interface ChatAdapterOutput {
@@ -57,6 +71,8 @@ export interface ChatAdapterOutput {
   latencyMs: number
   providerRequestId?: string
   finishReason?: string
+  /** Normalized tool calls (always [] unless `allowToolCalls` produced some). */
+  toolCalls: readonly AIToolCall[]
 }
 
 export interface AIProviderAdapter {
@@ -89,6 +105,86 @@ export function normalizeChatUsage(rawUsage: unknown): AIUsage {
     reasoningTokens: asCount(completionDetails.reasoning_tokens),
     requestCount: 1,
   }
+}
+
+/**
+ * Serialize one provider-neutral conversation message to the
+ * OpenAI-compatible wire shape. This is the ONLY place assistant-tool-call
+ * and tool-result messages become provider format; the public contract never
+ * carries `tool_calls` / `tool_call_id` shapes.
+ */
+export function toWireMessage(message: AIAgentMessage): Record<string, unknown> {
+  if (message.role === "tool") {
+    return { role: "tool", tool_call_id: message.toolCallId, content: message.content }
+  }
+  if (message.role === "assistant" && "toolCalls" in message && message.toolCalls.length > 0) {
+    return {
+      role: "assistant",
+      // OpenAI-compatible APIs accept null content on pure tool-call turns.
+      content: message.content || null,
+      tool_calls: message.toolCalls.map((call) => ({
+        id: call.id,
+        type: "function",
+        function: { name: call.name, arguments: call.rawArguments },
+      })),
+    }
+  }
+  return { role: message.role, content: message.content }
+}
+
+/** Serialize canonical tool definitions to the OpenAI-compatible shape. */
+export function toWireTools(
+  tools: readonly AIProviderToolDefinition[],
+): Array<Record<string, unknown>> {
+  return tools.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  }))
+}
+
+/**
+ * Normalize the provider's `tool_calls` array. Entries that violate the
+ * wire protocol (missing id/name, non-string arguments) fail the whole
+ * response as `invalid_output` — a malformed tool call must never be
+ * silently dropped or half-executed.
+ */
+export function normalizeWireToolCalls(
+  raw: unknown,
+  provider: AIProviderKey,
+): readonly AIToolCall[] {
+  if (raw === undefined || raw === null) return []
+  if (!Array.isArray(raw)) {
+    throw new AIExecutionError({
+      code: "invalid_output",
+      provider,
+      message: "Provider returned a malformed tool_calls payload",
+    })
+  }
+  return raw.map((entry) => {
+    const candidate = entry as {
+      id?: unknown
+      function?: { name?: unknown; arguments?: unknown }
+    }
+    const id = candidate?.id
+    const name = candidate?.function?.name
+    const args = candidate?.function?.arguments
+    if (typeof id !== "string" || !id || typeof name !== "string" || !name) {
+      throw new AIExecutionError({
+        code: "invalid_output",
+        provider,
+        message: "Provider returned a tool call without a valid id/name",
+      })
+    }
+    return {
+      id,
+      name,
+      rawArguments: typeof args === "string" ? args : "",
+    }
+  })
 }
 
 export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProviderAdapter {
@@ -134,9 +230,15 @@ export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProvi
           },
           body: JSON.stringify({
             model,
-            messages: input.messages,
+            // Plain chat messages serialize to their identical wire shape, so
+            // pre-AI-06 request bodies are unchanged; tool fields are only
+            // present when tools are actually offered.
+            messages: input.messages.map(toWireMessage),
             temperature: input.temperature,
             max_tokens: input.maxTokens,
+            ...(input.tools && input.tools.length > 0
+              ? { tools: toWireTools(input.tools), tool_choice: "auto" }
+              : {}),
           }),
           ...(controller ? { signal: controller.signal } : {}),
         })
@@ -174,7 +276,7 @@ export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProvi
         model?: unknown
         usage?: unknown
         choices?: Array<{
-          message?: { content?: unknown }
+          message?: { content?: unknown; tool_calls?: unknown }
           finish_reason?: unknown
         }>
       }
@@ -183,7 +285,12 @@ export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProvi
       const choice = json.choices?.[0]
       const content =
         typeof choice?.message?.content === "string" ? choice.message.content.trim() : ""
-      if (!content) {
+      const toolCalls = input.allowToolCalls
+        ? normalizeWireToolCalls(choice?.message?.tool_calls, config.provider)
+        : []
+      // Legacy guard preserved exactly for string executions; a tool-call
+      // round may legitimately carry no text content.
+      if (!content && toolCalls.length === 0) {
         throw new AIExecutionError({
           code: "invalid_output",
           provider: config.provider,
@@ -205,6 +312,7 @@ export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProvi
         providerRequestId: requestId || undefined,
         finishReason:
           typeof choice?.finish_reason === "string" ? choice.finish_reason : undefined,
+        toolCalls,
       }
     },
   }

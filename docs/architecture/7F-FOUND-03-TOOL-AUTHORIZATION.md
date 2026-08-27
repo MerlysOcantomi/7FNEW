@@ -1,5 +1,15 @@
 # 7F — FOUND-03: Canonical Tool Resolution & Fail-Closed Authorization
 
+> **Implementation note (AI-06, 2026-08-26):** the agent route
+> (`app/api/ai/agent/route.ts`) now consumes this layer live —
+> `resolveAvailableTools` before discovery and `authorizeToolInvocation`
+> per invocation, with the full workspace+user decision active on that
+> path. The bounded legacy guardrail (`agents/forte/legacy-tool-guardrail.ts`)
+> and the legacy adapter/executor it protected were removed as superseded.
+> Everything else below describing "no live route consumes these decisions"
+> now excludes that one route; see
+> [`7F-AI-06-CANONICAL-AGENT-TOOL-LOOP.md`](7F-AI-06-CANONICAL-AGENT-TOOL-LOOP.md).
+
 > **STATUS: IMPLEMENTED FOUNDATION — READ-ONLY DECISIONS + ONE BOUNDED
 > LEGACY GUARDRAIL. NOT platform-wide enforcement.**
 >

@@ -250,6 +250,56 @@ export function workspaceFilter(workspaceId: string | null): { workspaceId?: str
   return { workspaceId }
 }
 
+/**
+ * AI-06 — Load the PERSISTED evidence the FOUND-02a capability resolver
+ * needs (`resolveWorkspaceCapabilitySnapshot`): raw workspace status/plan,
+ * the platform-admin `config.modules` flags (raw workspace config — NOT the
+ * vertical-defaults merge), and whether a standalone Presence subscription
+ * is active. Read-only; a missing workspace yields `workspace: null`, which
+ * the resolver treats fail-closed.
+ */
+export async function getWorkspaceCapabilitySources(workspaceId: string): Promise<{
+  workspace: {
+    id: string
+    status: string | null
+    plan: string | null
+    configModules: Readonly<Record<string, unknown>> | null
+  } | null
+  presenceStandaloneActive: boolean
+}> {
+  const [ws, presence] = await Promise.all([
+    db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { id: true, status: true, plan: true, config: true },
+    }),
+    db.presenceSubscription.findUnique({
+      where: { workspaceId },
+      select: { status: true },
+    }),
+  ])
+
+  if (!ws) return { workspace: null, presenceStandaloneActive: false }
+
+  let configModules: Readonly<Record<string, unknown>> | null = null
+  if (ws.config) {
+    try {
+      const parsed = JSON.parse(ws.config) as { modules?: unknown }
+      if (parsed && typeof parsed.modules === "object" && parsed.modules !== null) {
+        configModules = parsed.modules as Record<string, unknown>
+      }
+    } catch {
+      // Unparseable config grants nothing (fail closed) — the resolver only
+      // ever widens from explicit, valid evidence.
+      configModules = null
+    }
+  }
+
+  return {
+    workspace: { id: ws.id, status: ws.status, plan: ws.plan, configModules },
+    presenceStandaloneActive: presence?.status === "active",
+  }
+}
+
 export async function getWorkspaceWithResolvedConfig(workspaceId: string) {
   const ws = await db.workspace.findUnique({
     where: { id: workspaceId },

@@ -22,9 +22,11 @@ import {
   type AIProviderAdapter,
 } from "./chat-adapter"
 import type {
+  AIAssistantTurn,
   AIExecutionRequest,
   AIExecutionResult,
   AIProviderKey,
+  AIToolTurnRequest,
 } from "./execution-contract"
 
 /**
@@ -72,7 +74,9 @@ function buildAdapters(fetchImpl?: typeof fetch): Record<AIProviderKey, AIProvid
 const DEFAULT_ADAPTERS = buildAdapters()
 
 /** Mode → provider policy, preserved exactly from the legacy `askMotorIA`. */
-export function resolveProviderForRequest(request: AIExecutionRequest): AIProviderKey {
+export function resolveProviderForRequest(
+  request: AIExecutionRequest | AIToolTurnRequest,
+): AIProviderKey {
   if (request.provider) return request.provider
   return request.mode === "operativo" ? "deepseek" : "openai"
 }
@@ -99,6 +103,45 @@ export async function executeAI(
 
   return {
     output: executed.content,
+    provider,
+    model: executed.model,
+    usage: executed.usage,
+    latencyMs: executed.latencyMs,
+    providerRequestId: executed.providerRequestId,
+    finishReason: executed.finishReason,
+    activity: request.activity,
+    attribution: request.attribution,
+  }
+}
+
+/**
+ * AI-06 — Execute ONE tool-capable provider round and return the normalized,
+ * usage-preserving result. Same provider routing, sampling defaults and
+ * attribution semantics as `executeAI`; the output is the provider-neutral
+ * `AIAssistantTurn` (text + normalized tool calls), never a raw provider
+ * completion object. Loop orchestration lives in `agent-loop.ts` — this
+ * function is strictly one provider call, one normalized record.
+ */
+export async function executeAIToolTurn(
+  request: AIToolTurnRequest,
+  deps?: { fetchImpl?: typeof fetch },
+): Promise<AIExecutionResult<AIAssistantTurn>> {
+  const provider = resolveProviderForRequest(request)
+  const adapters = deps?.fetchImpl ? buildAdapters(deps.fetchImpl) : DEFAULT_ADAPTERS
+  const adapter = adapters[provider]
+  const defaults = provider === "deepseek" ? DEEPSEEK_DEFAULTS : OPENAI_DEFAULTS
+
+  const executed = await adapter.execute({
+    messages: request.messages,
+    model: request.model,
+    temperature: request.temperature ?? defaults.temperature,
+    maxTokens: request.maxTokens ?? defaults.maxTokens,
+    tools: request.tools,
+    allowToolCalls: true,
+  })
+
+  return {
+    output: { content: executed.content, toolCalls: executed.toolCalls },
     provider,
     model: executed.model,
     usage: executed.usage,

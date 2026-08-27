@@ -13,9 +13,8 @@ agents/forte/
 ├── runtime/         # Core execution pipeline
 │   └── business/    # Business domain interpretation
 ├── semantic/        # Canonical signal reference (documentation)
-├── executor.ts      # Legacy agent tool executor (bridged to runtime)
-├── tools.ts         # Legacy agent tool definitions (bridged to runtime)
-└── system-prompt.ts # Legacy agent system prompt
+├── canonical/       # AI-06 canonical agent tool bindings + handlers
+└── system-prompt.ts # Mr. Forte assistant system prompt (agent route)
 ```
 
 ### Layer Responsibilities
@@ -38,7 +37,7 @@ Core pipeline: `context -> capabilities -> plan -> policy -> execution`
 
 Includes approval flow, approved execution layer, handler registry, store provider, and legacy agent bridge.
 
-Files: `forte-context.ts`, `capability-resolver.ts`, `decision-engine.ts`, `policy-guard.ts`, `action-runtime.ts`, `approved-execution.ts`, `approved-execution-service.ts`, `approval.ts`, `approval-store.ts`, `store-provider.ts`, `pipeline.ts`, `handlers.ts`, `run-step.ts`, `agent-adapter.ts`, `types.ts`
+Files: `forte-context.ts`, `capability-resolver.ts`, `decision-engine.ts`, `policy-guard.ts`, `action-runtime.ts`, `approved-execution.ts`, `approved-execution-service.ts`, `approval.ts`, `approval-store.ts`, `store-provider.ts`, `pipeline.ts`, `handlers.ts`, `run-step.ts`, `types.ts`
 
 **runtime/business — Business Understanding**
 
@@ -54,9 +53,11 @@ Documentation anchor for the semantic dictionary. Defines which signals exist, w
 
 See: [`semantic/README.md`](semantic/README.md)
 
-**Legacy files** (`executor.ts`, `tools.ts`, `system-prompt.ts`)
+**canonical — Agent tool bindings (AI-06)**
 
-Pre-Forte agent implementation. Partially bridged to the runtime via `agent-adapter.ts`. Will be progressively migrated as more handlers are registered.
+Execution bindings for the canonical tool catalog (`core/platform/tool-catalog.ts`), keyed by ToolKey. The legacy `executor.ts`/`tools.ts`/`agent-adapter.ts` bridge was retired in AI-06: the agent route (`app/api/ai/agent`) now runs on the shared loop (`engines/ai/agent-loop.ts`) with FOUND-03 discovery and per-invocation authorization.
+
+Files: `agent-bindings.ts`, `agent-handlers.ts`
 
 ## Semantic Source of Truth
 

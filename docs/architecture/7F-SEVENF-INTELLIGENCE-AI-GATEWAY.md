@@ -682,6 +682,16 @@ foundations proceed without ever becoming parallel stacks:
 > AI-04+ remain unimplemented: no tool runtime/bindings, no live
 > `getAllowedTools` consumption, no usage persistence, no streaming, no
 > provider fallback; the agent route migration is AI-06.
+> **Implementation note (AI-06, 2026-08-26):** the agent route re-landed on
+> the shared foundation — duplicate OpenAI client #1 removed;
+> `executeAIToolTurn` + `engines/ai/agent-loop.ts` provide the
+> provider-neutral tool-call contract and the shared tool loop; canonical
+> ToolKeys are the provider-facing vocabulary (AGENT_TOOLS retired); FOUND-03
+> discovery + per-invocation authorization enforce on that path; per-round
+> usage/model/request-id preserved. Image generation stays outside (no
+> usage-preserving image adapter yet) and is omitted from the executable
+> tool set — see
+> [`7F-AI-06-CANONICAL-AGENT-TOOL-LOOP.md`](7F-AI-06-CANONICAL-AGENT-TOOL-LOOP.md).
 
 ```txt
 FOUND-01  Shared vocabulary (joint)     ARCH-02 Phase 1 capability/product

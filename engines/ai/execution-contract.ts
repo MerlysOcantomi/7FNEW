@@ -28,6 +28,68 @@ export interface AIChatMessage {
 }
 
 /**
+ * AI-06 — Provider-neutral tool vocabulary. These types are the PUBLIC
+ * contract for tool-capable executions: no OpenAI SDK types, no raw provider
+ * completion objects, no provider-specific message structures leak through
+ * them. Serialization to each provider's wire format lives in the adapter.
+ */
+
+/**
+ * One tool offered to the provider for a turn. `name` carries a canonical
+ * ToolKey (typed as string here so the contract stays decoupled from the
+ * catalog's literal union); `parameters` is a provider-neutral JSON Schema
+ * derived from the tool's canonical zod input schema.
+ */
+export interface AIProviderToolDefinition {
+  name: string
+  description: string
+  parameters: Readonly<Record<string, unknown>>
+}
+
+/**
+ * One normalized tool call requested by the model. `rawArguments` is the
+ * provider's serialized argument payload VERBATIM and must be treated as
+ * untrusted input — callers parse it through the tool's canonical schema,
+ * never with a permissive `catch → {}`.
+ */
+export interface AIToolCall {
+  /** Provider tool-call id — used to correlate the tool result message. */
+  id: string
+  /** Requested tool name as the model produced it (validated by callers). */
+  name: string
+  /** Raw serialized arguments (usually JSON) — untrusted. */
+  rawArguments: string
+}
+
+/** Normalized assistant output of one tool-capable provider round. */
+export interface AIAssistantTurn {
+  /** Assistant text content ("" when the model only requested tools). */
+  content: string
+  toolCalls: readonly AIToolCall[]
+}
+
+/** Assistant message that carried tool calls, replayed into the next round. */
+export interface AIAssistantToolCallMessage {
+  role: "assistant"
+  content: string
+  toolCalls: readonly AIToolCall[]
+}
+
+/** Result of one executed (or refused) tool call, returned to the model. */
+export interface AIToolResultMessage {
+  role: "tool"
+  toolCallId: string
+  content: string
+}
+
+/**
+ * Conversation message union for tool-capable executions. Plain
+ * `AIChatMessage` values remain valid, so single-shot callers and the agent
+ * loop share one vocabulary.
+ */
+export type AIAgentMessage = AIChatMessage | AIAssistantToolCallMessage | AIToolResultMessage
+
+/**
  * Where this execution should be attributed (ARCH-02 §9 / FOUND-01 keys).
  * All optional today — legacy callers cannot always know them — but new
  * call sites should provide `workspaceId` and `activity` whenever possible.
@@ -72,6 +134,19 @@ export interface AIExecutionRequest {
     /** Free-form caller label for diagnostics (e.g. "inbox.short-intent"). */
     caller?: string
   }
+}
+
+/**
+ * AI-06 — Request for one tool-capable provider round. Additive sibling of
+ * `AIExecutionRequest`: same routing/sampling/attribution semantics, but the
+ * conversation may contain assistant-tool-call and tool-result messages and
+ * the provider is offered canonical tool definitions. Existing string
+ * callers keep `AIExecutionRequest`/`executeAI` untouched.
+ */
+export interface AIToolTurnRequest extends Omit<AIExecutionRequest, "messages"> {
+  messages: readonly AIAgentMessage[]
+  /** Canonical tools offered to the provider for this round (may be empty). */
+  tools: readonly AIProviderToolDefinition[]
 }
 
 /**

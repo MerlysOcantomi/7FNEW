@@ -57,11 +57,12 @@ test("every capability belongs to a product or is a declared add-on capability",
 })
 
 test("capability→tools relation is derived from tool requirements", () => {
-  assert.deepEqual(getToolsForCapability("person.read"), ["search_client"])
+  assert.deepEqual(getToolsForCapability("person.read"), ["search_client", "get_client"])
   assert.deepEqual(getToolsForCapability("conversation.read"), [
     "summarize_conversation",
     "draft_reply",
   ])
+  assert.deepEqual(getToolsForCapability("content.create"), ["create_content", "create_idea"])
   assert.deepEqual(getToolsForCapability("workspace.settings"), [])
 })
 
@@ -118,9 +119,35 @@ test("tool permissions default to required capabilities and are stricter-only", 
   assert.deepEqual(validateToolDefinition(stricter), [])
 })
 
-test("no catalog tool is bound to a handler in FOUND-01", () => {
+// AI-06: only the READ tools migrated from the legacy agent route carry
+// `reference` bindings; everything else — every write-effect tool included —
+// must remain unbound (and therefore never executable). The exact split is
+// asserted so drift is loud.
+const AI06_BOUND_TOOLS = [
+  "search_client",
+  "get_client",
+  "search_task",
+  "search_invoice",
+] as const
+
+test("only the AI-06 read tools are bound; the rest stay unbound", () => {
   for (const key of TOOL_KEYS) {
-    assert.equal((TOOL_CATALOG[key] as PlatformToolDefinition).handler.kind, "unbound")
+    const handler = (TOOL_CATALOG[key] as PlatformToolDefinition).handler
+    if ((AI06_BOUND_TOOLS as readonly string[]).includes(key)) {
+      assert.equal(handler.kind, "reference", key)
+    } else {
+      assert.equal(handler.kind, "unbound", key)
+    }
+  }
+})
+
+test("every write-effect tool keeps the canonical confirmation_required policy and stays unbound", () => {
+  for (const key of TOOL_KEYS) {
+    const tool = TOOL_CATALOG[key] as PlatformToolDefinition
+    if (tool.effect === "write") {
+      assert.equal(tool.executionPolicy, "confirmation_required", key)
+      assert.equal(tool.handler.kind, "unbound", key)
+    }
   }
 })
 

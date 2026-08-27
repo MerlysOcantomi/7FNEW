@@ -13,19 +13,45 @@ export { VALID_MODES }
 // semantics; `askMotorIA`/`askMotorIAWithHistory` below are thin
 // compatibility wrappers that keep the legacy string-only behavior for
 // existing callers while routing through the same foundation.
-export { executeAI, NEUTRAL_TASK_SYSTEM_PROMPT, resolveProviderForRequest } from "./execution"
+export {
+  executeAI,
+  executeAIToolTurn,
+  NEUTRAL_TASK_SYSTEM_PROMPT,
+  resolveProviderForRequest,
+} from "./execution"
 export {
   AIExecutionError,
   AI_PROVIDERS,
   AI_EXECUTION_ERROR_CODES,
+  type AIAgentMessage,
+  type AIAssistantToolCallMessage,
+  type AIAssistantTurn,
   type AIChatMessage,
   type AIExecutionAttribution,
   type AIExecutionErrorCode,
   type AIExecutionRequest,
   type AIExecutionResult,
   type AIProviderKey,
+  type AIProviderToolDefinition,
+  type AIToolCall,
+  type AIToolResultMessage,
+  type AIToolTurnRequest,
   type AIUsage,
 } from "./execution-contract"
+// AI-06: shared agent-turn/tool-loop use case (canonical discovery +
+// invocation-time FOUND-03 authorization + per-round usage preservation).
+export {
+  runAgentToolLoop,
+  buildProviderToolsForContext,
+  summarizeAgentUsage,
+  AGENT_LOOP_DEFAULT_LIMITS,
+  type AgentToolBinding,
+  type AgentBindingRegistry,
+  type AgentLoopInput,
+  type AgentLoopResult,
+  type AgentToolExecutionRecord,
+  type AgentUsageSummary,
+} from "./agent-loop"
 
 /**
  * Pure request assembly for the legacy single-prompt entry point. Exact

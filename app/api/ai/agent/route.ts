@@ -1,29 +1,26 @@
+/**
+ * AI-06 — Mr. Forte agent route as a thin transport boundary.
+ *
+ * authenticate → resolve workspace/user context (server-side only) → invoke
+ * the shared agent-turn use case (`runAgentToolLoop`) → return the
+ * compatible response. Everything provider-shaped lives in the shared
+ * FOUND-02b adapter; everything authorization-shaped lives in FOUND-03; the
+ * loop lives in `engines/ai/agent-loop.ts`. This file must never own an AI
+ * client, a tool vocabulary or an authorization decision.
+ */
+
 import { NextRequest } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api"
 import { AGENT_SYSTEM_PROMPT } from "@/agents/forte/system-prompt"
-import { getAgentToolsForContext } from "@/agents/forte/tools"
-import { executeToolCall } from "@/agents/forte/executor"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { gatherBusinessContext } from "@tools/context/gather-business-context"
-import { buildAssistantForteContext } from "@/agents/forte/runtime/agent-adapter"
+import { getWorkspaceCapabilitySources } from "@core/workspace"
+import { resolveWorkspaceCapabilitySnapshot } from "@core/platform/workspace-capabilities"
+import { AIExecutionError, runAgentToolLoop, type AIChatMessage } from "@/engines/ai"
+import { getAgentToolBindings } from "@/agents/forte/canonical/agent-bindings"
 
 const MAX_HISTORY = 20
 const MAX_INPUT = 12000
-const MAX_TOOL_ROUNDS = 5
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-
-function getApiKey(): string {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) throw new Error("OPENAI_API_KEY no configurada")
-  return key
-}
-
-interface ChatMessage {
-  role: "system" | "user" | "assistant" | "tool"
-  content: string | null
-  tool_calls?: any[]
-  tool_call_id?: string
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,106 +35,71 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION", `Mensaje excede ${MAX_INPUT} caracteres`, 400)
     }
 
-    const forteContext = buildAssistantForteContext({
-      tenantId: request.headers.get("x-tenant-id") ?? workspaceId,
-      workspaceId,
-      userId: session.userId,
-      wsRole,
-      requestId: request.headers.get("x-request-id") ?? undefined,
-    })
-    const agentTools = await getAgentToolsForContext(forteContext)
+    const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
+
+    // FOUND-03 evidence, constructed exclusively from authenticated
+    // server-side state: persisted workspace sources + the strict-parsed
+    // membership role from `requireReadAccess`. Client input cannot widen it.
+    const sources = await getWorkspaceCapabilitySources(workspaceId)
+    const snapshot = resolveWorkspaceCapabilitySnapshot(sources)
+    const resolution = { snapshot, membership: { role: wsRole } }
+
     const context = await gatherBusinessContext(workspaceId)
     const systemContent = `${AGENT_SYSTEM_PROMPT}\n\n═══════════════════════════════════════\nCONTEXTO ACTUAL DEL NEGOCIO\n═══════════════════════════════════════\n\n${context}`
 
-    const cleanHistory: ChatMessage[] = (Array.isArray(history) ? history : [])
-      .filter((m: any) => m.role && m.content && ["user", "assistant"].includes(m.role))
+    const cleanHistory: AIChatMessage[] = (Array.isArray(history) ? history : [])
+      .filter(
+        (m: { role?: unknown; content?: unknown }) =>
+          m.role && m.content && ["user", "assistant"].includes(m.role as string),
+      )
       .slice(-MAX_HISTORY)
-      .map((m: any) => ({ role: m.role, content: (m.content as string).slice(0, 4000) }))
+      .map((m: { role: "user" | "assistant"; content: string }) => ({
+        role: m.role,
+        content: m.content.slice(0, 4000),
+      }))
 
-    const messages: ChatMessage[] = [
-      { role: "system", content: systemContent },
-      ...cleanHistory,
-      { role: "user", content: message },
-    ]
+    const result = await runAgentToolLoop({
+      system: systemContent,
+      history: cleanHistory,
+      message,
+      resolution,
+      bindings: getAgentToolBindings(),
+      toolContext: { workspaceId, userId: session.userId, requestId },
+      attribution: { workspaceId },
+      activity: "ai.agent_turn",
+      // Legacy provider/model/sampling preserved exactly.
+      provider: "openai",
+      model: "gpt-4.1",
+      temperature: 0.6,
+      maxTokens: 8192,
+      requestMetadata: { requestId, caller: "api.ai.agent" },
+    })
 
-    let finalText = ""
-    const actions: Array<{ tool: string; args: any; result: any }> = []
-    const images: string[] = []
-
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const res = await fetch(OPENAI_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getApiKey()}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4.1",
-          messages,
-          tools: agentTools,
-          tool_choice: "auto",
-          temperature: 0.6,
-          max_tokens: 8192,
-        }),
-      })
-
-      if (!res.ok) {
-        const errBody = await res.text()
-        console.error("[Agent] OpenAI error:", res.status, errBody)
-        throw new Error(`OpenAI error (${res.status})`)
-      }
-
-      const json = await res.json()
-      const choice = json.choices?.[0]
-      const assistantMsg = choice?.message
-
-      if (!assistantMsg) throw new Error("Respuesta vacia de OpenAI")
-
-      messages.push(assistantMsg)
-
-      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
-        for (const toolCall of assistantMsg.tool_calls) {
-          const fnName = toolCall.function.name
-          let fnArgs: Record<string, any> = {}
-          try {
-            fnArgs = JSON.parse(toolCall.function.arguments || "{}")
-          } catch {
-            fnArgs = {}
-          }
-
-          console.log(`[Agent] Tool call: ${fnName}`, fnArgs)
-          const result = await executeToolCall(fnName, fnArgs, {
-            workspaceId,
-            userId: session.userId,
-            wsRole,
-            tenantId: forteContext.tenantId,
-            requestId: forteContext.requestId,
-          })
-
-          actions.push({ tool: fnName, args: fnArgs, result })
-          if (result.imageUrl) images.push(result.imageUrl)
-
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(result),
-          })
-        }
-
-        if (choice.finish_reason === "tool_calls") continue
-      }
-
-      finalText = assistantMsg.content || ""
-      break
-    }
+    const actions = result.toolExecutions.map((record) => ({
+      tool: record.requestedTool,
+      args: record.input ?? null,
+      result:
+        record.status === "executed"
+          ? { success: true, data: record.result }
+          : { success: false, error: record.error },
+    }))
 
     return successResponse({
-      respuesta: finalText,
+      respuesta: result.finalText,
       actions: actions.length > 0 ? actions : undefined,
-      images: images.length > 0 ? images : undefined,
     })
   } catch (error) {
     console.error("[Agent] Error:", error)
-    return errorResponse("INTERNAL", error instanceof Error ? error.message : "Error del agente", (error as { status?: number })?.status || 500)
+    if (error instanceof AIExecutionError) {
+      // Provider failures are always a 500 here — a provider status code is
+      // not an HTTP status for this route, and adapter messages are safe
+      // (no secrets, no provider bodies for OpenAI).
+      return errorResponse("INTERNAL", error.message, 500)
+    }
+    return errorResponse(
+      "INTERNAL",
+      error instanceof Error ? error.message : "Error del agente",
+      (error as { status?: number })?.status || 500,
+    )
   }
 }
