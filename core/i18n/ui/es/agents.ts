@@ -177,7 +177,7 @@ export const agents: AgentsMessages = {
       role: "Especialista Beauty",
       watching: ["El día del negocio", "Qué necesita tu atención", "Coordinación con el equipo"],
       collaborationNote:
-        "Lidera la experiencia de 7F Beauty: interpreta el contexto del negocio, coordina el día y presenta las acciones. Trabaja sobre los agentes core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) sin reemplazarlos.",
+        "Lidera la experiencia de Finesse: interpreta el contexto del negocio, coordina el día y presenta las acciones. Trabaja sobre los agentes core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) sin reemplazarlos.",
     },
   },
 }

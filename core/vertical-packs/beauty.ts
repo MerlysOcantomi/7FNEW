@@ -1,6 +1,7 @@
 /**
- * 7F Beauty vertical pack — the single, declarative source of truth for what
- * "7F becomes 7F Beauty" means as DATA, not code.
+ * Beauty vertical pack (shown to users as "Finesse") — the single, declarative
+ * source of truth for what "7F becomes Finesse" means as DATA, not code. The
+ * technical identifier stays `beauty`; Finesse is the visible name only.
  *
  * Nothing here is wired into a module. It is consumed by:
  *   - the seed (`prisma/seed.ts`), which serializes `buildBeautyDefaultConfig()`
@@ -213,7 +214,7 @@ export interface VerticalThemeKeys {
 export interface BeautyPack {
   verticalKey: string
   name: string
-  /** Brand-facing vertical name, e.g. "7F Beauty". */
+  /** Brand-facing vertical name, e.g. "Finesse". */
   verticalName: string
   description: string
   locale: string
@@ -274,13 +275,17 @@ export interface BeautyPack {
 export const BEAUTY_PACK: BeautyPack = {
   verticalKey: "beauty",
   name: "Beauty",
-  verticalName: "7F Beauty",
+  verticalName: "Finesse",
   description:
     "Manicura, estética, peluquería, lashes, masajes, barbería y pequeños salones beauty",
   locale: "es",
   businessType: "beauty",
   navProfileId: "beauty",
-  themes: { default: "rose-nude", available: ["rose-nude", "sage-luxe", "noir-or"] },
+  // Finesse opens in Petróleo Perla by default; Rose Nude stays available.
+  themes: {
+    default: "petrol-pearl",
+    available: ["petrol-pearl", "rose-nude", "sage-luxe", "noir-or"],
+  },
   channels: ["whatsapp", "instagram", "email"],
   recommendedModules: ["calendar", "clients", "messages", "marketing", "catalog", "services"],
   today: {

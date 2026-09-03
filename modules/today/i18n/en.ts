@@ -4,7 +4,7 @@ import type { BeautyTodayMessages } from "./types"
 /** English (canonical) catalog for the Finesse "Today" (Beauty Today). */
 export const en = {
   locale: "en",
-  brandTitle: "7F Beauty",
+  brandTitle: "Finesse",
   eyebrow: BEAUTY_SPECIALIST_AGENT.voice.intelligence,
   brandLine: BEAUTY_SPECIALIST_AGENT.tagline,
   previewChip: "Preview · sample data",

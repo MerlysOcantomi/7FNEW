@@ -533,7 +533,7 @@ untouched. 10 lines changed, 1:1 swaps; no layout/behavior/copy/data/route chang
 
 ## Beauty vertical palettes — foundation values (v1)
 
-Three opt-in palettes for the 7F Beauty vertical, added exactly like
+Three opt-in palettes for the Beauty vertical (shown as **Finesse**), added exactly like
 `[data-theme="lavender-mist"]`: new `[data-theme="…"]` blocks in `app/globals.css`
 (right after Lavender Mist) that **override token VALUES only**. No `--beauty-*`
 tokens, no `@theme inline` change, no base-shadcn redefinition, no `dark:` variants,
@@ -543,7 +543,7 @@ automatically.
 
 | Palette | Plane | Intent | Accent | Notes |
 |---|---|---|---|---|
-| `rose-nude` | light | Beauty / Premium **default** | Dusty Rose | `--agent-rose` aligned to the palette so Finesse identity moves with it |
+| `rose-nude` | light | Beauty / Premium, warm (former Finesse default) | Dusty Rose | `--agent-rose` aligned to the palette so Finesse identity moves with it |
 | `sage-luxe` | light | Wellness / natural / spa / calm | Sage green | — |
 | `noir-or` | dark | Luxury / glam / high-end salon | Gold / champagne | dark plane; `--text-*-light` stay light |
 
@@ -554,12 +554,15 @@ shell overlays (`--app-surface-subtle/-hover/-active`), the deepened
 `--status-{danger,warning,success}-text`, the baked `--inbox-*` component/semantic
 tokens, and `--agent-teal/-rose` (+ `-soft`).
 
-**Activation (opt-in only — nothing auto-applies):** `?theme=rose-nude | sage-luxe |
-noir-or` on any route, or the theme toggle (`components/theme-mode-toggle.tsx`). The
-pre-paint allow-list in `app/layout.tsx` and the toggle share the list
-`[midnight, lavender-mist, rose-nude, sage-luxe, noir-or]`. **Midnight stays the
-default; Lavender Mist and North Sea (data-only placeholder) are unchanged.** No
-per-workspace/vertical auto-theming here (that is a later step, tied to Beauty Home).
+**Activation:** `?theme=rose-nude | sage-luxe | noir-or | petrol-pearl` on any route,
+or the theme toggle (`components/theme-mode-toggle.tsx`) — both persist the choice in
+`localStorage['7f-theme']`. The pre-paint allow-list in `app/layout.tsx`, the toggle,
+`core/theme.ts` (`VALID_THEME_KEYS`) and `engines/presence/themes.ts` share the list
+`[midnight, lavender-mist, rose-nude, sage-luxe, noir-or, petrol-pearl]`. **Midnight
+stays the global default; Lavender Mist and North Sea (data-only placeholder) are
+unchanged.** Per-vertical auto-theming is resolved server-side by `core/theme.ts`
+(workspace `verticalKey` → `experience.defaultThemeKey`) and applied ONLY when the
+user has made no explicit choice — see "Petróleo Perla" below.
 
 **Accessibility — key pairs verified ≥ WCAG AA** (normal text ≥ 4.5, large/UI ≥ 3.0):
 
@@ -574,8 +577,53 @@ per-workspace/vertical auto-theming here (that is a later step, tied to Beauty H
 **These HEX are FOUNDATION VALUES (v1) and refinable with Claude Design** without
 touching any component — only the `[data-theme]` blocks change.
 
-**Out of scope (follow-ups):** Beauty Home / Overview; per-vertical auto-theming
-(reading `experience.defaultThemeKey`); migrating the frozen hardcoded surfaces so
+### Petróleo Perla (`petrol-pearl`) — Finesse default (FINESSE-UI-01)
+
+The Finesse (Beauty vertical, technical key `beauty`) default palette. Structural
+**petrol blue — more blue than green** — on a light **pearl-grey** canvas: neutral by
+default, branded by business. The blue is reserved for buttons, active selection,
+links, focus and details; text, focus and semantic states are never controlled by
+future business personalization. Defined as a `[data-theme="petrol-pearl"]` block in
+`app/globals.css` right after `noir-or`, overriding the **same source-token set** as
+the v1 palettes plus one extra: `--ring` (the shadcn focus ring, a literal purple in
+`:root` that no v1 palette overrides — a pre-existing gap, left untouched there).
+
+| Role | Token(s) | Value |
+|---|---|---|
+| Canvas | `--app-canvas` | `#EEF2F4` |
+| Rail / rail surface | `--app-sidebar` / `--app-sidebar-surface` | `#E3E9EC` / `#EDF1F3` |
+| Card (secondary surface) / elevated (main) | `--app-surface-dark` / `--app-surface-dark-elevated` | `#F7F9FA` / `#FFFFFF` |
+| Primary / hover | `--accent-primary` / `--accent-primary-hover` | `#145F7B` / `#0E4B63` |
+| Accent as text / deep tone | `--accent-on-dark` / `--accent-rich` | `#0E4B63` / `#0B3B4F` |
+| Soft selection | `--accent-soft` | `#DFECF2` |
+| Text primary / secondary / tertiary | `--text-*-light` | `#18262D` / `#5C6B73` / `#75838A` |
+| Border / strong | `--border-dark(-strong)` | `rgba(24,38,45,.12)` ≈ `#D5DEE3` / `.20` |
+| Focus ring | `--ring` · `--inbox-focus` | `rgba(44,127,162,.55)` · `#2C7FA2` |
+| Semantic text | `--status-{danger,warning,success}-text` | `#C2454A` / `#B07D24` / `#3E8E5E` (as the v1 palettes) |
+
+Reference secondary text was `#63727A` (4.42:1 on the canvas); it is deepened to
+`#5C6B73` so it clears AA on the canvas **and** the rail. Contrast (WCAG, computed):
+
+| Pair | petrol-pearl |
+|---|---|
+| text-primary / canvas | 13.8 |
+| text-secondary / canvas · rail | 4.9 · 4.5 |
+| text-tertiary / canvas (≥3) | 3.5 |
+| accent-primary as text / canvas · white | 6.3 · 7.1 |
+| white on primary button / on hover | 7.1 / 9.5 |
+| accent-rich on accent-soft (selection) | 9.9 |
+| focus `#2C7FA2` (UI, ≥3) / canvas · white | 4.0 · 4.5 |
+| danger · warning · success text / canvas | 4.4 · 3.2 · 3.6 (unchanged vs. v1) |
+
+**Default wiring (FINESSE-UI-01):** `BEAUTY_PACK.themes` = `{ default: "petrol-pearl",
+available: ["petrol-pearl", "rose-nude", "sage-luxe", "noir-or"] }`. A Beauty/Finesse
+workspace with no stored choice opens in Petróleo Perla; a stored `7f-theme` choice
+always wins; `?theme=` still previews (and persists) explicitly; other verticals keep
+Midnight. No workspace data is persisted or migrated for this. Presence: the key is
+registered in `PRESENCE_THEME_KEYS` so the shared visual system recognises it —
+existing sites, publications, templates and Freya presets are NOT re-themed.
+
+**Out of scope (follow-ups):** Beauty Home / Overview; migrating the frozen hardcoded surfaces so
 they follow a palette — `components/administracion-content.tsx` (blue ramp), the
 app-wide deferred blue accents, `/system` (intentional amber control plane),
 `app/cliente/*` portal navy, `components/templates/*-skina` print/PDF, and legacy/demo

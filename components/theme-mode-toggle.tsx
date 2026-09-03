@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Flower2, Gem, Leaf, Moon, Sun } from "lucide-react"
+import { Flower2, Gem, Leaf, Moon, Sun, Waves } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
@@ -22,10 +22,23 @@ import { cn } from "@/lib/utils"
  * flash. KEEP THE KEY IN SYNC with that script if you ever change it.
  */
 const THEME_KEY = "7f-theme"
-type ThemeMode = "midnight" | "lavender-mist" | "rose-nude" | "sage-luxe" | "noir-or"
+type ThemeMode =
+  | "midnight"
+  | "lavender-mist"
+  | "rose-nude"
+  | "sage-luxe"
+  | "noir-or"
+  | "petrol-pearl"
 
-/** Allowed palette values — keep in sync with the pre-paint script in app/layout.tsx. */
-const VALID_THEMES: ThemeMode[] = ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or"]
+/** Allowed palette values — keep in sync with the pre-paint script in app/layout.tsx and @core/theme. */
+const VALID_THEMES: ThemeMode[] = [
+  "midnight",
+  "lavender-mist",
+  "rose-nude",
+  "sage-luxe",
+  "noir-or",
+  "petrol-pearl",
+]
 
 function readStored(): ThemeMode {
   if (typeof window === "undefined") return "midnight"
@@ -51,6 +64,8 @@ const OPTIONS: { mode: ThemeMode; label: string; icon: typeof Moon }[] = [
   { mode: "rose-nude", label: "Rose Nude", icon: Flower2 },
   { mode: "sage-luxe", label: "Sage Luxe", icon: Leaf },
   { mode: "noir-or", label: "Noir Or", icon: Gem },
+  // Finesse (Beauty) default — structural petrol blue on a pearl-grey canvas.
+  { mode: "petrol-pearl", label: "Petróleo Perla", icon: Waves },
 ]
 
 export function ThemeModeToggle() {

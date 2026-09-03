@@ -10,7 +10,7 @@ test("Forte beauty playbook loads and is keyed to beauty", () => {
 
 test("Forte beauty playbook declares Finesse as its specialist", () => {
   assert.equal(BEAUTY_FORTE_PLAYBOOK.specialistAgent?.name, "Finesse")
-  assert.equal(BEAUTY_FORTE_PLAYBOOK.specialistAgent?.tagline, "7F Beauty, powered by Finesse")
+  assert.equal(BEAUTY_FORTE_PLAYBOOK.specialistAgent?.tagline, "Finesse, by SevenF")
 })
 
 test("Forte beauty playbook states Finesse coordinates without replacing core agents", () => {

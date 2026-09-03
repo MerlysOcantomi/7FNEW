@@ -45,7 +45,7 @@ export default async function RootLayout({
 }>) {
   /**
    * Server-resolved default `data-theme` for the active workspace (beauty →
-   * rose-nude), used ONLY when the user hasn't chosen a theme. See @core/theme.
+   * petrol-pearl), used ONLY when the user hasn't chosen a theme. See @core/theme.
    * Falls back to midnight for signed-out/public routes or non-beauty verticals.
    *
    * `getRequestLocale()` resolves the effective UI locale (authenticated:
@@ -68,19 +68,20 @@ export default async function RootLayout({
          * Theme bridge (no-FOUC). Sets data-theme on <html> before paint.
          * Precedence: ?theme=<name> (persisted) → localStorage `7f-theme` (the
          * user's explicit choice) → the workspace vertical default injected here
-         * (`d`, e.g. rose-nude for a Beauty workspace) → midnight. The vertical
-         * default is NOT written to localStorage, so a later manual theme change
-         * (which does persist) is always respected. Allowed values: midnight |
-         * lavender-mist | rose-nude | sage-luxe | noir-or — anything else falls
-         * back to midnight. This is a side-channel to next-themes: next-themes
-         * keeps owning `class`/`.dark`; we only drive the data-theme attribute
-         * that activates the dormant [data-theme="…"] palette blocks in
-         * app/globals.css. Keep the allow-list in sync with @core/theme and
-         * components/theme-mode-toggle.tsx.
+         * (`d`, e.g. petrol-pearl for a Beauty/Finesse workspace) → midnight. The
+         * vertical default is NOT written to localStorage, so a later manual theme
+         * change (which does persist) is always respected. Allowed values:
+         * midnight | lavender-mist | rose-nude | sage-luxe | noir-or |
+         * petrol-pearl — anything else falls back to midnight. This is a
+         * side-channel to next-themes: next-themes keeps owning `class`/`.dark`;
+         * we only drive the data-theme attribute that activates the dormant
+         * [data-theme="…"] palette blocks in app/globals.css. Keep the
+         * allow-list in sync with @core/theme, components/theme-mode-toggle.tsx
+         * and engines/presence/themes.ts.
          */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='7f-theme';var A=['midnight','lavender-mist','rose-nude','sage-luxe','noir-or'];var d=${JSON.stringify(workspaceDefaultTheme)};if(A.indexOf(d)<0)d='midnight';var q=new URLSearchParams(location.search).get('theme');if(q&&A.indexOf(q)>-1){localStorage.setItem(k,q);}var t=localStorage.getItem(k);document.documentElement.setAttribute('data-theme',A.indexOf(t)>-1?t:d);}catch(e){document.documentElement.setAttribute('data-theme','midnight');}})();`,
+            __html: `(function(){try{var k='7f-theme';var A=['midnight','lavender-mist','rose-nude','sage-luxe','noir-or','petrol-pearl'];var d=${JSON.stringify(workspaceDefaultTheme)};if(A.indexOf(d)<0)d='midnight';var q=new URLSearchParams(location.search).get('theme');if(q&&A.indexOf(q)>-1){localStorage.setItem(k,q);}var t=localStorage.getItem(k);document.documentElement.setAttribute('data-theme',A.indexOf(t)>-1?t:d);}catch(e){document.documentElement.setAttribute('data-theme','midnight');}})();`,
           }}
         />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

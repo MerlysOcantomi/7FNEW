@@ -177,7 +177,7 @@ export const agents: AgentsMessages = {
       role: "Specialista Beauty",
       watching: ["La giornata dell'attività", "Ciò che richiede la tua attenzione", "Coordinamento con il team"],
       collaborationNote:
-        "Guida l'esperienza 7F Beauty: interpreta il contesto dell'attività, coordina la giornata e presenta le azioni. Lavora sopra gli agenti core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) senza sostituirli.",
+        "Guida l'esperienza Finesse: interpreta il contesto dell'attività, coordina la giornata e presenta le azioni. Lavora sopra gli agenti core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) senza sostituirli.",
     },
   },
 }

@@ -115,8 +115,8 @@ test("copy: en and es are really translated; proper nouns stay identical", () =>
   assert.equal(en.panelTitle, "Finesse")
   assert.equal(es.panelTitle, "Finesse")
   assert.equal(en.panelSubtitle, es.panelSubtitle)
-  assert.equal(en.pageLabels.other, "7F Beauty")
-  assert.equal(es.pageLabels.other, "7F Beauty")
+  assert.equal(en.pageLabels.other, "Finesse")
+  assert.equal(es.pageLabels.other, "Finesse")
 })
 
 test("copy: unknown / not-yet-translated locales fall back to English", () => {

@@ -17,6 +17,8 @@ test("default/agency: no Finesse, no beauty nav, standard Today, default state",
   // work_first is always the real, safe Today — no vertical activation gate.
   assert.equal(e.todayActivatesRealWorkspaces, false)
   assert.ok(!e.availableThemeKeys.includes("rose-nude"))
+  assert.ok(!e.availableThemeKeys.includes("petrol-pearl"))
+  assert.equal(e.defaultThemeKey, "midnight")
 })
 
 test("empty / unknown verticalKey → safe default experience (no crash)", () => {
@@ -43,12 +45,12 @@ test("beauty: full resolved experience", () => {
   assert.equal(e.verticalKey, "beauty")
   assert.equal(e.experienceState, "complete")
   assert.equal(e.businessType, "beauty")
-  assert.equal(e.verticalName, "7F Beauty")
+  assert.equal(e.verticalName, "Finesse")
   assert.equal(e.specialistAgentId, "finesse")
   assert.equal(e.specialistAgent?.name, "Finesse")
-  assert.equal(e.brandLine, "7F Beauty, powered by Finesse")
-  assert.equal(e.defaultThemeKey, "rose-nude")
-  assert.deepEqual(e.availableThemeKeys, ["rose-nude", "sage-luxe", "noir-or"])
+  assert.equal(e.brandLine, "Finesse, by SevenF")
+  assert.equal(e.defaultThemeKey, "petrol-pearl")
+  assert.deepEqual(e.availableThemeKeys, ["petrol-pearl", "rose-nude", "sage-luxe", "noir-or"])
   assert.equal(e.todayMode, "appointment_first")
   // The gate mirrors BEAUTY_PACK.today.activateRealForRealWorkspaces — ON
   // since 7F-P01.B3: the Beauty Today reads real data, so real workspaces
@@ -74,7 +76,7 @@ test("beauty aliases (salon/nails/…) resolve to the beauty experience", () => 
     assert.equal(e.todayMode, "appointment_first")
     // Aliases inherit the same gate — all activate the REAL Beauty Today.
     assert.equal(e.todayActivatesRealWorkspaces, true, `${key} activated`)
-    assert.equal(e.defaultThemeKey, "rose-nude")
+    assert.equal(e.defaultThemeKey, "petrol-pearl")
   }
 })
 

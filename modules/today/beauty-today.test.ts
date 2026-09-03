@@ -18,8 +18,8 @@ test("beauty vertical gate + localized Finesse catalogs (en canonical, es comple
   const en = getBeautyTodayMessages("en")
   // Brand lines are proper nouns, identical across locales.
   for (const c of [es, en]) {
-    assert.equal(c.brandTitle, "7F Beauty")
-    assert.equal(c.brandLine, "7F Beauty, powered by Finesse")
+    assert.equal(c.brandTitle, "Finesse")
+    assert.equal(c.brandLine, "Finesse, by SevenF")
     assert.equal(c.eyebrow, "Finesse · Beauty Intelligence")
     assert.equal(c.extras.featuredServices.length, 4)
   }

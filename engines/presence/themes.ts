@@ -19,6 +19,7 @@ export const PRESENCE_THEME_KEYS = [
   "rose-nude",
   "sage-luxe",
   "noir-or",
+  "petrol-pearl",
 ] as const
 export type PresenceThemeKey = (typeof PRESENCE_THEME_KEYS)[number]
 
@@ -37,9 +38,12 @@ const TOKEN_SOURCE = 'app/globals.css [data-theme]'
 export const PRESENCE_THEMES: readonly PresenceTheme[] = [
   { key: "midnight", label: "Midnight", suitedFor: "Platform / product, neutral premium", tokenSource: TOKEN_SOURCE },
   { key: "lavender-mist", label: "Lavender Mist", suitedFor: "Soft, modern service brands", tokenSource: TOKEN_SOURCE },
-  { key: "rose-nude", label: "Rose Nude", suitedFor: "Beauty / premium (Finesse default)", tokenSource: TOKEN_SOURCE },
+  { key: "rose-nude", label: "Rose Nude", suitedFor: "Beauty / premium, warm", tokenSource: TOKEN_SOURCE },
   { key: "sage-luxe", label: "Sage Luxe", suitedFor: "Wellness / spa", tokenSource: TOKEN_SOURCE },
   { key: "noir-or", label: "Noir Or", suitedFor: "Luxury / glam", tokenSource: TOKEN_SOURCE },
+  // Registered so the shared visual system recognises the key. Templates and
+  // Freya presets keep their current theme choices until a later decision.
+  { key: "petrol-pearl", label: "Petróleo Perla", suitedFor: "Beauty / Finesse default — structural petrol blue on pearl grey", tokenSource: TOKEN_SOURCE },
 ]
 
 export function isPresenceThemeKey(key: string): key is PresenceThemeKey {

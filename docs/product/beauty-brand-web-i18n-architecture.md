@@ -100,9 +100,10 @@ expressed as a `[data-theme="…"]` block in `app/globals.css` that overrides to
 |---|---|---|
 | `midnight` | dark | global default |
 | `lavender-mist` | light | light primary (dormant) |
-| `rose-nude` | light | **Beauty default** (dusty rose) |
+| `rose-nude` | light | Beauty / premium, warm (dusty rose) |
 | `sage-luxe` | light | wellness / spa |
 | `noir-or` | dark | luxury / glam salon |
+| `petrol-pearl` | light | **Beauty / Finesse default** (petrol blue on pearl grey — FINESSE-UI-01) |
 
 **7F Clear is added the same way** — a new `[data-theme="clear"]` (or
 `sevenf-clear`) block that overrides the same source-token set the Beauty palettes
@@ -110,7 +111,7 @@ already override (surface ramp, `--accent-*`, `--text-*-light`,
 `--border-dark(-strong)`, shadows, shell overlays, `--status-*`, `--inbox-*`,
 `--agent-*`). No `--clear-*` tokens, no `@theme inline` change, no base-shadcn
 redefinition. It **coexists** with Midnight, Lavender Mist, Rose Nude, Sage Luxe,
-Noir Or, and any future per-logo palette; it does **not** replace them.
+Noir Or, Petróleo Perla, and any future per-logo palette; it does **not** replace them.
 
 **Doctrine.**
 - **Tokens, never hardcoded colors.** 7F Clear must be defined purely as token
@@ -127,7 +128,7 @@ Noir Or, and any future per-logo palette; it does **not** replace them.
 - **Relationship to per-logo palettes (§5).** 7F Clear is the *fallback identity*
   for a business with no logo/brand yet. A per-logo brand palette, once
   approved, becomes that workspace's palette; until then 7F Clear (or the vertical
-  default `rose-nude`) is the premium neutral.
+  default `petrol-pearl`) is the premium neutral.
 
 ---
 
@@ -408,7 +409,7 @@ goals in this document.
 | **Business profile** | `app/business-profile/page.tsx`, `app/api/workspace/business-profile/route.ts`, `core/verticals.ts` | **Partial.** JSON in `Workspace.config.businessProfile`: `businessName, businessDescription, services[], tone, languages[], region, workingHours` (free text), `attentionRules[]`. | **High** | **Absent for web/brand:** address, phone, WhatsApp, email, **structured hours**, social links, photos, **logo**, geo/Maps, website URL. These are the brand-kit/website data gap (§4, §7, §12). |
 | **Today (Beauty preview)** | `components/today/today-page-client.tsx`, `beauty-studio-overview.tsx`, `today-appointment-layout.tsx`, `core/vertical-packs/beauty.ts` | **Real shape, demo data.** Auto-switch gated by `activateRealForRealWorkspaces:false`; preview shows "Vista previa · datos de ejemplo" chip, no fake writes. | Medium | Keep honest gate. Real Beauty Hoy is the `7f-professional-direction-audit` Move 1 (out of scope here). |
 | **Inbox** | `app/inbox/page.tsx`, `app/inbox/overview/`, `components/inbox/*` | **Real** (Fanny pipeline, the strongest surface). Inbox Briefing is preview. | Medium | Vertical Smart Inbox is in Beauty finish scope (§2), but **i18n of Inbox internals is deferred** (canonical doc §11/§15). |
-| **Theme tokens / palettes** | `app/globals.css`, `core/theme.ts`, `components/theme-mode-toggle.tsx`, `docs/theme-token-map.md` | **Strong.** ~316 CSS vars; 5 palettes (`midnight, lavender-mist, rose-nude, sage-luxe, noir-or`). Per-workspace theme is **derived** (not stored); user override in `localStorage` only. ~900+ hardcoded colors remain. | Medium | **7F Clear** is a new `[data-theme]` block (§3). **No stored per-workspace palette yet** → needed for palette-from-logo (§5, §12). |
+| **Theme tokens / palettes** | `app/globals.css`, `core/theme.ts`, `components/theme-mode-toggle.tsx`, `docs/theme-token-map.md` | **Strong.** ~316 CSS vars; 6 palettes (`midnight, lavender-mist, rose-nude, sage-luxe, noir-or, petrol-pearl`). Per-workspace theme is **derived** (not stored); user override in `localStorage` only. ~900+ hardcoded colors remain. | Medium | **7F Clear** is a new `[data-theme]` block (§3). **No stored per-workspace palette yet** → needed for palette-from-logo (§5, §12). |
 | **i18n** | `core/i18n/*`, `docs/i18n-localization-architecture.md`, `app/api/workspaces/[id]/locale/route.ts` | **Minimal.** Custom `en/es/de`, `DEFAULT_LOCALE="en"`, consumed **only** by email/notifications/outbound. UI is hardcoded Spanish. No `User.locale`, no locale routing, no client provider. `Workspace.config.locale` exists. | **High** | Follow the canonical doc. Add **client language** + **public-web languages** axes (§10). Migrate by coherent surface, not all at once. |
 | **Brand / logo** | (none) + `core/storage.ts`, `app/api/attachments/route.ts`, `@vercel/blob` | **Absent.** No brand kit, no logo field, no brand palette per business, no photo gallery. Generic blob upload exists but is not brand-specific. Only hardcoded "7F" mark (`components/sidebar-nav.tsx`). | **High** | Brand kit is new (§4). Reuse blob plumbing for logo/photos. **Schema/config addition is a future phase (§12).** |
 | **Website / public pages** | `public/widget.js`, `app/widget/chat/page.tsx` | **Absent** (no builder, no public business page, no blocks/sections/hero). Only an embeddable **chat widget**. | **High** | Premium instant website is new (§7). Start as a read-only preview over real data, no builder (§12/§13). |

@@ -130,7 +130,7 @@ export interface FinesseAssistantCopy {
 }
 
 /**
- * English catalog — canonical. Proper nouns (Finesse, Sevenef, 7F Beauty) are
+ * English catalog — canonical. Proper nouns (Finesse, Sevenef) are
  * identical across locales. Page labels follow the app nav vocabulary
  * (`core/i18n/ui/en/nav.ts` + the Beauty vertical presets).
  */
@@ -151,7 +151,7 @@ const COPY_EN: FinesseAssistantCopy = {
     billing: "Billing",
     team: "Team",
     settings: "Settings",
-    other: "7F Beauty",
+    other: "Finesse",
   },
   intros: {
     "my-salon": "I can explain how your salon is doing this period and what you can improve.",
@@ -203,7 +203,7 @@ const COPY_ES: FinesseAssistantCopy = {
     billing: "Cobros",
     team: "Equipo",
     settings: "Ajustes",
-    other: "7F Beauty",
+    other: "Finesse",
   },
   intros: {
     "my-salon": "Puedo explicarte cómo va tu salón este periodo y qué puedes mejorar.",

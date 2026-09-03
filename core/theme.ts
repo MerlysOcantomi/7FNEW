@@ -12,15 +12,15 @@ import { resolveWorkspaceExperience } from "@core/vertical-packs/experience"
  *   3. the workspace's vertical DEFAULT  ← this module
  *   4. the global default (`midnight`)
  *
- * Step 3 is what makes a Beauty/Finesse workspace open in `rose-nude` by default
- * without ever forcing it: the default is only applied when the user has made no
- * explicit choice, and it is NOT written to localStorage, so switching the theme
- * (which does write localStorage) is always respected afterwards.
+ * Step 3 is what makes a Beauty/Finesse workspace open in `petrol-pearl` by
+ * default without ever forcing it: the default is only applied when the user has
+ * made no explicit choice, and it is NOT written to localStorage, so switching the
+ * theme (which does write localStorage) is always respected afterwards.
  *
- * Everything derives from the pure vertical experience (`beauty → rose-nude` via
- * `BEAUTY_PACK.themes.default`) — no colors are hardcoded, no new tokens, no
- * parallel theme system. Keep `VALID_THEME_KEYS` in sync with `app/layout.tsx`
- * and `components/theme-mode-toggle.tsx`.
+ * Everything derives from the pure vertical experience (`beauty → petrol-pearl`
+ * via `BEAUTY_PACK.themes.default`) — no colors are hardcoded, no new tokens, no
+ * parallel theme system. Keep `VALID_THEME_KEYS` in sync with `app/layout.tsx`,
+ * `components/theme-mode-toggle.tsx` and `engines/presence/themes.ts`.
  */
 
 export const VALID_THEME_KEYS = [
@@ -29,6 +29,7 @@ export const VALID_THEME_KEYS = [
   "rose-nude",
   "sage-luxe",
   "noir-or",
+  "petrol-pearl",
 ] as const
 
 export const GLOBAL_DEFAULT_THEME_KEY = "midnight"

@@ -496,9 +496,9 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   BEAUTY VERTICAL PALETTES — foundation values (v1)
+   BEAUTY VERTICAL PALETTES — foundation values (v1) + Petróleo Perla
 
-   Dormant, opt-in palettes for the 7F Beauty vertical, added the same way as
+   Opt-in palettes for the Beauty vertical (Finesse), added the same way as
    [data-theme="lavender-mist"]: they override token VALUES ONLY (no new
    --beauty-* tokens, no @theme changes, no dark: variants). Everything derived
    (--background, --card, --surface-*, --status-* bg, scrollbar, @theme
@@ -509,15 +509,19 @@
    verified ≥ WCAG AA (see docs/theme-token-map.md). They are refinable with
    Claude Design without touching any component.
 
-   Activation is opt-in ONLY (nothing auto-applies): ?theme=rose-nude |
-   sage-luxe | noir-or, or the theme toggle. Midnight stays the default; #16–#19
-   behavior is unchanged.
+   Activation: ?theme=<key> or the theme toggle (persisted choice), or the
+   vertical default resolved by core/theme.ts when the user has made no
+   choice — a Beauty/Finesse workspace opens in petrol-pearl; every other
+   vertical keeps Midnight. Midnight stays the global default.
 
    Intent:
-     rose-nude → Beauty / Premium default (warm ivory + dusty rose; --agent-rose
-                 aligned to the palette so Finesse identity moves with it)
-     sage-luxe → wellness / natural / spa / calm (sage + greige, light)
-     noir-or   → luxury / glam / high-end salon (near-black + gold, dark)
+     petrol-pearl → Finesse DEFAULT (structural petrol blue, more blue than
+                    green, on a light pearl-grey canvas — neutral by default,
+                    branded by business; low-fatigue for all-day work)
+     rose-nude    → Beauty / Premium, warm (ivory + dusty rose; --agent-rose
+                    aligned to the palette so Finesse identity moves with it)
+     sage-luxe    → wellness / natural / spa / calm (sage + greige, light)
+     noir-or      → luxury / glam / high-end salon (near-black + gold, dark)
    ════════════════════════════════════════════════════════════════════════ */
 
 [data-theme="rose-nude"] {
@@ -731,6 +735,99 @@
   --agent-teal-soft: rgba(95, 199, 174, 0.16);
   --agent-rose: #E79FB8;
   --agent-rose-soft: rgba(231, 159, 184, 0.16);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PETRÓLEO PERLA (`petrol-pearl`) — Finesse default (FINESSE-UI-01)
+
+   Structural petrol blue (more blue than green) on a light pearl-grey
+   canvas. The blue is reserved for buttons, active selection, links, focus
+   and details; the canvas reads as clean light grey, comfortable for hours.
+   Same contract as the palettes above: token VALUES only, no new tokens.
+   Semantic success/warning/danger/info keep their meaning and AA contrast.
+   The ONLY extra override vs. the v1 palettes is `--ring` (the shadcn focus
+   ring), which is a literal purple in :root and would otherwise leak into
+   this palette — the approved focus tone is mapped there.
+   Reference direction: canvas #EEF2F4 · surface #FFFFFF / #F7F9FA · text
+   #18262D / #63727A · border #D5DEE3 · primary #145F7B · hover #0E4B63 ·
+   soft selection #DFECF2 · focus #2C7FA2 · deep #0B3B4F.
+   ════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="petrol-pearl"] {
+  /* — Surfaces: pearl-grey canvas → white ramp (rail a step deeper) — */
+  --app-canvas: #EEF2F4;
+  --app-sidebar: #E3E9EC;
+  --app-sidebar-surface: #EDF1F3;
+  --app-surface-dark: #F7F9FA;
+  --app-surface-dark-elevated: #FFFFFF;
+  --app-surface-dark-hover: #E9EEF1;
+
+  /* — Accent: structural petrol blue (AA as text and as UI on light) — */
+  --accent-primary: #145F7B;
+  --accent-primary-hover: #0E4B63;
+  --accent-on-dark: #0E4B63;
+  --accent-muted: rgba(20, 95, 123, 0.12);
+  --accent-muted-border: rgba(20, 95, 123, 0.30);
+  --accent-soft: #DFECF2;
+  --accent-rich: #0B3B4F;
+
+  /* — Text: ink / slate on light. Secondary deepened from the reference
+       (#63727A → #5C6B73) so it clears 4.5:1 on the canvas AND the rail. — */
+  --text-primary-light: #18262D;
+  --text-secondary-light: #5C6B73;
+  --text-tertiary-light: #75838A;
+
+  /* — Borders: ink line (≈ #D5DEE3 on the canvas) — */
+  --border-dark: rgba(24, 38, 45, 0.12);
+  --border-dark-strong: rgba(24, 38, 45, 0.20);
+  --app-shadow-subtle: 0 4px 14px rgba(11, 59, 79, 0.08);
+
+  /* — Shell overlays flip white→ink on light — */
+  --app-surface-subtle: rgba(24, 38, 45, 0.04);
+  --app-surface-hover: rgba(24, 38, 45, 0.06);
+  --app-surface-active: rgba(24, 38, 45, 0.09);
+
+  /* — Focus ring (shadcn `ring-ring`): approved focus tone, ≥3:1 on light — */
+  --ring: rgba(44, 127, 162, 0.55);
+
+  /* — Status: deepen text for contrast on light (same as the v1 palettes) — */
+  --status-danger-text: #C2454A;
+  --status-warning-text: #B07D24;
+  --status-success-text: #3E8E5E;
+
+  /* — Inbox component tokens (the rest derive) — */
+  --inbox-list-background: #F4F7F8;
+  --inbox-intelligence-background: #F4F7F8;
+  --inbox-chat-background: #E6ECEF;
+  --inbox-chat-bubble-inbound: #FFFFFF;
+  --inbox-chat-bubble-inbound-hover: #F7F9FA;
+  --inbox-chat-bubble-inbound-border: rgba(24, 38, 45, 0.08);
+  --inbox-composer-input: #FFFFFF;
+  --inbox-composer-toolbar: rgba(24, 38, 45, 0.04);
+  --inbox-chat-meta-outbound-bg: #DFECF2;
+  --inbox-chat-meta-outbound-border: #BFD6E1;
+  --inbox-chat-meta-outbound-text: #0B3B4F;
+  --inbox-border: rgba(24, 38, 45, 0.12);
+  --inbox-divider: rgba(24, 38, 45, 0.08);
+  --inbox-info: #2E6FD6;
+  --inbox-lead: #C8860F;
+  --inbox-urgency: #D14A4F;
+  --inbox-focus: #2C7FA2;
+  --inbox-urgent-color: #D14A4F;
+  --inbox-waiting-color: #9A7B2E;
+  --inbox-done-color: #3E8E5E;
+  --inbox-archive-color: #6F7D84;
+  --inbox-unread-color: #145F7B;
+  --inbox-destructive: #D14A4F;
+  --inbox-success: #3E8E5E;
+  --inbox-warning: #B07D24;
+
+  /* — Agent identity (light): Finesse keeps its rose identity; the accent
+       stays neutral-by-default so business branding can layer on later — */
+  --agent-teal: #2F8F7A;
+  --agent-teal-soft: rgba(47, 143, 122, 0.12);
+  --agent-rose: #B25C82;
+  --agent-rose-soft: rgba(178, 92, 130, 0.12);
 }
 
 /* ── Inbox Overview — Fanny presence (decorative orb rings + waveform) ── */

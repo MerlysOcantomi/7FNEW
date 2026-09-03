@@ -3,8 +3,8 @@
  *
  * Each vertical adds ONE specialist agent that LEADS that vertical's experience
  * without replacing the 7 core agents (Francis, Mr. Forte, Fanny, Freya, Fiona,
- * Felix, Fathom). For Beauty the specialist is Finesse — "7F Beauty, powered by
- * Finesse". Finesse contextualizes and coordinates the Beauty experience and can
+ * Felix, Fathom). For Beauty the specialist is Finesse — "Finesse, by SevenF".
+ * Finesse contextualizes and coordinates the Beauty experience and can
  * be the primary voice on Beauty surfaces (header, Hoy, panels), but every
  * action that belongs to a core agent still shows that agent (Fanny detected 3
  * messages, Freya can create a story, Felix can prepare the charge, …).
@@ -36,7 +36,7 @@ export interface VerticalSpecialistAgent {
   name: string
   /** The vertical this specialist leads. */
   verticalKey: string
-  /** Brand line, e.g. "7F Beauty, powered by Finesse". */
+  /** Brand line, e.g. "Finesse, by SevenF". */
   tagline: string
   /** Long role, e.g. "Beauty Intelligence". */
   role: string
@@ -57,11 +57,11 @@ export const BEAUTY_SPECIALIST_AGENT: VerticalSpecialistAgent = {
   id: "finesse",
   name: "Finesse",
   verticalKey: "beauty",
-  tagline: "7F Beauty, powered by Finesse",
+  tagline: "Finesse, by SevenF",
   role: "Beauty Intelligence",
   shortLabel: "Especialista Beauty",
   description:
-    "Lidera la experiencia de 7F Beauty: interpreta el contexto del negocio, coordina el día y presenta las acciones. Trabaja sobre los agentes core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) sin reemplazarlos.",
+    "Lidera la experiencia de Finesse: interpreta el contexto del negocio, coordina el día y presenta las acciones. Trabaja sobre los agentes core (Fanny, Freya, Fiona, Felix, Mr. Forte, Fathom) sin reemplazarlos.",
   accent: "rose",
   coordinatesWith: ["francis", "forte", "fanny", "freya", "fiona", "felix", "fathom"],
   voice: {

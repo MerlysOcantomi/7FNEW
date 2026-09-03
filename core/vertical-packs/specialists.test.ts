@@ -9,7 +9,7 @@ test("resolveVerticalSpecialist: 'beauty' → Finesse", () => {
   const s = resolveVerticalSpecialist("beauty")
   assert.equal(s, BEAUTY_SPECIALIST_AGENT)
   assert.equal(s?.name, "Finesse")
-  assert.equal(s?.tagline, "7F Beauty, powered by Finesse")
+  assert.equal(s?.tagline, "Finesse, by SevenF")
   assert.equal(s?.shortLabel, "Especialista Beauty")
 })
 
