@@ -112,6 +112,46 @@ export interface BeautyTodayMessages {
     }
     error: { title: string; description: string; retry: string }
     loading: string
+    /**
+     * FINESSE-UI-02 Phase 2 — the mobile-first "Hoy": who is coming now, what
+     * needs attention, what to remember/show. `noun` params receive the
+     * workspace's OWN client noun (vocabulary layer) — never a hardcoded one.
+     */
+    nextClient: {
+      /** Section title when the focus cita has not started yet. */
+      title: (clientNoun: string) => string
+      /** Section title when a cita is happening right now (time-derived). */
+      nowTitle: string
+      /** "Después" — the following cita line. */
+      followingLabel: string
+      moreToday: (count: number) => string
+      viewAgenda: string
+      call: string
+      noteLabel: string
+      clientNotesLabel: string
+      /** Placeholder when the cita has no linked client name. */
+      noClient: string
+      untilLabel: (end: string) => string
+      emptyNoneToday: { title: string; description: string }
+      emptyAllDone: { title: string; description: string }
+    }
+    attention: {
+      title: string
+      empty: string
+      more: (count: number) => string
+      messages: (count: number) => string
+      overdueInvoices: (count: number, amount: string) => string
+      pendingInvoices: (count: number, amount: string) => string
+      suggestions: (count: number) => string
+      review: string
+    }
+    inspiration: {
+      title: string
+      subtitle: string
+      count: (count: number) => string
+      imageAlt: (index: number) => string
+      empty: { title: string; description: string }
+    }
   }
   /** Product-owned demo narrative + mock content. */
   demo: {

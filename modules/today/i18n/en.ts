@@ -110,6 +110,49 @@ export const en = {
       retry: "Try again",
     },
     loading: "Loading your day…",
+    nextClient: {
+      title: (noun) => `Next ${noun.toLowerCase()}`,
+      nowTitle: "Right now",
+      followingLabel: "Then",
+      moreToday: (count) => (count === 1 ? "1 more appointment today" : `${count} more appointments today`),
+      viewAgenda: "See the full calendar",
+      call: "Call",
+      noteLabel: "Appointment note",
+      clientNotesLabel: "Notes",
+      noClient: "No name",
+      untilLabel: (end) => `until ${end}`,
+      emptyNoneToday: {
+        title: "No appointments today",
+        description: "When you book the first one, it will show up here with everything you need to prepare.",
+      },
+      emptyAllDone: {
+        title: "No appointments left today",
+        description: "Today's appointments are behind you. See you here tomorrow.",
+      },
+    },
+    attention: {
+      title: "What needs your attention",
+      empty: "Nothing urgent right now.",
+      more: (count) => (count === 1 ? "and 1 more" : `and ${count} more`),
+      messages: (count) => (count === 1 ? "1 unanswered message" : `${count} unanswered messages`),
+      overdueInvoices: (count, amount) =>
+        count === 1 ? `1 overdue payment · ${amount}` : `${count} overdue payments · ${amount}`,
+      pendingInvoices: (count, amount) =>
+        count === 1 ? `1 payment pending · ${amount}` : `${count} payments pending · ${amount}`,
+      suggestions: (count) =>
+        count === 1 ? "Finesse has 1 suggestion for you" : `Finesse has ${count} suggestions for you`,
+      review: "Review",
+    },
+    inspiration: {
+      title: "My inspiration",
+      subtitle: "Work to remember and show",
+      count: (count) => (count === 1 ? "1 piece of work" : `${count} pieces of work`),
+      imageAlt: (index) => `Work ${index}`,
+      empty: {
+        title: "No photos of your work yet",
+        description: "Your work will appear here to remember ideas and show them during an appointment.",
+      },
+    },
   },
   demo: {
     assistantNote:

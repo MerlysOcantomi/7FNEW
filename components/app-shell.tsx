@@ -27,6 +27,7 @@ import { GlobalFinesseAssistantChrome } from "@/components/assistant/global-fine
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { resolveVerticalSpecialist } from "@core/vertical-packs/specialists"
 import { resolveNavProfile } from "@core/vertical-packs/nav-profile"
+import { MobileNavClearance } from "@/components/mobile-nav/mobile-nav-clearance"
 import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-fanny-trigger"
 import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
 import { ManualIntakeProvider } from "@/components/manual-intake/manual-intake-provider"
@@ -243,7 +244,10 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
         <MobileSidebarNav />
 
         {/* max-h-full caps main to the shell height so overflow-y-auto always forms a scrollport when content is taller */}
-        <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
+        <main
+          data-mobile-nav-clearance={hasMobileNavBar ? "content" : undefined}
+          className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain"
+        >
           <AppShellDesktopToolbar
             hideTodayTrigger={hideTodayTrigger}
             hideAgentsTrigger={hideAgentsTrigger}
@@ -258,6 +262,14 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           >
             <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
               {children}
+              {/*
+                Mobile bottom-bar clearance (FINESSE-UI-02). The content column
+                above is `min-h-0` and may SHRINK below its content, so padding
+                or a `main::after` block never reaches past the overflowing
+                content; a real trailing sibling INSIDE the column always does.
+                Rendered only when the workspace has a mobile bar; hidden ≥ md.
+              */}
+              {hasMobileNavBar && <MobileNavClearance />}
             </div>
           </div>
         </main>

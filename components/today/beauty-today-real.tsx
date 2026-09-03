@@ -2,49 +2,67 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   ArrowRight,
-  CalendarPlus,
-  Clock,
+  CalendarDays,
+  ChevronRight,
+  Images,
   MessageSquare,
+  NotebookPen,
+  Phone,
   Receipt,
   Sparkles,
+  StickyNote,
 } from "lucide-react"
 import { useFetch } from "@/hooks/use-fetch"
 import { useI18n } from "@/components/i18n-provider"
+import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { useRegisterFinesseAssistantContext } from "@/components/assistant/finesse-assistant-provider"
 import { getBeautyTodayMessages, type BeautyTodayMessages } from "@modules/today/i18n"
-import type {
-  BeautyTodayAction,
-  BeautyTodayAppointment,
-  BeautyTodayGap,
-  BeautyTodayPayload,
+import {
+  buildAttentionDigest,
+  isAttentionHrefNavigable,
+  resolveFocusedAppointment,
+  type BeautyAttentionItem,
+  type BeautyTodayAppointment,
+  type BeautyTodayInspiration,
+  type BeautyTodayPayload,
 } from "@modules/today/beauty-real"
 import { BEAUTY_SPECIALIST_AGENT } from "@core/vertical-packs/specialists"
 import { formatCurrency, toIntlLocale } from "@core/i18n/format"
+import { composeEntityLabel, mapVerticalKeyToBusinessType, resolveVocabulary } from "@core/personalization"
+import { cn } from "@/lib/utils"
 
 /**
- * Beauty / Finesse "Hoy" — the REAL appointment-first Today. Same route, same
- * AppShell, same visual language as the Studio preview, but every figure is a
- * real workspace fact from `GET /api/today/beauty`:
- *   - the agenda is today's real citas (`Evento` + `Cliente`);
- *   - free slots exist only where two bounded citas leave a real hole;
- *   - "Para hoy" / "Finesse sugiere" are the SAME task rows the work-first
- *     workboard shows (via `aggregateToday`), each with its stated basis;
- *   - messages/collections come from `Conversation`/`Factura`.
+ * Beauty / Finesse "Hoy" — the REAL, mobile-first work surface (FINESSE-UI-02
+ * Phase 2). One continuous column that answers, in order:
  *
- * HONESTY RULES ON SCREEN:
- *   - No attendance/confirmation chips — `Evento` has no such state. Past
- *     citas only dim (a time statement); "En curso" is time-derived.
- *   - No booked-value figure — `Evento` carries no price.
- *   - Every CTA is a REAL navigation (client, calendar, inbox, billing,
- *     workboard). There are NO write buttons here: no backend action exists
- *     yet for confirm/reschedule/collect, so none is simulated.
- *   - The work-first workboard (with its Send-to-AI / Take-over writes) stays
- *     one link away (`/today?todayLayout=work_first`) — nothing is hidden.
+ *   1. ¿Quién viene ahora?      → `NextClientSection` (the focus cita + prep)
+ *   2. ¿Qué necesita mi atención? → `AttentionSection` (a 3-row digest)
+ *   3. ¿Qué quiero enseñar/recordar? → `InspirationSection` (workspace photos)
+ *
+ * Every figure is a real workspace fact from `GET /api/today/beauty`:
+ *   - citas are today's `Evento` rows with their `Cliente` (name, phone, notes)
+ *     and the cita's own note (`descripcion`) as preparation info;
+ *   - the digest re-ranks the SAME task/message/invoice signals the payload
+ *     already carried (no new scoring engine, no Inbox duplication);
+ *   - inspiration photos are approved `PresenceMedia` originals, read-only.
+ *
+ * HONESTY RULES ON SCREEN (unchanged from the previous surface):
+ *   - no attendance/confirmation claims — "Ahora mismo" is time-derived only;
+ *   - no booked-value figure — `Evento` carries no price;
+ *   - every CTA is a REAL navigation (client, calendar, inbox, billing,
+ *     workboard) or a plain `tel:` link — no write buttons are simulated.
+ *
+ * Future seam (NOT implemented): `resolveFocusedAppointment` accepts a
+ * `selectedEventoId`; nothing here sets it — no selector, no persistence.
+ *
+ * Desktop is the same composition responding to width (two columns from lg),
+ * not a second implementation.
  */
 
-const CARD = "rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]"
+const CARD = "rounded-[20px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]"
 
 function fmtTime(iso: string, intlLocale: string): string {
   return new Date(iso).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
@@ -54,7 +72,19 @@ function fmtTime(iso: string, intlLocale: string): string {
 
 export function BeautyTodayReal({ businessName }: { businessName: string | null }) {
   const { locale } = useI18n()
+  const { workspace } = useActiveWorkspace()
   const beauty = useMemo(() => getBeautyTodayMessages(locale), [locale])
+  const t = beauty.real
+
+  // The workspace's OWN client noun (vocabulary layer) — never hardcoded here.
+  const clientNoun = useMemo(() => {
+    const vocabulary = resolveVocabulary(
+      mapVerticalKeyToBusinessType(workspace?.verticalKey ?? ""),
+      undefined,
+      locale,
+    )
+    return composeEntityLabel({ vocabulary, entity: "client", form: "singular", fallback: "Cliente" })
+  }, [workspace?.verticalKey, locale])
 
   const [timezone, setTimezone] = useState<string | null>(null)
   useEffect(() => {
@@ -66,7 +96,7 @@ export function BeautyTodayReal({ businessName }: { businessName: string | null 
     }
   }, [])
 
-  // Live "now" for the agenda divider — gated after mount (no SSR mismatch).
+  // Live "now" — gated after mount (no SSR mismatch), refreshed each minute.
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
     setNow(new Date())
@@ -87,23 +117,22 @@ export function BeautyTodayReal({ businessName }: { businessName: string | null 
           huecosLibres: data?.gaps.length ?? null,
           accionesUrgentes: data?.urgentActions.length ?? null,
           mensajesPendientes: data?.pendingConversations ?? null,
+          trabajosInspiracion: data?.inspiration.total ?? null,
         },
       }),
       [data],
     ),
   )
 
-  const t = beauty.real
-
   if (error) {
     return (
-      <div className={`${CARD} mx-auto mt-10 flex max-w-md flex-col items-center gap-3 p-8 text-center`}>
+      <div className={`${CARD} mx-auto mt-6 flex max-w-md flex-col items-center gap-3 p-8 text-center`} role="alert">
         <p className="text-[15px] font-semibold text-[var(--text-primary-light)]">{t.error.title}</p>
         <p className="text-[12.5px] text-[var(--text-secondary-light)]">{t.error.description}</p>
         <button
           type="button"
           onClick={refetch}
-          className="mt-2 inline-flex items-center justify-center rounded-xl bg-[var(--accent-primary)] px-3.5 py-2 text-[12.5px] font-semibold text-white"
+          className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
         >
           {t.error.retry}
         </button>
@@ -113,615 +142,447 @@ export function BeautyTodayReal({ businessName }: { businessName: string | null 
 
   if (loading || !data || now === null) {
     return (
-      <div className="flex flex-col gap-6" aria-busy="true" aria-label={t.loading}>
-        <div className={`${CARD} h-24 animate-pulse`} />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <div className={`${CARD} h-72 animate-pulse`} />
-          <div className="flex flex-col gap-6">
-            <div className={`${CARD} h-28 animate-pulse`} />
-            <div className={`${CARD} h-48 animate-pulse`} />
-          </div>
-        </div>
+      <div className="flex flex-col gap-5" aria-busy="true" aria-label={t.loading}>
+        <div className="h-10 w-2/3 animate-pulse rounded-lg bg-[var(--app-surface-subtle)]" />
+        <div className={`${CARD} h-44 animate-pulse`} />
+        <div className={`${CARD} h-28 animate-pulse`} />
+        <div className={`${CARD} h-36 animate-pulse`} />
       </div>
     )
   }
 
-  const dayEmpty =
-    data.appointments.length === 0 &&
-    data.urgentActions.length === 0 &&
-    data.suggestedActions.length === 0 &&
-    (data.pendingConversations ?? 0) === 0 &&
-    (data.overdueInvoices?.count ?? 0) === 0
-
   return (
-    <div className="flex flex-col gap-6">
-      <RealHeader studio={businessName} beauty={beauty} data={data} now={now} />
-
-      {dayEmpty ? (
-        <EmptyDay t={t} otherOpenTaskCount={data.otherOpenTaskCount} />
-      ) : (
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <div className="order-2 min-w-0 lg:order-none">
-            <AgendaPanel data={data} now={now} beauty={beauty} />
-          </div>
-
-          <div className="order-1 flex flex-col gap-6 lg:order-none">
-            <NextAppointmentCard next={data.nextAppointment} t={t} beauty={beauty} />
-            <ActionsSection
-              title={t.urgentTitle}
-              actions={data.urgentActions}
-              t={t}
-              beauty={beauty}
-            />
-            <ActionsSection
-              title={t.suggestedTitle}
-              actions={data.suggestedActions}
-              t={t}
-              beauty={beauty}
-              suggested
-            />
-            <OpsRows data={data} t={t} beauty={beauty} />
-          </div>
+    <div className="flex flex-col gap-5">
+      <TodayHeader studio={businessName} beauty={beauty} now={now} appointments={data.appointments} />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
+        <NextClientSection data={data} now={now} beauty={beauty} clientNoun={clientNoun} />
+        <div className="flex flex-col gap-5">
+          <AttentionSection data={data} beauty={beauty} />
+          <InspirationSection inspiration={data.inspiration} t={t} />
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
-// ─── Header (real signals only — no invented value figure) ───────────────────
+// ─── Header (quiet: date · studio · Finesse chip · one real signal) ──────────
 
-function RealHeader({
+function TodayHeader({
   studio,
   beauty,
-  data,
   now,
+  appointments,
 }: {
   studio: string | null
   beauty: BeautyTodayMessages
-  data: BeautyTodayPayload
   now: Date
+  appointments: BeautyTodayAppointment[]
 }) {
   const t = beauty.real
   const intlLocale = toIntlLocale(beauty.locale)
-  const dateLabel = now.toLocaleDateString(intlLocale, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  })
-  const remaining = data.appointments.filter((a) => a.phase === "upcoming").length
-
-  const signals: { text: string; dot: string }[] = [
-    { text: t.signals.appointments(data.appointments.length), dot: "var(--accent-primary)" },
-    ...(data.appointments.length > 0
-      ? [{ text: t.signals.remaining(remaining), dot: "var(--inbox-info)" }]
-      : []),
-    ...(data.gaps.length > 0
-      ? [{ text: t.signals.gaps(data.gaps.length), dot: "var(--inbox-success)" }]
-      : []),
-  ]
-
+  const raw = now.toLocaleDateString(intlLocale, { weekday: "long", day: "numeric", month: "long" })
+  // Sentence case (first letter only) — `capitalize` would title-case every word ("3 De Septiembre").
+  const dateLabel = raw.charAt(0).toLocaleUpperCase(intlLocale) + raw.slice(1)
   return (
-    <header className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary-light)]">
-          {beauty.studio.headerTitle(studio ?? beauty.brandTitle)}
+    <header className="flex flex-col gap-1">
+      <p suppressHydrationWarning className="text-[12.5px] font-medium text-[var(--text-secondary-light)]">
+        {dateLabel}
+        {appointments.length > 0 ? (
+          <span className="text-[var(--text-tertiary-light)]"> · {t.signals.appointments(appointments.length)}</span>
+        ) : null}
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-[var(--text-primary-light)]">
+          {studio ?? beauty.brandTitle}
         </h1>
-        <span
-          className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10.5px] font-semibold"
-          style={{
-            borderColor: "var(--accent-muted-border)",
-            background: "var(--accent-muted)",
-            color: "var(--accent-on-dark)",
-          }}
-        >
-          <Sparkles size={12} strokeWidth={2} aria-hidden="true" />
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--accent-muted-border)] bg-[var(--accent-muted)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--accent-on-dark)]">
+          <Sparkles size={11} strokeWidth={2} aria-hidden="true" />
           {BEAUTY_SPECIALIST_AGENT.name} {beauty.studio.bySevenef}
         </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span suppressHydrationWarning className="text-[12.5px] capitalize text-[var(--text-secondary-light)]">
-          {dateLabel}
-        </span>
-        {signals.length > 0 ? (
-          <span className="h-1 w-1 rounded-full bg-[var(--text-tertiary-light)]" aria-hidden="true" />
-        ) : null}
-        {signals.map((s) => (
-          <span
-            key={s.text}
-            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--text-primary-light)]"
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.dot }} aria-hidden="true" />
-            {s.text}
-          </span>
-        ))}
       </div>
     </header>
   )
 }
 
-// ─── Agenda (real citas + real gaps, now divider) ────────────────────────────
+// ─── 1. Next client — who is coming now, with what she needs to prepare ─────
 
-type AgendaEntry =
-  | { kind: "appt"; start: string; appt: BeautyTodayAppointment }
-  | { kind: "gap"; start: string; gap: BeautyTodayGap }
-
-function AgendaPanel({
+function NextClientSection({
   data,
   now,
   beauty,
+  clientNoun,
 }: {
   data: BeautyTodayPayload
   now: Date
   beauty: BeautyTodayMessages
+  clientNoun: string
 }) {
   const t = beauty.real
   const intlLocale = toIntlLocale(beauty.locale)
-  const entries = useMemo<AgendaEntry[]>(() => {
-    const merged: AgendaEntry[] = [
-      ...data.appointments.map((appt) => ({ kind: "appt" as const, start: appt.startsAt, appt })),
-      ...data.gaps.map((gap) => ({ kind: "gap" as const, start: gap.startsAt, gap })),
-    ]
-    return merged.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-  }, [data])
-
-  const nowMs = now.getTime()
-  const nowLabel = now.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
-  let nowShown = false
+  // `selectedEventoId` is deliberately not passed: the manual switch is a
+  // later mission (no selector, no persistence, no API here).
+  const focused = useMemo(() => resolveFocusedAppointment(data.appointments, now), [data.appointments, now])
+  const { focus, mode, following, remainingAfterFocus, allDone } = focused
+  const title = mode === "current" ? t.nextClient.nowTitle : t.nextClient.title(clientNoun)
 
   return (
-    <section className="min-w-0" aria-label={beauty.studio.agendaTitle}>
-      <div className="mb-3 flex items-baseline gap-3">
-        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary-light)]">
-          {beauty.studio.agendaTitle}
+    <section className={`${CARD} flex flex-col gap-4 p-4 sm:p-5`} aria-labelledby="today-next-client">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="today-next-client" className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary-light)]">
+          {title}
         </h2>
-        <span className="ml-auto inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} aria-hidden="true" />
-          <span
-            suppressHydrationWarning
-            className="text-[11.5px] font-medium tabular-nums"
-            style={{ color: "var(--accent-primary)" }}
-          >
-            {beauty.ui.now} {nowLabel}
+        {mode === "current" ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inbox-success-soft)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--inbox-success)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--inbox-success)]" aria-hidden="true" />
+            {t.phaseCurrent}
           </span>
-        </span>
+        ) : null}
       </div>
 
-      {entries.length === 0 ? (
-        <div className={`${CARD} flex flex-col items-start gap-2 p-5`}>
-          <p className="text-[12.5px] text-[var(--text-secondary-light)]">{t.agendaEmpty}</p>
-          <CalendarLink label={t.openCalendar} />
+      {focus === null ? (
+        <div className="flex flex-col gap-1 py-2">
+          <p className="text-[17px] font-semibold text-[var(--text-primary-light)]">
+            {allDone ? t.nextClient.emptyAllDone.title : t.nextClient.emptyNoneToday.title}
+          </p>
+          <p className="text-[13px] leading-relaxed text-[var(--text-secondary-light)]">
+            {allDone ? t.nextClient.emptyAllDone.description : t.nextClient.emptyNoneToday.description}
+          </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[18px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)]">
-          {entries.map((entry, i) => {
-            const startMs = new Date(entry.start).getTime()
-            const showNow = !nowShown && startMs > nowMs
-            if (showNow) nowShown = true
-            const first = i === 0
-            return (
-              <div key={entry.kind === "appt" ? entry.appt.eventoId : entry.gap.id}>
-                {showNow ? <NowDivider label={beauty.ui.now} /> : null}
-                {entry.kind === "appt" ? (
-                  <ApptRow appt={entry.appt} beauty={beauty} first={first && !showNow} />
-                ) : (
-                  <GapRow gap={entry.gap} beauty={beauty} first={first && !showNow} />
-                )}
-              </div>
-            )
-          })}
-        </div>
+        <FocusAppointment appt={focus} t={t} intlLocale={intlLocale} />
       )}
-    </section>
-  )
-}
 
-function NowDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 border-t border-[var(--border-dark)] px-4 py-2" aria-hidden="true">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
-      <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--accent-primary)" }}>
-        {label}
-      </span>
-      <span className="h-px flex-1" style={{ background: "color-mix(in srgb, var(--accent-primary) 40%, transparent)" }} />
-    </div>
-  )
-}
-
-function ApptRow({
-  appt,
-  beauty,
-  first,
-}: {
-  appt: BeautyTodayAppointment
-  beauty: BeautyTodayMessages
-  first: boolean
-}) {
-  const t = beauty.real
-  const intlLocale = toIntlLocale(beauty.locale)
-  const past = appt.phase === "past"
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t border-[var(--border-dark)]"} ${past ? "opacity-55" : ""}`}
-    >
-      <div className="flex w-12 shrink-0 flex-col items-start">
-        <span className="text-[13px] font-semibold tabular-nums text-[var(--text-primary-light)]">
-          {fmtTime(appt.startsAt, intlLocale)}
-        </span>
-        {appt.endsAt ? (
-          <span className="text-[10px] tabular-nums text-[var(--text-tertiary-light)]">
-            {fmtTime(appt.endsAt, intlLocale)}
+      {following ? (
+        <p className="flex items-baseline gap-2 text-[13px] text-[var(--text-secondary-light)]">
+          <span className="font-semibold uppercase tracking-wide text-[11px] text-[var(--text-tertiary-light)]">
+            {t.nextClient.followingLabel}
           </span>
-        ) : null}
-      </div>
-      <span
-        className="h-9 w-[3px] shrink-0 rounded-full"
-        style={{ background: appt.phase === "current" ? "var(--inbox-success)" : "var(--accent-primary)" }}
-        aria-hidden="true"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[13.5px] font-semibold text-[var(--text-primary-light)]">{appt.title}</p>
-          {appt.phase === "current" ? (
-            <span
-              className="shrink-0 rounded-full border px-2 py-0.5 text-[9.5px] font-semibold"
-              style={{
-                background: "var(--inbox-success-soft)",
-                color: "var(--inbox-success)",
-                borderColor: "color-mix(in srgb, var(--inbox-success) 32%, transparent)",
-              }}
-            >
-              {t.phaseCurrent}
+          <span className="tabular-nums font-semibold text-[var(--text-primary-light)]">{fmtTime(following.startsAt, intlLocale)}</span>
+          <span className="truncate">{following.clientName ?? following.title}</span>
+          {remainingAfterFocus > 1 ? (
+            <span className="ml-auto shrink-0 text-[12px] text-[var(--text-tertiary-light)]">
+              {t.nextClient.moreToday(remainingAfterFocus - 1)}
             </span>
           ) : null}
-        </div>
-        {appt.clientName && appt.clientId ? (
-          <Link
-            href={`/clientes/${appt.clientId}`}
-            className="truncate text-[12px] text-[var(--text-secondary-light)] hover:underline"
-          >
-            {appt.clientName}
-          </Link>
-        ) : appt.clientName ? (
-          <p className="truncate text-[12px] text-[var(--text-secondary-light)]">{appt.clientName}</p>
-        ) : null}
-      </div>
-      {appt.clientId ? (
-        <Link
-          href={`/clientes/${appt.clientId}`}
-          aria-label={t.openClient}
-          className="shrink-0 text-[var(--text-tertiary-light)] hover:text-[var(--text-primary-light)]"
-        >
-          <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
-        </Link>
-      ) : null}
-    </div>
-  )
-}
-
-function GapRow({ gap, beauty, first }: { gap: BeautyTodayGap; beauty: BeautyTodayMessages; first: boolean }) {
-  const t = beauty.real
-  const intlLocale = toIntlLocale(beauty.locale)
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 ${first ? "" : "border-t"}`}
-      style={{
-        background: "var(--inbox-success-soft)",
-        borderColor: first ? undefined : "color-mix(in srgb, var(--inbox-success) 20%, transparent)",
-      }}
-    >
-      <span className="w-12 shrink-0 text-[11px] tabular-nums" style={{ color: "var(--inbox-success)" }}>
-        {fmtTime(gap.startsAt, intlLocale)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12.5px] font-semibold" style={{ color: "var(--inbox-success)" }}>
-          {t.gapRow.title(fmtTime(gap.startsAt, intlLocale), fmtTime(gap.endsAt, intlLocale))}
         </p>
-        <p className="text-[11.5px] text-[var(--text-secondary-light)]">{t.gapRow.minutes(gap.minutes)}</p>
-      </div>
+      ) : null}
+
       <Link
         href="/calendario"
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border bg-[var(--app-surface-dark-elevated)] px-3 py-1.5 text-[11.5px] font-semibold"
-        style={{
-          borderColor: "color-mix(in srgb, var(--inbox-success) 40%, transparent)",
-          color: "var(--inbox-success)",
-        }}
+        className="flex min-h-[48px] items-center justify-between gap-2 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark-elevated)] px-3.5 text-[13.5px] font-semibold text-[var(--accent-on-dark)] transition-colors hover:bg-[var(--app-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
       >
-        <CalendarPlus size={12} strokeWidth={2} aria-hidden="true" />
-        {t.openCalendar}
+        <span className="inline-flex items-center gap-2">
+          <CalendarDays size={16} strokeWidth={2} aria-hidden="true" />
+          {t.nextClient.viewAgenda}
+        </span>
+        <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
       </Link>
-    </div>
+    </section>
   )
 }
 
-// ─── Next appointment ────────────────────────────────────────────────────────
-
-function NextAppointmentCard({
-  next,
+function FocusAppointment({
+  appt,
   t,
-  beauty,
+  intlLocale,
 }: {
-  next: BeautyTodayAppointment | null
+  appt: BeautyTodayAppointment
   t: BeautyTodayMessages["real"]
-  beauty: BeautyTodayMessages
+  intlLocale: string
 }) {
-  const intlLocale = toIntlLocale(beauty.locale)
+  const clientName = appt.clientName ?? t.nextClient.noClient
   return (
-    <section className={`${CARD} p-4`} aria-label={t.nextTitle}>
-      <div className="mb-2 flex items-center gap-2">
-        <Clock size={14} strokeWidth={2} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">
-          {t.nextTitle}
-        </h2>
-      </div>
-      {next === null ? (
-        <p className="text-[12px] text-[var(--text-secondary-light)]">{t.nextNone}</p>
-      ) : (
-        <div className="flex items-center gap-3">
-          <span className="text-[18px] font-semibold tabular-nums text-[var(--text-primary-light)]">
-            {fmtTime(next.startsAt, intlLocale)}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <div className="flex shrink-0 flex-col items-start">
+          <span className="text-[30px] font-semibold leading-none tabular-nums tracking-tight text-[var(--accent-primary)]">
+            {fmtTime(appt.startsAt, intlLocale)}
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-[var(--text-primary-light)]">{next.title}</p>
-            {next.clientName ? (
-              next.clientId ? (
-                <Link
-                  href={`/clientes/${next.clientId}`}
-                  className="truncate text-[12px] text-[var(--text-secondary-light)] hover:underline"
-                >
-                  {next.clientName}
-                </Link>
-              ) : (
-                <p className="truncate text-[12px] text-[var(--text-secondary-light)]">{next.clientName}</p>
-              )
-            ) : null}
-          </div>
-          {next.clientId ? (
+          {appt.endsAt ? (
+            <span className="mt-1 text-[11px] tabular-nums text-[var(--text-tertiary-light)]">
+              {t.nextClient.untilLabel(fmtTime(appt.endsAt, intlLocale))}
+            </span>
+          ) : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          {appt.clientId ? (
             <Link
-              href={`/clientes/${next.clientId}`}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--accent-muted-border)] bg-[var(--accent-muted)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--accent-on-dark)]"
+              href={`/clientes/${appt.clientId}`}
+              className="block truncate text-[20px] font-semibold leading-tight text-[var(--text-primary-light)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)] rounded-md"
+            >
+              {clientName}
+            </Link>
+          ) : (
+            <p className="truncate text-[20px] font-semibold leading-tight text-[var(--text-primary-light)]">{clientName}</p>
+          )}
+          <p className="mt-0.5 truncate text-[14px] text-[var(--text-secondary-light)]">{appt.title}</p>
+        </div>
+      </div>
+
+      {appt.note || appt.clientNotes ? (
+        <div className="flex flex-col gap-2 rounded-xl bg-[var(--app-surface-subtle)] p-3">
+          {appt.note ? (
+            <PrepLine icon={StickyNote} label={t.nextClient.noteLabel} text={appt.note} />
+          ) : null}
+          {appt.clientNotes ? (
+            <PrepLine icon={NotebookPen} label={t.nextClient.clientNotesLabel} text={appt.clientNotes} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {appt.clientId || appt.clientPhone ? (
+        <div className="flex flex-wrap gap-2">
+          {appt.clientPhone ? (
+            <a
+              href={`tel:${appt.clientPhone.replace(/[^\d+]/g, "")}`}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[var(--accent-primary)] px-3.5 text-[13px] font-semibold text-[var(--primary-foreground)] hover:bg-[var(--accent-primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
+            >
+              <Phone size={15} strokeWidth={2} aria-hidden="true" />
+              {t.nextClient.call}
+            </a>
+          ) : null}
+          {appt.clientId ? (
+            <Link
+              href={`/clientes/${appt.clientId}`}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--accent-muted-border)] bg-[var(--accent-muted)] px-3.5 text-[13px] font-semibold text-[var(--accent-on-dark)] hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
             >
               {t.openClient}
+              <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
             </Link>
           ) : null}
         </div>
-      )}
-    </section>
-  )
-}
-
-// ─── Actions (real tasks with stated basis) ──────────────────────────────────
-
-function ActionsSection({
-  title,
-  actions,
-  t,
-  beauty,
-  suggested = false,
-}: {
-  title: string
-  actions: BeautyTodayAction[]
-  t: BeautyTodayMessages["real"]
-  beauty: BeautyTodayMessages
-  suggested?: boolean
-}) {
-  if (actions.length === 0) return null
-  const intlLocale = toIntlLocale(beauty.locale)
-  return (
-    <section className="flex flex-col gap-3" aria-label={title}>
-      <div className="flex items-center gap-2">
-        <h2 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary-light)]">{title}</h2>
-        <span
-          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-white"
-          style={{ background: "var(--accent-primary)" }}
-        >
-          {actions.length}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        {actions.map((action) => {
-          const badges: Array<{ text: string; tone: string }> = []
-          if (action.suggestedByAi) badges.push({ text: t.proposedLabel, tone: "var(--inbox-info)" })
-          if (action.overdue) badges.push({ text: t.overdueLabel, tone: "var(--inbox-urgency)" })
-          if (action.isWaiting) badges.push({ text: t.waitingLabel, tone: "var(--inbox-lead)" })
-
-          const basisChips: string[] = []
-          if (action.basis.sourceLabel) basisChips.push(action.basis.sourceLabel)
-          if (action.basis.clientName) basisChips.push(action.basis.clientName)
-
-          return (
-            <div key={action.itemId} className="rounded-[15px] border border-[var(--border-dark)] bg-[var(--app-surface-dark)] p-3.5">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-semibold leading-snug text-[var(--text-primary-light)]">
-                    {action.title}
-                  </p>
-                  {action.description ? (
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[var(--text-secondary-light)]">
-                      {action.description}
-                    </p>
-                  ) : null}
-                </div>
-                {badges.map((b) => (
-                  <span
-                    key={b.text}
-                    className="shrink-0 rounded-full border px-2 py-0.5 text-[9.5px] font-semibold"
-                    style={{
-                      color: b.tone,
-                      borderColor: `color-mix(in srgb, ${b.tone} 36%, transparent)`,
-                      background: `color-mix(in srgb, ${b.tone} 10%, transparent)`,
-                    }}
-                  >
-                    {b.text}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                {suggested && basisChips.length > 0 ? (
-                  <span className="text-[10.5px] text-[var(--text-tertiary-light)]">
-                    {t.basisPrefix} {basisChips.join(" · ")}
-                  </span>
-                ) : basisChips.length > 0 ? (
-                  <span className="text-[10.5px] text-[var(--text-tertiary-light)]">{basisChips.join(" · ")}</span>
-                ) : null}
-                {action.dueAt && !action.overdue ? (
-                  <span className="text-[10.5px] tabular-nums text-[var(--text-tertiary-light)]">
-                    {t.dueAtLabel(fmtTime(action.dueAt, intlLocale))}
-                  </span>
-                ) : null}
-                <Link
-                  href={action.href}
-                  className="ml-auto inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--accent-on-dark)] hover:underline"
-                >
-                  {t.open}
-                  <ArrowRight size={11} strokeWidth={2} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-// ─── Cross-module rows (messages / collections / workboard) ──────────────────
-
-function OpsRows({
-  data,
-  t,
-  beauty,
-}: {
-  data: BeautyTodayPayload
-  t: BeautyTodayMessages["real"]
-  beauty: BeautyTodayMessages
-}) {
-  const rows: Array<{
-    key: string
-    icon: typeof MessageSquare
-    text: string
-    href: string
-    label: string
-    tone: string
-  }> = []
-
-  if (data.pendingConversations !== null && data.pendingConversations > 0) {
-    rows.push({
-      key: "messages",
-      icon: MessageSquare,
-      text: t.messagesRow(data.pendingConversations),
-      href: "/inbox",
-      label: t.openInbox,
-      tone: "var(--inbox-info)",
-    })
-  }
-  if (data.overdueInvoices !== null && data.overdueInvoices.count > 0) {
-    rows.push({
-      key: "overdue",
-      icon: Receipt,
-      text: t.overdueInvoicesRow(
-        data.overdueInvoices.count,
-        formatCurrency(data.overdueInvoices.amount, { locale: beauty.locale, currency: data.currency }),
-      ),
-      href: "/facturacion",
-      label: t.openBilling,
-      tone: "var(--inbox-urgency)",
-    })
-  }
-  if (data.pendingInvoices !== null && data.pendingInvoices.count > 0) {
-    rows.push({
-      key: "pending",
-      icon: Receipt,
-      text: t.pendingInvoicesRow(
-        data.pendingInvoices.count,
-        formatCurrency(data.pendingInvoices.amount, { locale: beauty.locale, currency: data.currency }),
-      ),
-      href: "/facturacion",
-      label: t.openBilling,
-      tone: "var(--inbox-lead)",
-    })
-  }
-
-  const showAllClear =
-    rows.length === 0 && data.urgentActions.length === 0 && data.suggestedActions.length === 0
-
-  return (
-    <section className={`${CARD} flex flex-col gap-2.5 p-4`}>
-      {rows.map((row) => {
-        const Icon = row.icon
-        return (
-          <div key={row.key} className="flex items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-lg"
-              style={{ background: `color-mix(in srgb, ${row.tone} 14%, transparent)`, color: row.tone }}
-            >
-              <Icon size={12} strokeWidth={2} />
-            </span>
-            <p className="min-w-0 flex-1 text-[12px] text-[var(--text-primary-light)]">{row.text}</p>
-            <Link
-              href={row.href}
-              className="shrink-0 text-[11.5px] font-semibold text-[var(--accent-on-dark)] hover:underline"
-            >
-              {row.label}
-            </Link>
-          </div>
-        )
-      })}
-      {showAllClear ? (
-        <p className="text-[12px] text-[var(--text-secondary-light)]">{t.allClear}</p>
-      ) : null}
-      <div className="border-t border-[var(--border-dark)] pt-2.5">
-        <Link
-          href="/today?todayLayout=work_first"
-          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--accent-on-dark)] hover:underline"
-        >
-          {data.otherOpenTaskCount > 0 ? `${t.otherTasksRow(data.otherOpenTaskCount)} · ` : ""}
-          {t.openWorkboard}
-          <ArrowRight size={11} strokeWidth={2} aria-hidden="true" />
-        </Link>
-      </div>
-    </section>
-  )
-}
-
-// ─── Honest empty day ────────────────────────────────────────────────────────
-
-function EmptyDay({
-  t,
-  otherOpenTaskCount,
-}: {
-  t: BeautyTodayMessages["real"]
-  otherOpenTaskCount: number
-}) {
-  return (
-    <div className={`${CARD} mx-auto mt-4 flex w-full max-w-lg flex-col items-center gap-3 p-8 text-center`}>
-      <p className="text-[15px] font-semibold text-[var(--text-primary-light)]">{t.emptyDay.title}</p>
-      <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">{t.emptyDay.description}</p>
-      <CalendarLink label={t.emptyDay.cta} primary />
-      {otherOpenTaskCount > 0 ? (
-        <Link
-          href="/today?todayLayout=work_first"
-          className="text-[11.5px] font-semibold text-[var(--accent-on-dark)] hover:underline"
-        >
-          {t.otherTasksRow(otherOpenTaskCount)} · {t.openWorkboard}
-        </Link>
       ) : null}
     </div>
   )
 }
 
-function CalendarLink({ label, primary = false }: { label: string; primary?: boolean }) {
+function PrepLine({ icon: Icon, label, text }: { icon: typeof StickyNote; label: string; text: string }) {
   return (
-    <Link
-      href="/calendario"
-      className={
-        primary
-          ? "mt-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--accent-primary)] px-3.5 py-2 text-[12.5px] font-semibold text-white"
-          : "inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-on-dark)] hover:underline"
-      }
-    >
-      <CalendarPlus size={13} strokeWidth={2} aria-hidden="true" />
-      {label}
-    </Link>
+    <div className="flex gap-2.5">
+      <Icon size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[var(--accent-on-dark)]" aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary-light)]">{label}</p>
+        <p className="line-clamp-3 whitespace-pre-line text-[13px] leading-relaxed text-[var(--text-primary-light)]">{text}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── 2. What needs attention — a short, ranked digest of existing signals ────
+
+export function AttentionSection({
+  data,
+  beauty,
+  currentPathname,
+}: {
+  data: BeautyTodayPayload
+  beauty: BeautyTodayMessages
+  /** Route the section is rendered on (defaults to the router's pathname). */
+  currentPathname?: string
+}) {
+  const t = beauty.real
+  const intlLocale = toIntlLocale(beauty.locale)
+  const digest = useMemo(() => buildAttentionDigest(data), [data])
+  const routerPathname = usePathname()
+  const pathname = currentPathname ?? routerPathname ?? "/today"
+
+  return (
+    <section className={`${CARD} flex flex-col gap-3 p-4 sm:p-5`} aria-labelledby="today-attention">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="today-attention" className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary-light)]">
+          {t.attention.title}
+        </h2>
+        {digest.items.length > 0 ? (
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent-primary)] px-1.5 text-[10.5px] font-bold text-[var(--primary-foreground)]">
+            {digest.items.length + digest.hiddenCount}
+          </span>
+        ) : null}
+      </div>
+
+      {digest.items.length === 0 ? (
+        <p className="text-[13.5px] text-[var(--text-secondary-light)]">{t.attention.empty}</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-[var(--border-dark)]">
+          {digest.items.map((item) => (
+            <AttentionRow
+              key={item.id}
+              item={item}
+              t={t}
+              intlLocale={intlLocale}
+              locale={beauty.locale}
+              currency={data.currency}
+              navigable={isAttentionHrefNavigable(item.href, pathname)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {/*
+        Quiet footer: overflow count + Finesse proposals summary. Deliberately
+        NO general "see all" CTA — the legacy work-first board is not the
+        continuation of this Hoy (FINESSE-UI-02 Phase 2 R1); every signal above
+        already navigates to its own real surface.
+      */}
+      {digest.hiddenCount > 0 || digest.suggestedCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border-dark)] pt-3 text-[12.5px] text-[var(--text-secondary-light)]">
+          {digest.hiddenCount > 0 ? <span>{t.attention.more(digest.hiddenCount)}</span> : null}
+          {digest.suggestedCount > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <Sparkles size={12} strokeWidth={2} className="text-[var(--accent-on-dark)]" aria-hidden="true" />
+              {t.attention.suggestions(digest.suggestedCount)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function AttentionRow({
+  item,
+  t,
+  intlLocale,
+  locale,
+  currency,
+  navigable,
+}: {
+  item: BeautyAttentionItem
+  t: BeautyTodayMessages["real"]
+  intlLocale: string
+  locale: BeautyTodayMessages["locale"]
+  currency: string
+  /** False when the href would be a no-op from this route → informative row, no link affordance. */
+  navigable: boolean
+}) {
+  const money = (amount: number | null) => formatCurrency(amount ?? 0, { locale, currency })
+  let Icon = Receipt
+  let text = item.title ?? ""
+  let detail: string | null = null
+  let tone = "var(--accent-primary)"
+  switch (item.kind) {
+    case "task":
+      Icon = StickyNote
+      tone = item.overdue ? "var(--inbox-urgency)" : "var(--accent-primary)"
+      detail = [
+        item.overdue ? t.overdueLabel : item.dueAt ? t.dueAtLabel(fmtTime(item.dueAt, intlLocale)) : null,
+        item.clientName,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null
+      break
+    case "messages":
+      Icon = MessageSquare
+      text = t.attention.messages(item.count ?? 0)
+      tone = "var(--inbox-info)"
+      break
+    case "overdue-invoices":
+      Icon = Receipt
+      text = t.attention.overdueInvoices(item.count ?? 0, money(item.amount))
+      tone = "var(--inbox-urgency)"
+      break
+    case "pending-invoices":
+      Icon = Receipt
+      text = t.attention.pendingInvoices(item.count ?? 0, money(item.amount))
+      tone = "var(--inbox-lead)"
+      break
+  }
+  const content = (
+    <>
+      <span
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+        style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}
+        aria-hidden="true"
+      >
+        <Icon size={15} strokeWidth={2} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px] font-semibold text-[var(--text-primary-light)]">{text}</span>
+        {detail ? <span className="block truncate text-[12px] text-[var(--text-secondary-light)]">{detail}</span> : null}
+      </span>
+    </>
+  )
+  const rowLayout = "flex min-h-[52px] items-center gap-3 py-2 text-left rounded-lg -mx-1 px-1"
+  if (!navigable) {
+    // Informative row: same content, priority and layout — no chevron, no
+    // hover, no focus ring, not a link (the destination would be this route).
+    return (
+      <li>
+        <div className={rowLayout} data-attention-row="static">
+          {content}
+        </div>
+      </li>
+    )
+  }
+  return (
+    <li>
+      <Link
+        href={item.href}
+        data-attention-row="link"
+        className={`${rowLayout} transition-colors hover:bg-[var(--app-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent-primary)]`}
+      >
+        {content}
+        <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-[var(--text-tertiary-light)]" aria-hidden="true" />
+      </Link>
+    </li>
+  )
+}
+
+// ─── 3. My inspiration — approved workspace photos, read-only ────────────────
+
+export function InspirationSection({
+  inspiration,
+  t,
+}: {
+  inspiration: BeautyTodayInspiration
+  t: BeautyTodayMessages["real"]
+}) {
+  return (
+    <section className={`${CARD} flex flex-col gap-3 p-4 sm:p-5`} aria-labelledby="today-inspiration">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h2 id="today-inspiration" className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary-light)]">
+            {t.inspiration.title}
+          </h2>
+          <p className="text-[12.5px] text-[var(--text-tertiary-light)]">{t.inspiration.subtitle}</p>
+        </div>
+        {inspiration.total > 0 ? (
+          <span className="shrink-0 text-[12px] font-medium text-[var(--text-secondary-light)]">
+            {t.inspiration.count(inspiration.total)}
+          </span>
+        ) : null}
+      </div>
+
+      {inspiration.items.length === 0 ? (
+        <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-dark-strong)] bg-[var(--app-surface-subtle)] p-3.5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent-on-dark)]" aria-hidden="true">
+            <Images size={18} strokeWidth={2} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[13.5px] font-semibold text-[var(--text-primary-light)]">{t.inspiration.empty.title}</p>
+            <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary-light)]">{t.inspiration.empty.description}</p>
+          </div>
+        </div>
+      ) : (
+        <ul className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t.inspiration.title}>
+          {inspiration.items.map((item, index) => (
+            <li key={item.id} className="shrink-0 snap-start">
+              {/* eslint-disable-next-line @next/next/no-img-element -- external Blob URLs, fixed thumb box */}
+              <img
+                src={item.url}
+                alt={t.inspiration.imageAlt(index + 1)}
+                width={item.width ?? undefined}
+                height={item.height ?? undefined}
+                loading="lazy"
+                decoding="async"
+                className={cn(
+                  "h-[116px] w-[116px] rounded-[14px] border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] object-cover",
+                  "sm:h-[132px] sm:w-[132px]",
+                )}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

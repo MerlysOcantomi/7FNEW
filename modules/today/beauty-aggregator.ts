@@ -28,6 +28,7 @@ import {
   categorizeBeautyActions,
   computeGaps,
   findNextAppointment,
+  INSPIRATION_LIMIT,
   type BeautyEventRow,
   type BeautyTaskEnrichment,
   type BeautyTodayPayload,
@@ -71,7 +72,19 @@ export async function loadBeautyToday(input: {
 
   // The workboard's own reality (tasks + events buckets) — same service,
   // same rows, same visibility rules as GET /api/today.
-  const [workspace, payload, citas, anyCitaCount, pendingConversations, anyConversationCount, overdue, pending, anyInvoiceCount] =
+  const [
+    workspace,
+    payload,
+    citas,
+    anyCitaCount,
+    pendingConversations,
+    anyConversationCount,
+    overdue,
+    pending,
+    anyInvoiceCount,
+    inspirationRows,
+    inspirationTotal,
+  ] =
     await Promise.all([
       getWorkspaceWithResolvedConfig(input.workspaceId),
       aggregateToday({
@@ -85,10 +98,11 @@ export async function loadBeautyToday(input: {
         select: {
           id: true,
           titulo: true,
+          descripcion: true,
           fechaInicio: true,
           fechaFin: true,
           clienteId: true,
-          cliente: { select: { nombre: true } },
+          cliente: { select: { nombre: true, telefono: true, notas: true } },
         },
         orderBy: { fechaInicio: "asc" },
       }),
@@ -106,6 +120,15 @@ export async function loadBeautyToday(input: {
         _sum: { total: true },
       }),
       db.factura.count({ where: filters.anyInvoice }),
+      // "Mi inspiración" — read-only over the business media Presence owns
+      // (approved originals, newest first). No writes, no upload, no review.
+      db.presenceMedia.findMany({
+        where: filters.inspirationMedia,
+        select: { id: true, url: true, width: true, height: true, purpose: true },
+        orderBy: { createdAt: "desc" },
+        take: INSPIRATION_LIMIT,
+      }),
+      db.presenceMedia.count({ where: filters.inspirationMedia }),
     ])
 
   // Enrich the workboard's WorkspaceTask rows with their links so every
@@ -162,6 +185,9 @@ export async function loadBeautyToday(input: {
     fechaFin: cita.fechaFin,
     clienteId: cita.clienteId,
     clienteNombre: cita.cliente?.nombre ?? null,
+    descripcion: cita.descripcion,
+    clienteTelefono: cita.cliente?.telefono ?? null,
+    clienteNotas: cita.cliente?.notas ?? null,
   }))
 
   const appointments = buildAppointments(eventRows, now)
@@ -195,6 +221,16 @@ export async function loadBeautyToday(input: {
     pendingInvoices: hasFinance
       ? { count: pending._count, amount: Math.round((pending._sum.total ?? 0) * 100) / 100 }
       : null,
+    inspiration: {
+      items: inspirationRows.map((m) => ({
+        id: m.id,
+        url: m.url,
+        width: m.width,
+        height: m.height,
+        purpose: m.purpose,
+      })),
+      total: inspirationTotal,
+    },
     dataQuality: {
       appointments: anyCitaCount > 0,
       tasks: hasTasks,

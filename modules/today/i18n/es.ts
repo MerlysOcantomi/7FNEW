@@ -111,6 +111,50 @@ export const es = {
       retry: "Reintentar",
     },
     loading: "Cargando tu día…",
+    nextClient: {
+      title: (noun) => `Siguiente ${noun.toLowerCase()}`,
+      nowTitle: "Ahora mismo",
+      followingLabel: "Después",
+      moreToday: (count) => (count === 1 ? "1 cita más hoy" : `${count} citas más hoy`),
+      viewAgenda: "Ver toda la agenda",
+      call: "Llamar",
+      noteLabel: "Nota de la cita",
+      clientNotesLabel: "Notas",
+      noClient: "Sin nombre",
+      untilLabel: (end) => `hasta las ${end}`,
+      emptyNoneToday: {
+        title: "Hoy no tienes citas",
+        description: "Cuando reserves la primera, aparecerá aquí con todo lo que necesitas para prepararte.",
+      },
+      emptyAllDone: {
+        title: "No quedan citas hoy",
+        description: "Las citas de hoy ya han pasado. Mañana te esperamos aquí.",
+      },
+    },
+    attention: {
+      title: "Lo que necesita atención",
+      empty: "Nada urgente ahora mismo.",
+      more: (count) => (count === 1 ? "y 1 más" : `y ${count} más`),
+      messages: (count) =>
+        count === 1 ? "1 mensaje sin responder" : `${count} mensajes sin responder`,
+      overdueInvoices: (count, amount) =>
+        count === 1 ? `1 cobro vencido · ${amount}` : `${count} cobros vencidos · ${amount}`,
+      pendingInvoices: (count, amount) =>
+        count === 1 ? `1 cobro pendiente · ${amount}` : `${count} cobros pendientes · ${amount}`,
+      suggestions: (count) =>
+        count === 1 ? "Finesse tiene 1 propuesta para ti" : `Finesse tiene ${count} propuestas para ti`,
+      review: "Revisar",
+    },
+    inspiration: {
+      title: "Mi inspiración",
+      subtitle: "Trabajos para recordar y enseñar",
+      count: (count) => (count === 1 ? "1 trabajo" : `${count} trabajos`),
+      imageAlt: (index) => `Trabajo ${index}`,
+      empty: {
+        title: "Aún no hay fotos de tus trabajos",
+        description: "Aquí verás tus trabajos para recordar ideas y enseñarlos durante una cita.",
+      },
+    },
   },
   demo: {
     assistantNote:

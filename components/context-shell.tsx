@@ -25,6 +25,9 @@ import { GlobalAgentsChrome } from "@/components/agents/global-agents-chrome";
 import { GlobalAgentsTriggerDesktop } from "@/components/agents/global-agents-trigger";
 import { GlobalAgentsDesktopChrome } from "@/components/agents/global-agents-desktop-chrome";
 import { useI18n } from "@/components/i18n-provider";
+import { useActiveWorkspace } from "@/hooks/use-active-workspace";
+import { resolveNavProfile } from "@core/vertical-packs/nav-profile";
+import { MobileNavClearance } from "@/components/mobile-nav/mobile-nav-clearance";
 
 export interface BreadcrumbItem {
   label: string;
@@ -161,6 +164,13 @@ export function ContextShell({
    */
   const pathname = usePathname();
   const hideTodaySurfaces = pathname === "/today" || pathname.startsWith("/today/");
+  /**
+   * Vertical mobile bottom bar (FINESSE-UI-02): when the workspace's nav
+   * profile declares one, the content column gets a real trailing spacer so
+   * the last card never ends under the bar (see MobileNavClearance).
+   */
+  const { workspace } = useActiveWorkspace();
+  const hasMobileNavBar = resolveNavProfile(workspace?.verticalKey ?? null)?.mobile !== undefined;
 
   return (
     <SidebarCollapseContext.Provider value={{ collapsed: sidebarCollapsed, setCollapsed: setSidebarCollapsed }}>
@@ -179,7 +189,10 @@ export function ContextShell({
           <SidebarNav />
           <MobileSidebarNav />
 
-          <main className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain">
+          <main
+            data-mobile-nav-clearance={hasMobileNavBar ? "content" : undefined}
+            className="flex max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain"
+          >
             <div className="sticky top-0 z-30">
               <div className="hidden md:block bg-background">
                 <ContextShellDesktopToolbar />
@@ -253,6 +266,7 @@ export function ContextShell({
 
             <div className="min-h-0 flex-1 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
               {children(activeTab)}
+              {hasMobileNavBar && <MobileNavClearance />}
             </div>
           </main>
 

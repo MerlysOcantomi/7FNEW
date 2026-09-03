@@ -926,8 +926,16 @@
      bar's center mic IS the launcher there. Tokens only, no colors.
      ────────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
-  body:has([data-vertical-mobile-nav]) main {
-    padding-bottom: calc(var(--app-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+  /* Legacy manual layouts (block-flow `<main>`): a real trailing block, laid
+     out like content, extends the scroll past the last card. Shells whose
+     content column can shrink (`min-h-0` flex — AppShell/ContextShell) mark
+     their main with `data-mobile-nav-clearance` and render the spacer INSIDE
+     the column instead (`components/mobile-nav/mobile-nav-clearance.tsx`). */
+  body:has([data-vertical-mobile-nav]) main:not([data-mobile-nav-clearance])::after {
+    content: "";
+    display: block;
+    flex: none;
+    height: calc(var(--app-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
   }
   body:has([data-vertical-mobile-nav]) [data-finesse-launcher="true"],
   body:has([data-vertical-mobile-nav]) [data-finesse-launcher-hint] {

@@ -42,6 +42,12 @@ export interface BeautyTodayAppointment {
   clientId: string | null
   clientName: string | null
   phase: BeautyAppointmentPhase
+  /** `Evento.descripcion` — the owner's own note on the cita (preparation), or `null`. */
+  note: string | null
+  /** `Cliente.telefono` as stored (no formatting/validation claims), or `null`. */
+  clientPhone: string | null
+  /** `Cliente.notas` — the owner's own notes about the client, or `null`. */
+  clientNotes: string | null
 }
 
 /** A free stretch between two consecutive citas with known bounds. */
@@ -81,6 +87,27 @@ export interface BeautyTodayAction {
   basis: BeautyTodayActionBasis
 }
 
+/**
+ * "Mi inspiración" item — a REAL workspace photo read from `PresenceMedia`
+ * (the business media store Presence already owns). Read-only: the Today
+ * surface never writes, uploads, reviews or reorders media.
+ */
+export interface BeautyInspirationItem {
+  id: string
+  url: string
+  width: number | null
+  height: number | null
+  /** work_sample | gallery — editorial purpose as stored. */
+  purpose: string
+}
+
+export interface BeautyTodayInspiration {
+  /** Newest first, capped at `INSPIRATION_LIMIT`. */
+  items: BeautyInspirationItem[]
+  /** Total approved originals in the workspace (for the "N trabajos" count). */
+  total: number
+}
+
 export interface BeautyTodayPayload {
   /** Viewer-local calendar day, `yyyy-mm-dd`. */
   date: string
@@ -101,6 +128,8 @@ export interface BeautyTodayPayload {
   pendingConversations: number | null
   overdueInvoices: { count: number; amount: number } | null
   pendingInvoices: { count: number; amount: number } | null
+  /** Approved workspace photos for "Mi inspiración" (FINESSE-UI-02 Phase 2). */
+  inspiration: BeautyTodayInspiration
   dataQuality: {
     appointments: boolean
     tasks: boolean
@@ -135,6 +164,11 @@ export function resolveBeautyTodayDataSource(input: {
 }
 
 // ─── Query filters (pure — the aggregator feeds these to Prisma) ─────────────
+/** Editorial purposes that count as "a work to remember/show". */
+export const INSPIRATION_PURPOSES = ["work_sample", "gallery"] as const
+/** Max photos on the Today strip — the full set stays a later surface. */
+export const INSPIRATION_LIMIT = 6
+
 
 /**
  * Every extra `where` clause Beauty Today uses beyond `aggregateToday`,
@@ -160,8 +194,21 @@ export function buildBeautyTodayQueryFilters(
     overdueInvoices: { workspaceId, estado: "vencida" },
     pendingInvoices: { workspaceId, estado: "enviada" },
     anyInvoice: { workspaceId },
+    /**
+     * "Mi inspiración": approved ORIGINAL photos (variants excluded) with an
+     * editorial purpose that means "a work to show" — the same approval rule
+     * the Presence renderer applies (`reviewStatus === "use"`).
+     */
+    inspirationMedia: {
+      workspaceId,
+      kind: "photo",
+      purpose: { in: [...INSPIRATION_PURPOSES] },
+      reviewStatus: "use",
+      sourceMediaId: null,
+    },
   }
 }
+
 
 // ─── Pure building blocks ────────────────────────────────────────────────────
 
@@ -175,6 +222,15 @@ export interface BeautyEventRow {
   fechaFin: Date | null
   clienteId: string | null
   clienteNombre: string | null
+  descripcion?: string | null
+  clienteTelefono?: string | null
+  clienteNotas?: string | null
+}
+
+/** Trim free text; empty → `null` so the UI never renders a blank block. */
+function cleanText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ""
+  return trimmed.length > 0 ? trimmed : null
 }
 
 export function appointmentPhase(
@@ -203,6 +259,9 @@ export function buildAppointments(
       clientId: row.clienteId,
       clientName: row.clienteNombre,
       phase: appointmentPhase(row.fechaInicio, row.fechaFin, now),
+      note: cleanText(row.descripcion),
+      clientPhone: cleanText(row.clienteTelefono),
+      clientNotes: cleanText(row.clienteNotas),
     }))
 }
 
@@ -343,4 +402,192 @@ export function categorizeBeautyActions(
   for (const item of buckets.undated) consider(item, "undated")
 
   return { urgent, suggested, otherOpenTaskCount }
+}
+
+// ─── Focused appointment ("¿Quién viene ahora?") ─────────────────────────────
+
+export type BeautyFocusMode = "current" | "upcoming" | "none"
+
+export interface BeautyFocusedAppointment {
+  /** The cita the top of "Hoy" is about, or `null`. */
+  focus: BeautyTodayAppointment | null
+  /** "current" = happening now (time-derived), "upcoming" = next to start. */
+  mode: BeautyFocusMode
+  /** The first not-yet-started cita AFTER the focus (shown as "Después"). */
+  following: BeautyTodayAppointment | null
+  /** Upcoming citas after the focus (count for "N citas más hoy"). */
+  remainingAfterFocus: number
+  /** True when the day had citas but they are all in the past. */
+  allDone: boolean
+}
+
+/**
+ * Pick the cita the operator is working with RIGHT NOW: a cita in progress
+ * wins; otherwise the next one to start; `null` when none remain.
+ *
+ * `selectedEventoId` is the seam for the FUTURE manual switch ("I'm actually
+ * with a different client"): when provided and found among today's citas it
+ * takes precedence. Nothing sets it yet — no selector, no persistence, no
+ * API (FINESSE-UI-02 Phase 2 leaves it undefined by contract).
+ */
+export function resolveFocusedAppointment(
+  appointments: BeautyTodayAppointment[],
+  now: Date,
+  selectedEventoId?: string | null,
+): BeautyFocusedAppointment {
+  const nowMs = now.getTime()
+  const selected = selectedEventoId
+    ? appointments.find((a) => a.eventoId === selectedEventoId) ?? null
+    : null
+  const current = appointments.find((a) => appointmentPhase(new Date(a.startsAt), a.endsAt ? new Date(a.endsAt) : null, now) === "current") ?? null
+  const next = findNextAppointment(appointments, now)
+  const focus = selected ?? current ?? next
+  const mode: BeautyFocusMode =
+    focus === null ? "none" : new Date(focus.startsAt).getTime() <= nowMs ? "current" : "upcoming"
+  const focusStart = focus ? new Date(focus.startsAt).getTime() : -Infinity
+  const after = appointments.filter(
+    (a) => a.eventoId !== focus?.eventoId && new Date(a.startsAt).getTime() > Math.max(nowMs, focusStart),
+  )
+  return {
+    focus,
+    mode,
+    following: after[0] ?? null,
+    remainingAfterFocus: after.length,
+    allDone: focus === null && appointments.length > 0,
+  }
+}
+
+// ─── "Lo que necesita atención" (a small, prioritized digest) ─────────────────
+
+export type BeautyAttentionKind = "task" | "messages" | "overdue-invoices" | "pending-invoices"
+
+export interface BeautyAttentionItem {
+  id: string
+  kind: BeautyAttentionKind
+  /** Task rows carry their own title; count rows are composed by the UI catalog. */
+  title: string | null
+  count: number | null
+  amount: number | null
+  overdue: boolean
+  dueAt: string | null
+  clientName: string | null
+  /** Real navigation target (task href, /inbox, /facturacion). */
+  href: string
+}
+
+export interface BeautyAttentionDigest {
+  items: BeautyAttentionItem[]
+  /** Signals that did not fit in `items` (the full board is one link away). */
+  hiddenCount: number
+  /** Real AI proposals awaiting review — surfaced as one quiet line, not rows. */
+  suggestedCount: number
+}
+
+/** Max rows on the digest — focus, not a second inbox. */
+export const ATTENTION_LIMIT = 3
+
+/**
+ * Rank existing signals into ONE short list. No new scoring engine: it reuses
+ * the buckets `categorizeBeautyActions` already produced (urgent = overdue,
+ * high/critical priority or due today) and the overview's message/invoice
+ * counts. Order of importance, then declared order:
+ *   0 overdue tasks · 1 unanswered messages · 2 other urgent tasks ·
+ *   3 overdue invoices · 4 invoices awaiting payment
+ */
+export function buildAttentionDigest(
+  payload: Pick<
+    BeautyTodayPayload,
+    "urgentActions" | "suggestedActions" | "pendingConversations" | "overdueInvoices" | "pendingInvoices"
+  >,
+  limit: number = ATTENTION_LIMIT,
+): BeautyAttentionDigest {
+  const ranked: Array<{ rank: number; item: BeautyAttentionItem }> = []
+  for (const action of payload.urgentActions) {
+    ranked.push({
+      rank: action.overdue ? 0 : 2,
+      item: {
+        id: action.itemId,
+        kind: "task",
+        title: action.title,
+        count: null,
+        amount: null,
+        overdue: action.overdue,
+        dueAt: action.dueAt,
+        clientName: action.basis.clientName,
+        href: action.href,
+      },
+    })
+  }
+  if (payload.pendingConversations !== null && payload.pendingConversations > 0) {
+    ranked.push({
+      rank: 1,
+      item: {
+        id: "messages",
+        kind: "messages",
+        title: null,
+        count: payload.pendingConversations,
+        amount: null,
+        overdue: false,
+        dueAt: null,
+        clientName: null,
+        href: "/inbox",
+      },
+    })
+  }
+  if (payload.overdueInvoices && payload.overdueInvoices.count > 0) {
+    ranked.push({
+      rank: 3,
+      item: {
+        id: "overdue-invoices",
+        kind: "overdue-invoices",
+        title: null,
+        count: payload.overdueInvoices.count,
+        amount: payload.overdueInvoices.amount,
+        overdue: true,
+        dueAt: null,
+        clientName: null,
+        href: "/facturacion",
+      },
+    })
+  }
+  if (payload.pendingInvoices && payload.pendingInvoices.count > 0) {
+    ranked.push({
+      rank: 4,
+      item: {
+        id: "pending-invoices",
+        kind: "pending-invoices",
+        title: null,
+        count: payload.pendingInvoices.count,
+        amount: payload.pendingInvoices.amount,
+        overdue: false,
+        dueAt: null,
+        clientName: null,
+        href: "/facturacion",
+      },
+    })
+  }
+  // Stable by rank (Array.prototype.sort is stable → declared order within a rank).
+  ranked.sort((a, b) => a.rank - b.rank)
+  const items = ranked.slice(0, limit).map((r) => r.item)
+  return {
+    items,
+    hiddenCount: Math.max(0, ranked.length - items.length),
+    suggestedCount: payload.suggestedActions.length,
+  }
+}
+
+/**
+ * Whether an attention item's `href` actually leads somewhere from the Finesse
+ * "Hoy" (`/today`). WorkspaceTask rows inherit the aggregator's href, which is
+ * the Today board itself — from `/today` that would be a no-op navigation, so
+ * the UI renders such rows as informative (non-link) rows instead of showing a
+ * misleading affordance. Query strings / sub-paths of `/today` count as the
+ * same surface. Pure: no routing, no invented destinations.
+ */
+export function isAttentionHrefNavigable(href: string, currentPathname: string): boolean {
+  const target = href.split(/[?#]/)[0]
+  if (target === "") return false
+  const onToday = currentPathname === "/today" || currentPathname.startsWith("/today/")
+  const targetIsToday = target === "/today" || target.startsWith("/today/")
+  return !(onToday && targetIsToday)
 }
