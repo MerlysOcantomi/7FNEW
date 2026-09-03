@@ -135,3 +135,15 @@ Do **not** add new **ad-hoc** `min-h-screen` root layouts for core routes; exten
 ---
 
 *Last aligned with codebase: AppShell `fixed inset-0`, main `overflow-y-auto max-h-full min-h-0`; ContextShell `min-h-screen` + main `overflow-y-auto`.*
+
+---
+
+## 8. Vertical mobile bottom bar (FINESSE-UI-02)
+
+- **What:** [`components/mobile-nav/vertical-mobile-nav.tsx`](../components/mobile-nav/vertical-mobile-nav.tsx) — a `fixed inset-x-0 bottom-0 z-40 md:hidden` bar, mounted once by `MobileSidebarNav` (the mobile chrome shared by AppShell, ContextShell and the legacy manual layouts). It renders **only** when the workspace's nav profile declares `mobile.primaryIds` (Beauty/Finesse today); other workspaces are unchanged.
+- **Source of truth:** destinations, order and Solo/Team visibility are a pure projection of the vertical nav profile ([`core/vertical-packs/mobile-nav.ts`](../core/vertical-packs/mobile-nav.ts)); labels/icons/badges are the sidebar's composed sections. It never invents a route.
+- **Content clearance (no per-page paddings):** while `[data-vertical-mobile-nav]` is in the document on a mobile viewport (`max-width: 767px`, the `useIsMobile` / `md` breakpoint), `app/globals.css` gives every shell `<main>` `padding-bottom: calc(var(--app-mobile-nav-height) + env(safe-area-inset-bottom))`. Because `main` is the scrollport (§1.3), the reserved space sits at the end of the scroll and split-view children (`min-h-0 overflow-hidden`, e.g. Inbox) shrink above the bar. The same rule hides the floating Finesse launcher — the bar's center mic is the launcher there.
+- **Assistant coverage:** `MobileSidebarNav` wraps its chrome in [`components/assistant/finesse-assistant-scope.tsx`](../components/assistant/finesse-assistant-scope.tsx) — a pass-through when a shell already provides `FinesseAssistantProvider`, otherwise the existing provider + mobile-only chrome, so the bar's mic works on legacy manual layouts too without a second provider or page migrations.
+- **Header:** with a bottom bar the mobile header drops the duplicate Today trigger and (outside Inbox-focused mode) the hamburger (`resolveMobileHeaderChrome`); Agents, New, Search, Ask Fanny and the workspace identity stay. Account/workspace access moves into the bar's "More" sheet footer.
+- **Stacking:** bar `z-40` (with the launcher family) < Radix/vaul overlays `z-50` < toasts `z-[100]` < global search `z-[150]`. The "More" sheet and the assistant drawer therefore always cover the bar.
+

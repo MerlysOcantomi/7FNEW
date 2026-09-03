@@ -26,6 +26,7 @@ import { FinesseAssistantProvider } from "@/components/assistant/finesse-assista
 import { GlobalFinesseAssistantChrome } from "@/components/assistant/global-finesse-assistant"
 import { useActiveWorkspace } from "@/hooks/use-active-workspace"
 import { resolveVerticalSpecialist } from "@core/vertical-packs/specialists"
+import { resolveNavProfile } from "@core/vertical-packs/nav-profile"
 import { GlobalAskFannyTriggerDesktop } from "@/components/assistant/global-ask-fanny-trigger"
 import { GlobalAskFannyChrome } from "@/components/assistant/global-ask-fanny-chrome"
 import { ManualIntakeProvider } from "@/components/manual-intake/manual-intake-provider"
@@ -175,6 +176,13 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
    * actions (mission §5/§23). The chrome itself is mounted once, below.
    */
   const hasVerticalAssistant = resolveVerticalSpecialist(workspace?.verticalKey) !== null
+  /**
+   * Vertical mobile bottom bar (FINESSE-UI-02): when the workspace's nav
+   * profile declares one, the floating launcher is hidden on mobile (the bar's
+   * mic replaces it) and `app/globals.css` reserves the bar height on `<main>`,
+   * so the launcher clearance below applies to desktop only.
+   */
+  const hasMobileNavBar = resolveNavProfile(workspace?.verticalKey ?? null)?.mobile !== undefined
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   /**
    * Hide the Today trigger on `/today` itself: the operator is already
@@ -245,7 +253,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col px-4 pb-6 pt-2 md:px-8 md:pb-8",
-              hasVerticalAssistant && "pb-24 md:pb-20",
+              hasVerticalAssistant && (hasMobileNavBar ? "md:pb-20" : "pb-24 md:pb-20"),
             )}
           >
             <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>

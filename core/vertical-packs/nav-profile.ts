@@ -77,6 +77,17 @@ export interface VerticalNavItem {
   teamOnly?: boolean
 }
 
+/**
+ * Mobile bottom-bar declaration for a vertical (FINESSE-UI-02). Pure data:
+ * `primaryIds` are the ids of items from `items` that get a slot in the fixed
+ * mobile bar, in bar order. Every other visible item stays reachable through
+ * the bar's "More" sheet. A profile WITHOUT `mobile` renders no bottom bar —
+ * the mobile sheet navigation keeps working exactly as before.
+ */
+export interface VerticalMobileNav {
+  primaryIds: string[]
+}
+
 export interface VerticalNavProfile {
   /** The vertical this profile belongs to (canonical key). */
   verticalKey: string
@@ -90,6 +101,8 @@ export interface VerticalNavProfile {
   moreLabel: string
   /** Ordered nav items (primary first, then more). */
   items: VerticalNavItem[]
+  /** Optional mobile bottom-bar declaration (see `VerticalMobileNav`). */
+  mobile?: VerticalMobileNav
 }
 
 /**
@@ -98,6 +111,10 @@ export interface VerticalNavProfile {
  * Primary:  My salon · Today · Calendar · Messages · Clients
  *           (es: Mi salón · Hoy · Agenda · Mensajes · Clientes)
  * More:     Marketing · Billing · Services · Team (Team only) · Mr. Forte Lab
+ * Mobile bar (FINESSE-UI-02): My salon · Today · [Finesse mic] · Messages · More
+ *           — the mic is the assistant entry point, not a nav item; Calendar,
+ *           Clients and the "more" group are reached through the bar's More
+ *           sheet (`core/vertical-packs/mobile-nav.ts`).
  *
  * The profile declares IDENTITY and ROUTE, never the final language: every
  * label/helper resolves through a binding (vocabulary noun or nav catalog) at
@@ -140,6 +157,7 @@ export const BEAUTY_NAV_PROFILE: VerticalNavProfile = {
     { id: "equipo", label: "Team", href: "/usuarios", group: "more", teamOnly: true, entityKey: "member", entityForm: "singular" },
     { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helperKey: "forteLab", group: "more" },
   ],
+  mobile: { primaryIds: ["my-salon", "today", "mensajes"] },
 }
 
 /**

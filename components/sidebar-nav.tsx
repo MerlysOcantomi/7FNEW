@@ -61,6 +61,9 @@ import { GlobalTodayTriggerMobile } from "@/components/today/global-today-trigge
 import { GlobalAgentsTriggerMobile } from "@/components/agents/global-agents-trigger";
 import { GlobalAskFannyTriggerMobile } from "@/components/assistant/global-ask-fanny-trigger";
 import { SidebarAccountMenu } from "@/components/sidebar-account-menu";
+import { VerticalMobileNav } from "@/components/mobile-nav/vertical-mobile-nav";
+import { FinesseAssistantScope } from "@/components/assistant/finesse-assistant-scope";
+import { resolveMobileHeaderChrome } from "@core/vertical-packs/mobile-nav";
 import { useActiveWorkspace } from "@/hooks/use-active-workspace";
 import {
   resolveNavProfile,
@@ -84,7 +87,9 @@ export function useSidebarCollapse() {
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type NavItem = { 
+// Exported as TYPES ONLY for the vertical mobile bar (type imports are erased,
+// so there is no runtime cycle between the two modules).
+export type NavItem = { 
   label: string; 
   href: string; 
   icon: React.ElementType; 
@@ -93,7 +98,7 @@ type NavItem = {
   subitems?: NavItem[];
   group?: string;
 };
-type NavSection = {
+export type NavSection = {
   section: string;
   subtitle: string;
   items: NavItem[];
@@ -1220,9 +1225,19 @@ export function MobileSidebarNav() {
   const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/");
   /** Ask Fanny is Inbox-only for PR1 (mirrors the desktop toolbar gate). */
   const showAskFanny = pathname === "/inbox" || pathname.startsWith("/inbox/");
+  /**
+   * Vertical mobile bottom bar (FINESSE-UI-02): when the workspace's nav
+   * profile declares one, the bar is the PRIMARY mobile navigation, so the
+   * header drops its duplicate Today trigger and (outside Inbox-focused mode)
+   * its hamburger — the sheet would be a second primary navigation. Agents,
+   * New, Search, Ask Fanny and the workspace identity stay: they have no bar
+   * equivalent. Workspaces without a bar keep this header byte-for-byte.
+   */
+  const hasMobileBar = !navUnresolved && verticalProfile?.mobile !== undefined;
+  const headerChrome = resolveMobileHeaderChrome({ hasMobileBar, focused, onToday: hideTodayTrigger });
 
   return (
-    <>
+    <FinesseAssistantScope>
       <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[var(--app-sidebar-bg)] sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-[var(--app-accent)] flex items-center justify-center">
@@ -1233,13 +1248,14 @@ export function MobileSidebarNav() {
         {/*
           Header action order: Today | Ask Fanny | Agents | New | Search |
           Menu — the same global action family (and order) as the desktop
-          toolbar. Today (daily work) first; Ask Fanny (talk to the active
+          toolbar. With a vertical bottom bar, Today and Menu are owned by the
+          bar (see `headerChrome`). Today (daily work) first; Ask Fanny (talk to the active
           assistant, Inbox-only PR1) next; Agents (AI visibility) follows;
           New (capture) after Agents; Search (find) before Menu. Today and
           Agents are hidden on their own canonical routes (/today, /agents).
         */}
         <div className="flex items-center gap-0.5">
-          {!hideTodayTrigger && <GlobalTodayTriggerMobile />}
+          {headerChrome.showTodayTrigger && <GlobalTodayTriggerMobile />}
           {showAskFanny && <GlobalAskFannyTriggerMobile />}
           {!hideAgentsTrigger && <GlobalAgentsTriggerMobile />}
           <GlobalNewTriggerMobile />
@@ -1250,13 +1266,15 @@ export function MobileSidebarNav() {
           >
             <Search size={20} />
           </button>
-          <button
-            onClick={() => setOpen(true)}
-            className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
-            aria-label={t.nav.openNavigation}
-          >
-            <Menu size={20} />
-          </button>
+          {headerChrome.showMenu && (
+            <button
+              onClick={() => setOpen(true)}
+              className="text-[var(--app-sidebar-text-muted)] hover:text-[var(--app-sidebar-text)] p-1"
+              aria-label={t.nav.openNavigation}
+            >
+              <Menu size={20} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -1314,6 +1332,17 @@ export function MobileSidebarNav() {
         </SheetContent>
       </Sheet>
       <GlobalNewMobileSheet />
-    </>
+      {/*
+        Vertical mobile bottom bar (FINESSE-UI-02). Renders ONLY when the
+        workspace's nav profile declares `mobile` (Beauty/Finesse today); every
+        other workspace keeps this sheet-based navigation byte-for-byte. Fed the
+        same composed sections so labels/icons/badges can never drift from the
+        sheet above. Mounted here because this is the one mobile chrome shared by
+        AppShell, ContextShell and the legacy manual layouts.
+      */}
+      {!navUnresolved && (
+        <VerticalMobileNav profile={verticalProfile} sections={sections} includedSeats={includedSeats} />
+      )}
+    </FinesseAssistantScope>
   );
 }

@@ -288,6 +288,7 @@ function HoldToTalkHint({ eligible, label }: { eligible: boolean; label: string 
   return (
     <div
       role="note"
+      data-finesse-launcher-hint
       className="fixed right-4 z-40 rounded-xl border border-[var(--border-dark)] bg-[var(--app-surface-dark)] px-3 py-1.5 text-[11px] font-semibold text-[var(--text-primary-light)] shadow-lg md:hidden"
       style={{ bottom: "calc(1.25rem + 60px + env(safe-area-inset-bottom))" }}
     >

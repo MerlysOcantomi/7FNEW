@@ -120,6 +120,9 @@
   --app-accent-hover: var(--accent-primary-hover);
   --app-shell-bg: var(--app-canvas);
   --app-control-radius: 8px;
+  /* Height of the vertical mobile bottom bar (FINESSE-UI-02); the safe-area
+     inset is added at the consumers, never baked in here. */
+  --app-mobile-nav-height: 64px;
   --app-shadow-subtle: 0 4px 10px rgba(36, 28, 58, 0.06);
 
   /* Translucent shell overlays (chips, hover, open/active states). Kept as
@@ -906,6 +909,29 @@
   canvas,
   svg {
     max-width: 100%;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   VERTICAL MOBILE BOTTOM BAR — content clearance (FINESSE-UI-02)
+   Deliberately UNLAYERED: it must beat Tailwind's `@layer utilities`
+   (e.g. the launcher's `grid`), and unlayered author CSS always wins
+   over layered styles regardless of order.
+     While a `[data-vertical-mobile-nav]` bar is in the document (mobile
+     viewport only), every shell scrollport `<main>` reserves the bar height
+     + the device safe-area at its end, so the last card, a composer, a CTA
+     or a form is never covered — one rule for AppShell, ContextShell and the
+     legacy manual layouts instead of per-page paddings. The floating Finesse
+     launcher (and its hold-to-talk hint) hide on the same condition: the
+     bar's center mic IS the launcher there. Tokens only, no colors.
+     ────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  body:has([data-vertical-mobile-nav]) main {
+    padding-bottom: calc(var(--app-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+  body:has([data-vertical-mobile-nav]) [data-finesse-launcher="true"],
+  body:has([data-vertical-mobile-nav]) [data-finesse-launcher-hint] {
+    display: none;
   }
 }
 
