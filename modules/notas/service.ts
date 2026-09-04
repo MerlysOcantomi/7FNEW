@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { searchContains } from "@core/db-search"
 
 interface ListParams {
   skip?: number
@@ -19,8 +20,8 @@ export async function list(params: ListParams) {
     ...(proyectoId && { proyectoId }),
     ...(search && {
       OR: [
-        { titulo: { contains: search } },
-        { contenido: { contains: search } },
+        { titulo: searchContains(search) },
+        { contenido: searchContains(search) },
       ],
     }),
   }

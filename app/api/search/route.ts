@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
+import { searchContains } from "@core/db-search"
 
 const MAX_PER_GROUP = 5
 const MAX_TOKENS = 4
@@ -46,19 +47,19 @@ export async function GET(request: NextRequest) {
         ? {
             AND: tokens.map((t) => ({
               OR: [
-                { nombre: { contains: t } },
-                { email: { contains: t } },
-                { empresa: { contains: t } },
-                { telefono: { contains: t } },
+                { nombre: searchContains(t) },
+                { email: searchContains(t) },
+                { empresa: searchContains(t) },
+                { telefono: searchContains(t) },
               ],
             })),
           }
         : {
             OR: [
-              { nombre: { contains: search } },
-              { email: { contains: search } },
-              { empresa: { contains: search } },
-              { telefono: { contains: search } },
+              { nombre: searchContains(search) },
+              { email: searchContains(search) },
+              { empresa: searchContains(search) },
+              { telefono: searchContains(search) },
             ],
           }),
     }
@@ -68,11 +69,11 @@ export async function GET(request: NextRequest) {
       ...(useMultiTokenAnd
         ? {
             AND: tokens.map((t) => ({
-              OR: [{ nombre: { contains: t } }, { descripcion: { contains: t } }],
+              OR: [{ nombre: searchContains(t) }, { descripcion: searchContains(t) }],
             })),
           }
         : {
-            OR: [{ nombre: { contains: search } }, { descripcion: { contains: search } }],
+            OR: [{ nombre: searchContains(search) }, { descripcion: searchContains(search) }],
           }),
     }
 
@@ -81,11 +82,11 @@ export async function GET(request: NextRequest) {
       ...(useMultiTokenAnd
         ? {
             AND: tokens.map((t) => ({
-              OR: [{ titulo: { contains: t } }, { descripcion: { contains: t } }],
+              OR: [{ titulo: searchContains(t) }, { descripcion: searchContains(t) }],
             })),
           }
         : {
-            OR: [{ titulo: { contains: search } }, { descripcion: { contains: search } }],
+            OR: [{ titulo: searchContains(search) }, { descripcion: searchContains(search) }],
           }),
     }
 
@@ -95,17 +96,17 @@ export async function GET(request: NextRequest) {
         ? {
             AND: tokens.map((t) => ({
               OR: [
-                { numero: { contains: t } },
-                { items: { contains: t } },
-                { cliente: { is: { nombre: { contains: t } } } },
+                { numero: searchContains(t) },
+                { items: searchContains(t) },
+                { cliente: { is: { nombre: searchContains(t) } } },
               ],
             })),
           }
         : {
             OR: [
-              { numero: { contains: search } },
-              { items: { contains: search } },
-              { cliente: { is: { nombre: { contains: search } } } },
+              { numero: searchContains(search) },
+              { items: searchContains(search) },
+              { cliente: { is: { nombre: searchContains(search) } } },
             ],
           }),
     }
@@ -115,11 +116,11 @@ export async function GET(request: NextRequest) {
       ...(useMultiTokenAnd
         ? {
             AND: tokens.map((t) => ({
-              OR: [{ nombre: { contains: t } }, { tipo: { contains: t } }],
+              OR: [{ nombre: searchContains(t) }, { tipo: searchContains(t) }],
             })),
           }
         : {
-            OR: [{ nombre: { contains: search } }, { tipo: { contains: search } }],
+            OR: [{ nombre: searchContains(search) }, { tipo: searchContains(search) }],
           }),
     }
 
@@ -128,18 +129,18 @@ export async function GET(request: NextRequest) {
       ...(useMultiTokenAnd
         ? {
             AND: tokens.map((t) => ({
-              OR: [{ titulo: { contains: t } }, { contenido: { contains: t } }],
+              OR: [{ titulo: searchContains(t) }, { contenido: searchContains(t) }],
             })),
           }
         : {
-            OR: [{ titulo: { contains: search } }, { contenido: { contains: search } }],
+            OR: [{ titulo: searchContains(search) }, { contenido: searchContains(search) }],
           }),
     }
 
     const archivoWhere: Prisma.AttachmentWhereInput =
       useMultiTokenAnd
-        ? { AND: tokens.map((t) => ({ nombre: { contains: t } })) }
-        : { nombre: { contains: search } }
+        ? { AND: tokens.map((t) => ({ nombre: searchContains(t) })) }
+        : { nombre: searchContains(search) }
 
     const conversationWhere: Prisma.ConversationWhereInput = {
       workspaceId,
@@ -148,15 +149,15 @@ export async function GET(request: NextRequest) {
         ? {
             AND: tokens.map((t) => ({
               OR: [
-                { subject: { contains: t } },
-                { summary: { contains: t } },
-                { category: { contains: t } },
+                { subject: searchContains(t) },
+                { summary: searchContains(t) },
+                { category: searchContains(t) },
                 {
                   contact: {
                     OR: [
-                      { nombre: { contains: t } },
-                      { email: { contains: t } },
-                      { empresa: { contains: t } },
+                      { nombre: searchContains(t) },
+                      { email: searchContains(t) },
+                      { empresa: searchContains(t) },
                     ],
                   },
                 },
@@ -165,15 +166,15 @@ export async function GET(request: NextRequest) {
           }
         : {
             OR: [
-              { subject: { contains: search } },
-              { summary: { contains: search } },
-              { category: { contains: search } },
+              { subject: searchContains(search) },
+              { summary: searchContains(search) },
+              { category: searchContains(search) },
               {
                 contact: {
                   OR: [
-                    { nombre: { contains: search } },
-                    { email: { contains: search } },
-                    { empresa: { contains: search } },
+                    { nombre: searchContains(search) },
+                    { email: searchContains(search) },
+                    { empresa: searchContains(search) },
                   ],
                 },
               },
@@ -188,17 +189,17 @@ export async function GET(request: NextRequest) {
         ? {
             AND: tokens.map((t) => ({
               OR: [
-                { title: { contains: t } },
-                { description: { contains: t } },
-                { sourceLabel: { contains: t } },
+                { title: searchContains(t) },
+                { description: searchContains(t) },
+                { sourceLabel: searchContains(t) },
               ],
             })),
           }
         : {
             OR: [
-              { title: { contains: search } },
-              { description: { contains: search } },
-              { sourceLabel: { contains: search } },
+              { title: searchContains(search) },
+              { description: searchContains(search) },
+              { sourceLabel: searchContains(search) },
             ],
           }),
     }
@@ -208,11 +209,11 @@ export async function GET(request: NextRequest) {
       ...(useMultiTokenAnd
         ? {
             AND: tokens.map((t) => ({
-              OR: [{ titulo: { contains: t } }, { descripcion: { contains: t } }],
+              OR: [{ titulo: searchContains(t) }, { descripcion: searchContains(t) }],
             })),
           }
         : {
-            OR: [{ titulo: { contains: search } }, { descripcion: { contains: search } }],
+            OR: [{ titulo: searchContains(search) }, { descripcion: searchContains(search) }],
           }),
     }
 

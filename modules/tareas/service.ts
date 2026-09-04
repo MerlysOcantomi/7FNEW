@@ -5,6 +5,7 @@ import {
   requireWorkspaceScope,
   resolveUsuarioScopes,
 } from "@modules/usuarios/scope"
+import { searchContains } from "@core/db-search"
 
 /**
  * Tarea service — workspace-scoped, with legacy-assignee containment (CORE-01).
@@ -86,8 +87,8 @@ export async function list(params: ListParams) {
     ...(usuarioId && { usuarioId }),
     ...(search && {
       OR: [
-        { titulo: { contains: search } },
-        { descripcion: { contains: search } },
+        { titulo: searchContains(search) },
+        { descripcion: searchContains(search) },
       ],
     }),
   }

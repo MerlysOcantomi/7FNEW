@@ -1,4 +1,5 @@
 import { db } from "@core/db"
+import { resolveSqlDialect } from "@core/db-dialect"
 import type { Prisma } from "@/generated/prisma/client"
 import {
   canTransitionConversationStatus,
@@ -20,6 +21,7 @@ import {
   type ProposedFannyTaskRecord,
 } from "./inbox-tasks-read"
 import { buildUnansweredCandidateQuery } from "./unanswered"
+import { searchContains } from "@core/db-search"
 
 interface ListConversationsParams {
   workspaceId: string
@@ -462,6 +464,7 @@ export async function listConversations(params: ListConversationsParams) {
     const { sql, params: sqlParams } = buildUnansweredCandidateQuery({
       workspaceId,
       minAgeMinutes: unansweredMinAgeMinutes,
+      dialect: resolveSqlDialect(),
     })
     const rows = await db.$queryRawUnsafe<{ id: string }[]>(sql, ...sqlParams)
     unansweredIdFilter = { id: { in: rows.map((row) => row.id) } }
@@ -486,14 +489,14 @@ export async function listConversations(params: ListConversationsParams) {
     ...(q
       ? {
           OR: [
-            { subject: { contains: q } },
-            { summary: { contains: q } },
-            { intent: { contains: q } },
-            { contact: { nombre: { contains: q } } },
-            { contact: { email: { contains: q } } },
-            { contact: { empresa: { contains: q } } },
-            { contact: { telefono: { contains: q } } },
-            { messages: { some: { content: { contains: q } } } },
+            { subject: searchContains(q) },
+            { summary: searchContains(q) },
+            { intent: searchContains(q) },
+            { contact: { nombre: searchContains(q) } },
+            { contact: { email: searchContains(q) } },
+            { contact: { empresa: searchContains(q) } },
+            { contact: { telefono: searchContains(q) } },
+            { messages: { some: { content: searchContains(q) } } },
           ],
         }
       : {}),

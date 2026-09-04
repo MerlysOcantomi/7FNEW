@@ -20,6 +20,16 @@
  *     `[conversationId, createdAt]` index, bounded and workspace-scoped.
  *   - Conversations with no non-internal messages are NOT unanswered.
  */
+import {
+  bool,
+  EMPTY_SQL,
+  join,
+  renderSql,
+  sql,
+  timestamp,
+  type SqlDialect,
+  type SqlStatement,
+} from "@core/db-dialect"
 
 /** Terminal statuses excluded from the unanswered set. */
 export const UNANSWERED_EXCLUDED_STATUSES: readonly string[] = [
@@ -69,41 +79,46 @@ export function isUnansweredConversation(
 }
 
 /**
- * SQL mirror of `isUnansweredConversation`, parameterized for
- * `$queryRawUnsafe` with `?` placeholders. Returns the statement and its
+ * SQL mirror of `isUnansweredConversation`, rendered for `$queryRawUnsafe`
+ * in the dialect of the executing client (`?` on SQLite/libSQL, `$n` on
+ * PostgreSQL — see `core/db-dialect.ts`). Returns the statement and its
  * ordered parameter list. Kept here (next to the predicate) so the two
  * definitions cannot drift without a reviewer noticing.
  *
- * Placeholders: workspaceId, then optionally the max inbound timestamp
- * (now - minAge) in ISO format when `minAgeMinutes` is set.
+ * Parameters, in order: the workspaceId, the excluded statuses, optionally
+ * the max inbound timestamp (now - minAge) when `minAgeMinutes` is set, and
+ * the candidate limit. Nothing request-derived is ever inlined.
+ *
+ * Dialect notes: identifiers are double-quoted (PostgreSQL folds unquoted
+ * mixed-case names), the `isInternal` comparison is a dialect boolean literal
+ * (`0` on SQLite, `FALSE` on PostgreSQL), and the timestamp threshold binds as
+ * ISO text on SQLite and as a `Date` on PostgreSQL.
  */
 export function buildUnansweredCandidateQuery(options: {
   workspaceId: string
   minAgeMinutes?: number
   now?: Date
-}): { sql: string; params: Array<string | number> } {
-  const statusList = UNANSWERED_EXCLUDED_STATUSES.map((s) => `'${s}'`).join(", ")
-  const params: Array<string | number> = [options.workspaceId]
-  let ageClause = ""
+  dialect: SqlDialect
+}): SqlStatement {
+  let ageClause = EMPTY_SQL
   if (typeof options.minAgeMinutes === "number" && options.minAgeMinutes > 0) {
     const now = options.now ?? new Date()
     const threshold = new Date(now.getTime() - options.minAgeMinutes * 60_000)
-    ageClause = "AND m.createdAt <= ?"
-    params.push(threshold.toISOString())
+    ageClause = sql`AND m."createdAt" <= ${timestamp(threshold)}`
   }
-  const sql = `SELECT c.id AS id
-FROM Conversation c
-JOIN Message m ON m.id = (
-  SELECT m2.id FROM Message m2
-  WHERE m2.conversationId = c.id AND m2.isInternal = 0
-  ORDER BY m2.createdAt DESC, m2.id DESC
+  const fragment = sql`SELECT c."id" AS id
+FROM "Conversation" c
+JOIN "Message" m ON m."id" = (
+  SELECT m2."id" FROM "Message" m2
+  WHERE m2."conversationId" = c."id" AND m2."isInternal" = ${bool(false)}
+  ORDER BY m2."createdAt" DESC, m2."id" DESC
   LIMIT 1
 )
-WHERE c.workspaceId = ?
-  AND c.status NOT IN (${statusList})
-  AND m.direction = 'inbound'
+WHERE c."workspaceId" = ${options.workspaceId}
+  AND c."status" NOT IN (${join([...UNANSWERED_EXCLUDED_STATUSES])})
+  AND m."direction" = 'inbound'
   ${ageClause}
-ORDER BY c.lastMessageAt DESC
+ORDER BY c."lastMessageAt" DESC
 LIMIT ${UNANSWERED_CANDIDATE_LIMIT}`
-  return { sql, params }
+  return renderSql(fragment, options.dialect)
 }

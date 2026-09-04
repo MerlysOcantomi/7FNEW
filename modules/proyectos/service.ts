@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { searchContains, structuredContains } from "@core/db-search"
 
 interface ListParams {
   skip?: number
@@ -40,9 +41,10 @@ export async function list(params: ListParams) {
   if (estado) conditions.push({ estado })
   if (prioridad) conditions.push({ prioridad })
   if (clienteId) conditions.push({ clienteId })
-  if (customId) conditions.push({ customId: { contains: customId } })
-  if (assignedTo) conditions.push({ assignedTo: { contains: assignedTo } })
-  if (tag) conditions.push({ tags: { contains: tag } })
+  // Structured filter parameters (not free-text search): partial match by contract.
+  if (customId) conditions.push({ customId: structuredContains(customId) })
+  if (assignedTo) conditions.push({ assignedTo: structuredContains(assignedTo) })
+  if (tag) conditions.push({ tags: structuredContains(tag) })
 
   let clienteIdsFromSearch: string[] | null = null
 
@@ -52,8 +54,8 @@ export async function list(params: ListParams) {
         where: {
           workspaceId,
           OR: [
-            { nombre: { contains: search } },
-            { empresa: { contains: search } },
+            { nombre: searchContains(search) },
+            { empresa: searchContains(search) },
           ],
         },
         select: { id: true },
@@ -66,11 +68,11 @@ export async function list(params: ListParams) {
     }
 
     const searchOr: Prisma.ProyectoWhereInput[] = [
-      { nombre: { contains: search } },
-      { descripcion: { contains: search } },
-      { customId: { contains: search } },
-      { tags: { contains: search } },
-      { assignedTo: { contains: search } },
+      { nombre: searchContains(search) },
+      { descripcion: searchContains(search) },
+      { customId: searchContains(search) },
+      { tags: searchContains(search) },
+      { assignedTo: searchContains(search) },
     ]
 
     if (clienteIdsFromSearch && clienteIdsFromSearch.length > 0) {

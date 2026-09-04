@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { searchContains } from "@core/db-search"
 
 interface ListParams {
   skip?: number
@@ -18,7 +19,7 @@ export async function list(params: ListParams) {
     ...(estado && { estado }),
     ...(trigger && { trigger }),
     ...(search && {
-      nombre: { contains: search },
+      nombre: searchContains(search),
     }),
   }
 

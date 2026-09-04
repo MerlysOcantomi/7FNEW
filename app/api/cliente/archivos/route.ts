@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getRequiredPortalContext } from "@/lib/auth/portal-context"
+import { searchContains } from "@core/db-search"
 
 const VALID_TYPES = ["DOCUMENT", "IMAGE", "LOGO", "VIDEO", "OTHER"]
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (search && search.length >= 2) {
-    where.filename = { contains: search }
+    where.filename = searchContains(search)
   }
 
   const assets = await db.clientAsset.findMany({

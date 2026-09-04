@@ -18,6 +18,7 @@
 
 import { db } from "@/lib/db"
 import type { ToolExecutionContext } from "@core/platform/tool-definition"
+import { searchContains } from "@core/db-search"
 
 // ── READ ──
 
@@ -29,9 +30,9 @@ export async function searchClient(
     where: {
       workspaceId: context.workspaceId,
       OR: [
-        { nombre: { contains: input.query } },
-        { email: { contains: input.query } },
-        { empresa: { contains: input.query } },
+        { nombre: searchContains(input.query) },
+        { email: searchContains(input.query) },
+        { empresa: searchContains(input.query) },
       ],
     },
     take: input.limit ?? 10,
@@ -75,7 +76,7 @@ export async function searchTask(
   if (input.status) where.estado = input.status
   if (input.priority) where.prioridad = input.priority
   if (input.projectId) where.proyectoId = input.projectId
-  if (input.query) where.titulo = { contains: input.query }
+  if (input.query) where.titulo = searchContains(input.query)
   if (input.overdue) {
     where.fechaLimite = { lt: new Date() }
     where.estado = { not: "completada" }

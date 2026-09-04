@@ -9,6 +9,7 @@ import {
   resolveVisibleUsuarioIds,
   type UsuarioScope,
 } from "./scope"
+import { searchContains } from "@core/db-search"
 
 /**
  * Usuario service — workspace-contained (CORE-01).
@@ -56,8 +57,8 @@ export async function list(params: ListParams) {
     ...(estado && { estado }),
     ...(search && {
       OR: [
-        { nombre: { contains: search } },
-        { email: { contains: search } },
+        { nombre: searchContains(search) },
+        { email: searchContains(search) },
       ],
     }),
   }

@@ -74,32 +74,60 @@ test("minAgeMinutes gates young inbound messages", () => {
   assert.equal(isUnansweredConversation(candidate, { now: NOW }), true)
 })
 
-// ─── SQL builder (workspace isolation + parameterization) ───────────────────
+// ─── SQL builder (workspace isolation + parameterization, both dialects) ────
 
-test("candidate query is workspace-scoped and parameterized", () => {
-  const { sql, params } = buildUnansweredCandidateQuery({ workspaceId: "ws_1" })
-  assert.ok(sql.includes("c.workspaceId = ?"))
-  assert.deepEqual(params, ["ws_1"])
+const STATUS_PARAMS = [...UNANSWERED_EXCLUDED_STATUSES]
+
+test("sqlite: candidate query is workspace-scoped, `?`-parameterized, and inlines nothing request-derived", () => {
+  const { sql, params } = buildUnansweredCandidateQuery({ workspaceId: "ws_1", dialect: "sqlite" })
+  assert.ok(sql.includes('c."workspaceId" = ?'))
+  assert.deepEqual(params, ["ws_1", ...STATUS_PARAMS, UNANSWERED_CANDIDATE_LIMIT])
   // The workspace id travels as a bound parameter, never interpolated.
   assert.ok(!sql.includes("ws_1"))
+  assert.equal((sql.match(/\?/g) ?? []).length, params.length)
+})
+
+test("postgresql: same query renders $1..$n with identical parameter order", () => {
+  const { sql, params } = buildUnansweredCandidateQuery({ workspaceId: "ws_1", dialect: "postgresql" })
+  assert.ok(sql.includes('c."workspaceId" = $1'))
+  assert.ok(sql.includes(`NOT IN ($2, $3, $4, $5, $6)`))
+  assert.ok(sql.includes("LIMIT $7"))
+  assert.deepEqual(params, ["ws_1", ...STATUS_PARAMS, UNANSWERED_CANDIDATE_LIMIT])
+  assert.ok(!/\$8/.test(sql))
 })
 
 test("candidate query mirrors the predicate's exclusions and direction check", () => {
-  const { sql } = buildUnansweredCandidateQuery({ workspaceId: "ws_1" })
+  const { sql, params } = buildUnansweredCandidateQuery({ workspaceId: "ws_1", dialect: "sqlite" })
   for (const status of UNANSWERED_EXCLUDED_STATUSES) {
-    assert.ok(sql.includes(`'${status}'`), status)
+    assert.ok(params.includes(status), status)
+    assert.ok(!sql.includes(`'${status}'`), `${status} must be bound, not inlined`)
   }
-  assert.ok(sql.includes("m.direction = 'inbound'"))
-  assert.ok(sql.includes("m2.isInternal = 0"))
-  assert.ok(sql.includes(`LIMIT ${UNANSWERED_CANDIDATE_LIMIT}`))
+  assert.ok(sql.includes(`m."direction" = 'inbound'`))
+  assert.ok(params.includes(UNANSWERED_CANDIDATE_LIMIT))
 })
 
-test("minAgeMinutes adds a bound timestamp threshold", () => {
-  const { sql, params } = buildUnansweredCandidateQuery({
-    workspaceId: "ws_1",
-    minAgeMinutes: 30,
-    now: NOW,
-  })
-  assert.ok(sql.includes("m.createdAt <= ?"))
-  assert.deepEqual(params, ["ws_1", minutesAgo(30).toISOString()])
+test("isInternal is a dialect boolean literal: 0 on sqlite (unchanged Turso semantics), FALSE on postgresql", () => {
+  assert.ok(buildUnansweredCandidateQuery({ workspaceId: "ws_1", dialect: "sqlite" }).sql.includes('m2."isInternal" = 0'))
+  assert.ok(
+    buildUnansweredCandidateQuery({ workspaceId: "ws_1", dialect: "postgresql" }).sql.includes('m2."isInternal" = FALSE'),
+  )
+})
+
+test("minAgeMinutes adds a bound timestamp threshold: ISO text on sqlite, Date on postgresql", () => {
+  const sqlite = buildUnansweredCandidateQuery({ workspaceId: "ws_1", minAgeMinutes: 30, now: NOW, dialect: "sqlite" })
+  assert.ok(sqlite.sql.includes('m."createdAt" <= ?'))
+  assert.deepEqual(sqlite.params, ["ws_1", ...STATUS_PARAMS, minutesAgo(30).toISOString(), UNANSWERED_CANDIDATE_LIMIT])
+
+  const pg = buildUnansweredCandidateQuery({ workspaceId: "ws_1", minAgeMinutes: 30, now: NOW, dialect: "postgresql" })
+  assert.ok(pg.sql.includes('m."createdAt" <= $7'))
+  assert.ok(pg.sql.includes("LIMIT $8"))
+  const threshold = pg.params[6]
+  assert.ok(threshold instanceof Date)
+  assert.equal(threshold.getTime(), minutesAgo(30).getTime())
+  assert.equal(pg.params[7], UNANSWERED_CANDIDATE_LIMIT)
+})
+
+test("no unquoted mixed-case identifier survives (PostgreSQL would fold it)", () => {
+  const { sql } = buildUnansweredCandidateQuery({ workspaceId: "ws_1", minAgeMinutes: 5, dialect: "postgresql" })
+  assert.ok(!/(?<!")\b(Conversation|Message|conversationId|workspaceId|isInternal|createdAt|lastMessageAt)\b(?!")/.test(sql))
 })

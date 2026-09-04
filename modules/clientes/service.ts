@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { searchContains } from "@core/db-search"
 
 const CLIENT_ID_CONFIG = {
   prefix: "CLIENT",
@@ -25,9 +26,9 @@ export async function list(params: ListParams) {
     ...(tipo && { tipo }),
     ...(search && {
       OR: [
-        { nombre: { contains: search } },
-        { email: { contains: search } },
-        { empresa: { contains: search } },
+        { nombre: searchContains(search) },
+        { email: searchContains(search) },
+        { empresa: searchContains(search) },
       ],
     }),
   }

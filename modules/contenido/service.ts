@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import type { Prisma } from "@/generated/prisma/client"
+import { searchContains, structuredContains } from "@core/db-search"
 
 interface ListParams {
   skip?: number
@@ -35,14 +36,15 @@ export async function list(params: ListParams) {
     ...(campaignId && { campaignId }),
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),
-    ...(responsable && { responsable: { contains: responsable } }),
+    // Structured filter parameter (not free-text search): partial match by contract.
+    ...(responsable && { responsable: structuredContains(responsable) }),
     ...(prioridad && { prioridad }),
     ...(search && {
       OR: [
-        { titulo: { contains: search } },
-        { copy: { contains: search } },
-        { hashtags: { contains: search } },
-        { notas: { contains: search } },
+        { titulo: searchContains(search) },
+        { copy: searchContains(search) },
+        { hashtags: searchContains(search) },
+        { notas: searchContains(search) },
       ],
     }),
   }
@@ -103,9 +105,9 @@ export async function listIdeas(params: { skip?: number; take?: number; estado?:
     ...(categoria && { categoria }),
     ...(search && {
       OR: [
-        { titulo: { contains: search } },
-        { descripcion: { contains: search } },
-        { tags: { contains: search } },
+        { titulo: searchContains(search) },
+        { descripcion: searchContains(search) },
+        { tags: searchContains(search) },
       ],
     }),
   }

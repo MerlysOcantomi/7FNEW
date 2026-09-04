@@ -88,11 +88,18 @@ export function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim()
 }
 
-function normalizeMessageId(raw: string): string {
+/**
+ * Lower-cases the id while the persisted metadata keeps the header's original
+ * casing: the lookups therefore rely on a case-insensitive `contains`
+ * (SQLite `LIKE` today; PostgreSQL needs it made explicit — NEON-02).
+ * Exported (NEON-01 R1) for the regression test only; behaviour unchanged.
+ */
+export function normalizeMessageId(raw: string): string {
   return raw.replace(/^</, "").replace(/>$/, "").trim().toLowerCase()
 }
 
-function parseReferencesHeader(refs: string | null | undefined): string[] {
+/** Exported (NEON-01 R1) for the regression test only; behaviour unchanged. */
+export function parseReferencesHeader(refs: string | null | undefined): string[] {
   if (!refs) return []
   const matches = refs.match(/<[^>]+>/g)
   if (!matches) {

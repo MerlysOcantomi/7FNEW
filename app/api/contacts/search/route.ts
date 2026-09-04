@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
 import { successResponse, errorResponse } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
+import { searchContains } from "@core/db-search"
 
 /**
  * GET /api/contacts/search?q=
@@ -35,9 +36,9 @@ export async function GET(request: NextRequest) {
       ...(q.length >= 2
         ? {
             OR: [
-              { nombre: { contains: q } },
-              { email: { contains: q } },
-              { empresa: { contains: q } },
+              { nombre: searchContains(q) },
+              { email: searchContains(q) },
+              { empresa: searchContains(q) },
             ],
           }
         : {}),

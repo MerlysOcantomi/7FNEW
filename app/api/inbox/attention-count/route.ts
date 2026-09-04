@@ -1,7 +1,14 @@
 import { NextRequest } from "next/server"
+import { renderSql, resolveSqlDialect } from "@core/db-dialect"
 import { handleError, successResponse } from "@/lib/api"
 import { requireReadAccess } from "@/lib/auth/workspace-auth"
 import { db } from "@/lib/db"
+import {
+  buildAssignedUnseenQuery,
+  buildLeadUnseenQuery,
+  countFromRows,
+  type CountRow,
+} from "@modules/inbox/attention-queries"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,35 +22,20 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const assignedUnseen = await db.$queryRawUnsafe<{ cnt: number }[]>(
-      `SELECT COUNT(*) as cnt
-       FROM Conversation c
-       LEFT JOIN ConversationRead cr
-         ON cr.conversationId = c.id AND cr.userId = ?
-       WHERE c.workspaceId = ?
-         AND c.assignedTo = ?
-         AND c.status NOT IN ('closed', 'archived', 'new')
-         AND (cr.lastSeenAt IS NULL OR c.lastMessageAt > cr.lastSeenAt)`,
-      userId,
-      workspaceId,
-      userId,
-    )
+    /**
+     * The two "unseen" counts are raw SQL (see `modules/inbox/attention-queries.ts`),
+     * rendered in the dialect of the configured client so placeholders and
+     * identifiers are right on SQLite/Turso today and on PostgreSQL later.
+     */
+    const dialect = resolveSqlDialect()
+    const assigned = renderSql(buildAssignedUnseenQuery({ workspaceId, userId }), dialect)
+    const assignedUnseen = await db.$queryRawUnsafe<CountRow[]>(assigned.sql, ...assigned.params)
 
-    const leadUnseen = await db.$queryRawUnsafe<{ cnt: number }[]>(
-      `SELECT COUNT(*) as cnt
-       FROM Conversation c
-       LEFT JOIN ConversationRead cr
-         ON cr.conversationId = c.id AND cr.userId = ?
-       WHERE c.workspaceId = ?
-         AND c.status = 'lead_detected'
-         AND c.assignedTo IS NULL
-         AND (cr.lastSeenAt IS NULL OR c.lastMessageAt > cr.lastSeenAt)`,
-      userId,
-      workspaceId,
-    )
+    const lead = renderSql(buildLeadUnseenQuery({ workspaceId, userId }), dialect)
+    const leadUnseen = await db.$queryRawUnsafe<CountRow[]>(lead.sql, ...lead.params)
 
-    const assignedCount = Number(assignedUnseen[0]?.cnt ?? 0)
-    const leadCount = Number(leadUnseen[0]?.cnt ?? 0)
+    const assignedCount = countFromRows(assignedUnseen)
+    const leadCount = countFromRows(leadUnseen)
     const total = newCount + assignedCount + leadCount
 
     return successResponse({ total, breakdown: { new: newCount, assignedUnseen: assignedCount, leadUnseen: leadCount } })

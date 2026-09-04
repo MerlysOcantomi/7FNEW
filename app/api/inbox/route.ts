@@ -6,6 +6,7 @@ import { createConversationFromInboxEntry } from "@modules/inbox/service"
 import { runConversationIntelligence } from "@modules/inbox/intelligence"
 import { sendAcknowledgmentEmail } from "@modules/inbox/email-outbound"
 import { notifyNewConversation, notifyInboundMessage } from "@core/notifications/inbox"
+import { searchContains } from "@core/db-search"
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,10 +36,10 @@ export async function GET(request: NextRequest) {
     }
     if (q) {
       where.OR = [
-        { nombre: { contains: q } },
-        { email: { contains: q } },
-        { mensaje: { contains: q } },
-        { resumen: { contains: q } },
+        { nombre: searchContains(q) },
+        { email: searchContains(q) },
+        { mensaje: searchContains(q) },
+        { resumen: searchContains(q) },
       ]
     }
 
