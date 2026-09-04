@@ -33,10 +33,20 @@ model Workspace {
   /// Lifecycle status managed from the SevenF System Admin control plane.
   /// Valid values are mirrored in `core/system/workspace-status.ts`:
   ///   active | trial | suspended | archived
-  /// IMPORTANT: this column is observational — no part of the runtime
-  /// reads it to gate access. Suspension is administrative-only until a
-  /// future enforcement layer is added.
+  /// Enforcement: since AI-06 the capability snapshot treats
+  /// suspended/archived as fail-closed and `/api/ai/agent` consumes that
+  /// as live enforcement. No platform-wide enforcement exists — every
+  /// other route still ignores this column.
   status      String   @default("active")
+  /// FOUND-04A adoption marker for the persistent entitlement store:
+  ///   null = not adopted -> the legacy observational resolution
+  ///          (plan/config.modules/PresenceSubscription) stays in effect;
+  ///   1    = adopted under the initial store revision -> persisted
+  ///          WorkspaceEntitlement rows are authoritative for Workspace CAN;
+  ///   any other value = unsupported revision -> fail closed (Core only).
+  /// No runtime writer exists in FOUND-04A; adoption is a future, reviewed
+  /// operation. Existing workspaces remain null (not adopted).
+  entitlementRevision Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -78,6 +88,7 @@ model Workspace {
   presenceDomains     PresenceDomain[]
   presenceMedia       PresenceMedia[]
   presenceSubscription PresenceSubscription?
+  entitlements   WorkspaceEntitlement[]
 
   @@index([status])
 }
@@ -1549,4 +1560,35 @@ model PresenceSubscription {
   updatedAt DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+/// FOUND-04A — Persistent, qualitative workspace entitlement store.
+/// One row = one grant (product | addon | offering) for one workspace.
+/// QUALITATIVE ONLY: no limits, no quantities, no prices, no billing
+/// references. Rows are inert until the workspace is adopted
+/// (`Workspace.entitlementRevision` non-null); validation is fail-closed in
+/// `core/platform/entitlements.ts` — unknown kind/key/status/source never
+/// widens access, and `core` must never be persisted (implicit product).
+/// No runtime writer exists in FOUND-04A.
+model WorkspaceEntitlement {
+  id          String    @id @default(cuid())
+  workspaceId String
+  /// product | addon | offering (canonical vocabulary, validated in code).
+  kind        String
+  /// Canonical key for the kind (e.g. product "smart_inbox"). Never "core".
+  key         String
+  /// active | trial | suspended | expired (validated in code).
+  status      String
+  /// billing | manual | migration (validated in code).
+  source      String
+  /// Grant becomes effective at this instant; null = immediately.
+  startsAt    DateTime?
+  /// Grant stops being effective at this instant; null = no known expiry.
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, kind, key])
 }

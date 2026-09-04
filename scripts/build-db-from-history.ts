@@ -5,8 +5,8 @@
  *
  *   1. an EMPTY local SQLite database built from `prisma/migrations` via
  *      `prisma migrate deploy` reaches the expected structure
- *      (52 user tables, 93 explicit indexes, clean `integrity_check` and
- *      `foreign_key_check`);
+ *      (EXPECTED_TABLES user tables, EXPECTED_INDEXES explicit indexes,
+ *      clean `integrity_check` and `foreign_key_check`);
  *   2. the local throwaway ledger records exactly the expected migrations,
  *      in order — a missing or unexpected migration fails the run;
  *   3. every remaining structural difference between the history-built
@@ -55,10 +55,11 @@ export const EXPECTED_MIGRATIONS = [
   "3_create_portal_tables",
   "4_d5_schema_tightenings",
   "5_d2_retire_legacy_portal_tables",
+  "6_found04a_workspace_entitlements",
 ] as const
 
-export const EXPECTED_TABLES = 49
-export const EXPECTED_INDEXES = 93
+export const EXPECTED_TABLES = 50
+export const EXPECTED_INDEXES = 94
 
 const EXPIRY_PATTERN = /^(C[0-9]+|AUDIT_DECISION:[A-Za-z0-9_.-]+|NEON_CUTOVER)$/
 

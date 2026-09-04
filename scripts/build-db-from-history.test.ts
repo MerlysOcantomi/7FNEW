@@ -41,8 +41,8 @@ test("happy path: real history, schema and manifest are in sync", async () => {
   const result = await verifyMigrationHistory()
   assert.deepEqual(result.problems, [])
   assert.equal(result.ok, true)
-  assert.equal(result.counts.tables, 49)
-  assert.equal(result.counts.indexes, 93)
+  assert.equal(result.counts.tables, 50)
+  assert.equal(result.counts.indexes, 94)
   assert.equal(result.counts.integrity, "ok")
   assert.equal(result.counts.fkViolations, 0)
   assert.equal(result.driftCount, result.manifestCount, "every drift item maps 1:1 to a manifest entry")
@@ -118,7 +118,7 @@ test("an unexpected extra migration fails the run", async () => {
   assert.ok(result.problems.some((p) => p.includes("unexpected migration in history: 9_rogue")), result.problems.join("\n"))
 })
 
-test("the expected migration list is the four-entry CORE-03C-2B history", () => {
+test("the expected migration list is the linear canonical history", () => {
   assert.deepEqual([...EXPECTED_MIGRATIONS], [
     "0_baseline",
     "1_add_missing_indexes",
@@ -126,5 +126,6 @@ test("the expected migration list is the four-entry CORE-03C-2B history", () => 
     "3_create_portal_tables",
     "4_d5_schema_tightenings",
     "5_d2_retire_legacy_portal_tables",
+    "6_found04a_workspace_entitlements",
   ])
 })
