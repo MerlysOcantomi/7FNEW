@@ -95,3 +95,17 @@ test("internal routes, login and verticals are unaffected", async () => {
   const api = await middleware(req("sevenef.com", "/api/workspace/business-profile"))
   assert.equal(rewritesToPresence(api), false)
 })
+
+test("/finesse (public Finesse landing) is public; lookalike and private routes stay protected", async () => {
+  for (const path of ["/finesse", "/finesse/"]) {
+    const res = await middleware(req("sevenef.com", path))
+    const location = res.headers.get("location") ?? ""
+    assert.ok(!location.includes("/login"), `${path} must not be auth-redirected`)
+  }
+  for (const path of ["/finessex", "/finesse-admin", "/today", "/inbox", "/api/today/beauty"]) {
+    const res = await middleware(req("sevenef.com", path))
+    const location = res.headers.get("location") ?? ""
+    const status = res.status
+    assert.ok(location.includes("/login") || status === 401 || status === 403 || status === 503, `${path} must stay protected (got ${status} ${location})`)
+  }
+})
