@@ -2,11 +2,19 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { readFileSync } from "node:fs"
 import {
+  assertFirstDeployApplied,
+  assertRedeployNoop,
   auditBaselineSql,
+  BASELINE_MIGRATION_NAME,
   CANONICAL_SCHEMA_PATH,
   countBaseline,
   derivePostgresSchema,
+  EMPTY_DATABASE_ASSERTION_SQL,
+  isEmptyDiff,
+  LEDGER_ASSERTION_SQL,
   POSTGRES_CLIENT_OUTPUT,
+  reconcileBaseline,
+  redactConnectionUrls,
   sha256,
 } from "./postgres-baseline"
 
@@ -103,4 +111,75 @@ test("auditBaselineSql accepts a clean Prisma-style PostgreSQL baseline and coun
     onDeleteRestrict: 0,
     primaryKeys: 2,
   })
+})
+
+// ─── R3: baseline immutability ──────────────────────────────────────────────
+
+test("reconcileBaseline: absent baseline is written, identical baseline is accepted unchanged", () => {
+  assert.equal(reconcileBaseline(null, "CREATE TABLE \"A\" ();\n"), "write")
+  assert.equal(reconcileBaseline("CREATE TABLE \"A\" ();\n", "CREATE TABLE \"A\" ();\n"), "unchanged")
+})
+
+test("reconcileBaseline: a differing existing baseline can NEVER be overwritten (no override exists)", () => {
+  const existing = "CREATE TABLE \"A\" ();\n"
+  const fresh = "CREATE TABLE \"A\" ();\nCREATE TABLE \"B\" ();\n"
+  assert.throws(() => reconcileBaseline(existing, fresh), (e: unknown) => e instanceof Error && /immutable/.test(e.message) && /NEW PostgreSQL migration/.test(e.message) && !/--force/.test(e.message))
+  // Even a one-byte difference is a hard failure.
+  assert.throws(() => reconcileBaseline(existing, existing.trimEnd()), /immutable/)
+  assert.equal(reconcileBaseline.length, 2, "no third override parameter")
+})
+
+test("generated baseline creation remains deterministic (same canonical → same variant → same inputs to migrate diff)", () => {
+  const a = derivePostgresSchema(CANONICAL).schema
+  const b = derivePostgresSchema(CANONICAL).schema
+  assert.equal(a, b)
+  assert.equal(reconcileBaseline(a, b), "unchanged")
+})
+
+// ─── R3: empty-database preflight and ledger contracts ──────────────────────
+
+test("EMPTY_DATABASE_ASSERTION_SQL is read-only and counts every non-system base table (ledger included)", () => {
+  const sql = EMPTY_DATABASE_ASSERTION_SQL
+  assert.match(sql, /information_schema\.tables/)
+  assert.match(sql, /table_type = 'BASE TABLE'/)
+  assert.match(sql, /table_schema NOT IN \('pg_catalog', 'information_schema'\)/)
+  assert.match(sql, /RAISE EXCEPTION 'POSTGRES_BASELINE_NOT_EMPTY/)
+  assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT)\b/i)
+  // No carve-out for _prisma_migrations: a database with a ledger is not empty.
+  assert.doesNotMatch(sql, /_prisma_migrations/)
+})
+
+test("LEDGER_ASSERTION_SQL requires exactly one completed, single-step, non-rolled-back 0_init row", () => {
+  const sql = LEDGER_ASSERTION_SQL
+  assert.match(sql, /FROM "_prisma_migrations"/)
+  assert.match(sql, new RegExp(`migration_name = '${BASELINE_MIGRATION_NAME}'`))
+  assert.match(sql, /applied_steps_count = 1/)
+  assert.match(sql, /finished_at IS NOT NULL/)
+  assert.match(sql, /rolled_back_at IS NULL/)
+  assert.match(sql, /IF total <> 1 OR ok <> 1 THEN/)
+  assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b/i)
+})
+
+test("assertFirstDeployApplied accepts only a deploy that applied 0_init in this run", () => {
+  assert.doesNotThrow(() => assertFirstDeployApplied("Applying migration `0_init`\nThe following migration(s) have been applied:\nmigrations/\n  └─ 0_init/\n    └─ migration.sql\nAll migrations have been successfully applied."))
+  assert.throws(() => assertFirstDeployApplied("1 migration found in prisma/migrations\nNo pending migrations to apply."), /not empty/)
+  assert.throws(() => assertFirstDeployApplied("Applying migration `1_other`\nAll migrations have been successfully applied."), /expected 0_init/)
+  assert.throws(() => assertFirstDeployApplied(""), /unexpected first migrate deploy output/)
+})
+
+test("assertRedeployNoop accepts only a no-op second deploy", () => {
+  assert.doesNotThrow(() => assertRedeployNoop("1 migration found in prisma/migrations\nNo pending migrations to apply."))
+  assert.throws(() => assertRedeployNoop("Applying migration `0_init`"), /not a no-op/)
+})
+
+test("isEmptyDiff treats only the empty-migration marker (and config banner) as empty", () => {
+  assert.equal(isEmptyDiff("Loaded Prisma config from prisma.config.ts.\n\n-- This is an empty migration.\n"), true)
+  assert.equal(isEmptyDiff('-- CreateTable\nCREATE TABLE "Stray" ("id" INTEGER);\n'), false)
+})
+
+test("redactConnectionUrls never lets a connection string through an error message", () => {
+  const msg = "failed: postgresql://user:s3cret@db.example.invalid:5432/app?sslmode=require and postgres://x:y@h/d"
+  const red = redactConnectionUrls(msg)
+  assert.doesNotMatch(red, /s3cret|example\.invalid/)
+  assert.match(red, /postgresql:\/\/<redacted>/)
 })

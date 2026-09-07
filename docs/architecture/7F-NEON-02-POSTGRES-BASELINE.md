@@ -40,14 +40,35 @@ npm run db:postgres:init     # prisma/migrations-postgres/0_init  (refuses to ch
 npm run db:postgres:verify   # needs POSTGRES_DIRECT_URL → an EMPTY, ephemeral, loopback PostgreSQL
 ```
 
-`verify` proves, in order: (1) the variant on disk equals a fresh derivation;
-(2) `0_init` exists and passes the static audit (no `PRAGMA`, `DATETIME`,
-`AUTOINCREMENT`, `rowid`, `sqlite_*`, table rebuilds, `?` placeholders,
-SQLite functions; no `SERIAL`/identity, `JSONB`, enums, UUID, `DEFERRABLE`,
-extensions, `TIMESTAMPTZ`, `NUMERIC`; no identifier over 63 characters);
-(3) `migrate deploy` applies from zero; (4) `migrate diff` applied-DB → variant
-is empty; (5) a second `migrate deploy` is a no-op. It refuses any non-loopback
-host unless `POSTGRES_VERIFY_ALLOW_REMOTE=1` is set explicitly.
+`generate-init` is immutable by construction: it writes `0_init` only when the
+file does not exist, reports an identical file as unchanged, and hard-fails on
+any difference. There is no override flag — schema changes after publication go
+into a NEW PostgreSQL migration. (Restarting the history is a deliberate owner
+act on a private, unmerged branch: delete the directory by hand; the tracked
+tooling never offers it.)
+
+`verify` proves, in order (R3): (1) the variant on disk equals a fresh
+derivation; (2) `0_init` exists and passes the static audit (no `PRAGMA`,
+`DATETIME`, `AUTOINCREMENT`, `rowid`, `sqlite_*`, table rebuilds, `?`
+placeholders, SQLite functions; no `SERIAL`/identity, `JSONB`, enums, UUID,
+`DEFERRABLE`, extensions, `TIMESTAMPTZ`, `NUMERIC`; no identifier over 63
+characters); (3) **preflight, before any DDL**: the target database is EMPTY —
+a read-only `DO` block over `information_schema.tables` (every base table
+outside the system schemas counts, `_prisma_migrations` included) executed
+through `prisma db execute`, plus `migrate diff --from-empty
+--to-config-datasource` must be empty; any user table fails the run with
+"requires an EMPTY disposable database" and nothing is applied; (4) the first
+`migrate deploy` must apply `0_init` **in this invocation** ("No pending
+migrations" is rejected); (5) the ledger holds exactly one row, `0_init`,
+`applied_steps_count = 1`, `finished_at` non-null, `rolled_back_at` null
+(read-only `DO` block); (6) `migrate diff` applied-DB → variant is empty;
+(7) a second `migrate deploy` is a no-op.
+
+It refuses any non-loopback host unless `POSTGRES_VERIFY_ALLOW_REMOTE=1` is set
+explicitly. That override bypasses **only** the hostname restriction: the
+empty-database preflight, the ledger requirements and the baseline immutability
+apply identically. It exists for a disposable non-production database, never
+for Neon production. Connection URLs are never printed.
 
 ## 3. Rehearsal evidence (local PostgreSQL 16.13, 2026-09-03)
 
