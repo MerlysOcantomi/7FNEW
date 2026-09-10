@@ -7,7 +7,6 @@ import type {
 } from "./types"
 import type { ModuleManifest } from "@core/registry"
 
-process.env.DATABASE_URL ??= "file:./dev.db"
 
 const BASE_CONTEXT: ForteContext = {
   tenantId: "tenant_test",

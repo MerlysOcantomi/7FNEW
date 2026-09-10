@@ -2,57 +2,49 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { readFileSync } from "node:fs"
 import {
+  assertCanonicalPostgresSchema,
   assertFirstDeployApplied,
+  assertLocalPostgresUrl,
   assertRedeployNoop,
   auditBaselineSql,
   BASELINE_MIGRATION_NAME,
+  BASELINE_SHA256,
   CANONICAL_SCHEMA_PATH,
   countBaseline,
-  derivePostgresSchema,
   EMPTY_DATABASE_ASSERTION_SQL,
+  EXPECTED_POSTGRES_MIGRATIONS,
   isEmptyDiff,
   LEDGER_ASSERTION_SQL,
-  POSTGRES_CLIENT_OUTPUT,
+  ledgerAssertionSql,
+  NO_CONNECTION_PLACEHOLDER_URL,
+  POSTGRES_INIT_SQL_PATH,
   reconcileBaseline,
   redactConnectionUrls,
   sha256,
 } from "./postgres-baseline"
 
 /**
- * NEON-02 — unit tests for the PostgreSQL baseline tooling. Pure text
+ * NEON-02/NEON-03 — unit tests for the PostgreSQL baseline tooling. Pure text
  * functions only: no database, no Prisma CLI, no environment.
  */
 
 const CANONICAL = readFileSync(CANONICAL_SCHEMA_PATH, "utf8")
 
-test("derivePostgresSchema rewrites ONLY the datasource provider and the generator output", () => {
-  const { schema, rewrittenLines } = derivePostgresSchema(CANONICAL)
-  const before = CANONICAL.split("\n")
-  const after = schema.split("\n")
-  // Header lines are prepended; everything after them aligns with the canonical lines.
-  const headerLength = after.length - before.length
-  assert.ok(headerLength >= 1 && after.slice(0, headerLength).every((l) => l.startsWith("//")), "generated header")
-  const changed: number[] = []
-  for (let i = 0; i < before.length; i++) if (before[i] !== after[i + headerLength]) changed.push(i + 1)
-  assert.deepEqual(changed, [...rewrittenLines].sort((a, b) => a - b))
-  assert.equal(changed.length, 2)
-  assert.match(after[rewrittenLines[0] - 1 + headerLength], /provider\s*=\s*"postgresql"/)
-  assert.match(after[rewrittenLines[1] - 1 + headerLength], new RegExp(`output\\s*=\\s*"${POSTGRES_CLIENT_OUTPUT.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}"`))
-  assert.equal((schema.match(/provider\s*=\s*"postgresql"/g) ?? []).length, 1)
-  assert.equal((schema.match(/provider\s*=\s*"sqlite"/g) ?? []).length, 0)
-  assert.equal((schema.match(/^model /gm) ?? []).length, (CANONICAL.match(/^model /gm) ?? []).length)
+test("the canonical schema is the PostgreSQL schema (NEON-03) and 0_init on disk is the pinned, immutable baseline", () => {
+  assert.doesNotThrow(() => assertCanonicalPostgresSchema(CANONICAL))
+  assert.equal((CANONICAL.match(/provider\s*=\s*"postgresql"/g) ?? []).length, 1)
+  assert.equal((CANONICAL.match(/provider\s*=\s*"sqlite"/g) ?? []).length, 0)
+  assert.equal(sha256(readFileSync(POSTGRES_INIT_SQL_PATH, "utf8")), BASELINE_SHA256)
+  assert.deepEqual([...EXPECTED_POSTGRES_MIGRATIONS], [BASELINE_MIGRATION_NAME])
 })
 
-test("derivePostgresSchema is deterministic", () => {
-  assert.equal(sha256(derivePostgresSchema(CANONICAL).schema), sha256(derivePostgresSchema(CANONICAL).schema))
-})
-
-test("derivePostgresSchema fails closed on an unexpected canonical shape", () => {
-  assert.throws(() => derivePostgresSchema(CANONICAL.replace('provider = "sqlite"', 'provider = "postgresql"')), /not "sqlite"/)
-  assert.throws(() => derivePostgresSchema(CANONICAL.replace(/^datasource db \{[\s\S]*?\n\}/m, "")), /exactly one datasource provider line, found 0/)
-  assert.throws(() => derivePostgresSchema(CANONICAL.replace(/^generator client \{[\s\S]*?\n\}/m, "")), /exactly one generator output line, found 0/)
-  const twoDatasources = CANONICAL + '\ndatasource other {\n  provider = "sqlite"\n}\n'
-  assert.throws(() => derivePostgresSchema(twoDatasources), /found 2/)
+test("assertCanonicalPostgresSchema fails closed on any other provider shape", () => {
+  assert.throws(() => assertCanonicalPostgresSchema(CANONICAL.replace('provider = "postgresql"', 'provider = "sqlite"')), /is "sqlite", not "postgresql"/)
+  assert.throws(() => assertCanonicalPostgresSchema(CANONICAL.replace(/^datasource db \{[\s\S]*?\n\}/m, "")), /exactly one datasource provider line.*found 0/)
+  const twoDatasources = CANONICAL + '\ndatasource other {\n  provider = "postgresql"\n}\n'
+  assert.throws(() => assertCanonicalPostgresSchema(twoDatasources), /found 2/)
+  // A generator `provider` line is not a datasource provider.
+  assert.doesNotThrow(() => assertCanonicalPostgresSchema(CANONICAL.replace('provider = "prisma-client"', 'provider = "prisma-client"')))
 })
 
 test("auditBaselineSql flags every SQLite remnant and unexpected PostgreSQL construct", () => {
@@ -111,6 +103,8 @@ test("auditBaselineSql accepts a clean Prisma-style PostgreSQL baseline and coun
     onDeleteRestrict: 0,
     primaryKeys: 2,
   })
+  // The committed baseline itself passes the audit.
+  assert.deepEqual(auditBaselineSql(readFileSync(POSTGRES_INIT_SQL_PATH, "utf8")), [])
 })
 
 // ─── R3: baseline immutability ──────────────────────────────────────────────
@@ -129,13 +123,6 @@ test("reconcileBaseline: a differing existing baseline can NEVER be overwritten 
   assert.equal(reconcileBaseline.length, 2, "no third override parameter")
 })
 
-test("generated baseline creation remains deterministic (same canonical → same variant → same inputs to migrate diff)", () => {
-  const a = derivePostgresSchema(CANONICAL).schema
-  const b = derivePostgresSchema(CANONICAL).schema
-  assert.equal(a, b)
-  assert.equal(reconcileBaseline(a, b), "unchanged")
-})
-
 // ─── R3: empty-database preflight and ledger contracts ──────────────────────
 
 test("EMPTY_DATABASE_ASSERTION_SQL is read-only and counts every non-system base table (ledger included)", () => {
@@ -149,15 +136,19 @@ test("EMPTY_DATABASE_ASSERTION_SQL is read-only and counts every non-system base
   assert.doesNotMatch(sql, /_prisma_migrations/)
 })
 
-test("LEDGER_ASSERTION_SQL requires exactly one completed, single-step, non-rolled-back 0_init row", () => {
+test("LEDGER_ASSERTION_SQL requires exactly the expected completed, single-step, non-rolled-back rows", () => {
   const sql = LEDGER_ASSERTION_SQL
   assert.match(sql, /FROM "_prisma_migrations"/)
-  assert.match(sql, new RegExp(`migration_name = '${BASELINE_MIGRATION_NAME}'`))
+  assert.match(sql, new RegExp(`migration_name IN \\('${BASELINE_MIGRATION_NAME}'\\)`))
   assert.match(sql, /applied_steps_count = 1/)
   assert.match(sql, /finished_at IS NOT NULL/)
   assert.match(sql, /rolled_back_at IS NULL/)
   assert.match(sql, /IF total <> 1 OR ok <> 1 THEN/)
   assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b/i)
+  // A longer history (a future NEW migration) scales the assertion; 0_init is never rewritten.
+  const two = ledgerAssertionSql(["0_init", "1_future"])
+  assert.match(two, /IN \('0_init', '1_future'\)/)
+  assert.match(two, /IF total <> 2 OR ok <> 2 THEN/)
 })
 
 test("assertFirstDeployApplied accepts only a deploy that applied 0_init in this run", () => {
@@ -172,14 +163,29 @@ test("assertRedeployNoop accepts only a no-op second deploy", () => {
   assert.throws(() => assertRedeployNoop("Applying migration `0_init`"), /not a no-op/)
 })
 
-test("isEmptyDiff treats only the empty-migration marker (and config banner) as empty", () => {
+test("isEmptyDiff accepts ONLY the explicit empty-migration marker — blank output fails closed", () => {
   assert.equal(isEmptyDiff("Loaded Prisma config from prisma.config.ts.\n\n-- This is an empty migration.\n"), true)
+  assert.equal(isEmptyDiff("-- This is an empty migration.\n\n"), true)
   assert.equal(isEmptyDiff('-- CreateTable\nCREATE TABLE "Stray" ("id" INTEGER);\n'), false)
+  // Prisma 7.4.1 prints nothing when its config has no datasource: not a diff.
+  assert.equal(isEmptyDiff(""), false)
+  assert.equal(isEmptyDiff("Loaded Prisma config from prisma.config.ts.\n"), false)
+  assert.match(NO_CONNECTION_PLACEHOLDER_URL, /^postgresql:\/\/[^@]+@127\.0\.0\.1:1\//)
+})
+
+test("assertLocalPostgresUrl: loopback only unless explicitly allowed; never a non-PostgreSQL scheme", () => {
+  assert.doesNotThrow(() => assertLocalPostgresUrl("postgresql://postgres@127.0.0.1:5432/verify", false))
+  assert.doesNotThrow(() => assertLocalPostgresUrl("postgres://postgres@localhost/verify", false))
+  assert.throws(() => assertLocalPostgresUrl("postgresql://user:pw@db.example.invalid/verify", false), (e: unknown) => e instanceof Error && /LOOPBACK/.test(e.message) && !/example\.invalid/.test(e.message))
+  assert.doesNotThrow(() => assertLocalPostgresUrl("postgresql://user:pw@db.example.invalid/verify", true))
+  assert.throws(() => assertLocalPostgresUrl("libsql://127.0.0.1/x", true), /must be a postgresql:\/\/ URL/)
+  assert.throws(() => assertLocalPostgresUrl("not a url", true), /not a valid URL/)
 })
 
 test("redactConnectionUrls never lets a connection string through an error message", () => {
-  const msg = "failed: postgresql://user:s3cret@db.example.invalid:5432/app?sslmode=require and postgres://x:y@h/d"
+  const msg = "failed: postgresql://user:s3cret@db.example.invalid:5432/app?sslmode=require and postgres://x:y@h/d and libsql://tok@turso.invalid"
   const red = redactConnectionUrls(msg)
-  assert.doesNotMatch(red, /s3cret|example\.invalid/)
+  assert.doesNotMatch(red, /s3cret|example\.invalid|turso\.invalid/)
   assert.match(red, /postgresql:\/\/<redacted>/)
+  assert.match(red, /libsql:\/\/<redacted>/)
 })

@@ -1,21 +1,16 @@
 /**
  * Integration tests for the common ingestion pipeline (INBOX-TRANSPORT-05B)
- * against a REAL local SQLite database (schema pushed via `prisma db push`
- * into a temp file). Covers the behaviours that pure tests cannot: dedup,
+ * against a REAL disposable PostgreSQL database built from the migration
+ * history (test/support/postgres.ts). Covers the behaviours that pure tests cannot: dedup,
  * identity resolution/ambiguity, provisional-contact reuse, conversation
  * matching, attachment rows, workspace isolation and the email adapter.
  */
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "inbox-ingest-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Wired in test.before (tsx compiles tests as CJS — no top-level await).
@@ -30,10 +25,7 @@ let connA: any
 let emailConnA: any
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, {
-    stdio: "ignore",
-    cwd: process.cwd(),
-  })
+  database = await provisionTestDatabase("inbox-ingest")
   ;({ db } = await import("@core/db"))
   ;({ ingestInboundEnvelope } = await import("./pipeline"))
   ;({ ingestInboundEmail } = await import("../email-inbound"))
@@ -62,8 +54,9 @@ test.before(async () => {
   })
 })
 
-test.after(() => {
-  rmSync(dir, { recursive: true, force: true })
+test.after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 function waEnvelope(overrides: Record<string, unknown> = {}) {

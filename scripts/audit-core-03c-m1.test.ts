@@ -26,6 +26,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { assertReadOnlySql, auditSqliteFile, fkTargetsFromManifest } from "./audit-core-03c-m1"
+import { deriveSqliteSchema } from "./build-db-from-history"
 
 const REPO = process.cwd()
 const dir = mkdtempSync(join(tmpdir(), "audit-m1-"))
@@ -59,13 +60,17 @@ before(() => {
   cpSync(join(REPO, "prisma", "migrations"), migrationsCopy, { recursive: true })
   rmSync(join(migrationsCopy, "4_d5_schema_tightenings"), { recursive: true, force: true })
   rmSync(join(migrationsCopy, "5_d2_retire_legacy_portal_tables"), { recursive: true, force: true })
+  // NEON-03: the canonical schema is PostgreSQL; the legacy SQLite history
+  // deploys against a SQLite-provider variant derived in memory (temp dir only).
+  const sqliteSchemaPath = join(dir, "schema.sqlite.prisma")
+  writeFileSync(sqliteSchemaPath, deriveSqliteSchema(readFileSync(join(REPO, "prisma", "schema.prisma"), "utf8")))
   const configPath = join(dir, "prisma.config.ts")
   writeFileSync(
     configPath,
     [
       'import { defineConfig } from "prisma/config"',
       "export default defineConfig({",
-      `  schema: ${JSON.stringify(join(REPO, "prisma", "schema.prisma"))},`,
+      `  schema: ${JSON.stringify(sqliteSchemaPath)},`,
       `  migrations: { path: ${JSON.stringify(migrationsCopy)} },`,
       `  datasource: { url: ${JSON.stringify(`file:${dbPath}`)} },`,
       "})",

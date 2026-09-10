@@ -1,6 +1,6 @@
 /**
  * Integration tests for the public-site composition (PRESENCE-03) against a REAL
- * local SQLite DB. Covers slug/hostname resolution, effective visibility across
+ * disposable PostgreSQL database (test/support/postgres.ts). Covers slug/hostname resolution, effective visibility across
  * states (draft/published/unpublished), entitlement (plan vs standalone),
  * verified-only domains, incomplete Business Profile degradation, media
  * approval + integrity, invalid template, SEO/robots and canonical.
@@ -8,14 +8,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "presence-public-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -59,10 +54,15 @@ async function setupWorkspace(opts: { slug: string; plan: string; withConfig?: b
 }
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, { stdio: "ignore", cwd: process.cwd() })
+  database = await provisionTestDatabase("presence-public")
   ;({ db } = await import("@core/db"))
   repo = await import("./repository")
   pub = await import("./public-site")
+})
+
+test.after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 // ---- slug resolution & states ---------------------------------------------

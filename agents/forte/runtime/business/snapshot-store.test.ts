@@ -1,7 +1,6 @@
 import { describe, it, before } from "node:test"
 import assert from "node:assert/strict"
 
-process.env.DATABASE_URL ??= "file:./dev.db"
 
 describe("snapshot-store", () => {
   let upsertForteSnapshot: typeof import("./snapshot-store").upsertForteSnapshot

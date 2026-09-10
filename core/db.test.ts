@@ -1,13 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { createClient, type Client } from "@libsql/client"
+import { provisionTestDatabase, queryRaw, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /**
- * CORE-03A — lazy-initialisation tests for `core/db.ts` (F-DB-02).
+ * CORE-03A / NEON-03 — lazy-initialisation and fail-closed tests for
+ * `core/db.ts` (F-DB-02, PostgreSQL runtime).
  *
  * MODULE ISOLATION BY SUBPROCESS
  * ------------------------------
@@ -20,16 +19,18 @@ import { createClient, type Client } from "@libsql/client"
  * behaves as a normal test module.
  *
  * Nothing here touches Turso, Neon or any remote database. The only database
- * used is a throwaway SQLite file created under the OS temp directory and
- * deleted in `test.after`.
+ * used is a disposable local PostgreSQL database created by
+ * `test/support/postgres.ts` and dropped in `test.after`.
  */
 
 const CHILD_MODE_ENV = "CORE_DB_TEST_CHILD"
 const DB_ENV_KEYS = [
   "DATABASE_URL",
+  "DIRECT_URL",
   "TURSO_DATABASE_URL",
   "DATABASE_AUTH_TOKEN",
   "TURSO_AUTH_TOKEN",
+  "TEST_DATABASE_URL",
 ] as const
 
 /** Marker the parent looks for in the child's stdout. */
@@ -113,10 +114,10 @@ async function runChildScenario(mode: string): Promise<void> {
     report.sameBinding = dbModule.db === dbModule.prisma
   }
 
-  if (mode === "no-env" && dbModule) {
+  if ((mode === "no-env" || mode === "turso-only" || mode === "sqlite-file-url" || mode === "libsql-url") && dbModule) {
     /**
-     * First REAL access. With no configured URL this must fail closed, before
-     * an adapter or a client is built.
+     * First REAL access. Without a PostgreSQL URL this must fail closed,
+     * before an adapter or a client is built.
      */
     try {
       const probe = dbModule.db as unknown as Record<string, unknown>
@@ -126,6 +127,7 @@ async function runChildScenario(mode: string): Promise<void> {
       report.accessErrorName = error instanceof Error ? error.name : typeof error
       report.accessErrorMessage = error instanceof Error ? error.message : String(error)
     }
+    report.newDbFiles = dbFilesUnderCwd().filter((file) => !dbFilesBefore.has(file))
   }
 
   /**
@@ -185,11 +187,12 @@ if (childMode) {
 
 function registerTests() {
   let noEnvReport: ChildReport
+  let tursoOnlyReport: ChildReport
+  let sqliteFileReport: ChildReport
+  let libsqlReport: ChildReport
   let unreachableUrlReport: ChildReport
 
-  let dir: string
-  let dbPath: string
-  let raw: Client
+  let database: ProvisionedDatabase
   let db: (typeof import("@core/db"))["db"]
   let prisma: (typeof import("@core/db"))["prisma"]
 
@@ -198,30 +201,32 @@ function registerTests() {
     noEnvReport = runChild("no-env")
 
     /**
-     * Scenario 2 — a URL IS present but points at a port nothing listens on.
-     * If importing opened a connection, this is where it would show up.
+     * Scenario 2 — ONLY the legacy Turso variables are present. They must be
+     * ignored: the runtime is PostgreSQL and never falls back to libSQL.
      */
-    unreachableUrlReport = runChild("unreachable-url", {
-      DATABASE_URL: "libsql://127.0.0.1:1",
+    tursoOnlyReport = runChild("turso-only", {
+      TURSO_DATABASE_URL: "libsql://ignored.invalid",
+      TURSO_AUTH_TOKEN: "ignored-token",
     })
 
-    // In-process scenario — a real, throwaway local database.
-    dir = mkdtempSync(join(tmpdir(), "core-db-lazy-"))
-    dbPath = join(dir, "lazy.db")
-    raw = createClient({ url: `file:${dbPath}` })
-    await raw.execute(`CREATE TABLE "Usuario" (
-      "id" TEXT NOT NULL PRIMARY KEY,
-      "nombre" TEXT NOT NULL,
-      "email" TEXT NOT NULL,
-      "rol" TEXT NOT NULL DEFAULT 'miembro',
-      "departamento" TEXT,
-      "estado" TEXT NOT NULL DEFAULT 'activo',
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL
-    )`)
-    await raw.execute(`CREATE UNIQUE INDEX "Usuario_email_key" ON "Usuario"("email")`)
+    /**
+     * Scenario 3/4 — a SQLite `file:` URL and a `libsql://` URL. Both must be
+     * refused on first use; a `file:` URL must not create a local database.
+     */
+    sqliteFileReport = runChild("sqlite-file-url", { DATABASE_URL: "file:./core-db-must-not-exist.db" })
+    libsqlReport = runChild("libsql-url", { DATABASE_URL: "libsql://refused.invalid", DATABASE_AUTH_TOKEN: "x" })
 
-    process.env.DATABASE_URL = `file:${dbPath}`
+    /**
+     * Scenario 5 — a PostgreSQL URL IS present but points at a port nothing
+     * listens on. If importing opened a connection, this is where it would
+     * show up.
+     */
+    unreachableUrlReport = runChild("unreachable-url", {
+      DATABASE_URL: "postgresql://nobody@127.0.0.1:1/nothing",
+    })
+
+    // In-process scenario — a real, throwaway local PostgreSQL database.
+    database = await provisionTestDatabase("core-db-lazy")
     const loaded = await import("@core/db")
     db = loaded.db
     prisma = loaded.prisma
@@ -229,18 +234,13 @@ function registerTests() {
 
   test.after(async () => {
     await db.$disconnect()
-    raw.close()
-    rmSync(dir, { recursive: true, force: true })
+    await database.dispose()
   })
 
   // ── 1-2. Importing needs no database ──────────────────────────────────────
 
   test("importing core/db with no database environment does not throw", () => {
-    assert.equal(
-      noEnvReport.importThrew,
-      null,
-      "importing must not require DATABASE_URL / TURSO_DATABASE_URL",
-    )
+    assert.equal(noEnvReport.importThrew, null, "importing must not require DATABASE_URL")
     assert.equal(noEnvReport.dbIsObject, true)
     assert.equal(noEnvReport.prismaIsObject, true)
     assert.equal(noEnvReport.sameBinding, true, "`db` and `prisma` remain the same binding")
@@ -262,11 +262,7 @@ function registerTests() {
   })
 
   test("importing opens no connection, even when a URL is configured", () => {
-    assert.deepEqual(
-      noEnvReport.newSocketHandles,
-      [],
-      "no socket handle may appear while importing",
-    )
+    assert.deepEqual(noEnvReport.newSocketHandles, [], "no socket handle may appear while importing")
     /**
      * The stronger case: the URL points at a port nothing listens on. The
      * import still succeeds and opens nothing, which is only possible because
@@ -279,19 +275,15 @@ function registerTests() {
   // ── 5. First real access fails closed ────────────────────────────────────
 
   test("the first real access without a URL fails closed, before connecting", () => {
-    assert.equal(
-      noEnvReport.accessErrorMessage !== "NO_ERROR_THROWN",
-      true,
-      "a real access with no configured URL must throw",
-    )
+    assert.notEqual(noEnvReport.accessErrorMessage, "NO_ERROR_THROWN", "a real access with no configured URL must throw")
     assert.equal(noEnvReport.accessErrorName, "Error")
 
     const message = noEnvReport.accessErrorMessage ?? ""
     assert.match(message, /DATABASE_URL/, "the message must name the variable to set")
-    assert.match(message, /TURSO_DATABASE_URL/)
+    assert.match(message, /postgresql:\/\//, "the message must say which kind of URL is expected")
 
     // Never a value — only variable names.
-    assert.ok(!/libsql:\/\//.test(message), "no connection URL may appear")
+    assert.ok(!/postgresql:\/\/[^\s"]+@/.test(message), "no connection URL may appear")
     assert.ok(!/eyJ|sk-|token=/i.test(message), "no token material may appear")
 
     // Failing closed means nothing was built, so nothing could have connected.
@@ -299,9 +291,30 @@ function registerTests() {
     assert.deepEqual(noEnvReport.newDbFiles, [])
   })
 
+  test("the legacy Turso variables are ignored: they can never select a database", () => {
+    assert.notEqual(tursoOnlyReport.accessErrorMessage, "NO_ERROR_THROWN", "TURSO_DATABASE_URL alone must not configure the client")
+    assert.match(tursoOnlyReport.accessErrorMessage ?? "", /DATABASE_URL/)
+    assert.ok(!/ignored\.invalid|ignored-token/.test(tursoOnlyReport.accessErrorMessage ?? ""), "no Turso value may leak")
+    assert.deepEqual(tursoOnlyReport.newSocketHandles, [])
+  })
+
+  test("a SQLite file: URL is refused on first use and creates no local database (no fallback)", () => {
+    assert.notEqual(sqliteFileReport.accessErrorMessage, "NO_ERROR_THROWN")
+    assert.match(sqliteFileReport.accessErrorMessage ?? "", /scheme "file:"/)
+    assert.match(sqliteFileReport.accessErrorMessage ?? "", /PostgreSQL only/)
+    assert.deepEqual(sqliteFileReport.newDbFiles, [], "a refused file: URL must not create a database file")
+  })
+
+  test("a libsql:// URL is refused on first use (no Turso path in the runtime)", () => {
+    assert.notEqual(libsqlReport.accessErrorMessage, "NO_ERROR_THROWN")
+    assert.match(libsqlReport.accessErrorMessage ?? "", /scheme "libsql:"/)
+    assert.ok(!/refused\.invalid/.test(libsqlReport.accessErrorMessage ?? ""), "the URL value must not appear")
+    assert.deepEqual(libsqlReport.newSocketHandles, [])
+  })
+
   // ── 6. A configured URL initialises correctly ────────────────────────────
 
-  test("with a throwaway file: URL the client initialises and works", async () => {
+  test("with a disposable PostgreSQL database the client initialises and works", async () => {
     assert.equal(db, prisma, "`db` and `prisma` are the same exported binding")
     assert.equal(typeof db.$transaction, "function")
     assert.equal(typeof db.$queryRawUnsafe, "function")
@@ -315,9 +328,9 @@ function registerTests() {
     const found = await db.usuario.findMany({ where: { email: "lazy@example.test" } })
     assert.equal(found.length, 1)
 
-    // Reads through the raw client confirm it really landed in the temp file.
-    const verified = await raw.execute(`SELECT COUNT(*) AS cnt FROM "Usuario"`)
-    assert.equal(Number(verified.rows[0]?.cnt), 1)
+    // Reads through a raw pg connection confirm it really landed in the throwaway database.
+    const verified = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
+    assert.equal(Number(verified[0]?.cnt), 1)
   })
 
   test("raw queries keep working through the lazy binding", async () => {

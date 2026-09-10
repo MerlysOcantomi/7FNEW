@@ -149,7 +149,7 @@ export function resolveSqlDialect(url: string | undefined = connectionUrlFromEnv
   if (!url) {
     throw new Error(
       "[7F] SQL dialect could not be resolved: no database URL is configured. " +
-        "Set DATABASE_URL (or TURSO_DATABASE_URL).",
+        "Set DATABASE_URL (a postgresql:// connection string).",
     )
   }
   const scheme = schemeOf(url)
@@ -160,8 +160,12 @@ export function resolveSqlDialect(url: string | undefined = connectionUrlFromEnv
   )
 }
 
+/**
+ * Same variable, same precedence as `core/db.ts` (NEON-03): only DATABASE_URL
+ * selects the database. The legacy TURSO_DATABASE_URL is never consulted.
+ */
 function connectionUrlFromEnv(): string | undefined {
-  return process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
+  return process.env.DATABASE_URL
 }
 
 /** The URL scheme including the trailing colon, lower-cased; never the rest of the URL. */

@@ -1,6 +1,6 @@
 /**
  * Integration tests for the Presence reception service (PRESENCE-FANNY-01)
- * against a REAL local SQLite DB. Covers secure workspace resolution, anonymous
+ * against a REAL disposable PostgreSQL database (test/support/postgres.ts). Covers secure workspace resolution, anonymous
  * web conversation creation on the SHARED Smart Inbox model, session reuse,
  * multi-tenant isolation, deterministic answers, appointment → WorkspaceTask,
  * human transfer, WhatsApp resolution, consent, and gating (unpublished /
@@ -9,14 +9,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "presence-reception-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -50,10 +45,15 @@ async function publishedWorkspace(opts: { slug: string; whatsapp?: boolean; what
 }
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, { stdio: "ignore", cwd: process.cwd() })
+  database = await provisionTestDatabase("presence-reception")
   ;({ db } = await import("@core/db"))
   repo = await import("./repository")
   svc = await import("./reception-service")
+})
+
+test.after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 // ---- secure resolution & gating -------------------------------------------

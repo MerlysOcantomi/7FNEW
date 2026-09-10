@@ -7,9 +7,9 @@
  * `QRCode.workspaceId` exists in the migration history (2_add_link_columns).
  *
  * Test doubles only:
- *   - Database: a throwaway local SQLite file built FROM THE MIGRATION
- *     HISTORY itself (`prisma migrate deploy` over prisma/migrations with a
- *     temporary config that never imports dotenv), so the tests also prove
+ *   - Database: a throwaway PostgreSQL database built FROM THE MIGRATION
+ *     HISTORY itself (`prisma migrate deploy` over prisma/migrations-postgres
+ *     through test/support/postgres.ts, dotenv-free), so the tests also prove
  *     the deployed history supports the runtime's QR access patterns.
  *   - Request scope: a minimal synthetic Next work/work-unit store so
  *     next/headers `cookies()` works outside a server (same shim as
@@ -19,24 +19,15 @@
 
 import assert from "node:assert/strict"
 import test, { before, after } from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import { AsyncLocalStorage } from "node:async_hooks"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
-const REPO = process.cwd()
 const TEST_SECRET = "qr-security-test-secret-synthetic"
 
-const dir = mkdtempSync(join(tmpdir(), "qr-security-"))
-const dbUrl = `file:${join(dir, "qr.db")}`
-process.env.DATABASE_URL = dbUrl
-delete process.env.DATABASE_AUTH_TOKEN
-delete process.env.TURSO_DATABASE_URL
-delete process.env.TURSO_AUTH_TOKEN
+let database: ProvisionedDatabase
 process.env.AUTH_SECRET = TEST_SECRET
 
 
@@ -67,32 +58,8 @@ async function inScope(cookieHeader: string, fn: () => Promise<Response>): Promi
 }
 
 before(async () => {
-  // Build the throwaway DB from the real migration history with a temporary,
-  // dotenv-free Prisma config. Guarded env: no DB/Turso variables, no .env.
-  symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"))
-  const configPath = join(dir, "prisma.config.ts")
-  writeFileSync(
-    configPath,
-    [
-      'import { defineConfig } from "prisma/config"',
-      "export default defineConfig({",
-      `  schema: ${JSON.stringify(join(REPO, "prisma", "schema.prisma"))},`,
-      `  migrations: { path: ${JSON.stringify(join(REPO, "prisma", "migrations"))} },`,
-      `  datasource: { url: ${JSON.stringify(dbUrl)} },`,
-      "})",
-      "",
-    ].join("\n"),
-  )
-  const env = { ...process.env }
-  delete env.DATABASE_URL
-  delete env.TURSO_DATABASE_URL
-  delete env.DATABASE_AUTH_TOKEN
-  delete env.TURSO_AUTH_TOKEN
-  execSync(`"${join(REPO, "node_modules", ".bin", "prisma")}" migrate deploy --config "${configPath}"`, {
-    cwd: REPO,
-    stdio: "ignore",
-    env: { ...env, DOTENV_CONFIG_PATH: "/dev/null", CHECKPOINT_DISABLE: "1", PRISMA_HIDE_UPDATE_MESSAGE: "1" },
-  })
+  // Build the throwaway DB from the real PostgreSQL migration history (dotenv-free, loopback only).
+  database = await provisionTestDatabase("qr-security")
 
   ;({ workAsyncStorage } = await import("next/dist/server/app-render/work-async-storage.external"))
   ;({ workUnitAsyncStorage } = await import("next/dist/server/app-render/work-unit-async-storage.external"))
@@ -119,8 +86,9 @@ before(async () => {
   tokenOrphan = await sign(orphan)
 })
 
-after(() => {
-  rmSync(dir, { recursive: true, force: true })
+after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 function postReq(body: Record<string, unknown>, extraHeaders?: Record<string, string>) {

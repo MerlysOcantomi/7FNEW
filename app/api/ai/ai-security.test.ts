@@ -5,9 +5,9 @@
  * contacted; the authorized flow must keep its request/response contract.
  *
  * Test doubles everywhere:
- *   - Database: a REAL local SQLite file (schema pushed via `prisma db push`
- *     into a temp dir) seeded with synthetic users/workspaces. No Turso, no
- *     Neon, no remote anything.
+ *   - Database: a REAL disposable PostgreSQL database built from the
+ *     migration history (test/support/postgres.ts) seeded with synthetic
+ *     users/workspaces. No Turso, no Neon, no remote anything.
  *   - Providers: `globalThis.fetch` is replaced by a spy that records calls
  *     and returns a canned completion. The spy doubles as the PROOF that no
  *     provider is invoked when authorization fails. Provider API keys are set
@@ -20,11 +20,8 @@
 
 import assert from "node:assert/strict"
 import test, { before, beforeEach, after } from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import { AsyncLocalStorage } from "node:async_hooks"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -33,12 +30,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 
 const TEST_SECRET = "ai-routes-test-secret-synthetic"
 
-const dir = mkdtempSync(join(tmpdir(), "ai-security-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
-delete process.env.DATABASE_AUTH_TOKEN
-delete process.env.TURSO_DATABASE_URL
-delete process.env.TURSO_AUTH_TOKEN
+let database: ProvisionedDatabase
 process.env.AUTH_SECRET = TEST_SECRET
 // Synthetic provider keys: real keys are never used, and the fetch spy below
 // intercepts every provider call before it could leave the process.
@@ -127,10 +119,7 @@ function postRequest(name: string, body: unknown, extraHeaders?: Record<string, 
 }
 
 before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, {
-    stdio: "ignore",
-    cwd: process.cwd(),
-  })
+  database = await provisionTestDatabase("ai-security")
   ;({ workAsyncStorage } = await import("next/dist/server/app-render/work-async-storage.external"))
   ;({ workUnitAsyncStorage } = await import("next/dist/server/app-render/work-unit-async-storage.external"))
   ;({ RequestCookies } = await import("next/dist/server/web/spec-extension/cookies"))
@@ -166,8 +155,10 @@ beforeEach(() => {
   providerCalls.length = 0
 })
 
-after(() => {
+after(async () => {
   globalThis.fetch = realFetch
+  await db.$disconnect()
+  await database.dispose()
 })
 
 // ---------------------------------------------------------------------------

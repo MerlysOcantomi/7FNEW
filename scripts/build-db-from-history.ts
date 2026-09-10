@@ -16,12 +16,21 @@
  *      duplicated entry fails, and an entry whose expiry was marked
  *      satisfied while its drift still exists fails.
  *
+ * LEGACY SAFETY (NEON-03): production still runs on Turso until the
+ * PostgreSQL cutover, so this SQLite gate stays in CI. The canonical
+ * `prisma/schema.prisma` now carries the `postgresql` provider; this verifier
+ * derives a SQLite-provider variant of it IN MEMORY (only the datasource
+ * provider line is rewritten, fail-closed) and uses that variant for both the
+ * history deploy and the schema-built database. The PostgreSQL history lives
+ * in `prisma/migrations-postgres` and is verified by
+ * `scripts/postgres-baseline.ts`; the two never share a directory.
+ *
  * Safety: everything runs inside a fresh `mkdtemp` directory with a
- * temporary Prisma config that never imports dotenv; DATABASE_URL/TURSO_*
- * variables are removed from the child environment; only local `file:`
- * SQLite URLs are used; the repository-local Prisma binary is invoked; all
- * temporary files are deleted on success and failure. No remote database
- * can be reached by construction.
+ * temporary Prisma config that never imports dotenv; DATABASE_URL, DIRECT_URL
+ * and TURSO_* variables are removed from the child environment; only local
+ * `file:` SQLite URLs are used; the repository-local Prisma binary is
+ * invoked; all temporary files are deleted on success and failure. No remote
+ * database can be reached by construction.
  *
  * Comparison semantics (deliberate):
  *   - objects are compared per table BY NAME: columns (type, notnull,
@@ -39,14 +48,12 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- PRAGMA result rows from node:sqlite are untyped */
 
-import { execFileSync } from "node:child_process"
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs"
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join, resolve, dirname } from "node:path"
+import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { DatabaseSync } from "node:sqlite"
-
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+import { REPO_ROOT, rewriteDatasourceProvider, runPrisma, writeTempPrismaConfig } from "./lib/prisma-cli"
 
 export const EXPECTED_MIGRATIONS = [
   "0_baseline",
@@ -101,45 +108,13 @@ interface Drift {
   detail: string
 }
 
-function sanitizedEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env }
-  delete env.DATABASE_URL
-  delete env.TURSO_DATABASE_URL
-  delete env.DATABASE_AUTH_TOKEN
-  delete env.TURSO_AUTH_TOKEN
-  env.DOTENV_CONFIG_PATH = "/dev/null"
-  env.CHECKPOINT_DISABLE = "1"
-  env.PRISMA_HIDE_UPDATE_MESSAGE = "1"
-  return env
-}
-
-function runPrisma(args: string[]): void {
-  execFileSync(join(REPO_ROOT, "node_modules", ".bin", "prisma"), args, {
-    cwd: REPO_ROOT,
-    env: sanitizedEnv(),
-    stdio: ["ignore", "ignore", "pipe"],
-  })
-}
-
-function writeTempConfig(dir: string, schemaPath: string, migrationsDir: string, dbUrl: string): string {
-  // `import "prisma/config"` resolves through a node_modules link inside the
-  // temp dir; the config never imports dotenv, so no .env can be read.
-  const link = join(dir, "node_modules")
-  if (!existsSync(link)) symlinkSync(join(REPO_ROOT, "node_modules"), link)
-  const configPath = join(dir, "prisma.config.ts")
-  writeFileSync(
-    configPath,
-    [
-      'import { defineConfig } from "prisma/config"',
-      "export default defineConfig({",
-      `  schema: ${JSON.stringify(schemaPath)},`,
-      `  migrations: { path: ${JSON.stringify(migrationsDir)} },`,
-      `  datasource: { url: ${JSON.stringify(dbUrl)} },`,
-      "})",
-      "",
-    ].join("\n"),
-  )
-  return configPath
+/**
+ * The canonical schema is PostgreSQL; the SQLite history can only be compared
+ * against a SQLite-provider rendering of it. Exactly one datasource provider
+ * line is rewritten, and only from "postgresql" to "sqlite".
+ */
+export function deriveSqliteSchema(canonical: string): string {
+  return rewriteDatasourceProvider(canonical, "postgresql", "sqlite").schema
 }
 
 function snapshot(dbPath: string): Shape {
@@ -363,7 +338,12 @@ export async function verifyMigrationHistory(options: VerifyOptions = {}): Promi
   let counts = { tables: 0, indexes: 0, integrity: "not-run", fkViolations: -1 }
   let driftCount = 0
   let manifestCount = 0
+  let tempConfig: { cleanup(): void } | undefined
   try {
+    // 0. SQLite-provider variant of the canonical (PostgreSQL) schema, in the temp dir only.
+    const sqliteSchemaPath = join(dir, "schema.sqlite.prisma")
+    writeFileSync(sqliteSchemaPath, deriveSqliteSchema(readFileSync(schemaPath, "utf8")))
+
     // 1. Directory listing must match the expected migration list exactly.
     const dirs = readdirSync(migrationsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
@@ -374,7 +354,9 @@ export async function verifyMigrationHistory(options: VerifyOptions = {}): Promi
 
     // 2. Deploy the history from scratch into a throwaway DB.
     const histDb = join(dir, "history.db")
-    const histConfig = writeTempConfig(dir, schemaPath, migrationsDir, `file:${histDb}`)
+    const config = writeTempPrismaConfig({ schemaPath: sqliteSchemaPath, migrationsDir, url: `file:${histDb}`, prefix: "db-history-verify-config-" })
+    tempConfig = config
+    const histConfig = config.configPath
     try {
       runPrisma(["migrate", "deploy", "--config", histConfig])
     } catch (err) {
@@ -395,11 +377,11 @@ export async function verifyMigrationHistory(options: VerifyOptions = {}): Promi
     if (counts.integrity !== "ok") problems.push(`integrity_check: ${counts.integrity}`)
     if (counts.fkViolations !== 0) problems.push(`foreign_key_check reported ${counts.fkViolations} violations`)
 
-    // 5. Build the canonical-schema DB (provider-correct SQLite DDL, offline).
+    // 5. Build the canonical-schema DB (SQLite DDL rendered from the derived variant, offline).
     const canonicalSql = join(dir, "canonical.sql")
     const schemaDbDir = mkdtempSync(join(tmpdir(), "db-history-verify-schema-"))
     try {
-      runPrisma(["migrate", "diff", "--config", histConfig, "--from-empty", "--to-schema", schemaPath, "--script", "-o", canonicalSql])
+      runPrisma(["migrate", "diff", "--config", histConfig, "--from-empty", "--to-schema", sqliteSchemaPath, "--script", "-o", canonicalSql])
       const schemaDb = join(schemaDbDir, "schema.db")
       const sdb = new DatabaseSync(schemaDb)
       try {
@@ -446,6 +428,7 @@ export async function verifyMigrationHistory(options: VerifyOptions = {}): Promi
 
     return { ok: problems.length === 0, problems, driftCount, manifestCount, counts }
   } finally {
+    tempConfig?.cleanup()
     rmSync(dir, { recursive: true, force: true })
   }
 }

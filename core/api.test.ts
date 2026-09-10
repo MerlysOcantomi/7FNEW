@@ -39,7 +39,6 @@ let RbacError: RbacErrorCtor
 let PlatformError: PlatformErrorCtor
 
 test.before(async () => {
-  process.env.DATABASE_URL = process.env.DATABASE_URL || "file:core-02-unused.db"
   WorkspaceError = (await import("@core/workspace-context")).WorkspaceError
   RbacError = (await import("@core/auth/workspace-auth")).RbacError
   PlatformError = (await import("@core/auth/platform-auth")).PlatformError
