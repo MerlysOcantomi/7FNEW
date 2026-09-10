@@ -37,7 +37,8 @@ export async function list(params: ListParams) {
     ...(clienteId && { clienteId }),
     ...(proyectoId && { proyectoId }),
     // Structured filter parameter (not free-text search): partial match by contract.
-    ...(responsable && { responsable: structuredContains(responsable) }),
+    // `responsable` holds a person's display name → human text, case-insensitive.
+    ...(responsable && { responsable: structuredContains(responsable, "text") }),
     ...(prioridad && { prioridad }),
     ...(search && {
       OR: [

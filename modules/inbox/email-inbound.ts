@@ -234,7 +234,9 @@ async function matchConversationByThread(
       const hit = await db.message.findFirst({
         where: {
           workspaceId,
-          metadata: { contains: normalizedId },
+          // Lookup 1 — the RFC id is lower-cased by normalizeMessageId while the
+          // persisted header keeps its casing: case-insensitive on purpose (NEON-03).
+          metadata: { contains: normalizedId, mode: "insensitive" },
           conversation: { status: { not: "trashed" } },
         },
         select: { conversationId: true },
@@ -249,7 +251,8 @@ async function matchConversationByThread(
     const hit = await db.message.findFirst({
       where: {
         workspaceId,
-        metadata: { contains: refId },
+        // Lookup 2 — References ids are normalised (lower-case) too: case-insensitive.
+        metadata: { contains: refId, mode: "insensitive" },
         conversation: { status: { not: "trashed" } },
       },
       select: { conversationId: true },
@@ -340,6 +343,12 @@ async function matchConversationByContact(
  * collisions on substring inside the JSON would be astronomically rare. Adding
  * `workspaceId` to the where clause also lets the query planner use the workspace index
  * before scanning metadata blobs — a side benefit.
+ *
+ * Case semantics (NEON-03, PostgreSQL): the Message-ID lookup (4) searches the
+ * LOWER-CASED id against metadata that keeps the header's original casing, so it is
+ * case-insensitive explicitly — on SQLite that was an accident of `LIKE`. The
+ * historical `sourceId` fallback (3) compares the persisted `sourceId` verbatim: no
+ * normalisation on either side, exact match.
  */
 async function findWorkspaceScopedDuplicate(args: {
   workspaceId: string
@@ -371,7 +380,7 @@ async function findWorkspaceScopedDuplicate(args: {
     const normalizedMsgId = normalizeMessageId(messageId)
     if (normalizedMsgId) {
       const hit = await db.message.findFirst({
-        where: { workspaceId, direction: "inbound", metadata: { contains: normalizedMsgId } },
+        where: { workspaceId, direction: "inbound", metadata: { contains: normalizedMsgId, mode: "insensitive" } },
         select: { id: true, conversationId: true },
       })
       if (hit) return { id: hit.id, conversationId: hit.conversationId, matchedBy: "messageId" }

@@ -28,6 +28,11 @@ import { normalizeMessageId, parseReferencesHeader } from "./email-inbound"
  * (`LIKE '%…%'`); the case-sensitive control uses `instr()` to show what a
  * case-sensitive engine would return for the same data. No Prisma client,
  * no network, no env.
+ *
+ * LEGACY GATE (Turso is still production until the cutover). The PostgreSQL
+ * contract — the three lookups carry `mode: "insensitive"`, the sourceId
+ * fallback matches verbatim — is pinned end to end by
+ * `modules/inbox/email-message-id.postgres.integration.test.ts`.
  */
 
 const RAW_MESSAGE_ID = "<CAB+7Fx9KqZ_Mixed.Case@mail.Example.COM>"
