@@ -21,17 +21,34 @@ export async function POST(request: NextRequest) {
     const existing = await db.workspace.findUnique({ where: { slug: slugClean } })
     if (existing) return errorResponse("CONFLICT", "Ya existe un workspace con ese slug", 409)
 
-    const workspace = await db.workspace.create({
-      data: { nombre, slug: slugClean, vertical: verticalKey, verticalKey },
-    })
-
-    await db.workspaceMember.create({
-      data: {
-        userId: session.userId,
-        workspaceId: workspace.id,
-        role: "OWNER",
-      },
-    })
+    /**
+     * Workspace + OWNER membership commit together or not at all (NEON-03):
+     * a workspace whose owner row failed to persist would be unreachable and
+     * would still hold the unique slug. The slug pre-check above is a
+     * courtesy; the unique index is the real guard, so a concurrent create is
+     * reported as a conflict instead of a generic failure.
+     */
+    let workspace
+    try {
+      workspace = await db.$transaction(async (tx) => {
+        const created = await tx.workspace.create({
+          data: { nombre, slug: slugClean, vertical: verticalKey, verticalKey },
+        })
+        await tx.workspaceMember.create({
+          data: {
+            userId: session.userId,
+            workspaceId: created.id,
+            role: "OWNER",
+          },
+        })
+        return created
+      })
+    } catch (e: unknown) {
+      if (typeof e === "object" && e !== null && (e as { code?: unknown }).code === "P2002") {
+        return errorResponse("CONFLICT", "Ya existe un workspace con ese slug", 409)
+      }
+      throw e
+    }
 
     const cookieStore = await cookies()
     cookieStore.set(WORKSPACE_COOKIE, workspace.id, {

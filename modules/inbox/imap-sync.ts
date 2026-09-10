@@ -39,6 +39,44 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
+// Cursor persistence
+// ---------------------------------------------------------------------------
+
+export interface CommitImapSyncCursorInput {
+  connectionId: string
+  /** The `syncState` this run STARTED from (null for a never-synced connection). */
+  expectedSyncState: string | null
+  newSyncState: ImapSyncState
+  lastError: string | null
+}
+
+/**
+ * Optimistic cursor commit (NEON-03 transactions audit). The cursor and the
+ * sync status are written only if the persisted `syncState` is still the
+ * value this run read at the start; otherwise nothing is written and `false`
+ * is returned. Two overlapping runs of the same connection (cron overlap, a
+ * manual fetch racing the cron, two serverless instances) can therefore never
+ * regress the cursor. A losing run loses nothing: the messages it ingested
+ * are already persisted, and the next run re-fetches from the persisted
+ * cursor and dedupes by `sourceId`.
+ *
+ * `expectedSyncState: null` matches only a still-null column (`IS NULL`), so a
+ * first sync cannot overwrite a cursor another first sync just committed.
+ */
+export async function commitImapSyncCursor(input: CommitImapSyncCursorInput): Promise<boolean> {
+  const { count } = await db.channelConnection.updateMany({
+    where: { id: input.connectionId, syncState: input.expectedSyncState },
+    data: {
+      syncState: JSON.stringify(input.newSyncState),
+      lastSyncAt: new Date(),
+      lastError: input.lastError,
+      status: "active",
+    },
+  })
+  return count === 1
+}
+
+// ---------------------------------------------------------------------------
 // IMAP sync runner for a single connection
 // ---------------------------------------------------------------------------
 
@@ -350,15 +388,17 @@ export async function syncImapConnection(connectionId: string): Promise<SyncResu
         uidValidity: currentUidValidity,
       }
 
-      await db.channelConnection.update({
-        where: { id: connectionId },
-        data: {
-          syncState: JSON.stringify(newSyncState),
-          lastSyncAt: new Date(),
-          lastError: result.errors.length > 0 ? result.errors.join("; ") : null,
-          status: "active",
-        },
+      const committed = await commitImapSyncCursor({
+        connectionId,
+        expectedSyncState: connection.syncState,
+        newSyncState,
+        lastError: result.errors.length > 0 ? result.errors.join("; ") : null,
       })
+      if (!committed) {
+        console.warn(
+          `[imap-sync] cursor not persisted conn=${connectionId}: syncState changed concurrently (overlapping sync); the next run re-reads the persisted cursor and dedupes by sourceId`,
+        )
+      }
     } finally {
       lock.release()
     }
