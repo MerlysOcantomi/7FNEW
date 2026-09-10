@@ -5,7 +5,7 @@ Business intelligence and operations platform for agencies, consultancies, and f
 ## Stack
 
 - **Framework**: Next.js 16 (App Router) + React 19
-- **Database**: Prisma 7 + SQLite / LibSQL (Turso)
+- **Database**: Prisma 7 + PostgreSQL (`@prisma/adapter-pg`; Neon is the target host — see `docs/architecture/7F-DATABASE.md`). Production still runs on Turso until the NEON-05 cutover.
 - **UI**: Tailwind CSS 4, shadcn/ui (New York), Radix UI, Lucide icons
 - **AI**: OpenAI (gpt-4.1), DeepSeek (reasoner)
 - **Auth**: Custom JWT (jose) + Google OAuth
@@ -53,8 +53,9 @@ cp .env.example .env
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `AUTH_SECRET` | Yes | Secret for JWT signing (long random string) |
-| `DATABASE_URL` | Yes | LibSQL / Turso database URL |
-| `DATABASE_AUTH_TOKEN` | Yes | Database auth token |
+| `DATABASE_URL` | Yes | PostgreSQL connection string (pooled endpoint) read by the runtime |
+| `DIRECT_URL` | For migrations | PostgreSQL direct (non-pooled) endpoint, read only by the Prisma CLI (`prisma migrate deploy`) |
+| `TEST_DATABASE_URL` | For `npm test` | Loopback PostgreSQL the suite may create/drop databases on |
 | `OPENAI_API_KEY` | Yes | OpenAI API key for AI features |
 | `GOOGLE_CLIENT_ID` | For auth | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | For auth | Google OAuth client secret |
