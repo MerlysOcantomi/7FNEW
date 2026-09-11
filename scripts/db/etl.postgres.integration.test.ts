@@ -69,7 +69,14 @@ async function seedSource(): Promise<number> {
 
 test.before(async () => {
   database = await provisionTestDatabase("etl-rehearsal")
-  expectation = { role: "local", host: database.target.host, database: database.target.database }
+  expectation = {
+    role: "local",
+    host: database.target.host,
+    database: database.target.database,
+    // CI runs PostgreSQL as a container with a published port: the client dials
+    // loopback but the server reports its container address. Declared, not detected.
+    forwardedLoopback: process.env.TEST_DATABASE_FORWARDED_LOOPBACK === "1",
+  }
 
   // Production-shaped SQLite source: legacy history WITHOUT migration 6.
   sourceDir = mkdtempSync(join(tmpdir(), "etl-source-"))

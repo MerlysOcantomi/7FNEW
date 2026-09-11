@@ -17,7 +17,7 @@ import {
   transformRow,
   type TableDef,
 } from "./etl-core"
-import { BASELINE_SHA256, BASELINE_SQL_PATH } from "./etl-turso-to-postgres"
+import { BASELINE_SHA256, BASELINE_SQL_PATH, checkLocalServerAddress } from "./etl-turso-to-postgres"
 import { createHash } from "node:crypto"
 
 /** NEON-04 — pure unit tests of the ETL core against the real pinned baseline. No database. */
@@ -162,4 +162,18 @@ test("displayValue redacts sensitive columns and truncates long values", () => {
   assert.equal(displayValue("Message", "content", "x".repeat(200)).length, 118)
   const t: TableDef = SCHEMA.byName.get("ClientAuth")!
   assert.ok(t.columns.some((c) => c.name === "passwordHash"), "the redacted ClientAuth column exists")
+})
+
+test("checkLocalServerAddress: loopback and Unix sockets always pass; a private address only with a declared forwarded loopback; public never", () => {
+  assert.doesNotThrow(() => checkLocalServerAddress(null, false), "NULL = Unix socket")
+  assert.doesNotThrow(() => checkLocalServerAddress("127.0.0.1", false))
+  assert.doesNotThrow(() => checkLocalServerAddress("::1", false))
+  assert.throws(() => checkLocalServerAddress("172.17.0.2", false), /needs --forwarded-loopback/)
+  assert.throws(() => checkLocalServerAddress("10.0.0.5", false), /needs --forwarded-loopback/)
+  assert.throws(() => checkLocalServerAddress("192.168.1.9", false), /needs --forwarded-loopback/)
+  assert.doesNotThrow(() => checkLocalServerAddress("172.17.0.2", true))
+  assert.doesNotThrow(() => checkLocalServerAddress("fd00::2", true))
+  assert.throws(() => checkLocalServerAddress("8.8.8.8", true), /not loopback$/, "public stays refused even when forwarded")
+  assert.throws(() => checkLocalServerAddress("172.32.0.1", true), /not loopback$/, "172.32/16 is not RFC 1918")
+  assert.throws(() => checkLocalServerAddress("2001:db8::1", true), /not loopback$/)
 })

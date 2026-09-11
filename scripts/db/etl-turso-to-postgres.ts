@@ -23,6 +23,9 @@
  *   --expect-target-host <hostname>  must equal the hostname of ETL_TARGET_URL
  *   --expect-target-database <name>  must equal current_database() on the live connection
  *   role local additionally requires a loopback host; any host/database matching /prod/i is refused.
+ *   --forwarded-loopback             role local only: the loopback port is published by a container
+ *                                    (CI service, docker run -p), so the server reports a PRIVATE
+ *                                    address instead of loopback. Never accepts a public address.
  *
  * Environment: ETL_SOURCE_URL (+ ETL_SOURCE_AUTH_TOKEN), ETL_TARGET_URL. Connection
  * strings are never printed; the manifest stores only fingerprints and the database name.
@@ -65,6 +68,33 @@ export interface TargetExpectation {
   role: "staging" | "local"
   host: string
   database: string
+  /**
+   * role local only. The client dials loopback, but the PostgreSQL server
+   * runs in a container whose port is published to the host (GitHub Actions
+   * service, `docker run -p`): `inet_server_addr()` is then the container's
+   * private address. With this flag a PRIVATE (RFC 1918 / ULA) server address
+   * is accepted; a public one is still refused.
+   */
+  forwardedLoopback?: boolean
+}
+
+const PRIVATE_V4 = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/
+const PRIVATE_V6 = /^f[cd][0-9a-f]{2}:/i
+
+/**
+ * Server-side address check for role local, on the LIVE connection. NULL is a
+ * Unix socket (local by definition); loopback is always fine; a private
+ * address is fine only when the caller declared a forwarded loopback; a public
+ * address is never fine. Pure so it can be unit-tested without a server.
+ */
+export function checkLocalServerAddress(addr: string | null, forwardedLoopback: boolean): void {
+  if (addr === null || addr === "127.0.0.1" || addr === "::1") return
+  const isPrivate = PRIVATE_V4.test(addr) || PRIVATE_V6.test(addr)
+  if (isPrivate && forwardedLoopback) return
+  if (isPrivate) {
+    throw new Error("etl: role local but the server address is not loopback (a container-published port needs --forwarded-loopback)")
+  }
+  throw new Error("etl: role local but the server address is not loopback")
 }
 
 export interface EtlOptions {
@@ -153,9 +183,7 @@ async function assertTargetIdentity(pg: PgClient, expectation: TargetExpectation
   if (r.rows[0].db !== expectation.database) {
     throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
   }
-  if (expectation.role === "local" && r.rows[0].addr && !["127.0.0.1", "::1"].includes(r.rows[0].addr)) {
-    throw new Error("etl: role local but the server address is not loopback")
-  }
+  if (expectation.role === "local") checkLocalServerAddress(r.rows[0].addr, expectation.forwardedLoopback === true)
 }
 
 async function assertTargetSchema(pg: PgClient, schema: TargetSchema): Promise<void> {
@@ -519,7 +547,9 @@ function expectationFromFlags(flags: Record<string, string | boolean>): TargetEx
   if (typeof role !== "string" || typeof host !== "string" || typeof database !== "string") {
     throw new Error("etl: --target-role <staging|local> --expect-target-host <host> --expect-target-database <name> are all required")
   }
-  return { role: role as TargetExpectation["role"], host, database }
+  const forwardedLoopback = flags["forwarded-loopback"] === true
+  if (forwardedLoopback && role !== "local") throw new Error("etl: --forwarded-loopback only applies to --target-role local")
+  return { role: role as TargetExpectation["role"], host, database, forwardedLoopback }
 }
 
 function out(line: string): void {

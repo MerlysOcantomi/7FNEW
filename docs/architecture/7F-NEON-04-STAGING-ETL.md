@@ -115,7 +115,7 @@ the host instead.
 | target scheme | `postgresql:` / `postgres:` only — Turso/SQLite can never be a target |
 | target role | `staging` or `local` — **there is no production mode**; any other value throws |
 | explicit identity | `--expect-target-host` and `--expect-target-database` are mandatory and must equal the URL's host and database (a keyword in the hostname is never enough) |
-| loopback | role `local` requires a loopback host in the URL **and** `inet_server_addr()` loopback on the live connection |
+| loopback | role `local` requires a loopback host in the URL **and** `inet_server_addr()` loopback (or a Unix socket) on the live connection; with `--forwarded-loopback` a **private** server address is accepted for a container-published port (GitHub Actions service, `docker run -p`), a public one never |
 | production lookalike | host or database matching `/prod/i` is refused unconditionally |
 | live identity | `current_database()` on the open connection must equal the expectation |
 | schema | `_prisma_migrations` must hold a completed `0_init` whose checksum equals the pinned baseline sha256; all 50 tables present; zero sequences (the schema has none, so "sequence sync" is a check, not an action) |
