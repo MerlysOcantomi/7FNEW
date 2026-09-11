@@ -66,6 +66,24 @@ export const inbox: InboxMessages = {
     syncNow: "Sincronizar ahora",
     syncing: "Sincronizando…",
     lastSynced: (age) => `Última sincronización ${age}`,
+    activeFilters: {
+      heading: "Filtros activos",
+      clearAll: "Limpiar filtros",
+      remove: (label) => `Quitar filtro: ${label}`,
+      dimensions: {
+        filter: "Vista",
+        search: "Búsqueda",
+        channel: "Canal",
+        status: "Estado",
+        priority: "Prioridad",
+        assignment: "Asignación",
+        category: "Categoría",
+      },
+    },
+    experiencePreview: {
+      badge: (level) => `Vista previa · ${level}`,
+      levels: { simple: "Simple", standard: "Estándar", advanced: "Avanzado" },
+    },
     syncAge: {
       justNow: "justo ahora",
       minutesAgo: (minutes) => `hace ${minutes} min`,
