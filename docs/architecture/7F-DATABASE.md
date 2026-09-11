@@ -124,7 +124,8 @@ What the PostgreSQL suite covers, precisely:
 | Capability snapshots | smoke steps 2 and 7, `core/workspace.postgres.integration.test.ts` | pure resolver over persisted sources; no AI call |
 | Activity / intelligence persistence | pipeline + smoke background assertions | intelligence fails closed without keys; `AIClassification` stays empty; provider persistence with a real key is NOT exercised |
 | AI provider calls | never — keys removed, outbound HTTP blocked; `ai-security` stubs `fetch` | real-provider behaviour is out of the suite by design |
-| Neon pooler / Vercel Preview | not covered | NEON-04 |
+| Neon pooler / Vercel Preview | not covered — blocked in NEON-04 (no Neon/Vercel access from the agent environment) | NEON-04 follow-up, see `7F-NEON-04-STAGING-ETL.md` §1 |
+| ETL Turso → PostgreSQL | `scripts/db/etl-core.test.ts`, `scripts/db/etl.postgres.integration.test.ts` | production-shaped SQLite source, guards, two rehearsals, parity L1–L3, tamper detection |
 
 The `node:sqlite` gates (`raw-queries.sqlite-equivalence`,
 `email-message-id-casing`) and `scripts/build-db-from-history.ts` stay as
@@ -137,7 +138,16 @@ npm run db:postgres:init       # regenerates 0_init from the canonical schema; m
 POSTGRES_VERIFY_URL=… npm run db:postgres:verify   # EMPTY loopback DB → history applied now → ledger → diff empty → redeploy no-op
 npm run db:verify-history      # legacy SQLite gate (derived sqlite-provider variant), 50 tables / 94 indexes / drift 51
 DIRECT_URL=… npm run db:migrate:deploy / db:migrate:status   # NEON-04/05 only, against a Neon endpoint
+npm run db:etl:plan                                          # target schema, FK insert order (no connections)
+ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:run -- --target-role staging|local --expect-target-host … --expect-target-database … --manifest …
+ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:parity -- <same flags> --manifest … [--live-source]
 ```
+
+The ETL (`scripts/db/etl-core.ts`, `scripts/db/etl-turso-to-postgres.ts`)
+reads Turso in one consistent snapshot and loads PostgreSQL in one
+transaction; it has no production mode and refuses any host or database that
+looks like production. Design, guards, parity levels and rehearsal evidence:
+`docs/architecture/7F-NEON-04-STAGING-ETL.md`.
 
 `0_init` is immutable: `generate-init` refuses to change an existing
 baseline and `verify` pins its sha256. Schema changes after publication are
