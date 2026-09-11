@@ -21,7 +21,7 @@
 import assert from "node:assert/strict"
 import test, { before, beforeEach, after } from "node:test"
 import { AsyncLocalStorage } from "node:async_hooks"
-import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
+import { provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -32,16 +32,13 @@ const TEST_SECRET = "ai-routes-test-secret-synthetic"
 
 let database: ProvisionedDatabase
 process.env.AUTH_SECRET = TEST_SECRET
-// Synthetic provider keys: real keys are never used, and the fetch spy below
-// intercepts every provider call before it could leave the process.
-process.env.OPENAI_API_KEY = "sk-synthetic-test-not-real"
-process.env.DEEPSEEK_API_KEY = "sk-synthetic-test-not-real"
 
 // ---------------------------------------------------------------------------
 // Provider spy
 // ---------------------------------------------------------------------------
 
-const realFetch = globalThis.fetch
+/** The fetch in place AFTER provisioning (the test helper's outbound guard); the spy sits on top of it. */
+let realFetch: typeof fetch
 const providerCalls: string[] = []
 
 function installFetchSpy() {
@@ -120,6 +117,13 @@ function postRequest(name: string, body: unknown, extraHeaders?: Record<string, 
 
 before(async () => {
   database = await provisionTestDatabase("ai-security")
+  // Synthetic provider keys, set AFTER provisioning (which removes every real
+  // key on purpose): if a guard ever failed, the handler WOULD reach fetch —
+  // and the fetch spy installed below intercepts it before it leaves the
+  // process. Nothing real is ever used.
+  process.env.OPENAI_API_KEY = "sk-synthetic-test-not-real"
+  process.env.DEEPSEEK_API_KEY = "sk-synthetic-test-not-real"
+  realFetch = globalThis.fetch
   ;({ workAsyncStorage } = await import("next/dist/server/app-render/work-async-storage.external"))
   ;({ workUnitAsyncStorage } = await import("next/dist/server/app-render/work-unit-async-storage.external"))
   ;({ RequestCookies } = await import("next/dist/server/web/spec-extension/cookies"))
@@ -156,6 +160,10 @@ beforeEach(() => {
 })
 
 after(async () => {
+  // Order matters: every background task must finish and be validated WHILE
+  // the transport isolation (spy over guard) is still in place; only then is
+  // the spy removed (the guard underneath stays until dispose() restores it).
+  await settleBackgroundTasks({ aiDisabled: true })
   globalThis.fetch = realFetch
   await db.$disconnect()
   await database.dispose()

@@ -107,6 +107,6 @@ test("a session whose user no longer exists cannot leave an orphan workspace (me
   const res = await inScope(`7f-session=${ghostToken}`, () => POST(createRequest({ nombre: "Ghost", slug: "ghost-ws" })))
   assert.notEqual(res.status, 200)
   assert.equal(await db.workspace.count(), before, "the workspace insert must have been rolled back")
-  const rows = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Workspace" WHERE "slug" = $1`, ["ghost-ws"])
+  const rows = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Workspace" WHERE "slug" = $1`, ["ghost-ws"])
   assert.equal(Number(rows[0].cnt), 0)
 })

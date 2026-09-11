@@ -112,7 +112,7 @@ async function seed() {
   ]
 
   for (const statement of statements) {
-    await queryRaw(database.url, statement)
+    await queryRaw(database, statement)
   }
 }
 
@@ -136,22 +136,22 @@ test.after(async () => {
 // ── Helpers that read the database WITHOUT going through the code under test ──
 
 async function rawUsuario(id: string) {
-  const rows = await queryRaw(database.url, `SELECT "id","nombre","email","rol","departamento","estado" FROM "Usuario" WHERE "id" = $1`, [id])
+  const rows = await queryRaw(database, `SELECT "id","nombre","email","rol","departamento","estado" FROM "Usuario" WHERE "id" = $1`, [id])
   return rows[0] ?? null
 }
 
 async function rawUsuarioCount() {
-  const rows = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
+  const rows = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
   return Number(rows[0]?.cnt ?? 0)
 }
 
 async function rawTareaAssignee(id: string) {
-  const rows = await queryRaw(database.url, `SELECT "usuarioId","workspaceId" FROM "Tarea" WHERE "id" = $1`, [id])
+  const rows = await queryRaw(database, `SELECT "usuarioId","workspaceId" FROM "Tarea" WHERE "id" = $1`, [id])
   return rows[0] ?? null
 }
 
 async function rawTareaCount() {
-  const rows = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Tarea"`)
+  const rows = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Tarea"`)
   return Number(rows[0]?.cnt ?? 0)
 }
 

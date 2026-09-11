@@ -76,7 +76,7 @@ override) names a PostgreSQL server the suite may `CREATE DATABASE` on; the
 helper creates `t7f_<label>_<pid>_<random>`, runs `prisma migrate deploy`
 over `prisma/migrations-postgres` with a temporary dotenv-free config, sets
 `DATABASE_URL` to it, removes every legacy connection variable, and drops it
-(`WITH (FORCE)`) in `after`. A missing or non-loopback `TEST_DATABASE_URL`
+in `after` once no session remains on it. A missing or non-loopback `TEST_DATABASE_URL`
 FAILS the file — nothing is skipped and there is no SQLite fallback.
 
 Local run:
@@ -86,17 +86,49 @@ docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16   # or a 
 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres npm test
 ```
 
-Real-PostgreSQL coverage added or ported in NEON-03: `core/db.test.ts`,
-`core/db-search.postgres.integration.test.ts`,
-`core/workspace.postgres.integration.test.ts`, usuarios scope isolation,
-presence repository / public-site / reception-service, inbox ingestion
-pipeline, outbound service, raw queries, Message-ID semantics, IMAP cursor,
-ai-security, qr-security, workspaces/create, portal-tables, and the smoke
-`test/postgres-runtime.smoke.test.ts` (user → workspace → membership →
-capabilities → cliente → inbox → task → presence → AI snapshot, with
-multi-tenant isolation). The `node:sqlite` gates
-(`raw-queries.sqlite-equivalence`, `email-message-id-casing`) and
-`scripts/build-db-from-history.ts` stay as **legacy safety** until the cutover.
+`TEST_DATABASE_URL` is parsed ONCE into explicit parameters (host, port,
+user, password, database) and never handed to `pg` or Prisma as a string:
+the installed parser honours `?host=`, repeated or percent-encoded keys,
+`?port=` and socket paths, so a query string, a fragment, a socket path or a
+non-loopback host is rejected before any connection (`test/support/postgres.test.ts`
+proves zero `connect` calls on rejection and redacted errors). Provisioning
+also removes provider keys (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
+`RESEND_API_KEY`), blocks outbound HTTP to non-loopback hosts, and records
+fire-and-forget runtime work through `core/background-tasks.ts` (pending →
+settled-unreviewed → consumed; a settled outcome nobody reviewed can never be
+discarded). Tests call `settleBackgroundTasks()` before asserting on it and
+before `dispose()`, which refuses to drop a database while tasks are pending,
+while settled outcomes were never reviewed, or while any server session is
+still open (bounded wait on `pg_stat_activity` for the pool's in-flight
+`Terminate`s; a leaked client fails the file). The drop never uses
+`WITH (FORCE)`, and the network guard is restored only after the drop. The
+guard blocks non-loopback hosts, never follows redirects (a loopback answer
+redirecting off loopback is refused), and the AI adapters resolve
+`globalThis.fetch` at call time so import order cannot bypass it. Expected
+failures are the exact contract, not a pattern: `ingest:intelligence` rejects
+with `AIExecutionError` code `provider_unavailable` and the adapter's own
+missing-key message (`isMissingProviderKeyError`); `message:short-intent`
+fulfils with `{ status: "failed", stage: "execute", error }` carrying that
+same error and persists nothing. Any other rejection or network attempt fails
+the test.
+
+What the PostgreSQL suite covers, precisely:
+
+| Layer | Covered by | Notes |
+|---|---|---|
+| Service integration on PostgreSQL | `test/postgres-runtime.smoke.test.ts`, `core/workspace.postgres.integration.test.ts`, `core/db-search.postgres.integration.test.ts`, presence repository / public-site / reception-service, inbox pipeline / outbound / raw queries / Message-ID / IMAP cursor, usuarios scope | in-process service calls, one disposable DB per file |
+| HTTP endpoints | `app/api/ai/ai-security.test.ts`, `app/api/qr/qr-security.test.ts`, `app/api/workspaces/workspaces-create.postgres.integration.test.ts`, `app/api/cliente/requests/portal-tables.integration.test.ts` | route handlers with a synthetic Next request scope; no server, no browser |
+| Browser / OAuth | not covered | NEON-04 (Vercel Preview manual checklist) |
+| Dated tasks | smoke step 5 (`WorkspaceTask` with `dueAt`) | NOT the calendar/appointments module |
+| Calendar / appointments | not covered on PostgreSQL | NEON-04 |
+| Capability snapshots | smoke steps 2 and 7, `core/workspace.postgres.integration.test.ts` | pure resolver over persisted sources; no AI call |
+| Activity / intelligence persistence | pipeline + smoke background assertions | intelligence fails closed without keys; `AIClassification` stays empty; provider persistence with a real key is NOT exercised |
+| AI provider calls | never — keys removed, outbound HTTP blocked; `ai-security` stubs `fetch` | real-provider behaviour is out of the suite by design |
+| Neon pooler / Vercel Preview | not covered | NEON-04 |
+
+The `node:sqlite` gates (`raw-queries.sqlite-equivalence`,
+`email-message-id-casing`) and `scripts/build-db-from-history.ts` stay as
+**legacy safety** until the cutover.
 
 ## 5. Tooling
 

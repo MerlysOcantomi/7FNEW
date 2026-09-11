@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /**
  * NEON-03 — RFC Message-ID semantics on REAL PostgreSQL through the real
@@ -62,6 +62,7 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  await settleBackgroundTasks({ aiDisabled: true })
   await db.$disconnect()
   await database.dispose()
 })
@@ -148,4 +149,17 @@ test("workspace isolation: the same Message-ID in another workspace is a new con
   assert.notEqual(inB.alreadyProcessed, true)
   const conversationB = await db.conversation.findUnique({ where: { id: inB.conversationId }, select: { workspaceId: true } })
   assert.equal(conversationB.workspaceId, wsB.id)
+})
+
+test("background work from the ingestions above settles explicitly before teardown (AI disabled, no network)", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  assert.ok(outcomes.some((o) => o.label === "ingest:notify" && o.status === "fulfilled"))
+  assert.ok(outcomes.filter((o) => o.label === "ingest:intelligence").every((o) => o.status === "rejected" && isMissingProviderKeyError(o.error)))
+  for (const o of outcomes.filter((o) => o.label === "message:short-intent")) {
+    const value = o.value as { status: string; error?: unknown }
+    assert.equal(o.status, "fulfilled")
+    assert.equal(value.status, "failed")
+    assert.ok(isMissingProviderKeyError(value.error))
+  }
+  assert.deepEqual(blockedOutboundAttempts(), [])
 })

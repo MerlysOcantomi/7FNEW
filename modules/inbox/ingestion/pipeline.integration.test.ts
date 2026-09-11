@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
 let database: ProvisionedDatabase
 
@@ -55,6 +55,10 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  // Every fire-and-forget task started by the ingestions above must be
+  // settled and accounted for BEFORE the client disconnects and the database
+  // is dropped; the helper fails the file on any unexpected rejection.
+  await settleBackgroundTasks({ aiDisabled: true })
   await db.$disconnect()
   await database.dispose()
 })
@@ -263,4 +267,38 @@ test("email adapter ingests with RFC metadata, threads replies and dedupes IMAP 
   })
   assert.ok(identity)
   assert.equal(identity.resolutionStatus, "resolved")
+})
+
+// ── NEON-03-R1: background work is deterministic and explicit ───────────────
+
+test("post-persist background work settles deterministically: notifications fulfilled, AI triage fails explicitly (no provider keys), no network call", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  const byLabel = (label: string) => outcomes.filter((o) => o.label === label)
+  // Every ingestion above spawned a notification task and an intelligence task;
+  // every persisted message spawned (or skipped) a short-intent task.
+  assert.ok(byLabel("ingest:notify").length >= 1)
+  assert.ok(byLabel("ingest:notify").every((o) => o.status === "fulfilled"), "notifications never fail")
+  assert.ok(byLabel("ingest:intelligence").length >= 1)
+  for (const o of byLabel("ingest:intelligence")) {
+    assert.equal(o.status, "rejected", "intelligence cannot run without a provider key")
+    assert.ok(isMissingProviderKeyError(o.error), "the exact missing-credentials contract (provider_unavailable + adapter message)")
+  }
+  // Short-intent persistence is best-effort by contract: it catches the same
+  // provider failure internally, logs it and fulfils WITHOUT persisting an
+  // intent — and its fulfilled VALUE says why.
+  assert.ok(byLabel("message:short-intent").length >= 1)
+  for (const o of byLabel("message:short-intent")) {
+    assert.equal(o.status, "fulfilled")
+    const value = o.value as { status: string; stage?: string; error?: unknown }
+    assert.equal(value.status, "failed")
+    assert.equal(value.stage, "execute")
+    assert.ok(isMissingProviderKeyError(value.error), "the internal cause is the same missing-credentials error")
+  }
+  assert.deepEqual(blockedOutboundAttempts(), [], "no provider call reached the network layer")
+  // Their persistence side effects are visible (or absent) in PostgreSQL only now, deterministically.
+  assert.equal(await db.aIClassification.count(), 0, "no classification is persisted when AI is disabled")
+  const withIntent = await db.message.count({ where: { metadata: { contains: '"shortIntent"' } } })
+  assert.equal(withIntent, 0, "no short intent is persisted when AI is disabled")
+  // A second drain finds nothing left.
+  assert.deepEqual(await settleBackgroundTasks(), [])
 })

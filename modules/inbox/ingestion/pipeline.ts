@@ -13,6 +13,7 @@
  */
 
 import { db } from "@core/db"
+import { trackBackgroundTask } from "@core/background-tasks"
 import { runConversationIntelligence } from "../intelligence"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 import { addMessage } from "../service"
@@ -290,29 +291,34 @@ export async function ingestInboundEnvelope(
   }
 
   // ---- 9. Post-persist (notification + AI triage, fire-and-forget) ----
-  db.conversation
-    .findFirst({
-      where: { id: conversationId, workspaceId },
-      select: { assignedTo: true, subject: true, channel: true, contact: { select: { nombre: true } } },
-    })
-    .then((conv) => {
-      if (!conv) return
-      return notifyInboundMessage({
-        workspaceId,
-        conversationId,
-        subject: conv.subject,
-        contactName: conv.contact?.nombre,
-        channel: conv.channel,
-        assignedTo: conv.assignedTo,
+  // Both tasks are tracked (core/background-tasks.ts) so tests can wait for
+  // them and observe their real outcome; production behaviour is unchanged.
+  trackBackgroundTask(
+    "ingest:notify",
+    db.conversation
+      .findFirst({
+        where: { id: conversationId, workspaceId },
+        select: { assignedTo: true, subject: true, channel: true, contact: { select: { nombre: true } } },
       })
-    })
-    .catch(() => null)
+      .then((conv) => {
+        if (!conv) return
+        return notifyInboundMessage({
+          workspaceId,
+          conversationId,
+          subject: conv.subject,
+          contactName: conv.contact?.nombre,
+          channel: conv.channel,
+          assignedTo: conv.assignedTo,
+        })
+      }),
+  ).catch(() => null)
 
-  runConversationIntelligence({ workspaceId, conversationId, trigger: "message_post" }).catch(
-    (err) => {
-      console.error(`[ingest:${envelope.provider}] Intelligence failed conv=${conversationId}:`, err)
-    },
-  )
+  trackBackgroundTask(
+    "ingest:intelligence",
+    runConversationIntelligence({ workspaceId, conversationId, trigger: "message_post" }),
+  ).catch((err) => {
+    console.error(`[ingest:${envelope.provider}] Intelligence failed conv=${conversationId}:`, err)
+  })
 
   await hooks
     .afterPersist?.({

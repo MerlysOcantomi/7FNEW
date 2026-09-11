@@ -57,16 +57,28 @@ export function mergeMessageMetadataJson(
 }
 
 /**
+ * Outcome of one best-effort short-intent persistence. Production callers
+ * ignore it (the task is fire-and-forget); tests read it through the
+ * background task registry to check the INTERNAL cause of a skipped or failed
+ * enrichment instead of inferring it from the absence of a persisted intent.
+ */
+export type ShortIntentPersistResult =
+  | { status: "persisted"; shortIntent: string }
+  | { status: "skipped"; reason: "short_content" | "message_not_found" | "empty_after_clip" }
+  | { status: "failed"; stage: "execute"; error: unknown }
+
+/**
  * Deriva una frase corta de intención comunicativa/operativa para este mensaje (no el resumen de conversación)
- * y la guarda en `metadata.shortIntent`.
+ * y la guarda en `metadata.shortIntent`. Best-effort: a provider failure is
+ * logged and reported in the result, never thrown; a database failure IS thrown.
  */
 export async function persistShortIntentForMessage(input: {
   messageId: string
   workspaceId: string
   content: string
-}): Promise<void> {
+}): Promise<ShortIntentPersistResult> {
   const trimmed = input.content.trim()
-  if (trimmed.length < MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH) return
+  if (trimmed.length < MESSAGE_SHORT_INTENT_MIN_CONTENT_LENGTH) return { status: "skipped", reason: "short_content" }
 
   const ws = await getWorkspaceWithResolvedConfig(input.workspaceId)
   const locale: SupportedLocale = ws?.locale ?? parseLocale(null)
@@ -75,7 +87,7 @@ export async function persistShortIntentForMessage(input: {
     where: { id: input.messageId, workspaceId: input.workspaceId },
     select: { metadata: true },
   })
-  if (!latest) return
+  if (!latest) return { status: "skipped", reason: "message_not_found" }
 
   const body =
     trimmed.length > MAX_MESSAGE_CHARS_FOR_PROMPT
@@ -122,7 +134,7 @@ ${body}`
     )
   } catch (err) {
     console.error(`${SHORT_INTENT_DEBUG} executeAI failed msg=${input.messageId}`, err)
-    return
+    return { status: "failed", stage: "execute", error: err }
   }
 
   const parsed = parseIntentJson(raw)
@@ -137,7 +149,7 @@ ${body}`
   )
   if (!clipped) {
     console.log(`${SHORT_INTENT_DEBUG} persist exit msg=${input.messageId} reason=empty_after_clip`)
-    return
+    return { status: "skipped", reason: "empty_after_clip" }
   }
 
   const merged = mergeMessageMetadataJson(latest.metadata, { shortIntent: clipped })
@@ -152,4 +164,5 @@ ${body}`
     console.error(`${SHORT_INTENT_DEBUG} db.message.update failed msg=${input.messageId}`, updateErr)
     throw updateErr
   }
+  return { status: "persisted", shortIntent: clipped }
 }

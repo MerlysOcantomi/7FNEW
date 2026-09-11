@@ -1,20 +1,25 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { provisionTestDatabase, type ProvisionedDatabase } from "./support/postgres"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "./support/postgres"
 
 /**
- * NEON-03 — end-to-end smoke of the PostgreSQL runtime through the REAL
- * services, in the order a tenant comes to life:
+ * NEON-03 — SERVICE-LEVEL integration smoke of the PostgreSQL runtime: the
+ * real service modules called in-process against one disposable database,
+ * in the order a tenant comes to life:
  *
  *   user → workspace (+ OWNER membership, atomic) → capability sources →
- *   capability snapshot (what the AI gateway reads) → cliente → inbox
- *   ingestion → inbox-scoped task with a due date → presence site published
- *   and publicly resolvable → AI snapshot again → multi-tenant isolation
- *   (a second tenant sees none of it, cannot attach to it, is not a member).
+ *   capability snapshot (the pure resolver the AI gateway reads) → cliente →
+ *   inbox ingestion pipeline → inbox-scoped WorkspaceTask with a due date →
+ *   presence site published and publicly resolvable → capability snapshot
+ *   again → background work settled → multi-tenant isolation at every step.
  *
- * One disposable database built from `prisma/migrations-postgres`; no mocks
- * on the data path. AI providers are never called (no keys; the intelligence
- * step fails closed inside ingestion and is not asserted).
+ * WHAT THIS IS NOT (covered elsewhere or pending — see
+ * docs/architecture/7F-DATABASE.md §4): not an HTTP/endpoint test (route
+ * tests: app/api/**\/*.test.ts), not a browser or OAuth flow, not the
+ * calendar/appointments module (the "schedule" step is a WorkspaceTask with
+ * `dueAt`), not an AI provider call (providers are never reached: keys are
+ * removed and outbound HTTP is blocked; intelligence fails closed
+ * explicitly), and not Neon/pooler or Vercel Preview (NEON-04).
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -49,6 +54,7 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  await settleBackgroundTasks({ aiDisabled: true })
   await db.$disconnect()
   await database.dispose()
 })
@@ -66,7 +72,7 @@ test("1. user → workspace + OWNER membership (atomic), for two independent ten
   assert.deepEqual((await workspace.listWorkspacesForUser(userA.id)).map((w) => w.id), [wsA])
 })
 
-test("2. capability sources → snapshot (the AI gateway's entitlement view) from persisted plan/config", async () => {
+test("2. capability sources → capability snapshot (pure resolver the AI gateway reads; no AI call) from persisted plan/config", async () => {
   await db.workspace.update({
     where: { id: wsA },
     data: { plan: "enterprise", status: "active", config: JSON.stringify({ modules: { inbox: true, crm: true } }) },
@@ -138,7 +144,7 @@ test("4. inbox ingestion creates contact, conversation and message in the right 
   assert.equal(await db.message.count({ where: { workspaceId: wsA, direction: "inbound" } }), 1)
 })
 
-test("5. inbox-scoped task with a due date (schedule) mirrors into WorkspaceTask, tenant-checked", async () => {
+test("5. inbox-scoped WorkspaceTask with dueAt (a dated task, not the calendar/appointments module), tenant-checked", async () => {
   const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
   const task = await tasksWrite.createInboxScopedTask({
     workspaceId: wsA,
@@ -178,7 +184,7 @@ test("6. presence: site created, published and publicly resolvable; the other te
   await assert.rejects(presence.publishSite(wsB, site.id), "tenant B cannot publish tenant A's site")
 })
 
-test("7. AI snapshot after the whole flow is unchanged in kind and still per-workspace", async () => {
+test("7. capability snapshot after the whole flow is unchanged in kind and still per-workspace (no AI provider involved)", async () => {
   const snapshot = capabilities.resolveWorkspaceCapabilitySnapshot(await workspace.getWorkspaceCapabilitySources(wsA))
   assert.equal(snapshot.status, "active")
   assert.ok(snapshot.products.some((p) => p.product === "smart_inbox"))
@@ -191,4 +197,24 @@ test("8. multi-tenant totals: everything created lives in tenant A, tenant B is 
     assert.ok((await db[model].count({ where: { workspaceId: wsA } })) >= 1, `${model} exists in A`)
     assert.equal(await db[model].count({ where: { workspaceId: wsB } }), 0, `${model} absent in B`)
   }
+})
+
+test("9. background work (notifications, AI triage, short intent) is settled and explicit before teardown; no provider was called", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  assert.ok(outcomes.some((o) => o.label === "ingest:notify" && o.status === "fulfilled"))
+  const intelligence = outcomes.filter((o) => o.label === "ingest:intelligence")
+  assert.ok(intelligence.length >= 1)
+  assert.ok(intelligence.every((o) => o.status === "rejected" && isMissingProviderKeyError(o.error)), "intelligence fails closed with the exact missing-credentials contract")
+  const shortIntent = outcomes.filter((o) => o.label === "message:short-intent")
+  assert.ok(shortIntent.length >= 1)
+  for (const o of shortIntent) {
+    assert.equal(o.status, "fulfilled", "short intent is best-effort: handled internally")
+    const value = o.value as { status: string; stage?: string; error?: unknown }
+    assert.equal(value.status, "failed")
+    assert.equal(value.stage, "execute")
+    assert.ok(isMissingProviderKeyError(value.error), "…and its result carries the internal cause")
+  }
+  assert.deepEqual(blockedOutboundAttempts(), [])
+  assert.equal(await db.aIClassification.count({ where: { workspaceId: wsA } }), 0)
+  assert.equal(await db.message.count({ where: { workspaceId: wsA, metadata: { contains: '"shortIntent"' } } }), 0)
 })

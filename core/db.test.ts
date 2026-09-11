@@ -329,7 +329,7 @@ function registerTests() {
     assert.equal(found.length, 1)
 
     // Reads through a raw pg connection confirm it really landed in the throwaway database.
-    const verified = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
+    const verified = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
     assert.equal(Number(verified[0]?.cnt), 1)
   })
 

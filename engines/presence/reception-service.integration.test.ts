@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
 let database: ProvisionedDatabase
 
@@ -52,6 +52,9 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  // addMessage starts short-intent persistence fire-and-forget; settle it
+  // (expected AIExecutionError: no provider key) before dropping the database.
+  await settleBackgroundTasks({ aiDisabled: true })
   await db.$disconnect()
   await database.dispose()
 })
@@ -215,4 +218,21 @@ test("resolveReceptionModel returns Fanny + WhatsApp for a published site", asyn
   assert.equal(m.businessName, "Estudio Aurora")
   assert.equal(m.model.whatsapp.available, true)
   assert.ok(m.model.fanny.quickActions.length > 0)
+})
+
+test("background short-intent work from reception messages settles explicitly (AI disabled, no network)", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  const shortIntent = outcomes.filter((o) => o.label === "message:short-intent")
+  assert.ok(shortIntent.length >= 1, "reception messages start short-intent persistence")
+  // Best-effort by contract: the missing provider key is handled inside the
+  // task and reported in its result; nothing is persisted.
+  for (const o of shortIntent) {
+    assert.equal(o.status, "fulfilled")
+    const value = o.value as { status: string; stage?: string; error?: unknown }
+    assert.equal(value.status, "failed")
+    assert.equal(value.stage, "execute")
+    assert.ok(isMissingProviderKeyError(value.error))
+  }
+  assert.equal(await db.message.count({ where: { metadata: { contains: '"shortIntent"' } } }), 0)
+  assert.deepEqual(blockedOutboundAttempts(), [])
 })

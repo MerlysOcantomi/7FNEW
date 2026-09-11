@@ -46,7 +46,7 @@ test("a failed membership write rolls the workspace back (no orphan workspace, s
   // No User row → WorkspaceMember.userId FK fails inside the transaction.
   await assert.rejects(workspace.ensureUserHasDefaultWorkspace("ghost-user-id"), (e: any) => e?.code === "P2003" || /foreign key/i.test(String(e?.message)))
   assert.equal(await db.workspace.count(), before, "the workspace insert must have been rolled back")
-  const orphan = await queryRaw<{ cnt: string }>(database.url, `SELECT COUNT(*) AS cnt FROM "Workspace" WHERE "slug" = $1`, ["ghost-user-id"])
+  const orphan = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Workspace" WHERE "slug" = $1`, ["ghost-user-id"])
   assert.equal(Number(orphan[0].cnt), 0)
 })
 
