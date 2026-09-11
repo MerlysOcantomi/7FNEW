@@ -1201,6 +1201,8 @@ export interface InboxMessages {
     activeFilters: {
       heading: string
       clearAll: string
+      /** Visible token text composed from a dimension and its value ("Status: Archived"). */
+      token: (dimension: string, label: string) => string
       /** aria-label for a token's remove button. */
       remove: (label: string) => string
       /** Dimension prefixes composed into a token ("Status: Archived"). */

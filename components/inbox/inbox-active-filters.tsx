@@ -53,7 +53,7 @@ export function InboxActiveFilters({ tokens, onClearAll, className }: InboxActiv
         {m.heading}
       </span>
       {tokens.map((token) => {
-        const text = `${token.dimension}: ${token.label}`
+        const text = m.token(token.dimension, token.label)
         return (
           <span
             key={token.key}

@@ -69,6 +69,7 @@ export const inbox: InboxMessages = {
     activeFilters: {
       heading: "Active filters",
       clearAll: "Clear filters",
+      token: (dimension, label) => `${dimension}: ${label}`,
       remove: (label) => `Remove filter: ${label}`,
       dimensions: {
         filter: "View",
