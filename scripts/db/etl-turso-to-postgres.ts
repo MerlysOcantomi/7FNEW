@@ -26,6 +26,17 @@
  *   --forwarded-loopback             role local only: the loopback port is published by a container
  *                                    (CI service, docker run -p), so the server reports a PRIVATE
  *                                    address instead of loopback. Never accepts a public address.
+ *   --expect-staging-id <id>         role staging only (REQUIRED there). The live database must carry
+ *                                    the NEON-04 staging identity marker — its PostgreSQL database
+ *                                    comment, independent of the application schema:
+ *                                      sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=<id>
+ *                                    Absent, malformed or different → FAIL before any read of the
+ *                                    source and before any write (TRUNCATE included). Operator-supplied
+ *                                    host/database/role are never enough on their own for staging.
+ *
+ *   stamp-staging — provisioning step for a NEW staging database: writes that marker
+ *             (COMMENT ON DATABASE). Requires --confirm-stamp <database>; refuses to
+ *             replace a different existing marker; never touches application tables.
  *
  * Environment: ETL_SOURCE_URL (+ ETL_SOURCE_AUTH_TOKEN), ETL_TARGET_URL. Connection
  * strings are never printed; the manifest stores only fingerprints and the database name.
@@ -76,6 +87,84 @@ export interface TargetExpectation {
    * is accepted; a public one is still refused.
    */
   forwardedLoopback?: boolean
+  /**
+   * role staging only (required there): the non-secret, environment-specific
+   * identifier the live database must carry in its NEON-04 staging marker.
+   */
+  stagingId?: string
+}
+
+// ─── Staging identity marker (PostgreSQL database comment) ──────────────────
+//
+// The marker lives in `pg_shdescription` for the database object, outside the
+// application schema and outside the migration ledger. It is set once at
+// provisioning (`stamp-staging`) and read on the live connection by run/parity.
+// It is deliberately NOT secret: it proves intent ("this database was
+// provisioned as SevenF NEON-04 staging"), not possession of a credential.
+
+export const STAGING_MARKER_ENVIRONMENT = "staging"
+export const STAGING_MARKER_MIGRATION = "neon-04"
+const STAGING_ID = /^[a-z0-9][a-z0-9-]{2,63}$/
+const MARKER_KEYS = ["sevenf:environment", "sevenf:migration", "sevenf:target"] as const
+
+export interface StagingMarker {
+  environment: string
+  migration: string
+  target: string
+}
+
+export function assertStagingId(id: unknown): string {
+  if (typeof id !== "string" || !STAGING_ID.test(id)) {
+    throw new Error("etl: --expect-staging-id must be 3-64 chars of [a-z0-9-], starting with a letter or digit")
+  }
+  if (/prod/i.test(id)) throw new Error("etl: staging id must not look like production")
+  return id
+}
+
+export function formatStagingMarker(id: string): string {
+  return `sevenf:environment=${STAGING_MARKER_ENVIRONMENT};sevenf:migration=${STAGING_MARKER_MIGRATION};sevenf:target=${assertStagingId(id)}`
+}
+
+/** Strict parse: exactly the three keys, each once, nothing else. Never echoes the text. */
+export function parseStagingMarker(text: string): StagingMarker {
+  const pairs = text.split(";")
+  if (pairs.length !== MARKER_KEYS.length) throw new Error("etl: staging identity marker is malformed")
+  const seen = new Map<string, string>()
+  for (const pair of pairs) {
+    const eq = pair.indexOf("=")
+    if (eq <= 0) throw new Error("etl: staging identity marker is malformed")
+    const key = pair.slice(0, eq)
+    const value = pair.slice(eq + 1)
+    if (!(MARKER_KEYS as readonly string[]).includes(key) || seen.has(key) || value === "") {
+      throw new Error("etl: staging identity marker is malformed")
+    }
+    seen.set(key, value)
+  }
+  return { environment: seen.get("sevenf:environment")!, migration: seen.get("sevenf:migration")!, target: seen.get("sevenf:target")! }
+}
+
+/**
+ * Pure check used on the live connection's database comment. Fails closed on
+ * absence, malformation and every field mismatch; messages never include the
+ * comment text found.
+ */
+export function checkStagingMarker(comment: string | null, expectedId: string): StagingMarker {
+  const id = assertStagingId(expectedId)
+  if (comment === null || comment.trim() === "") {
+    throw new Error("etl: the live database carries no staging identity marker (COMMENT ON DATABASE) — it was not provisioned as SevenF NEON-04 staging; refusing")
+  }
+  const marker = parseStagingMarker(comment)
+  if (marker.environment !== STAGING_MARKER_ENVIRONMENT) throw new Error("etl: staging identity marker environment is not staging; refusing")
+  if (marker.migration !== STAGING_MARKER_MIGRATION) throw new Error("etl: staging identity marker migration is not neon-04; refusing")
+  if (marker.target !== id) throw new Error("etl: staging identity marker names a different target than --expect-staging-id; refusing")
+  return marker
+}
+
+async function readDatabaseComment(pg: PgClient): Promise<string | null> {
+  const r = await pg.query<{ description: string | null }>(
+    "SELECT d.description FROM pg_database db LEFT JOIN pg_shdescription d ON d.objoid = db.oid AND d.classoid = 'pg_database'::regclass WHERE db.datname = current_database()",
+  )
+  return r.rows[0]?.description ?? null
 }
 
 const PRIVATE_V4 = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/
@@ -120,7 +209,7 @@ export interface EtlManifest {
   version: number
   snapshotAt: string
   source: { kind: string; hostFingerprint: string; tables: number }
-  target: { role: string; database: string; hostFingerprint: string; baselineSha256: string }
+  target: { role: string; database: string; hostFingerprint: string; baselineSha256: string; stagingId?: string }
   insertOrder: string[]
   tables: Record<string, TableManifest>
   totals: { tables: number; sourceRows: number; loadedRows: number; warnings: number }
@@ -169,6 +258,10 @@ export function assertTargetUrl(url: string, expectation: TargetExpectation): UR
   if (/prod/i.test(host) || /prod/i.test(database)) {
     throw new Error("etl: target host/database looks like production — refused unconditionally (NEON-04 tooling never targets production)")
   }
+  if (expectation.role === "staging") {
+    if (expectation.stagingId === undefined) throw new Error("etl: role staging requires --expect-staging-id (the database must carry the NEON-04 staging identity marker)")
+    assertStagingId(expectation.stagingId)
+  }
   return parsed
 }
 
@@ -184,6 +277,58 @@ async function assertTargetIdentity(pg: PgClient, expectation: TargetExpectation
     throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
   }
   if (expectation.role === "local") checkLocalServerAddress(r.rows[0].addr, expectation.forwardedLoopback === true)
+  if (expectation.role === "staging") checkStagingMarker(await readDatabaseComment(pg), expectation.stagingId!)
+}
+
+export interface StampOptions {
+  targetUrl: string
+  expectation: TargetExpectation
+  /** must repeat the exact target database name */
+  confirmStamp?: string
+  log?: (line: string) => void
+}
+
+/**
+ * Provisioning step: write the staging identity marker on the target database.
+ * Same URL/role/host/database/prod guards as run; live current_database()
+ * check; idempotent for an identical marker; REFUSES to replace a different
+ * one (re-labelling a database is a human decision, not a flag). Touches only
+ * the database comment — no application table, no ledger.
+ */
+export async function stampStagingIdentity(options: StampOptions): Promise<StagingMarker> {
+  const log = options.log ?? (() => undefined)
+  if (options.expectation.role !== "staging") throw new Error("etl: stamp-staging only applies to --target-role staging")
+  assertTargetUrl(options.targetUrl, options.expectation)
+  const marker = formatStagingMarker(options.expectation.stagingId!)
+  if (options.confirmStamp !== options.expectation.database) {
+    throw new Error("etl: --confirm-stamp must repeat the exact target database name")
+  }
+  const pg = new PgClient({ connectionString: options.targetUrl })
+  await pg.connect()
+  try {
+    const r = await pg.query<{ db: string }>("SELECT current_database() AS db")
+    if (r.rows[0].db !== options.expectation.database) {
+      throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
+    }
+    const existing = await readDatabaseComment(pg)
+    if (existing !== null && existing.trim() !== "") {
+      if (existing === marker) {
+        log(`[etl] staging identity already present for ${options.expectation.database} (unchanged)`)
+        return parseStagingMarker(existing)
+      }
+      throw new Error("etl: the database already carries a different comment/marker — refusing to relabel it (clear it by hand if that is intended)")
+    }
+    // COMMENT ON DATABASE accepts no bind parameters. The marker text is fully
+    // validated ([a-z0-9-] id inside fixed key=value pairs, no quotes possible)
+    // and the database name is a quoted identifier.
+    await pg.query(`COMMENT ON DATABASE "${options.expectation.database.replace(/"/g, '""')}" IS '${marker}'`)
+    const written = await readDatabaseComment(pg)
+    if (written !== marker) throw new Error("etl: staging identity marker was not persisted as expected")
+    log(`[etl] staging identity stamped on ${options.expectation.database}: environment=${STAGING_MARKER_ENVIRONMENT} migration=${STAGING_MARKER_MIGRATION} target=${options.expectation.stagingId}`)
+    return parseStagingMarker(written)
+  } finally {
+    await pg.end()
+  }
 }
 
 async function assertTargetSchema(pg: PgClient, schema: TargetSchema): Promise<void> {
@@ -365,7 +510,13 @@ export async function runEtl(options: EtlOptions): Promise<EtlManifest> {
       version: MANIFEST_VERSION,
       snapshotAt: snapshot.snapshotAt,
       source: { kind: sourceUrl.protocol.replace(":", ""), hostFingerprint: fingerprint(sourceUrl.hostname || sourceUrl.pathname), tables: snapshot.sourceTableNames.length },
-      target: { role: options.expectation.role, database: options.expectation.database, hostFingerprint: fingerprint(targetUrl.hostname), baselineSha256: BASELINE_SHA256 },
+      target: {
+        role: options.expectation.role,
+        database: options.expectation.database,
+        hostFingerprint: fingerprint(targetUrl.hostname),
+        baselineSha256: BASELINE_SHA256,
+        ...(options.expectation.role === "staging" ? { stagingId: options.expectation.stagingId } : {}),
+      },
       insertOrder: order,
       tables: Object.fromEntries(prepared.map((p) => [p.table.name, p.manifest])),
       totals: {
@@ -540,16 +691,23 @@ function parseArgs(argv: string[]): { command: string; flags: Record<string, str
   return { command, flags }
 }
 
-function expectationFromFlags(flags: Record<string, string | boolean>): TargetExpectation {
+export function expectationFromFlags(flags: Record<string, string | boolean>): TargetExpectation {
   const role = flags["target-role"]
   const host = flags["expect-target-host"]
   const database = flags["expect-target-database"]
   if (typeof role !== "string" || typeof host !== "string" || typeof database !== "string") {
     throw new Error("etl: --target-role <staging|local> --expect-target-host <host> --expect-target-database <name> are all required")
   }
+  if (role !== "staging" && role !== "local") throw new Error(`etl: unknown target role ${JSON.stringify(role)} — only "staging" and "local" exist; this tool has no production mode`)
   const forwardedLoopback = flags["forwarded-loopback"] === true
   if (forwardedLoopback && role !== "local") throw new Error("etl: --forwarded-loopback only applies to --target-role local")
-  return { role: role as TargetExpectation["role"], host, database, forwardedLoopback }
+  const stagingIdFlag = flags["expect-staging-id"]
+  if (role === "staging") {
+    if (stagingIdFlag === undefined) throw new Error("etl: --target-role staging requires --expect-staging-id <id>")
+    return { role, host, database, stagingId: assertStagingId(stagingIdFlag) }
+  }
+  if (stagingIdFlag !== undefined) throw new Error("etl: --expect-staging-id only applies to --target-role staging")
+  return { role, host, database, forwardedLoopback }
 }
 
 function out(line: string): void {
@@ -577,6 +735,16 @@ if (isMain) {
           const typed = t.columns.filter((c) => c.type !== "TEXT").map((c) => `${c.name}:${c.type}`)
           out(`[etl]   ${t.name}: pk=${t.primaryKey.join(",")} typed=[${typed.join(" ")}]${selfRefs.length ? ` selfRef=${selfRefs.join(",")}` : ""}`)
         }
+        return
+      }
+      case "stamp-staging": {
+        const marker = await stampStagingIdentity({
+          targetUrl: requireEnv("ETL_TARGET_URL"),
+          expectation: expectationFromFlags(flags),
+          confirmStamp: typeof flags["confirm-stamp"] === "string" ? flags["confirm-stamp"] : undefined,
+          log: out,
+        })
+        out(`[etl] staging identity OK: environment=${marker.environment} migration=${marker.migration} target=${marker.target}`)
         return
       }
       case "run": {
@@ -623,7 +791,7 @@ if (isMain) {
         return
       }
       default:
-        throw new Error("usage: etl-turso-to-postgres.ts <plan|run|parity> [flags]")
+        throw new Error("usage: etl-turso-to-postgres.ts <plan|stamp-staging|run|parity> [flags]")
     }
   })().catch((err) => {
     console.error(`[etl] FAIL: ${err instanceof Error ? err.message : String(err)}`)

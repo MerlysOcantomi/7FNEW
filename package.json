@@ -15,6 +15,7 @@
     "db:postgres:init": "tsx scripts/postgres-baseline.ts generate-init",
     "db:postgres:verify": "tsx scripts/postgres-baseline.ts verify",
     "db:etl:plan": "tsx scripts/db/etl-turso-to-postgres.ts plan",
+    "db:etl:stamp-staging": "tsx scripts/db/etl-turso-to-postgres.ts stamp-staging",
     "db:etl:run": "tsx scripts/db/etl-turso-to-postgres.ts run",
     "db:etl:parity": "tsx scripts/db/etl-turso-to-postgres.ts parity",
     "db:audit-m1": "tsx scripts/audit-core-03c-m1.ts",

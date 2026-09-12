@@ -17,7 +17,17 @@ import {
   transformRow,
   type TableDef,
 } from "./etl-core"
-import { BASELINE_SHA256, BASELINE_SQL_PATH, checkLocalServerAddress } from "./etl-turso-to-postgres"
+import {
+  BASELINE_SHA256,
+  BASELINE_SQL_PATH,
+  assertStagingId,
+  assertTargetUrl,
+  checkLocalServerAddress,
+  checkStagingMarker,
+  expectationFromFlags,
+  formatStagingMarker,
+  parseStagingMarker,
+} from "./etl-turso-to-postgres"
 import { createHash } from "node:crypto"
 
 /** NEON-04 — pure unit tests of the ETL core against the real pinned baseline. No database. */
@@ -176,4 +186,64 @@ test("checkLocalServerAddress: loopback and Unix sockets always pass; a private 
   assert.throws(() => checkLocalServerAddress("8.8.8.8", true), /not loopback$/, "public stays refused even when forwarded")
   assert.throws(() => checkLocalServerAddress("172.32.0.1", true), /not loopback$/, "172.32/16 is not RFC 1918")
   assert.throws(() => checkLocalServerAddress("2001:db8::1", true), /not loopback$/)
+})
+
+test("staging identity marker: strict format, exact match required, absence and every mismatch fail closed, nothing echoed", () => {
+  const marker = formatStagingMarker("sevenf-neon04-staging")
+  assert.equal(marker, "sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=sevenf-neon04-staging")
+  assert.deepEqual(parseStagingMarker(marker), { environment: "staging", migration: "neon-04", target: "sevenf-neon04-staging" })
+  assert.deepEqual(checkStagingMarker(marker, "sevenf-neon04-staging").target, "sevenf-neon04-staging")
+
+  // absent
+  assert.throws(() => checkStagingMarker(null, "sevenf-neon04-staging"), /carries no staging identity marker/)
+  assert.throws(() => checkStagingMarker("   ", "sevenf-neon04-staging"), /carries no staging identity marker/)
+  // different target id
+  assert.throws(() => checkStagingMarker(formatStagingMarker("other-staging"), "sevenf-neon04-staging"), /names a different target/)
+  // wrong environment / migration (hand-written comments)
+  assert.throws(() => checkStagingMarker("sevenf:environment=local;sevenf:migration=neon-04;sevenf:target=sevenf-neon04-staging", "sevenf-neon04-staging"), /environment is not staging/)
+  assert.throws(() => checkStagingMarker("sevenf:environment=staging;sevenf:migration=neon-05;sevenf:target=sevenf-neon04-staging", "sevenf-neon04-staging"), /migration is not neon-04/)
+  // malformed: free text, missing key, duplicate key, extra key, empty value
+  for (const bad of [
+    "staging database, do not touch",
+    "sevenf:environment=staging;sevenf:target=sevenf-neon04-staging",
+    "sevenf:environment=staging;sevenf:environment=staging;sevenf:target=sevenf-neon04-staging",
+    `${marker};extra=1`,
+    "sevenf:environment=;sevenf:migration=neon-04;sevenf:target=sevenf-neon04-staging",
+  ]) {
+    assert.throws(() => checkStagingMarker(bad, "sevenf-neon04-staging"), /malformed/, bad)
+    try {
+      checkStagingMarker(bad, "sevenf-neon04-staging")
+    } catch (err) {
+      assert.ok(!(err as Error).message.includes("do not touch"), "the comment text found is never echoed")
+    }
+  }
+  // the expected id itself is validated and can never look like production
+  assert.throws(() => assertStagingId("prod-staging"), /must not look like production/)
+  assert.throws(() => assertStagingId("Staging!"), /3-64 chars/)
+  assert.throws(() => assertStagingId(""), /3-64 chars/)
+  assert.throws(() => formatStagingMarker("x"), /3-64 chars/)
+})
+
+test("target expectations: staging REQUIRES an id, local never needs one; forwarded-loopback stays local-only; no production role", () => {
+  const base = { "expect-target-host": "db.example.invalid", "expect-target-database": "sevenf_staging" }
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging" }), /requires --expect-staging-id/)
+  assert.deepEqual(expectationFromFlags({ ...base, "target-role": "staging", "expect-staging-id": "sevenf-neon04-staging" }), {
+    role: "staging",
+    host: "db.example.invalid",
+    database: "sevenf_staging",
+    stagingId: "sevenf-neon04-staging",
+  })
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging", "expect-staging-id": "prod-1" }), /must not look like production/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging", "forwarded-loopback": true, "expect-staging-id": "sevenf-neon04-staging" }), /only applies to --target-role local/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-staging-id": "sevenf-neon04-staging" }), /no production mode/)
+  const local = { "target-role": "local", "expect-target-host": "127.0.0.1", "expect-target-database": "t7f_x" }
+  assert.deepEqual(expectationFromFlags(local), { role: "local", host: "127.0.0.1", database: "t7f_x", forwardedLoopback: false })
+  assert.deepEqual(expectationFromFlags({ ...local, "forwarded-loopback": true }).forwardedLoopback, true)
+  assert.throws(() => expectationFromFlags({ ...local, "expect-staging-id": "sevenf-neon04-staging" }), /only applies to --target-role staging/)
+
+  // URL guard: an operator-supplied host/database that match the URL are NOT enough for staging without an id
+  const url = "postgresql://u:p@db.example.invalid:5432/sevenf_staging"
+  assert.throws(() => assertTargetUrl(url, { role: "staging", host: "db.example.invalid", database: "sevenf_staging" }), /requires --expect-staging-id/)
+  assert.doesNotThrow(() => assertTargetUrl(url, { role: "staging", host: "db.example.invalid", database: "sevenf_staging", stagingId: "sevenf-neon04-staging" }))
+  assert.throws(() => assertTargetUrl("postgresql://u:p@db.example.invalid:5432/sevenf_prod", { role: "staging", host: "db.example.invalid", database: "sevenf_prod", stagingId: "sevenf-neon04-staging" }), /looks like production/)
 })

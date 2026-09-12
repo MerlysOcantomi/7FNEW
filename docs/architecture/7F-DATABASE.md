@@ -139,14 +139,16 @@ POSTGRES_VERIFY_URL=… npm run db:postgres:verify   # EMPTY loopback DB → his
 npm run db:verify-history      # legacy SQLite gate (derived sqlite-provider variant), 50 tables / 94 indexes / drift 51
 DIRECT_URL=… npm run db:migrate:deploy / db:migrate:status   # NEON-04/05 only, against a Neon endpoint
 npm run db:etl:plan                                          # target schema, FK insert order (no connections)
-ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:run -- --target-role staging|local --expect-target-host … --expect-target-database … --manifest …
+ETL_TARGET_URL=… npm run db:etl:stamp-staging -- --target-role staging --expect-target-host … --expect-target-database … --expect-staging-id … --confirm-stamp …   # once, at provisioning
+ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:run -- --target-role staging|local --expect-target-host … --expect-target-database … [--expect-staging-id …] --manifest …
 ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:parity -- <same flags> --manifest … [--live-source]
 ```
 
 The ETL (`scripts/db/etl-core.ts`, `scripts/db/etl-turso-to-postgres.ts`)
 reads Turso in one consistent snapshot and loads PostgreSQL in one
 transaction; it has no production mode and refuses any host or database that
-looks like production. Design, guards, parity levels and rehearsal evidence:
+looks like production. Role `staging` additionally requires the database to
+carry the stamped NEON-04 staging identity marker (database comment). Design, guards, parity levels and rehearsal evidence:
 `docs/architecture/7F-NEON-04-STAGING-ETL.md`.
 
 `0_init` is immutable: `generate-init` refuses to change an existing

@@ -8,7 +8,7 @@ import { Client as PgClient } from "pg"
 import { provisionTestDatabase, queryRaw, type ProvisionedDatabase } from "@/test/support/postgres"
 import { REPO_ROOT, runPrisma, writeTempPrismaConfig } from "../lib/prisma-cli"
 import { deriveSqliteSchema } from "../build-db-from-history"
-import { runEtl, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
+import { formatStagingMarker, runEtl, stampStagingIdentity, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
 
 /**
  * NEON-04 — end-to-end ETL rehearsal on LOCAL infrastructure, in CI:
@@ -234,4 +234,96 @@ test("a tampered target is detected with table/pk/field detail; sensitive fields
   assert.ok(report.mismatches.some((m) => m.table === "PresenceMedia" && m.primaryKey === "pm_v2" && m.target === "<absent in target>"))
   // Restore a clean target for teardown determinism (the helper drops it anyway).
   await runEtl({ sourceUrl, targetUrl: database.url, expectation, resetTarget: true, confirmReset: expectation.database })
+})
+
+// ─── NEON-04-R1: independent staging identity (database comment) ────────────
+
+const STAGING_ID = "sevenf-neon04-rehearsal"
+
+async function setDatabaseComment(comment: string | null): Promise<void> {
+  const pg = new PgClient({ host: database.target.host, port: database.target.port, user: database.target.user, password: database.target.password, database: database.target.database })
+  await pg.connect()
+  try {
+    // Test-only: writes the comment directly (no bind parameters exist for COMMENT ON).
+    await pg.query(`COMMENT ON DATABASE "${database.target.database}" IS ${comment === null ? "NULL" : `'${comment.replace(/'/g, "''")}'`}`)
+  } finally {
+    await pg.end()
+  }
+}
+
+function stagingExpectation(stagingId: string | undefined = STAGING_ID): TargetExpectation {
+  // Same operator-supplied host/database as the working local expectation: they
+  // are self-consistent with the URL and with current_database(), on purpose.
+  return { role: "staging", host: expectation.host, database: expectation.database, stagingId }
+}
+
+test("staging: an operator-consistent host/database on a database WITHOUT the identity marker is refused — run, parity and --reset-target alike, no TRUNCATE", async () => {
+  await setDatabaseComment(null)
+  const before = await targetCount("Message")
+  assert.equal(before, 3, "the previous test left a loaded target: the reset path has something to destroy")
+  const staging = stagingExpectation()
+  await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation: staging }), /carries no staging identity marker/)
+  await assert.rejects(
+    runEtl({ sourceUrl, targetUrl: database.url, expectation: staging, resetTarget: true, confirmReset: staging.database }),
+    /carries no staging identity marker/,
+    "--reset-target with a valid confirmation still fails on identity first",
+  )
+  await assert.rejects(verifyParity({ sourceUrl, targetUrl: database.url, expectation: staging, manifest: manifest1 }), /carries no staging identity marker/)
+  assert.equal(await targetCount("Message"), before, "nothing was truncated or written")
+  const noId: TargetExpectation = { role: "staging", host: expectation.host, database: expectation.database }
+  await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation: noId }), /requires --expect-staging-id/)
+  await assert.rejects(verifyParity({ sourceUrl, targetUrl: database.url, expectation: noId, manifest: manifest1 }), /requires --expect-staging-id/)
+})
+
+test("staging: a present but different or malformed marker is refused, still without reaching TRUNCATE", async () => {
+  const staging = stagingExpectation()
+  const before = await targetCount("Message")
+  for (const [comment, pattern] of [
+    [formatStagingMarker("another-staging-db"), /names a different target/],
+    ["sevenf:environment=local;sevenf:migration=neon-04;sevenf:target=" + STAGING_ID, /environment is not staging/],
+    ["sevenf:environment=staging;sevenf:migration=neon-05;sevenf:target=" + STAGING_ID, /migration is not neon-04/],
+    ["staging - please do not truncate", /malformed/],
+  ] as const) {
+    await setDatabaseComment(comment)
+    await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation: staging, resetTarget: true, confirmReset: staging.database }), pattern, comment)
+    await assert.rejects(verifyParity({ sourceUrl, targetUrl: database.url, expectation: staging, manifest: manifest1 }), pattern, comment)
+  }
+  assert.equal(await targetCount("Message"), before, "nothing was truncated or written")
+})
+
+test("stamp-staging: writes the marker once, never relabels a different one, and only then staging run/parity/reset work; local keeps working", async () => {
+  // A different marker is present from the previous test: stamping must refuse.
+  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database }), /already carries a different/)
+  await setDatabaseComment(null)
+  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: "wrong" }), /--confirm-stamp must repeat/)
+  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation, confirmStamp: expectation.database }), /only applies to --target-role staging/)
+  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation("prod-like"), confirmStamp: expectation.database }), /must not look like production/)
+  assert.equal(await queryRaw<{ n: string }>(database, "SELECT COUNT(*)::text AS n FROM pg_shdescription d JOIN pg_database db ON db.oid = d.objoid WHERE db.datname = current_database()").then((r) => r[0].n), "0", "no marker written by the refusals")
+
+  const log: string[] = []
+  const marker = await stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database, log: (l) => log.push(l) })
+  assert.deepEqual(marker, { environment: "staging", migration: "neon-04", target: STAGING_ID })
+  assert.ok(log.some((l) => l.includes("stamped")))
+  assert.ok(!log.join("\n").includes(database.url), "no connection string in logs")
+  const again = await stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database })
+  assert.deepEqual(again, marker, "idempotent for the identical marker")
+
+  // Correct marker: the staging role now runs, resets and verifies parity.
+  const staging = stagingExpectation()
+  const manifestS = await runEtl({ sourceUrl, targetUrl: database.url, expectation: staging, resetTarget: true, confirmReset: staging.database })
+  assert.equal(manifestS.target.role, "staging")
+  assert.equal(manifestS.target.stagingId, STAGING_ID)
+  assert.equal(manifestS.totals.loadedRows, seededRows)
+  for (const t of Object.keys(manifest1.tables)) assert.equal(manifestS.tables[t].digest, manifest1.tables[t].digest)
+  const report = await verifyParity({ sourceUrl, targetUrl: database.url, expectation: staging, manifest: manifestS, liveSource: true })
+  assert.equal(report.ok, true)
+  // A different expected id against the same stamped database is still refused.
+  await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation: stagingExpectation("someone-elses-staging"), resetTarget: true, confirmReset: staging.database }), /names a different target/)
+  assert.equal(await targetCount("Message"), 3)
+
+  // role local is unchanged by the marker: no id needed, reset path works.
+  const manifestL = await runEtl({ sourceUrl, targetUrl: database.url, expectation, resetTarget: true, confirmReset: expectation.database })
+  assert.equal(manifestL.target.role, "local")
+  assert.equal(manifestL.target.stagingId, undefined)
+  assert.equal(manifestL.totals.loadedRows, seededRows)
 })
