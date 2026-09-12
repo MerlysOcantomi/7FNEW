@@ -41,47 +41,66 @@ shipped in NEON-04 on purpose).
 ## 3. Neon staging — plan (blocked, B1/B2)
 
 What NEON-04 was to do and what to run once access exists. None of it ran.
+The order is the canonical lifecycle enforced by the tooling (NEON-04-R2): the
+staging identity is stamped **only** on a database that already carries the
+canonical history and holds no rows.
 
-1. Audit existing Neon projects: `GET /api/v2/projects`. Reuse a project only
-   if it is dedicated to staging (name contains `staging` **and** it is not
-   the project whose branch backs Production). Otherwise create `7f-staging`
-   (region `aws-eu-west-1`, same as Turso, PostgreSQL 16).
-2. Take **both** connection strings from the default branch: pooled
-   (`-pooler` host) → `DATABASE_URL`; direct → `DIRECT_URL`. Both with
-   `sslmode=require`. The runtime (`core/db.ts`) uses the pooled URL through
-   `pg` (`max` 5 by default, `DATABASE_POOL_MAX`); the Prisma CLI and the ETL
-   use the direct URL (one long transaction, `SET LOCAL`, no PgBouncer
-   transaction-mode surprises).
-3. Stamp the staging identity (NEON-04-R1) on the new, dedicated database.
-   This is the independent proof the ETL demands for role `staging`; it is a
-   database comment, not a table, and it is not secret:
+1. **Create / audit Neon staging.** `GET /api/v2/projects`. Reuse a project
+   only if it is dedicated to staging (name contains `staging` **and** it is
+   not the project whose branch backs Production). Otherwise create
+   `7f-staging` (region `aws-eu-west-1`, same as Turso, PostgreSQL 16).
+   Record the non-secret Neon resource id the API returns (project id, or
+   branch/endpoint id if the database is one branch of a shared staging
+   project): that id becomes `--expect-staging-id`. It is not fixed yet;
+   `sevenf-neon04-staging` in older notes was only a placeholder.
+2. **Obtain both endpoints.** Pooled (`-pooler` host) → `DATABASE_URL`;
+   direct → `DIRECT_URL`; both `sslmode=require`. The runtime uses the pooled
+   URL through `pg` (`max` 5 by default, `DATABASE_POOL_MAX`); the Prisma CLI
+   and the ETL use the direct URL.
+3. **Prove the database is new and empty.** Before any DDL:
+
+```
+DIRECT_URL=<neon direct> DATABASE_URL=<neon pooled> npm run db:migrate:status   # 1 migration pending, ledger absent
+psql "<neon direct>" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"   # 0
+```
+
+4. **Apply the canonical history.**
+
+```
+DIRECT_URL=<neon direct> DATABASE_URL=<neon pooled> npm run db:migrate:deploy   # applies 0_init only
+```
+
+5. **Verify ledger and schema.** `migrate status` → up to date; ledger has
+   one completed `0_init` row with checksum `679d9d18…af30e`; 50 tables, no
+   sequences. (`db:postgres:verify` is loopback-only by design; on Neon the
+   ETL's own guard repeats these checks on every command.)
+6. **Stamp the staging identity.** The command re-proves steps 3–5 on the
+   live connection (identity, no different marker, completed `0_init` with
+   the pinned checksum, all 50 tables, no foreign table, no sequences,
+   **every application table empty**) and only then writes the database
+   comment. There is no flag to skip the emptiness check: a populated
+   database can never be turned into staging by this command.
 
 ```
 ETL_TARGET_URL=<neon direct> npm run db:etl:stamp-staging -- --target-role staging \
   --expect-target-host <neon direct host> --expect-target-database <db> \
-  --expect-staging-id sevenf-neon04-staging --confirm-stamp <db>
+  --expect-staging-id <neon staging resource id> --confirm-stamp <db>
 ```
 
-   The command refuses a database that already carries a different comment
-   (relabelling is a human decision), is idempotent for the identical marker,
-   and touches nothing else. Verify with `SELECT shobj_description(oid,
-   'pg_database') FROM pg_database WHERE datname = current_database()`.
-4. Prove the database is empty, then apply the canonical history:
+7. **Verify the marker.**
 
 ```
-DIRECT_URL=<neon direct> DATABASE_URL=<neon pooled> npm run db:migrate:status   # "Database schema is not up to date", 1 migration pending
-DIRECT_URL=<neon direct> DATABASE_URL=<neon pooled> npm run db:migrate:deploy   # applies 0_init only
+psql "<neon direct>" -Atc "SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()"
+# sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=<neon staging resource id>
 ```
 
-   `db:postgres:verify` is loopback-only by design; on Neon the proof is
-   `migrate status` plus the ETL's own ledger/schema check (§5.1).
-
-5. Run the ETL exactly as in §7 with `--target-role staging
-   --expect-target-host <neon direct host> --expect-target-database <db>
-   --expect-staging-id sevenf-neon04-staging`. The role `staging` still refuses
-   any host/database containing `prod`, still requires the live
-   `current_database()` to match, and now also requires the stamped identity.
-6. Neon-specific checks that only a real endpoint can answer (all pending):
+8. **ETL.** Exactly as in §7 with `--target-role staging --expect-target-host
+   <neon direct host> --expect-target-database <db> --expect-staging-id <neon
+   staging resource id>`. Role `staging` still refuses any host/database
+   containing `prod`, still requires the live `current_database()` to match,
+   and requires the stamped identity.
+9. **Parity** L1–L3 with `--live-source` (§6).
+10. Neon-specific checks that only a real endpoint can answer (all pending):
    pooled connection through `core/db.ts` (Prisma 7 + `pg` pool, `max` 5),
    `$transaction` through the pooler (PgBouncer transaction mode: no session
    state, no `SET` outside a transaction, no named prepared statements reused
@@ -129,7 +148,9 @@ the host instead.
 | source scheme | `libsql:`, `https:`, `http:`, `ws:`, `wss:`, `file:` only — a PostgreSQL source is refused |
 | target scheme | `postgresql:` / `postgres:` only — Turso/SQLite can never be a target |
 | target role | `staging` or `local` — **there is no production mode**; any other value throws |
-| staging identity (NEON-04-R1) | role `staging` requires `--expect-staging-id <id>` **and** the live database must carry the marker `sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=<id>` as its PostgreSQL database comment (`pg_shdescription`, outside the application schema and the ledger). Absent, malformed, different environment/migration/target → FAIL before any source read and before any write, `--reset-target` included. Operator-supplied role/host/database are never enough on their own. The id is non-secret and may never contain `prod` |
+| staging identity (NEON-04-R1) | role `staging` requires `--expect-staging-id <id>` **and** the live database must carry the marker `sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=<id>` as its PostgreSQL database comment (`pg_shdescription`, outside the application schema and the ledger). Absent, malformed, different environment/migration/target → FAIL before any source read and before any write, `--reset-target` included. Operator-supplied role/host/database are never enough on their own. The id is non-secret (the Neon staging resource id, `[a-z0-9-]`, 3–64 chars) and may never contain `prod` |
+| staging stamp (NEON-04-R2) | `stamp-staging` writes that marker only after proving, on the live connection: `current_database()` matches, no different marker, completed `0_init` with the pinned checksum, all 50 canonical tables, no foreign base table, no sequences, and **0 rows in every application table**. Any non-empty table → FAIL (table names and counts in the error, never secrets); no flag skips it; a populated database is never relabelled. An identical marker is idempotent (schema re-verified, nothing written) |
+| foreign schema | `assertTargetSchema` (shared by run, parity and stamp) also refuses any base table in `public` outside the 50 canonical tables plus `_prisma_migrations` |
 | explicit identity | `--expect-target-host` and `--expect-target-database` are mandatory and must equal the URL's host and database (a keyword in the hostname is never enough) |
 | loopback | role `local` requires a loopback host in the URL **and** `inet_server_addr()` loopback (or a Unix socket) on the live connection; with `--forwarded-loopback` a **private** server address is accepted for a container-published port (GitHub Actions service, `docker run -p`), a public one never |
 | production lookalike | host or database matching `/prod/i` is refused unconditionally |
@@ -206,17 +227,20 @@ ETL_TARGET_URL=postgresql://postgres@127.0.0.1:54329/neon04_rehearsal_1 \
 | #1 | empty DB → `0_init` | 1.7 s | 38 ms | 1041 ms | 16 ms | 62 ms | 1156 ms | 1286 ms | 480/480 rows, 50/50 tables OK, 0 orphans, 0 duplicate PKs, 0 live drift |
 | #2 (fresh DB) | empty DB → `0_init` | 1.7 s | 41 ms | 728 ms | 16 ms | 67 ms | 852 ms | 874 ms | identical per-table digests, per-row digests, totals and insert order to #1 |
 | #3 (reset path) | #1 data present | — | 37 ms | 1277 ms | 16 ms | 184 ms | 1514 ms | 768 ms | refused first without `--confirm-reset`; with it: digests identical to #1 |
-| #4 (role `staging`, R1) | #3 data present, database stamped | — | see §7.1 | | | | | | refused while unstamped (no TRUNCATE reached); after `stamp-staging`, reset + load + parity OK, digests identical to #1 |
+| #4 (role `staging`, R1/R2) | empty canonical database, then stamped | 1.7 s | see §7.1 | | | | | | refused while unstamped and refused to stamp while populated (no TRUNCATE reached); after `stamp-staging` on the empty database, load + parity OK, digests identical to #1 |
 
 ### 7.1 Rehearsal #4 — staging role against the stamped local stand-in (NEON-04-R1)
 
 Evidence recorded in the session report: with the database unstamped, `run
 --target-role staging … --reset-target --confirm-reset <db>` failed on the
-identity check with every row still in place; `stamp-staging` then wrote the
-marker; the same command loaded 480/480 rows and `parity --live-source`
-reported OK. The integration test `scripts/db/etl.postgres.integration.test.ts`
-repeats this sequence (unmarked, wrong marker, malformed marker, stamp
-refusals, stamp, staging run/parity, local unaffected) in CI.
+identity check with every row still in place; `stamp-staging` on a populated
+database failed on the emptiness check with the comment still NULL;
+`stamp-staging` on the empty canonical database wrote the marker; the ETL then
+loaded 480/480 rows and `parity --live-source` reported OK. The integration
+test `scripts/db/etl.postgres.integration.test.ts` repeats this sequence
+(unmarked, wrong marker, malformed marker, populated database cannot be
+stamped, ledger/schema negatives, stamp on the empty database, idempotence,
+staging run/parity, local unaffected) in CI.
 
 Warnings: exactly one, `Message.content: JSON-looking text is not valid JSON`
 — one human message whose text starts with `{` or `[`; `content` is not a JSON
@@ -248,12 +272,13 @@ Additional proofs on the loaded data:
   are `NULL` as designed.
 
 Automated regression: `scripts/db/etl-core.test.ts` (14 unit tests) and
-`scripts/db/etl.postgres.integration.test.ts` (11 tests: production-shaped
+`scripts/db/etl.postgres.integration.test.ts` (12 tests: production-shaped
 SQLite source built from the legacy history minus migration 6, guards,
 rehearsal #1, semantic assertions, parity with live source, non-empty
 refusal, rehearsal #2 reproducibility, tamper detection with redaction,
-staging identity negatives and the stamp flow) run in `npm test` and in CI
-against the CI PostgreSQL service.
+staging identity negatives, populated-database stamp refusal, ledger/schema
+guards and the stamp flow) run in `npm test` and in CI against the CI
+PostgreSQL service.
 
 ## 8. Seeds
 
@@ -363,7 +388,7 @@ client so a new method cannot slip past the list.
 
 | Step | Action | Measured / expected | Verify |
 |---|---|---|---|
-| 0 | Prerequisites: staging rehearsal green on Neon (§3, §7 timings re-measured), freeze mechanism shipped (§11.4), Production Neon project created and **empty** | — | `migrate status`: 1 pending |
+| 0 | Prerequisites: staging rehearsal green on Neon (§3 lifecycle: empty → `0_init` → verify → stamp → ETL → parity, §7 timings re-measured), freeze mechanism shipped (§11.4), Production Neon project created and **empty** | — | `migrate status`: 1 pending |
 | 1 | Freeze writers (`DATABASE_WRITE_FREEZE=1` on Production, redeploy or env reload) | ≤ 2 min (Vercel redeploy) | widget `POST` → 503; cron returns 503; `pg_stat_activity` on Turso side not observable — use app logs |
 | 2 | Apply `0_init` to Production Neon with `DIRECT_URL` | 1.7 s local | ledger row, checksum `679d9d18…` |
 | 3 | ETL `--target-role staging` is refused for production by design: NEON-05 must add a `production` role behind an explicit, separately authorised confirmation (`--confirm-production <db>`), never a default | ~1.2 s local for 480 rows; expect low seconds on Neon | manifest totals `sourceRows = loadedRows` |

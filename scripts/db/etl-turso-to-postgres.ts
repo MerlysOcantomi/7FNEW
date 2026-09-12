@@ -35,8 +35,12 @@
  *                                    host/database/role are never enough on their own for staging.
  *
  *   stamp-staging — provisioning step for a NEW staging database: writes that marker
- *             (COMMENT ON DATABASE). Requires --confirm-stamp <database>; refuses to
- *             replace a different existing marker; never touches application tables.
+ *             (COMMENT ON DATABASE). Lifecycle: dedicated staging database → canonical
+ *             history applied (0_init) → schema verified → EVERY application table empty →
+ *             stamp → ETL. The command proves all of that on the live connection before
+ *             writing and has no flag to skip it: a populated database can never be turned
+ *             into staging by this command. Requires --confirm-stamp <database>; refuses
+ *             to replace a different existing marker; never touches application tables.
  *
  * Environment: ETL_SOURCE_URL (+ ETL_SOURCE_AUTH_TOKEN), ETL_TARGET_URL. Connection
  * strings are never printed; the manifest stores only fingerprints and the database name.
@@ -303,20 +307,37 @@ export async function stampStagingIdentity(options: StampOptions): Promise<Stagi
   if (options.confirmStamp !== options.expectation.database) {
     throw new Error("etl: --confirm-stamp must repeat the exact target database name")
   }
+  const schema = loadSchema()
   const pg = new PgClient({ connectionString: options.targetUrl })
   await pg.connect()
   try {
+    // 1. live identity
     const r = await pg.query<{ db: string }>("SELECT current_database() AS db")
     if (r.rows[0].db !== options.expectation.database) {
       throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
     }
+    // 2. no different marker
     const existing = await readDatabaseComment(pg)
-    if (existing !== null && existing.trim() !== "") {
-      if (existing === marker) {
-        log(`[etl] staging identity already present for ${options.expectation.database} (unchanged)`)
-        return parseStagingMarker(existing)
-      }
+    const identical = existing === marker
+    if (existing !== null && existing.trim() !== "" && !identical) {
       throw new Error("etl: the database already carries a different comment/marker — refusing to relabel it (clear it by hand if that is intended)")
+    }
+    // 3. canonical schema: completed 0_init with the pinned checksum, all 50
+    //    tables, no sequences, no foreign application tables (same check run/parity use)
+    await assertTargetSchema(pg, schema)
+    if (identical) {
+      // Nothing to write: an already-stamped staging database may legitimately
+      // hold ETL data by now; the marker is only ever CREATED on an empty one.
+      log(`[etl] staging identity already present for ${options.expectation.database} (unchanged; schema re-verified)`)
+      return parseStagingMarker(existing!)
+    }
+    // 4. EVERY application table empty — there is no flag to skip this.
+    const nonEmpty = Object.entries(await targetRowCounts(pg, schema)).filter(([, n]) => n > 0)
+    if (nonEmpty.length > 0) {
+      throw new Error(
+        `etl: refusing to stamp a populated database as staging — ${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}. ` +
+          "Only a freshly provisioned database (canonical history applied, every application table empty) can receive the staging identity; a populated database is never relabelled",
+      )
     }
     // COMMENT ON DATABASE accepts no bind parameters. The marker text is fully
     // validated ([a-z0-9-] id inside fixed key=value pairs, no quotes possible)
@@ -332,6 +353,10 @@ export async function stampStagingIdentity(options: StampOptions): Promise<Stagi
 }
 
 async function assertTargetSchema(pg: PgClient, schema: TargetSchema): Promise<void> {
+  const hasLedger = await pg.query<{ present: boolean }>("SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present")
+  if (!hasLedger.rows[0].present) {
+    throw new Error("etl: target has no _prisma_migrations ledger — apply the canonical history (0_init) first; nothing was written")
+  }
   const ledger = await pg.query<{ migration_name: string; checksum: string; finished_at: Date | null; rolled_back_at: Date | null }>(
     'SELECT migration_name, checksum, finished_at, rolled_back_at FROM "_prisma_migrations" ORDER BY started_at',
   )
@@ -342,8 +367,20 @@ async function assertTargetSchema(pg: PgClient, schema: TargetSchema): Promise<v
   const present = new Set(tables.rows.map((r) => r.table_name))
   const missing = schema.tables.filter((t) => !present.has(t.name)).map((t) => t.name)
   if (missing.length > 0) throw new Error(`etl: target is missing table(s): ${missing.join(", ")}`)
+  const expected = new Set([...schema.tables.map((t) => t.name), LEDGER_TABLE])
+  const unexpected = [...present].filter((name) => !expected.has(name)).sort()
+  if (unexpected.length > 0) {
+    throw new Error(`etl: target carries ${unexpected.length} base table(s) outside the canonical schema (${unexpected.join(", ")}) — another application schema, refusing`)
+  }
   const sequences = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM pg_sequences WHERE schemaname = 'public'")
   if (Number(sequences.rows[0].n) !== 0) throw new Error("etl: target has sequences; the canonical schema has none (nothing to resynchronise, refusing an unexpected schema)")
+}
+
+const LEDGER_TABLE = "_prisma_migrations"
+
+/** Safe rendering for errors: table names and row counts only. */
+function describeNonEmpty(nonEmpty: Array<[string, number]>): string {
+  return nonEmpty.map(([t, n]) => `${t}=${n}`).join(", ")
 }
 
 async function targetRowCounts(pg: PgClient, schema: TargetSchema): Promise<Record<string, number>> {
@@ -423,7 +460,7 @@ export async function runEtl(options: EtlOptions): Promise<EtlManifest> {
     const nonEmpty = Object.entries(counts).filter(([, n]) => n > 0)
     if (nonEmpty.length > 0) {
       if (!options.resetTarget) {
-        throw new Error(`etl: target is not empty (${nonEmpty.length} table(s) with rows: ${nonEmpty.map(([t, n]) => `${t}=${n}`).join(", ")}); pass --reset-target --confirm-reset <database> to truncate it inside the load transaction`)
+        throw new Error(`etl: target is not empty (${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}); pass --reset-target --confirm-reset <database> to truncate it inside the load transaction`)
       }
       if (options.confirmReset !== options.expectation.database) {
         throw new Error("etl: --confirm-reset must repeat the exact target database name")

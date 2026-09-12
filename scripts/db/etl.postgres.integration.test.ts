@@ -8,7 +8,7 @@ import { Client as PgClient } from "pg"
 import { provisionTestDatabase, queryRaw, type ProvisionedDatabase } from "@/test/support/postgres"
 import { REPO_ROOT, runPrisma, writeTempPrismaConfig } from "../lib/prisma-cli"
 import { deriveSqliteSchema } from "../build-db-from-history"
-import { formatStagingMarker, runEtl, stampStagingIdentity, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
+import { BASELINE_SHA256, formatStagingMarker, runEtl, stampStagingIdentity, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
 
 /**
  * NEON-04 — end-to-end ETL rehearsal on LOCAL infrastructure, in CI:
@@ -291,34 +291,102 @@ test("staging: a present but different or malformed marker is refused, still wit
   assert.equal(await targetCount("Message"), before, "nothing was truncated or written")
 })
 
-test("stamp-staging: writes the marker once, never relabels a different one, and only then staging run/parity/reset work; local keeps working", async () => {
-  // A different marker is present from the previous test: stamping must refuse.
-  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database }), /already carries a different/)
+async function markerCount(): Promise<string> {
+  return queryRaw<{ n: string }>(database, "SELECT COUNT(*)::text AS n FROM pg_shdescription d JOIN pg_database db ON db.oid = d.objoid WHERE db.datname = current_database()").then((r) => r[0].n)
+}
+
+async function rawTarget<T>(fn: (pg: PgClient) => Promise<T>): Promise<T> {
+  const pg = new PgClient({ host: database.target.host, port: database.target.port, user: database.target.user, password: database.target.password, database: database.target.database })
+  await pg.connect()
+  try {
+    return await fn(pg)
+  } finally {
+    await pg.end()
+  }
+}
+
+test("NEON-04-R2 P1: a POPULATED, unmarked canonical database with valid host/db/role/id/confirmation can NOT be stamped — rows intact, comment still NULL", async () => {
   await setDatabaseComment(null)
-  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: "wrong" }), /--confirm-stamp must repeat/)
-  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation, confirmStamp: expectation.database }), /only applies to --target-role staging/)
-  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation("prod-like"), confirmStamp: expectation.database }), /must not look like production/)
-  assert.equal(await queryRaw<{ n: string }>(database, "SELECT COUNT(*)::text AS n FROM pg_shdescription d JOIN pg_database db ON db.oid = d.objoid WHERE db.datname = current_database()").then((r) => r[0].n), "0", "no marker written by the refusals")
+  const before = await targetCount("Message")
+  assert.equal(before, 3, "the database is populated (loaded by the previous tests)")
+  const stampArgs = { targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database }
+  await assert.rejects(stampStagingIdentity(stampArgs), (err: Error) => {
+    assert.match(err.message, /refusing to stamp a populated database as staging/)
+    assert.match(err.message, /Message=3/, "safe detail: table names and counts")
+    assert.ok(!err.message.includes(database.url), "no connection string")
+    if (database.target.password) assert.ok(!err.message.includes(database.target.password), "no password")
+    return true
+  })
+  // The other pre-write refusals still hold and still write nothing.
+  await assert.rejects(stampStagingIdentity({ ...stampArgs, confirmStamp: "wrong" }), /--confirm-stamp must repeat/)
+  await assert.rejects(stampStagingIdentity({ ...stampArgs, expectation }), /only applies to --target-role staging/)
+  await assert.rejects(stampStagingIdentity({ ...stampArgs, expectation: stagingExpectation("prod-like") }), /must not look like production/)
+  await setDatabaseComment(formatStagingMarker("another-staging-db"))
+  await assert.rejects(stampStagingIdentity(stampArgs), /already carries a different/)
+  await setDatabaseComment(null)
+  assert.equal(await targetCount("Message"), before, "rows intact")
+  assert.equal(await markerCount(), "0", "no marker written")
+})
+
+test("NEON-04-R2: the stamp also demands the canonical ledger and schema — no ledger, no 0_init, rolled back, foreign checksum, missing table, foreign table all FAIL before any write", async () => {
+  const stampArgs = { targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database }
+  const cases: Array<[string, string, string, RegExp]> = [
+    ["no ledger at all", `ALTER TABLE "_prisma_migrations" RENAME TO "_ledger_gone"`, `ALTER TABLE "_ledger_gone" RENAME TO "_prisma_migrations"`, /has no _prisma_migrations ledger/],
+    ["foreign checksum", `UPDATE "_prisma_migrations" SET checksum = repeat('0', 64) WHERE migration_name = '0_init'`, `UPDATE "_prisma_migrations" SET checksum = '${BASELINE_SHA256}' WHERE migration_name = '0_init'`, /0_init checksum differs from the pinned baseline/],
+    ["rolled back", `UPDATE "_prisma_migrations" SET rolled_back_at = now() WHERE migration_name = '0_init'`, `UPDATE "_prisma_migrations" SET rolled_back_at = NULL WHERE migration_name = '0_init'`, /no completed 0_init row/],
+    ["no 0_init", `UPDATE "_prisma_migrations" SET migration_name = '9_other' WHERE migration_name = '0_init'`, `UPDATE "_prisma_migrations" SET migration_name = '0_init' WHERE migration_name = '9_other'`, /no completed 0_init row/],
+    ["incomplete schema", `ALTER TABLE "Vertical" RENAME TO "Vertical_gone"`, `ALTER TABLE "Vertical_gone" RENAME TO "Vertical"`, /missing table\(s\): Vertical/],
+    ["foreign application table", `CREATE TABLE "OtherApp" (id integer PRIMARY KEY)`, `DROP TABLE "OtherApp"`, /outside the canonical schema \(OtherApp\)/],
+  ]
+  for (const [label, breakSql, restoreSql, pattern] of cases) {
+    await rawTarget((pg) => pg.query(breakSql))
+    try {
+      await assert.rejects(stampStagingIdentity(stampArgs), pattern, label)
+      if (label === "foreign application table") {
+        // the same guard protects run and parity (single source of truth)
+        await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation, resetTarget: true, confirmReset: expectation.database }), pattern, "run shares the guard")
+        await assert.rejects(verifyParity({ sourceUrl, targetUrl: database.url, expectation, manifest: manifest1 }), pattern, "parity shares the guard")
+      }
+    } finally {
+      await rawTarget((pg) => pg.query(restoreSql))
+    }
+    assert.equal(await markerCount(), "0", `${label}: no marker written`)
+  }
+  assert.equal(await targetCount("Message"), 3, "rows intact throughout")
+})
+
+test("NEON-04-R2: canonical schema + every table empty → stamp OK; identical marker idempotent; only then staging run/parity; local unaffected", async () => {
+  // Test-only: make the canonical database empty again (a freshly provisioned
+  // staging database is exactly this state: 0_init applied, no rows).
+  const tables = (await queryRaw<{ table_name: string }>(database, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> '_prisma_migrations'")).map((r) => r.table_name)
+  assert.equal(tables.length, 50)
+  await rawTarget((pg) => pg.query(`TRUNCATE ${tables.map((t) => `"${t}"`).join(", ")} RESTART IDENTITY CASCADE`))
+  assert.equal(await targetCount("Message"), 0)
+  assert.equal(await markerCount(), "0")
 
   const log: string[] = []
   const marker = await stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database, log: (l) => log.push(l) })
   assert.deepEqual(marker, { environment: "staging", migration: "neon-04", target: STAGING_ID })
   assert.ok(log.some((l) => l.includes("stamped")))
   assert.ok(!log.join("\n").includes(database.url), "no connection string in logs")
+  assert.equal(await markerCount(), "1")
   const again = await stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database })
-  assert.deepEqual(again, marker, "idempotent for the identical marker")
+  assert.deepEqual(again, marker, "idempotent for the identical marker on a still-valid schema")
 
-  // Correct marker: the staging role now runs, resets and verifies parity.
+  // Correct marker + empty canonical target: the staging role loads and verifies parity.
   const staging = stagingExpectation()
-  const manifestS = await runEtl({ sourceUrl, targetUrl: database.url, expectation: staging, resetTarget: true, confirmReset: staging.database })
+  const manifestS = await runEtl({ sourceUrl, targetUrl: database.url, expectation: staging })
   assert.equal(manifestS.target.role, "staging")
   assert.equal(manifestS.target.stagingId, STAGING_ID)
   assert.equal(manifestS.totals.loadedRows, seededRows)
   for (const t of Object.keys(manifest1.tables)) assert.equal(manifestS.tables[t].digest, manifest1.tables[t].digest)
   const report = await verifyParity({ sourceUrl, targetUrl: database.url, expectation: staging, manifest: manifestS, liveSource: true })
   assert.equal(report.ok, true)
-  // A different expected id against the same stamped database is still refused.
+  // Once stamped and populated by the ETL, re-stamping the identical marker is
+  // still a no-op (schema re-verified, nothing written); a different id is refused.
+  assert.deepEqual(await stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation(), confirmStamp: expectation.database }), marker)
   await assert.rejects(runEtl({ sourceUrl, targetUrl: database.url, expectation: stagingExpectation("someone-elses-staging"), resetTarget: true, confirmReset: staging.database }), /names a different target/)
+  await assert.rejects(stampStagingIdentity({ targetUrl: database.url, expectation: stagingExpectation("someone-elses-staging"), confirmStamp: expectation.database }), /already carries a different/)
   assert.equal(await targetCount("Message"), 3)
 
   // role local is unchanged by the marker: no id needed, reset path works.
