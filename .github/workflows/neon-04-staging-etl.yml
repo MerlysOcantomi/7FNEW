@@ -1,0 +1,165 @@
+# NEON-04 — one-shot REAL staging rehearsal: Turso (READ-ONLY, one consistent
+# snapshot) → Neon staging → ETL → parity → live-source drift check → evidence.
+#
+# Trigger: ONLY a pushed tag matching neon-04-etl-*. No workflow_dispatch, no
+# branch push, no pull_request, no schedule. The GitHub Environment
+# `sevenf-neon-staging` (deployment rule: tags neon-04-etl-* only) holds every
+# variable and secret; nothing sensitive lives in this file.
+#
+# The existing ETL (scripts/db/etl-turso-to-postgres.ts, at the tagged commit)
+# is the single authority and fails closed on its own before any write: target
+# host / database / staging id / identity marker / canonical schema / Prisma
+# ledger / extra tables / sequences / non-empty application tables. This
+# workflow never passes --reset-target or --confirm-reset and never runs
+# TRUNCATE, DELETE, DROP, `prisma db push` or `prisma migrate reset`.
+#
+# Environment variables (non-secret):  vars.ETL_SOURCE_URL, vars.ETL_TARGET_HOST,
+#                                       vars.ETL_TARGET_DATABASE, vars.ETL_STAGING_ID
+# Environment secrets:                  secrets.ETL_SOURCE_AUTH_TOKEN, secrets.ETL_TARGET_URL
+# Expected real target (configured in GitHub, not here): Neon project
+# old-wave-11795585, branch staging / br-autumn-water-b23gf0e9, database neondb,
+# direct endpoint host ep-super-violet-b2ekwpwn.c-6.eu-central-1.aws.neon.tech.
+
+name: NEON-04 real staging ETL
+
+on:
+  push:
+    tags:
+      - "neon-04-etl-*"
+
+permissions:
+  contents: read
+
+# Exactly one real ETL at a time; a running load is never cancelled.
+concurrency:
+  group: neon-04-real-staging-etl
+  cancel-in-progress: false
+
+jobs:
+  staging-etl:
+    name: Turso snapshot → Neon staging → parity
+    runs-on: ubuntu-latest
+    environment: sevenf-neon-staging
+    timeout-minutes: 30
+
+    steps:
+      - name: Guard — must run from a neon-04-etl-* tag
+        run: |
+          set -euo pipefail
+          echo "ref_type=$GITHUB_REF_TYPE ref_name=$GITHUB_REF_NAME"
+          [ "$GITHUB_REF_TYPE" = "tag" ] || { echo "::error::refusing: GITHUB_REF_TYPE is not 'tag'"; exit 1; }
+          case "$GITHUB_REF_NAME" in
+            neon-04-etl-*) echo "tag prefix OK" ;;
+            *) echo "::error::refusing: tag name must start with neon-04-etl-"; exit 1 ;;
+          esac
+
+      - name: Guard — required environment vars and secrets are present (values never printed)
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_STAGING_ID: ${{ vars.ETL_STAGING_ID }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ETL_SOURCE_URL ETL_TARGET_HOST ETL_TARGET_DATABASE ETL_STAGING_ID ETL_SOURCE_AUTH_TOKEN ETL_TARGET_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in environment sevenf-neon-staging"
+              missing=1
+            else
+              echo "$name: present"
+            fi
+          done
+          [ "$missing" -eq 0 ]
+          # Non-secret target identity, echoed so the run log records what the ETL was told to expect.
+          echo "target: role=staging host=$ETL_TARGET_HOST database=$ETL_TARGET_DATABASE stagingId=$ETL_STAGING_ID"
+
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Record the executed commit and baseline
+        run: |
+          set -euo pipefail
+          echo "commit=$(git rev-parse HEAD)"
+          echo "0_init sha256=$(sha256sum prisma/migrations-postgres/0_init/migration.sql | cut -d' ' -f1)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Plan (parses the target schema; opens no connection)
+        run: npm run db:etl:plan
+
+      # The ETL itself re-verifies host, database, staging id, identity marker,
+      # ledger, canonical tables, sequences and emptiness on the live connection
+      # before extracting or writing anything. No reset flags.
+      - name: ETL — one consistent Turso snapshot → Neon staging (one transaction)
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_STAGING_ID: ${{ vars.ETL_STAGING_ID }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:run -- \
+            --manifest "$RUNNER_TEMP/neon-04-manifest.json" \
+            --target-role staging \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-staging-id "$ETL_STAGING_ID"
+
+      - name: Parity 1 — manifest vs target (counts, digests, FK orphans, duplicate PKs)
+        env:
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_STAGING_ID: ${{ vars.ETL_STAGING_ID }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:parity -- \
+            --manifest "$RUNNER_TEMP/neon-04-manifest.json" \
+            --target-role staging \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-staging-id "$ETL_STAGING_ID"
+
+      - name: Parity 2 — live source (field-level comparison; drift since the snapshot reported separately)
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_STAGING_ID: ${{ vars.ETL_STAGING_ID }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:parity -- \
+            --manifest "$RUNNER_TEMP/neon-04-manifest.json" \
+            --target-role staging \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-staging-id "$ETL_STAGING_ID" \
+            --live-source
+
+      # Evidence only. The manifest holds counts, per-table/per-row digests,
+      # host fingerprints (12 hex of a sha256), timings and the database name —
+      # no URLs, no credentials, no row values.
+      - name: Upload the ETL manifest as evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-04-staging-etl-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/neon-04-manifest.json
+          if-no-files-found: ignore
+          retention-days: 30
