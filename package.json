@@ -16,6 +16,7 @@
     "db:postgres:verify": "tsx scripts/postgres-baseline.ts verify",
     "db:etl:plan": "tsx scripts/db/etl-turso-to-postgres.ts plan",
     "db:etl:stamp-staging": "tsx scripts/db/etl-turso-to-postgres.ts stamp-staging",
+    "db:etl:preflight-empty": "tsx scripts/db/etl-turso-to-postgres.ts preflight-empty",
     "db:etl:stamp-production": "tsx scripts/db/etl-turso-to-postgres.ts stamp-production",
     "db:etl:run": "tsx scripts/db/etl-turso-to-postgres.ts run",
     "db:etl:parity": "tsx scripts/db/etl-turso-to-postgres.ts parity",

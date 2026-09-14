@@ -3,9 +3,14 @@
 #
 # NOT EXECUTED YET. Trigger: ONLY a pushed tag matching neon-05-cutover-*.
 # No workflow_dispatch, no branch push, no pull_request, no schedule. The job
-# is bound to the GitHub Environment `sevenf-neon-production`, which must be
-# configured by hand with required reviewers BEFORE any tag is pushed: the
-# environment approval is the human gate, and the job cannot start without it.
+# references the GitHub Environment `sevenf-neon-production`. GitHub creates a
+# referenced environment on first use WITHOUT protection rules, so the
+# environment (required reviewers, deployment tag policy neon-05-cutover-*,
+# vars, secrets) MUST be created and verified by hand BEFORE any tag is
+# pushed — see the runbook. Two in-workflow gates hold regardless of the
+# environment configuration: APPROVED_CUTOVER_SHA must equal the commit the
+# tag points at, and every var/secret must be present, or the job fails
+# closed before any connection.
 #
 # Three tag families, one workflow, so each irreversible step is a separate
 # environment approval that cannot be collapsed into one push:
@@ -31,8 +36,9 @@
 # database (DATABASE_URL/DIRECT_URL) is a separate, manual, reviewed step in
 # the runbook so parity can be inspected before the application cuts over.
 #
-# Environment variables (non-secret):  vars.ETL_SOURCE_URL, vars.ETL_TARGET_HOST,
-#                                       vars.ETL_TARGET_DATABASE,
+# Environment variables (non-secret):  vars.APPROVED_CUTOVER_SHA (the reviewed commit; the
+#                                       tag must point exactly at it), vars.ETL_SOURCE_URL,
+#                                       vars.ETL_TARGET_HOST, vars.ETL_TARGET_DATABASE,
 #                                       vars.ETL_PRODUCTION_PROJECT, vars.ETL_PRODUCTION_BRANCH
 # Environment secrets:                  secrets.ETL_SOURCE_AUTH_TOKEN, secrets.ETL_TARGET_URL
 #                                       (the Neon DIRECT endpoint with sslmode=verify-full)
@@ -78,6 +84,26 @@ jobs:
           echo "action=$action"
           echo "action=$action" >> "$GITHUB_OUTPUT"
 
+      - name: Guard — the tag must point at the reviewed and approved commit (APPROVED_CUTOVER_SHA)
+        env:
+          APPROVED_CUTOVER_SHA: ${{ vars.APPROVED_CUTOVER_SHA }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPROVED_CUTOVER_SHA:-}" ]; then
+            echo "::error::APPROVED_CUTOVER_SHA is not set in environment sevenf-neon-production; refusing"
+            exit 1
+          fi
+          case "$APPROVED_CUTOVER_SHA" in
+            [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+            *) echo "::error::APPROVED_CUTOVER_SHA must be a full 40-hex commit sha; refusing"; exit 1 ;;
+          esac
+          echo "tag commit=$GITHUB_SHA approved=$APPROVED_CUTOVER_SHA"
+          if [ "$GITHUB_SHA" != "$APPROVED_CUTOVER_SHA" ]; then
+            echo "::error::refusing: this tag points at $GITHUB_SHA, not at the approved commit $APPROVED_CUTOVER_SHA"
+            exit 1
+          fi
+          echo "approved commit OK"
+
       - name: Guard — required environment vars and secrets are present (values never printed)
         env:
           ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
@@ -109,10 +135,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Record the executed commit and baseline
+      - name: Record the executed commit and baseline (must be the approved commit)
+        env:
+          APPROVED_CUTOVER_SHA: ${{ vars.APPROVED_CUTOVER_SHA }}
         run: |
           set -euo pipefail
-          echo "commit=$(git rev-parse HEAD)"
+          head="$(git rev-parse HEAD)"
+          echo "commit=$head"
+          [ "$head" = "$APPROVED_CUTOVER_SHA" ] || { echo "::error::checked out $head, expected the approved commit $APPROVED_CUTOVER_SHA"; exit 1; }
           sha="$(sha256sum prisma/migrations-postgres/0_init/migration.sql | cut -d' ' -f1)"
           echo "0_init sha256=$sha"
           [ "$sha" = "679d9d18e72a3fa101bd96f6c39b2194ba38ae86de35359a3e46be8d662af30e" ] || { echo "::error::0_init baseline differs from the pinned sha256"; exit 1; }
@@ -129,46 +159,37 @@ jobs:
       - name: Plan (parses the target schema; opens no connection)
         run: npm run db:etl:plan
 
-      # Applies ONLY the canonical history (0_init) and only to a database that
-      # is provably empty on the live connection: zero base tables in public and
-      # no _prisma_migrations. Never `db push`, never `migrate reset`.
+      # Applies ONLY the canonical history (0_init) and only after `preflight-empty`
+      # (scripts/db/etl-turso-to-postgres.ts) has run the SAME production guard
+      # the ETL uses — PostgreSQL scheme, exact host, direct endpoint (no pooler),
+      # exact database, sslmode=verify-full, project/branch expectation — and has
+      # proved on the live connection that the database is EMPTY (0 base tables
+      # in public, no _prisma_migrations, 0 sequences). Never `db push`, never
+      # `migrate reset`. The Prisma CLI receives the same validated URL.
+      - name: Preflight — production guard + EMPTY database (read-only)
+        if: ${{ steps.gate.outputs.action == 'migrate' }}
+        env:
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:preflight-empty -- \
+            --target-role production \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-project "$ETL_PRODUCTION_PROJECT" \
+            --expect-branch "$ETL_PRODUCTION_BRANCH"
+
       - name: Apply the canonical history to the EMPTY production database (0_init only)
         if: ${{ steps.gate.outputs.action == 'migrate' }}
         env:
           DIRECT_URL: ${{ secrets.ETL_TARGET_URL }}
           DATABASE_URL: ${{ secrets.ETL_TARGET_URL }}
-          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
         run: |
           set -euo pipefail
-          cat > neon-05-empty-check.tmp.ts <<'TS'
-          import { Client } from "pg"
-          async function main(): Promise<void> {
-            const pg = new Client({ connectionString: process.env.DIRECT_URL })
-            await pg.connect()
-            try {
-              await pg.query("BEGIN READ ONLY")
-              const who = await pg.query<{ db: string; version: string }>("SELECT current_database() AS db, version() AS version")
-              if (who.rows[0].db !== process.env.ETL_TARGET_DATABASE) throw new Error("current_database() does not match ETL_TARGET_DATABASE")
-              console.log(`[migrate] current_database=${who.rows[0].db} server=${who.rows[0].version.split(" on ")[0]}`)
-              const tables = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
-              const ledger = await pg.query<{ present: boolean }>("SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present")
-              const sequences = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM pg_sequences WHERE schemaname = 'public'")
-              console.log(`[migrate] public base tables=${tables.rows[0].n} ledger=${ledger.rows[0].present} sequences=${sequences.rows[0].n}`)
-              if (tables.rows[0].n !== "0" || ledger.rows[0].present || sequences.rows[0].n !== "0") {
-                throw new Error("the production database is not empty; refusing to apply the history (nothing was written)")
-              }
-              await pg.query("ROLLBACK")
-            } finally {
-              await pg.end()
-            }
-          }
-          main().catch((err) => {
-            console.error(`[migrate] FAIL: ${String(err instanceof Error ? err.message : err).replace(/postgres(ql)?:\/\/\S+/gi, "<redacted-url>")}`)
-            process.exit(1)
-          })
-          TS
-          npx tsx neon-05-empty-check.tmp.ts
-          rm -f neon-05-empty-check.tmp.ts
           npm run db:migrate:status || true
           npm run db:migrate:deploy
           npm run db:migrate:status

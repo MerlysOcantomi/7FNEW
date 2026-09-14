@@ -124,8 +124,17 @@ freeze requested   SEVENF_OPERATION_MODE=freeze-writes (runtime configuration, o
 `trackBackgroundTask(label, promise)` is kept for compatibility (the promise
 already exists when it is registered, so it cannot refuse a start); the
 three tracked sites now use the factory form. `awaitBackgroundQuiescence`
-does not consume recorded outcomes, so it is usable operationally, not only
-in tests. Tests: `core/background-tasks.test.ts`.
+does not consume recorded outcomes. Tests: `core/background-tasks.test.ts`.
+
+**Scope, stated plainly: `awaitBackgroundQuiescence()` proves quiescence
+LOCAL TO ONE PROCESS.** The pending set is in-memory; there is no
+cross-instance registry, so it says nothing about other Vercel/serverless
+instances, regions or processes. It is a building block for a single
+runtime, not the proof of global quiescence. For THIS cutover, global
+quiescence of the source is proven operationally (§8): automatic writers
+neutralised, no relevant users, read-only observations of the source that
+do not change between samples, and live-source parity showing zero drift
+after the load.
 
 ## 7. Existing Forte approval machinery — audited, deliberately separate
 
@@ -148,6 +157,10 @@ large backport is made to fake otherwise. SevenF has no real users today,
 so the smallest truthful procedure is a **manual quiescence** of the Turso
 source, verified rather than assumed:
 
+0. **Pre-tag checklist (mandatory, before the FIRST cutover tag)** — see
+   §10.1: environment `sevenf-neon-production` created and verified,
+   `APPROVED_CUTOVER_SHA` set to the reviewed commit, Neon branch protection
+   verified (§8.5).
 1. **Prove absence of relevant users**: `User.lastLogin` and `Message.createdAt`
    maxima on Turso (read-only), Vercel analytics for the window; announce
    the window.
@@ -164,24 +177,36 @@ source, verified rather than assumed:
    - tracking pixels: 401 by the middleware; no outbound mail is sent.
 3. **Wait for in-flight work**: the window starts ≥ 5 minutes after step 2
    (longest cron `maxDuration` is 60 s).
-4. **Prove the source is quiescent**: run `db:etl:parity --live-source`
-   against the populated staging with the NEON-04 manifest twice, ≥ 5
-   minutes apart — the "live source drift" section must be identical and
-   the drift set stable (it measures Turso against the staging snapshot,
-   read-only; it is the same code the final parity uses).
-5. **Data cutover** (workflow, §10): `neon-05-cutover-migrate-<n>` →
-   `neon-05-cutover-stamp-<n>` → `neon-05-cutover-load-<n>` (ETL + parity 1 +
-   live-source parity; zero drift expected).
-6. **Keep the source quiescent** until step 9.
-7. **Switch the runtime** (manual, reviewed): Vercel Production
+4. **Prove the source is quiescent (global, not process-local)**: run
+   `db:etl:parity --live-source` against the populated staging with the
+   NEON-04 manifest twice, ≥ 5 minutes apart — the "live source drift"
+   section must be identical and the drift set stable (it reads Turso
+   against the staging snapshot, read-only; it is the same code the final
+   parity uses). This external observation, not `awaitBackgroundQuiescence`
+   (§6), is the evidence that no instance anywhere is still writing.
+5. **Gate before `migrate` — Neon production branch protection** (verify,
+   do NOT change in this branch): the Neon branch `main`
+   (`br-broad-river-b2ue75l8`) of project `old-wave-11795585` must report
+   `protected = true`. Verifiable read-only:
+   `GET https://console.neon.tech/api/v2/projects/old-wave-11795585/branches/br-broad-river-b2ue75l8`
+   → `branch.protected === true` (or the branch page in the Neon console,
+   "Protected" badge). A protected branch cannot be deleted or reset by
+   accident from the console/API during the window. If it is not protected,
+   STOP and protect it first; only then push `neon-05-cutover-migrate-<n>`.
+6. **Data cutover** (workflow, §10), one tag per approval:
+   `neon-05-cutover-migrate-<n>` (production guard + empty check, then
+   `0_init`) → `neon-05-cutover-stamp-<n>` → `neon-05-cutover-load-<n>` (ETL +
+   parity 1 + live-source parity; zero drift expected).
+7. **Keep the source quiescent** until step 10.
+8. **Switch the runtime** (manual, reviewed): Vercel Production
    `DATABASE_URL` = pooled host `sslmode=verify-full`, `DIRECT_URL` = direct
    host `sslmode=verify-full`, `SEVENF_OPERATION_MODE` unset or `normal`;
    deploy the PostgreSQL code (this branch merged to `master` — a separate,
    later authorisation).
-8. **Smoke** (§9.5 of the NEON-04 document, on Production).
-9. **Open writes**: restore `CRON_SECRET` / `RESEND_WEBHOOK_SECRET` (now
-   against Neon); nothing else, since the mode is already `normal`.
-10. Keep Turso untouched for the rollback window (NEON-06 decommissions it).
+9. **Smoke** (§9.5 of the NEON-04 document, on Production).
+10. **Open writes**: restore `CRON_SECRET` / `RESEND_WEBHOOK_SECRET` (now
+    against Neon); nothing else, since the mode is already `normal`.
+11. Keep Turso untouched for the rollback window (NEON-06 decommissions it).
 
 If a code-enforced freeze on the Turso runtime is wanted anyway, the minimal
 change is the middleware 503 for mutating `/api/**` plus `CRON_SECRET`
@@ -197,6 +222,7 @@ removal — small, but it is a change to `master` and is **not** made here.
 | URL | PostgreSQL scheme only; host exact; database exact; **direct host only** (`-pooler` refused); `sslmode=verify-full` required on any non-loopback host |
 | live | `current_database()` exact; production marker exact; ledger present, one completed non-rolled-back `0_init` with the pinned checksum; 50 canonical tables and nothing else; zero sequences; every application table empty |
 | one shot | `run` requires `--confirm-production <database>`; `--reset-target` / `--confirm-reset` are refused before any connection; a non-empty target is refused with no hint of a reset; a rerun after success is therefore refused; the load stays one transaction (rollback on any error) |
+| `preflight-empty` (R2) | read-only; runs the same production URL/identity guard (`assertTargetUrl`: scheme, exact host, direct endpoint, exact database, `sslmode=verify-full`, project/branch expectation) and then proves on the live connection, inside a `READ ONLY` transaction, that the database has 0 base tables in `public`, no `_prisma_migrations` and 0 sequences. The cutover workflow runs it before `prisma migrate deploy`; `current_database()` alone is never enough |
 | `stamp-production` | same invariants as `stamp-staging` through the shared core: role production only, `--confirm-stamp <database>`, live identity, canonical ledger/schema, **empty** application tables, never replaces a different marker, writes only the comment, no skip flag |
 | manifest | `target.role = production`, `target.project`, `target.branch`; no URLs |
 
@@ -213,21 +239,57 @@ errors; digests identical to the staging/local rehearsals).
 - Trigger: **only** `push` of tags `neon-05-cutover-*`. No
   `workflow_dispatch`, no branch push, no pull_request, no schedule — a
   branch push cannot run it.
-- Environment: `sevenf-neon-production` (to be created by hand with
-  required reviewers; the job cannot start without the approval). Vars:
-  `ETL_SOURCE_URL`, `ETL_TARGET_HOST`, `ETL_TARGET_DATABASE`,
-  `ETL_PRODUCTION_PROJECT`, `ETL_PRODUCTION_BRANCH`; secrets:
-  `ETL_SOURCE_AUTH_TOKEN`, `ETL_TARGET_URL` (direct host, `verify-full`).
-  The first steps fail if any is missing; values are never printed.
-- Three tag families = three approvals: `…-migrate-<n>` (live emptiness
-  check → `migrate deploy` of `0_init` only → `migrate status`),
-  `…-stamp-<n>` (`stamp-production`), `…-load-<n>` (`db:etl:run` one shot →
-  parity 1 → parity 2 `--live-source` → manifest artifact, 90 days).
+- Environment: the job references `sevenf-neon-production`. **GitHub creates
+  a referenced environment on first use with NO protection rules**, so the
+  environment does not by itself stop a job; the human gate exists only if
+  the environment is configured before the first tag (§10.1). Two gates in
+  the workflow hold regardless of environment configuration: the tag commit
+  must equal `APPROVED_CUTOVER_SHA` (`GITHUB_SHA === APPROVED_CUTOVER_SHA`,
+  full 40-hex, exact string equality, checked before checkout and again on
+  the checked-out `HEAD`), and every var/secret must be present — otherwise
+  the job fails closed before any connection.
+- Vars: `APPROVED_CUTOVER_SHA`, `ETL_SOURCE_URL`, `ETL_TARGET_HOST`,
+  `ETL_TARGET_DATABASE`, `ETL_PRODUCTION_PROJECT`, `ETL_PRODUCTION_BRANCH`;
+  secrets: `ETL_SOURCE_AUTH_TOKEN`, `ETL_TARGET_URL` (direct host,
+  `sslmode=verify-full`). Values are never printed.
+- Three tag families = three approvals: `…-migrate-<n>` (`preflight-empty`
+  = full production guard on `ETL_TARGET_URL` + live emptiness, then
+  `migrate deploy` of `0_init` only, then `migrate status`), `…-stamp-<n>`
+  (`stamp-production`), `…-load-<n>` (`db:etl:run` one shot → parity 1 →
+  parity 2 `--live-source` → manifest artifact, 90 days).
 - `permissions: contents: read`; concurrency group
   `neon-05-production-cutover`, never cancelled.
 - No reset flags, no TRUNCATE/DELETE/DROP, no `db push`, no `migrate reset`,
-  no Vercel mutation: the application switch (§8 step 7) stays a separate
+  no Vercel mutation: the application switch (§8 step 8) stays a separate
   manual gate so parity can be reviewed before the runtime cuts over.
+- Tests: `scripts/db/neon-05-cutover-workflow.test.ts` executes the gates'
+  bash exactly as written (tag families, approved-sha match / missing /
+  malformed / mismatch, vars/secrets presence without echo, pooled host
+  refusal, checked-out commit check) and asserts the file's shape.
+
+### 10.1 Pre-tag checklist — mandatory BEFORE creating any `neon-05-cutover-*` tag
+
+1. Create the GitHub Environment `sevenf-neon-production` in
+   `MerlysOcantomi/7FNEW` (Settings → Environments).
+2. Add **required reviewers** (at least the owner) and keep "prevent
+   self-review" on if available.
+3. Set the **deployment branch/tag policy** to allow only tags matching
+   `neon-05-cutover-*` (no branches).
+4. Add the environment **variables**: `APPROVED_CUTOVER_SHA` = the full sha
+   of the reviewed commit the tags will point at; `ETL_SOURCE_URL`;
+   `ETL_TARGET_HOST` (direct host, no `-pooler`); `ETL_TARGET_DATABASE`
+   (`neondb`); `ETL_PRODUCTION_PROJECT` (`old-wave-11795585`);
+   `ETL_PRODUCTION_BRANCH` (`br-broad-river-b2ue75l8`).
+5. Add the environment **secrets**: `ETL_SOURCE_AUTH_TOKEN`;
+   `ETL_TARGET_URL` (the Neon DIRECT connection string for `neondb` with
+   `sslmode=verify-full`).
+6. **Verify** on the environment page: reviewers listed, tag policy shows
+   `neon-05-cutover-*`, all six vars and both secrets present, and
+   `APPROVED_CUTOVER_SHA` equals `git rev-parse` of the commit you intend to
+   tag. Verify the Neon branch protection (§8.5).
+7. Only then create the first tag, pointing exactly at
+   `APPROVED_CUTOVER_SHA`. A tag on any other commit fails the second step
+   of the workflow.
 
 ## 11. SSL
 
@@ -242,11 +304,16 @@ No real secret was touched.
 
 ## 12. Blockers before a safe NEON-05 cutover
 
-1. **GitHub Environment `sevenf-neon-production`** with required reviewers,
-   its five vars and two secrets — must be created by hand.
+1. **GitHub Environment `sevenf-neon-production`** must be created and
+   verified by hand BEFORE the first tag (§10.1): required reviewers, tag
+   policy `neon-05-cutover-*`, six vars (including `APPROVED_CUTOVER_SHA`)
+   and two secrets. A referenced-but-unconfigured environment does not stop
+   a job; only the in-workflow gates do.
 2. **Production Neon `main` must be re-validated live** (empty, PG version,
-   no marker) by the `migrate` tag's own check; the external audit is not
-   trusted.
+   no marker) by the `migrate` tag's `preflight-empty`; the external audit
+   is not trusted. **Branch protection** (`protected = true` on
+   `br-broad-river-b2ue75l8`) must be verified before the `migrate` tag
+   (§8.5); it is not changed by this branch.
 3. **Manual quiescence of the Turso runtime** (§8) is a human procedure, not
    code; it depends on the owner performing steps 2–4 and on verifying the
    cron 401 finding in the Vercel logs.

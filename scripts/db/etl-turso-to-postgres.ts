@@ -54,6 +54,12 @@
  *             to replace a different existing marker; never touches application tables.
  *   stamp-production — same invariants for the production marker (role production only,
  *             --confirm-stamp <database>, empty canonical target, no flag to skip anything).
+ *   preflight-empty — READ-ONLY. Runs the full production URL/identity guard (scheme, exact
+ *             host, direct endpoint, exact database, sslmode=verify-full, project/branch
+ *             expectation), then proves on the live connection that the database is EMPTY
+ *             (0 base tables in public, no _prisma_migrations, 0 sequences). The cutover
+ *             workflow runs it before `prisma migrate deploy` so the history can only ever be
+ *             applied to the verified, empty production target. Writes nothing.
  *
  * Environment: ETL_SOURCE_URL (+ ETL_SOURCE_AUTH_TOKEN), ETL_TARGET_URL. Connection
  * strings are never printed; the manifest stores only fingerprints and the database name.
@@ -493,6 +499,55 @@ async function stampIdentityMarker(options: StampOptions, spec: { label: "stagin
     if (written !== spec.marker) throw new Error(`etl: ${spec.label} identity marker was not persisted as expected`)
     log(`[etl] ${spec.label} identity stamped on ${options.expectation.database}: ${spec.summary}`)
     return written
+  } finally {
+    await pg.end()
+  }
+}
+
+export interface EmptyTargetReport {
+  database: string
+  serverVersion: string
+  baseTables: number
+  hasLedger: boolean
+  sequences: number
+}
+
+/**
+ * NEON-05 `preflight-empty`: the guard the cutover workflow runs BEFORE
+ * `prisma migrate deploy`. Reuses `assertTargetUrl` (role production: scheme,
+ * exact host, direct endpoint, exact database, TLS verify-full, project/branch
+ * expectation) so the migration can never be pointed at a database the ETL
+ * itself would refuse; then, inside a READ ONLY transaction that is rolled
+ * back, proves the database is empty. Refuses anything else. Never writes.
+ */
+export async function assertEmptyProductionTarget(options: { targetUrl: string; expectation: TargetExpectation; log?: (line: string) => void }): Promise<EmptyTargetReport> {
+  const log = options.log ?? (() => undefined)
+  if (options.expectation.role !== "production") throw new Error("etl: preflight-empty only applies to --target-role production")
+  assertTargetUrl(options.targetUrl, options.expectation)
+  const pg = new PgClient({ connectionString: options.targetUrl })
+  await pg.connect()
+  try {
+    await pg.query("BEGIN READ ONLY")
+    const who = await pg.query<{ db: string; version: string }>("SELECT current_database() AS db, version() AS version")
+    if (who.rows[0].db !== options.expectation.database) {
+      throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
+    }
+    const tables = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
+    const ledger = await pg.query<{ present: boolean }>("SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present")
+    const sequences = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM pg_sequences WHERE schemaname = 'public'")
+    await pg.query("ROLLBACK")
+    const report: EmptyTargetReport = {
+      database: who.rows[0].db,
+      serverVersion: who.rows[0].version.split(" on ")[0],
+      baseTables: Number(tables.rows[0].n),
+      hasLedger: ledger.rows[0].present,
+      sequences: Number(sequences.rows[0].n),
+    }
+    log(`[etl] preflight-empty: database=${report.database} server=${report.serverVersion} baseTables=${report.baseTables} ledger=${report.hasLedger} sequences=${report.sequences}`)
+    if (report.baseTables !== 0 || report.hasLedger || report.sequences !== 0) {
+      throw new Error(`etl: the production target is not empty (baseTables=${report.baseTables} ledger=${report.hasLedger} sequences=${report.sequences}) — refusing; nothing was written`)
+    }
+    return report
   } finally {
     await pg.end()
   }
@@ -952,6 +1007,11 @@ if (isMain) {
         out(`[etl] staging identity OK: environment=${marker.environment} migration=${marker.migration} target=${marker.target}`)
         return
       }
+      case "preflight-empty": {
+        const report = await assertEmptyProductionTarget({ targetUrl: requireEnv("ETL_TARGET_URL"), expectation: expectationFromFlags(flags), log: out })
+        out(`[etl] preflight-empty OK: ${report.database} is empty (server ${report.serverVersion})`)
+        return
+      }
       case "stamp-production": {
         const marker = await stampProductionIdentity({
           targetUrl: requireEnv("ETL_TARGET_URL"),
@@ -1007,7 +1067,7 @@ if (isMain) {
         return
       }
       default:
-        throw new Error("usage: etl-turso-to-postgres.ts <plan|stamp-staging|stamp-production|run|parity> [flags]")
+        throw new Error("usage: etl-turso-to-postgres.ts <plan|preflight-empty|stamp-staging|stamp-production|run|parity> [flags]")
     }
   })().catch((err) => {
     console.error(`[etl] FAIL: ${err instanceof Error ? err.message : String(err)}`)

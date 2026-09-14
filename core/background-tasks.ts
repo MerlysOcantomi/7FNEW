@@ -98,8 +98,16 @@ export interface QuiescenceReport {
 /**
  * Wait until no background task is pending (in-flight work drains) or fail
  * deterministically after `timeoutMs`. Unlike `drainBackgroundTasks` it does
- * not consume recorded outcomes, so it can be used operationally: request a
- * freeze (no new writeful work starts), then prove quiescence here.
+ * not consume recorded outcomes.
+ *
+ * SCOPE — PROCESS-LOCAL ONLY. The pending set lives in this Node process:
+ * this function proves that THIS instance has no in-flight background work.
+ * It says nothing about other Vercel/serverless instances, other regions or
+ * other processes, and there is no cross-instance registry. Global
+ * quiescence for a cutover is proven operationally, outside this function:
+ * automatic writers neutralised, no relevant users, read-only snapshots of
+ * the source that do not change, and live-source parity showing zero drift
+ * after the load (see SEVENF-NEON-05-PRODUCTION-CUTOVER.md §6/§8).
  */
 export async function awaitBackgroundQuiescence(options: { timeoutMs: number }): Promise<QuiescenceReport> {
   const { timeoutMs } = options

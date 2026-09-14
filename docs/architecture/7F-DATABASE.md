@@ -148,6 +148,7 @@ npm run db:verify-history      # legacy SQLite gate (derived sqlite-provider var
 DIRECT_URL=… npm run db:migrate:deploy / db:migrate:status   # NEON-04/05 only, against a Neon endpoint
 npm run db:etl:plan                                          # target schema, FK insert order (no connections)
 ETL_TARGET_URL=… npm run db:etl:stamp-staging -- --target-role staging --expect-target-host … --expect-target-database … --expect-staging-id … --confirm-stamp …   # once, after 0_init, only on an EMPTY canonical database
+ETL_TARGET_URL=… npm run db:etl:preflight-empty -- --target-role production --expect-target-host … --expect-target-database … --expect-project … --expect-branch …   # NEON-05, read-only: production guard + EMPTY database, run before migrate deploy
 ETL_TARGET_URL=… npm run db:etl:stamp-production -- --target-role production --expect-target-host … --expect-target-database … --expect-project … --expect-branch … --confirm-stamp …   # NEON-05, same invariants, production marker
 ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:run -- --target-role staging|local|production --expect-target-host … --expect-target-database … [--expect-staging-id … | --expect-project … --expect-branch … --confirm-production …] --manifest …
 ETL_SOURCE_URL=… ETL_TARGET_URL=… npm run db:etl:parity -- <same flags> --manifest … [--live-source]

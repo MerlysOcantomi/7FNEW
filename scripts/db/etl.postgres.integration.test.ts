@@ -8,7 +8,7 @@ import { Client as PgClient } from "pg"
 import { provisionTestDatabase, queryRaw, type ProvisionedDatabase } from "@/test/support/postgres"
 import { REPO_ROOT, runPrisma, writeTempPrismaConfig } from "../lib/prisma-cli"
 import { deriveSqliteSchema } from "../build-db-from-history"
-import { BASELINE_SHA256, formatProductionMarker, formatStagingMarker, runEtl, stampProductionIdentity, stampStagingIdentity, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
+import { BASELINE_SHA256, assertEmptyProductionTarget, formatProductionMarker, formatStagingMarker, runEtl, stampProductionIdentity, stampStagingIdentity, verifyParity, type EtlManifest, type TargetExpectation } from "./etl-turso-to-postgres"
 
 /**
  * NEON-04 — end-to-end ETL rehearsal on LOCAL infrastructure, in CI:
@@ -478,4 +478,30 @@ test("NEON-05: production run is ONE SHOT — explicit confirmation, no reset pa
 
   // the stamped production database still refuses staging and still cannot be re-stamped differently
   await assert.rejects(stampProductionIdentity({ targetUrl: database.url, expectation: productionExpectation({ project: "other-project-99", branch: PROD_IDENTITY.branch }), confirmStamp: prod.database }), /already carries a different/)
+})
+
+test("NEON-05 R2: preflight-empty runs the production guard before connecting and refuses a non-empty target (this database carries 0_init and data)", async () => {
+  const prod = productionExpectation()
+  const before = await targetCount("Message")
+  // URL guard first — these never open a connection (wrong host / pooled / no verify-full on a remote host)
+  await assert.rejects(assertEmptyProductionTarget({ targetUrl: database.url, expectation: { ...prod, host: "ep-other.c-6.eu-central-1.aws.neon.tech" } }), /host does not match/)
+  await assert.rejects(
+    assertEmptyProductionTarget({ targetUrl: "postgresql://u:p@ep-x-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full", expectation: { ...prod, host: "ep-x-pooler.c-6.eu-central-1.aws.neon.tech", database: "neondb" } }),
+    /DIRECT endpoint; a pooled/,
+  )
+  await assert.rejects(
+    assertEmptyProductionTarget({ targetUrl: "postgresql://u:p@ep-x.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require", expectation: { ...prod, host: "ep-x.c-6.eu-central-1.aws.neon.tech", database: "neondb" } }),
+    /requires sslmode=verify-full/,
+  )
+  await assert.rejects(assertEmptyProductionTarget({ targetUrl: database.url, expectation: stagingExpectation() }), /only applies to --target-role production/)
+  await assert.rejects(assertEmptyProductionTarget({ targetUrl: database.url, expectation: { ...prod, production: undefined } }), /requires --expect-project and --expect-branch/)
+  // live: this database has the ledger and tables → not empty → refused, read-only, nothing changed
+  await assert.rejects(assertEmptyProductionTarget({ targetUrl: database.url, expectation: prod }), (err: Error) => {
+    assert.match(err.message, /production target is not empty/)
+    assert.match(err.message, /ledger=true/)
+    assert.ok(!err.message.includes(database.url))
+    return true
+  })
+  assert.equal(await targetCount("Message"), before)
+  assert.equal(await markerCount(), "1", "the production marker is untouched")
 })
