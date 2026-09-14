@@ -20,12 +20,16 @@ import {
 import {
   BASELINE_SHA256,
   BASELINE_SQL_PATH,
+  assertProductionIdentity,
   assertStagingId,
   assertTargetUrl,
   checkLocalServerAddress,
+  checkProductionMarker,
   checkStagingMarker,
   expectationFromFlags,
+  formatProductionMarker,
   formatStagingMarker,
+  parseProductionMarker,
   parseStagingMarker,
 } from "./etl-turso-to-postgres"
 import { createHash } from "node:crypto"
@@ -235,7 +239,8 @@ test("target expectations: staging REQUIRES an id, local never needs one; forwar
   })
   assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging", "expect-staging-id": "prod-1" }), /must not look like production/)
   assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging", "forwarded-loopback": true, "expect-staging-id": "sevenf-neon04-staging" }), /only applies to --target-role local/)
-  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-staging-id": "sevenf-neon04-staging" }), /no production mode/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-staging-id": "sevenf-neon04-staging" }), /only applies to --target-role staging/, "production is never addressed with a staging id")
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "prod" }), /unknown target role/)
   const local = { "target-role": "local", "expect-target-host": "127.0.0.1", "expect-target-database": "t7f_x" }
   assert.deepEqual(expectationFromFlags(local), { role: "local", host: "127.0.0.1", database: "t7f_x", forwardedLoopback: false })
   assert.deepEqual(expectationFromFlags({ ...local, "forwarded-loopback": true }).forwardedLoopback, true)
@@ -246,4 +251,67 @@ test("target expectations: staging REQUIRES an id, local never needs one; forwar
   assert.throws(() => assertTargetUrl(url, { role: "staging", host: "db.example.invalid", database: "sevenf_staging" }), /requires --expect-staging-id/)
   assert.doesNotThrow(() => assertTargetUrl(url, { role: "staging", host: "db.example.invalid", database: "sevenf_staging", stagingId: "sevenf-neon04-staging" }))
   assert.throws(() => assertTargetUrl("postgresql://u:p@db.example.invalid:5432/sevenf_prod", { role: "staging", host: "db.example.invalid", database: "sevenf_prod", stagingId: "sevenf-neon04-staging" }), /looks like production/)
+})
+
+// ─── NEON-05: production identity, separate from staging ─────────────────────
+
+const PROD = { project: "old-wave-11795585", branch: "br-broad-river-b2ue75l8" }
+const PROD_MARKER = "sevenf:environment=production;sevenf:migration=neon-05;sevenf:project=old-wave-11795585;sevenf:branch=br-broad-river-b2ue75l8"
+const STAGING_MARKER_NEON04 = "sevenf:environment=staging;sevenf:migration=neon-04;sevenf:target=old-wave-11795585"
+
+test("production marker: strict format with project + branch; every mismatch fails closed; the comment text is never echoed", () => {
+  assert.equal(formatProductionMarker(PROD), PROD_MARKER)
+  assert.deepEqual(parseProductionMarker(PROD_MARKER), { environment: "production", migration: "neon-05", ...PROD })
+  assert.deepEqual(checkProductionMarker(PROD_MARKER, PROD), { environment: "production", migration: "neon-05", ...PROD })
+  assert.throws(() => checkProductionMarker(null, PROD), /carries no production identity marker/)
+  assert.throws(() => checkProductionMarker(formatProductionMarker({ project: "other-project-1", branch: PROD.branch }), PROD), /different Neon project/)
+  assert.throws(() => checkProductionMarker(formatProductionMarker({ project: PROD.project, branch: "br-other-branch-1" }), PROD), /different Neon branch/)
+  assert.throws(() => checkProductionMarker("sevenf:environment=staging;sevenf:migration=neon-05;sevenf:project=old-wave-11795585;sevenf:branch=br-broad-river-b2ue75l8", PROD), /environment is not production/)
+  assert.throws(() => checkProductionMarker("sevenf:environment=production;sevenf:migration=neon-04;sevenf:project=old-wave-11795585;sevenf:branch=br-broad-river-b2ue75l8", PROD), /migration is not neon-05/)
+  for (const bad of ["production database do not touch", `${PROD_MARKER};extra=1`, "sevenf:environment=production;sevenf:migration=neon-05;sevenf:project=;sevenf:branch=br-x-1", "sevenf:environment=production;sevenf:environment=production;sevenf:project=a;sevenf:branch=br-x-1"]) {
+    assert.throws(() => checkProductionMarker(bad, PROD), /malformed/, bad)
+    try {
+      checkProductionMarker(bad, PROD)
+    } catch (err) {
+      assert.ok(!(err as Error).message.includes("do not touch"))
+    }
+  }
+  assert.throws(() => assertProductionIdentity({ project: "Bad Project", branch: PROD.branch }), /Neon project id/)
+  assert.throws(() => assertProductionIdentity({ project: PROD.project, branch: "main" }), /Neon branch id/)
+  assert.throws(() => assertProductionIdentity(undefined), /Neon project id/)
+})
+
+test("neither environment can masquerade as the other: the NEON-04 staging marker is refused under a production expectation and vice versa", () => {
+  assert.throws(() => checkProductionMarker(STAGING_MARKER_NEON04, PROD), /production identity marker is malformed/)
+  assert.throws(() => checkStagingMarker(PROD_MARKER, "old-wave-11795585"), /staging identity marker is malformed/)
+  // the staging format stamped in NEON-04 stays byte-compatible
+  assert.deepEqual(checkStagingMarker(STAGING_MARKER_NEON04, "old-wave-11795585"), { environment: "staging", migration: "neon-04", target: "old-wave-11795585" })
+})
+
+test("production expectations and URL guard: project+branch required, staging id refused, direct host only, verify-full TLS on non-loopback, no reset flags", () => {
+  const base = { "expect-target-host": "ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech", "expect-target-database": "neondb" }
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production" }), /requires --expect-project and --expect-branch/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-project": PROD.project }), /requires --expect-project and --expect-branch/)
+  const prod = expectationFromFlags({ ...base, "target-role": "production", "expect-project": PROD.project, "expect-branch": PROD.branch })
+  assert.deepEqual(prod, { role: "production", host: base["expect-target-host"], database: "neondb", production: PROD })
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-project": PROD.project, "expect-branch": PROD.branch, "expect-staging-id": "old-wave-11795585" }), /only applies to --target-role staging/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "production", "expect-project": PROD.project, "expect-branch": PROD.branch, "forwarded-loopback": true }), /only applies to --target-role local/)
+  assert.throws(() => expectationFromFlags({ ...base, "target-role": "staging", "expect-staging-id": "old-wave-11795585", "expect-project": PROD.project }), /only apply to --target-role production/)
+  assert.throws(() => expectationFromFlags({ "target-role": "local", "expect-target-host": "127.0.0.1", "expect-target-database": "x", "expect-branch": PROD.branch }), /only apply to --target-role production/)
+
+  const direct = "postgresql://u:p@ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full"
+  assert.doesNotThrow(() => assertTargetUrl(direct, prod))
+  assert.throws(() => assertTargetUrl("postgresql://u:p@ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require", prod), /requires sslmode=verify-full/)
+  assert.throws(() => assertTargetUrl("postgresql://u:p@ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech/neondb", prod), /requires sslmode=verify-full/)
+  const pooled = { ...prod, host: "ep-restless-scene-b2m6ucm7-pooler.c-6.eu-central-1.aws.neon.tech" }
+  assert.throws(() => assertTargetUrl("postgresql://u:p@ep-restless-scene-b2m6ucm7-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full", pooled), /DIRECT endpoint; a pooled/)
+  assert.throws(() => assertTargetUrl("postgresql://u:p@ep-other.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full", prod), /host does not match/)
+  assert.throws(() => assertTargetUrl("postgresql://u:p@ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech/otherdb?sslmode=verify-full", prod), /database does not match/)
+  assert.throws(() => assertTargetUrl(direct, { ...prod, production: undefined }), /requires --expect-project and --expect-branch/)
+  assert.throws(() => assertTargetUrl(direct, { ...prod, stagingId: "old-wave-11795585" }), /cannot be addressed as staging/)
+  // staging/local keep refusing anything that looks like production; production is the explicit role for it
+  assert.throws(() => assertTargetUrl("postgresql://u:p@db.example.invalid/sevenf_prod", { role: "staging", host: "db.example.invalid", database: "sevenf_prod", stagingId: "x-y-z" }), /looks like production/)
+  assert.doesNotThrow(() => assertTargetUrl("postgresql://u:p@ep-prod-a.neon.invalid/prod?sslmode=verify-full", { role: "production", host: "ep-prod-a.neon.invalid", database: "prod", production: PROD }))
+  // loopback production target (tests) needs no TLS
+  assert.doesNotThrow(() => assertTargetUrl("postgresql://postgres@127.0.0.1:5432/t7f_x", { role: "production", host: "127.0.0.1", database: "t7f_x", production: PROD }))
 })

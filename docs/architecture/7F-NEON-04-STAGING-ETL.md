@@ -54,7 +54,8 @@ canonical history and holds no rows.
    project): that id becomes `--expect-staging-id`. It is not fixed yet;
    `sevenf-neon04-staging` in older notes was only a placeholder.
 2. **Obtain both endpoints.** Pooled (`-pooler` host) → `DATABASE_URL`;
-   direct → `DIRECT_URL`; both `sslmode=require`. The runtime uses the pooled
+   direct → `DIRECT_URL`; both with the explicit `sslmode=verify-full`
+   (NEON-05: `require` is a deprecated alias in `pg`). The runtime uses the pooled
    URL through `pg` (`max` 5 by default, `DATABASE_POOL_MAX`); the Prisma CLI
    and the ETL use the direct URL.
 3. **Prove the database is new and empty.** Before any DDL:

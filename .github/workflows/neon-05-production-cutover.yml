@@ -1,0 +1,265 @@
+# NEON-05 — production DATA cutover: Turso (READ-ONLY, one consistent snapshot)
+# → Neon PRODUCTION → ETL → parity → live-source drift check → evidence.
+#
+# NOT EXECUTED YET. Trigger: ONLY a pushed tag matching neon-05-cutover-*.
+# No workflow_dispatch, no branch push, no pull_request, no schedule. The job
+# is bound to the GitHub Environment `sevenf-neon-production`, which must be
+# configured by hand with required reviewers BEFORE any tag is pushed: the
+# environment approval is the human gate, and the job cannot start without it.
+#
+# Three tag families, one workflow, so each irreversible step is a separate
+# environment approval that cannot be collapsed into one push:
+#   neon-05-cutover-migrate-<n> apply the canonical history (0_init only) to an
+#                               EMPTY database: refused unless public has zero
+#                               base tables and no ledger; `migrate status`
+#                               before and after
+#   neon-05-cutover-stamp-<n>   stamp-production only (identity marker on the
+#                               EMPTY canonical database; no data movement)
+#   neon-05-cutover-load-<n>    ETL run (one shot) → parity → live-source parity
+#   any other neon-05-cutover-* name is refused by the first step.
+#
+# The existing ETL (scripts/db/etl-turso-to-postgres.ts at the tagged commit)
+# is the single authority and fails closed before any write: direct host,
+# exact host/database, current_database(), production marker (project +
+# branch), canonical ledger + baseline checksum, canonical tables only, zero
+# sequences, every application table empty, TLS verify-full. There is NO
+# reset path: --reset-target / --confirm-reset are refused for production,
+# and this file never passes them, nor TRUNCATE/DELETE/DROP, `prisma db push`
+# or `prisma migrate reset`.
+#
+# This workflow moves DATA only. Switching Vercel Production to the new
+# database (DATABASE_URL/DIRECT_URL) is a separate, manual, reviewed step in
+# the runbook so parity can be inspected before the application cuts over.
+#
+# Environment variables (non-secret):  vars.ETL_SOURCE_URL, vars.ETL_TARGET_HOST,
+#                                       vars.ETL_TARGET_DATABASE,
+#                                       vars.ETL_PRODUCTION_PROJECT, vars.ETL_PRODUCTION_BRANCH
+# Environment secrets:                  secrets.ETL_SOURCE_AUTH_TOKEN, secrets.ETL_TARGET_URL
+#                                       (the Neon DIRECT endpoint with sslmode=verify-full)
+# Expected real target (configured in GitHub, not here): Neon project
+# old-wave-11795585, branch main / br-broad-river-b2ue75l8, database neondb,
+# direct host ep-restless-scene-b2m6ucm7.c-6.eu-central-1.aws.neon.tech.
+
+name: NEON-05 production cutover (data)
+
+on:
+  push:
+    tags:
+      - "neon-05-cutover-*"
+
+permissions:
+  contents: read
+
+# Exactly one production operation at a time; a running load is never cancelled.
+concurrency:
+  group: neon-05-production-cutover
+  cancel-in-progress: false
+
+jobs:
+  production-cutover:
+    name: ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    environment: sevenf-neon-production
+    timeout-minutes: 45
+
+    steps:
+      - name: Guard — must run from a neon-05-cutover-{migrate,stamp,load}-* tag
+        id: gate
+        run: |
+          set -euo pipefail
+          echo "ref_type=$GITHUB_REF_TYPE ref_name=$GITHUB_REF_NAME"
+          [ "$GITHUB_REF_TYPE" = "tag" ] || { echo "::error::refusing: GITHUB_REF_TYPE is not 'tag'"; exit 1; }
+          case "$GITHUB_REF_NAME" in
+            neon-05-cutover-migrate-*) action=migrate ;;
+            neon-05-cutover-stamp-*)   action=stamp ;;
+            neon-05-cutover-load-*)    action=load ;;
+            *) echo "::error::refusing: tag must be neon-05-cutover-migrate-<n>, neon-05-cutover-stamp-<n> or neon-05-cutover-load-<n>"; exit 1 ;;
+          esac
+          echo "action=$action"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+
+      - name: Guard — required environment vars and secrets are present (values never printed)
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ETL_SOURCE_URL ETL_TARGET_HOST ETL_TARGET_DATABASE ETL_PRODUCTION_PROJECT ETL_PRODUCTION_BRANCH ETL_SOURCE_AUTH_TOKEN ETL_TARGET_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in environment sevenf-neon-production"
+              missing=1
+            else
+              echo "$name: present"
+            fi
+          done
+          [ "$missing" -eq 0 ]
+          case "$ETL_TARGET_HOST" in
+            *-pooler*) echo "::error::ETL_TARGET_HOST is a pooled endpoint; the ETL needs the DIRECT host"; exit 1 ;;
+          esac
+          echo "target: role=production host=$ETL_TARGET_HOST database=$ETL_TARGET_DATABASE project=$ETL_PRODUCTION_PROJECT branch=$ETL_PRODUCTION_BRANCH"
+
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Record the executed commit and baseline
+        run: |
+          set -euo pipefail
+          echo "commit=$(git rev-parse HEAD)"
+          sha="$(sha256sum prisma/migrations-postgres/0_init/migration.sql | cut -d' ' -f1)"
+          echo "0_init sha256=$sha"
+          [ "$sha" = "679d9d18e72a3fa101bd96f6c39b2194ba38ae86de35359a3e46be8d662af30e" ] || { echo "::error::0_init baseline differs from the pinned sha256"; exit 1; }
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Plan (parses the target schema; opens no connection)
+        run: npm run db:etl:plan
+
+      # Applies ONLY the canonical history (0_init) and only to a database that
+      # is provably empty on the live connection: zero base tables in public and
+      # no _prisma_migrations. Never `db push`, never `migrate reset`.
+      - name: Apply the canonical history to the EMPTY production database (0_init only)
+        if: ${{ steps.gate.outputs.action == 'migrate' }}
+        env:
+          DIRECT_URL: ${{ secrets.ETL_TARGET_URL }}
+          DATABASE_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+        run: |
+          set -euo pipefail
+          cat > neon-05-empty-check.tmp.ts <<'TS'
+          import { Client } from "pg"
+          async function main(): Promise<void> {
+            const pg = new Client({ connectionString: process.env.DIRECT_URL })
+            await pg.connect()
+            try {
+              await pg.query("BEGIN READ ONLY")
+              const who = await pg.query<{ db: string; version: string }>("SELECT current_database() AS db, version() AS version")
+              if (who.rows[0].db !== process.env.ETL_TARGET_DATABASE) throw new Error("current_database() does not match ETL_TARGET_DATABASE")
+              console.log(`[migrate] current_database=${who.rows[0].db} server=${who.rows[0].version.split(" on ")[0]}`)
+              const tables = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
+              const ledger = await pg.query<{ present: boolean }>("SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present")
+              const sequences = await pg.query<{ n: string }>("SELECT COUNT(*)::text AS n FROM pg_sequences WHERE schemaname = 'public'")
+              console.log(`[migrate] public base tables=${tables.rows[0].n} ledger=${ledger.rows[0].present} sequences=${sequences.rows[0].n}`)
+              if (tables.rows[0].n !== "0" || ledger.rows[0].present || sequences.rows[0].n !== "0") {
+                throw new Error("the production database is not empty; refusing to apply the history (nothing was written)")
+              }
+              await pg.query("ROLLBACK")
+            } finally {
+              await pg.end()
+            }
+          }
+          main().catch((err) => {
+            console.error(`[migrate] FAIL: ${String(err instanceof Error ? err.message : err).replace(/postgres(ql)?:\/\/\S+/gi, "<redacted-url>")}`)
+            process.exit(1)
+          })
+          TS
+          npx tsx neon-05-empty-check.tmp.ts
+          rm -f neon-05-empty-check.tmp.ts
+          npm run db:migrate:status || true
+          npm run db:migrate:deploy
+          npm run db:migrate:status
+
+      - name: Stamp the production identity marker (empty canonical database only)
+        if: ${{ steps.gate.outputs.action == 'stamp' }}
+        env:
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:stamp-production -- \
+            --target-role production \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-project "$ETL_PRODUCTION_PROJECT" \
+            --expect-branch "$ETL_PRODUCTION_BRANCH" \
+            --confirm-stamp "$ETL_TARGET_DATABASE"
+
+      # The ETL re-verifies everything on the live connection before extracting
+      # or writing anything. No reset flags exist for production.
+      - name: ETL — one consistent Turso snapshot → Neon production (one shot, one transaction)
+        if: ${{ steps.gate.outputs.action == 'load' }}
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:run -- \
+            --manifest "$RUNNER_TEMP/neon-05-manifest.json" \
+            --target-role production \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-project "$ETL_PRODUCTION_PROJECT" \
+            --expect-branch "$ETL_PRODUCTION_BRANCH" \
+            --confirm-production "$ETL_TARGET_DATABASE"
+
+      - name: Parity 1 — manifest vs target
+        if: ${{ steps.gate.outputs.action == 'load' }}
+        env:
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:parity -- \
+            --manifest "$RUNNER_TEMP/neon-05-manifest.json" \
+            --target-role production \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-project "$ETL_PRODUCTION_PROJECT" \
+            --expect-branch "$ETL_PRODUCTION_BRANCH"
+
+      - name: Parity 2 — live source (zero drift expected while the source is quiescent)
+        if: ${{ steps.gate.outputs.action == 'load' }}
+        env:
+          ETL_SOURCE_URL: ${{ vars.ETL_SOURCE_URL }}
+          ETL_SOURCE_AUTH_TOKEN: ${{ secrets.ETL_SOURCE_AUTH_TOKEN }}
+          ETL_TARGET_URL: ${{ secrets.ETL_TARGET_URL }}
+          ETL_TARGET_HOST: ${{ vars.ETL_TARGET_HOST }}
+          ETL_TARGET_DATABASE: ${{ vars.ETL_TARGET_DATABASE }}
+          ETL_PRODUCTION_PROJECT: ${{ vars.ETL_PRODUCTION_PROJECT }}
+          ETL_PRODUCTION_BRANCH: ${{ vars.ETL_PRODUCTION_BRANCH }}
+        run: |
+          set -euo pipefail
+          npm run db:etl:parity -- \
+            --manifest "$RUNNER_TEMP/neon-05-manifest.json" \
+            --target-role production \
+            --expect-target-host "$ETL_TARGET_HOST" \
+            --expect-target-database "$ETL_TARGET_DATABASE" \
+            --expect-project "$ETL_PRODUCTION_PROJECT" \
+            --expect-branch "$ETL_PRODUCTION_BRANCH" \
+            --live-source
+
+      # Evidence only: counts, digests, fingerprints, timings, database name —
+      # no URLs, no credentials, no row values.
+      - name: Upload the ETL manifest as evidence
+        if: ${{ always() && steps.gate.outputs.action == 'load' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-05-production-cutover-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/neon-05-manifest.json
+          if-no-files-found: ignore
+          retention-days: 90

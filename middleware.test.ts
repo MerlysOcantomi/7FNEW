@@ -109,3 +109,32 @@ test("/finesse (public Finesse landing) is public; lookalike and private routes 
     assert.ok(location.includes("/login") || status === 401 || status === 403 || status === 503, `${path} must stay protected (got ${status} ${location})`)
   }
 })
+
+test("NEON-05 write freeze (defence in depth): mutating /api requests get 503 while SEVENF_OPERATION_MODE=freeze-writes or invalid; GET and pages pass; normal restores", async () => {
+  const previous = process.env.SEVENF_OPERATION_MODE
+  try {
+    process.env.SEVENF_OPERATION_MODE = "freeze-writes"
+    for (const path of ["/api/inbox/public/send", "/api/inbox/email/inbound", "/api/sites/x/reception", "/api/clientes", "/api/cron/imap-sync"]) {
+      for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+        const res = await middleware(new NextRequest(new URL(`https://sevenef.com${path}`), { method, headers: { host: "sevenef.com" } }))
+        assert.equal(res.status, 503, `${method} ${path}`)
+        assert.equal(res.headers.get("retry-after"), "60")
+        assert.equal((await res.json()).error.code, "OPERATION_FROZEN")
+      }
+    }
+    // GETs are not blocked here (GET-that-writes is covered at the database boundary), pages are untouched.
+    const get = await middleware(req("sevenef.com", "/api/sites/x/reception"))
+    assert.notEqual(get.status, 503)
+    const page = await middleware(req("sevenef.com", "/login"))
+    assert.notEqual(page.status, 503)
+    process.env.SEVENF_OPERATION_MODE = "not-a-mode"
+    const invalid = await middleware(new NextRequest(new URL("https://sevenef.com/api/clientes"), { method: "POST", headers: { host: "sevenef.com" } }))
+    assert.equal(invalid.status, 503, "an invalid mode fails closed")
+    process.env.SEVENF_OPERATION_MODE = "normal"
+    const back = await middleware(new NextRequest(new URL("https://sevenef.com/api/inbox/public/send"), { method: "POST", headers: { host: "sevenef.com" } }))
+    assert.notEqual(back.status, 503)
+  } finally {
+    if (previous === undefined) delete process.env.SEVENF_OPERATION_MODE
+    else process.env.SEVENF_OPERATION_MODE = previous
+  }
+})

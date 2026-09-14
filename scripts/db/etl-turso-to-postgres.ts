@@ -34,6 +34,17 @@
  *                                    source and before any write (TRUNCATE included). Operator-supplied
  *                                    host/database/role are never enough on their own for staging.
  *
+ *   --target-role production         NEON-05 cutover target. Stronger, separate identity: the
+ *                                    live database must carry the PRODUCTION marker
+ *                                      sevenf:environment=production;sevenf:migration=neon-05;sevenf:project=<id>;sevenf:branch=<id>
+ *                                    matched against --expect-project / --expect-branch. Direct
+ *                                    host only (a `-pooler` host is refused), TLS verify-full on
+ *                                    any non-loopback host, ONE SHOT: a non-empty target is refused
+ *                                    and there is NO reset path (--reset-target / --confirm-reset
+ *                                    are refused outright). `run` additionally requires
+ *                                    --confirm-production <database>. Staging and production markers
+ *                                    are parsed separately: neither can masquerade as the other.
+ *
  *   stamp-staging — provisioning step for a NEW staging database: writes that marker
  *             (COMMENT ON DATABASE). Lifecycle: dedicated staging database → canonical
  *             history applied (0_init) → schema verified → EVERY application table empty →
@@ -41,6 +52,8 @@
  *             writing and has no flag to skip it: a populated database can never be turned
  *             into staging by this command. Requires --confirm-stamp <database>; refuses
  *             to replace a different existing marker; never touches application tables.
+ *   stamp-production — same invariants for the production marker (role production only,
+ *             --confirm-stamp <database>, empty canonical target, no flag to skip anything).
  *
  * Environment: ETL_SOURCE_URL (+ ETL_SOURCE_AUTH_TOKEN), ETL_TARGET_URL. Connection
  * strings are never printed; the manifest stores only fingerprints and the database name.
@@ -80,7 +93,7 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "::1", "[::1]"])
 const LOAD_CHUNK = 100
 
 export interface TargetExpectation {
-  role: "staging" | "local"
+  role: "staging" | "local" | "production"
   host: string
   database: string
   /**
@@ -96,6 +109,18 @@ export interface TargetExpectation {
    * identifier the live database must carry in its NEON-04 staging marker.
    */
   stagingId?: string
+  /**
+   * role production only (required there): the non-secret Neon identity the
+   * live database must carry in its NEON-05 production marker.
+   */
+  production?: ProductionIdentity
+}
+
+export interface ProductionIdentity {
+  /** Neon project id, e.g. old-wave-11795585 */
+  project: string
+  /** Neon branch id, e.g. br-broad-river-b2ue75l8 */
+  branch: string
 }
 
 // ─── Staging identity marker (PostgreSQL database comment) ──────────────────
@@ -164,6 +189,80 @@ export function checkStagingMarker(comment: string | null, expectedId: string): 
   return marker
 }
 
+// ─── Production identity marker (NEON-05) ───────────────────────────────────
+//
+// A SEPARATE marker with its own parser. It is never derived from the staging
+// one: a staging marker under a production expectation is "malformed" (three
+// pairs where four are required) and vice versa, so neither environment can
+// masquerade as the other. The staging format above stays byte-compatible
+// with the database stamped in NEON-04.
+
+export const PRODUCTION_MARKER_ENVIRONMENT = "production"
+export const PRODUCTION_MARKER_MIGRATION = "neon-05"
+const PRODUCTION_MARKER_KEYS = ["sevenf:environment", "sevenf:migration", "sevenf:project", "sevenf:branch"] as const
+const NEON_PROJECT_ID = /^[a-z0-9][a-z0-9-]{2,63}$/
+const NEON_BRANCH_ID = /^br-[a-z0-9][a-z0-9-]{2,79}$/
+
+export interface ProductionMarker {
+  environment: string
+  migration: string
+  project: string
+  branch: string
+}
+
+export function assertProductionIdentity(identity: unknown): ProductionIdentity {
+  const p = identity as Partial<ProductionIdentity> | undefined
+  if (!p || typeof p.project !== "string" || !NEON_PROJECT_ID.test(p.project)) {
+    throw new Error("etl: --expect-project must be a Neon project id (3-64 chars of [a-z0-9-], starting with a letter or digit)")
+  }
+  if (typeof p.branch !== "string" || !NEON_BRANCH_ID.test(p.branch)) {
+    throw new Error("etl: --expect-branch must be a Neon branch id (br-…, [a-z0-9-])")
+  }
+  return { project: p.project, branch: p.branch }
+}
+
+export function formatProductionMarker(identity: ProductionIdentity): string {
+  const id = assertProductionIdentity(identity)
+  return `sevenf:environment=${PRODUCTION_MARKER_ENVIRONMENT};sevenf:migration=${PRODUCTION_MARKER_MIGRATION};sevenf:project=${id.project};sevenf:branch=${id.branch}`
+}
+
+/** Strict parse: exactly the four keys, each once, nothing else. Never echoes the text. */
+export function parseProductionMarker(text: string): ProductionMarker {
+  const pairs = text.split(";")
+  if (pairs.length !== PRODUCTION_MARKER_KEYS.length) throw new Error("etl: production identity marker is malformed")
+  const seen = new Map<string, string>()
+  for (const pair of pairs) {
+    const eq = pair.indexOf("=")
+    if (eq <= 0) throw new Error("etl: production identity marker is malformed")
+    const key = pair.slice(0, eq)
+    const value = pair.slice(eq + 1)
+    if (!(PRODUCTION_MARKER_KEYS as readonly string[]).includes(key) || seen.has(key) || value === "") {
+      throw new Error("etl: production identity marker is malformed")
+    }
+    seen.set(key, value)
+  }
+  return {
+    environment: seen.get("sevenf:environment")!,
+    migration: seen.get("sevenf:migration")!,
+    project: seen.get("sevenf:project")!,
+    branch: seen.get("sevenf:branch")!,
+  }
+}
+
+/** Pure check on the live database comment for role production. Fails closed; never echoes the comment. */
+export function checkProductionMarker(comment: string | null, expected: ProductionIdentity): ProductionMarker {
+  const id = assertProductionIdentity(expected)
+  if (comment === null || comment.trim() === "") {
+    throw new Error("etl: the live database carries no production identity marker (COMMENT ON DATABASE) — it was not provisioned as SevenF NEON-05 production; refusing")
+  }
+  const marker = parseProductionMarker(comment)
+  if (marker.environment !== PRODUCTION_MARKER_ENVIRONMENT) throw new Error("etl: production identity marker environment is not production; refusing")
+  if (marker.migration !== PRODUCTION_MARKER_MIGRATION) throw new Error("etl: production identity marker migration is not neon-05; refusing")
+  if (marker.project !== id.project) throw new Error("etl: production identity marker names a different Neon project than --expect-project; refusing")
+  if (marker.branch !== id.branch) throw new Error("etl: production identity marker names a different Neon branch than --expect-branch; refusing")
+  return marker
+}
+
 async function readDatabaseComment(pg: PgClient): Promise<string | null> {
   const r = await pg.query<{ description: string | null }>(
     "SELECT d.description FROM pg_database db LEFT JOIN pg_shdescription d ON d.objoid = db.oid AND d.classoid = 'pg_database'::regclass WHERE db.datname = current_database()",
@@ -191,6 +290,8 @@ export function checkLocalServerAddress(addr: string | null, forwardedLoopback: 
 }
 
 export interface EtlOptions {
+  /** role production only: must repeat the exact target database name for `run`. */
+  confirmProduction?: string
   sourceUrl: string
   sourceAuthToken?: string
   targetUrl: string
@@ -213,7 +314,7 @@ export interface EtlManifest {
   version: number
   snapshotAt: string
   source: { kind: string; hostFingerprint: string; tables: number }
-  target: { role: string; database: string; hostFingerprint: string; baselineSha256: string; stagingId?: string }
+  target: { role: string; database: string; hostFingerprint: string; baselineSha256: string; stagingId?: string; project?: string; branch?: string }
   insertOrder: string[]
   tables: Record<string, TableManifest>
   totals: { tables: number; sourceRows: number; loadedRows: number; warnings: number }
@@ -245,8 +346,8 @@ export function assertTargetUrl(url: string, expectation: TargetExpectation): UR
   if (!TARGET_SCHEMES.has(parsed.protocol)) {
     throw new Error(`etl: ETL_TARGET_URL must be postgresql:// — scheme ${parsed.protocol} refused; the target is never Turso/SQLite`)
   }
-  if (expectation.role !== "staging" && expectation.role !== "local") {
-    throw new Error(`etl: unknown target role ${JSON.stringify(expectation.role)} — only "staging" and "local" exist; this tool has no production mode`)
+  if (expectation.role !== "staging" && expectation.role !== "local" && expectation.role !== "production") {
+    throw new Error(`etl: unknown target role ${JSON.stringify(expectation.role)} — only "staging", "local" and "production" exist`)
   }
   const host = parsed.hostname === "[::1]" ? "::1" : parsed.hostname
   if (host !== expectation.host) {
@@ -259,12 +360,26 @@ export function assertTargetUrl(url: string, expectation: TargetExpectation): UR
   if (database !== expectation.database) {
     throw new Error("etl: ETL_TARGET_URL database does not match --expect-target-database")
   }
-  if (/prod/i.test(host) || /prod/i.test(database)) {
-    throw new Error("etl: target host/database looks like production — refused unconditionally (NEON-04 tooling never targets production)")
+  if (expectation.role !== "production" && (/prod/i.test(host) || /prod/i.test(database))) {
+    throw new Error("etl: target host/database looks like production — refused for the staging/local roles (production is an explicit, separately identified role)")
   }
   if (expectation.role === "staging") {
     if (expectation.stagingId === undefined) throw new Error("etl: role staging requires --expect-staging-id (the database must carry the NEON-04 staging identity marker)")
     assertStagingId(expectation.stagingId)
+    if (expectation.production !== undefined) throw new Error("etl: --expect-project/--expect-branch only apply to --target-role production")
+  }
+  if (expectation.role === "local" && expectation.production !== undefined) {
+    throw new Error("etl: --expect-project/--expect-branch only apply to --target-role production")
+  }
+  if (expectation.role === "production") {
+    if (expectation.production === undefined) throw new Error("etl: role production requires --expect-project and --expect-branch (the database must carry the NEON-05 production identity marker)")
+    assertProductionIdentity(expectation.production)
+    if (expectation.stagingId !== undefined) throw new Error("etl: --expect-staging-id does not apply to --target-role production (production cannot be addressed as staging)")
+    if (expectation.forwardedLoopback) throw new Error("etl: --forwarded-loopback only applies to --target-role local")
+    if (/-pooler\b/.test(host)) throw new Error("etl: role production requires the DIRECT endpoint; a pooled (-pooler) host is refused")
+    if (!LOOPBACK.has(host) && parsed.searchParams.get("sslmode") !== "verify-full") {
+      throw new Error("etl: role production requires sslmode=verify-full on a non-loopback host (explicit TLS verification; require/prefer/verify-ca are deprecated aliases)")
+    }
   }
   return parsed
 }
@@ -282,6 +397,7 @@ async function assertTargetIdentity(pg: PgClient, expectation: TargetExpectation
   }
   if (expectation.role === "local") checkLocalServerAddress(r.rows[0].addr, expectation.forwardedLoopback === true)
   if (expectation.role === "staging") checkStagingMarker(await readDatabaseComment(pg), expectation.stagingId!)
+  if (expectation.role === "production") checkProductionMarker(await readDatabaseComment(pg), expectation.production!)
 }
 
 export interface StampOptions {
@@ -300,10 +416,47 @@ export interface StampOptions {
  * the database comment — no application table, no ledger.
  */
 export async function stampStagingIdentity(options: StampOptions): Promise<StagingMarker> {
-  const log = options.log ?? (() => undefined)
   if (options.expectation.role !== "staging") throw new Error("etl: stamp-staging only applies to --target-role staging")
   assertTargetUrl(options.targetUrl, options.expectation)
   const marker = formatStagingMarker(options.expectation.stagingId!)
+  const written = await stampIdentityMarker(options, {
+    label: "staging",
+    marker,
+    summary: `environment=${STAGING_MARKER_ENVIRONMENT} migration=${STAGING_MARKER_MIGRATION} target=${options.expectation.stagingId}`,
+  })
+  return parseStagingMarker(written)
+}
+
+/**
+ * NEON-05: production identity. Same invariants as the staging stamp — role
+ * production only, explicit confirmation, live identity, canonical ledger and
+ * schema, EVERY application table empty, never replaces a different marker,
+ * writes only the database comment, no flag skips anything.
+ */
+export async function stampProductionIdentity(options: StampOptions): Promise<ProductionMarker> {
+  if (options.expectation.role !== "production") throw new Error("etl: stamp-production only applies to --target-role production")
+  assertTargetUrl(options.targetUrl, options.expectation)
+  const identity = assertProductionIdentity(options.expectation.production)
+  const marker = formatProductionMarker(identity)
+  const written = await stampIdentityMarker(options, {
+    label: "production",
+    marker,
+    summary: `environment=${PRODUCTION_MARKER_ENVIRONMENT} migration=${PRODUCTION_MARKER_MIGRATION} project=${identity.project} branch=${identity.branch}`,
+  })
+  return parseProductionMarker(written)
+}
+
+/**
+ * Shared stamp core (staging and production). Order on the live connection,
+ * every step before the single write:
+ *   1. current_database() matches;
+ *   2. no DIFFERENT marker (an identical one is idempotent: schema re-verified, nothing written);
+ *   3. canonical ledger + schema (assertTargetSchema — the same check run/parity use);
+ *   4. EVERY application table empty — there is no flag to skip this;
+ *   5. COMMENT ON DATABASE, then read back.
+ */
+async function stampIdentityMarker(options: StampOptions, spec: { label: "staging" | "production"; marker: string; summary: string }): Promise<string> {
+  const log = options.log ?? (() => undefined)
   if (options.confirmStamp !== options.expectation.database) {
     throw new Error("etl: --confirm-stamp must repeat the exact target database name")
   }
@@ -311,42 +464,35 @@ export async function stampStagingIdentity(options: StampOptions): Promise<Stagi
   const pg = new PgClient({ connectionString: options.targetUrl })
   await pg.connect()
   try {
-    // 1. live identity
     const r = await pg.query<{ db: string }>("SELECT current_database() AS db")
     if (r.rows[0].db !== options.expectation.database) {
       throw new Error("etl: current_database() on the live connection does not match --expect-target-database")
     }
-    // 2. no different marker
     const existing = await readDatabaseComment(pg)
-    const identical = existing === marker
+    const identical = existing === spec.marker
     if (existing !== null && existing.trim() !== "" && !identical) {
       throw new Error("etl: the database already carries a different comment/marker — refusing to relabel it (clear it by hand if that is intended)")
     }
-    // 3. canonical schema: completed 0_init with the pinned checksum, all 50
-    //    tables, no sequences, no foreign application tables (same check run/parity use)
     await assertTargetSchema(pg, schema)
     if (identical) {
-      // Nothing to write: an already-stamped staging database may legitimately
-      // hold ETL data by now; the marker is only ever CREATED on an empty one.
-      log(`[etl] staging identity already present for ${options.expectation.database} (unchanged; schema re-verified)`)
-      return parseStagingMarker(existing!)
+      log(`[etl] ${spec.label} identity already present for ${options.expectation.database} (unchanged; schema re-verified)`)
+      return existing!
     }
-    // 4. EVERY application table empty — there is no flag to skip this.
     const nonEmpty = Object.entries(await targetRowCounts(pg, schema)).filter(([, n]) => n > 0)
     if (nonEmpty.length > 0) {
       throw new Error(
-        `etl: refusing to stamp a populated database as staging — ${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}. ` +
-          "Only a freshly provisioned database (canonical history applied, every application table empty) can receive the staging identity; a populated database is never relabelled",
+        `etl: refusing to stamp a populated database as ${spec.label} — ${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}. ` +
+          `Only a freshly provisioned database (canonical history applied, every application table empty) can receive the ${spec.label} identity; a populated database is never relabelled`,
       )
     }
     // COMMENT ON DATABASE accepts no bind parameters. The marker text is fully
-    // validated ([a-z0-9-] id inside fixed key=value pairs, no quotes possible)
+    // validated ([a-z0-9-] ids inside fixed key=value pairs, no quotes possible)
     // and the database name is a quoted identifier.
-    await pg.query(`COMMENT ON DATABASE "${options.expectation.database.replace(/"/g, '""')}" IS '${marker}'`)
+    await pg.query(`COMMENT ON DATABASE "${options.expectation.database.replace(/"/g, '""')}" IS '${spec.marker}'`)
     const written = await readDatabaseComment(pg)
-    if (written !== marker) throw new Error("etl: staging identity marker was not persisted as expected")
-    log(`[etl] staging identity stamped on ${options.expectation.database}: environment=${STAGING_MARKER_ENVIRONMENT} migration=${STAGING_MARKER_MIGRATION} target=${options.expectation.stagingId}`)
-    return parseStagingMarker(written)
+    if (written !== spec.marker) throw new Error(`etl: ${spec.label} identity marker was not persisted as expected`)
+    log(`[etl] ${spec.label} identity stamped on ${options.expectation.database}: ${spec.summary}`)
+    return written
   } finally {
     await pg.end()
   }
@@ -447,6 +593,15 @@ export async function runEtl(options: EtlOptions): Promise<EtlManifest> {
   const t0 = performance.now()
   const sourceUrl = assertSourceUrl(options.sourceUrl)
   const targetUrl = assertTargetUrl(options.targetUrl, options.expectation)
+  if (options.expectation.role === "production") {
+    // ONE SHOT, no reset path, no fallback: refused before any connection is opened.
+    if (options.resetTarget || options.confirmReset !== undefined) {
+      throw new Error("etl: role production has no reset path — --reset-target/--confirm-reset are refused; a non-empty production target is never truncated")
+    }
+    if (options.confirmProduction !== options.expectation.database) {
+      throw new Error("etl: role production requires --confirm-production to repeat the exact target database name")
+    }
+  }
   const schema = loadSchema()
   const order = insertOrder(schema)
 
@@ -459,6 +614,9 @@ export async function runEtl(options: EtlOptions): Promise<EtlManifest> {
     const counts = await targetRowCounts(pg, schema)
     const nonEmpty = Object.entries(counts).filter(([, n]) => n > 0)
     if (nonEmpty.length > 0) {
+      if (options.expectation.role === "production") {
+        throw new Error(`etl: production target is not empty (${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}) — the production load is one shot and has no reset path; refusing`)
+      }
       if (!options.resetTarget) {
         throw new Error(`etl: target is not empty (${nonEmpty.length} table(s) with rows: ${describeNonEmpty(nonEmpty)}); pass --reset-target --confirm-reset <database> to truncate it inside the load transaction`)
       }
@@ -553,6 +711,7 @@ export async function runEtl(options: EtlOptions): Promise<EtlManifest> {
         hostFingerprint: fingerprint(targetUrl.hostname),
         baselineSha256: BASELINE_SHA256,
         ...(options.expectation.role === "staging" ? { stagingId: options.expectation.stagingId } : {}),
+        ...(options.expectation.role === "production" ? { project: options.expectation.production!.project, branch: options.expectation.production!.branch } : {}),
       },
       insertOrder: order,
       tables: Object.fromEntries(prepared.map((p) => [p.table.name, p.manifest])),
@@ -735,15 +894,24 @@ export function expectationFromFlags(flags: Record<string, string | boolean>): T
   if (typeof role !== "string" || typeof host !== "string" || typeof database !== "string") {
     throw new Error("etl: --target-role <staging|local> --expect-target-host <host> --expect-target-database <name> are all required")
   }
-  if (role !== "staging" && role !== "local") throw new Error(`etl: unknown target role ${JSON.stringify(role)} — only "staging" and "local" exist; this tool has no production mode`)
+  if (role !== "staging" && role !== "local" && role !== "production") throw new Error(`etl: unknown target role ${JSON.stringify(role)} — only "staging", "local" and "production" exist`)
   const forwardedLoopback = flags["forwarded-loopback"] === true
   if (forwardedLoopback && role !== "local") throw new Error("etl: --forwarded-loopback only applies to --target-role local")
   const stagingIdFlag = flags["expect-staging-id"]
+  const projectFlag = flags["expect-project"]
+  const branchFlag = flags["expect-branch"]
+  if (role !== "production" && (projectFlag !== undefined || branchFlag !== undefined)) {
+    throw new Error("etl: --expect-project/--expect-branch only apply to --target-role production")
+  }
   if (role === "staging") {
     if (stagingIdFlag === undefined) throw new Error("etl: --target-role staging requires --expect-staging-id <id>")
     return { role, host, database, stagingId: assertStagingId(stagingIdFlag) }
   }
   if (stagingIdFlag !== undefined) throw new Error("etl: --expect-staging-id only applies to --target-role staging")
+  if (role === "production") {
+    if (projectFlag === undefined || branchFlag === undefined) throw new Error("etl: --target-role production requires --expect-project and --expect-branch (Neon project id and branch id)")
+    return { role, host, database, production: assertProductionIdentity({ project: projectFlag, branch: branchFlag }) }
+  }
   return { role, host, database, forwardedLoopback }
 }
 
@@ -784,6 +952,16 @@ if (isMain) {
         out(`[etl] staging identity OK: environment=${marker.environment} migration=${marker.migration} target=${marker.target}`)
         return
       }
+      case "stamp-production": {
+        const marker = await stampProductionIdentity({
+          targetUrl: requireEnv("ETL_TARGET_URL"),
+          expectation: expectationFromFlags(flags),
+          confirmStamp: typeof flags["confirm-stamp"] === "string" ? flags["confirm-stamp"] : undefined,
+          log: out,
+        })
+        out(`[etl] production identity OK: environment=${marker.environment} migration=${marker.migration} project=${marker.project} branch=${marker.branch}`)
+        return
+      }
       case "run": {
         const manifestPath = flags.manifest
         if (typeof manifestPath !== "string") throw new Error("etl: --manifest <path> is required")
@@ -794,6 +972,7 @@ if (isMain) {
           expectation: expectationFromFlags(flags),
           resetTarget: flags["reset-target"] === true,
           confirmReset: typeof flags["confirm-reset"] === "string" ? flags["confirm-reset"] : undefined,
+          confirmProduction: typeof flags["confirm-production"] === "string" ? flags["confirm-production"] : undefined,
           log: out,
         })
         writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
@@ -828,7 +1007,7 @@ if (isMain) {
         return
       }
       default:
-        throw new Error("usage: etl-turso-to-postgres.ts <plan|stamp-staging|run|parity> [flags]")
+        throw new Error("usage: etl-turso-to-postgres.ts <plan|stamp-staging|stamp-production|run|parity> [flags]")
     }
   })().catch((err) => {
     console.error(`[etl] FAIL: ${err instanceof Error ? err.message : String(err)}`)

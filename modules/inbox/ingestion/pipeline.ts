@@ -13,7 +13,7 @@
  */
 
 import { db } from "@core/db"
-import { trackBackgroundTask } from "@core/background-tasks"
+import { startBackgroundTask } from "@core/background-tasks"
 import { runConversationIntelligence } from "../intelligence"
 import { notifyInboundMessage } from "@core/notifications/inbox"
 import { addMessage } from "../service"
@@ -293,8 +293,7 @@ export async function ingestInboundEnvelope(
   // ---- 9. Post-persist (notification + AI triage, fire-and-forget) ----
   // Both tasks are tracked (core/background-tasks.ts) so tests can wait for
   // them and observe their real outcome; production behaviour is unchanged.
-  trackBackgroundTask(
-    "ingest:notify",
+  startBackgroundTask("ingest:notify", () =>
     db.conversation
       .findFirst({
         where: { id: conversationId, workspaceId },
@@ -313,8 +312,7 @@ export async function ingestInboundEnvelope(
       }),
   ).catch(() => null)
 
-  trackBackgroundTask(
-    "ingest:intelligence",
+  startBackgroundTask("ingest:intelligence", () =>
     runConversationIntelligence({ workspaceId, conversationId, trigger: "message_post" }),
   ).catch((err) => {
     console.error(`[ingest:${envelope.provider}] Intelligence failed conv=${conversationId}:`, err)

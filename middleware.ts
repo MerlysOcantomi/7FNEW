@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
+import { parseOperationMode, OPERATION_MODE_ENV } from "@core/privileged-operations/env-provider"
 
 const INTERNAL_COOKIE = "7f-session"
 const CLIENT_COOKIE = "7f-client-session"
@@ -87,8 +88,36 @@ function isPlatformPath(p: string): boolean {
   return PLATFORM_PATHS.some((pp) => p === pp || p.startsWith(pp + "/"))
 }
 
+/**
+ * Write-freeze defence in depth (NEON-05, Privileged Operations Core v1).
+ *
+ * While `SEVENF_OPERATION_MODE=freeze-writes` (or the value is invalid, which
+ * fails closed) every mutating HTTP method on `/api/**` — public prefixes
+ * included — is answered 503 here, before any handler runs. This is a UX and
+ * load shield ONLY: the guarantee lives at the database boundary
+ * (`core/db-write-guard.ts`), which also covers GET requests that write, cron,
+ * page renders and background work that this layer cannot see.
+ */
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
+
+function writesFrozen(): boolean {
+  const resolution = parseOperationMode(process.env[OPERATION_MODE_ENV])
+  return resolution.kind === "invalid" || resolution.mode === "freeze-writes"
+}
+
+function writesFrozenResponse(): NextResponse {
+  return NextResponse.json(
+    { success: false, error: { code: "OPERATION_FROZEN", message: "Writes are temporarily frozen for maintenance; reads remain available" } },
+    { status: 503, headers: { "Retry-After": "60" } },
+  )
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  if (pathname.startsWith("/api/") && MUTATING_METHODS.has(request.method) && writesFrozen()) {
+    return writesFrozenResponse()
+  }
 
   // NOTE: Presence custom-domain auto-routing is intentionally NOT wired into
   // the middleware. Rewriting "any host not in the env allowlist" hijacked the

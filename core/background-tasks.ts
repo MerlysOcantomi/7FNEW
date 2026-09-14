@@ -27,6 +27,8 @@
  * mechanism, not a job queue: no retries, no persistence, no scheduling.
  */
 
+import { assertOperationAllowed } from "@core/privileged-operations"
+
 export interface BackgroundTaskOutcome {
   readonly label: string
   readonly status: "fulfilled" | "rejected"
@@ -53,6 +55,70 @@ export function trackBackgroundTask<T>(label: string, task: Promise<T>): Promise
     },
   )
   return task
+}
+
+/**
+ * Start NEW fire-and-forget work that may write (NEON-05).
+ *
+ * `trackBackgroundTask` receives a promise that already exists — the work has
+ * started by the time it is registered, so a check there would be too late.
+ * This variant takes a FACTORY and asks the Privileged Operations core for
+ * `background.start` BEFORE invoking it: while writes are frozen the factory
+ * is never called, nothing is registered, and the returned promise rejects
+ * with the `PrivilegedOperationDeniedError` so the call site's own `.catch`
+ * sees the refusal like any other failure. Otherwise it behaves exactly like
+ * `trackBackgroundTask`.
+ */
+export function startBackgroundTask<T>(label: string, factory: () => Promise<T>): Promise<T> {
+  try {
+    assertOperationAllowed("background.start")
+  } catch (error) {
+    return Promise.reject(error)
+  }
+  return trackBackgroundTask(label, factory())
+}
+
+export class BackgroundQuiescenceTimeoutError extends Error {
+  readonly pendingCount: number
+  constructor(pendingCount: number, timeoutMs: number) {
+    super(`background-tasks: ${pendingCount} task(s) still pending after ${timeoutMs} ms`)
+    this.name = "BackgroundQuiescenceTimeoutError"
+    this.pendingCount = pendingCount
+  }
+}
+
+export interface QuiescenceReport {
+  /** Tasks in flight when the wait began. */
+  readonly pendingAtStart: number
+  /** Always 0 on success. */
+  readonly pendingAtEnd: number
+  readonly waitedMs: number
+}
+
+/**
+ * Wait until no background task is pending (in-flight work drains) or fail
+ * deterministically after `timeoutMs`. Unlike `drainBackgroundTasks` it does
+ * not consume recorded outcomes, so it can be used operationally: request a
+ * freeze (no new writeful work starts), then prove quiescence here.
+ */
+export async function awaitBackgroundQuiescence(options: { timeoutMs: number }): Promise<QuiescenceReport> {
+  const { timeoutMs } = options
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw new Error("background-tasks: timeoutMs must be a non-negative number")
+  const pendingAtStart = pending.size
+  const startedAt = Date.now()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), timeoutMs)
+  })
+  try {
+    while (pending.size > 0) {
+      const outcome = await Promise.race([Promise.allSettled([...pending]).then(() => "settled" as const), deadline])
+      if (outcome === "timeout") throw new BackgroundQuiescenceTimeoutError(pending.size, timeoutMs)
+    }
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+  return { pendingAtStart, pendingAtEnd: pending.size, waitedMs: Date.now() - startedAt }
 }
 
 /** Number of tasks currently in flight. */

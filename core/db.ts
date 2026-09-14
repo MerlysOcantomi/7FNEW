@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "@/generated/prisma/client"
+import { writeGuardExtension } from "@core/db-write-guard"
 
 /**
  * Prisma client — PostgreSQL runtime (NEON-03), LAZILY initialised (CORE-03A).
@@ -63,6 +64,23 @@ import { PrismaClient } from "@/generated/prisma/client"
  * mistake in production take a different path than the one that was tested).
  * Messages name the environment VARIABLES and, at most, the URL scheme —
  * never a value — so a misconfiguration never turns into a credential leak.
+ *
+ * WRITE GUARD (NEON-05)
+ * ---------------------
+ * The client is built with the `database.write` extension from
+ * `core/db-write-guard.ts`: every write-class operation (model writes, raw
+ * execution, raw queries that could write, and the same operations inside
+ * `$transaction`) asks the Privileged Operations core first and is refused
+ * with a `PrivilegedOperationDeniedError` while the operating mode is
+ * `freeze-writes` (`SEVENF_OPERATION_MODE`). Reads are never gated here.
+ *
+ * TLS
+ * ---
+ * `pg` treats `sslmode=require` as an alias of `verify-full` and emits a
+ * deprecation warning for it; the documented form is the explicit
+ * `sslmode=verify-full` (see `sslPosture` and `.env.example`). A non-loopback
+ * URL without it is warned about once; never refused, so a configuration
+ * slip cannot take production down.
  */
 
 /**
@@ -130,6 +148,39 @@ function assertPostgresConnectionString(url: string): void {
   }
 }
 
+export type SslPosture = "verify-full" | "deprecated-alias" | "disabled" | "absent" | "loopback"
+
+/**
+ * Pure, value-free description of the TLS posture of a connection string.
+ * `loopback` = no TLS expected (local disposable databases); `absent` = a
+ * remote host with no `sslmode` (pg then negotiates nothing explicit);
+ * `deprecated-alias` = `require`, `prefer` or `verify-ca` (aliases of
+ * `verify-full` in pg 8.16+, warned as deprecated); `disabled` = `disable`.
+ */
+export function sslPosture(url: string): SslPosture {
+  const parsed = new URL(url)
+  const host = parsed.hostname === "[::1]" ? "::1" : parsed.hostname
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return "loopback"
+  const mode = parsed.searchParams.get("sslmode")
+  if (mode === null || mode === "") return "absent"
+  if (mode === "verify-full") return "verify-full"
+  if (mode === "disable" || mode === "allow") return "disabled"
+  return "deprecated-alias"
+}
+
+let sslWarned = false
+
+function warnSslPostureOnce(url: string): void {
+  if (sslWarned) return
+  const posture = sslPosture(url)
+  if (posture === "verify-full" || posture === "loopback") return
+  sslWarned = true
+  console.warn(
+    `[7F] DATABASE_URL TLS posture is "${posture}". Use an explicit sslmode=verify-full ` +
+      "(pg treats require/prefer/verify-ca as deprecated aliases of verify-full). See .env.example.",
+  )
+}
+
 function createClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL
 
@@ -142,6 +193,7 @@ function createClient(): PrismaClient {
   }
 
   assertPostgresConnectionString(connectionString)
+  warnSslPostureOnce(connectionString)
 
   const adapter = new PrismaPg(
     {
@@ -160,7 +212,12 @@ function createClient(): PrismaClient {
       },
     },
   )
-  return new PrismaClient({ adapter })
+  /**
+   * The extended client has the same runtime surface as `PrismaClient`; the
+   * extension only interposes the `database.write` check. The cast keeps the
+   * exported type unchanged for the ~130 importers.
+   */
+  return new PrismaClient({ adapter }).$extends(writeGuardExtension) as unknown as PrismaClient
 }
 
 /**
