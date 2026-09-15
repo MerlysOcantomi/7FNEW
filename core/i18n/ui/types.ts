@@ -1193,6 +1193,34 @@ export interface InboxMessages {
       hoursAgo: (hours: number) => string
       daysAgo: (days: number) => string
     }
+    /**
+     * Active-filter tokens row (INBOX-UX-SAFE-01): every active dimension
+     * rendered as a removable token so simplifying the toolbar never hides
+     * a restriction the operator cannot see or undo.
+     */
+    activeFilters: {
+      heading: string
+      clearAll: string
+      /** Visible token text composed from a dimension and its value ("Status: Archived"). */
+      token: (dimension: string, label: string) => string
+      /** aria-label for a token's remove button. */
+      remove: (label: string) => string
+      /** Dimension prefixes composed into a token ("Status: Archived"). */
+      dimensions: {
+        filter: string
+        search: string
+        channel: string
+        status: string
+        priority: string
+        assignment: string
+        category: string
+      }
+    }
+    /** Non-persisted experience preview badge ("Preview · Simple"). */
+    experiencePreview: {
+      badge: (level: string) => string
+      levels: { simple: string; standard: string; advanced: string }
+    }
   }
   list: {
     unavailableTitle: string

@@ -77,6 +77,13 @@ import {
   type ResolvedInboxFilterView,
 } from "@core/inbox/filter-config"
 import { parseChannelFilterId } from "@core/inbox/filter-registry"
+import {
+  getInboxExperienceUiPolicy,
+  parseInboxExperienceLevel,
+  resolveEffectiveInboxLayoutMode,
+  shapeInboxPrimaryFilterViews,
+} from "@core/inbox/experience-config"
+import { InboxActiveFilters, type InboxActiveFilterToken } from "@/components/inbox/inbox-active-filters"
 import { pickExpandedIntents } from "@/lib/inbox/pick-expanded-intents"
 import {
   getMessageAttachmentsView,
@@ -540,6 +547,11 @@ function InboxPageContent() {
       if (stored === "triage" || stored === "reading" || stored === "focus") setLayoutMode(stored)
     } catch { /* localStorage may be unavailable (private mode) — fall back to default */ }
   }, [])
+  /**
+   * NOTE (INBOX-UX-SAFE-01): the JSX below renders `effectiveLayoutMode`, not
+   * `layoutMode` — see its derivation next to `experiencePolicy`. Persistence
+   * stays here, untouched.
+   */
   const handleLayoutModeChange = useCallback((mode: InboxLayoutMode) => {
     setLayoutMode(mode)
     if (typeof window === "undefined") return
@@ -752,16 +764,40 @@ function InboxPageContent() {
   const lastDeepLinkRef = useRef<string | null>(null)
 
   /**
+   * Experience level PREVIEW (INBOX-UX-SAFE-01). `?experience=simple|standard|advanced`
+   * is a NON-PERSISTED, visibility-only override read from the URL: it shapes which
+   * controls render, never what the server allows. Without the param (or with an
+   * unknown value) `experiencePolicy` is `null` and every consumer below renders
+   * exactly what it rendered before this layer existed. Workspace/vertical
+   * resolution of the level is deliberately NOT wired here yet (POST-NEON).
+   */
+  const experienceLevel = useMemo(
+    () => parseInboxExperienceLevel(searchParams.get("experience")),
+    [searchParams],
+  )
+  const experiencePolicy = useMemo(() => getInboxExperienceUiPolicy(experienceLevel), [experienceLevel])
+  /**
+   * The layout mode actually RENDERED. Levels without the switcher (Simple,
+   * Standard) pin the classic three-column reading layout so a previously
+   * persisted Brief/Handle choice can never trap the operator in a layout with
+   * no control to leave it. Persistence (`layoutMode`) is untouched, so a
+   * no-level visit still remembers the operator's choice byte-for-byte.
+   */
+  const effectiveLayoutMode = resolveEffectiveInboxLayoutMode(layoutMode, experiencePolicy, "reading")
+
+  /**
    * Primary filter chips (strip on top of ConversationList) — the effective
    * `tier: "primary"` views from the filter registry, so the chip row is
    * vertical/workspace configurable while the sidebar Work group and the
    * chips stay two representations of the same `?filter=` URL state. A URL
    * filter outside the chip row maps to "other" (no chip highlighted); the
-   * sidebar already shows the operator where they are.
+   * sidebar already shows the operator where they are. With an experience
+   * preview the row is additionally SHAPED (subset/order) by the level policy;
+   * without one, `shapeInboxPrimaryFilterViews(views, null)` is the identity.
    */
   const primaryFilterViews = useMemo(
-    () => effectiveFilterViews.filter((view) => view.tier === "primary"),
-    [effectiveFilterViews],
+    () => shapeInboxPrimaryFilterViews(effectiveFilterViews, experiencePolicy),
+    [effectiveFilterViews, experiencePolicy],
   )
   const primaryWorkFilter: string = useMemo(() => {
     if (activeUrlFilter.isFallback) return "all"
@@ -1845,6 +1881,110 @@ function InboxPageContent() {
       }),
     [primaryFilterViews, t, uiLocale],
   )
+
+  /**
+   * Active-filter tokens (INBOX-UX-SAFE-01). Only materialised when an
+   * experience policy asks for them (`showActiveFilterTokens`); with no
+   * effective experience the row never renders and the Inbox is unchanged.
+   * Each token removes exactly ONE dimension; the URL view token appears only
+   * when the active `?filter=` is outside the (possibly shaped) chip row, so
+   * a hidden chip never becomes an invisible restriction.
+   */
+  const clearUrlFilter = useCallback(
+    () => handlePrimaryWorkFilterChange("all"),
+    [handlePrimaryWorkFilterChange],
+  )
+  const activeFilterTokens = useMemo<InboxActiveFilterToken[]>(() => {
+    if (!experiencePolicy?.showActiveFilterTokens) return []
+    const dims = t.inbox.toolbar.activeFilters.dimensions
+    const tokens: InboxActiveFilterToken[] = []
+    if (primaryWorkFilter === "other" && activeUrlFilter.id && activeUrlFilter.id !== "all") {
+      const id = activeUrlFilter.id
+      const channelId = parseChannelFilterId(id)
+      const label = channelId
+        ? channelLabel(channelId, uiLocale)
+        : TOOLBAR_FILTER_LABEL_KEYS[id]
+          ? t.inbox.toolbar.workFilters[TOOLBAR_FILTER_LABEL_KEYS[id]]
+          : id
+      tokens.push({ key: "filter", dimension: dims.filter, label, onRemove: clearUrlFilter })
+    }
+    if (debouncedSearch) {
+      tokens.push({ key: "search", dimension: dims.search, label: debouncedSearch, onRemove: () => setSearch("") })
+    }
+    if (channel !== "all") {
+      tokens.push({
+        key: "channel",
+        dimension: dims.channel,
+        label: channelSelectOptions.find((option) => option.value === channel)?.label ?? channel,
+        onRemove: () => setChannel("all"),
+      })
+    }
+    if (status !== "all") {
+      tokens.push({
+        key: "status",
+        dimension: dims.status,
+        label: statusFilterOptions.find((option) => option.value === status)?.label ?? status,
+        onRemove: () => setStatus("all"),
+      })
+    }
+    if (urgencyFilter !== "all") {
+      const p = t.inbox.toolbar.priorities
+      const priorityLabels: Record<string, string> = {
+        critica: p.critical,
+        alta: p.high,
+        media: p.medium,
+        baja: p.low,
+      }
+      tokens.push({
+        key: "priority",
+        dimension: dims.priority,
+        label: priorityLabels[urgencyFilter] ?? urgencyFilter,
+        onRemove: () => setUrgencyFilter("all"),
+      })
+    }
+    if (assignmentFilter !== "all") {
+      const a = t.inbox.toolbar.assignments
+      tokens.push({
+        key: "assignment",
+        dimension: dims.assignment,
+        label: assignmentFilter === "mine" ? a.mine : a.unassigned,
+        onRemove: () => setAssignmentFilter("all"),
+      })
+    }
+    if (categoryFilter) {
+      tokens.push({
+        key: "category",
+        dimension: dims.category,
+        label: categoryFilter,
+        onRemove: () => setCategoryFilter(null),
+      })
+    }
+    return tokens
+  }, [
+    experiencePolicy,
+    t,
+    primaryWorkFilter,
+    activeUrlFilter,
+    uiLocale,
+    clearUrlFilter,
+    debouncedSearch,
+    channel,
+    channelSelectOptions,
+    status,
+    statusFilterOptions,
+    urgencyFilter,
+    assignmentFilter,
+    categoryFilter,
+  ])
+  const clearAllActiveFilters = useCallback(() => {
+    setSearch("")
+    setChannel("all")
+    setStatus("all")
+    setUrgencyFilter("all")
+    setAssignmentFilter("all")
+    setCategoryFilter(null)
+    if (primaryWorkFilter === "other") clearUrlFilter()
+  }, [primaryWorkFilter, clearUrlFilter])
 
   const handleAssign = useCallback(async (newAssignedTo: string) => {
     if (!activeSelectedId) return
@@ -3413,7 +3553,24 @@ function InboxPageContent() {
             onUrgencyFilterChange={setUrgencyFilter}
             assignmentFilter={assignmentFilter}
             onAssignmentFilterChange={setAssignmentFilter}
+            showAdvancedFilters={experiencePolicy ? experiencePolicy.showAdvancedFilters : undefined}
           />
+          {/*
+           * Experience PREVIEW badge + active-filter tokens (INBOX-UX-SAFE-01).
+           * Both render only when `?experience=` names a valid level; with no
+           * effective experience neither element exists in the tree.
+           */}
+          {experienceLevel ? (
+            <div
+              className="flex shrink-0 items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80"
+              data-testid="inbox-experience-preview"
+            >
+              <span className="rounded-full border border-dashed border-[var(--inbox-list-border)] px-2 py-0.5">
+                {t.inbox.toolbar.experiencePreview.badge(t.inbox.toolbar.experiencePreview.levels[experienceLevel])}
+              </span>
+            </div>
+          ) : null}
+          <InboxActiveFilters tokens={activeFilterTokens} onClearAll={clearAllActiveFilters} />
           {/*
            * Workspace taxonomy chips. Renders only when the active workspace
            * has a non-empty `Workspace.config.taxonomies.inbox` list — see
@@ -3422,18 +3579,25 @@ function InboxPageContent() {
            * the pre-PR state. Selection is now FUNCTIONAL: clicking a chip
            * filters the conversation list by `Conversation.category` (set
            * manually via `<ConversationCategoryEditor>` on the thread).
+           * A level may hide the row (Simple); the active-filter tokens keep
+           * an already selected category visible and removable.
            */}
-          <InboxTaxonomyChips
-            selected={categoryFilter}
-            onSelectedChange={setCategoryFilter}
-          />
+          {experiencePolicy && !experiencePolicy.showTaxonomies ? null : (
+            <InboxTaxonomyChips
+              selected={categoryFilter}
+              onSelectedChange={setCategoryFilter}
+            />
+          )}
           {/*
            * Layout-mode switcher (PR2). Desktop-only (xl+) — layout modes don't apply to the
            * mobile list↔thread flow. Right-aligned, low-profile chrome above the grid.
+           * Hidden by levels without layout modes; `effectiveLayoutMode` then pins "reading".
            */}
-          <div className="hidden shrink-0 xl:flex xl:justify-end">
-            <InboxLayoutSwitcher value={layoutMode} onChange={handleLayoutModeChange} />
-          </div>
+          {experiencePolicy && !experiencePolicy.showLayoutSwitcher ? null : (
+            <div className="hidden shrink-0 xl:flex xl:justify-end">
+              <InboxLayoutSwitcher value={layoutMode} onChange={handleLayoutModeChange} />
+            </div>
+          )}
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col gap-3",
@@ -3444,9 +3608,9 @@ function InboxPageContent() {
                * nothing selected we keep the 3-column layout so the operator still has a list
                * to pick from (otherwise Handle would be a dead-end empty screen).
                */
-              layoutMode === "focus" && activeSelectedId
+              effectiveLayoutMode === "focus" && activeSelectedId
                 ? INBOX_GRID_COLS_FOCUS
-                : layoutMode === "triage"
+                : effectiveLayoutMode === "triage"
                   ? INBOX_GRID_COLS_TRIAGE_CLOSED
                   : INBOX_GRID_COLS_3,
             )}
@@ -3468,7 +3632,7 @@ function InboxPageContent() {
                * but only once a conversation is selected — otherwise keep it so the operator
                * can still pick one.
                */
-              layoutMode === "focus" && activeSelectedId ? "xl:hidden" : "xl:flex",
+              effectiveLayoutMode === "focus" && activeSelectedId ? "xl:hidden" : "xl:flex",
             )}
           >
             {showInitialListSkeleton ? (
@@ -3588,7 +3752,7 @@ function InboxPageContent() {
               activeSelectedId && mobileView === "thread" ? "flex" : "hidden",
               "min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-chat-surface)] shadow-[var(--app-shadow-subtle)] xl:h-full xl:min-h-0",
               /* Brief (triage) always hides the message/thread column on desktop — no substate. */
-              layoutMode === "triage" ? "xl:hidden" : "xl:flex",
+              effectiveLayoutMode === "triage" ? "xl:hidden" : "xl:flex",
             )}
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--inbox-chat-background)]">
@@ -3601,7 +3765,7 @@ function InboxPageContent() {
                    * · one signal) that stands in for the hidden right Fanny/context panel. Only
                    * in Focus, only when a conversation is selected.
                    */}
-                  {layoutMode === "focus" && selected ? (
+                  {effectiveLayoutMode === "focus" && selected ? (
                     <InboxContextStrip
                       channel={selected.channel}
                       channelLabel={channelLabel(selected.channel, uiLocale)}
@@ -3800,7 +3964,7 @@ function InboxPageContent() {
              * setter + persistence path as the switcher buttons (no hidden sub-mode). Desktop
              * only and only when a conversation is selected.
              */}
-            {layoutMode === "triage" && selected ? (
+            {effectiveLayoutMode === "triage" && selected ? (
               <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--inbox-divider)] bg-white/[0.03] px-3 py-2">
                 <button
                   type="button"
