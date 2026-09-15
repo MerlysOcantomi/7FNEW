@@ -2,8 +2,16 @@
 
 Status: prerequisite satisfied (FOUND-04A-SCHEMA on `master`, commit
 `d1c14f5`), baseline `0_init` generated from the canonical schema and verified
-from zero locally (see §3, §5). Nothing here changes the Turso runtime, the
-canonical schema provider, `core/db.ts`, the SQLite history or production.
+from zero locally (see §3, §5). Nothing here changes the Turso runtime or
+production.
+
+> **Superseded in part by NEON-03** (`docs/architecture/7F-DATABASE.md`): the
+> canonical schema now carries the `postgresql` provider, so the derived
+> variant `generated/schema.postgres.prisma`, `prisma.config.postgres.ts` and
+> the `generate-schema` command no longer exist; `0_init` is regenerated
+> byte-identical from `prisma/schema.prisma` and pinned by sha256, `verify`
+> reads `POSTGRES_VERIFY_URL`, and the CI job in §6 is applied (as part of the
+> single `verify` job). §3–§5 remain the historical rehearsal evidence.
 
 ## 1. Decisions this design implements
 

@@ -1,6 +1,6 @@
 /**
  * Integration tests for the common outbound service (INBOX-TRANSPORT-05C)
- * against a real pushed-schema SQLite db, using a FAKE WhatsApp transport to
+ * against a real disposable PostgreSQL database, using a FAKE WhatsApp transport to
  * exercise the neutral flow without any external API. The email path runs
  * the real EmailTransport, which fails safely without provider credentials —
  * exactly the honest failure the service must surface.
@@ -8,15 +8,11 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "inbox-outbound-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
 delete process.env.RESEND_API_KEY
+
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -58,10 +54,7 @@ const fakeWhatsApp = {
 }
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, {
-    stdio: "ignore",
-    cwd: process.cwd(),
-  })
+  database = await provisionTestDatabase("inbox-outbound")
   ;({ db } = await import("@core/db"))
   ;({ sendConversationMessage } = await import("./outbound-service"))
   ;({ registerChannelTransport, unregisterChannelTransportForTests } = await import(
@@ -78,8 +71,9 @@ test.before(async () => {
   contactNoPhone = await db.contact.create({ data: { workspaceId: ws.id, nombre: "SinDatos" } })
 })
 
-test.after(() => {
-  rmSync(dir, { recursive: true, force: true })
+test.after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 test("a registered transport sends: projection + sourceMessageId, no email metadata pollution", async () => {

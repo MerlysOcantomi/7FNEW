@@ -123,14 +123,14 @@ test("resolveSqlDialect fails closed on a missing or unknown URL and never echoe
   )
 })
 
-test("resolveSqlDialect reads DATABASE_URL before TURSO_DATABASE_URL, like core/db.ts", () => {
+test("resolveSqlDialect reads DATABASE_URL only — TURSO_DATABASE_URL is never a fallback (like core/db.ts)", () => {
   const saved = { a: process.env.DATABASE_URL, b: process.env.TURSO_DATABASE_URL }
   try {
     process.env.DATABASE_URL = "postgresql://example.invalid/db"
     process.env.TURSO_DATABASE_URL = "libsql://example.invalid"
     assert.equal(resolveSqlDialect(), "postgresql")
     delete process.env.DATABASE_URL
-    assert.equal(resolveSqlDialect(), "sqlite")
+    assert.throws(() => resolveSqlDialect(), /no database URL is configured/)
   } finally {
     if (saved.a === undefined) delete process.env.DATABASE_URL
     else process.env.DATABASE_URL = saved.a

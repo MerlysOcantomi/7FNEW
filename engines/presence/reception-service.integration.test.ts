@@ -1,6 +1,6 @@
 /**
  * Integration tests for the Presence reception service (PRESENCE-FANNY-01)
- * against a REAL local SQLite DB. Covers secure workspace resolution, anonymous
+ * against a REAL disposable PostgreSQL database (test/support/postgres.ts). Covers secure workspace resolution, anonymous
  * web conversation creation on the SHARED Smart Inbox model, session reuse,
  * multi-tenant isolation, deterministic answers, appointment → WorkspaceTask,
  * human transfer, WhatsApp resolution, consent, and gating (unpublished /
@@ -9,14 +9,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "presence-reception-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -50,10 +45,18 @@ async function publishedWorkspace(opts: { slug: string; whatsapp?: boolean; what
 }
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, { stdio: "ignore", cwd: process.cwd() })
+  database = await provisionTestDatabase("presence-reception")
   ;({ db } = await import("@core/db"))
   repo = await import("./repository")
   svc = await import("./reception-service")
+})
+
+test.after(async () => {
+  // addMessage starts short-intent persistence fire-and-forget; settle it
+  // (expected AIExecutionError: no provider key) before dropping the database.
+  await settleBackgroundTasks({ aiDisabled: true })
+  await db.$disconnect()
+  await database.dispose()
 })
 
 // ---- secure resolution & gating -------------------------------------------
@@ -215,4 +218,21 @@ test("resolveReceptionModel returns Fanny + WhatsApp for a published site", asyn
   assert.equal(m.businessName, "Estudio Aurora")
   assert.equal(m.model.whatsapp.available, true)
   assert.ok(m.model.fanny.quickActions.length > 0)
+})
+
+test("background short-intent work from reception messages settles explicitly (AI disabled, no network)", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  const shortIntent = outcomes.filter((o) => o.label === "message:short-intent")
+  assert.ok(shortIntent.length >= 1, "reception messages start short-intent persistence")
+  // Best-effort by contract: the missing provider key is handled inside the
+  // task and reported in its result; nothing is persisted.
+  for (const o of shortIntent) {
+    assert.equal(o.status, "fulfilled")
+    const value = o.value as { status: string; stage?: string; error?: unknown }
+    assert.equal(value.status, "failed")
+    assert.equal(value.stage, "execute")
+    assert.ok(isMissingProviderKeyError(value.error))
+  }
+  assert.equal(await db.message.count({ where: { metadata: { contains: '"shortIntent"' } } }), 0)
+  assert.deepEqual(blockedOutboundAttempts(), [])
 })

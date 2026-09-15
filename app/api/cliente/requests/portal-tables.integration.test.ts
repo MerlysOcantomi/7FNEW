@@ -1,9 +1,11 @@
 /**
  * CORE-03C-2B — the four CANONICAL_ADD tables actually support the runtime's
  * access patterns, proven against a database built FROM THE MIGRATION
- * HISTORY (0_baseline → 3_create_portal_tables) with `prisma migrate deploy`
- * and a temporary, dotenv-free config. Until this migration existed, every
- * one of these operations failed in production (CORE-03B CRITICAL).
+ * HISTORY (PostgreSQL `0_init`, which carries the portal tables the SQLite
+ * history introduced in 3_create_portal_tables) with `prisma migrate deploy`
+ * through test/support/postgres.ts (dotenv-free, loopback only). Until this
+ * migration existed, every one of these operations failed in production
+ * (CORE-03B CRITICAL).
  *
  * Covered write/read patterns, mirroring the productive code:
  *   - ClientRequest nested `assets: { create: … }` + `include: { assets }`
@@ -15,23 +17,14 @@
  *   - declared FK actions are enforced (Cliente delete cascades the portal
  *     rows; Workspace delete cascades the snapshot).
  *
- * Local throwaway SQLite only; synthetic data; no remote access.
+ * Local throwaway PostgreSQL only; synthetic data; no remote access.
  */
 
 import assert from "node:assert/strict"
 import test, { before, after } from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const REPO = process.cwd()
-const dir = mkdtempSync(join(tmpdir(), "portal-tables-"))
-const dbUrl = `file:${join(dir, "portal.db")}`
-process.env.DATABASE_URL = dbUrl
-delete process.env.DATABASE_AUTH_TOKEN
-delete process.env.TURSO_DATABASE_URL
-delete process.env.TURSO_AUTH_TOKEN
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -40,30 +33,7 @@ let ws: any
 let cliente: any
 
 before(async () => {
-  symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"))
-  const configPath = join(dir, "prisma.config.ts")
-  writeFileSync(
-    configPath,
-    [
-      'import { defineConfig } from "prisma/config"',
-      "export default defineConfig({",
-      `  schema: ${JSON.stringify(join(REPO, "prisma", "schema.prisma"))},`,
-      `  migrations: { path: ${JSON.stringify(join(REPO, "prisma", "migrations"))} },`,
-      `  datasource: { url: ${JSON.stringify(dbUrl)} },`,
-      "})",
-      "",
-    ].join("\n"),
-  )
-  const env = { ...process.env }
-  delete env.DATABASE_URL
-  delete env.TURSO_DATABASE_URL
-  delete env.DATABASE_AUTH_TOKEN
-  delete env.TURSO_AUTH_TOKEN
-  execSync(`"${join(REPO, "node_modules", ".bin", "prisma")}" migrate deploy --config "${configPath}"`, {
-    cwd: REPO,
-    stdio: "ignore",
-    env: { ...env, DOTENV_CONFIG_PATH: "/dev/null", CHECKPOINT_DISABLE: "1", PRISMA_HIDE_UPDATE_MESSAGE: "1" },
-  })
+  database = await provisionTestDatabase("portal-tables")
   ;({ db } = await import("@core/db"))
   snapshotStore = await import("@/agents/forte/runtime/business/snapshot-store")
 
@@ -73,8 +43,9 @@ before(async () => {
   })
 })
 
-after(() => {
-  rmSync(dir, { recursive: true, force: true })
+after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 test("ClientRequest supports the route's nested-asset create and include", async () => {

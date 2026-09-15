@@ -2,7 +2,6 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { TOOL_CATALOG, TOOL_KEYS } from "@core/platform/tool-catalog"
 
-process.env.DATABASE_URL ??= "file:./dev.db"
 
 // The registry imports handlers, which import the db module — but nothing
 // here executes a query: these tests assert the SHAPE of the binding layer.

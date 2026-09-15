@@ -1,14 +1,19 @@
 name: CI
 
 # Runs on every push and pull request. The whole point of this workflow is that
-# it needs NOTHING from the environment: no DATABASE_URL, no Turso or Neon
-# credentials, no secrets of any kind. CORE-03A made `core/db.ts` initialise
-# lazily precisely so the suite could run in a clean container — if a change
-# ever reintroduces a hard database dependency at import time, this job is
-# where it will surface.
+# it needs NOTHING from outside the runner: no Turso or Neon credentials, no
+# secrets of any kind. The only database is an EPHEMERAL PostgreSQL 16 service
+# container (NEON-03) reachable on loopback, created and destroyed with the
+# job; tests provision their own disposable databases on it from the real
+# migration history (test/support/postgres.ts) and the baseline verifier
+# proves `prisma/migrations-postgres` from an empty database. CORE-03A made
+# `core/db.ts` initialise lazily precisely so the suite could run in a clean
+# container — if a change ever reintroduces a hard database dependency at
+# import time, this job is where it will surface.
 #
-# Deliberately absent: migrations, seeds, backfills, schema pushes, deploys and
-# any step that writes data anywhere.
+# Deliberately absent: migrations against any real environment, seeds,
+# backfills, schema pushes, deploys and any step that writes data anywhere
+# but the service container.
 
 on:
   push:
@@ -27,7 +32,33 @@ jobs:
   verify:
     name: Typecheck, lint, test and build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+
+    services:
+      # Ephemeral, loopback-only PostgreSQL 16 for the suite and the baseline
+      # verifier. Synthetic credentials: the container lives and dies with
+      # the job and is reachable from nowhere else.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Never a real environment: no .env is read, no DATABASE_URL/DIRECT_URL
+      # is provided. The suite creates its databases from TEST_DATABASE_URL.
+      DOTENV_CONFIG_PATH: /dev/null
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # The service container publishes 5432 on the runner: the ETL rehearsal
+      # dials loopback but the server reports its container address (NEON-04).
+      TEST_DATABASE_FORWARDED_LOOPBACK: "1"
 
     steps:
       - name: Checkout
@@ -47,7 +78,8 @@ jobs:
 
       # The Prisma client is generated code that is gitignored, so it has to be
       # produced before anything type-checks against it. Generation reads the
-      # schema file only — it opens no connection and touches no database.
+      # schema file only — it opens no connection and touches no database
+      # (prisma.config.ts omits the datasource when DIRECT_URL is unset).
       - name: Generate Prisma client
         run: npx prisma generate
 
@@ -57,22 +89,40 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Discovers and runs every *.test.ts / *.test.tsx exactly once. No
-      # database environment is provided on purpose.
+      # Discovers and runs every *.test.ts / *.test.tsx exactly once. Database
+      # tests create and drop their own databases on the service container
+      # (TEST_DATABASE_URL); the runtime only ever sees a disposable
+      # DATABASE_URL set by the test helper.
       - name: Test
         run: npm test
 
-      # CORE-03C-2B: builds a throwaway LOCAL SQLite database from
-      # prisma/migrations and fails on any structural drift against
-      # prisma/schema.prisma that is not explicitly declared in
-      # prisma/migrations/drift-manifest.json (unknown drift, stale or
-      # malformed manifest entries, missing/unexpected migrations all fail).
-      # Local file: databases only — no credentials, no network, no writes
-      # outside the runner's temp directory.
-      - name: Verify migration history
-        run: npm run db:verify-history
+      # NEON-02/NEON-03: proves the PostgreSQL history from an EMPTY database
+      # (read-only emptiness preflight, 0_init applied now and pinned by
+      # sha256, ledger exact, applied DB equals the canonical schema, second
+      # deploy a no-op). A dedicated empty database keeps the preflight honest.
+      - name: Create empty database for the baseline verifier
+        run: |
+          node -e "
+            const { Client } = require('pg')
+            const client = new Client({ connectionString: process.env.TEST_DATABASE_URL })
+            client.connect()
+              .then(() => client.query('CREATE DATABASE verify'))
+              .then(() => client.end())
+              .catch((error) => { console.error(error.message); process.exit(1) })
+          "
+
+      - name: Verify PostgreSQL baseline
+        run: npm run db:postgres:verify
         env:
-          DOTENV_CONFIG_PATH: /dev/null
+          POSTGRES_VERIFY_URL: postgresql://postgres:postgres@localhost:5432/verify
+
+      # CORE-03C-2B, kept as LEGACY SAFETY until the Turso cutover: builds a
+      # throwaway LOCAL SQLite database from prisma/migrations (through a
+      # sqlite-provider variant of the canonical schema derived in memory) and
+      # fails on any structural drift not declared in
+      # prisma/migrations/drift-manifest.json. Local file: databases only.
+      - name: Verify legacy SQLite migration history
+        run: npm run db:verify-history
 
       - name: Build
         run: npm run build

@@ -188,7 +188,9 @@ export function normalizeWireToolCalls(
 }
 
 export function createChatCompletionsAdapter(config: ChatAdapterConfig): AIProviderAdapter {
-  const fetchImpl = config.fetchImpl ?? fetch
+  // Late-bound on purpose: `globalThis.fetch` is read at call time, so a
+  // test-installed transport guard or spy applies regardless of import order.
+  const fetchImpl: typeof fetch = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init))
 
   return {
     provider: config.provider,

@@ -1,146 +1,28 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { createClient, type Client } from "@libsql/client"
+import { provisionTestDatabase, queryRaw, type ProvisionedDatabase } from "@/test/support/postgres"
 
 /**
  * CORE-01 — multi-tenant isolation tests for the legacy `Usuario` model.
  *
- * These run against a THROWAWAY LOCAL SQLite file created in the OS temp
- * directory and deleted afterwards. Nothing here touches Turso, Neon or any
- * remote database: `DATABASE_URL` is overwritten with a `file:` URL before
- * `@core/db` is imported, which is why every module under test is loaded with
- * a dynamic `import()` inside `test.before` rather than a static import at the
- * top of the file.
+ * These run against a THROWAWAY LOCAL PostgreSQL database created from the
+ * real migration history (test/support/postgres.ts) and dropped afterwards.
+ * Nothing here touches Turso, Neon or any remote database: `DATABASE_URL` is
+ * pointed at the disposable database before `@core/db` is imported, which is
+ * why every module under test is loaded with a dynamic `import()` inside
+ * `test.before` rather than a static import at the top of the file.
  *
- * The schema is the exact DDL Prisma generates for these seven models
- * (`prisma migrate diff --from-empty --to-schema prisma/schema.prisma`), so
- * the service code runs against real column types, real defaults and real
- * foreign keys — including `Tarea.usuarioId ON DELETE SET NULL`, which is the
- * mechanism a cross-tenant delete would abuse.
+ * The schema is the deployed `0_init` baseline, so the service code runs
+ * against real column types, real defaults and real foreign keys — including
+ * `Tarea.usuarioId ON DELETE SET NULL`, which is the mechanism a cross-tenant
+ * delete would abuse.
  *
- * Every blocked operation is verified by RE-READING the row with the raw
- * libSQL client — deliberately not through the service under test — so a test
+ * Every blocked operation is verified by RE-READING the row with a raw `pg`
+ * connection — deliberately not through the service under test — so a test
  * proves the absence of a write rather than merely the shape of a return
  * value.
  */
 
-const SCHEMA_SQL = [
-  `CREATE TABLE "Workspace" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "vertical" TEXT NOT NULL DEFAULT 'creative-agency',
-    "verticalKey" TEXT NOT NULL DEFAULT 'creative-agency',
-    "config" TEXT,
-    "plan" TEXT NOT NULL DEFAULT 'free',
-    "status" TEXT NOT NULL DEFAULT 'active',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE "User" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL,
-    "nombre" TEXT,
-    "avatar" TEXT,
-    "locale" TEXT,
-    "role" TEXT NOT NULL DEFAULT 'viewer',
-    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "visibleProjects" TEXT,
-    "workspaceId" TEXT,
-    "lastLogin" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "User_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE "WorkspaceMember" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "workspaceId" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'MEMBER',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "WorkspaceMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "WorkspaceMember_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE "Usuario" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "nombre" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "rol" TEXT NOT NULL DEFAULT 'miembro',
-    "departamento" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-  )`,
-  `CREATE TABLE "Cliente" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "customId" TEXT,
-    "nombre" TEXT NOT NULL,
-    "email" TEXT,
-    "telefono" TEXT,
-    "empresa" TEXT,
-    "preferredPaymentMethod" TEXT,
-    "currency" TEXT,
-    "tipo" TEXT NOT NULL DEFAULT 'empresa',
-    "estado" TEXT NOT NULL DEFAULT 'activo',
-    "notas" TEXT,
-    "workspaceId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Cliente_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE "Proyecto" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "customId" TEXT,
-    "nombre" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'planificacion',
-    "prioridad" TEXT NOT NULL DEFAULT 'media',
-    "progreso" INTEGER NOT NULL DEFAULT 0,
-    "presupuesto" REAL,
-    "fechaInicio" DATETIME,
-    "fechaFin" DATETIME,
-    "estimatedDelivery" DATETIME,
-    "actualDelivery" DATETIME,
-    "tags" TEXT,
-    "internalNotes" TEXT,
-    "assignedTo" TEXT,
-    "visibility" TEXT NOT NULL DEFAULT 'public',
-    "allowedUsers" TEXT,
-    "createdBy" TEXT,
-    "clienteId" TEXT,
-    "workspaceId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Proyecto_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Proyecto_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE "Tarea" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "estado" TEXT NOT NULL DEFAULT 'pendiente',
-    "prioridad" TEXT NOT NULL DEFAULT 'media',
-    "fechaLimite" DATETIME,
-    "completedAt" DATETIME,
-    "proyectoId" TEXT,
-    "clienteId" TEXT,
-    "usuarioId" TEXT,
-    "workspaceId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Tarea_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Tarea_proyectoId_fkey" FOREIGN KEY ("proyectoId") REFERENCES "Proyecto" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Tarea_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Tarea_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE UNIQUE INDEX "Workspace_slug_key" ON "Workspace"("slug")`,
-  `CREATE UNIQUE INDEX "User_email_key" ON "User"("email")`,
-  `CREATE UNIQUE INDEX "Usuario_email_key" ON "Usuario"("email")`,
-  `CREATE UNIQUE INDEX "WorkspaceMember_userId_workspaceId_key" ON "WorkspaceMember"("userId", "workspaceId")`,
-]
 
 const WS_A = "ws-alpha"
 const WS_B = "ws-beta"
@@ -157,8 +39,7 @@ const WS_B = "ws-beta"
  *   u-deletable   d@x.com   → member of A only, no tasks          → exclusive in A
  */
 
-let dir: string
-let raw: Client
+let database: ProvisionedDatabase
 
 type Db = (typeof import("@core/db"))["db"]
 type UsuariosService = typeof import("./service")
@@ -231,25 +112,15 @@ async function seed() {
   ]
 
   for (const statement of statements) {
-    await raw.execute(statement)
+    await queryRaw(database, statement)
   }
 }
 
 test.before(async () => {
-  dir = mkdtempSync(join(tmpdir(), "core01-usuario-scope-"))
-  const url = `file:${join(dir, "scope.db")}`
-
-  raw = createClient({ url })
-  for (const statement of SCHEMA_SQL) {
-    await raw.execute(statement)
-  }
-  await raw.execute("PRAGMA foreign_keys = ON")
+  // Provisioning points the app's Prisma client at the throwaway database
+  // BEFORE it is loaded (DATABASE_URL set, every legacy variable removed).
+  database = await provisionTestDatabase("usuario-scope")
   await seed()
-
-  // Point the app's Prisma client at the throwaway file BEFORE it is loaded.
-  process.env.DATABASE_URL = url
-  delete process.env.DATABASE_AUTH_TOKEN
-  delete process.env.TURSO_AUTH_TOKEN
 
   db = (await import("@core/db")).db
   usuarios = await import("./service")
@@ -259,36 +130,29 @@ test.before(async () => {
 
 test.after(async () => {
   await db.$disconnect()
-  raw.close()
-  rmSync(dir, { recursive: true, force: true })
+  await database.dispose()
 })
 
 // ── Helpers that read the database WITHOUT going through the code under test ──
 
 async function rawUsuario(id: string) {
-  const result = await raw.execute({
-    sql: `SELECT "id","nombre","email","rol","departamento","estado" FROM "Usuario" WHERE "id" = ?`,
-    args: [id],
-  })
-  return result.rows[0] ?? null
+  const rows = await queryRaw(database, `SELECT "id","nombre","email","rol","departamento","estado" FROM "Usuario" WHERE "id" = $1`, [id])
+  return rows[0] ?? null
 }
 
 async function rawUsuarioCount() {
-  const result = await raw.execute(`SELECT COUNT(*) AS cnt FROM "Usuario"`)
-  return Number(result.rows[0]?.cnt ?? 0)
+  const rows = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Usuario"`)
+  return Number(rows[0]?.cnt ?? 0)
 }
 
 async function rawTareaAssignee(id: string) {
-  const result = await raw.execute({
-    sql: `SELECT "usuarioId","workspaceId" FROM "Tarea" WHERE "id" = ?`,
-    args: [id],
-  })
-  return result.rows[0] ?? null
+  const rows = await queryRaw(database, `SELECT "usuarioId","workspaceId" FROM "Tarea" WHERE "id" = $1`, [id])
+  return rows[0] ?? null
 }
 
 async function rawTareaCount() {
-  const result = await raw.execute(`SELECT COUNT(*) AS cnt FROM "Tarea"`)
-  return Number(result.rows[0]?.cnt ?? 0)
+  const rows = await queryRaw<{ cnt: string }>(database, `SELECT COUNT(*) AS cnt FROM "Tarea"`)
+  return Number(rows[0]?.cnt ?? 0)
 }
 
 function ids(rows: ReadonlyArray<{ id: string }>): string[] {

@@ -1,21 +1,16 @@
 /**
  * Integration tests for the common ingestion pipeline (INBOX-TRANSPORT-05B)
- * against a REAL local SQLite database (schema pushed via `prisma db push`
- * into a temp file). Covers the behaviours that pure tests cannot: dedup,
+ * against a REAL disposable PostgreSQL database built from the migration
+ * history (test/support/postgres.ts). Covers the behaviours that pure tests cannot: dedup,
  * identity resolution/ambiguity, provisional-contact reuse, conversation
  * matching, attachment rows, workspace isolation and the email adapter.
  */
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { blockedOutboundAttempts, isMissingProviderKeyError, provisionTestDatabase, settleBackgroundTasks, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "inbox-ingest-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Wired in test.before (tsx compiles tests as CJS — no top-level await).
@@ -30,10 +25,7 @@ let connA: any
 let emailConnA: any
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, {
-    stdio: "ignore",
-    cwd: process.cwd(),
-  })
+  database = await provisionTestDatabase("inbox-ingest")
   ;({ db } = await import("@core/db"))
   ;({ ingestInboundEnvelope } = await import("./pipeline"))
   ;({ ingestInboundEmail } = await import("../email-inbound"))
@@ -62,8 +54,13 @@ test.before(async () => {
   })
 })
 
-test.after(() => {
-  rmSync(dir, { recursive: true, force: true })
+test.after(async () => {
+  // Every fire-and-forget task started by the ingestions above must be
+  // settled and accounted for BEFORE the client disconnects and the database
+  // is dropped; the helper fails the file on any unexpected rejection.
+  await settleBackgroundTasks({ aiDisabled: true })
+  await db.$disconnect()
+  await database.dispose()
 })
 
 function waEnvelope(overrides: Record<string, unknown> = {}) {
@@ -270,4 +267,38 @@ test("email adapter ingests with RFC metadata, threads replies and dedupes IMAP 
   })
   assert.ok(identity)
   assert.equal(identity.resolutionStatus, "resolved")
+})
+
+// ── NEON-03-R1: background work is deterministic and explicit ───────────────
+
+test("post-persist background work settles deterministically: notifications fulfilled, AI triage fails explicitly (no provider keys), no network call", async () => {
+  const outcomes = await settleBackgroundTasks({ aiDisabled: true })
+  const byLabel = (label: string) => outcomes.filter((o) => o.label === label)
+  // Every ingestion above spawned a notification task and an intelligence task;
+  // every persisted message spawned (or skipped) a short-intent task.
+  assert.ok(byLabel("ingest:notify").length >= 1)
+  assert.ok(byLabel("ingest:notify").every((o) => o.status === "fulfilled"), "notifications never fail")
+  assert.ok(byLabel("ingest:intelligence").length >= 1)
+  for (const o of byLabel("ingest:intelligence")) {
+    assert.equal(o.status, "rejected", "intelligence cannot run without a provider key")
+    assert.ok(isMissingProviderKeyError(o.error), "the exact missing-credentials contract (provider_unavailable + adapter message)")
+  }
+  // Short-intent persistence is best-effort by contract: it catches the same
+  // provider failure internally, logs it and fulfils WITHOUT persisting an
+  // intent — and its fulfilled VALUE says why.
+  assert.ok(byLabel("message:short-intent").length >= 1)
+  for (const o of byLabel("message:short-intent")) {
+    assert.equal(o.status, "fulfilled")
+    const value = o.value as { status: string; stage?: string; error?: unknown }
+    assert.equal(value.status, "failed")
+    assert.equal(value.stage, "execute")
+    assert.ok(isMissingProviderKeyError(value.error), "the internal cause is the same missing-credentials error")
+  }
+  assert.deepEqual(blockedOutboundAttempts(), [], "no provider call reached the network layer")
+  // Their persistence side effects are visible (or absent) in PostgreSQL only now, deterministically.
+  assert.equal(await db.aIClassification.count(), 0, "no classification is persisted when AI is disabled")
+  const withIntent = await db.message.count({ where: { metadata: { contains: '"shortIntent"' } } })
+  assert.equal(withIntent, 0, "no short intent is persisted when AI is disabled")
+  // A second drain finds nothing left.
+  assert.deepEqual(await settleBackgroundTasks(), [])
 })

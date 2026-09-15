@@ -1,7 +1,7 @@
 /**
  * Integration tests for the Presence data-access layer (PRESENCE-02) against a
- * REAL local SQLite database (schema pushed via `prisma db push` into a temp
- * file). Covers behaviours pure tests cannot: per-workspace creation, DB-level
+ * REAL disposable PostgreSQL database built from `prisma/migrations-postgres`
+ * (see test/support/postgres.ts). Covers behaviours pure tests cannot: per-workspace creation, DB-level
  * slug/hostname uniqueness, verified-only hostname resolution, cross-workspace
  * isolation, publish/unpublish, standalone entitlement continuity, persisted
  * Freya proposal selection, and media metadata + variant lineage.
@@ -9,14 +9,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { provisionTestDatabase, type ProvisionedDatabase } from "@/test/support/postgres"
 
-const dir = mkdtempSync(join(tmpdir(), "presence-repo-"))
-const dbUrl = `file:${join(dir, "test.db")}`
-process.env.DATABASE_URL = dbUrl
+let database: ProvisionedDatabase
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: any
@@ -26,16 +21,18 @@ let wsA: any
 let wsB: any
 
 test.before(async () => {
-  execSync(`npx prisma db push --accept-data-loss --url "${dbUrl}"`, {
-    stdio: "ignore",
-    cwd: process.cwd(),
-  })
+  database = await provisionTestDatabase("presence-repo")
   ;({ db } = await import("@core/db"))
   repo = await import("./repository")
   freya = await import("./freya")
 
   wsA = await db.workspace.create({ data: { nombre: "A", slug: "ws-a", plan: "free" } })
   wsB = await db.workspace.create({ data: { nombre: "B", slug: "ws-b", plan: "enterprise" } })
+})
+
+test.after(async () => {
+  await db.$disconnect()
+  await database.dispose()
 })
 
 // ---- Creation per workspace ------------------------------------------------

@@ -16,7 +16,9 @@ import { buildUnansweredCandidateQuery, UNANSWERED_CANDIDATE_LIMIT } from "./una
  *
  * Local only: an in-memory `node:sqlite` database with the columns the
  * statements touch. No Prisma client, no network, no env. This gate is
- * SQLite-specific by design and is retired when Turso is retired.
+ * SQLite-specific by design and is retired when Turso is retired; the same
+ * fixture runs against real PostgreSQL through the runtime client in
+ * `modules/inbox/raw-queries.postgres.integration.test.ts`.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

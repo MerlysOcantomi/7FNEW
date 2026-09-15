@@ -215,21 +215,29 @@ export async function ensureUserHasDefaultWorkspace(userId: string): Promise<str
     slug = `${slugBase}-${attempt}`
   }
 
-  const ws = await db.workspace.create({
-    data: {
-      nombre: user?.nombre ? `${user.nombre}'s Workspace` : `Workspace ${slug}`,
-      slug,
-      vertical: "creative-agency",
-      verticalKey: "creative-agency",
-    },
-  })
-
-  await db.workspaceMember.create({
-    data: {
-      userId,
-      workspaceId: ws.id,
-      role: "OWNER",
-    },
+  /**
+   * Workspace + OWNER membership are ONE atomic unit (NEON-03): a workspace
+   * without its owner would be unreachable by anyone, and an owner row
+   * without its workspace is impossible by FK. Both writes commit together
+   * or not at all.
+   */
+  const ws = await db.$transaction(async (tx) => {
+    const created = await tx.workspace.create({
+      data: {
+        nombre: user?.nombre ? `${user.nombre}'s Workspace` : `Workspace ${slug}`,
+        slug,
+        vertical: "creative-agency",
+        verticalKey: "creative-agency",
+      },
+    })
+    await tx.workspaceMember.create({
+      data: {
+        userId,
+        workspaceId: created.id,
+        role: "OWNER",
+      },
+    })
+    return created
   })
   return ws.id
 }

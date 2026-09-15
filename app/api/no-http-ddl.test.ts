@@ -50,11 +50,15 @@ test("no DDL statements inside any HTTP handler", () => {
   }
 })
 
-test("no direct libSQL client inside any HTTP handler", () => {
+test("no direct database driver inside any HTTP handler (libSQL or pg): routes go through @core/db", () => {
   for (const file of files) {
     assert.ok(
       !file.content.includes("@libsql/client"),
       `${file.path} must not open raw libSQL connections from an HTTP route`,
+    )
+    assert.ok(
+      !/from\s+["']pg["']|require\(["']pg["']\)|@prisma\/adapter-pg/.test(file.content),
+      `${file.path} must not open raw PostgreSQL connections from an HTTP route`,
     )
   }
 })

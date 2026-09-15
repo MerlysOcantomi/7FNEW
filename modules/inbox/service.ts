@@ -1,4 +1,5 @@
 import { db } from "@core/db"
+import { startBackgroundTask } from "@core/background-tasks"
 import { resolveSqlDialect } from "@core/db-dialect"
 import type { Prisma } from "@/generated/prisma/client"
 import {
@@ -707,11 +708,13 @@ export async function addMessage(input: AddMessageInput) {
     const eligible = shouldPersistMessageShortIntent({ content: message.content, role: input.role })
     if (eligible) {
       console.log(`[shortIntent-debug] persist scheduled msg=${message.id}`)
-      void persistShortIntentForMessage({
-        messageId: message.id,
-        workspaceId: input.workspaceId,
-        content: message.content,
-      }).catch((err) => console.error(`[inbox] shortIntent persist failed msg=${message.id}:`, err))
+      void startBackgroundTask("message:short-intent", () =>
+        persistShortIntentForMessage({
+          messageId: message.id,
+          workspaceId: input.workspaceId,
+          content: message.content,
+        }),
+      ).catch((err) => console.error(`[inbox] shortIntent persist failed msg=${message.id}:`, err))
     } else {
       const len = message.content.trim().length
       const roleLower = message.role.trim().toLowerCase()

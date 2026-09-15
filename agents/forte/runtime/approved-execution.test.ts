@@ -3,7 +3,6 @@ import test from "node:test"
 import type { ForteContext, FortePlan, ForteDecision } from "./types"
 import type { ApprovalRequest } from "./approval"
 
-process.env.DATABASE_URL ??= "file:./dev.db"
 
 const BASE_CONTEXT: ForteContext = {
   tenantId: "tenant_test",

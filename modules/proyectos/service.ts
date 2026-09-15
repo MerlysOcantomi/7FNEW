@@ -42,9 +42,11 @@ export async function list(params: ListParams) {
   if (prioridad) conditions.push({ prioridad })
   if (clienteId) conditions.push({ clienteId })
   // Structured filter parameters (not free-text search): partial match by contract.
-  if (customId) conditions.push({ customId: structuredContains(customId) })
-  if (assignedTo) conditions.push({ assignedTo: structuredContains(assignedTo) })
-  if (tag) conditions.push({ tags: structuredContains(tag) })
+  // customId is a project code (identifier, exact case); assignedTo is a display
+  // name and tags are free-form labels (human text, case-insensitive).
+  if (customId) conditions.push({ customId: structuredContains(customId, "identifier") })
+  if (assignedTo) conditions.push({ assignedTo: structuredContains(assignedTo, "text") })
+  if (tag) conditions.push({ tags: structuredContains(tag, "text") })
 
   let clienteIdsFromSearch: string[] | null = null
 
