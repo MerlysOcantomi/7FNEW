@@ -1,12 +1,9 @@
 /**
- * Middleware regression tests (PRESENCE-03 hotfix).
+ * Middleware regression tests (PRESENCE-03 hotfix + managed Finesse domain).
  *
- * A previous version rewrote ANY host not in an env allowlist to the Presence
- * `/sites/by-host/<host>` route, which hijacked the app's own production domain
- * (e.g. sevenef.com) whenever that host was not listed in the env. These tests
- * lock in the fix: the middleware performs NO host-based rewriting, so the main
- * Sevenef app is always served on its own domains, and no unknown hostname is
- * ever used as a fallback into Presence.
+ * A previous version rewrote ANY host not in an env allowlist to Presence and
+ * could hijack the app's own production domain. These tests keep that fix while
+ * allowing one explicit managed namespace: getfinesse.app.
  */
 
 import test from "node:test"
@@ -27,16 +24,20 @@ function req(host: string, path: string): NextRequest {
   })
 }
 
-/** True when the middleware response rewrites into the Presence by-host route. */
+function rewriteTarget(res: Response): string {
+  return res.headers.get("x-middleware-rewrite") ?? ""
+}
+
+/** True when the middleware response rewrites into Presence. */
 function rewritesToPresence(res: Response): boolean {
-  const rw = res.headers.get("x-middleware-rewrite") ?? ""
+  const rw = rewriteTarget(res)
   return rw.includes("/sites/by-host") || rw.includes("/sites/")
 }
 
-const HOSTS = ["sevenef.com", "www.sevenef.com", "localhost", "app-7fnew.vercel.app", "totally-unknown-host.example"]
+const NON_FINESSE_HOSTS = ["sevenef.com", "www.sevenef.com", "localhost", "app-7fnew.vercel.app", "totally-unknown-host.example"]
 
-test("NO host is ever rewritten into Presence on the root path", async () => {
-  for (const host of HOSTS) {
+test("non-Finesse hosts are never rewritten into Presence on the root path", async () => {
+  for (const host of NON_FINESSE_HOSTS) {
     const res = await middleware(req(host, "/"))
     assert.equal(rewritesToPresence(res), false, `${host} must not be rewritten to Presence`)
   }
@@ -48,6 +49,43 @@ test("sevenef.com and www.sevenef.com serve the app (redirect to /login when una
     const location = res.headers.get("location") ?? ""
     assert.ok(location.includes("/login"), `${host} "/" should route into the app (login), got: ${location}`)
     assert.equal(rewritesToPresence(res), false)
+  }
+})
+
+test("getfinesse.app and www.getfinesse.app rewrite the public root to /finesse", async () => {
+  for (const host of ["getfinesse.app", "www.getfinesse.app"]) {
+    const res = await middleware(req(host, "/"))
+    const target = rewriteTarget(res)
+    assert.ok(target.includes("/finesse"), `${host} should rewrite to /finesse, got: ${target}`)
+    assert.equal(rewritesToPresence(res), false)
+  }
+})
+
+test("a valid customer subdomain under getfinesse.app rewrites to the matching Presence slug", async () => {
+  const cases = [
+    ["jenny.getfinesse.app", "/sites/jenny"],
+    ["studio-bella.getfinesse.app", "/sites/studio-bella"],
+  ] as const
+
+  for (const [host, expectedPath] of cases) {
+    const res = await middleware(req(host, "/"))
+    const target = rewriteTarget(res)
+    assert.ok(target.includes(expectedPath), `${host} should rewrite to ${expectedPath}, got: ${target}`)
+    assert.equal(rewritesToPresence(res), true)
+  }
+})
+
+test("reserved Finesse subdomains never become customer Presence slugs", async () => {
+  for (const host of ["app.getfinesse.app", "api.getfinesse.app", "admin.getfinesse.app", "support.getfinesse.app"]) {
+    const res = await middleware(req(host, "/"))
+    assert.equal(rewritesToPresence(res), false, `${host} must remain reserved`)
+  }
+})
+
+test("nested and malformed Finesse hosts are not accepted as managed Presence slugs", async () => {
+  for (const host of ["x.y.getfinesse.app", "-bad.getfinesse.app", "bad-.getfinesse.app"]) {
+    const res = await middleware(req(host, "/"))
+    assert.equal(rewritesToPresence(res), false, `${host} must not enter Presence`)
   }
 })
 
@@ -65,9 +103,15 @@ test("localhost and Vercel preview hosts route to the app, not Presence", async 
   }
 })
 
+test("managed Finesse host routing applies only to the root path", async () => {
+  const res = await middleware(req("jenny.getfinesse.app", "/inbox"))
+  assert.equal(rewritesToPresence(res), false)
+  const location = res.headers.get("location") ?? ""
+  assert.ok(location.includes("/login"), "non-root app paths keep normal auth routing")
+})
+
 test("/sites/<slug> is public and passes through (Presence slug route still works)", async () => {
   const res = await middleware(req("sevenef.com", "/sites/demo-studio"))
-  // Public path → NextResponse.next(); never a redirect to /login and never a rewrite.
   const location = res.headers.get("location") ?? ""
   assert.ok(!location.includes("/login"), "/sites/<slug> must not be auth-redirected")
   assert.equal(rewritesToPresence(res), false)
@@ -77,21 +121,17 @@ test("/api/sites/<slug>/reception is public (the Fanny reception API is not auth
   const res = await middleware(req("sevenef.com", "/api/sites/demo-studio/reception"))
   const location = res.headers.get("location") ?? ""
   assert.ok(!location.includes("/login"), "public reception API must not be auth-redirected")
-  // A public API route returns next() (no 401 JSON, no rewrite).
   assert.equal(res.status, 200)
 })
 
 test("internal routes, login and verticals are unaffected", async () => {
-  // /login is public → passes through.
   const login = await middleware(req("sevenef.com", "/login"))
   assert.ok(!(login.headers.get("location") ?? "").includes("/login=") )
 
-  // A vertical route without a session → redirected into the app login, not Presence.
   const vertical = await middleware(req("sevenef.com", "/finanzas"))
   assert.ok((vertical.headers.get("location") ?? "").includes("/login"))
   assert.equal(rewritesToPresence(vertical), false)
 
-  // An API route without a session → 401 JSON, not a Presence rewrite.
   const api = await middleware(req("sevenef.com", "/api/workspace/business-profile"))
   assert.equal(rewritesToPresence(api), false)
 })
@@ -122,7 +162,6 @@ test("NEON-05 write freeze (defence in depth): mutating /api requests get 503 wh
         assert.equal((await res.json()).error.code, "OPERATION_FROZEN")
       }
     }
-    // GETs are not blocked here (GET-that-writes is covered at the database boundary), pages are untouched.
     const get = await middleware(req("sevenef.com", "/api/sites/x/reception"))
     assert.notEqual(get.status, 503)
     const page = await middleware(req("sevenef.com", "/login"))
