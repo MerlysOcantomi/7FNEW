@@ -18,6 +18,73 @@ const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/aut
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 /**
+ * Managed Finesse host namespace.
+ *
+ * - getfinesse.app / www.getfinesse.app -> public Finesse landing
+ * - <slug>.getfinesse.app -> SevenF Presence site for that exact slug
+ * - reserved labels (app/api/admin/...) never become customer Presence slugs
+ *
+ * IMPORTANT: this is deliberately NOT a catch-all custom-domain router. Only
+ * the explicit Finesse-owned suffix participates, so sevenef.com, Vercel preview
+ * hosts and arbitrary external domains can never be hijacked into Presence.
+ */
+const FINESSE_DOMAIN = "getfinesse.app"
+const FINESSE_RESERVED_SUBDOMAINS = new Set([
+  "www",
+  "app",
+  "api",
+  "admin",
+  "login",
+  "auth",
+  "support",
+  "help",
+  "status",
+  "mail",
+  "smtp",
+  "ftp",
+  "finesse",
+  "sevenef",
+])
+
+function requestHostname(request: NextRequest): string {
+  const raw = request.headers.get("host") ?? request.nextUrl.host
+  return raw.trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "")
+}
+
+function finesseManagedSlug(hostname: string): string | null {
+  const suffix = `.${FINESSE_DOMAIN}`
+  if (!hostname.endsWith(suffix)) return null
+
+  const label = hostname.slice(0, -suffix.length)
+  if (!label || label.includes(".")) return null
+  if (FINESSE_RESERVED_SUBDOMAINS.has(label)) return null
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) return null
+
+  return label
+}
+
+function routeManagedFinesseHost(request: NextRequest, pathname: string): NextResponse | null {
+  // Host routing is only needed for the public root. Static assets, public APIs,
+  // auth callbacks and future product routes keep their normal path semantics.
+  if (pathname !== "/") return null
+
+  const hostname = requestHostname(request)
+
+  if (hostname === FINESSE_DOMAIN || hostname === `www.${FINESSE_DOMAIN}`) {
+    const target = request.nextUrl.clone()
+    target.pathname = "/finesse"
+    return NextResponse.rewrite(target)
+  }
+
+  const slug = finesseManagedSlug(hostname)
+  if (!slug) return null
+
+  const target = request.nextUrl.clone()
+  target.pathname = `/sites/${slug}`
+  return NextResponse.rewrite(target)
+}
+
+/**
  * Segment-boundary prefix match (CORE-02B). A public prefix authorises the
  * path itself and its sub-segments ONLY: "/api/auth" covers "/api/auth" and
  * "/api/auth/callback/google", but never "/api/auth-malicious" or
@@ -119,12 +186,14 @@ export async function middleware(request: NextRequest) {
     return writesFrozenResponse()
   }
 
-  // NOTE: Presence custom-domain auto-routing is intentionally NOT wired into
-  // the middleware. Rewriting "any host not in the env allowlist" hijacked the
-  // app's own production domain (e.g. sevenef.com) whenever that host was not
-  // listed in NEXT_PUBLIC_APP_URL/VERCEL_URL. Presence sites are reachable via
-  // the explicit `/sites/<slug>` (and `/sites/by-host/<host>`) paths only.
-  // A safe custom-domain design (explicit verified-domain allowlist) is deferred.
+  const finesseHostRoute = routeManagedFinesseHost(request, pathname)
+  if (finesseHostRoute) return finesseHostRoute
+
+  // Presence custom-domain auto-routing intentionally remains OFF. A previous
+  // catch-all rewrite of "any non-app host" could hijack sevenef.com whenever
+  // its allowlist was incomplete. The ONLY hostname-based routing above is the
+  // explicit Finesse-owned getfinesse.app namespace. Verified custom domains
+  // continue to use the safe explicit `/sites/by-host/<host>` resolution path.
 
   if (isPublic(pathname)) return NextResponse.next()
 
@@ -170,8 +239,8 @@ export async function middleware(request: NextRequest) {
   // Internal routes — Google OAuth authentication
   const secret = getSecret()
   if (!secret) {
-    // Fail CLOSED (CORE-02B, F-AUTH-01): a protected API must never proceed
-    // without a verifiable session. Pages keep the config-error redirect.
+    // Fail CLOSED BEFORE looking at the token: without a usable secret no
+    // portal API may proceed, token or not (CORE-02B).
     if (pathname.startsWith("/api/")) {
       return serviceUnavailable()
     }
