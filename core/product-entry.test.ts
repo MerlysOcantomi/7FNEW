@@ -34,7 +34,7 @@ test("does not confuse unrelated hosts with Finesse", () => {
 })
 
 test("normalizes host ports and trailing dots", () => {
-  assert.equal(normalizeRequestHost(" WWW.GETFINESSE.APP:443. "), "www.getfinesse.app:443")
+  assert.equal(normalizeRequestHost(" WWW.GETFINESSE.APP:443. "), "www.getfinesse.app")
   assert.equal(normalizeRequestHost("www.getfinesse.app:443"), "www.getfinesse.app")
 })
 
