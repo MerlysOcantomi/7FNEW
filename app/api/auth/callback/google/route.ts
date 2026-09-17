@@ -3,6 +3,12 @@ import { exchangeCodeForTokens, getGoogleUser, getCallbackUrl } from "@core/auth
 import { createSession, buildSessionCookie } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 import { checkMembership, ensureUserHasDefaultWorkspace } from "@/lib/workspace"
+import {
+  ENTRY_PRODUCT_COOKIE,
+  getEntryProductByKey,
+  resolveEntryProductFromHost,
+} from "@core/product-entry"
+import { ensureUserHasProductWorkspace } from "@core/product-entry-workspace"
 
 /** Default invite-only when unset (preserves existing deployments). Self-serve only when `AUTH_INVITE_ONLY=false`. */
 function isAuthInviteOnly(): boolean {
@@ -34,14 +40,6 @@ async function resolvePlatformRoleForLogin(
   userId: string,
   emailLower: string,
 ): Promise<string | null> {
-  /**
-   * IMPORTANT: this whole function must be best-effort. If `PlatformAdmin`
-   * is unavailable for ANY reason (table not yet migrated in this
-   * environment, transient DB outage, permission issue), we log and return
-   * `null` so the caller treats the user as "not a platform admin" and
-   * continues with a normal workspace login. We must NEVER break customer
-   * sign-in over a control-plane lookup.
-   */
   try {
     const raw = process.env.PLATFORM_BOOTSTRAP_EMAILS ?? ""
     const bootstrapEmails = raw
@@ -96,13 +94,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=invalid_state", request.url))
     }
 
+    const cookieProduct = getEntryProductByKey(
+      request.cookies.get(ENTRY_PRODUCT_COOKIE)?.value,
+    )
+    const hostProduct = resolveEntryProductFromHost(
+      request.headers.get("host") ?? request.nextUrl.host,
+    )
+    const entryProduct = cookieProduct ?? hostProduct
+
     const redirectUri = getCallbackUrl(request.url)
     const tokens = await exchangeCodeForTokens(code, redirectUri)
     const googleUser = await getGoogleUser(tokens.access_token)
 
     console.log("[7F Auth] Google user:", googleUser.email)
 
-    const inviteOnly = isAuthInviteOnly()
+    // Product entry may explicitly be self-serve even while the SevenF control
+    // plane remains invite-only. This keeps getfinesse.app open to customers
+    // without weakening sevenef.com authentication policy.
+    const inviteOnly = isAuthInviteOnly() && !entryProduct?.selfServe
     const emailLower = googleUser.email.toLowerCase()
 
     let allowedEmail: { role: string } | null = null
@@ -139,8 +148,9 @@ export async function GET(request: NextRequest) {
         data: updateData,
       })
     } else {
-      const role =
-        inviteOnly && allowedEmail ? allowedEmail.role : defaultSelfServeUserRole()
+      const role = inviteOnly && allowedEmail
+        ? allowedEmail.role
+        : entryProduct?.defaultUserRole ?? defaultSelfServeUserRole()
       user = await db.user.create({
         data: {
           email: emailLower,
@@ -152,18 +162,25 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    let activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
-    const preferredWorkspaceId = process.env.AUTH_PREFERRED_WORKSPACE_ID?.trim()
-    if (preferredWorkspaceId) {
-      const preferredMember = await checkMembership(user.id, preferredWorkspaceId)
-      if (preferredMember) activeWorkspaceId = preferredWorkspaceId
+    let activeWorkspaceId: string
+    let destination = "/"
+
+    if (entryProduct) {
+      const productWorkspace = await ensureUserHasProductWorkspace(user.id, entryProduct.key)
+      activeWorkspaceId = productWorkspace.workspaceId
+      destination = productWorkspace.onboardingRequired
+        ? entryProduct.onboardingPath
+        : entryProduct.homePath
+    } else {
+      activeWorkspaceId = await ensureUserHasDefaultWorkspace(user.id)
+
+      const preferredWorkspaceId = process.env.AUTH_PREFERRED_WORKSPACE_ID?.trim()
+      if (preferredWorkspaceId) {
+        const preferredMember = await checkMembership(user.id, preferredWorkspaceId)
+        if (preferredMember) activeWorkspaceId = preferredWorkspaceId
+      }
     }
 
-    /**
-     * Stamp `PlatformAdmin.role` (if any) into the JWT claim so middleware in
-     * the Edge can gate `/system` without DB access. Bootstrap by env var
-     * also happens here, only promoting (never demoting) listed emails.
-     */
     const platformRole = await resolvePlatformRoleForLogin(user.id, emailLower)
     console.log(
       "[7F Auth] Session created for:",
@@ -174,6 +191,8 @@ export async function GET(request: NextRequest) {
       platformRole ?? "none",
       "workspace:",
       activeWorkspaceId,
+      "product:",
+      entryProduct?.key ?? "sevenf",
     )
 
     const token = await createSession({
@@ -185,7 +204,7 @@ export async function GET(request: NextRequest) {
       platformRole,
     })
 
-    const response = NextResponse.redirect(new URL("/", request.url))
+    const response = NextResponse.redirect(new URL(destination, request.url))
     const cookie = buildSessionCookie(token)
     response.cookies.set(cookie.name, cookie.value, {
       httpOnly: cookie.httpOnly,
@@ -195,6 +214,7 @@ export async function GET(request: NextRequest) {
       maxAge: cookie.maxAge,
     })
     response.cookies.delete("oauth-state")
+    response.cookies.delete(ENTRY_PRODUCT_COOKIE)
     response.cookies.set("wf_workspace", activeWorkspaceId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
