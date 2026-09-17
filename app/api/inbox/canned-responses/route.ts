@@ -4,6 +4,7 @@ import { requireReadAccess, requireAdminAccess } from "@/lib/auth/workspace-auth
 import { db } from "@core/db"
 import { parseJsonConfig } from "@core/verticals"
 import { updateWorkspaceConfig } from "@core/workspace"
+import { withInboxConfigKey } from "@core/inbox/workspace-inbox-config"
 
 interface CannedResponse {
   id: string
@@ -78,8 +79,29 @@ export async function PUT(request: NextRequest) {
       content: (item as CannedResponse).content.trim(),
     }))
 
+    /**
+     * INBOX-FIX-01: `updateWorkspaceConfig` merges top-level keys wholesale
+     * (only `modules`/`ui` are deep-merged), so writing `{ inbox: { … } }`
+     * with the new list alone used to WIPE every other `inbox.*` override
+     * (channels, filters, webChat). Re-read the current slice and replace only
+     * `cannedResponses` — same pattern as the web-chat activation route.
+     *
+     * Known limit (inherited, not introduced here): read → merge → write is
+     * not atomic; a concurrent `inbox.*` write between this read and the
+     * update could still be overwritten. Closing that window belongs to
+     * `updateWorkspaceConfig` (core/workspace.ts) and is deferred while the
+     * Neon runtime work owns that file.
+     */
+    const current = await db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { config: true },
+    })
+    if (!current) {
+      return errorResponse("NOT_FOUND", "Workspace not found", 404)
+    }
+
     await updateWorkspaceConfig(workspaceId, {
-      inbox: { cannedResponses: clean },
+      inbox: withInboxConfigKey(current.config, "cannedResponses", clean),
       modules: {},
       ui: { labels: {} },
     } as never)

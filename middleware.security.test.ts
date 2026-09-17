@@ -233,3 +233,33 @@ test("portal: a valid client token passes", async () => {
   const res = await middleware(req("/api/cliente/dashboard", { "7f-client-session": token }))
   assert.ok(isPassThrough(res))
 })
+
+// ---------------------------------------------------------------------------
+// INBOX-FIX-02 — email tracking endpoints are fetched by the RECIPIENT's mail
+// client (no 7F session). They authenticate themselves with HMAC tokens, so
+// the session gate must not turn them into 401s. Segment-boundary only.
+// ---------------------------------------------------------------------------
+
+test("email tracking endpoints (open pixel + confirm link) are public", async () => {
+  for (const path of [
+    "/api/inbox/track/open/abc.def.png",
+    "/api/inbox/track/open/abc.def",
+    "/api/inbox/track/confirm/abc.def",
+  ]) {
+    const res = await middleware(req(path))
+    assert.ok(isPassThrough(res), `${path} must be public (got ${res.status} → ${res.headers.get("location")})`)
+  }
+})
+
+test("email tracking endpoints stay public without AUTH_SECRET (core/inbox-tracking then verifies NO token — see its tests)", async () => {
+  delete process.env.AUTH_SECRET
+  const res = await middleware(req("/api/inbox/track/open/abc.def.png"))
+  assert.ok(isPassThrough(res))
+})
+
+test("tracking lookalike paths do not inherit the public bypass", async () => {
+  for (const path of ["/api/inbox/trackx/open/abc", "/api/inbox/track-evil", "/api/inbox/tracking"]) {
+    const res = await middleware(req(path))
+    assert.equal(res.status, 401, `${path} must require auth`)
+  }
+})

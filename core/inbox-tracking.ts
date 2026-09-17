@@ -30,11 +30,33 @@ export interface TrackingTokenPayload {
   t: number
 }
 
-/** Maximum acceptable token age — 90 days. Tokens older than this are considered stale. */
+/** Maximum acceptable token age — 90 days. Older tokens are rejected by `verifyTrackingToken`. */
 export const TRACKING_TOKEN_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000
+/** Clock-skew allowance for tokens whose issued-at lies in the future (1 day). */
+export const TRACKING_TOKEN_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000
 
-function getSecret(): string {
-  return process.env.AUTH_SECRET ?? ""
+/** Injectable clock for tests; production uses the real clock. */
+let now: () => number = () => Date.now()
+export function __setTrackingClockForTests(clock: (() => number) | null): void {
+  now = clock ?? (() => Date.now())
+}
+
+/**
+ * The signing secret, or `null` when unusable (INBOX-FIX-02, mirrors the
+ * middleware's CORE-02B.1 rule): absent or whitespace-only means NO token can
+ * be signed or verified — never an HMAC over a blank key, which any client
+ * could forge. The tracking routes are public (the recipient's mail client
+ * has no session), so this fail-closed guard is what protects them.
+ */
+function getSecret(): string | null {
+  const secret = process.env.AUTH_SECRET
+  if (!secret || secret.trim().length === 0) return null
+  return secret
+}
+
+/** True when tracking tokens can be signed/verified in this environment. */
+export function isTrackingSigningAvailable(): boolean {
+  return getSecret() !== null
 }
 
 function base64urlEncode(buf: Buffer): string {
@@ -52,20 +74,25 @@ function base64urlDecode(value: string): Buffer {
 }
 
 export function signTrackingToken(payload: TrackingTokenPayload): string {
-  if (!getSecret()) {
+  const secret = getSecret()
+  if (!secret) {
     /**
-     * Without AUTH_SECRET the HMAC degrades to "hmac of empty key", which is technically still
-     * deterministic but trivially forgeable. We log loudly because this should never happen in
-     * production; the email pipeline still continues so dev environments don't break.
+     * Fail closed: a token signed over a blank key would be trivially forgeable and the
+     * public tracking routes would accept it. Callers that embed links (`buildOpenPixelUrl`,
+     * `buildConfirmReceiptUrl`) check `isTrackingSigningAvailable()` first and simply skip
+     * tracking, so the email pipeline never reaches this throw in a misconfigured dev env.
      */
-    console.warn("[inbox-tracking] AUTH_SECRET is not set — tracking tokens are insecure.")
+    throw new Error("[inbox-tracking] AUTH_SECRET is not set — cannot sign tracking tokens.")
   }
   const data = base64urlEncode(Buffer.from(JSON.stringify(payload), "utf8"))
-  const sig = base64urlEncode(createHmac("sha256", getSecret()).update(data).digest())
+  const sig = base64urlEncode(createHmac("sha256", secret).update(data).digest())
   return `${data}.${sig}`
 }
 
 export function verifyTrackingToken(token: string): TrackingTokenPayload | null {
+  /** No usable secret → nothing verifies. Never fall back to an empty-key HMAC. */
+  const secret = getSecret()
+  if (!secret) return null
   if (!token || typeof token !== "string") return null
   const dot = token.indexOf(".")
   if (dot <= 0 || dot === token.length - 1) return null
@@ -79,7 +106,7 @@ export function verifyTrackingToken(token: string): TrackingTokenPayload | null 
     return null
   }
 
-  const expectedSig = createHmac("sha256", getSecret()).update(data).digest()
+  const expectedSig = createHmac("sha256", secret).update(data).digest()
   if (expectedSig.length !== providedSig.length) return null
   /** Constant-time comparison defends against timing attacks even though the surface is small. */
   let equal = false
@@ -103,9 +130,18 @@ export function verifyTrackingToken(token: string): TrackingTokenPayload | null 
     || typeof (parsed as TrackingTokenPayload).w !== "string"
     || ((parsed as TrackingTokenPayload).k !== "open" && (parsed as TrackingTokenPayload).k !== "confirm")
     || typeof (parsed as TrackingTokenPayload).t !== "number"
+    || !Number.isFinite((parsed as TrackingTokenPayload).t)
   ) {
     return null
   }
+  /**
+   * Stale tokens are rejected (INBOX-FIX-02): now that the routes are reachable
+   * by anyone holding a link, a pixel/confirm URL must stop counting after
+   * `TRACKING_TOKEN_MAX_AGE_MS`. Tokens "from the future" (clock skew beyond a
+   * generous margin) are treated as invalid too.
+   */
+  const age = now() - (parsed as TrackingTokenPayload).t
+  if (age > TRACKING_TOKEN_MAX_AGE_MS || age < -TRACKING_TOKEN_FUTURE_SKEW_MS) return null
   return parsed as TrackingTokenPayload
 }
 
@@ -132,11 +168,12 @@ export function getAppBaseUrl(): string {
 export function buildOpenPixelUrl(messageId: string, workspaceId: string): string | null {
   const base = getAppBaseUrl()
   if (!base) return null
+  if (!isTrackingSigningAvailable()) return null
   const token = signTrackingToken({
     m: messageId,
     w: workspaceId,
     k: "open",
-    t: Date.now(),
+    t: now(),
   })
   return `${base}/api/inbox/track/open/${token}.png`
 }
@@ -149,11 +186,12 @@ export function buildOpenPixelUrl(messageId: string, workspaceId: string): strin
 export function buildConfirmReceiptUrl(messageId: string, workspaceId: string): string | null {
   const base = getAppBaseUrl()
   if (!base) return null
+  if (!isTrackingSigningAvailable()) return null
   const token = signTrackingToken({
     m: messageId,
     w: workspaceId,
     k: "confirm",
-    t: Date.now(),
+    t: now(),
   })
   return `${base}/api/inbox/track/confirm/${token}`
 }

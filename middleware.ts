@@ -14,7 +14,12 @@ const CLIENT_COOKIE = "7f-client-session"
 // "/finesse" is the public Finesse landing (FINESSE-WEB-01): a static marketing
 // page that reads no workspace/session data. Segment-boundary match only —
 // "/finessex" or any private route stays protected.
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites", "/finesse"]
+// `/api/inbox/track` (INBOX-FIX-02): the email open pixel and the "confirm
+// received" link are fetched by the RECIPIENT's mail client, which never
+// carries a 7F session. Both routes are self-authenticating (HMAC-signed
+// tokens from `core/inbox-tracking.ts`, workspace-scoped lookups, opaque
+// responses on any failure) — the session gate only turned them into 401s.
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/api/inbox/track", "/widget", "/sites", "/api/sites", "/finesse"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 /**
