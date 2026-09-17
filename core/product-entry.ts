@@ -29,11 +29,10 @@ const ENTRY_PRODUCTS: readonly EntryProductDefinition[] = [
 ]
 
 export function normalizeRequestHost(host: string | null | undefined): string {
-  return (host ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "")
-    .replace(/\.$/, "")
+  let normalized = (host ?? "").trim().toLowerCase()
+  normalized = normalized.replace(/\.$/, "")
+  normalized = normalized.replace(/:\d+$/, "")
+  return normalized.replace(/\.$/, "")
 }
 
 export function getEntryProductByKey(key: string | null | undefined): EntryProductDefinition | null {
@@ -77,11 +76,6 @@ export function buildInitialEntryWorkspaceConfig(
   })
 }
 
-/**
- * Migration-safe: only workspaces explicitly stamped by product entry are
- * forced through the new onboarding. Existing Beauty workspaces without the
- * stamp keep their current behavior and go straight to Today.
- */
 export function requiresEntryOnboarding(
   config: string | null | undefined,
   productKey: EntryProductKey,
