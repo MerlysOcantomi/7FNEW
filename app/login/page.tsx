@@ -1,7 +1,8 @@
 "use client"
 
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { FinesseEntryIntro } from "@/components/finesse-entry/finesse-entry-intro"
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "Security error. Please try again.",
@@ -28,6 +29,7 @@ function LoginContent() {
   const detail = searchParams.get("detail")
   const queryProduct = searchParams.get("product")
   const [hostProduct, setHostProduct] = useState<string | null>(null)
+  const [introComplete, setIntroComplete] = useState(false)
 
   useEffect(() => {
     const hostname = window.location.hostname.toLowerCase()
@@ -42,9 +44,12 @@ function LoginContent() {
     () => (isFinesse ? "/api/auth/login/google?product=finesse" : "/api/auth/login/google"),
     [isFinesse],
   )
+  const completeIntro = useCallback(() => setIntroComplete(true), [])
 
   return (
-    <div
+    <>
+      {isFinesse && !introComplete ? <FinesseEntryIntro onComplete={completeIntro} /> : null}
+      <div
       data-theme={isFinesse ? "petrol-pearl" : undefined}
       className={
         isFinesse
@@ -58,7 +63,7 @@ function LoginContent() {
             <>
               <p className="text-[15px] font-medium italic tracking-wide text-[var(--accent-on-dark)]">Get</p>
               <h1 className="mt-1 text-4xl font-semibold tracking-[0.08em]">FINESSE</h1>
-              <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-[var(--text-tertiary-light)]">by SevenF</p>
+              <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-[var(--text-tertiary-light)]">by sevenef</p>
               <p className="mt-6 text-sm text-[var(--text-secondary-light)]">Tu negocio empieza aquí.</p>
             </>
           ) : (
@@ -130,6 +135,7 @@ function LoginContent() {
         )}
       </div>
     </div>
+    </>
   )
 }
 
