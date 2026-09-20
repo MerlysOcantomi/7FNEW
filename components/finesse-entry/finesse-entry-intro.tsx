@@ -78,7 +78,7 @@ export function FinesseEntryIntro({ onComplete }: { onComplete: () => void }) {
         aria-hidden="true"
         onEnded={complete}
         onError={complete}
-        className="relative z-10 h-full w-full scale-[1.04] object-contain md:scale-100 md:object-cover"
+        className="relative z-10 h-full w-full object-contain md:object-cover"
       >
         <source src={FINESSE_INTRO_VIDEO} type="video/mp4" />
       </video>
