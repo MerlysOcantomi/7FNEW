@@ -1,7 +1,8 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"\nimport { FinesseEntryIntro } from "@/components/finesse-entry/finesse-entry-intro"
+import { useSearchParams } from "next/navigation"
+import { FinesseEntryIntro } from "@/components/finesse-entry/finesse-entry-intro"
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "Security error. Please try again.",
@@ -27,7 +28,8 @@ function LoginContent() {
   const error = searchParams.get("error")
   const detail = searchParams.get("detail")
   const queryProduct = searchParams.get("product")
-  const [hostProduct, setHostProduct] = useState<string | null>(null)\n  const [introComplete, setIntroComplete] = useState(false)
+  const [hostProduct, setHostProduct] = useState<string | null>(null)
+  const [introComplete, setIntroComplete] = useState(false)
 
   useEffect(() => {
     const hostname = window.location.hostname.toLowerCase()
