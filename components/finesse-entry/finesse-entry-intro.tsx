@@ -1,14 +1,34 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 const FINESSE_INTRO_SEEN_KEY = "finesse-entry-intro-seen"
 const FINESSE_INTRO_VIDEO = "/finesse/video/finesse-intro.mp4"
+const FINESSE_INTRO_MOBILE_IMAGE = "/finesse/image/finesse-entry-mobile.png"
+const MOBILE_INTRO_DURATION_MS = 4_500
+
+type IntroMedia = "mobile" | "desktop"
 
 export function FinesseEntryIntro({ onComplete }: { onComplete: () => void }) {
   const [ready, setReady] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [media, setMedia] = useState<IntroMedia | null>(null)
   const completedRef = useRef(false)
+
+  const complete = useCallback(() => {
+    if (completedRef.current) return
+    completedRef.current = true
+
+    try {
+      window.sessionStorage.setItem(FINESSE_INTRO_SEEN_KEY, "1")
+    } catch {
+      // The intro still works when sessionStorage is unavailable.
+    }
+
+    setLeaving(true)
+    window.setTimeout(onComplete, 420)
+  }, [onComplete])
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -26,24 +46,18 @@ export function FinesseEntryIntro({ onComplete }: { onComplete: () => void }) {
       return
     }
 
+    setMedia(window.matchMedia("(min-width: 768px)").matches ? "desktop" : "mobile")
     setReady(true)
   }, [onComplete])
 
-  function complete() {
-    if (completedRef.current) return
-    completedRef.current = true
+  useEffect(() => {
+    if (!ready || media !== "mobile") return
 
-    try {
-      window.sessionStorage.setItem(FINESSE_INTRO_SEEN_KEY, "1")
-    } catch {
-      // The intro still works when sessionStorage is unavailable.
-    }
+    const timeout = window.setTimeout(complete, MOBILE_INTRO_DURATION_MS)
+    return () => window.clearTimeout(timeout)
+  }, [complete, media, ready])
 
-    setLeaving(true)
-    window.setTimeout(onComplete, 420)
-  }
-
-  if (!ready) return null
+  if (!ready || !media) return null
 
   return (
     <div
@@ -53,39 +67,34 @@ export function FinesseEntryIntro({ onComplete }: { onComplete: () => void }) {
         leaving ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      {/* Mobile: fill the portrait canvas without sacrificing the full composition. */}
-      <video
-        autoPlay
-        muted
-        playsInline
-        preload="metadata"
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl md:hidden"
-      >
-        <source src={FINESSE_INTRO_VIDEO} type="video/mp4" />
-      </video>
+      {media === "mobile" ? (
+        <Image
+          src={FINESSE_INTRO_MOBILE_IMAGE}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          onError={complete}
+          className="pointer-events-none object-cover object-center"
+        />
+      ) : (
+        <video
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+          onEnded={complete}
+          onError={complete}
+          className="relative z-10 h-full w-full object-cover"
+        >
+          <source src={FINESSE_INTRO_VIDEO} type="video/mp4" />
+        </video>
+      )}
 
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[color-mix(in_srgb,var(--app-canvas)_34%,transparent)] md:hidden"
-      />
-
-      <video
-        autoPlay
-        muted
-        playsInline
-        preload="auto"
-        aria-hidden="true"
-        onEnded={complete}
-        onError={complete}
-        className="relative z-10 h-full w-full object-contain md:object-cover"
-      >
-        <source src={FINESSE_INTRO_VIDEO} type="video/mp4" />
-      </video>
-
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-20 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--app-canvas)_28%,transparent)_0%,transparent_24%,transparent_74%,color-mix(in_srgb,var(--app-canvas)_48%,transparent)_100%)] md:bg-[linear-gradient(180deg,color-mix(in_srgb,var(--app-canvas)_38%,transparent)_0%,transparent_28%,transparent_72%,color-mix(in_srgb,var(--app-canvas)_52%,transparent)_100%)]"
+        className="pointer-events-none absolute inset-0 z-20 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--app-canvas)_22%,transparent)_0%,transparent_22%,transparent_76%,color-mix(in_srgb,var(--app-canvas)_38%,transparent)_100%)] md:bg-[linear-gradient(180deg,color-mix(in_srgb,var(--app-canvas)_38%,transparent)_0%,transparent_28%,transparent_72%,color-mix(in_srgb,var(--app-canvas)_52%,transparent)_100%)]"
       />
 
       <button
