@@ -74,16 +74,16 @@ test("Beauty basic filter set does not surface an Email channel filter", () => {
   assert.equal(views.find((v) => v.id === "channel:email"), undefined)
 })
 
-test("planned channel filters render coming_soon and never compile", () => {
+test("Finesse channel selection is a separate toolbar dimension, not primary filter chips", () => {
   const views = resolveInboxFilterViews(beautyResolved())
-  for (const id of ["channel:instagram", "channel:messenger", "channel:tiktok"]) {
-    const view = views.find((v) => v.id === id)
-    assert.ok(view, id)
-    assert.equal(view.uiAvailability, "coming_soon", id)
-    assert.equal(view.compiled, null, id)
+  for (const id of [
+    "channel:whatsapp",
+    "channel:instagram",
+    "channel:messenger",
+    "channel:tiktok",
+  ]) {
+    assert.equal(views.find((v) => v.id === id), undefined, id)
   }
-  // WhatsApp (data_only channel) is selectable.
-  assert.equal(views.find((v) => v.id === "channel:whatsapp")?.uiAvailability, "ready")
 })
 
 test("Beauty business filters are registered but planned — never ready, never default", () => {
@@ -125,8 +125,9 @@ test("the workspace experience surfaces the Beauty filter layer and definitions"
 test("workspace overrides merge per-field on top of the pack", () => {
   const { config } = beautyResolved([], { primary: ["all", "needs_action", "unanswered"] })
   assert.deepEqual(config.primary, ["all", "needs_action", "unanswered"])
-  // enabled/order inherited from the pack
-  assert.ok(config.enabled.includes("channel:whatsapp"))
+  // enabled/order inherited from the simple Finesse filter pack
+  assert.ok(config.enabled.includes("needs_action"))
+  assert.ok(!config.enabled.includes("channel:whatsapp"))
   assert.equal(config.defaultFilter, "all")
 })
 
@@ -278,9 +279,9 @@ test("count planning groups filters into one aggregate per strategy", () => {
   const plan = planInboxFilterCounts(views)
   // Status-countable filters share ONE status aggregation bucket.
   assert.ok(plan.status_aggregate.length >= 3)
-  // Channel filters share ONE channel aggregation bucket — and only ready ones.
-  assert.ok(plan.channel_aggregate.includes("channel:whatsapp"))
-  assert.ok(!plan.channel_aggregate.includes("channel:instagram"))
+  // Finesse uses the independent channel picker, so the filter registry has
+  // no channel-filter counters in this simple experience.
+  assert.deepEqual(plan.channel_aggregate, [])
   // The plan's shape is strategy → ids: exactly 4 aggregate buckets exist,
   // regardless of how many filters there are (this IS the no-N+1 guarantee).
   assert.deepEqual(
