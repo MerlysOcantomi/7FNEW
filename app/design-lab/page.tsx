@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type CSSProperties } from "react"
+import { useMemo, useState, type CSSProperties } from "react"\nimport { DEFAULT_DESIGN_CONTRACT, type DesignContract } from "@/core/design/contracts"\nimport { PALETTES, paletteById } from "@/core/design/presets"
 import "./design-lab.css"
 
 type ThemeKey =
@@ -92,7 +92,7 @@ function MiniStat({ value, label }: { value: string; label: string }) {
 }
 
 export default function DesignLabPage() {
-  const [theme, setTheme] = useState<ThemeKey>("north-sea")
+  const [theme, setTheme] = useState<ThemeKey>("north-sea")\n  const [contract, setContract] = useState<DesignContract>(DEFAULT_DESIGN_CONTRACT)
 
   const rootStyle = useMemo<CSSProperties>(
     () => (theme === "north-sea" ? NORTH_SEA_STYLE : {}),
@@ -128,7 +128,7 @@ export default function DesignLabPage() {
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setTheme(item.key)}
+                  onClick={() => { setTheme(item.key); const match = PALETTES.find((p) => p.id === item.key || (item.key === "petrol-pearl" && p.id === "petrol")); if (match) setContract((current) => ({ ...current, palette: { family: match.id, mode: match.mode } })) }}
                   className={[
                     "group flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all duration-300",
                     active
@@ -331,7 +331,7 @@ export default function DesignLabPage() {
           </article>
         </section>
 
-        <footer className="mt-5 flex flex-col gap-2 border-t border-[var(--border-dark)] px-1 py-6 text-xs text-[var(--text-secondary-light)] sm:flex-row sm:items-center sm:justify-between">
+        <section className="design-lab-surface-glass mt-5 rounded-[30px] border p-5 sm:p-7">\n          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">\n            <div><div className="text-[10px] uppercase tracking-[0.28em] text-[var(--accent-on-dark)]">Design Contract · live</div><h3 className="mt-2 text-xl font-medium">Una decisión visual, un contrato reutilizable.</h3><p className="mt-2 text-xs text-[var(--text-secondary-light)]">SevenEF y Presence podrán consumir el mismo lenguaje sin copiar CSS.</p></div>\n            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">\n              <div className="rounded-xl border border-[var(--border-dark)] bg-white/[0.03] px-3 py-2"><span className="block text-[var(--text-secondary-light)]">Palette</span>{paletteById(contract.palette.family).name}</div>\n              <div className="rounded-xl border border-[var(--border-dark)] bg-white/[0.03] px-3 py-2"><span className="block text-[var(--text-secondary-light)]">Surface</span>{contract.surfaces.default}</div>\n              <div className="rounded-xl border border-[var(--border-dark)] bg-white/[0.03] px-3 py-2"><span className="block text-[var(--text-secondary-light)]">Shape</span>{contract.shape.radius}</div>\n              <div className="rounded-xl border border-[var(--border-dark)] bg-white/[0.03] px-3 py-2"><span className="block text-[var(--text-secondary-light)]">Motion</span>{contract.motion.reveal}</div>\n            </div>\n          </div>\n        </section>\n\n        <footer className="mt-5 flex flex-col gap-2 border-t border-[var(--border-dark)] px-1 py-6 text-xs text-[var(--text-secondary-light)] sm:flex-row sm:items-center sm:justify-between">
           <span>SevenEF Premium Surface + Motion Lab</span>
           <span>Rama aislada · no modifica producción</span>
         </footer>
