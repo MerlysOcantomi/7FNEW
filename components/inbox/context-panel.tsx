@@ -8,7 +8,7 @@ import {
   Users, ChevronDown, ChevronUp, ChevronRight, Loader2,
   Phone, Building2, CornerUpLeft,
   User, FolderKanban,
-  Paperclip, AlertTriangle, Link2, Sparkles,
+  Paperclip, AlertTriangle, Link2,
   MessageCircle, CalendarPlus, X,
   Target,
 } from "lucide-react"
@@ -955,7 +955,7 @@ export function ContextPanel({
   const recommendsSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
       <div className="flex items-center gap-1.5">
-        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <Target className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
           {m.recommends.label}
         </p>
@@ -1122,7 +1122,7 @@ export function ContextPanel({
       aria-label={m.pendingDecisions.label}
     >
       <div className="flex items-center gap-1.5">
-        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <Target className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
           {m.pendingDecisions.label}
         </p>
@@ -1369,10 +1369,10 @@ export function ContextPanel({
             3. Needs attention        (tone/mood strip + missing info / risks)
           ZONE 2 — What the message says:
             4. Request                (the message objective)
-          ZONE 3 — Actions:
-            5. Fanny recommends       (advised next step — bridges into the decisions)
-            6. Pending decisions      (approve / dismiss proposed WorkspaceTasks)
-            7. Actions                (review draft, add to calendar, action cards)
+          ZONE 3 — Action now:
+            5. Action now             (single decision zone; advice + executable work)
+            6. Pending decisions      (existing approve / dismiss executor, temporarily nested)
+            7. Actions                (existing executors; ranking into 1+2 follows next)
           Then: Ask Fanny, Workflow.
         Header chrome (the "Fanny" title) stays on top. Each atom keeps its own data
         gating, so empty cards never render and we never fabricate content. Client
