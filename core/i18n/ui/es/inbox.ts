@@ -522,7 +522,7 @@ export const inbox: InboxMessages = {
       actionsOpen: (count) => (count === 1 ? "1 acción abierta" : `${count} acciones abiertas`),
     },
     request: {
-      label: "Solicitud",
+      label: "Qué quiere",
       notSummarised: "Fanny aún no ha resumido este mensaje.",
       hasAttachments: "Con adjuntos",
       hasLink: "Con enlace",
