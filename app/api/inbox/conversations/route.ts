@@ -40,6 +40,12 @@ export async function GET(request: NextRequest) {
     const minAgeRaw = Number.parseInt(searchParams.get("unansweredMinAgeMinutes") ?? "", 10)
     const unansweredMinAgeMinutes =
       Number.isFinite(minAgeRaw) && minAgeRaw > 0 ? minAgeRaw : undefined
+    const lastMessageFromRaw = searchParams.get("lastMessageFrom")?.trim()
+    const lastMessageFromParsed = lastMessageFromRaw ? new Date(lastMessageFromRaw) : null
+    const lastMessageFrom =
+      lastMessageFromParsed && !Number.isNaN(lastMessageFromParsed.getTime())
+        ? lastMessageFromParsed
+        : undefined
 
     const whereSummary = {
       workspaceId,
@@ -50,6 +56,7 @@ export async function GET(request: NextRequest) {
       assignedTo: assignedTo ?? "(none)",
       category: category ?? "(none)",
       unanswered: unanswered ? "1" : "(none)",
+      lastMessageFrom: lastMessageFrom ? "(set)" : "(none)",
     }
 
     const [{ data, total, leads, urgent }, wsResolved] = await Promise.all([
@@ -65,6 +72,7 @@ export async function GET(request: NextRequest) {
         category,
         unanswered,
         unansweredMinAgeMinutes,
+        lastMessageFrom,
       }),
       getWorkspaceWithResolvedConfig(workspaceId),
     ])
