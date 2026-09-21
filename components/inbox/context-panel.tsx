@@ -1129,7 +1129,7 @@ export function ContextPanel({
 
   const primaryActionNow = actionNowCandidates[0] ?? null
   const secondaryActionsNow = actionNowCandidates.slice(1, 3)
-  const hiddenActionCount = Math.max(0, actionNowCandidates.length - 3)
+  const overflowActionsNow = actionNowCandidates.slice(3)
 
   const actionsSection = primaryActionNow ? (
     <section aria-label={m.actions.label} className="space-y-2">
@@ -1158,13 +1158,35 @@ export function ContextPanel({
               {action.ctaLabel}
             </Button>
           ))}
-          {hiddenActionCount > 0 ? (
-            <span
-              className="inline-flex h-7 items-center rounded-md px-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]"
-              title={m.actions.label}
-            >
-              +{hiddenActionCount}
-            </span>
+          {overflowActionsNow.length > 0 ? (
+            <details className="relative">
+              <summary
+                className={cn(
+                  "flex h-7 cursor-pointer list-none items-center rounded-md px-2.5 text-[12px] font-semibold",
+                  INBOX_GHOST_BUTTON,
+                )}
+                aria-label={m.actions.label}
+                title={m.actions.label}
+              >
+                ···
+              </summary>
+              <div className="absolute right-0 z-20 mt-1 min-w-44 space-y-1 rounded-lg border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-background)] p-1.5 shadow-xl">
+                {overflowActionsNow.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    disabled={action.pending}
+                    onClick={action.onAction}
+                    className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[10px] font-medium text-[var(--inbox-intelligence-text)] hover:bg-white/8 disabled:opacity-50"
+                  >
+                    {action.pending ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {action.ctaLabel}
+                  </button>
+                ))}
+              </div>
+            </details>
           ) : null}
         </div>
       ) : null}
