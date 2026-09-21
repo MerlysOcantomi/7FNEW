@@ -149,3 +149,15 @@ For internal SaaS:
 9. Only after approval, migrate productive screens incrementally.
 
 No mass rewrite. No visual migration before the Lab is approved.
+
+
+## 11. Forte Foundation extraction boundary
+
+This implementation is intentionally **product-first and Foundation-ready**.
+
+- SevenEF is the proving ground and canonical preview.
+- Reusable semantic surfaces, motion primitives, accessibility rules, theme adapters and brand adapters are candidates for a future Forte Foundation block.
+- SevenEF wordmark/favicon, Mr. Forte narrative/assets, vertical identities and product copy remain product-specific adapters/presets.
+- Foundation remains reuse-by-copy with version/provenance; this work must not introduce a central runtime dependency.
+
+The detailed promotion contract lives in [foundation-promotion-contract.md](./foundation-promotion-contract.md).
