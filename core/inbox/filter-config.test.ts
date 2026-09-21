@@ -61,37 +61,22 @@ test("fallback without any vertical pack resolves to core defaults", () => {
 
 // ─── Beauty resolution ──────────────────────────────────────────────────────
 
-test("Beauty primary chips follow the pack order: work state, channels, waiting/done", () => {
+test("Beauty primary chips are intentionally minimal: All + Pending", () => {
   const { config } = beautyResolved()
-  assert.deepEqual(config.primary, [
-    "all",
-    "needs_action",
-    "unanswered",
-    "urgent",
-    "channel:whatsapp",
-    "channel:instagram",
-    "channel:messenger",
-    "channel:tiktok",
-    "channel:sms",
-    "channel:email",
-    "waiting",
-    "done",
-  ])
+  assert.deepEqual(config.primary, ["all", "needs_action"])
   assert.equal(config.defaultFilter, "all")
 })
 
-test("Beauty keeps the Email channel filter enabled", () => {
+test("Beauty basic filter set does not surface an Email channel filter", () => {
   const { config } = beautyResolved()
-  assert.ok(config.enabled.includes("channel:email"))
+  assert.ok(!config.enabled.includes("channel:email"))
   const views = resolveInboxFilterViews(beautyResolved())
-  const email = views.find((v) => v.id === "channel:email")
-  assert.ok(email)
-  assert.equal(email.uiAvailability, "ready")
+  assert.equal(views.find((v) => v.id === "channel:email"), undefined)
 })
 
 test("planned channel filters render coming_soon and never compile", () => {
   const views = resolveInboxFilterViews(beautyResolved())
-  for (const id of ["channel:instagram", "channel:messenger", "channel:tiktok", "channel:sms"]) {
+  for (const id of ["channel:instagram", "channel:messenger", "channel:tiktok"]) {
     const view = views.find((v) => v.id === id)
     assert.ok(view, id)
     assert.equal(view.uiAvailability, "coming_soon", id)
