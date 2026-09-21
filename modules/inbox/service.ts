@@ -50,6 +50,11 @@ interface ListConversationsParams {
    * direction column, so this cannot be a plain Prisma filter).
    */
   unanswered?: boolean
+  /**
+   * Restrict to conversations where real, open work currently depends on the
+   * operator. Read/unread is intentionally NOT part of this definition.
+   */
+  needsOperatorAction?: boolean
   /** Only count messages older than this many minutes as unanswered. */
   unansweredMinAgeMinutes?: number
   /** Optional lower bound for Conversation.lastMessageAt (Inbox date filter). */
@@ -441,6 +446,7 @@ export async function listConversations(params: ListConversationsParams) {
     q,
     assignedTo,
     category,
+    needsOperatorAction,
     unanswered,
     unansweredMinAgeMinutes,
     lastMessageFrom,
@@ -474,8 +480,56 @@ export async function listConversations(params: ListConversationsParams) {
     unansweredIdFilter = { id: { in: rows.map((row) => row.id) } }
   }
 
+  /**
+   * Pending/operator-work semantics.
+   *
+   * Strong persisted signals only:
+   * - a Fanny/system action awaiting review/execution or one that failed;
+   * - an unsent reply draft waiting for the operator;
+   * - a proposed Fanny WorkspaceTask awaiting an explicit decision.
+   *
+   * We intentionally do NOT use Conversation.status=new/triaged here: a fresh
+   * "Gracias ❤️" can be unread without being work. Explicit waiting/terminal
+   * states are excluded even if stale auxiliary rows still exist.
+   */
+  let operatorActionFilter: Prisma.ConversationWhereInput = {}
+  if (needsOperatorAction) {
+    const proposedTaskRows = await db.workspaceTask.findMany({
+      where: {
+        workspaceId,
+        status: "proposed",
+        conversationId: { not: null },
+      },
+      select: { conversationId: true },
+    })
+    const proposedConversationIds = proposedTaskRows
+      .map((row) => row.conversationId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+
+    operatorActionFilter = {
+      status: {
+        notIn: [
+          "awaiting_response",
+          "resolved",
+          "closed",
+          "converted",
+          "archived",
+          "trashed",
+        ],
+      },
+      OR: [
+        { actions: { some: { status: { in: ["suggested", "approved", "failed"] } } } },
+        { drafts: { some: { type: "ghost_reply", status: { in: ["draft", "edited"] } } } },
+        ...(proposedConversationIds.length > 0
+          ? [{ id: { in: proposedConversationIds } } satisfies Prisma.ConversationWhereInput]
+          : []),
+      ],
+    }
+  }
+
   const where: Prisma.ConversationWhereInput = {
     workspaceId,
+    ...operatorActionFilter,
     ...assignedToFilter,
     ...unansweredIdFilter,
     ...(statusForWhere
