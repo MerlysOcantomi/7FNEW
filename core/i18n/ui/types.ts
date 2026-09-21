@@ -1224,6 +1224,11 @@ export interface InboxMessages {
       earlierRequests: string
       openMessage: (text: string) => string
       noEarlierRequests: string
+      attachmentPreview: string
+      attachmentDownload: string
+      attachmentOpen: (name: string) => string
+      attachmentPreviewUnavailable: string
+      moreAttachments: (count: number) => string
     }
     /** Chip cluster labels (currently rendered by ConversationMetaLine). */
     meta: {
