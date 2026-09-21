@@ -1589,6 +1589,7 @@ export interface InboxMessages {
     }
     unknownContact: string
     contact: {
+      label: string
       details: string
       showDetails: string
       hideDetails: string
