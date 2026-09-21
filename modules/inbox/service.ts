@@ -52,6 +52,8 @@ interface ListConversationsParams {
   unanswered?: boolean
   /** Only count messages older than this many minutes as unanswered. */
   unansweredMinAgeMinutes?: number
+  /** Optional lower bound for Conversation.lastMessageAt (Inbox date filter). */
+  lastMessageFrom?: Date
 }
 
 interface CreateConversationFromInboxEntryInput {
@@ -441,6 +443,7 @@ export async function listConversations(params: ListConversationsParams) {
     category,
     unanswered,
     unansweredMinAgeMinutes,
+    lastMessageFrom,
   } = params
   const statusForWhere =
     !status || status === "all" || status === "todos" ? undefined : status
@@ -487,6 +490,7 @@ export async function listConversations(params: ListConversationsParams) {
       ? { urgency: urgency.includes(",") ? { in: urgency.split(",") } : urgency }
       : {}),
     ...(categoryForWhere ? { category: categoryForWhere } : {}),
+    ...(lastMessageFrom ? { lastMessageAt: { gte: lastMessageFrom } } : {}),
     ...(q
       ? {
           OR: [
