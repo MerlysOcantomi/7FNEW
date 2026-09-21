@@ -107,6 +107,11 @@ export const inbox: InboxMessages = {
       earlierRequests: "Solicitudes anteriores",
       openMessage: (text) => `Abrir mensaje: ${text}`,
       noEarlierRequests: "No hay solicitudes anteriores en este hilo.",
+      attachmentPreview: "Vista previa",
+      attachmentDownload: "Descargar",
+      attachmentOpen: (name) => `Abrir vista previa de ${name}`,
+      attachmentPreviewUnavailable: "Este tipo de archivo no tiene vista previa aquí.",
+      moreAttachments: (count) => `+${count} archivo${count === 1 ? "" : "s"}`,
     },
     meta: {
       pendingDecisions: (count) =>
