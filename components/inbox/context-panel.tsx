@@ -1023,60 +1023,151 @@ export function ContextPanel({
    *     "Continue" label (approval already happened; we're finishing the work).
    * Hidden entirely when there is nothing actionable — we never fake actions.
    */
-  const hasAnyActionCard =
-    showSuggestedDraftCta || showAddToCalendarCta || orderedSuggestedActions.length > 0
-  const actionsSection = hasAnyActionCard ? (
-    <section aria-label={m.actions.label} className="space-y-1.5">
-      <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        {m.actions.label}
-      </p>
-      {showSuggestedDraftCta ? (
-        <WorkActionCard
-          title={m.actions.reviewDraft}
-          description={m.actions.reviewDraftDescription}
-          ctaLabel={m.actions.reviewDraft}
-          icon={Sparkles}
-          onAction={onUseSuggestedDraft}
-        />
-      ) : null}
-      {showAddToCalendarCta ? (
-        <WorkActionCard
-          title={m.actions.addToCalendar}
-          description={
-            selectedMessageInfo?.eventHint?.title
-              ? m.actions.eventDetected(selectedMessageInfo.eventHint.title)
-              : m.actions.eventDetectedGeneric
-          }
-          ctaLabel={m.actions.addToCalendar}
-          icon={CalendarPlus}
-          onAction={() => setCalendarPreviewOpen(true)}
-        />
-      ) : null}
-      {orderedSuggestedActions.slice(0, 4).map((action) => {
-        const title = typeof action.data?.title === "string" && action.data.title.trim()
+  type ActionNowCandidate = {
+    key: string
+    title: string
+    description?: string | null
+    ctaLabel: string
+    onAction: () => void
+    pending?: boolean
+    badge?: string | null
+    icon?: React.ElementType
+  }
+
+  /**
+   * Action Now ranking.
+   *
+   * One primary recommendation is visible as a full card. At most two other
+   * executable choices stay visible as quiet secondary buttons. This keeps
+   * every existing executor but removes the old "four equal cards" problem.
+   *
+   * Priority:
+   *   1. action anchored to the selected message;
+   *   2. detected calendar action for that message;
+   *   3. suggested reply draft;
+   *   4. remaining conversation-level action.
+   *
+   * create_event is de-duplicated when the structured calendar CTA is already
+   * present — both routes point at the same underlying intent.
+   */
+  const actionNowCandidates = useMemo<ActionNowCandidate[]>(() => {
+    const candidates: ActionNowCandidate[] = []
+    const messageScoped = orderedSuggestedActions.filter(
+      (action) =>
+        Boolean(isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId)
+        && !(showAddToCalendarCta && action.type === "create_event"),
+    )
+    const conversationScoped = orderedSuggestedActions.filter(
+      (action) =>
+        !messageScoped.some((scoped) => scoped.id === action.id)
+        && !(showAddToCalendarCta && action.type === "create_event"),
+    )
+
+    const pushAction = (action: ActionItem) => {
+      const title =
+        typeof action.data?.title === "string" && action.data.title.trim()
           ? action.data.title
           : actionTypeLabel(action.type, locale)
-        const isPending = pendingActionId === action.id
-        const isMessageScoped = Boolean(
-          isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
-        )
-        return (
-          <WorkActionCard
-            key={action.id}
-            title={title}
-            description={getActionDescription(action, m)}
-            ctaLabel={getBusinessActionLabel(action, m, locale)}
-            badge={isMessageScoped ? m.actions.forThisMessage : null}
-            pending={isPending}
-            onAction={() =>
-              handleSuggestedAction(
-                action,
-                action.status === "approved" ? "execute" : "approve_and_execute",
-              )
-            }
-          />
-        )
-      })}
+      candidates.push({
+        key: `action:${action.id}`,
+        title,
+        description: getActionDescription(action, m),
+        ctaLabel: getBusinessActionLabel(action, m, locale),
+        badge:
+          isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId
+            ? m.actions.forThisMessage
+            : null,
+        pending: pendingActionId === action.id,
+        onAction: () =>
+          void handleSuggestedAction(
+            action,
+            action.status === "approved" ? "execute" : "approve_and_execute",
+          ),
+      })
+    }
+
+    for (const action of messageScoped) pushAction(action)
+
+    if (showAddToCalendarCta) {
+      candidates.push({
+        key: "calendar",
+        title: m.actions.addToCalendar,
+        description: selectedMessageInfo?.eventHint?.title
+          ? m.actions.eventDetected(selectedMessageInfo.eventHint.title)
+          : m.actions.eventDetectedGeneric,
+        ctaLabel: m.actions.addToCalendar,
+        icon: CalendarPlus,
+        onAction: () => setCalendarPreviewOpen(true),
+      })
+    }
+
+    if (showSuggestedDraftCta && onUseSuggestedDraft) {
+      candidates.push({
+        key: "draft",
+        title: m.actions.reviewDraft,
+        description: m.actions.reviewDraftDescription,
+        ctaLabel: m.actions.reviewDraft,
+        onAction: onUseSuggestedDraft,
+      })
+    }
+
+    for (const action of conversationScoped) pushAction(action)
+    return candidates
+  }, [
+    orderedSuggestedActions,
+    isMessageMode,
+    selectedMessageId,
+    showAddToCalendarCta,
+    showSuggestedDraftCta,
+    onUseSuggestedDraft,
+    locale,
+    m,
+    pendingActionId,
+    handleSuggestedAction,
+    selectedMessageInfo?.eventHint?.title,
+  ])
+
+  const primaryActionNow = actionNowCandidates[0] ?? null
+  const secondaryActionsNow = actionNowCandidates.slice(1, 3)
+  const hiddenActionCount = Math.max(0, actionNowCandidates.length - 3)
+
+  const actionsSection = primaryActionNow ? (
+    <section aria-label={m.actions.label} className="space-y-2">
+      <WorkActionCard
+        title={primaryActionNow.title}
+        description={primaryActionNow.description}
+        ctaLabel={primaryActionNow.ctaLabel}
+        icon={primaryActionNow.icon}
+        badge={primaryActionNow.badge}
+        pending={primaryActionNow.pending}
+        onAction={primaryActionNow.onAction}
+      />
+      {secondaryActionsNow.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 px-0.5">
+          {secondaryActionsNow.map((action) => (
+            <Button
+              key={action.key}
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={action.pending}
+              onClick={action.onAction}
+              className={cn("h-7 rounded-md px-2.5 text-[10px]", INBOX_GHOST_BUTTON)}
+            >
+              {action.pending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" /> : null}
+              {action.ctaLabel}
+            </Button>
+          ))}
+          {hiddenActionCount > 0 ? (
+            <span
+              className="inline-flex h-7 items-center rounded-md px-2 text-[10px] text-[var(--inbox-intelligence-text-secondary)]"
+              title={m.actions.label}
+            >
+              +{hiddenActionCount}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {actionState ? (
         <p className="px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>
       ) : null}
