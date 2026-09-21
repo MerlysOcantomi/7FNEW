@@ -18,6 +18,7 @@ export const inbox: InboxMessages = {
     workFilterAria: "Filtro de trabajo",
     workFilters: {
       all: "Todas",
+      pending: "Pendientes",
       needsAttention: "Requiere atención",
       waiting: "En espera",
       done: "Resueltas",
@@ -35,6 +36,14 @@ export const inbox: InboxMessages = {
     allChannels: "Todos los canales",
     channelComingSoon: "Próximamente",
     allStatuses: "Todos los estados",
+    dateLabel: "Fecha",
+    dateFilterAria: "Filtrar mensajes por fecha",
+    dates: {
+      all: "Cualquier fecha",
+      today: "Hoy",
+      last7Days: "Últimos 7 días",
+      last30Days: "Últimos 30 días",
+    },
     moreFilters: "Más filtros",
     filtersOnBadge: "activos",
     priorityLabel: "Prioridad",
