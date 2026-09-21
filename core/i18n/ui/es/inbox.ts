@@ -546,7 +546,7 @@ export const inbox: InboxMessages = {
       urgent: "Urgente. Responde hoy con un siguiente paso concreto.",
     },
     recommends: {
-      label: "Fanny recomienda",
+      label: "Acción ahora",
       editPlaceholder: "Edita la recomendación...",
       fallbackAskMissing: "Pide los datos que faltan antes de preparar tu respuesta.",
       fallbackReview: "Revísalo antes de responder y envía un siguiente paso claro.",
