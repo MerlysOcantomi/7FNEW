@@ -478,6 +478,7 @@ export const inbox: InboxMessages = {
     },
     unknownContact: "Contacto desconocido",
     contact: {
+      label: "Quién",
       details: "Detalles",
       showDetails: "Mostrar detalles",
       hideDetails: "Ocultar detalles",
