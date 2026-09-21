@@ -100,6 +100,7 @@ export async function GET() {
     )
 
     return successResponse({
+      toolbarVariant: experience.inboxToolbarVariant,
       channels,
       defaultChannel: config.defaultChannel,
       filters,
