@@ -999,6 +999,11 @@ function InboxPageContent() {
   else if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
   else if (filterParams.assignment === "unassigned") params.set("assignedTo", "unassigned")
   else if (filterParams.assignment === "mine" && currentUserId) params.set("assignedTo", currentUserId)
+  /**
+   * Pending is server-side operator work, not a client-side status bucket.
+   * Keeping it in the list query preserves truthful totals + pagination.
+   */
+  if (filterParams.needsOperatorAction) params.set("needsOperatorAction", "1")
   /** Unanswered filter (registry `unanswered`): server-side semantics, see modules/inbox/unanswered.ts. */
   if (filterParams.unanswered) {
     params.set("unanswered", "1")
