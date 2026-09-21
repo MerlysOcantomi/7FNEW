@@ -100,6 +100,10 @@ interface InboxToolbarProps {
    * coming-soon filters: visible, never selectable.
    */
   workFilterOptions?: Array<{ value: string; label: string; disabled?: boolean }>
+  /** "simple" = conversation-first Finesse chrome; "standard" keeps the full Core toolbar. */
+  variant?: "simple" | "standard"
+  datePreset?: "all" | "today" | "7d" | "30d"
+  onDatePresetChange?: (value: "all" | "today" | "7d" | "30d") => void
   channel: string
   /**
    * Effective channel options resolved by the page from
@@ -185,6 +189,9 @@ export function InboxToolbar({
   primaryWorkFilter = "all",
   onPrimaryWorkFilterChange,
   workFilterOptions,
+  variant = "standard",
+  datePreset = "all",
+  onDatePresetChange,
   channel,
   channelOptions,
   onChannelChange,
@@ -229,6 +236,229 @@ export function InboxToolbar({
 
   const activeChannelLabel =
     channelOptions.find((option) => option.value === channel)?.label ?? m.allChannels
+  const simple = variant === "simple"
+  const simpleAll = workFilters.find((option) => option.value === "all")
+  const simplePending = workFilters.find((option) => option.value === "needs_action")
+
+  if (simple && !isTodoMode) {
+    const dateOptions = [
+      { value: "all" as const, label: m.dates.all },
+      { value: "today" as const, label: m.dates.today },
+      { value: "7d" as const, label: m.dates.last7Days },
+      { value: "30d" as const, label: m.dates.last30Days },
+    ]
+
+    const filterButtonClass = (active: boolean) =>
+      cn(
+        "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+        active
+          ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
+          : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+      )
+
+    return (
+      <div className="shrink-0 rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-surface)] shadow-[var(--app-shadow-subtle)]">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2 md:px-4">
+          {onPrimaryWorkFilterChange && simpleAll ? (
+            <button
+              type="button"
+              onClick={() => onPrimaryWorkFilterChange("all")}
+              aria-pressed={primaryWorkFilter === "all"}
+              className={filterButtonClass(primaryWorkFilter === "all")}
+            >
+              {simpleAll.label}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setChannelOpen((open) => !open)}
+            aria-expanded={channelOpen}
+            aria-controls="inbox-toolbar-channel-panel"
+            className={filterButtonClass(channel !== "all")}
+          >
+            <span>{channel === "all" ? m.allChannels : activeChannelLabel}</span>
+            {channelOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+
+          {onPrimaryWorkFilterChange && simplePending ? (
+            <button
+              type="button"
+              onClick={() => onPrimaryWorkFilterChange("needs_action")}
+              aria-pressed={primaryWorkFilter === "needs_action"}
+              className={filterButtonClass(primaryWorkFilter === "needs_action")}
+            >
+              {m.workFilters.pending}
+            </button>
+          ) : null}
+
+          {onDatePresetChange ? (
+            <Select
+              value={datePreset}
+              onValueChange={(value) =>
+                onDatePresetChange(value as "all" | "today" | "7d" | "30d")
+              }
+            >
+              <SelectTrigger
+                className={cn(
+                  "h-7 w-auto min-w-[86px] rounded-full px-3 text-[11px] shadow-none",
+                  datePreset === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                )}
+                aria-label={m.dateFilterAria}
+              >
+                <SelectValue placeholder={m.dateLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {dateOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setMoreOpen((open) => !open)}
+            aria-expanded={moreOpen}
+            aria-controls="inbox-toolbar-more-panel"
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+              moreOpen
+                ? "bg-[var(--inbox-list-background)] text-[var(--inbox-list-text)]"
+                : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+            )}
+          >
+            <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+            <span>{m.moreFilters}</span>
+            {advancedHasActiveFilter ? (
+              <span className="rounded-full bg-[var(--inbox-accent)]/20 px-1.5 text-[9px] font-bold text-[var(--inbox-accent)]">
+                {m.filtersOnBadge}
+              </span>
+            ) : null}
+            {moreOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+
+          <div className="ml-auto flex min-w-0 shrink-0 items-center">
+            <div className="relative w-[132px] sm:w-[170px] lg:w-[210px]">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--inbox-list-text-secondary)]/70"
+                aria-hidden="true"
+              />
+              <Input
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={m.filterPlaceholder}
+                aria-label={m.filterAria}
+                className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.03] pl-8 pr-7 text-[11px] text-[var(--inbox-list-text)] placeholder:text-[11px] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  aria-label={m.clearFilter}
+                  onClick={() => onSearchChange("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.05] hover:text-[var(--inbox-list-text)]"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {channelOpen ? (
+          <div
+            id="inbox-toolbar-channel-panel"
+            className="border-t border-[var(--inbox-list-border)]/60 px-3 py-2.5 md:px-4"
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {channelOptions.map((option) => {
+                const active = channel === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={option.disabled ? undefined : () => onChannelChange(option.value)}
+                    disabled={option.disabled}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium whitespace-nowrap",
+                      option.disabled
+                        ? "cursor-default border-dashed border-[var(--inbox-list-border)] text-[var(--inbox-list-text-secondary)]/60"
+                        : active
+                          ? "border-transparent bg-[var(--inbox-list-selected-bg)] text-[var(--inbox-list-selected)]"
+                          : "border-[var(--inbox-list-border)] text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+                    )}
+                  >
+                    {active ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {moreOpen ? (
+          <div
+            id="inbox-toolbar-more-panel"
+            className="border-t border-[var(--inbox-list-border)]/60 px-3 py-2.5 md:px-4"
+          >
+            <div className="grid gap-2 sm:grid-cols-2">
+              {onUrgencyFilterChange ? (
+                <div className="min-w-0">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                    {m.priorityLabel}
+                  </label>
+                  <Select value={urgencyFilter} onValueChange={onUrgencyFilterChange}>
+                    <SelectTrigger
+                      className={cn(
+                        FILTER_TRIGGER_BASE,
+                        urgencyFilter === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                      )}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priorityFilters.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              <div className="min-w-0">
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--inbox-list-text-secondary)]/80">
+                  {m.conversationStatusLabel}
+                </label>
+                <Select value={status} onValueChange={onStatusChange}>
+                  <SelectTrigger
+                    className={cn(
+                      FILTER_TRIGGER_BASE,
+                      status === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div className="shrink-0 rounded-2xl border border-[var(--border-dark)] bg-[var(--inbox-list-surface)] shadow-[var(--app-shadow-subtle)]">
