@@ -1145,6 +1145,8 @@ export interface InboxMessages {
      */
     workFilters: {
       all: string
+      /** Conversation still requires an operator-side action. */
+      pending: string
       needsAttention: string
       waiting: string
       done: string
@@ -1164,6 +1166,9 @@ export interface InboxMessages {
     /** Suffix for planned channels rendered as disabled options ("Coming soon"). */
     channelComingSoon: string
     allStatuses: string
+    dateLabel: string
+    dateFilterAria: string
+    dates: { all: string; today: string; last7Days: string; last30Days: string }
     moreFilters: string
     /** Tiny badge shown when an advanced filter is active ("on"). */
     filtersOnBadge: string
