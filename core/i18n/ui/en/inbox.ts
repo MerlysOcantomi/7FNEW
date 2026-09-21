@@ -18,6 +18,7 @@ export const inbox: InboxMessages = {
     workFilterAria: "Work filter",
     workFilters: {
       all: "All",
+      pending: "Pending",
       needsAttention: "Needs attention",
       waiting: "Waiting",
       done: "Done",
@@ -35,6 +36,14 @@ export const inbox: InboxMessages = {
     allChannels: "All channels",
     channelComingSoon: "Coming soon",
     allStatuses: "All statuses",
+    dateLabel: "Date",
+    dateFilterAria: "Filter messages by date",
+    dates: {
+      all: "Any date",
+      today: "Today",
+      last7Days: "Last 7 days",
+      last30Days: "Last 30 days",
+    },
     moreFilters: "More filters",
     filtersOnBadge: "on",
     priorityLabel: "Priority",
