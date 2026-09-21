@@ -18,11 +18,11 @@ test("landing: structure — header, hero h1, sections with anchors, final CTA, 
 })
 
 test("landing: every CTA points at the existing login; no invented routes or forms", () => {
-  assert.equal(FINESSE_LOGIN_HREF, "/login")
+  assert.equal(FINESSE_LOGIN_HREF, "/login?product=finesse")
   const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
   const external = hrefs.filter((h) => !h.startsWith("#"))
-  for (const h of external) assert.ok(["/login", "/finesse"].includes(h), `unexpected href ${h}`)
-  assert.equal(hrefs.filter((h) => h === "/login").length, 4, "header CTA + hero CTA + final CTA + footer Entrar")
+  for (const h of external) assert.ok(["/login?product=finesse", "/finesse"].includes(h), `unexpected href ${h}`)
+  assert.equal(hrefs.filter((h) => h === "/login?product=finesse").length, 4, "header CTA + hero CTA + final CTA + footer Entrar")
   assert.doesNotMatch(html, /<form/)
   assert.doesNotMatch(html, /<input/)
 })
