@@ -107,6 +107,11 @@ export const inbox: InboxMessages = {
       earlierRequests: "Earlier requests",
       openMessage: (text) => `Open message: ${text}`,
       noEarlierRequests: "No earlier requests in this thread.",
+      attachmentPreview: "Preview",
+      attachmentDownload: "Download",
+      attachmentOpen: (name) => `Open preview of ${name}`,
+      attachmentPreviewUnavailable: "This file type cannot be previewed here.",
+      moreAttachments: (count) => `+${count} file${count === 1 ? "" : "s"}`,
     },
     meta: {
       pendingDecisions: (count) =>
