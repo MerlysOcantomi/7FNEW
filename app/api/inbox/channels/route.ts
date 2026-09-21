@@ -41,7 +41,7 @@ import {
  * overriding only `inbox.channels.order` would lose the vertical's `enabled`
  * list. The pure resolvers layer per field instead.
  *
- * Response: `{ channels, defaultChannel, filters, defaultFilter }`.
+ * Response: `{ toolbarVariant, channels, defaultChannel, filters, defaultFilter }`.
  * The raw `Workspace.config` blob never leaves this endpoint.
  */
 export async function GET() {
