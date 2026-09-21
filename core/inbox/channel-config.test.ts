@@ -74,24 +74,33 @@ test("the workspace experience surfaces the Beauty inbox channel layer", () => {
 
 // ─── Workspace overrides ────────────────────────────────────────────────────
 
-test("workspace can override one field and inherit the rest from the pack", () => {
+test("workspace cannot make a disabled channel the default by name alone", () => {
   const config = resolveInboxChannelsConfig(BEAUTY_PACK.inbox.channels, {
     defaultChannel: "email",
   })
-  assert.equal(config.defaultChannel, "email")
-  // A workspace/plan may explicitly opt into Email later; it becomes the declared default
-  // only when it is also enabled by that workspace layer.
-  assert.equal(config.order[0], "whatsapp")
+  assert.equal(config.defaultChannel, "whatsapp")
   assert.ok(!config.enabled.includes("email"))
 })
 
-test("workspace order override applies without losing the pack's enabled list", () => {
+test("a higher-plan workspace can explicitly opt Finesse into Email", () => {
+  const enabled = [...(BEAUTY_PACK.inbox.channels.enabled ?? []), "email"]
+  const order = [...(BEAUTY_PACK.inbox.channels.order ?? []), "email"]
+  const config = resolveInboxChannelsConfig(BEAUTY_PACK.inbox.channels, {
+    enabled,
+    order,
+    defaultChannel: "email",
+  })
+  assert.ok(config.enabled.includes("email"))
+  assert.equal(config.order[config.order.length - 1], "email")
+  assert.equal(config.defaultChannel, "email")
+})
+
+test("workspace order override cannot surface a channel that is still disabled", () => {
   const config = resolveInboxChannelsConfig(BEAUTY_PACK.inbox.channels, {
     order: ["email", "whatsapp"],
   })
-  // declared order first, remaining enabled channels appended — none disappear
-  assert.equal(config.order[0], "email")
-  assert.equal(config.order[1], "whatsapp")
+  assert.equal(config.order[0], "whatsapp")
+  assert.ok(!config.order.includes("email"))
   assert.deepEqual([...config.order].sort(), [...config.enabled].sort())
 })
 
