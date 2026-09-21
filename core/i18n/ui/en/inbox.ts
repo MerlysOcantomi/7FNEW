@@ -472,6 +472,7 @@ export const inbox: InboxMessages = {
     },
     unknownContact: "Unknown contact",
     contact: {
+      label: "Who",
       details: "Details",
       showDetails: "Show details",
       hideDetails: "Hide details",
