@@ -27,11 +27,12 @@ import {
  *   rows, and filters derived on top of the effective channel views (channel
  *   filters exist only for channels the channel resolution surfaces).
  *
- * Vertical layer precedence (both slices): the DB `Vertical.defaultConfig`
- * inbox slice when the row carries one (admin edits win), otherwise the
- * in-code pack via `resolveWorkspaceExperience()`. The pack fallback matters
- * for environments whose Vertical row was seeded before packs declared an
- * inbox block. Vertical filter DEFINITIONS always come from the in-code pack
+ * Vertical layer precedence (both slices): a COMPLETE in-code vertical pack
+ * is authoritative for product defaults (so a stale seeded Vertical row cannot
+ * resurrect retired Finesse surfaces such as Email). Unbuilt/default verticals
+ * may still inherit the DB `Vertical.defaultConfig` inbox slice. Workspace
+ * overrides remain the final layer, so higher plans can opt into extra channels.
+ * Vertical filter DEFINITIONS always come from the in-code pack
  * (typed code data) — neither the DB row nor workspace config can introduce
  * new filter rules, only reference known ids.
  *
@@ -57,22 +58,21 @@ export async function GET() {
     let verticalFiltersLayer: InboxFiltersConfigInput | null = null
     const experience = resolveWorkspaceExperience(ws?.verticalKey ?? null)
     if (ws?.verticalKey) {
-      const vertical = await getVerticalByKey(ws.verticalKey)
-      if (vertical?.defaultConfig) {
-        try {
-          const parsed = JSON.parse(vertical.defaultConfig)
-          verticalChannelsLayer = extractInboxChannelsSlice(parsed)
-          verticalFiltersLayer = extractInboxFiltersSlice(parsed)
-        } catch {
-          verticalChannelsLayer = null
-          verticalFiltersLayer = null
-        }
-      }
-      if (!verticalChannelsLayer || Object.keys(verticalChannelsLayer).length === 0) {
+      if (experience.experienceState === "complete") {
         verticalChannelsLayer = experience.inboxChannels
-      }
-      if (!verticalFiltersLayer || Object.keys(verticalFiltersLayer).length === 0) {
         verticalFiltersLayer = experience.inboxFilters
+      } else {
+        const vertical = await getVerticalByKey(ws.verticalKey)
+        if (vertical?.defaultConfig) {
+          try {
+            const parsed = JSON.parse(vertical.defaultConfig)
+            verticalChannelsLayer = extractInboxChannelsSlice(parsed)
+            verticalFiltersLayer = extractInboxFiltersSlice(parsed)
+          } catch {
+            verticalChannelsLayer = null
+            verticalFiltersLayer = null
+          }
+        }
       }
     }
 
