@@ -507,22 +507,28 @@ export async function listConversations(params: ListConversationsParams) {
       .filter((id): id is string => typeof id === "string" && id.length > 0)
 
     operatorActionFilter = {
-      status: {
-        notIn: [
-          "awaiting_response",
-          "resolved",
-          "closed",
-          "converted",
-          "archived",
-          "trashed",
-        ],
-      },
-      OR: [
-        { actions: { some: { status: { in: ["suggested", "approved", "failed"] } } } },
-        { drafts: { some: { type: "ghost_reply", status: { in: ["draft", "edited"] } } } },
-        ...(proposedConversationIds.length > 0
-          ? [{ id: { in: proposedConversationIds } } satisfies Prisma.ConversationWhereInput]
-          : []),
+      AND: [
+        {
+          status: {
+            notIn: [
+              "awaiting_response",
+              "resolved",
+              "closed",
+              "converted",
+              "archived",
+              "trashed",
+            ],
+          },
+        },
+        {
+          OR: [
+            { actions: { some: { status: { in: ["suggested", "approved", "failed"] } } } },
+            { drafts: { some: { type: "ghost_reply", status: { in: ["draft", "edited"] } } } },
+            ...(proposedConversationIds.length > 0
+              ? [{ id: { in: proposedConversationIds } } satisfies Prisma.ConversationWhereInput]
+              : []),
+          ],
+        },
       ],
     }
   }
