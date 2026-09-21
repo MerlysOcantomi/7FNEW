@@ -9,6 +9,7 @@ These names are **reserved conventions**. A row marked `reserved` does not imply
 | Product / experience | Canonical preview host | Status | Notes |
 |---|---|---|---|
 | sevenef platform / core | `preview.sevenef.com` | reserved | General platform preview. |
+| SevenEF Design System Lab | `preview-designsystem.sevenef.com` | reserved | Stable preview for the SevenEF Premium Surface + Motion System, logo/favicon, overview and onboarding experiments. |
 | Finesse Beauty | `preview.getfinesse.app` | reserved | Finesse Beauty preview on its managed product domain. |
 | Finesse Ink | `preview-ink.sevenef.com` | reserved | Tattoo vertical / Finesse Ink experience. |
 | Food vertical | `preview-food.sevenef.com` | reserved-temporary | Temporary preview name until the food product receives its final commercial name. |
@@ -20,7 +21,7 @@ These names are **reserved conventions**. A row marked `reserved` does not imply
 
 1. Do not invent alternate preview hostnames for the products above without updating this file first.
 2. Preview domains do not create technical forks. Products remain experiences/packages over the shared **sevenef Core**.
-3. A preview hostname should normally point to the stable `preview` Git branch when that product is activated for preview.
+3. A preview hostname should normally point to the stable `preview` Git branch when that product is activated for preview, unless the preview is intentionally tied to a dedicated design/feature branch such as the Design System Lab.
 4. Production domains are a separate decision and must not be inferred from these preview names.
 5. The Food preview name is intentionally provisional. Replace it here when the final product name is chosen.
 
@@ -37,6 +38,7 @@ The first preview callbacks selected for activation are:
 ```text
 https://preview.sevenef.com/api/auth/callback/google
 https://preview.getfinesse.app/api/auth/callback/google
+https://preview-designsystem.sevenef.com/api/auth/callback/google
 ```
 
 Do not add every reserved preview host to Google OAuth pre-emptively. Add a callback when that preview is actually activated and requires Google login.
@@ -50,3 +52,4 @@ Examples:
 - Finesse uses the shared Smart Inbox Core with Finesse-specific capabilities/presentation.
 - Smart Inbox standalone is product packaging over that same shared Inbox Core.
 - Scholara may be enabled inside Olojú while also having its own standalone preview/product experience.
+- The SevenEF Design System Lab is an isolated visual validation surface over the same SevenEF codebase, not a separate product.
