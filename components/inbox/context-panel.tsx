@@ -627,6 +627,9 @@ export function ContextPanel({
   const clientProfileState = getClientProfileState(selected)
   const contactSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {m.contact.label}
+      </p>
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
           <span className="text-sm font-bold">{contactName.charAt(0).toUpperCase()}</span>
