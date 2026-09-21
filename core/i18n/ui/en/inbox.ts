@@ -515,7 +515,7 @@ export const inbox: InboxMessages = {
       actionsOpen: (count) => (count === 1 ? "1 action open" : `${count} actions open`),
     },
     request: {
-      label: "Request",
+      label: "What they want",
       notSummarised: "Fanny hasn't summarised this message yet.",
       hasAttachments: "Has attachments",
       hasLink: "Has link",
