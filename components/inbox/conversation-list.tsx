@@ -53,6 +53,12 @@ interface ConversationItem {
    * selects the conversation without a message anchor.
    */
   currentMessageId?: string | null
+  currentAttachments?: Array<{
+    filename: string
+    url: string
+    contentType: string
+    size?: number
+  }>
   sectorLabel?: string | null
   timeLabel: string
   isUnread: boolean
@@ -190,6 +196,7 @@ export function ConversationList({
                   title={item.title}
                   intentSummary={item.intentSummary}
                   currentMessageId={item.currentMessageId}
+                  currentAttachments={item.currentAttachments}
                   sectorLabel={item.sectorLabel}
                   timeLabel={item.timeLabel}
                   selected={selectedId === item.id}
