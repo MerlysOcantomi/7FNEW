@@ -1953,6 +1953,12 @@ function InboxPageContent() {
           || conversation.intent?.trim()
           || conversation.summary?.trim()
           || null
+        const currentRequestMessage = currentRequest?.messageId
+          ? conversation.messages?.find((message) => message.id === currentRequest.messageId)
+          : null
+        const currentAttachments = currentRequestMessage
+          ? getMessageAttachmentsView(currentRequestMessage)
+          : []
 
         return {
           id: conversation.id,
@@ -1961,6 +1967,7 @@ function InboxPageContent() {
           subject,
           intentSummary,
           currentMessageId: currentRequest?.messageId ?? null,
+          currentAttachments,
           sectorLabel: conversation.classification?.sector?.trim() || null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
