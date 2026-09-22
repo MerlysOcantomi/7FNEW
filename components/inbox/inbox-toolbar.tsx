@@ -249,7 +249,7 @@ export function InboxToolbar({
     ]
 
     const simpleControlBase =
-      "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[11px] font-medium leading-none transition-colors whitespace-nowrap"
+      "inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[11px] font-medium leading-none transition-colors whitespace-nowrap sm:w-auto"
 
     const filterButtonClass = (active: boolean) =>
       cn(
@@ -267,7 +267,7 @@ export function InboxToolbar({
               type="button"
               onClick={() => onPrimaryWorkFilterChange("all")}
               aria-pressed={primaryWorkFilter === "all"}
-              className={filterButtonClass(primaryWorkFilter === "all")}
+              className={cn(filterButtonClass(primaryWorkFilter === "all"), "col-span-2 sm:col-auto")}
             >
               {simpleAll.label}
             </button>
@@ -278,7 +278,7 @@ export function InboxToolbar({
             onClick={() => setChannelOpen((open) => !open)}
             aria-expanded={channelOpen}
             aria-controls="inbox-toolbar-channel-panel"
-            className={filterButtonClass(channel !== "all")}
+            className={cn(filterButtonClass(channel !== "all"), "col-span-2 sm:col-auto")}
           >
             <span>{channel === "all" ? m.allChannels : activeChannelLabel}</span>
             {channelOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -289,7 +289,7 @@ export function InboxToolbar({
               type="button"
               onClick={() => onPrimaryWorkFilterChange("needs_action")}
               aria-pressed={primaryWorkFilter === "needs_action"}
-              className={filterButtonClass(primaryWorkFilter === "needs_action")}
+              className={cn(filterButtonClass(primaryWorkFilter === "needs_action"), "col-span-2 sm:col-auto")}
             >
               {m.workFilters.pending}
             </button>
@@ -304,7 +304,7 @@ export function InboxToolbar({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 w-auto min-w-[86px] rounded-full px-3 text-[11px] leading-none shadow-none",
+                  "col-span-3 h-8 w-full min-w-0 rounded-full px-3 text-[11px] leading-none shadow-none sm:col-auto sm:w-auto sm:min-w-[86px]",
                   datePreset === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                 )}
                 aria-label={m.dateFilterAria}
@@ -328,6 +328,7 @@ export function InboxToolbar({
             aria-controls="inbox-toolbar-more-panel"
             className={cn(
               simpleControlBase,
+              "col-span-3 sm:col-auto",
               moreOpen || advancedHasActiveFilter
                 ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
                 : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
@@ -343,8 +344,8 @@ export function InboxToolbar({
             {moreOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center">
-            <div className="relative w-[132px] sm:w-[170px] lg:w-[210px]">
+          <div className="col-span-6 flex min-w-0 w-full items-center sm:col-auto sm:ml-auto sm:w-auto sm:shrink-0">
+            <div className="relative w-full sm:w-[170px] lg:w-[210px]">
               <Search
                 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--inbox-list-text-secondary)]/70"
                 aria-hidden="true"
