@@ -12,6 +12,7 @@ import { resolveWorkspaceDefaultThemeKey } from '@core/theme'
 import { getRequestLocale } from '@core/i18n/server'
 import { buildThemeBootstrap } from '@core/theme-registry'
 import { applicationBlueStyles } from '@core/design/app-blue'
+import { buildMaterialBootstrap, DEFAULT_APP_MATERIAL } from '@core/material-registry'
 import './globals.css'
 import './premium-ui.css'
 
@@ -42,7 +43,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ])
 
   return (
-    <html lang={requestLocale.locale} data-theme={workspaceDefaultTheme} suppressHydrationWarning>
+    <html lang={requestLocale.locale} data-theme={workspaceDefaultTheme} data-material={DEFAULT_APP_MATERIAL} suppressHydrationWarning>
       <head>
         <style id="sevenef-premium-blue-tokens" dangerouslySetInnerHTML={{ __html: premiumBlueCss }} />
       </head>
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             not opted into the two new app skins. Keep next-themes' compatibility
             class channel unchanged; data-theme remains the palette authority. */}
         <script id="sevenef-theme-bootstrap" dangerouslySetInnerHTML={{ __html: buildThemeBootstrap(workspaceDefaultTheme) }} />
+        <script id="sevenef-material-bootstrap" dangerouslySetInnerHTML={{ __html: buildMaterialBootstrap() }} />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <I18nProvider
             locale={requestLocale.locale}
