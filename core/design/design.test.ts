@@ -19,8 +19,8 @@ test("default contract validates and round-trips without mutation", () => {
   assert.equal(JSON.stringify(original), before)
 })
 
-test("all eight palettes resolve; existing palette IDs are preserved", () => {
-  assert.equal(PALETTES.length, 8)
+test("all ten palettes resolve; existing palette IDs are preserved", () => {
+  assert.equal(PALETTES.length, 10)
   for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl"]) assert.ok(PALETTES.some(p => p.id === key))
   for (const p of PALETTES) {
     const contract = fresh(); contract.palette = { family: p.id, mode: p.mode }

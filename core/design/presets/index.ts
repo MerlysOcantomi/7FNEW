@@ -1,4 +1,5 @@
 import type { DesignContract, DesignMotionPreset, DesignSurfacePreset } from "../contracts"
+import { APP_BLUE_PALETTES } from "../blue-palettes"
 
 export type PalettePreset = {
   id: string
@@ -11,8 +12,10 @@ export type PalettePreset = {
 }
 
 // Lab presets, not replacements for app/globals.css. Existing family keys are
-// preserved. Candidate palettes are NOT added to production theme allow-lists.
+// preserved. Only the two owner-approved blue directions also have an app adapter;
+// all other Lab candidates remain independent of application theme allow-lists.
 export const PALETTES: readonly PalettePreset[] = [
+  ...APP_BLUE_PALETTES,
   { id: "midnight", name: "Midnight", mode: "dark", status: "existing-family", note: "Indigo / violet", guidance: "Violet for focus; pale lavender for text. Keep large reading surfaces deep and quiet.", colors: { canvas: "#16112A", surface: "#211A3A", surfaceStrong: "#2C2448", text: "#F2EEFF", muted: "#B8AED0", accent: "#8B5CFF", accent2: "#C4B2FF", border: "#665780" } },
   { id: "north-sea", name: "North Sea", mode: "dark", status: "candidate", note: "Navy / ice blue", guidance: "A blue alternative to Midnight, not a petrol theme. Ice-blue accents on navy with pearl text.", colors: { canvas: "#081422", surface: "#102338", surfaceStrong: "#19354F", text: "#EDF6FF", muted: "#ACBED3", accent: "#72B5F5", accent2: "#B3D8FC", border: "#516D8C" } },
   { id: "petrol-night", name: "Petrol Night", mode: "dark", status: "candidate", note: "Petrol / cool pearl", guidance: "Blue-green atmosphere with restrained aqua highlights. A dark companion, not a replacement for Petrol Pearl.", colors: { canvas: "#071D25", surface: "#0F303C", surfaceStrong: "#194454", text: "#EFFAFA", muted: "#ACC8CF", accent: "#67CCD0", accent2: "#B5E8E7", border: "#547D89" } },
