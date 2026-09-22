@@ -1,15 +1,22 @@
 import { APP_BLUE_THEME_KEYS } from "./design/blue-palettes"
+import { APP_LIGHT_THEME_KEYS } from "./design/light-palettes"
 
 /** Shared by server resolution, pre-paint bootstrap and the appearance selector. */
 export const THEME_STORAGE_KEY = "7f-theme"
 export const VALID_THEME_KEYS = [
   ...APP_BLUE_THEME_KEYS,
-  "midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl",
+  ...APP_LIGHT_THEME_KEYS,
+  "midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or",
 ] as const
 export type AppThemeKey = typeof VALID_THEME_KEYS[number]
 export const GLOBAL_DEFAULT_THEME_KEY: AppThemeKey = "sevenef-blue-premium"
 export const FINESSE_DEFAULT_THEME_KEY: AppThemeKey = "finesse-petrol-blue"
 export const PUBLIC_DEFAULT_THEME_KEY: AppThemeKey = "midnight"
+export const APP_PRIVATE_THEME_KEYS = [
+  ...APP_BLUE_THEME_KEYS,
+  "sevenef-pearl-blue",
+  "finesse-rose-cream-gold",
+] as const
 
 export function isValidThemeKey(value: unknown): value is AppThemeKey {
   return typeof value === "string" && (VALID_THEME_KEYS as readonly string[]).includes(value)
