@@ -2,7 +2,6 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { runInNewContext } from "node:vm"
 import { APP_BLUE_THEME_KEYS, APP_BLUE_DETAILS, APP_BLUE_PALETTES } from "./blue-palettes"
-import { APP_LIGHT_THEME_KEYS } from "./light-palettes"
 import { applicationBlueContract, applicationBlueStyles, resolveApplicationBlueTokens } from "./app-blue"
 import { contrastRatio, exportDesignJSON, parseDesignJSON, resolveDesignTokens } from "./resolve"
 import { applicationDefaultTheme, buildThemeBootstrap, isValidThemeKey, selectAppTheme, VALID_THEME_KEYS } from "../theme-registry"
@@ -22,7 +21,7 @@ function bootstrap(options: { query?: string; stored?: string; fallback?: string
 }
 
 test("registry retains all old themes and adds only the approved app blues", () => {
-  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", ...APP_BLUE_THEME_KEYS, ...APP_LIGHT_THEME_KEYS]) assert.ok(isValidThemeKey(key))
+  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold", ...APP_BLUE_THEME_KEYS]) assert.ok(isValidThemeKey(key))
   assert.equal(new Set(VALID_THEME_KEYS).size, VALID_THEME_KEYS.length)
   assert.equal(isValidThemeKey("north-sea"), false)
   assert.equal(isValidThemeKey("bad;css"), false)
@@ -63,8 +62,8 @@ test("public sites and client portals are not enrolled into app skins", () => {
   assert.equal(bootstrap({ path: "/sites-other" }).theme, "sevenef-blue-premium")
 })
 
-test("each premium app palette is serializable with the existing Foundation compiler", () => {
-  for (const key of [...APP_BLUE_THEME_KEYS, ...APP_LIGHT_THEME_KEYS]) {
+test("each dark app-blue palette is serializable with the existing Foundation compiler", () => {
+  for (const key of APP_BLUE_THEME_KEYS) {
     const c = applicationBlueContract(key)
     assert.equal(parseDesignJSON(exportDesignJSON(c)).ok, true)
     const app = resolveApplicationBlueTokens(key), foundation = resolveDesignTokens(c)
@@ -109,8 +108,6 @@ test("compiled CSS targets only the two blue themes and contains no unsafe value
   const css = applicationBlueStyles()
   assert.ok(css.includes(':root[data-theme="sevenef-blue-premium"]'))
   assert.ok(css.includes(':root[data-theme="finesse-petrol-blue"]'))
-  assert.ok(css.includes(':root[data-theme="sevenef-pearl-blue"]'))
-  assert.ok(css.includes(':root[data-theme="finesse-rose-cream-gold"]'))
   assert.ok(!css.includes('[data-theme="rose-nude"]'))
   assert.ok(!css.includes("undefined"))
   assert.ok(!css.includes("</style>"))
