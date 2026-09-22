@@ -23,14 +23,14 @@ function palette(id: typeof APP_BLUE_THEME_KEYS[number]) {
 }
 
 const APPROVED_PETROL = {
-  canvas: "#071C2C", surface: "#12384E", surfaceStrong: "#184863",
-  text: "#F2F7FA", muted: "#A9C0CE", accent: "#1F7AA8",
-  accent2: "#9ED3EF", border: "#2D6B8A",
+  canvas: "#091D2C", surface: "#153547", surfaceStrong: "#1D4359",
+  text: "#F3F6F7", muted: "#AFC0C8", accent: "#2A6F92",
+  accent2: "#A9C8D8", border: "#496B7D",
 }
 
-test("Finesse is the exact former sevenef Blue, not a new greener interpretation", () => {
+test("Finesse petrol is calmer, blue-first and never green", () => {
   assert.deepEqual(palette("finesse-petrol-blue").colors, APPROVED_PETROL)
-  assert.deepEqual(APP_BLUE_DETAILS["finesse-petrol-blue"], { rail: "#0B2A3D", hover: "#17678F", glow: "#58AEDA" })
+  assert.deepEqual(APP_BLUE_DETAILS["finesse-petrol-blue"], { rail: "#102B3C", hover: "#235F7D", glow: "#6B9EB7" })
 })
 
 test("sevenef has navy planes, electric blue actions and low-chroma silver neutrals", () => {
@@ -48,10 +48,11 @@ test("sevenef has navy planes, electric blue actions and low-chroma silver neutr
   }
 })
 
-test("sevenef does not become darker while shifting from petrol toward navy", () => {
-  const p = palette("sevenef-blue-premium").colors
-  for (const key of ["canvas", "surface", "surfaceStrong"] as const) {
-    assert.ok(luminance(p[key]) >= luminance(APPROVED_PETROL[key]), `${key}: brightness must not decrease`)
+test("Finesse petrol remains blue-led while reducing saturation", () => {
+  const p = palette("finesse-petrol-blue").colors
+  for (const key of ["canvas", "surface", "surfaceStrong", "accent"] as const) {
+    const [r, g, b] = rgb(p[key])
+    assert.ok(b > g && g > r, `${key}: blue channel must lead`)
   }
 })
 
