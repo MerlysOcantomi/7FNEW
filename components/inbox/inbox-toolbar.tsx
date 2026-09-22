@@ -248,9 +248,12 @@ export function InboxToolbar({
       { value: "30d" as const, label: m.dates.last30Days },
     ]
 
+    const simpleControlBase =
+      "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[11px] font-medium leading-none transition-colors whitespace-nowrap"
+
     const filterButtonClass = (active: boolean) =>
       cn(
-        "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+        simpleControlBase,
         active
           ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
           : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
@@ -301,7 +304,7 @@ export function InboxToolbar({
             >
               <SelectTrigger
                 className={cn(
-                  "h-7 w-auto min-w-[86px] rounded-full px-3 text-[11px] shadow-none",
+                  "h-8 w-auto min-w-[86px] rounded-full px-3 text-[11px] leading-none shadow-none",
                   datePreset === "all" ? FILTER_TRIGGER_IDLE : FILTER_TRIGGER_ACTIVE,
                 )}
                 aria-label={m.dateFilterAria}
@@ -324,10 +327,10 @@ export function InboxToolbar({
             aria-expanded={moreOpen}
             aria-controls="inbox-toolbar-more-panel"
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-              moreOpen
-                ? "bg-[var(--inbox-list-background)] text-[var(--inbox-list-text)]"
-                : "text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
+              simpleControlBase,
+              moreOpen || advancedHasActiveFilter
+                ? "border-transparent bg-[var(--inbox-accent)]/15 text-[var(--inbox-accent)] shadow-[0_0_0_1px_var(--inbox-accent)/40]"
+                : "border-[var(--inbox-list-border)] bg-transparent text-[var(--inbox-list-text-secondary)] hover:bg-[var(--inbox-list-background)] hover:text-[var(--inbox-list-text)]",
             )}
           >
             <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
@@ -351,7 +354,7 @@ export function InboxToolbar({
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={m.filterPlaceholder}
                 aria-label={m.filterAria}
-                className="h-8 w-full rounded-lg border-[var(--inbox-list-border)] bg-white/[0.03] pl-8 pr-7 text-[11px] text-[var(--inbox-list-text)] placeholder:text-[11px] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
+                className="h-8 w-full rounded-full border-[var(--inbox-list-border)] bg-white/[0.03] pl-8 pr-7 text-[11px] leading-none text-[var(--inbox-list-text)] placeholder:text-[11px] placeholder:text-[var(--inbox-list-text-secondary)] focus:border-[var(--inbox-list-selected)] focus:ring-1 focus:ring-[var(--inbox-list-selected)]/25"
               />
               {search ? (
                 <button
