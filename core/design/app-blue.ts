@@ -1,20 +1,34 @@
 import { DEFAULT_DESIGN_CONTRACT, type DesignContract } from "./contracts"
 import { APP_BLUE_DETAILS, APP_BLUE_THEME_KEYS, isAppBlueThemeKey, type AppBlueThemeKey } from "./blue-palettes"
+import { APP_LIGHT_DETAILS, APP_LIGHT_THEME_KEYS, isAppLightThemeKey, type AppLightThemeKey } from "./light-palettes"
+import { paletteById } from "./presets"
 import { resolveDesignTokens } from "./resolve"
 
+export const APP_PREMIUM_THEME_KEYS = [...APP_BLUE_THEME_KEYS, ...APP_LIGHT_THEME_KEYS] as const
+export type AppPremiumThemeKey = AppBlueThemeKey | AppLightThemeKey
+
+export function isAppPremiumThemeKey(value: unknown): value is AppPremiumThemeKey {
+  return isAppBlueThemeKey(value) || isAppLightThemeKey(value)
+}
+
 /** Consumer adapter, not a second design engine. Never reads account/DB data. */
-export function applicationBlueContract(key: AppBlueThemeKey): DesignContract {
+export function applicationBlueContract(key: AppPremiumThemeKey): DesignContract {
+  if (!isAppPremiumThemeKey(key)) throw new Error("Unsupported premium application theme")
+  const palette = paletteById(key)
+  const finesse = key.startsWith("finesse-") || key === "petrol-pearl"
   return {
     ...DEFAULT_DESIGN_CONTRACT,
-    brand: { name: key === "finesse-petrol-blue" ? "Finesse" : "sevenef" },
-    palette: { family: key, mode: "dark" },
+    brand: { name: finesse ? "Finesse" : "sevenef" },
+    palette: { family: key, mode: palette.mode },
   }
 }
 
-export function resolveApplicationBlueTokens(key: AppBlueThemeKey): Record<string, string> {
-  if (!isAppBlueThemeKey(key)) throw new Error("Unsupported application blue theme")
+export function resolveApplicationBlueTokens(key: AppPremiumThemeKey): Record<string, string> {
+  if (!isAppPremiumThemeKey(key)) throw new Error("Unsupported premium application theme")
   const f = resolveDesignTokens(applicationBlueContract(key))
-  const d = APP_BLUE_DETAILS[key]
+  const palette = paletteById(key)
+  const light = palette.mode === "light"
+  const d = isAppBlueThemeKey(key) ? APP_BLUE_DETAILS[key] : APP_LIGHT_DETAILS[key as AppLightThemeKey]
   const aliases: Record<string, string> = {
     "--app-canvas": f["--fd-canvas"], "--app-sidebar": d.rail,
     "--app-sidebar-surface": f["--fd-surface"], "--app-surface-dark": f["--fd-surface"],
@@ -26,13 +40,13 @@ export function resolveApplicationBlueTokens(key: AppBlueThemeKey): Record<strin
     "--text-primary-light": f["--fd-text"], "--text-secondary-light": f["--fd-muted"],
     "--text-tertiary-light": f["--fd-muted"],
     "--border-dark": f["--fd-border"], "--border-dark-strong": f["--fd-border"],
-    "--app-surface-subtle": f["--fd-wash"], "--app-surface-hover": "rgba(180, 217, 240, 0.08)",
-    "--app-surface-active": "rgba(180, 217, 240, 0.13)",
+    "--app-surface-subtle": f["--fd-wash"], "--app-surface-hover": light ? "rgba(12, 26, 43, 0.055)" : "rgba(180, 217, 240, 0.08)",
+    "--app-surface-active": light ? "rgba(12, 26, 43, 0.09)" : "rgba(180, 217, 240, 0.13)",
     "--app-control-radius": "10px", "--app-shadow-subtle": f["--fd-shadow"],
     "--premium-glow": `color-mix(in srgb, ${d.glow} 16%, transparent)`,
-    "--premium-edge": d.glow, "--premium-glass": f["--fd-glass"],
+    "--premium-edge": d.glow, "--premium-metal": "metal" in d ? d.metal : d.glow, "--premium-glass": f["--fd-glass"],
     "--premium-panel-fill": `linear-gradient(150deg, ${f["--fd-strong"]} 0%, ${f["--fd-surface"]} 82%)`,
-    "--premium-highlight": "inset 0 1px 0 rgba(218, 241, 254, 0.08)",
+    "--premium-highlight": light ? "inset 0 1px 0 rgba(255, 255, 255, 0.82)" : "inset 0 1px 0 rgba(218, 241, 254, 0.08)",
     "--premium-control-fill": `linear-gradient(180deg, ${f["--fd-accent"]}, ${d.hover})`,
     "--premium-duration": "180ms",
     "--inbox-list-selected-bg": f["--fd-wash"],
@@ -51,8 +65,8 @@ export function resolveApplicationBlueTokens(key: AppBlueThemeKey): Record<strin
     "--inbox-unread-color": f["--fd-accent-text"], "--inbox-focus": f["--fd-accent-text"],
     "--inbox-focus-soft": f["--fd-wash"], "--inbox-archive-color": f["--fd-muted"],
     "--inbox-spam-color": f["--fd-muted"], "--inbox-border": f["--fd-border"],
-    "--inbox-divider": "rgba(180, 217, 240, 0.12)",
-    "--inbox-list-divider": "rgba(180, 217, 240, 0.12)",
+    "--inbox-divider": light ? "rgba(12, 26, 43, 0.10)" : "rgba(180, 217, 240, 0.12)",
+    "--inbox-list-divider": light ? "rgba(12, 26, 43, 0.10)" : "rgba(180, 217, 240, 0.12)",
     "--inbox-shadow-card": f["--fd-shadow"],
   }
   // Rebind aliases on this selector: inherited CSS variables may already have
@@ -111,7 +125,7 @@ export function resolveApplicationBlueTokens(key: AppBlueThemeKey): Record<strin
 
 /** Trusted palette keys only. Served as CSS in RootLayout, not user-authored CSS. */
 export function applicationBlueStyles(): string {
-  return APP_BLUE_THEME_KEYS.map(key => {
+  return APP_PREMIUM_THEME_KEYS.map(key => {
     const declarations = Object.entries(resolveApplicationBlueTokens(key)).map(([name, value]) => `  ${name}: ${value};`).join("\n")
     return `:root[data-theme="${key}"], [data-theme="${key}"] {\n${declarations}\n}\n`
   }).join("\n")
