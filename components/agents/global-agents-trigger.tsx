@@ -42,7 +42,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
   const base =
     variant === "app"
       ? "h-9 rounded-[var(--app-control-radius)] border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
-      : "rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
+      : "h-9 rounded-[var(--app-control-radius)] border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
 
   return (
     <button
