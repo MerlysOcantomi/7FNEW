@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Sparkles } from "lucide-react"
+import { Bot } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGlobalNew } from "@/components/global-new/use-global-new"
 import { useTodayDrawer } from "@/components/today/today-drawer-provider"
@@ -20,7 +20,7 @@ import { useI18n } from "@/components/i18n-provider"
  * it closes any open sibling overlay so nothing lingers over the transition.
  *
  * Visual contract — kept 1:1 with the New / Today triggers (same shape, padding,
- * tone tokens). Only the icon (`Sparkles`) and label (`"Agents"`) diverge. The
+ * tone tokens). Only the icon (`Bot`) and label (`"Agents"`) diverge. The
  * button is hidden on `/agents` itself (see app-shell/context-shell).
  */
 export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "context" }) {
@@ -41,7 +41,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
 
   const base =
     variant === "app"
-      ? "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
+      ? "h-9 rounded-[var(--app-control-radius)] border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
       : "rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
 
   return (
@@ -52,7 +52,7 @@ export function GlobalAgentsTriggerDesktop({ variant }: { variant: "app" | "cont
       aria-label={t.nav.agentsOpen}
       className={cn("flex cursor-pointer items-center gap-1.5 transition-colors", base)}
     >
-      <Sparkles className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+      <Bot className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
       <span>{t.nav.agents}</span>
     </button>
   )
@@ -90,7 +90,7 @@ export function GlobalAgentsTriggerMobile() {
         "rounded-md p-1.5 text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-[var(--app-surface-active)] hover:text-[var(--text-primary-light)]",
       )}
     >
-      <Sparkles size={22} strokeWidth={2} />
+      <Bot size={22} strokeWidth={2} />
     </button>
   )
 }
