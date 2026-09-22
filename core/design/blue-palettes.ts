@@ -14,16 +14,16 @@ export const APP_BLUE_PALETTES: readonly PalettePreset[] = [
   {
     id: "finesse-petrol-blue", name: "Finesse / Petrol Blue", mode: "dark", status: "candidate",
     note: "Recommended / Finesse application",
-    guidance: "A calmer blue-petrol palette for Finesse: unmistakably blue, never green, with lower saturation for long operational sessions. Petrol Pearl remains the light companion.",
-    colors: { canvas: "#091D2C", surface: "#153547", surfaceStrong: "#1D4359", text: "#F3F6F7", muted: "#AFC0C8", accent: "#2A6F92", accent2: "#A9C8D8", border: "#496B7D" },
+    guidance: "Deep navy-petrol canvas with neutral charcoal-blue working surfaces. Blue remains the interaction accent instead of filling every card; the palette stays unmistakably blue, never green.",
+    colors: { canvas: "#071426", surface: "#101923", surfaceStrong: "#141F2B", text: "#F4F7FA", muted: "#A3B0BD", accent: "#1F6E8C", accent2: "#83B7CE", border: "#6C8496" },
   },
 ]
 
 // Keep white-label button hovers within a contrast-checked blue range.
-// Finesse deliberately retains every former sevenef petrol material value.
+// Finesse keeps blue-led petrol identity while moving operational surfaces toward neutral charcoal.
 export const APP_BLUE_DETAILS: Record<AppBlueThemeKey, { rail: string; hover: string; glow: string }> = {
   "sevenef-blue-premium": { rail: "#102A46", hover: "#2955D5", glow: "#8AA9FF" },
-  "finesse-petrol-blue": { rail: "#102B3C", hover: "#235F7D", glow: "#6B9EB7" },
+  "finesse-petrol-blue": { rail: "#0A1520", hover: "#297A99", glow: "#6EA6BD" },
 }
 
 export function isAppBlueThemeKey(key: unknown): key is AppBlueThemeKey {
