@@ -124,7 +124,7 @@ function AppShellDesktopToolbar({
             aria-expanded={searchOpen && !isMobileViewport}
             aria-haspopup="dialog"
             className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 transition-colors hover:bg-[var(--app-surface-active)]",
+              "flex h-9 cursor-pointer items-center gap-2 rounded-[var(--app-control-radius)] border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 transition-colors hover:bg-[var(--app-surface-active)]",
               searchOpen &&
                 !isMobileViewport &&
                 "bg-[var(--app-surface-active)] ring-2 ring-[var(--accent-primary)]/40",
