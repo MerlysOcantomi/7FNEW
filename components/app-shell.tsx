@@ -74,7 +74,7 @@ function AppShellDesktopToolbar({
     desktopOpen || todayOpen || agentsOpen || askOpen || (searchOpen && !isMobileViewport)
 
   return (
-    <div className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
+    <div data-sevenef-toolbar className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
       <GlobalNewDesktopChrome variant="app">
         <div
           className={cn(
@@ -239,7 +239,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
       <ManualIntakeProvider>
       <CloseTodayWhenGlobalSearchOpen />
       {/* fixed inset-0 = viewport-sized containing block so flex children get a definite height (h-dvh alone can still allow the main column to grow with content). */}
-      <div className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
+      <div data-sevenef-shell className="fixed inset-0 z-0 flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] font-sans md:flex-row">
         <SidebarNav />
         <MobileSidebarNav />
 
@@ -260,7 +260,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
               hasVerticalAssistant && (hasMobileNavBar ? "md:pb-20" : "pb-24 md:pb-20"),
             )}
           >
-            <div className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
+            <div data-sevenef-content className={cn("mx-auto flex min-h-0 w-full max-w-6xl flex-col", contentClassName)}>
               {children}
               {/*
                 Mobile bottom-bar clearance (FINESSE-UI-02). The content column

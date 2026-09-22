@@ -1,0 +1,45 @@
+/* Opt-in primitives. No :root, body, bare element or global reset selectors. */
+.fd-scope { color: var(--fd-text); font-family: var(--fd-font-body); font-size: var(--fd-body-size); }
+.fd-scope .fd-surface { padding: var(--fd-gap); border: var(--fd-border-width) solid var(--fd-border); border-radius: var(--fd-radius); }
+.fd-scope [data-surface="quiet"] { background: transparent; border-color: transparent; }
+.fd-scope [data-surface="glass"] { background: var(--fd-surface); }
+.fd-scope [data-surface="glass-strong"] { background: var(--fd-strong); }
+@supports (backdrop-filter: blur(1px)) {
+  .fd-scope [data-surface="glass"] { background: var(--fd-glass); backdrop-filter: blur(var(--fd-blur)); }
+  .fd-scope [data-surface="glass-strong"] { background: var(--fd-glass-strong); backdrop-filter: blur(var(--fd-blur)); }
+}
+.fd-scope [data-surface="tinted"] { background: linear-gradient(135deg, var(--fd-wash), transparent), var(--fd-surface); }
+.fd-scope [data-surface="elevated"] { background: var(--fd-strong); box-shadow: var(--fd-shadow), inset 0 1px var(--fd-highlight); }
+.fd-scope [data-surface="luminous"] { background: linear-gradient(140deg, var(--fd-wash), transparent), var(--fd-surface); box-shadow: 0 0 28px var(--fd-glow), inset 0 1px var(--fd-highlight); border-color: var(--fd-accent); }
+.fd-scope .fd-button { font: inherit; font-size: 14px; font-weight: 600; background: var(--fd-accent); color: var(--fd-on-accent); border: 1px solid transparent; border-radius: var(--fd-control-radius); padding: 11px 18px; cursor: pointer; }
+.fd-scope .fd-button[data-secondary] { background: transparent; color: var(--fd-text); border-color: var(--fd-border); }
+.fd-scope .fd-input { color: var(--fd-text); background: var(--fd-surface); border: 1px solid var(--fd-border); border-radius: var(--fd-control-radius); padding: 12px; width: 100%; font: inherit; }
+.fd-scope .fd-input::placeholder { color: var(--fd-muted); }
+.fd-scope :is(button, input, select, a, [tabindex]):focus-visible { outline: 2px solid var(--fd-focus); outline-offset: 3px; }
+.fd-scope .fd-button:disabled { cursor: not-allowed; opacity: .55; }
+.fd-scope [data-motion] { animation-duration: .7s; animation-timing-function: cubic-bezier(.16,1,.3,1); animation-fill-mode: both; }
+.fd-scope [data-motion="fade-reveal"] { animation-name: fd-fade; }
+.fd-scope [data-motion="center-reveal"] { animation-name: fd-center; }
+.fd-scope [data-motion="line-reveal"] { animation-name: fd-line; }
+.fd-scope [data-motion="panel-depth"] { animation-name: fd-depth; }
+.fd-scope [data-motion="ai-breathe"] { animation: fd-breathe 1.5s ease-in-out 2; }
+.fd-scope [data-motion="hover-lift"] { transition: transform .2s ease; }
+.fd-scope [data-motion="hover-lift"]:is(:hover, :focus-visible, :focus-within) { transform: translateY(-3px); }
+.fd-scope [data-motion="none"] { animation: none; transition: none; }
+.fd-scope .fd-draw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: fd-draw 1.8s ease both; }
+@keyframes fd-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fd-center { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
+@keyframes fd-line { from { opacity: 0; transform: scaleX(.02); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes fd-depth { from { opacity: 0; transform: perspective(800px) rotateX(3deg) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fd-breathe { 0%,100% { opacity: .8; } 50% { opacity: 1; box-shadow: 0 0 28px var(--fd-glow); } }
+@keyframes fd-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.fd-scope[data-motion-paused="true"] [data-motion], .fd-scope[data-motion-paused="true"] .fd-draw { animation: none; transition: none; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .fd-scope [data-motion], .fd-scope .fd-draw { animation: none !important; transition: none !important; transform: none !important; }
+}
+.fd-scope button:is(:hover, :focus-visible) [data-motion="hover-lift"] { transform: translateY(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .fd-scope button:is(:hover, :focus-visible) [data-motion="hover-lift"] { transform: none !important; }
+}
+/* Explicit pause wins over pointer/focus demonstrations as well as keyframes. */
+.fd-scope[data-motion-paused="true"] button:is(:hover, :focus-visible) [data-motion="hover-lift"] { transform: none; }
