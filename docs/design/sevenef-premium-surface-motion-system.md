@@ -22,23 +22,22 @@ Product components consume semantic tokens. They must not hardcode palette color
 
 ## 3. Palette policy
 
-Keep and modernize existing theme families; do not delete them because their current surfaces feel flat.
+The active product system is intentionally small:
 
-Current canonical keys:
-- `midnight`
-- `lavender-mist`
-- `rose-nude`
-- `sage-luxe`
-- `noir-or`
-- `petrol-pearl`
+- `midnight` — **Midnight Blue**, the true blue-black dark theme. No violet or purple cast.
+- `sevenef-pearl-blue` — sevenef light / pearl companion.
+- `petrol-pearl` — Finesse default: polished white/pearl surfaces with petrol reserved for interaction.
+- `finesse-rose-cream-gold` — Finesse warm alternative: cream, champagne and restrained antique rose.
 
-There is already a `north-sea` blue/navy placeholder in the vertical experience layer. It must be audited and either promoted into a real canonical theme or removed from available-theme data; no ghost theme keys.
+Product defaults:
+- sevenef Core → `midnight`.
+- Finesse → `petrol-pearl`.
+- Finesse dark → shared `midnight`, not a separate petrol-dark skin.
+- Solid / Glass remains a material choice orthogonal to palette.
 
-Direction:
-- SevenEF Core: Midnight + a more blue/navy premium family.
-- Finesse: Petrol family remains primary; Rose and Sage remain valid alternatives.
-- Oloju: later receives its own dark forest / warm ivory / maize-gold atmosphere.
-- Theme color does not define component behavior. The same glass/elevated/luminous surfaces work across all families.
+Compatibility keys such as `sevenef-blue-premium`, `finesse-petrol-blue`, `lavender-mist` and `rose-nude` remain readable during migration but are not active selector choices. Persisted legacy choices normalize onto the approved directions rather than keeping purple or petrol-dark experiences alive.
+
+Theme color does not define component behavior. The same quiet/glass/elevated/luminous surface roles work across active families.
 
 ## 4. Surface vocabulary
 

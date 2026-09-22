@@ -4,11 +4,11 @@ import { runInNewContext } from "node:vm"
 import { APP_BLUE_THEME_KEYS, APP_BLUE_DETAILS, APP_BLUE_PALETTES } from "./blue-palettes"
 import { applicationBlueContract, applicationBlueStyles, resolveApplicationBlueTokens } from "./app-blue"
 import { contrastRatio, exportDesignJSON, parseDesignJSON, resolveDesignTokens } from "./resolve"
-import { applicationDefaultTheme, buildThemeBootstrap, isValidThemeKey, selectAppTheme, VALID_THEME_KEYS } from "../theme-registry"
+import { applicationDefaultTheme, buildThemeBootstrap, isValidThemeKey, normalizeThemeKey, selectAppTheme, VALID_THEME_KEYS } from "../theme-registry"
 
 function bootstrap(options: { query?: string; stored?: string; fallback?: string; path?: string; readBlocked?: boolean; writeBlocked?: boolean }) {
   let theme = "", writes = 0
-  runInNewContext(buildThemeBootstrap(options.fallback ?? "sevenef-blue-premium"), {
+  runInNewContext(buildThemeBootstrap(options.fallback ?? "midnight"), {
     URLSearchParams,
     location: { search: options.query ?? "", pathname: options.path ?? "/inbox" },
     localStorage: {
@@ -20,22 +20,29 @@ function bootstrap(options: { query?: string; stored?: string; fallback?: string
   return { theme, writes }
 }
 
-test("registry retains all old themes and adds only the approved app blues", () => {
+test("registry keeps compatibility keys while active directions stay finite", () => {
   for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold", ...APP_BLUE_THEME_KEYS]) assert.ok(isValidThemeKey(key))
   assert.equal(new Set(VALID_THEME_KEYS).size, VALID_THEME_KEYS.length)
   assert.equal(isValidThemeKey("north-sea"), false)
   assert.equal(isValidThemeKey("bad;css"), false)
 })
 
-test("application defaults are distinct and preserve other declared vertical themes", () => {
-  assert.equal(applicationDefaultTheme(null, "midnight"), "sevenef-blue-premium")
-  assert.equal(applicationDefaultTheme("beauty", "petrol-pearl"), "finesse-petrol-blue")
+test("application defaults simplify to Midnight for sevenef and Pearl for Finesse", () => {
+  assert.equal(applicationDefaultTheme(null, "midnight"), "midnight")
+  assert.equal(applicationDefaultTheme("beauty", "finesse-petrol-blue"), "petrol-pearl")
   assert.equal(applicationDefaultTheme("other", "sage-luxe"), "sage-luxe")
 })
 
-test("explicit choices always outrank the new defaults", () => {
-  assert.equal(selectAppTheme(null, "midnight", "sevenef-blue-premium"), "midnight")
-  assert.equal(selectAppTheme("petrol-pearl", "finesse-petrol-blue", "sevenef-blue-premium"), "petrol-pearl")
+test("legacy visual choices migrate onto the approved directions", () => {
+  assert.equal(normalizeThemeKey("sevenef-blue-premium"), "midnight")
+  assert.equal(normalizeThemeKey("finesse-petrol-blue"), "midnight")
+  assert.equal(normalizeThemeKey("lavender-mist"), "sevenef-pearl-blue")
+  assert.equal(normalizeThemeKey("rose-nude"), "finesse-rose-cream-gold")
+})
+
+test("explicit active choices always outrank defaults", () => {
+  assert.equal(selectAppTheme(null, "midnight", "petrol-pearl"), "midnight")
+  assert.equal(selectAppTheme("petrol-pearl", "midnight", "midnight"), "petrol-pearl")
   assert.equal(selectAppTheme("invalid", "invalid", "invalid"), "midnight")
 })
 
@@ -43,26 +50,25 @@ test("bootstrap agrees with the pure selector for every registered theme", () =>
   for (const query of [undefined, "invalid", ...VALID_THEME_KEYS]) {
     for (const stored of [undefined, "invalid", ...VALID_THEME_KEYS]) {
       const actual = bootstrap({ query: query ? `?theme=${query}` : "", stored })
-      assert.equal(actual.theme, selectAppTheme(query, stored, "sevenef-blue-premium"))
+      assert.equal(actual.theme, selectAppTheme(query, stored, "midnight"))
       assert.equal(actual.writes, isValidThemeKey(query) ? 1 : 0)
     }
   }
 })
 
-test("blocked storage cannot lose the query choice or app default", () => {
-  assert.equal(bootstrap({ query: "?theme=finesse-petrol-blue", readBlocked: true, writeBlocked: true }).theme, "finesse-petrol-blue")
-  assert.equal(bootstrap({ readBlocked: true }).theme, "sevenef-blue-premium")
+test("blocked storage cannot lose an explicit query or the Midnight default", () => {
+  assert.equal(bootstrap({ query: "?theme=finesse-petrol-blue", readBlocked: true, writeBlocked: true }).theme, "midnight")
+  assert.equal(bootstrap({ readBlocked: true }).theme, "midnight")
 })
 
-test("public sites and client portals are not enrolled into app skins", () => {
+test("public sites and client portals reject application-private light skins", () => {
   for (const path of ["/sites/demo", "/widget", "/cliente/perfil", "/finesse"]) {
-    assert.deepEqual(bootstrap({ path, query: "?theme=sevenef-blue-premium", stored: "finesse-petrol-blue" }), { theme: "midnight", writes: 0 })
-    assert.equal(bootstrap({ path, stored: "rose-nude" }).theme, "rose-nude")
+    assert.deepEqual(bootstrap({ path, query: "?theme=sevenef-pearl-blue", stored: "finesse-rose-cream-gold" }), { theme: "midnight", writes: 0 })
   }
-  assert.equal(bootstrap({ path: "/sites-other" }).theme, "sevenef-blue-premium")
+  assert.equal(bootstrap({ path: "/sites-other", query: "?theme=sevenef-pearl-blue" }).theme, "sevenef-pearl-blue")
 })
 
-test("each dark app-blue palette is serializable with the existing Foundation compiler", () => {
+test("each dark compatibility key is serializable with the Foundation compiler", () => {
   for (const key of APP_BLUE_THEME_KEYS) {
     const c = applicationBlueContract(key)
     assert.equal(parseDesignJSON(exportDesignJSON(c)).ok, true)
@@ -74,7 +80,7 @@ test("each dark app-blue palette is serializable with the existing Foundation co
   }
 })
 
-test("blue-first guard and text/CTA/focus contrast on the brightest panel", () => {
+test("blue-first guard and text/CTA/focus contrast hold across dark aliases", () => {
   for (const p of APP_BLUE_PALETTES) {
     const key = p.id as typeof APP_BLUE_THEME_KEYS[number]
     const d = APP_BLUE_DETAILS[key]
@@ -96,7 +102,7 @@ test("app aliases have no cycles or unresolved internal references", () => {
       assert.ok(!chain.includes(name), `Alias cycle: ${chain.join(" -> ")} -> ${name}`)
       assert.ok(name in tokens, `Missing token ${name}`)
       for (const match of tokens[name].matchAll(/var\((--[a-z-]+)/g)) {
-        if (match[1].startsWith("--font-")) continue // next/font with explicit fallback
+        if (match[1].startsWith("--font-")) continue
         visit(match[1], [...chain, name])
       }
     }
@@ -104,10 +110,9 @@ test("app aliases have no cycles or unresolved internal references", () => {
   }
 })
 
-test("compiled CSS targets only the two blue themes and contains no unsafe values", () => {
+test("compiled CSS targets Midnight plus compatibility dark keys and contains no unsafe values", () => {
   const css = applicationBlueStyles()
-  assert.ok(css.includes(':root[data-theme="sevenef-blue-premium"]'))
-  assert.ok(css.includes(':root[data-theme="finesse-petrol-blue"]'))
+  for (const key of APP_BLUE_THEME_KEYS) assert.ok(css.includes(`:root[data-theme="${key}"]`))
   assert.ok(!css.includes('[data-theme="rose-nude"]'))
   assert.ok(!css.includes("undefined"))
   assert.ok(!css.includes("</style>"))

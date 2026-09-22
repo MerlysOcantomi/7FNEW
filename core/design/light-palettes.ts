@@ -22,7 +22,7 @@ export const APP_LIGHT_PALETTES: readonly PalettePreset[] = [
     status: "candidate",
     note: "Pearl / navy / electric blue",
     guidance:
-      "A cool pearl working canvas with navy ink and restrained electric-blue actions. Surfaces stay bright without becoming paper-white card walls.",
+      "A cool pearl working canvas with navy ink and restrained electric-blue actions. Surfaces stay bright without becoming a flat paper-white card wall.",
     colors: {
       canvas: "#F3F6FA",
       surface: "#FFFFFF",
@@ -39,18 +39,18 @@ export const APP_LIGHT_PALETTES: readonly PalettePreset[] = [
     name: "Finesse / Petrol Pearl",
     mode: "light",
     status: "existing-family",
-    note: "Pearl / blue petrol",
+    note: "White pearl / blue petrol",
     guidance:
-      "Low-fatigue pearl canvas with blue-petrol controls. The product reads clean and luminous while keeping Finesse identity in focus, selection and navigation.",
+      "Finesse defaults to polished white and pearl surfaces. Petrol is the signature interaction color for buttons, focus, navigation and selected states, not the material of every card.",
     colors: {
-      canvas: "#EEF2F4",
-      surface: "#F7F9FA",
-      surfaceStrong: "#E2ECF0",
-      text: "#18262D",
-      muted: "#52656F",
-      accent: "#145F7B",
-      accent2: "#0B3B4F",
-      border: "#8399A6",
+      canvas: "#F5F7F8",
+      surface: "#FFFFFF",
+      surfaceStrong: "#F0F4F6",
+      text: "#15222A",
+      muted: "#657680",
+      accent: "#17617F",
+      accent2: "#0F4B64",
+      border: "#9AAAB3",
     },
   },
   {
@@ -85,9 +85,9 @@ export const APP_LIGHT_DETAILS: Record<
     metal: "#9BA8B8",
   },
   "petrol-pearl": {
-    rail: "#E3E9EC",
-    hover: "#0E4B63",
-    glow: "#2C7FA2",
+    rail: "#EDF2F4",
+    hover: "#104F69",
+    glow: "#4D8CA5",
     metal: "#C8A77E",
   },
   "finesse-rose-cream-gold": {

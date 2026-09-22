@@ -1,26 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Flower2, Gem, Layers3, Leaf, Moon, Sun, Waves } from "lucide-react"
+import { Flower2, Layers3, Moon, Sun, Waves } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isValidThemeKey, THEME_STORAGE_KEY, type AppThemeKey } from "@core/theme-registry"
 import { DEFAULT_APP_MATERIAL, isAppMaterial, MATERIAL_STORAGE_KEY, type AppMaterial } from "@core/material-registry"
 
-// Complete recommended directions come first. The existing themes remain
-// selectable; choosing one is an explicit preference, never a workspace write.
+// Active product directions only. Legacy palette keys remain readable by the
+// registry for migration but are intentionally absent from this selector.
 const OPTIONS: { mode: AppThemeKey; label: string; icon: typeof Moon }[] = [
-  { mode: "sevenef-blue-premium", label: "sevenef Navy", icon: Moon },
+  { mode: "midnight", label: "Midnight Blue", icon: Moon },
   { mode: "sevenef-pearl-blue", label: "sevenef Pearl", icon: Sun },
-  { mode: "finesse-petrol-blue", label: "Finesse Petrol", icon: Waves },
-  { mode: "petrol-pearl", label: "Finesse Pearl", icon: Sun },
+  { mode: "petrol-pearl", label: "Finesse Pearl", icon: Waves },
   { mode: "finesse-rose-cream-gold", label: "Finesse Cream Gold", icon: Flower2 },
-  { mode: "midnight", label: "Midnight", icon: Moon },
-  { mode: "lavender-mist", label: "Lavender Mist", icon: Sun },
-  { mode: "rose-nude", label: "Rose Nude", icon: Flower2 },
-  { mode: "sage-luxe", label: "Sage Luxe", icon: Leaf },
-  { mode: "noir-or", label: "Noir Or", icon: Gem },
 ]
-
 export function ThemeModeToggle() {
   const [mode, setMode] = useState<AppThemeKey | null>(null)
   const [material, setMaterial] = useState<AppMaterial>(DEFAULT_APP_MATERIAL)

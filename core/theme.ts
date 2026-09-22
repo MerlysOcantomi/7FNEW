@@ -7,7 +7,7 @@ export { VALID_THEME_KEYS, GLOBAL_DEFAULT_THEME_KEY } from "./theme-registry"
 
 /**
  * App-only premium adoption. The vertical pack still describes existing public
- * presets; the application adapter selects the two approved blue defaults.
+ * presets; the application adapter selects Midnight for sevenef and Pearl for Finesse.
  * Explicit browser/query choices win in the shared pre-paint bootstrap.
  * No workspace writes, Presence migrations or forced overwrite of user choices.
  */
