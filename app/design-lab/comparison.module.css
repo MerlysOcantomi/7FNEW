@@ -1,0 +1,18 @@
+.comparison { flex: 0 0 auto; padding: 12px 18px; border-bottom: 1px solid var(--editor-line); background: #0b1b26; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.comparison button { min-height: 34px; border: 1px solid var(--editor-line); border-radius: 7px; padding: 7px 10px; background: transparent; color: #eaf5fa; font: inherit; font-size: 11px; cursor: pointer; }
+.comparison button:hover:not(:disabled) { border-color: var(--editor-accent); }
+.comparison button:disabled { opacity: .5; cursor: not-allowed; }
+.switcher { display: flex; padding: 3px; gap: 3px; border: 1px solid var(--editor-line); border-radius: 9px; }
+.switcher button { border-color: transparent; }
+.switcher button[aria-pressed="true"] { background: #254550; color: #f0fafa; }
+.caption { margin: 8px 0 0; font-size: 11px; line-height: 1.65; color: var(--editor-muted); }
+.details { margin-top: 8px; color: #c3e1e8; font-size: 11px; }
+.details summary { cursor: pointer; padding: 5px 0; }
+.details summary:focus-visible { outline: 2px solid var(--editor-accent); outline-offset: 3px; }
+.differences { max-height: 190px; overflow-y: auto; margin: 8px 0 0; padding: 0 8px 0 0; }
+.differences div { display: grid; grid-template-columns: 85px minmax(0,1fr); gap: 5px 10px; border-top: 1px solid var(--editor-line); padding: 9px 0; }
+.differences dt { grid-row: span 2; font-weight: 600; }
+.differences dd { margin: 0; overflow-wrap: anywhere; color: var(--editor-muted); line-height: 1.5; }
+@media (max-width: 860px) { .comparison { padding: 10px 12px; } }
+@media (prefers-reduced-motion: reduce) { .comparison * { scroll-behavior: auto; } }

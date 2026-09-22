@@ -6,6 +6,8 @@ import { DEFAULT_DESIGN_CONTRACT, type DesignContract, type PreviewContext, type
 import { paletteById } from "../../core/design/presets"
 import { exportDesignCSS, exportDesignJSON, MAX_CONTRACT_SIZE, parseDesignContract, parseDesignJSON } from "../../core/design/resolve"
 import { readDesignDraft, saveDesignDraft } from "../../core/design/draft"
+import { captureDesignReference, applyDesignReference } from "../../core/design/comparison"
+import ComparisonToolbar from "./comparison-toolbar"
 import Controls, { SECTIONS, type Section, type ChangeContract } from "./controls"
 import { PreviewContent, PreviewFrame } from "./preview"
 import "../../core/design/foundation.css"
@@ -27,6 +29,8 @@ export default function DesignLabClient() {
   const [replay, setReplay] = useState(0)
   const [paused, setPaused] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [reference, setReference] = useState<DesignContract | null>(null)
+  const [showReference, setShowReference] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
   const [notice, setNotice] = useState("Local design sandbox. Nothing here publishes or changes your workspace.")
   const fileInput = useRef<HTMLInputElement>(null)
@@ -35,9 +39,39 @@ export default function DesignLabClient() {
   const palette = paletteById(contract.palette.family)
   const parsed = useMemo(() => parseDesignContract(contract), [contract])
   const exports = useMemo(() => parsed.ok ? { json: exportDesignJSON(parsed.contract), css: exportDesignCSS(parsed.contract) } : null, [parsed])
-  const change: ChangeContract = update => setContract(current => update(current))
+  const previewContract = showReference && reference ? reference : contract
+  const change: ChangeContract = update => {
+    setContract(current => update(current))
+    setShowReference(false)
+    if (showReference) setNotice("Editing working B. Reference A has not changed.")
+  }
   const replayPreview = () => setReplay(n => n + 1)
-  const setContext = (next: PreviewContext) => { setContextState(next); change(c => ({ ...c, pagePreset: next })) }
+  const setContext = (next: PreviewContext) => {
+    setContextState(next)
+    // Keep A/B on the same page. Page choice is navigation, not a visual decision.
+    setContract(c => ({ ...c, pagePreset: next }))
+  }
+
+  function captureReference() {
+    if (!parsed.ok) { setNotice(parsed.error); return }
+    if (reference && !window.confirm("Replace reference A with the current working design B?")) return
+    setReference(captureDesignReference(parsed.contract))
+    setShowReference(false)
+    setNotice("Reference A captured in memory. Adjust B and switch between them; export B before closing to keep a copy.")
+  }
+  function showComparison(show: boolean) {
+    if (show && !reference) return
+    setShowReference(show)
+    replayPreview()
+    setNotice(show ? "Showing reference A. Controls, Save and Export belong to working B." : "Showing working B. Reference A remains unchanged.")
+  }
+  function adoptReference() {
+    if (!reference || !window.confirm("Replace the working design B with reference A? Unsaved B changes will be lost.")) return
+    setContract(current => applyDesignReference(reference, current))
+    setShowReference(false)
+    replayPreview()
+    setNotice("Reference A is now the working design B. Nothing has been saved or published automatically.")
+  }
 
   function save() {
     try {
@@ -45,7 +79,7 @@ export default function DesignLabClient() {
       if (previous.ok && savedSnapshot === null && !window.confirm("Replace the saved local draft with this design?")) return
       const result = saveDesignDraft(window.localStorage, contract)
       if (!result.ok) { setNotice(result.error); return }
-      setContract(result.contract); setSavedSnapshot(JSON.stringify(result.contract))
+      setContract(result.contract); setShowReference(false); setSavedSnapshot(JSON.stringify(result.contract))
       setNotice("Saved in this browser only. Export JSON to keep or move a copy.")
     } catch { setNotice("Browser storage is unavailable. Use Export JSON instead.") }
   }
@@ -54,7 +88,7 @@ export default function DesignLabClient() {
       const result = readDesignDraft(window.localStorage)
       if (!result.ok) { setNotice(result.error); return }
       if (dirty && !window.confirm("Restore the saved draft and replace the current unsaved design?")) return
-      setContract(result.contract); setContextState((result.contract.pagePreset as PreviewContext) ?? "landing")
+      setContract(result.contract); setShowReference(false); setContextState((result.contract.pagePreset as PreviewContext) ?? "landing")
       setSavedSnapshot(JSON.stringify(result.contract)); replayPreview()
       setNotice("Local draft restored. Production themes and data are unchanged.")
     } catch { setNotice("Browser storage is unavailable. Import a JSON copy instead.") }
@@ -74,11 +108,11 @@ export default function DesignLabClient() {
       const result = parseDesignJSON(await file.text())
       if (!result.ok) { setNotice(result.error); return }
       if (dirty && !window.confirm("Import this design and replace the current unsaved choices?")) return
-      setContract(result.contract); setContextState((result.contract.pagePreset as PreviewContext) ?? "landing"); replayPreview()
+      setContract(result.contract); setShowReference(false); setContextState((result.contract.pagePreset as PreviewContext) ?? "landing"); replayPreview()
       setNotice("Valid contract imported. Save it locally or export another copy; nothing was published.")
     } catch { setNotice("This file could not be read. The current design has not been changed.") }
   }
-  function chooseSection(next: Section) { setSection(next); if (next === "Components") setContext("components") }
+  function chooseSection(next: Section) { setSection(next); setShowReference(false); if (next === "Components") setContext("components") }
 
   return <main className={styles.shell} data-expanded={expanded}>
     <header className={styles.topbar}>
@@ -97,13 +131,13 @@ export default function DesignLabClient() {
     {!expanded && <section className={styles.controls} aria-labelledby="fd-controls-title">
       <header><span className={styles.editorEyebrow}>DESIGN DECISIONS</span><h1 id="fd-controls-title">{section}</h1><p>Choose. See. Refine.<br />The preview follows your contract.</p></header>
       {section !== "Export" ? <Controls section={section} contract={contract} change={change} setContext={setContext} replay={replayPreview} paused={paused}/> : <div className={styles.controlStack}>
-        <div className={styles.note}><strong>Portable, not published</strong><p>JSON stores the complete design contract. CSS contains the same resolved tokens as the live preview. Motion and surface roles are in the contract; Foundation primitives supply their behavior.</p></div>
+        <div className={styles.note}><strong>Export working design B</strong><p>Reference A is temporary and is not exported. JSON stores the complete working design contract. CSS contains the same resolved tokens as the live preview. Motion and surface roles are in the contract; Foundation primitives supply their behavior.</p></div>
         <div className={styles.exportActions}><button className={styles.primaryButton} type="button" disabled={!exports} onClick={() => exportFile("json")}><Download size={15}/> Export JSON</button><button className={styles.secondaryButton} type="button" disabled={!exports} onClick={() => exportFile("css")}><Download size={15}/> CSS tokens</button><button className={styles.secondaryButton} type="button" onClick={() => fileInput.current?.click()}><Upload size={15}/> Import JSON</button></div>
         <input ref={fileInput} className={styles.fileInput} tabIndex={-1} type="file" accept=".json,application/json" aria-label="Import design JSON" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; void importFile(file) }}/>
         <label className={styles.fieldLabel}>Current contract<textarea className={styles.exportText} readOnly spellCheck={false} value={exports?.json ?? (!parsed.ok ? parsed.error : "")}/></label>
         <p className={styles.hint}>No API keys, workspace data, billing, remote uploads or paid AI calls. The local draft belongs to this browser/origin, not your account.</p>
       </div>}
-      <footer className={styles.contractSummary}><small>CURRENT DESIGN</small><strong>{palette.name} / {contract.surfaces.default}</strong><span>{contract.typography.display} / {contract.shape.radius}</span></footer>
+      <footer className={styles.contractSummary}><small>WORKING DESIGN B</small><strong>{palette.name} / {contract.surfaces.default}</strong><span>{contract.typography.display} / {contract.shape.radius}</span></footer>
     </section>}
     <section className={styles.stage} aria-label="Live design preview">
       <header className={styles.stageToolbar}>
@@ -115,7 +149,8 @@ export default function DesignLabClient() {
           <button type="button" className={styles.iconButton} aria-label={expanded ? "Show editor" : "Expand preview"} title={expanded ? "Show editor" : "Expand preview"} onClick={() => setExpanded(value => !value)}>{expanded ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}</button>
         </div>
       </header>
-      <div className={styles.stageCanvas}><PreviewFrame viewport={viewport}><PreviewContent key={context} contract={contract} context={context} replay={replay} paused={paused} onAction={setNotice}/></PreviewFrame></div>
+      <ComparisonToolbar reference={reference} working={contract} showingReference={showReference} canCapture={parsed.ok} onCapture={captureReference} onShow={showComparison} onUseReference={adoptReference}/>
+      <div className={styles.stageCanvas}><PreviewFrame viewport={viewport}><PreviewContent key={`${context}-${showReference ? "reference" : "working"}`} contract={previewContract} context={context} replay={replay} paused={paused} onAction={setNotice}/></PreviewFrame></div>
       <div className={styles.notice} role="status" aria-live="polite">{notice}</div>
     </section>
   </main>
