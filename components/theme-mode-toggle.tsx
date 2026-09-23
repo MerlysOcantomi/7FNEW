@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Flower2, Layers3, Moon, Sun, Waves } from "lucide-react"
+import { Flower2, Gem, Layers3, Moon, Sun, Waves } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isValidThemeKey, THEME_STORAGE_KEY, type AppThemeKey } from "@core/theme-registry"
 import { DEFAULT_APP_MATERIAL, isAppMaterial, MATERIAL_STORAGE_KEY, type AppMaterial } from "@core/material-registry"
@@ -13,6 +13,7 @@ const OPTIONS: { mode: AppThemeKey; label: string; icon: typeof Moon }[] = [
   { mode: "sevenef-pearl-blue", label: "sevenef Pearl", icon: Sun },
   { mode: "petrol-pearl", label: "Finesse Pearl", icon: Waves },
   { mode: "finesse-rose-cream-gold", label: "Finesse Cream Gold", icon: Flower2 },
+  { mode: "finesse-petrol-champagne", label: "Finesse Petrol Champagne", icon: Gem },
 ]
 export function ThemeModeToggle() {
   const [mode, setMode] = useState<AppThemeKey | null>(null)
