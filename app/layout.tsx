@@ -10,7 +10,13 @@ import { GlobalNewProvider } from '@/components/global-new/global-new-provider'
 import { I18nProvider } from '@/components/i18n-provider'
 import { resolveWorkspaceDefaultThemeKey } from '@core/theme'
 import { getRequestLocale } from '@core/i18n/server'
+import { buildThemeBootstrap } from '@core/theme-registry'
+import { applicationBlueStyles } from '@core/design/app-blue'
+import { applicationLightStyles } from '@core/design/app-light'
+import { applicationLuxeStyles } from '@core/design/app-luxe'
+import { buildMaterialBootstrap, DEFAULT_APP_MATERIAL } from '@core/material-registry'
 import './globals.css'
+import './premium-ui.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
@@ -21,76 +27,39 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     apple: '/apple-icon.png',
   },
 }
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  /**
-   * Server-resolved default `data-theme` for the active workspace (beauty →
-   * petrol-pearl), used ONLY when the user hasn't chosen a theme. See @core/theme.
-   * Falls back to midnight for signed-out/public routes or non-beauty verticals.
-   *
-   * `getRequestLocale()` resolves the effective UI locale (authenticated:
-   * User.locale → workspace → en; anonymous: 7f-locale cookie →
-   * Accept-Language → en). Read-only; per-request memoized. Both
-   * resolutions are independent, so they run in parallel.
-   * `suppressHydrationWarning` remains REQUIRED by the theme system (the
-   * no-FOUC script mutates <html data-theme> before hydration) — it is not
-   * covering any locale mismatch: the provider starts from this same locale.
-   */
+// Compiled once from trusted Foundation presets. No account or user CSS input.
+const premiumBlueCss = applicationBlueStyles()
+const premiumLightCss = applicationLightStyles()
+const premiumLuxeCss = applicationLuxeStyles()
+
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [workspaceDefaultTheme, requestLocale] = await Promise.all([
     resolveWorkspaceDefaultThemeKey(),
     getRequestLocale(),
   ])
 
   return (
-    <html lang={requestLocale.locale} suppressHydrationWarning>
+    <html lang={requestLocale.locale} data-theme={workspaceDefaultTheme} data-material={DEFAULT_APP_MATERIAL} suppressHydrationWarning>
+      <head>
+        <style id="sevenef-premium-blue-tokens" dangerouslySetInnerHTML={{ __html: premiumBlueCss }} />
+        <style id="sevenef-premium-light-tokens" dangerouslySetInnerHTML={{ __html: premiumLightCss }} />
+        <style id="sevenef-premium-luxe-tokens" dangerouslySetInnerHTML={{ __html: premiumLuxeCss }} />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        {/**
-         * Theme bridge (no-FOUC). Sets data-theme on <html> before paint.
-         * Precedence: ?theme=<name> (persisted) → localStorage `7f-theme` (the
-         * user's explicit choice) → the workspace vertical default injected here
-         * (`d`, e.g. petrol-pearl for a Beauty/Finesse workspace) → midnight. The
-         * vertical default is NOT written to localStorage, so a later manual theme
-         * change (which does persist) is always respected. Allowed values:
-         * midnight | lavender-mist | rose-nude | sage-luxe | noir-or |
-         * petrol-pearl — anything else falls back to midnight. This is a
-         * side-channel to next-themes: next-themes keeps owning `class`/`.dark`;
-         * we only drive the data-theme attribute that activates the dormant
-         * [data-theme="…"] palette blocks in app/globals.css. Keep the
-         * allow-list in sync with @core/theme, components/theme-mode-toggle.tsx
-         * and engines/presence/themes.ts.
-         */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='7f-theme';var A=['midnight','lavender-mist','rose-nude','sage-luxe','noir-or','petrol-pearl'];var d=${JSON.stringify(workspaceDefaultTheme)};if(A.indexOf(d)<0)d='midnight';var q=new URLSearchParams(location.search).get('theme');if(q&&A.indexOf(q)>-1){localStorage.setItem(k,q);}var t=localStorage.getItem(k);document.documentElement.setAttribute('data-theme',A.indexOf(t)>-1?t:d);}catch(e){document.documentElement.setAttribute('data-theme','midnight');}})();`,
-          }}
-        />
+        {/* Query > explicit stored choice > app default. Public site themes are
+            not opted into the two new app skins. Keep next-themes' compatibility
+            class channel unchanged; data-theme remains the palette authority. */}
+        <script id="sevenef-theme-bootstrap" dangerouslySetInnerHTML={{ __html: buildThemeBootstrap(workspaceDefaultTheme) }} />
+        <script id="sevenef-material-bootstrap" dangerouslySetInnerHTML={{ __html: buildMaterialBootstrap() }} />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          {/**
-           * I18nProvider receives ONLY serializable data (locale + metadata) —
-           * the typed catalogs contain functions and are imported client-side
-           * by the provider itself. Sits directly inside ThemeProvider so
-           * every existing provider below keeps its relative order.
-           */}
           <I18nProvider
             locale={requestLocale.locale}
             source={requestLocale.source}

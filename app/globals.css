@@ -5,7 +5,7 @@
 
 /*
    ════════════════════════════════════════════════════════════════
-   MIDNIGHT — default palette of the 7F "Purple" family (dark).
+   MIDNIGHT BLUE — default dark palette of the sevenef Navy Intelligence family.
    Bound to :root (fallback), .dark (next-themes `class` mode) and
    [data-theme="midnight"] (future attribute mode) through ONE combined
    selector, so all three resolve to the SAME Midnight tokens — change a
@@ -67,38 +67,38 @@
      SYSTEM TOKENS — 7F PREMIUM COLOR LANGUAGE
      Base global del SaaS
      ========================================================== */
-  --app-canvas: #16112A;
-  --app-sidebar: #141126;
-  --app-surface-dark: #211A3A;
-  --app-surface-dark-elevated: #2C2448;
-  --app-surface-dark-hover: #382E5C;
+  --app-canvas: #070B14;
+  --app-sidebar: #090F19;
+  --app-surface-dark: #0D1420;
+  --app-surface-dark-elevated: #121C2A;
+  --app-surface-dark-hover: #182536;
 
-  --surface-1: #EEEAF7;
-  --surface-2: #F3EFFA;
-  --surface-3: #F1EDF9;
-  --surface-4: #E9E4F3;
+  --surface-1: #EAF0F7;
+  --surface-2: #F2F6FA;
+  --surface-3: #EEF3F8;
+  --surface-4: #E5ECF4;
 
-  --accent-primary: #8B5CFF;
-  --accent-primary-hover: #9A70FF;
-  --accent-on-dark: #C4B2FF;
-  --accent-muted: rgba(139, 92, 255, 0.16);
-  --accent-muted-border: rgba(139, 92, 255, 0.36);
-  --accent-soft: #EDE7FF;
-  --accent-rich: #5B21B6;
+  --accent-primary: #2868F4;
+  --accent-primary-hover: #245EE5;
+  --accent-on-dark: #8EADFF;
+  --accent-muted: rgba(40, 104, 244, 0.16);
+  --accent-muted-border: rgba(40, 104, 244, 0.36);
+  --accent-soft: #E5EDFF;
+  --accent-rich: #1F4FBE;
 
-  --text-primary-dark: #1F1B2D;
-  --text-secondary-dark: #6F6885;
+  --text-primary-dark: #0C1522;
+  --text-secondary-dark: #526176;
 
-  --text-primary-light: #F2EEFF;
-  --text-secondary-light: #B8AED0;
-  --text-tertiary-light: #8B80A3;
+  --text-primary-light: #F5F7FA;
+  --text-secondary-light: #9DAABA;
+  --text-tertiary-light: #7D8B9D;
 
-  --border-light: #E7E1F0;
+  --border-light: #D7E0EA;
   --border-dark: rgba(255, 255, 255, 0.08);
   --border-dark-strong: rgba(255, 255, 255, 0.14);
 
-  --surface-selected: #E6DEFF;
-  --surface-hover: #F4F0FB;
+  --surface-selected: #DDE7F5;
+  --surface-hover: #F0F4F9;
   --surface-card: var(--surface-2);
   --surface-card-foreground: var(--text-primary-dark);
   --surface-card-border: var(--border-light);
@@ -167,7 +167,7 @@
   --tab-review: var(--inbox-destructive);   /* review / overdue / attention — coral */
   --tab-billing: var(--inbox-lead);         /* billing / invoices / finance — gold */
   --tab-tasks: var(--inbox-waiting-color);  /* pending / tasks / waiting — bronze */
-  --tab-ai: var(--accent-primary);          /* AI / Fanny / intelligence — purple */
+  --tab-ai: var(--accent-primary);          /* AI / Fanny / intelligence — electric blue */
   --tab-docs: var(--inbox-archive-color);   /* documents / files — neutral */
 
   /* Shadcn/base tokens remapped to premium system */
@@ -757,41 +757,41 @@
    ════════════════════════════════════════════════════════════════════════ */
 
 [data-theme="petrol-pearl"] {
-  /* — Surfaces: pearl-grey canvas → white ramp (rail a step deeper) — */
-  --app-canvas: #EEF2F4;
-  --app-sidebar: #E3E9EC;
-  --app-sidebar-surface: #EDF1F3;
-  --app-surface-dark: #F7F9FA;
-  --app-surface-dark-elevated: #FFFFFF;
-  --app-surface-dark-hover: #E9EEF1;
+  /* — Surfaces: polished white / cool pearl; petrol is interaction, not card material — */
+  --app-canvas: #F5F7F8;
+  --app-sidebar: #EDF2F4;
+  --app-sidebar-surface: #F7F9FA;
+  --app-surface-dark: #FFFFFF;
+  --app-surface-dark-elevated: #F0F4F6;
+  --app-surface-dark-hover: #E8EEF1;
 
   /* — Accent: structural petrol blue (AA as text and as UI on light) — */
-  --accent-primary: #145F7B;
-  --accent-primary-hover: #0E4B63;
-  --accent-on-dark: #0E4B63;
-  --accent-muted: rgba(20, 95, 123, 0.12);
-  --accent-muted-border: rgba(20, 95, 123, 0.30);
-  --accent-soft: #DFECF2;
-  --accent-rich: #0B3B4F;
+  --accent-primary: #17617F;
+  --accent-primary-hover: #104F69;
+  --accent-on-dark: #104F69;
+  --accent-muted: rgba(23, 97, 127, 0.12);
+  --accent-muted-border: rgba(23, 97, 127, 0.30);
+  --accent-soft: #E2EEF3;
+  --accent-rich: #0F4B64;
 
   /* — Text: ink / slate on light. Secondary deepened from the reference
        (#63727A → #5C6B73) so it clears 4.5:1 on the canvas AND the rail. — */
-  --text-primary-light: #18262D;
-  --text-secondary-light: #5C6B73;
-  --text-tertiary-light: #75838A;
+  --text-primary-light: #15222A;
+  --text-secondary-light: #657680;
+  --text-tertiary-light: #7D8B93;
 
   /* — Borders: ink line (≈ #D5DEE3 on the canvas) — */
-  --border-dark: rgba(24, 38, 45, 0.12);
-  --border-dark-strong: rgba(24, 38, 45, 0.20);
-  --app-shadow-subtle: 0 4px 14px rgba(11, 59, 79, 0.08);
+  --border-dark: rgba(21, 34, 42, 0.12);
+  --border-dark-strong: rgba(21, 34, 42, 0.20);
+  --app-shadow-subtle: 0 4px 14px rgba(15, 75, 100, 0.07);
 
   /* — Shell overlays flip white→ink on light — */
-  --app-surface-subtle: rgba(24, 38, 45, 0.04);
-  --app-surface-hover: rgba(24, 38, 45, 0.06);
-  --app-surface-active: rgba(24, 38, 45, 0.09);
+  --app-surface-subtle: rgba(21, 34, 42, 0.04);
+  --app-surface-hover: rgba(21, 34, 42, 0.055);
+  --app-surface-active: rgba(21, 34, 42, 0.09);
 
   /* — Focus ring (shadcn `ring-ring`): approved focus tone, ≥3:1 on light — */
-  --ring: rgba(44, 127, 162, 0.55);
+  --ring: rgba(77, 140, 165, 0.55);
 
   /* — Status: deepen text for contrast on light (same as the v1 palettes) — */
   --status-danger-text: #C2454A;
@@ -799,28 +799,28 @@
   --status-success-text: #3E8E5E;
 
   /* — Inbox component tokens (the rest derive) — */
-  --inbox-list-background: #F4F7F8;
-  --inbox-intelligence-background: #F4F7F8;
-  --inbox-chat-background: #E6ECEF;
+  --inbox-list-background: #F7F9FA;
+  --inbox-intelligence-background: #F7F9FA;
+  --inbox-chat-background: #EEF3F5;
   --inbox-chat-bubble-inbound: #FFFFFF;
-  --inbox-chat-bubble-inbound-hover: #F7F9FA;
-  --inbox-chat-bubble-inbound-border: rgba(24, 38, 45, 0.08);
+  --inbox-chat-bubble-inbound-hover: #F5F7F8;
+  --inbox-chat-bubble-inbound-border: rgba(21, 34, 42, 0.08);
   --inbox-composer-input: #FFFFFF;
-  --inbox-composer-toolbar: rgba(24, 38, 45, 0.04);
-  --inbox-chat-meta-outbound-bg: #DFECF2;
-  --inbox-chat-meta-outbound-border: #BFD6E1;
-  --inbox-chat-meta-outbound-text: #0B3B4F;
-  --inbox-border: rgba(24, 38, 45, 0.12);
-  --inbox-divider: rgba(24, 38, 45, 0.08);
+  --inbox-composer-toolbar: rgba(21, 34, 42, 0.04);
+  --inbox-chat-meta-outbound-bg: #E2EEF3;
+  --inbox-chat-meta-outbound-border: #C4D9E2;
+  --inbox-chat-meta-outbound-text: #0F4B64;
+  --inbox-border: rgba(21, 34, 42, 0.12);
+  --inbox-divider: rgba(21, 34, 42, 0.08);
   --inbox-info: #2E6FD6;
   --inbox-lead: #C8860F;
   --inbox-urgency: #D14A4F;
-  --inbox-focus: #2C7FA2;
+  --inbox-focus: #4D8CA5;
   --inbox-urgent-color: #D14A4F;
   --inbox-waiting-color: #9A7B2E;
   --inbox-done-color: #3E8E5E;
   --inbox-archive-color: #6F7D84;
-  --inbox-unread-color: #145F7B;
+  --inbox-unread-color: #17617F;
   --inbox-destructive: #D14A4F;
   --inbox-success: #3E8E5E;
   --inbox-warning: #B07D24;

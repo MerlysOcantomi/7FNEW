@@ -284,10 +284,10 @@ export const BEAUTY_PACK: BeautyPack = {
   locale: "es",
   businessType: "beauty",
   navProfileId: "beauty",
-  // Finesse opens in Petróleo Perla by default; Rose Nude stays available.
+  // Finesse opens in Petrol Pearl by default; active alternatives are Rose Cream Gold and Petrol Champagne.
   themes: {
     default: "petrol-pearl",
-    available: ["petrol-pearl", "rose-nude", "sage-luxe", "noir-or"],
+    available: ["petrol-pearl", "finesse-rose-cream-gold", "finesse-petrol-champagne"],
   },
   channels: ["whatsapp", "instagram", "messenger", "web_chat"],
   recommendedModules: ["calendar", "clients", "messages", "marketing", "catalog", "services"],

@@ -44,8 +44,8 @@ export function GlobalAskFannyTriggerDesktop({ variant }: { variant: "app" | "co
 
   const base =
     variant === "app"
-      ? "rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
-      : "rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] shadow-sm hover:bg-[#F1F5F9]"
+      ? "h-9 rounded-[var(--app-control-radius)] border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 text-sm font-medium text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-active)]"
+      : "h-9 rounded-[var(--app-control-radius)] border border-[#E2E8F0] bg-white px-3 text-sm font-medium text-[#334155] shadow-sm hover:bg-[#F1F5F9]"
 
   return (
     <button
