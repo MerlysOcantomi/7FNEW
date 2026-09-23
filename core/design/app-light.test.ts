@@ -24,21 +24,21 @@ test("premium light palettes compile independently from the dark blue adapter", 
 
 test("Finesse Petrol Pearl preserves the approved onboarding material language", () => {
   assert.deepEqual(palette("petrol-pearl").colors, {
-    canvas: "#F7F5F0",
+    canvas: "#F2F5F6",
     surface: "#FFFFFF",
-    surfaceStrong: "#EFECE4",
-    text: "#082D34",
-    muted: "#5E7477",
-    accent: "#073B45",
-    accent2: "#0B5664",
-    border: "#8C9B9C",
+    surfaceStrong: "#E8EEF0",
+    text: "#10242D",
+    muted: "#5F737D",
+    accent: "#0B4A64",
+    accent2: "#11677F",
+    border: "#92A4AC",
   })
   assert.deepEqual(APP_LIGHT_DETAILS["petrol-pearl"], {
-    rail: "#EFECE4",
-    hover: "#032F38",
-    glow: "#3A7C89",
-    metal: "#CBA77B",
-    metalSoft: "#E7D6BC",
+    rail: "#E9EFF1",
+    hover: "#083D54",
+    glow: "#3B809A",
+    metal: "#C6A779",
+    metalSoft: "#F0E5D5",
   })
 })
 
