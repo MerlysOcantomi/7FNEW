@@ -1,14 +1,18 @@
 import { APP_BLUE_THEME_KEYS } from "./design/blue-palettes"
 import { APP_LIGHT_THEME_KEYS } from "./design/light-palettes"
 import { APP_LUXE_THEME_KEYS } from "./design/luxe-palettes"
-import { APP_LIGHT_THEME_KEYS } from "./design/light-palettes"
 
 /** Shared by server resolution, pre-paint bootstrap and the appearance selector. */
 export const THEME_STORAGE_KEY = "7f-theme"
 export const VALID_THEME_KEYS = [
   ...APP_BLUE_THEME_KEYS,
   ...APP_LIGHT_THEME_KEYS,
-  "lavender-mist", "rose-nude", "sage-luxe", "noir-or",
+  ...APP_LUXE_THEME_KEYS,
+  "midnight",
+  "lavender-mist",
+  "rose-nude",
+  "sage-luxe",
+  "noir-or",
 ] as const
 export type AppThemeKey = typeof VALID_THEME_KEYS[number]
 
@@ -27,11 +31,13 @@ export const LEGACY_THEME_ALIASES = {
   "rose-nude": "finesse-rose-cream-gold",
 } as const satisfies Partial<Record<AppThemeKey, AppThemeKey>>
 
+/** App-only skins must never leak onto public Presence/client surfaces. */
 export const APP_PRIVATE_THEME_KEYS = [
   "sevenef-blue-premium",
   "finesse-petrol-blue",
   "sevenef-pearl-blue",
   "finesse-rose-cream-gold",
+  "finesse-petrol-champagne",
 ] as const
 
 export function isValidThemeKey(value: unknown): value is AppThemeKey {
@@ -49,7 +55,7 @@ export function applicationDefaultTheme(verticalKey: string | null | undefined, 
   return normalizeThemeKey(declaredTheme) ?? GLOBAL_DEFAULT_THEME_KEY
 }
 
-/** Trusted values only. Also used by the pre-paint script below. */
+/** Trusted values only. Also used by the pre-paint bootstrap below. */
 export function selectAppTheme(query: unknown, stored: unknown, fallback: unknown): AppThemeKey {
   return normalizeThemeKey(query) ?? normalizeThemeKey(stored) ?? normalizeThemeKey(fallback) ?? PUBLIC_DEFAULT_THEME_KEY
 }
