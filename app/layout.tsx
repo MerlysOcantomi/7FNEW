@@ -13,6 +13,7 @@ import { getRequestLocale } from '@core/i18n/server'
 import { buildThemeBootstrap } from '@core/theme-registry'
 import { applicationBlueStyles } from '@core/design/app-blue'
 import { applicationLightStyles } from '@core/design/app-light'
+import { applicationLuxeStyles } from '@core/design/app-luxe'
 import { buildMaterialBootstrap, DEFAULT_APP_MATERIAL } from '@core/material-registry'
 import './globals.css'
 import './premium-ui.css'
@@ -37,6 +38,7 @@ export const metadata: Metadata = {
 // Compiled once from trusted Foundation presets. No account or user CSS input.
 const premiumBlueCss = applicationBlueStyles()
 const premiumLightCss = applicationLightStyles()
+const premiumLuxeCss = applicationLuxeStyles()
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [workspaceDefaultTheme, requestLocale] = await Promise.all([
@@ -49,6 +51,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <head>
         <style id="sevenef-premium-blue-tokens" dangerouslySetInnerHTML={{ __html: premiumBlueCss }} />
         <style id="sevenef-premium-light-tokens" dangerouslySetInnerHTML={{ __html: premiumLightCss }} />
+        <style id="sevenef-premium-luxe-tokens" dangerouslySetInnerHTML={{ __html: premiumLuxeCss }} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {/* Query > explicit stored choice > app default. Public site themes are
