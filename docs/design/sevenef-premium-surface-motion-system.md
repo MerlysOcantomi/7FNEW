@@ -39,6 +39,21 @@ Compatibility keys such as `sevenef-blue-premium`, `finesse-petrol-blue`, `laven
 
 Theme color does not define component behavior. The same quiet/glass/elevated/luminous surface roles work across active families.
 
+### Finesse onboarding reference
+
+The deployed Finesse onboarding at `https://finesse-onboarding-experience.vercel.app` is a canonical visual reference for the Finesse product layer, not a separate design system.
+
+Preserve these material cues when Finesse application surfaces are migrated:
+- warm pearl / ivory canvas around `#F7F5F0`
+- polished white operational surfaces
+- deep blue-petrol interaction color around `#073B45`, never green-led
+- restrained champagne material accent around `#CBA77B`
+- bright inset highlights and soft long shadows instead of gray card walls
+- 22–30px radius language for expressive/onboarding surfaces; operational controls remain denser
+- Geist/product sans for working UI; editorial serif is reserved for selective brand moments, not dense operational data
+
+The onboarding's old green-leaning petrol dark token is not adopted. Finesse dark uses the shared Midnight Blue material so the operational product stays coherent and blue-led.
+
 ## 4. Surface vocabulary
 
 Additive semantic surfaces:
