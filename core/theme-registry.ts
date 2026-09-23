@@ -1,5 +1,7 @@
 import { APP_BLUE_THEME_KEYS } from "./design/blue-palettes"
 import { APP_LIGHT_THEME_KEYS } from "./design/light-palettes"
+import { APP_LUXE_THEME_KEYS } from "./design/luxe-palettes"
+import { APP_LIGHT_THEME_KEYS } from "./design/light-palettes"
 
 /** Shared by server resolution, pre-paint bootstrap and the appearance selector. */
 export const THEME_STORAGE_KEY = "7f-theme"
