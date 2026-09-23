@@ -8,7 +8,6 @@ export const VALID_THEME_KEYS = [
   ...APP_BLUE_THEME_KEYS,
   ...APP_LIGHT_THEME_KEYS,
   ...APP_LUXE_THEME_KEYS,
-  "midnight",
   "lavender-mist",
   "rose-nude",
   "sage-luxe",
