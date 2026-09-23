@@ -21,7 +21,7 @@ test("default contract validates and round-trips without mutation", () => {
 
 test("all premium and legacy palettes resolve; existing palette IDs are preserved", () => {
   assert.equal(PALETTES.length, 12)
-  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold"]) assert.ok(PALETTES.some(p => p.id === key))
+  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold", "finesse-petrol-champagne"]) assert.ok(PALETTES.some(p => p.id === key))
   for (const p of PALETTES) {
     const contract = fresh(); contract.palette = { family: p.id, mode: p.mode }
     const tokens = resolveDesignTokens(contract)
