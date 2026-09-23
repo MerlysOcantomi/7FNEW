@@ -50,7 +50,7 @@ test("beauty: full resolved experience", () => {
   assert.equal(e.specialistAgent?.name, "Finesse")
   assert.equal(e.brandLine, "Finesse, by SevenF")
   assert.equal(e.defaultThemeKey, "petrol-pearl")
-  assert.deepEqual(e.availableThemeKeys, ["petrol-pearl", "rose-nude", "sage-luxe", "noir-or"])
+  assert.deepEqual(e.availableThemeKeys, ["petrol-pearl", "finesse-rose-cream-gold", "finesse-petrol-champagne"])
   assert.equal(e.todayMode, "appointment_first")
   // The gate mirrors BEAUTY_PACK.today.activateRealForRealWorkspaces — ON
   // since 7F-P01.B3: the Beauty Today reads real data, so real workspaces
