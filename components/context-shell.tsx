@@ -111,7 +111,7 @@ function ContextShellDesktopToolbar() {
             aria-expanded={searchOpen && !isMobileViewport}
             aria-haspopup="dialog"
             className={cn(
-              "hidden cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-muted sm:flex",
+              "hidden h-9 cursor-pointer items-center gap-2 rounded-[var(--app-control-radius)] border border-border bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-muted sm:flex",
               searchOpen &&
                 !isMobileViewport &&
                 "bg-muted ring-2 ring-[#3B82F6]/30",
