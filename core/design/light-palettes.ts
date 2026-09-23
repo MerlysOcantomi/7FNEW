@@ -4,7 +4,9 @@ import type { PalettePreset } from "./presets"
  * Premium LIGHT application companions.
  *
  * petrol-pearl keeps its stable public key for backward compatibility.
- * The other two keys are application-only until a later Presence decision.
+ * The Finesse values intentionally share material DNA with the approved
+ * v0 onboarding: pearl/ivory canvas, polished white surfaces, deep blue-petrol
+ * interaction color and a restrained champagne metal accent.
  */
 export const APP_LIGHT_THEME_KEYS = [
   "sevenef-pearl-blue",
@@ -39,18 +41,18 @@ export const APP_LIGHT_PALETTES: readonly PalettePreset[] = [
     name: "Finesse / Petrol Pearl",
     mode: "light",
     status: "existing-family",
-    note: "White pearl / blue petrol",
+    note: "Ivory pearl / deep blue petrol / champagne",
     guidance:
-      "Finesse defaults to polished white and pearl surfaces. Petrol is the signature interaction color for buttons, focus, navigation and selected states, not the material of every card.",
+      "The approved Finesse onboarding material translated to the operational app: warm pearl canvas, polished white surfaces and deep blue-petrol controls. Champagne is a restrained material accent, never the body-text color.",
     colors: {
-      canvas: "#F5F7F8",
+      canvas: "#F7F5F0",
       surface: "#FFFFFF",
-      surfaceStrong: "#F0F4F6",
-      text: "#15222A",
-      muted: "#657680",
-      accent: "#17617F",
-      accent2: "#0F4B64",
-      border: "#9AAAB3",
+      surfaceStrong: "#EFECE4",
+      text: "#082D34",
+      muted: "#5E7477",
+      accent: "#073B45",
+      accent2: "#0B5664",
+      border: "#8C9B9C",
     },
   },
   {
@@ -60,41 +62,44 @@ export const APP_LIGHT_PALETTES: readonly PalettePreset[] = [
     status: "candidate",
     note: "Cream / antique rose / champagne",
     guidance:
-      "Cream and pearl are the dominant material. Champagne-gold carries primary actions; antique rose is a restrained focus/detail tone, never a wall of dusty pink.",
+      "Cream and pearl are the dominant material. Champagne-gold carries material highlights; antique rose is a restrained focus/detail tone, never a wall of dusty pink.",
     colors: {
-      canvas: "#F7F1EA",
-      surface: "#FFFAF5",
-      surfaceStrong: "#EFE2D8",
+      canvas: "#F8F3EE",
+      surface: "#FFFDFC",
+      surfaceStrong: "#F0E3DC",
       text: "#342A2A",
       muted: "#6F5E5C",
-      accent: "#B78A66",
+      accent: "#9B6670",
       accent2: "#7C4F58",
-      border: "#BFAEA2",
+      border: "#BDA9A3",
     },
   },
 ]
 
 export const APP_LIGHT_DETAILS: Record<
   AppLightThemeKey,
-  { rail: string; hover: string; glow: string; metal: string }
+  { rail: string; hover: string; glow: string; metal: string; metalSoft: string }
 > = {
   "sevenef-pearl-blue": {
     rail: "#E5EBF3",
     hover: "#244FC0",
     glow: "#4777E8",
     metal: "#9BA8B8",
+    metalSoft: "rgba(155, 168, 184, 0.18)",
   },
   "petrol-pearl": {
-    rail: "#EDF2F4",
-    hover: "#104F69",
-    glow: "#4D8CA5",
-    metal: "#C8A77E",
+    rail: "#EFECE4",
+    hover: "#032F38",
+    glow: "#3A7C89",
+    metal: "#CBA77B",
+    metalSoft: "#E7D6BC",
   },
   "finesse-rose-cream-gold": {
-    rail: "#EADDD2",
-    hover: "#A77A57",
-    glow: "#7C4F58",
-    metal: "#B78A66",
+    rail: "#EADDD5",
+    hover: "#83535D",
+    glow: "#A46E79",
+    metal: "#C6A071",
+    metalSoft: "#EFE0CB",
   },
 }
 
