@@ -21,7 +21,7 @@ function bootstrap(options: { query?: string; stored?: string; fallback?: string
 }
 
 test("registry keeps compatibility keys while active directions stay finite", () => {
-  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold", ...APP_BLUE_THEME_KEYS]) assert.ok(isValidThemeKey(key))
+  for (const key of ["midnight", "lavender-mist", "rose-nude", "sage-luxe", "noir-or", "petrol-pearl", "sevenef-pearl-blue", "finesse-rose-cream-gold", "finesse-petrol-champagne", ...APP_BLUE_THEME_KEYS]) assert.ok(isValidThemeKey(key))
   assert.equal(new Set(VALID_THEME_KEYS).size, VALID_THEME_KEYS.length)
   assert.equal(isValidThemeKey("north-sea"), false)
   assert.equal(isValidThemeKey("bad;css"), false)
@@ -63,7 +63,7 @@ test("blocked storage cannot lose an explicit query or the Midnight default", ()
 
 test("public sites and client portals reject application-private light skins", () => {
   for (const path of ["/sites/demo", "/widget", "/cliente/perfil", "/finesse"]) {
-    assert.deepEqual(bootstrap({ path, query: "?theme=sevenef-pearl-blue", stored: "finesse-rose-cream-gold" }), { theme: "midnight", writes: 0 })
+    assert.deepEqual(bootstrap({ path, query: "?theme=finesse-petrol-champagne", stored: "finesse-rose-cream-gold" }), { theme: "midnight", writes: 0 })
   }
   assert.equal(bootstrap({ path: "/sites-other", query: "?theme=sevenef-pearl-blue" }).theme, "sevenef-pearl-blue")
 })
