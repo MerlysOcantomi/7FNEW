@@ -1,6 +1,8 @@
 import type { DesignContract, DesignMotionPreset, DesignSurfacePreset } from "../contracts"
 import { APP_BLUE_PALETTES } from "../blue-palettes"
 import { APP_LIGHT_PALETTES } from "../light-palettes"
+import { APP_LUXE_PALETTES } from "../luxe-palettes"
+import { APP_LIGHT_PALETTES } from "../light-palettes"
 
 export type PalettePreset = {
   id: string
@@ -17,6 +19,8 @@ export type PalettePreset = {
 // keys remain compatibility aliases while other Lab candidates stay independent.
 export const PALETTES: readonly PalettePreset[] = [
   ...APP_BLUE_PALETTES,
+  ...APP_LIGHT_PALETTES,
+  ...APP_LUXE_PALETTES,
   ...APP_LIGHT_PALETTES,
   { id: "north-sea", name: "North Sea", mode: "dark", status: "candidate", note: "Navy / ice blue", guidance: "A blue alternative to Midnight, not a petrol theme. Ice-blue accents on navy with pearl text.", colors: { canvas: "#081422", surface: "#102338", surfaceStrong: "#19354F", text: "#EDF6FF", muted: "#ACBED3", accent: "#72B5F5", accent2: "#B3D8FC", border: "#516D8C" } },
   { id: "petrol-night", name: "Petrol Night", mode: "dark", status: "candidate", note: "Petrol / cool pearl", guidance: "Blue-green atmosphere with restrained aqua highlights. A dark companion, not a replacement for Petrol Pearl.", colors: { canvas: "#071D25", surface: "#0F303C", surfaceStrong: "#194454", text: "#EFFAFA", muted: "#ACC8CF", accent: "#67CCD0", accent2: "#B5E8E7", border: "#547D89" } },
