@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { BEAUTY_NAV_PROFILE, resolveNavProfile, type VerticalNavProfile } from "./nav-profile"
+import { BEAUTY_NAV_PROFILE, FOOD_HOSPITALITY_NAV_PROFILE, resolveNavProfile, type VerticalNavProfile } from "./nav-profile"
 import {
   getDayOfMonth,
   isMobileNavHrefActive,
@@ -139,4 +139,13 @@ test("mobile header: workspaces without a bottom bar keep today's header exactly
     showTodayTrigger: true,
     showMenu: true,
   })
+})
+
+
+test("Food Hospitality mobile bar uses My business · Today · Messages", () => {
+  const nav = resolveVerticalMobileNav(FOOD_HOSPITALITY_NAV_PROFILE, TEAM)
+  assert.ok(nav)
+  assert.deepEqual(nav.primary.map((i) => i.id), ["my-business", "today", "mensajes"])
+  assert.deepEqual(nav.primary.map((i) => i.href), ["/", "/today", "/inbox"])
+  assert.ok(nav.more.some((i) => i.id === "clientes" && i.href === "/clientes"))
 })
