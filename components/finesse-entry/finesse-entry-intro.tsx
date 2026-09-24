@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 const FINESSE_INTRO_DESKTOP_VIDEO = "/finesse/video/Intro%20Finesse%20horizontal.mp4"
-const FINESSE_INTRO_MOBILE_VIDEO = "/finesse/image/Mobile%20intro%20finesse.mp4"
+const FINESSE_INTRO_MOBILE_VIDEO = "/finesse/video/Mobile%20intro%20finesse.mp4"
 
 type IntroMedia = "mobile" | "desktop"
 
