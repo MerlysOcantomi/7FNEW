@@ -419,20 +419,6 @@ export function ContextPanel({
     triageDraftsOpen > 0
     || triageActionsOpen > 0
 
-  const headerSection = (
-    <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
-        <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
-      </div>
-      <div className="min-w-0">
-        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">{m.header.title}</h2>
-        <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
-          {isMessageMode ? m.header.messageInsight : m.header.conversationOverview}
-        </p>
-      </div>
-    </div>
-  )
-
   /**
    * Handling strip — a compact, READ-ONLY row of responsibility/status chips, derived only
    * from real persisted data. It never writes and never invents states; in particular it
@@ -804,6 +790,9 @@ export function ContextPanel({
           ) : null}
         </div>
       )}
+      <div className="mt-3 border-t border-[var(--inbox-intelligence-border)] pt-2.5">
+        {handlingSection}
+      </div>
     </section>
   )
   const messageNeedSection = (
@@ -955,30 +944,6 @@ export function ContextPanel({
       ? m.recommends.fallbackAskMissing
       : m.recommends.fallbackReview
     : m.recommends.fallbackPreparing
-  const recommendsSection = (
-    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-      <div className="flex items-center gap-1.5">
-        <Target className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          {m.recommends.label}
-        </p>
-      </div>
-      {recommendationText ? (
-        <InlineTextarea
-          value={recommendationText}
-          placeholder={m.recommends.editPlaceholder}
-          className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
-          rows={2}
-          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-        />
-      ) : (
-        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          {recommendationFallback}
-        </p>
-      )}
-    </section>
-  )
-
   /**
    * Suggested actions block — only contextual approvals tied to a specific AI
    * suggestion remain:
@@ -1134,19 +1099,62 @@ export function ContextPanel({
   const secondaryActionsNow = actionNowCandidates.slice(1, 3)
   const overflowActionsNow = actionNowCandidates.slice(3)
 
-  const actionsSection = primaryActionNow ? (
-    <section aria-label={m.actions.label} className="space-y-2">
-      <WorkActionCard
-        title={primaryActionNow.title}
-        description={primaryActionNow.description}
-        ctaLabel={primaryActionNow.ctaLabel}
-        icon={primaryActionNow.icon}
-        badge={primaryActionNow.badge}
-        pending={primaryActionNow.pending}
-        onAction={primaryActionNow.onAction}
-      />
+  const actionNowRecommendation =
+    recommendationText
+    && !similarText(recommendationText, primaryActionNow?.title)
+    && !similarText(recommendationText, primaryActionNow?.description)
+      ? recommendationText
+      : null
+
+  /**
+   * Finesse Action Now: one decision zone, not separate "recommendation" and
+   * "actions" cards. The operator first sees the best real executable action;
+   * advice is supporting context, secondary actions stay quiet, and overflow
+   * is hidden behind ···. If no executor exists yet we show the honest
+   * recommendation/preparing state without fabricating a button.
+   */
+  const actionNowSection = (
+    <section
+      aria-label={m.recommends.label}
+      className="rounded-xl border border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent)]/[0.06] p-3.5"
+    >
+      <div className="flex items-center gap-1.5">
+        <Target className="h-3.5 w-3.5 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+          {m.recommends.label}
+        </p>
+      </div>
+
+      {actionNowRecommendation ? (
+        <InlineTextarea
+          value={actionNowRecommendation}
+          placeholder={m.recommends.editPlaceholder}
+          className="mt-2 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]"
+          rows={2}
+          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+        />
+      ) : !primaryActionNow ? (
+        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+          {recommendationFallback}
+        </p>
+      ) : null}
+
+      {primaryActionNow ? (
+        <div className="mt-2.5">
+          <WorkActionCard
+            title={primaryActionNow.title}
+            description={primaryActionNow.description}
+            ctaLabel={primaryActionNow.ctaLabel}
+            icon={primaryActionNow.icon}
+            badge={primaryActionNow.badge}
+            pending={primaryActionNow.pending}
+            onAction={primaryActionNow.onAction}
+          />
+        </div>
+      ) : null}
+
       {secondaryActionsNow.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 px-0.5">
+        <div className="mt-2 flex flex-wrap gap-1.5 px-0.5">
           {secondaryActionsNow.map((action) => (
             <Button
               key={action.key}
@@ -1193,11 +1201,14 @@ export function ContextPanel({
           ) : null}
         </div>
       ) : null}
+
       {actionState ? (
-        <p className="px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>
+        <p className="mt-1.5 px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+          {actionState}
+        </p>
       ) : null}
     </section>
-  ) : null
+  )
 
   /**
    * PR 9 — Fanny suggested tasks (proposed `WorkspaceTask` rows backed by a
@@ -1478,34 +1489,24 @@ export function ContextPanel({
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
         ── Section ordering ──
-        Three zones, top-down, matching how an operator reads a request:
-          ZONE 1 — Who & how: who wrote + their data + handling + tone/mood.
-            1. Client/contact card    (sender name, data; expanded = ALL client context)
-            2. Handling strip         (read-only assignment / status chips)
-            3. Needs attention        (tone/mood strip + missing info / risks)
-          ZONE 2 — What the message says:
-            4. Request                (the message objective)
-          ZONE 3 — Action now:
-            5. Action now             (single decision zone; advice + executable work)
-            6. Pending decisions      (existing approve / dismiss executor, temporarily nested)
-            7. Actions                (existing executors; ranking into 1+2 follows next)
-          Then: Ask Fanny, Workflow.
-        Header chrome (the "Fanny" title) stays on top. Each atom keeps its own data
-        gating, so empty cards never render and we never fabricate content. Client
-        context lives ONLY inside the expanded top card — no duplicate block lower.
+        Finesse hierarchy, top-down:
+          1. QUIÉN        — contact/client identity, details + handling state.
+          2. QUÉ QUIERE   — current selected intent/message objective.
+          3. ACCIÓN AHORA — one primary executable action, max two quiet alternatives.
+          4. Context only when useful: attention, pending decisions, Ask Fanny, workflow.
+        There is deliberately no separate AI header/recommendation/actions stack: the
+        right panel is a work surface, not an analytics dashboard. Empty blocks still
+        disappear and no capability is fabricated.
 
         Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
         receives `selectedMessageInfo: null` and message-specific affordances fall back to
         conversation-level data automatically. No extra logic needed here.
       */}
-      {headerSection}
       {contactSection}
-      {handlingSection}
-      {needsAttentionSection}
       {messageNeedSection}
-      {recommendsSection}
+      {actionNowSection}
+      {needsAttentionSection}
       {pendingDecisionsSection}
-      {actionsSection}
       {askFannySection}
       {workflowSection}
 
