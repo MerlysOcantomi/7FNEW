@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   resolveNavProfile,
   BEAUTY_NAV_PROFILE,
+  FOOD_HOSPITALITY_NAV_PROFILE,
   getVisibleVerticalNavItems,
   showsTeamOnlyItems,
   type VerticalNavItem,
@@ -199,4 +200,32 @@ test("Solo 'Más' order is Marketing · Cobros · Servicios · Mr. Forte Lab", (
 
 test("Team 'Más' order is Marketing · Cobros · Servicios · Equipo · Mr. Forte Lab", () => {
   assert.deepEqual(moreIds(2), ["marketing", "cobros", "servicios", "equipo", "forte"])
+})
+
+
+test("Food Hospitality resolves its own Bonabasto-ready navigation profile", () => {
+  const p = resolveNavProfile("food-hospitality")
+  assert.equal(p, FOOD_HOSPITALITY_NAV_PROFILE)
+  assert.deepEqual(primaryIds(FOOD_HOSPITALITY_NAV_PROFILE.items), [
+    "my-business",
+    "today",
+    "mensajes",
+    "clientes",
+  ])
+  assert.equal(
+    FOOD_HOSPITALITY_NAV_PROFILE.items.find((i) => i.id === "my-business")?.href,
+    "/",
+  )
+  assert.equal(
+    FOOD_HOSPITALITY_NAV_PROFILE.items.find((i) => i.id === "my-business")?.navLabelKey,
+    "myBusiness",
+  )
+})
+
+test("Food Hospitality navigation exposes only existing shared routes in BONA-00", () => {
+  const hrefs = FOOD_HOSPITALITY_NAV_PROFILE.items.map((i) => i.href)
+  for (const href of hrefs) assert.match(href, /^\//)
+  for (const notYetBuilt of ["/orders", "/pedidos", "/catalog", "/carta", "/inventario", "/kitchen"]) {
+    assert.ok(!hrefs.includes(notYetBuilt), `BONA-00 must not invent ${notYetBuilt}`)
+  }
 })

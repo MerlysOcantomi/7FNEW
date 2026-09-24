@@ -2,6 +2,7 @@ import { db } from "@core/db"
 import {
   buildInitialEntryWorkspaceConfig,
   getEntryProductByKey,
+  matchesEntryProductWorkspace,
   requiresEntryOnboarding,
   type EntryProductKey,
 } from "@core/product-entry"
@@ -52,8 +53,14 @@ export async function ensureUserHasProductWorkspace(
     },
   })
 
-  const existing = memberships.find(
-    (membership) => membership.workspace.verticalKey === product.verticalKey,
+  const existing = memberships.find((membership) =>
+    matchesEntryProductWorkspace(
+      {
+        verticalKey: membership.workspace.verticalKey,
+        config: membership.workspace.config,
+      },
+      product,
+    ),
   )
   if (existing) {
     return {

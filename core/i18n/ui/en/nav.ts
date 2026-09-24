@@ -29,6 +29,7 @@ export const nav: NavMessages = {
   navigationTitle: "Navigation",
   backToWorkspace: "Back to 7F",
   mySalon: "My salon",
+  myBusiness: "My business",
   helpers: {
     marketing: "Content, campaigns & growth",
     billing: "Invoices & payments",

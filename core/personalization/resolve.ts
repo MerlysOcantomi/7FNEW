@@ -128,6 +128,7 @@ const VERTICAL_KEY_TO_BUSINESS_TYPE: Record<string, BusinessType> = {
   clinic: "clinic",
   service: "service",
   beauty: "beauty",
+  "food-hospitality": "food-hospitality",
   salon: "beauty",
   nails: "beauty",
   barber: "beauty",

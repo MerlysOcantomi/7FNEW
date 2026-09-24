@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  buildInitialEntryWorkspaceConfig,
   getEntryProductByKey,
+  matchesEntryProductWorkspace,
   normalizeRequestHost,
   requiresEntryOnboarding,
   resolveEntryProductFromHost,
@@ -64,4 +66,53 @@ test("registry exposes the Finesse product contract", () => {
   assert.equal(finesse?.onboardingPath, "/onboarding/finesse")
   assert.equal(finesse?.homePath, "/today")
   assert.equal(finesse?.selfServe, true)
+})
+
+
+test("resolves the canonical Bonabasto preview host only", () => {
+  assert.equal(resolveEntryProductFromHost("preview-bonabasto.sevenef.com")?.key, "bonabasto")
+  assert.equal(resolveEntryProductFromHost("PREVIEW-BONABASTO.SEVENEF.COM:443")?.key, "bonabasto")
+  assert.equal(resolveEntryProductFromHost("evil.preview-bonabasto.sevenef.com"), null)
+  assert.equal(resolveEntryProductFromHost("preview-food.sevenef.com"), null)
+})
+
+test("Bonabasto entry contract preserves family and experience separately", () => {
+  const bonabasto = getEntryProductByKey("bonabasto")
+  assert.ok(bonabasto)
+  assert.equal(bonabasto.verticalKey, "food-hospitality")
+  assert.equal(bonabasto.experienceKey, "bonabasto")
+  assert.equal(bonabasto.onboardingPath, "/onboarding/bonabasto")
+  assert.equal(bonabasto.homePath, "/today")
+  assert.equal(bonabasto.selfServe, false)
+
+  const config = JSON.parse(buildInitialEntryWorkspaceConfig(bonabasto))
+  assert.equal(config.experience.key, "bonabasto")
+  assert.equal(config.onboarding.product, "bonabasto")
+})
+
+test("product workspace matching distinguishes experiences inside one family", () => {
+  const bonabasto = getEntryProductByKey("bonabasto")!
+  assert.equal(
+    matchesEntryProductWorkspace(
+      { verticalKey: "food-hospitality", config: JSON.stringify({ experience: { key: "bonabasto" } }) },
+      bonabasto,
+    ),
+    true,
+  )
+  assert.equal(
+    matchesEntryProductWorkspace(
+      { verticalKey: "food-hospitality", config: JSON.stringify({ experience: { key: "club" } }) },
+      bonabasto,
+    ),
+    false,
+  )
+  assert.equal(
+    matchesEntryProductWorkspace({ verticalKey: "food-hospitality", config: null }, bonabasto),
+    false,
+  )
+})
+
+test("legacy Finesse workspaces still match before experienceKey persistence", () => {
+  const finesse = getEntryProductByKey("finesse")!
+  assert.equal(matchesEntryProductWorkspace({ verticalKey: "beauty", config: null }, finesse), true)
 })
