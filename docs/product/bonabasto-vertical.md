@@ -153,3 +153,45 @@ The first code mission should establish the product contract before adding resta
 7. bind the canonical preview to the Bonabasto preview implementation when the reviewable surface exists.
 
 No Orders, Catalog, Inventory or Kitchen persistence should be invented inside BONA-00. Those land in the following implementation missions with their real capability evidence.
+
+
+## Permanent preview publication rule
+
+Bonabasto owner review is always published through the stable Git branch:
+
+```text
+preview-bonabasto
+```
+
+and always reviewed at:
+
+```text
+https://preview-bonabasto.sevenef.com
+```
+
+Implementation/session branches such as `work/7f-bonabasto-00`, `work/7f-bonabasto-01`, etc. are temporary development branches only. They must never become the permanent Vercel domain target.
+
+The publication flow is:
+
+```text
+work/7f-bonabasto-XX
+        ↓
+validate
+        ↓
+preview-bonabasto
+        ↓
+https://preview-bonabasto.sevenef.com
+        ↓
+owner review
+        ↓
+master when approved
+```
+
+Vercel configuration for the canonical Bonabasto preview:
+
+- Environment: `Preview`
+- Git Branch: `preview-bonabasto`
+- Domain: `preview-bonabasto.sevenef.com`
+- Project: `7-fnew`
+
+This rule remains stable across Bonabasto implementation sessions.
