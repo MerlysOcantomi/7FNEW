@@ -162,12 +162,20 @@ export async function resolveFannyAutonomy(
   let ruleId: string | null = null
   let params: Record<string, unknown> = {}
 
+  const strictness: Readonly<Record<FannyAutonomyMode, number>> = {
+    auto: 0,
+    confirm: 1,
+    suggest: 2,
+  }
+
   for (const rule of rules) {
     if (!ruleMatches(rule, context)) continue
     const nextMode = clampFannyMode(context.actionId, rule.action.mode)
-    mode = nextMode
-    source = "workspace_rule"
-    ruleId = rule.id
+    if (strictness[nextMode] >= strictness[mode]) {
+      mode = nextMode
+      source = "workspace_rule"
+      ruleId = rule.id
+    }
     params = { ...params, ...(rule.action.params ?? {}) }
   }
 
