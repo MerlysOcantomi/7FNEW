@@ -11,7 +11,7 @@ These names are **reserved conventions**. A row marked `reserved` does not imply
 | sevenef platform / core | `preview.sevenef.com` | reserved | General platform preview. |
 | Finesse Beauty | `preview.getfinesse.app` | reserved | Finesse Beauty preview on its managed product domain. |
 | Finesse Ink | `preview-ink.sevenef.com` | reserved | Tattoo vertical / Finesse Ink experience. |
-| Food vertical | `preview-food.sevenef.com` | reserved-temporary | Temporary preview name until the food product receives its final commercial name. |
+| Bonabasto (Food / Hospitality) | `preview-bonabasto.sevenef.com` | reserved | Canonical Bonabasto preview. The technical vertical family remains Food / Hospitality. |
 | Olojú | `preview-oloju.sevenef.com` | reserved | Domain omits the accent by design. |
 | Scholara | `preview-scholara.sevenef.com` | reserved | Scholara can run inside Olojú and also be sold standalone. |
 | Smart Inbox standalone | `preview-inbox.sevenef.com` | reserved | Standalone packaging of the shared Smart Inbox Core; not a separate technical Inbox implementation. |
@@ -22,7 +22,7 @@ These names are **reserved conventions**. A row marked `reserved` does not imply
 2. Preview domains do not create technical forks. Products remain experiences/packages over the shared **sevenef Core**.
 3. A preview hostname should normally point to the stable `preview` Git branch when that product is activated for preview.
 4. Production domains are a separate decision and must not be inferred from these preview names.
-5. The Food preview name is intentionally provisional. Replace it here when the final product name is chosen.
+5. Bonabasto uses `preview-bonabasto.sevenef.com` as its canonical owner-facing preview URL. Do not use the former provisional `preview-food.sevenef.com`.
 
 ## Google OAuth
 
