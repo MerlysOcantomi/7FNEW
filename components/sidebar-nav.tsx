@@ -270,6 +270,8 @@ const NAV_SECTIONS = buildNavSections();
  */
 const VERTICAL_NAV_ICONS: Record<string, React.ElementType> = {
   "my-salon": LayoutDashboard,
+  "my-business": LayoutDashboard,
+  clientes: Users,
   today: Sun,
   agenda: CalendarDays,
   clientas: Users,
