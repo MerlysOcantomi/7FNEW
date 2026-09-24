@@ -126,6 +126,13 @@ interface InboxToolbarProps {
   onAssignmentFilterChange: (value: AssignmentFilter) => void
 
   isTodoMode?: boolean
+  /**
+   * INBOX-UX-SAFE-01: whether the "More filters" surface (trigger + panel)
+   * renders at all. `undefined`/`true` = today's behaviour. A level that
+   * hides it (Simple) must surface any still-active advanced filter through
+   * the active-filter tokens row instead — the page owns that.
+   */
+  showAdvancedFilters?: boolean
 }
 
 type InboxToolbarMessages = UIMessages["inbox"]["toolbar"]
@@ -197,6 +204,7 @@ export function InboxToolbar({
   assignmentFilter,
   onAssignmentFilterChange,
   isTodoMode = false,
+  showAdvancedFilters = true,
 }: InboxToolbarProps) {
   // Manual Intake "Capture" entry point. No-op-safe: only shows inside a real
   // ManualIntakeProvider (mounted in AppShell), so other mounts never get a dead button.
@@ -337,7 +345,7 @@ export function InboxToolbar({
           </button>
         ) : null}
 
-        {!isTodoMode ? (
+        {!isTodoMode && showAdvancedFilters ? (
           <button
             type="button"
             onClick={() => setMoreOpen((open) => !open)}
@@ -530,7 +538,7 @@ export function InboxToolbar({
        * unchanged). The grid is sized for the full 5-control future
        * (xl:grid-cols-5) and collapses gracefully on smaller viewports.
        */}
-      {!isTodoMode && moreOpen ? (
+      {!isTodoMode && showAdvancedFilters && moreOpen ? (
         <div
           id="inbox-toolbar-more-panel"
           className="border-t border-[var(--inbox-list-border)]/60 px-3 py-2.5 md:px-4"
