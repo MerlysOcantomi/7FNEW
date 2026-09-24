@@ -1,5 +1,6 @@
 import { db } from "@core/db"
 import { BEAUTY_PACK, buildBeautyDefaultConfig } from "@core/vertical-packs/beauty"
+import { FOOD_HOSPITALITY_PACK, buildFoodHospitalityDefaultConfig } from "@core/vertical-packs/food-hospitality"
 
 export interface WorkspaceBusinessProfile {
   businessName?: string
@@ -111,6 +112,14 @@ const BUILTIN_VERTICALS: VerticalRecord[] = [
     name: BEAUTY_PACK.name,
     description: BEAUTY_PACK.description,
     defaultConfig: buildBeautyDefaultConfig(),
+    isActive: true,
+  },
+  {
+    id: `builtin:${FOOD_HOSPITALITY_PACK.verticalKey}`,
+    key: FOOD_HOSPITALITY_PACK.verticalKey,
+    name: FOOD_HOSPITALITY_PACK.name,
+    description: FOOD_HOSPITALITY_PACK.description,
+    defaultConfig: buildFoodHospitalityDefaultConfig(),
     isActive: true,
   },
 ]
