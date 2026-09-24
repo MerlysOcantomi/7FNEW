@@ -1,6 +1,7 @@
 import { PrismaLibSql } from "@prisma/adapter-libsql"
 import { PrismaClient } from "../generated/prisma/client"
 import { buildBeautyDefaultConfig } from "../core/vertical-packs/beauty"
+import { buildFoodHospitalityDefaultConfig } from "../core/vertical-packs/food-hospitality"
 
 const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
 if (!dbUrl) throw new Error("DATABASE_URL or TURSO_DATABASE_URL must be set")
@@ -144,6 +145,15 @@ async function seedVerticals() {
       description:
         "Manicura, estética, peluquería, lashes, masajes, barbería y pequeños salones beauty",
       defaultConfig: buildBeautyDefaultConfig(),
+    },
+    {
+      // Food / Hospitality family. Bonabasto is its first commercial
+      // experience, but the vertical row stays family-level and reusable.
+      key: "food-hospitality",
+      name: "Food / Hospitality",
+      description:
+        "Restaurantes, comida para llevar, cafeterías, bares y otros negocios de hostelería",
+      defaultConfig: buildFoodHospitalityDefaultConfig(),
     },
   ]
 
