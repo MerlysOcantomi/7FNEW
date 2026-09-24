@@ -1,28 +1,52 @@
 # Canonical preview domains
 
-This file is the naming source of truth for stable product preview hosts in the **sevenef** ecosystem.
+This file is the naming and publication source of truth for stable product preview hosts in the **sevenef** ecosystem.
 
-These names are **reserved conventions**. A row marked `reserved` does not imply that DNS, Vercel domain assignment, routing, OAuth, or the product itself is already live.
+A canonical preview host is bound to one permanent Git branch in the Vercel project `7-fnew`. Feature/session branches may be used for implementation, but owner-facing review is promoted to the canonical preview branch before review.
 
-## Reserved preview hosts
+## Canonical preview hosts and branches
 
-| Product / experience | Canonical preview host | Status | Notes |
-|---|---|---|---|
-| sevenef platform / core | `preview.sevenef.com` | reserved | General platform preview. |
-| Finesse Beauty | `preview.getfinesse.app` | reserved | Finesse Beauty preview on its managed product domain. |
-| Finesse Ink | `preview-ink.sevenef.com` | reserved | Tattoo vertical / Finesse Ink experience. |
-| Bonabasto (Food / Hospitality) | `preview-bonabasto.sevenef.com` | reserved | Canonical Bonabasto preview. The technical vertical family remains Food / Hospitality. |
-| Olojú | `preview-oloju.sevenef.com` | reserved | Domain omits the accent by design. |
-| Scholara | `preview-scholara.sevenef.com` | reserved | Scholara can run inside Olojú and also be sold standalone. |
-| Smart Inbox standalone | `preview-inbox.sevenef.com` | reserved | Standalone packaging of the shared Smart Inbox Core; not a separate technical Inbox implementation. |
+| Product / experience | Canonical preview host | Canonical Git branch | Status | Notes |
+|---|---|---|---|---|
+| sevenef platform / core | `preview.sevenef.com` | `preview-sevenef` | active target | General platform/core preview. |
+| Finesse Beauty | `preview.getfinesse.app` | `preview-finesse` | active target | Finesse Beauty preview on its managed product domain. |
+| Finesse Ink | `preview-ink.sevenef.com` | `preview-ink` | reserved | Tattoo vertical / Finesse Ink experience. |
+| Bonabasto (Food / Hospitality) | `preview-bonabasto.sevenef.com` | `preview-bonabasto` | active target | Canonical Bonabasto preview. The technical vertical family remains Food / Hospitality. |
+| Olojú | `preview-oloju.sevenef.com` | `preview-oloju` | reserved | Domain omits the accent by design. |
+| Scholara | `preview-scholara.sevenef.com` | `preview-scholara` | reserved | Scholara can run inside Olojú and also be sold standalone. |
+| Smart Inbox standalone | `preview-inbox.sevenef.com` | `preview-inbox` | active target | Standalone packaging of the shared Smart Inbox Core; not a separate technical Inbox implementation. |
 
-## Rules
+## Permanent publication rule
 
-1. Do not invent alternate preview hostnames for the products above without updating this file first.
-2. Preview domains do not create technical forks. Products remain experiences/packages over the shared **sevenef Core**.
-3. A preview hostname should normally point to the stable `preview` Git branch when that product is activated for preview.
-4. Production domains are a separate decision and must not be inferred from these preview names.
-5. Bonabasto uses `preview-bonabasto.sevenef.com` as its canonical owner-facing preview URL. Do not use the former provisional `preview-food.sevenef.com`.
+1. Do not bind a canonical preview domain directly to a temporary implementation branch such as `codex/*`, `claude/*`, `work/*`, or `feat/*`.
+2. Implementation may happen on temporary branches, but the reviewable state is promoted/merged to the canonical `preview-*` branch.
+3. Vercel must map each canonical preview domain to the corresponding canonical Git branch in the table above.
+4. A new commit on a canonical preview branch must update the same fixed preview URL automatically through Vercel Git integration.
+5. Preview domains do not create technical forks. Products remain experiences/packages over the shared **sevenef Core**.
+6. Production domains are a separate decision and must not be inferred from preview names.
+7. Bonabasto uses `preview-bonabasto.sevenef.com`; do not use the former provisional `preview-food.sevenef.com`.
+8. The old shared `preview` branch may remain temporarily for migration, but canonical product domains should not share it once their dedicated `preview-*` branch is active.
+
+## Publication flow
+
+```text
+implementation branch
+        |
+        v
+validate
+        |
+        v
+canonical preview-* branch
+        |
+        v
+fixed preview domain
+        |
+        v
+owner review
+        |
+        v
+master when approved and safe
+```
 
 ## Google OAuth
 
@@ -39,7 +63,7 @@ https://preview.sevenef.com/api/auth/callback/google
 https://preview.getfinesse.app/api/auth/callback/google
 ```
 
-Do not add every reserved preview host to Google OAuth pre-emptively. Add a callback when that preview is actually activated and requires Google login.
+Add additional callbacks only when that preview is actually activated and requires Google login.
 
 ## Architecture reminder
 
