@@ -14,6 +14,14 @@ export async function generateMetadata(): Promise<Metadata> {
     }
   }
 
+  if (product?.key === "bonabasto") {
+    return {
+      title: "Bonabasto — Entrar",
+      description: "Accede a Bonabasto para organizar tu negocio de comida y hostelería.",
+      robots: { index: false, follow: false },
+    }
+  }
+
   return {
     title: "7F Workspace",
     description: "Business management platform.",
