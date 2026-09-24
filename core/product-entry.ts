@@ -77,6 +77,27 @@ export function resolveEntryProductFromHost(host: string | null | undefined): En
   )
 }
 
+export function matchesEntryProductWorkspace(
+  workspace: { verticalKey: string; config: string | null | undefined },
+  product: EntryProductDefinition,
+): boolean {
+  if (workspace.verticalKey !== product.verticalKey) return false
+
+  let experienceKey: string | null = null
+  try {
+    const parsed = workspace.config
+      ? (JSON.parse(workspace.config) as { experience?: { key?: unknown } })
+      : null
+    experienceKey =
+      typeof parsed?.experience?.key === "string" ? parsed.experience.key : null
+  } catch {
+    experienceKey = null
+  }
+
+  if (experienceKey === product.experienceKey) return true
+  return product.legacyVerticalOnlyMatch === true && experienceKey === null
+}
+
 export type EntryOnboardingStatus = "not_started" | "in_progress" | "completed"
 
 export interface EntryOnboardingState {
