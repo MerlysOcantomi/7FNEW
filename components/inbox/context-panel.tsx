@@ -991,6 +991,10 @@ export function ContextPanel({
    *     "Continue" label (approval already happened; we're finishing the work).
    * Hidden entirely when there is nothing actionable — we never fake actions.
    */
+  const proposedFannyTasks = (selected.proposedTasks ?? []).filter(
+    (task): task is ProposedFannyTaskItem => Boolean(task && task.id && task.title),
+  )
+
   type ActionNowCandidate = {
     key: string
     title: string
@@ -1079,6 +1083,40 @@ export function ContextPanel({
       })
     }
 
+    for (const task of proposedFannyTasks) {
+      const linkedAction = task.conversationActionId
+        ? (selected.actions ?? []).find(
+            (action) =>
+              action.id === task.conversationActionId &&
+              action.type === "create_task" &&
+              (action.status === "suggested" || action.status === "approved"),
+          )
+        : null
+      if (!linkedAction) continue
+
+      candidates.push({
+        key: `task:${task.id}`,
+        title: task.title,
+        description: task.description,
+        ctaLabel:
+          linkedAction.status === "approved"
+            ? m.pendingDecisions.continue
+            : m.pendingDecisions.createTask,
+        badge: m.pendingDecisions.label,
+        icon: Target,
+        pending: pendingActionId === linkedAction.id,
+        onAction: () => void handleSuggestedAction(linkedAction, "approve_and_execute"),
+      })
+
+      candidates.push({
+        key: `task-dismiss:${task.id}`,
+        title: task.title,
+        ctaLabel: m.pendingDecisions.dismiss,
+        pending: pendingActionId === linkedAction.id,
+        onAction: () => void handleSuggestedAction(linkedAction, "dismiss"),
+      })
+    }
+
     for (const action of conversationScoped) pushAction(action)
     return candidates
   }, [
@@ -1093,6 +1131,7 @@ export function ContextPanel({
     pendingActionId,
     handleSuggestedAction,
     selectedMessageInfo?.eventHint?.title,
+    proposedFannyTasks,
   ])
 
   const primaryActionNow = actionNowCandidates[0] ?? null
@@ -1211,186 +1250,6 @@ export function ContextPanel({
   )
 
   /**
-   * PR 9 — Fanny suggested tasks (proposed `WorkspaceTask` rows backed by a
-   * `create_task` ConversationAction). Hidden when empty (no noise on
-   * conversations the AI didn't propose tasks for).
-   *
-   * Each card surfaces title, description, priority, and an optional
-   * confidence pill (when the Fanny pipeline persisted a numeric
-   * `metadata.confidence` between 0 and 1). The approve / dismiss CTAs
-   * reuse the existing ConversationAction flow via `handleSuggestedAction`:
-   *   - Approve → operation `approve_and_execute`. PR 7's
-   *     `convertConversationToRecords` promotes the linked proposed
-   *     WorkspaceTask to `"open"` instead of duplicating it.
-   *   - Dismiss → operation `dismiss`. PR 7's `dismissConversationAction`
-   *     cascades to mark the linked proposed WorkspaceTask `"dismissed"`.
-   *
-   * Defensive fallbacks:
-   *   - If a proposed task arrives without `conversationActionId`, or the
-   *     linked action can't be found in `selected.actions` (already
-   *     promoted / dismissed by another tab), the card renders read-only
-   *     with disabled buttons. The operator can refresh to re-sync.
-   */
-  const proposedFannyTasks = (selected.proposedTasks ?? []).filter(
-    (task): task is ProposedFannyTaskItem => Boolean(task && task.id && task.title),
-  )
-  /**
-   * PR 11 — section renamed from "Fanny suggested tasks" to
-   * "Pending decisions". Rationale: the panel's IA puts decisions
-   * (approve / dismiss) above execution (Smart actions, Today). The
-   * section currently only renders proposed `WorkspaceTask` rows that
-   * are awaiting human decision, so "Pending decisions" is precise.
-   * The caption keeps Fanny's branding context without making the
-   * title compete with `Today`'s execution language.
-   */
-  const pendingDecisionsSection = proposedFannyTasks.length > 0 ? (
-    <section
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label={m.pendingDecisions.label}
-    >
-      <div className="flex items-center gap-1.5">
-        <Target className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          {m.pendingDecisions.label}
-        </p>
-      </div>
-      <p className="mt-1 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]/85">
-        {m.pendingDecisions.caption}
-      </p>
-      <ul className="mt-2 space-y-2">
-        {proposedFannyTasks.map((task) => {
-          /**
-           * Resolve the linked ConversationAction so approve/dismiss can
-           * route through the existing flow.
-           *
-           * Hardening (PR 9 follow-up):
-           *   1. Must be the same id as the task's `conversationActionId`.
-           *   2. Must be `type === "create_task"`. PR 7 only ever creates
-           *      proposed `WorkspaceTask` rows for `create_task` actions,
-           *      so any other type linked here is data-corruption / an
-           *      unexpected upstream change. Routing approve+execute to
-           *      the wrong type would either no-op (e.g. assign_operator
-           *      requires `assignedTo`) or fire a different side-effect.
-           *      We refuse to act on it.
-           *   3. Status must be `"suggested"` or `"approved"` — anything
-           *      else means the action has already been executed or
-           *      dismissed (likely from another tab) and the panel is
-           *      momentarily stale. The "View only" pill signals this
-           *      until the next detail refetch flushes the row.
-           */
-          const linkedAction = task.conversationActionId
-            ? (selected.actions ?? []).find(
-                (a) =>
-                  a.id === task.conversationActionId &&
-                  a.type === "create_task" &&
-                  (a.status === "suggested" || a.status === "approved"),
-              )
-            : null
-          const canAct = Boolean(linkedAction)
-          const isPending = canAct && linkedAction?.id === pendingActionId
-          const confidencePct = readConfidencePct(task.metadata)
-          const priorityLabel = m.pendingDecisions.priorities[task.priority]
-          /**
-           * Primary CTA label tracks the linked action's lifecycle so the
-           * operator always sees the next concrete step:
-           *   - suggested → "Create task" (approve + execute will run).
-           *   - approved  → "Continue" (approve already happened, e.g. a
-           *     prior execute failed and we're finishing the run).
-           * Both routes call `approve_and_execute`; `approveConversationAction`
-           * is idempotent on `approved` so the re-approve is a no-op write
-           * and the execute is what does the real work.
-           */
-          const primaryCtaLabel =
-            linkedAction?.status === "approved"
-              ? m.pendingDecisions.continue
-              : m.pendingDecisions.createTask
-          return (
-            <li
-              key={task.id}
-              className="rounded-md border border-[var(--inbox-intelligence-border)] bg-white/4 px-3 py-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-[var(--inbox-intelligence-text)]">
-                    {task.title}
-                  </p>
-                  {task.description ? (
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-                      {task.description}
-                    </p>
-                  ) : null}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--inbox-intelligence-border)] bg-white/6 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-intelligence-text-secondary)]">
-                      <Target className="h-2.5 w-2.5" aria-hidden="true" />
-                      {priorityLabel}
-                    </span>
-                    {confidencePct !== null ? (
-                      <span
-                        className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-accent)]"
-                        title={m.pendingDecisions.confidenceTitle}
-                      >
-                        {m.pendingDecisions.confidencePct(confidencePct)}
-                      </span>
-                    ) : null}
-                    {!canAct ? (
-                      <span
-                        className="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-400/90"
-                        title={m.pendingDecisions.viewOnlyTitle}
-                      >
-                        {m.pendingDecisions.viewOnly}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap justify-end gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canAct || isPending}
-                  onClick={() => {
-                    if (!linkedAction) return
-                    handleSuggestedAction(linkedAction, "dismiss")
-                  }}
-                  className={cn(
-                    "h-6 rounded-md px-2 text-[10px]",
-                    INBOX_GHOST_BUTTON,
-                  )}
-                  aria-label={m.pendingDecisions.dismissAria(task.title)}
-                >
-                  {m.pendingDecisions.dismiss}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canAct || isPending}
-                  onClick={() => {
-                    if (!linkedAction) return
-                    handleSuggestedAction(linkedAction, "approve_and_execute")
-                  }}
-                  className={cn(
-                    "h-6 rounded-md px-2 text-[10px]",
-                    INBOX_GHOST_BUTTON,
-                  )}
-                  aria-label={m.pendingDecisions.primaryAria(primaryCtaLabel, task.title)}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                  ) : (
-                    primaryCtaLabel
-                  )}
-                </Button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  ) : null
-
-  /**
    * Pending items — "what's missing to act?". Hidden when empty so we never
    * render an empty card.
    *
@@ -1506,7 +1365,6 @@ export function ContextPanel({
       {messageNeedSection}
       {actionNowSection}
       {needsAttentionSection}
-      {pendingDecisionsSection}
       {askFannySection}
       {workflowSection}
 
@@ -1953,24 +1811,6 @@ function safeStringList(value: unknown): string[] {
     }
   }
   return out
-}
-
-/**
- * PR 9 — derive a UI-displayable confidence percentage from a parsed
- * `WorkspaceTask.metadata` blob. Tolerates the values Fanny historically
- * persists:
- *   - 0..1 (canonical) — multiplied by 100 and rounded.
- *   - 0..100 (already a percentage) — passed through and rounded.
- * Returns `null` for anything unrecognisable so the UI can hide the chip
- * rather than render misleading numbers.
- */
-function readConfidencePct(metadata: Record<string, unknown> | null | undefined): number | null {
-  if (!metadata) return null
-  const raw = metadata.confidence
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return null
-  if (raw <= 1 && raw >= 0) return Math.round(raw * 100)
-  if (raw > 1 && raw <= 100) return Math.round(raw)
-  return null
 }
 
 function mapUrgency(urgency: string | null | undefined, m: PanelMessages) {
