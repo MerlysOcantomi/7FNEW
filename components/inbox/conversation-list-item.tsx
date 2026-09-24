@@ -1,10 +1,16 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ConversationChannelBadge } from "@/components/inbox/conversation-channel-badge"
 import { useI18n } from "@/components/i18n-provider"
-import { ChevronRight, Loader2 } from "lucide-react"
+import { ChevronRight, Download, Loader2, Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 /** Cada intent expandido conserva su `messageId` original para poder seleccionar el Message en el hilo. */
 export interface ShortIntentEntry {
@@ -39,6 +45,12 @@ interface ConversationListItemProps {
    * anchor; the expanded panel then lists every active request.
    */
   currentMessageId?: string | null
+  currentAttachments?: Array<{
+    filename: string
+    url: string
+    contentType: string
+    size?: number
+  }>
   sectorLabel?: string | null
   timeLabel: string
   selected: boolean
@@ -98,6 +110,7 @@ export function ConversationListItem({
   title,
   intentSummary,
   currentMessageId,
+  currentAttachments = [],
   timeLabel,
   selected,
   isUnread,
@@ -117,6 +130,12 @@ export function ConversationListItem({
   const { t } = useI18n()
   const m = t.inbox.list.item
   const itemRef = useRef<HTMLDivElement | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    filename: string
+    url: string
+    contentType: string
+    size?: number
+  } | null>(null)
 
   useEffect(() => {
     if (!selected) return
@@ -298,6 +317,39 @@ export function ConversationListItem({
         </button>
       </div>
 
+      {currentAttachments.length > 0 ? (
+        <div className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-8 pr-1">
+          <Paperclip
+            className="h-3 w-3 shrink-0 text-[var(--inbox-list-text-secondary)]"
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              setPreviewAttachment(currentAttachments[0])
+            }}
+            title={currentAttachments[0].filename}
+            aria-label={m.attachmentOpen(currentAttachments[0].filename)}
+            className="min-w-0 truncate text-left text-[11px] font-medium text-[var(--inbox-list-selected)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--inbox-list-selected)]/40"
+          >
+            {currentAttachments[0].filename}
+          </button>
+          {currentAttachments.length > 1 ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                setPreviewAttachment(currentAttachments[1])
+              }}
+              className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-[var(--inbox-list-text-secondary)] hover:bg-white/[0.08] hover:text-[var(--inbox-list-text)]"
+            >
+              {m.moreAttachments(currentAttachments.length - 1)}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {intentPanelVisible ? (
         <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 pl-7 pr-1">
           {intentsLoading ? (
@@ -346,6 +398,65 @@ export function ConversationListItem({
           )}
         </div>
       ) : null}
+      <Dialog
+        open={Boolean(previewAttachment)}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAttachment(null)
+        }}
+      >
+        <DialogContent className="max-w-3xl border-[var(--inbox-border)] bg-[var(--inbox-surface)] text-[var(--inbox-text)]">
+          {previewAttachment ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="pr-8 text-sm font-semibold">
+                  {previewAttachment.filename}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="min-h-[220px] overflow-hidden rounded-xl border border-[var(--inbox-border)] bg-black/20">
+                {previewAttachment.contentType.startsWith("image/") ||
+                previewAttachment.contentType === "application/pdf" ? (
+                  <object
+                    data={previewAttachment.url}
+                    type={previewAttachment.contentType}
+                    aria-label={m.attachmentPreview}
+                    className="h-[60vh] w-full bg-white"
+                  >
+                    <div className="flex h-[220px] items-center justify-center p-6 text-center text-sm text-[var(--inbox-text-secondary)]">
+                      {m.attachmentPreviewUnavailable}
+                    </div>
+                  </object>
+                ) : previewAttachment.contentType.startsWith("video/") ? (
+                  <video
+                    src={previewAttachment.url}
+                    controls
+                    className="max-h-[60vh] w-full"
+                  />
+                ) : previewAttachment.contentType.startsWith("audio/") ? (
+                  <div className="flex min-h-[220px] items-center justify-center p-6">
+                    <audio src={previewAttachment.url} controls className="w-full" />
+                  </div>
+                ) : (
+                  <div className="flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-[var(--inbox-text-secondary)]">
+                    {m.attachmentPreviewUnavailable}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <a
+                  href={previewAttachment.url}
+                  download={previewAttachment.filename}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--inbox-list-selected)]/35 bg-[var(--inbox-list-selected-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--inbox-list-selected)] hover:border-[var(--inbox-list-selected)]/60"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  {m.attachmentDownload}
+                </a>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

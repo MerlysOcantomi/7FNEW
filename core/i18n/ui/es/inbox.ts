@@ -18,6 +18,7 @@ export const inbox: InboxMessages = {
     workFilterAria: "Filtro de trabajo",
     workFilters: {
       all: "Todas",
+      pending: "Pendientes",
       needsAttention: "Requiere atención",
       waiting: "En espera",
       done: "Resueltas",
@@ -35,6 +36,14 @@ export const inbox: InboxMessages = {
     allChannels: "Todos los canales",
     channelComingSoon: "Próximamente",
     allStatuses: "Todos los estados",
+    dateLabel: "Fecha",
+    dateFilterAria: "Filtrar mensajes por fecha",
+    dates: {
+      all: "Cualquier fecha",
+      today: "Hoy",
+      last7Days: "Últimos 7 días",
+      last30Days: "Últimos 30 días",
+    },
     moreFilters: "Más filtros",
     filtersOnBadge: "activos",
     priorityLabel: "Prioridad",
@@ -98,6 +107,11 @@ export const inbox: InboxMessages = {
       earlierRequests: "Solicitudes anteriores",
       openMessage: (text) => `Abrir mensaje: ${text}`,
       noEarlierRequests: "No hay solicitudes anteriores en este hilo.",
+      attachmentPreview: "Vista previa",
+      attachmentDownload: "Descargar",
+      attachmentOpen: (name) => `Abrir vista previa de ${name}`,
+      attachmentPreviewUnavailable: "Este tipo de archivo no tiene vista previa aquí.",
+      moreAttachments: (count) => `+${count} archivo${count === 1 ? "" : "s"}`,
     },
     meta: {
       pendingDecisions: (count) =>
@@ -464,6 +478,7 @@ export const inbox: InboxMessages = {
     },
     unknownContact: "Contacto desconocido",
     contact: {
+      label: "Quién",
       details: "Detalles",
       showDetails: "Mostrar detalles",
       hideDetails: "Ocultar detalles",
@@ -508,7 +523,7 @@ export const inbox: InboxMessages = {
       actionsOpen: (count) => (count === 1 ? "1 acción abierta" : `${count} acciones abiertas`),
     },
     request: {
-      label: "Solicitud",
+      label: "Qué quiere",
       notSummarised: "Fanny aún no ha resumido este mensaje.",
       hasAttachments: "Con adjuntos",
       hasLink: "Con enlace",
@@ -532,7 +547,7 @@ export const inbox: InboxMessages = {
       urgent: "Urgente. Responde hoy con un siguiente paso concreto.",
     },
     recommends: {
-      label: "Fanny recomienda",
+      label: "Acción ahora",
       editPlaceholder: "Edita la recomendación...",
       fallbackAskMissing: "Pide los datos que faltan antes de preparar tu respuesta.",
       fallbackReview: "Revísalo antes de responder y envía un siguiente paso claro.",

@@ -18,6 +18,7 @@ export const inbox: InboxMessages = {
     workFilterAria: "Work filter",
     workFilters: {
       all: "All",
+      pending: "Pending",
       needsAttention: "Needs attention",
       waiting: "Waiting",
       done: "Done",
@@ -35,6 +36,14 @@ export const inbox: InboxMessages = {
     allChannels: "All channels",
     channelComingSoon: "Coming soon",
     allStatuses: "All statuses",
+    dateLabel: "Date",
+    dateFilterAria: "Filter messages by date",
+    dates: {
+      all: "Any date",
+      today: "Today",
+      last7Days: "Last 7 days",
+      last30Days: "Last 30 days",
+    },
     moreFilters: "More filters",
     filtersOnBadge: "on",
     priorityLabel: "Priority",
@@ -98,6 +107,11 @@ export const inbox: InboxMessages = {
       earlierRequests: "Earlier requests",
       openMessage: (text) => `Open message: ${text}`,
       noEarlierRequests: "No earlier requests in this thread.",
+      attachmentPreview: "Preview",
+      attachmentDownload: "Download",
+      attachmentOpen: (name) => `Open preview of ${name}`,
+      attachmentPreviewUnavailable: "This file type cannot be previewed here.",
+      moreAttachments: (count) => `+${count} file${count === 1 ? "" : "s"}`,
     },
     meta: {
       pendingDecisions: (count) =>
@@ -458,6 +472,7 @@ export const inbox: InboxMessages = {
     },
     unknownContact: "Unknown contact",
     contact: {
+      label: "Who",
       details: "Details",
       showDetails: "Show details",
       hideDetails: "Hide details",
@@ -501,7 +516,7 @@ export const inbox: InboxMessages = {
       actionsOpen: (count) => (count === 1 ? "1 action open" : `${count} actions open`),
     },
     request: {
-      label: "Request",
+      label: "What they want",
       notSummarised: "Fanny hasn't summarised this message yet.",
       hasAttachments: "Has attachments",
       hasLink: "Has link",
@@ -525,7 +540,7 @@ export const inbox: InboxMessages = {
       urgent: "Urgent. Reply with a concrete next step today.",
     },
     recommends: {
-      label: "Fanny recommends",
+      label: "Action now",
       editPlaceholder: "Edit recommendation...",
       fallbackAskMissing: "Ask for the missing details before preparing your reply.",
       fallbackReview: "Review before replying and send a clear next step.",

@@ -8,7 +8,7 @@ import {
   Users, ChevronDown, ChevronUp, ChevronRight, Loader2,
   Phone, Building2, CornerUpLeft,
   User, FolderKanban,
-  Paperclip, AlertTriangle, Link2, Sparkles,
+  Paperclip, AlertTriangle, Link2,
   MessageCircle, CalendarPlus, X,
   Target,
 } from "lucide-react"
@@ -419,20 +419,6 @@ export function ContextPanel({
     triageDraftsOpen > 0
     || triageActionsOpen > 0
 
-  const headerSection = (
-    <div className="flex items-center gap-3 pb-3 border-b border-[var(--inbox-intelligence-border)]">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--inbox-intelligence-accent)] to-[var(--inbox-intelligence-accent)]/80 shadow-sm">
-        <Users className="h-4.5 w-4.5 text-white" strokeWidth={1.75} />
-      </div>
-      <div className="min-w-0">
-        <h2 className="text-base font-bold tracking-tight text-[var(--inbox-intelligence-text)]">{m.header.title}</h2>
-        <p className="text-xs text-[var(--inbox-intelligence-text-secondary)]">
-          {isMessageMode ? m.header.messageInsight : m.header.conversationOverview}
-        </p>
-      </div>
-    </div>
-  )
-
   /**
    * Handling strip — a compact, READ-ONLY row of responsibility/status chips, derived only
    * from real persisted data. It never writes and never invents states; in particular it
@@ -627,6 +613,9 @@ export function ContextPanel({
   const clientProfileState = getClientProfileState(selected)
   const contactSection = (
     <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
+      <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
+        {m.contact.label}
+      </p>
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--inbox-accent-soft)] text-[var(--inbox-accent)]">
           <span className="text-sm font-bold">{contactName.charAt(0).toUpperCase()}</span>
@@ -801,6 +790,9 @@ export function ContextPanel({
           ) : null}
         </div>
       )}
+      <div className="mt-3 border-t border-[var(--inbox-intelligence-border)] pt-2.5">
+        {handlingSection}
+      </div>
     </section>
   )
   const messageNeedSection = (
@@ -952,30 +944,6 @@ export function ContextPanel({
       ? m.recommends.fallbackAskMissing
       : m.recommends.fallbackReview
     : m.recommends.fallbackPreparing
-  const recommendsSection = (
-    <section className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4">
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          {m.recommends.label}
-        </p>
-      </div>
-      {recommendationText ? (
-        <InlineTextarea
-          value={recommendationText}
-          placeholder={m.recommends.editPlaceholder}
-          className="mt-2 rounded-lg bg-transparent text-sm font-medium leading-relaxed text-[var(--inbox-intelligence-text)]"
-          rows={2}
-          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
-        />
-      ) : (
-        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
-          {recommendationFallback}
-        </p>
-      )}
-    </section>
-  )
-
   /**
    * Suggested actions block — only contextual approvals tied to a specific AI
    * suggestion remain:
@@ -1023,245 +991,263 @@ export function ContextPanel({
    *     "Continue" label (approval already happened; we're finishing the work).
    * Hidden entirely when there is nothing actionable — we never fake actions.
    */
-  const hasAnyActionCard =
-    showSuggestedDraftCta || showAddToCalendarCta || orderedSuggestedActions.length > 0
-  const actionsSection = hasAnyActionCard ? (
-    <section aria-label={m.actions.label} className="space-y-1.5">
-      <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-        {m.actions.label}
-      </p>
-      {showSuggestedDraftCta ? (
-        <WorkActionCard
-          title={m.actions.reviewDraft}
-          description={m.actions.reviewDraftDescription}
-          ctaLabel={m.actions.reviewDraft}
-          icon={Sparkles}
-          onAction={onUseSuggestedDraft}
-        />
-      ) : null}
-      {showAddToCalendarCta ? (
-        <WorkActionCard
-          title={m.actions.addToCalendar}
-          description={
-            selectedMessageInfo?.eventHint?.title
-              ? m.actions.eventDetected(selectedMessageInfo.eventHint.title)
-              : m.actions.eventDetectedGeneric
-          }
-          ctaLabel={m.actions.addToCalendar}
-          icon={CalendarPlus}
-          onAction={() => setCalendarPreviewOpen(true)}
-        />
-      ) : null}
-      {orderedSuggestedActions.slice(0, 4).map((action) => {
-        const title = typeof action.data?.title === "string" && action.data.title.trim()
-          ? action.data.title
-          : actionTypeLabel(action.type, locale)
-        const isPending = pendingActionId === action.id
-        const isMessageScoped = Boolean(
-          isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId,
-        )
-        return (
-          <WorkActionCard
-            key={action.id}
-            title={title}
-            description={getActionDescription(action, m)}
-            ctaLabel={getBusinessActionLabel(action, m, locale)}
-            badge={isMessageScoped ? m.actions.forThisMessage : null}
-            pending={isPending}
-            onAction={() =>
-              handleSuggestedAction(
-                action,
-                action.status === "approved" ? "execute" : "approve_and_execute",
-              )
-            }
-          />
-        )
-      })}
-      {actionState ? (
-        <p className="px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">{actionState}</p>
-      ) : null}
-    </section>
-  ) : null
-
-  /**
-   * PR 9 — Fanny suggested tasks (proposed `WorkspaceTask` rows backed by a
-   * `create_task` ConversationAction). Hidden when empty (no noise on
-   * conversations the AI didn't propose tasks for).
-   *
-   * Each card surfaces title, description, priority, and an optional
-   * confidence pill (when the Fanny pipeline persisted a numeric
-   * `metadata.confidence` between 0 and 1). The approve / dismiss CTAs
-   * reuse the existing ConversationAction flow via `handleSuggestedAction`:
-   *   - Approve → operation `approve_and_execute`. PR 7's
-   *     `convertConversationToRecords` promotes the linked proposed
-   *     WorkspaceTask to `"open"` instead of duplicating it.
-   *   - Dismiss → operation `dismiss`. PR 7's `dismissConversationAction`
-   *     cascades to mark the linked proposed WorkspaceTask `"dismissed"`.
-   *
-   * Defensive fallbacks:
-   *   - If a proposed task arrives without `conversationActionId`, or the
-   *     linked action can't be found in `selected.actions` (already
-   *     promoted / dismissed by another tab), the card renders read-only
-   *     with disabled buttons. The operator can refresh to re-sync.
-   */
   const proposedFannyTasks = (selected.proposedTasks ?? []).filter(
     (task): task is ProposedFannyTaskItem => Boolean(task && task.id && task.title),
   )
+
+  type ActionNowCandidate = {
+    key: string
+    title: string
+    description?: string | null
+    ctaLabel: string
+    onAction: () => void
+    pending?: boolean
+    badge?: string | null
+    icon?: React.ElementType
+  }
+
   /**
-   * PR 11 — section renamed from "Fanny suggested tasks" to
-   * "Pending decisions". Rationale: the panel's IA puts decisions
-   * (approve / dismiss) above execution (Smart actions, Today). The
-   * section currently only renders proposed `WorkspaceTask` rows that
-   * are awaiting human decision, so "Pending decisions" is precise.
-   * The caption keeps Fanny's branding context without making the
-   * title compete with `Today`'s execution language.
+   * Action Now ranking.
+   *
+   * One primary recommendation is visible as a full card. At most two other
+   * executable choices stay visible as quiet secondary buttons. This keeps
+   * every existing executor but removes the old "four equal cards" problem.
+   *
+   * Priority:
+   *   1. action anchored to the selected message;
+   *   2. detected calendar action for that message;
+   *   3. suggested reply draft;
+   *   4. remaining conversation-level action.
+   *
+   * create_event is de-duplicated when the structured calendar CTA is already
+   * present — both routes point at the same underlying intent.
    */
-  const pendingDecisionsSection = proposedFannyTasks.length > 0 ? (
+  const actionNowCandidates = useMemo<ActionNowCandidate[]>(() => {
+    const candidates: ActionNowCandidate[] = []
+    const messageScoped = orderedSuggestedActions.filter(
+      (action) =>
+        Boolean(isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId)
+        && !(showAddToCalendarCta && action.type === "create_event"),
+    )
+    const conversationScoped = orderedSuggestedActions.filter(
+      (action) =>
+        !messageScoped.some((scoped) => scoped.id === action.id)
+        && !(showAddToCalendarCta && action.type === "create_event"),
+    )
+
+    const pushAction = (action: ActionItem) => {
+      const title =
+        typeof action.data?.title === "string" && action.data.title.trim()
+          ? action.data.title
+          : actionTypeLabel(action.type, locale)
+      candidates.push({
+        key: `action:${action.id}`,
+        title,
+        description: getActionDescription(action, m),
+        ctaLabel: getBusinessActionLabel(action, m, locale),
+        badge:
+          isMessageMode && selectedMessageId && action.sourceMessageId === selectedMessageId
+            ? m.actions.forThisMessage
+            : null,
+        pending: pendingActionId === action.id,
+        onAction: () =>
+          void handleSuggestedAction(
+            action,
+            action.status === "approved" ? "execute" : "approve_and_execute",
+          ),
+      })
+    }
+
+    for (const action of messageScoped) pushAction(action)
+
+    if (showAddToCalendarCta) {
+      candidates.push({
+        key: "calendar",
+        title: m.actions.addToCalendar,
+        description: selectedMessageInfo?.eventHint?.title
+          ? m.actions.eventDetected(selectedMessageInfo.eventHint.title)
+          : m.actions.eventDetectedGeneric,
+        ctaLabel: m.actions.addToCalendar,
+        icon: CalendarPlus,
+        onAction: () => setCalendarPreviewOpen(true),
+      })
+    }
+
+    if (showSuggestedDraftCta && onUseSuggestedDraft) {
+      candidates.push({
+        key: "draft",
+        title: m.actions.reviewDraft,
+        description: m.actions.reviewDraftDescription,
+        ctaLabel: m.actions.reviewDraft,
+        onAction: onUseSuggestedDraft,
+      })
+    }
+
+    for (const task of proposedFannyTasks) {
+      const linkedAction = task.conversationActionId
+        ? (selected.actions ?? []).find(
+            (action) =>
+              action.id === task.conversationActionId &&
+              action.type === "create_task" &&
+              (action.status === "suggested" || action.status === "approved"),
+          )
+        : null
+      if (!linkedAction) continue
+
+      candidates.push({
+        key: `task:${task.id}`,
+        title: task.title,
+        description: task.description,
+        ctaLabel:
+          linkedAction.status === "approved"
+            ? m.pendingDecisions.continue
+            : m.pendingDecisions.createTask,
+        badge: m.pendingDecisions.label,
+        icon: Target,
+        pending: pendingActionId === linkedAction.id,
+        onAction: () => void handleSuggestedAction(linkedAction, "approve_and_execute"),
+      })
+
+      candidates.push({
+        key: `task-dismiss:${task.id}`,
+        title: task.title,
+        ctaLabel: m.pendingDecisions.dismiss,
+        pending: pendingActionId === linkedAction.id,
+        onAction: () => void handleSuggestedAction(linkedAction, "dismiss"),
+      })
+    }
+
+    for (const action of conversationScoped) pushAction(action)
+    return candidates
+  }, [
+    orderedSuggestedActions,
+    isMessageMode,
+    selectedMessageId,
+    showAddToCalendarCta,
+    showSuggestedDraftCta,
+    onUseSuggestedDraft,
+    locale,
+    m,
+    pendingActionId,
+    handleSuggestedAction,
+    selectedMessageInfo?.eventHint?.title,
+    proposedFannyTasks,
+  ])
+
+  const primaryActionNow = actionNowCandidates[0] ?? null
+  const secondaryActionsNow = actionNowCandidates.slice(1, 3)
+  const overflowActionsNow = actionNowCandidates.slice(3)
+
+  const actionNowRecommendation =
+    recommendationText
+    && !similarText(recommendationText, primaryActionNow?.title)
+    && !similarText(recommendationText, primaryActionNow?.description)
+      ? recommendationText
+      : null
+
+  /**
+   * Finesse Action Now: one decision zone, not separate "recommendation" and
+   * "actions" cards. The operator first sees the best real executable action;
+   * advice is supporting context, secondary actions stay quiet, and overflow
+   * is hidden behind ···. If no executor exists yet we show the honest
+   * recommendation/preparing state without fabricating a button.
+   */
+  const actionNowSection = (
     <section
-      className="rounded-xl border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-surface)] p-4"
-      aria-label={m.pendingDecisions.label}
+      aria-label={m.recommends.label}
+      className="rounded-xl border border-[var(--inbox-accent)]/25 bg-[var(--inbox-accent)]/[0.06] p-3.5"
     >
       <div className="flex items-center gap-1.5">
-        <Sparkles className="h-3 w-3 text-[var(--inbox-accent)]" aria-hidden="true" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--inbox-intelligence-text-secondary)]">
-          {m.pendingDecisions.label}
+        <Target className="h-3.5 w-3.5 text-[var(--inbox-accent)]" aria-hidden="true" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--inbox-accent)]">
+          {m.recommends.label}
         </p>
       </div>
-      <p className="mt-1 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]/85">
-        {m.pendingDecisions.caption}
-      </p>
-      <ul className="mt-2 space-y-2">
-        {proposedFannyTasks.map((task) => {
-          /**
-           * Resolve the linked ConversationAction so approve/dismiss can
-           * route through the existing flow.
-           *
-           * Hardening (PR 9 follow-up):
-           *   1. Must be the same id as the task's `conversationActionId`.
-           *   2. Must be `type === "create_task"`. PR 7 only ever creates
-           *      proposed `WorkspaceTask` rows for `create_task` actions,
-           *      so any other type linked here is data-corruption / an
-           *      unexpected upstream change. Routing approve+execute to
-           *      the wrong type would either no-op (e.g. assign_operator
-           *      requires `assignedTo`) or fire a different side-effect.
-           *      We refuse to act on it.
-           *   3. Status must be `"suggested"` or `"approved"` — anything
-           *      else means the action has already been executed or
-           *      dismissed (likely from another tab) and the panel is
-           *      momentarily stale. The "View only" pill signals this
-           *      until the next detail refetch flushes the row.
-           */
-          const linkedAction = task.conversationActionId
-            ? (selected.actions ?? []).find(
-                (a) =>
-                  a.id === task.conversationActionId &&
-                  a.type === "create_task" &&
-                  (a.status === "suggested" || a.status === "approved"),
-              )
-            : null
-          const canAct = Boolean(linkedAction)
-          const isPending = canAct && linkedAction?.id === pendingActionId
-          const confidencePct = readConfidencePct(task.metadata)
-          const priorityLabel = m.pendingDecisions.priorities[task.priority]
-          /**
-           * Primary CTA label tracks the linked action's lifecycle so the
-           * operator always sees the next concrete step:
-           *   - suggested → "Create task" (approve + execute will run).
-           *   - approved  → "Continue" (approve already happened, e.g. a
-           *     prior execute failed and we're finishing the run).
-           * Both routes call `approve_and_execute`; `approveConversationAction`
-           * is idempotent on `approved` so the re-approve is a no-op write
-           * and the execute is what does the real work.
-           */
-          const primaryCtaLabel =
-            linkedAction?.status === "approved"
-              ? m.pendingDecisions.continue
-              : m.pendingDecisions.createTask
-          return (
-            <li
-              key={task.id}
-              className="rounded-md border border-[var(--inbox-intelligence-border)] bg-white/4 px-3 py-2"
+
+      {actionNowRecommendation ? (
+        <InlineTextarea
+          value={actionNowRecommendation}
+          placeholder={m.recommends.editPlaceholder}
+          className="mt-2 rounded-lg bg-transparent text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]"
+          rows={2}
+          onSave={(value) => updateHandoff({ nextRecommendedAction: value })}
+        />
+      ) : !primaryActionNow ? (
+        <p className="mt-2 text-xs leading-relaxed text-[var(--inbox-intelligence-text-secondary)]">
+          {recommendationFallback}
+        </p>
+      ) : null}
+
+      {primaryActionNow ? (
+        <div className="mt-2.5">
+          <WorkActionCard
+            title={primaryActionNow.title}
+            description={primaryActionNow.description}
+            ctaLabel={primaryActionNow.ctaLabel}
+            icon={primaryActionNow.icon}
+            badge={primaryActionNow.badge}
+            pending={primaryActionNow.pending}
+            onAction={primaryActionNow.onAction}
+          />
+        </div>
+      ) : null}
+
+      {secondaryActionsNow.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5 px-0.5">
+          {secondaryActionsNow.map((action) => (
+            <Button
+              key={action.key}
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={action.pending}
+              onClick={action.onAction}
+              className={cn("h-7 rounded-md px-2.5 text-[10px]", INBOX_GHOST_BUTTON)}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-[var(--inbox-intelligence-text)]">
-                    {task.title}
-                  </p>
-                  {task.description ? (
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--inbox-intelligence-text-secondary)]">
-                      {task.description}
-                    </p>
-                  ) : null}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--inbox-intelligence-border)] bg-white/6 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-intelligence-text-secondary)]">
-                      <Target className="h-2.5 w-2.5" aria-hidden="true" />
-                      {priorityLabel}
-                    </span>
-                    {confidencePct !== null ? (
-                      <span
-                        className="inline-flex shrink-0 items-center rounded-full border border-[var(--inbox-accent)]/30 bg-[var(--inbox-accent)]/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--inbox-accent)]"
-                        title={m.pendingDecisions.confidenceTitle}
-                      >
-                        {m.pendingDecisions.confidencePct(confidencePct)}
-                      </span>
+              {action.pending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" /> : null}
+              {action.ctaLabel}
+            </Button>
+          ))}
+          {overflowActionsNow.length > 0 ? (
+            <details className="relative">
+              <summary
+                className={cn(
+                  "flex h-7 cursor-pointer list-none items-center rounded-md px-2.5 text-[12px] font-semibold",
+                  INBOX_GHOST_BUTTON,
+                )}
+                aria-label={m.actions.label}
+                title={m.actions.label}
+              >
+                ···
+              </summary>
+              <div className="absolute right-0 z-20 mt-1 min-w-44 space-y-1 rounded-lg border border-[var(--inbox-intelligence-border)] bg-[var(--inbox-intelligence-background)] p-1.5 shadow-xl">
+                {overflowActionsNow.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    disabled={action.pending}
+                    onClick={action.onAction}
+                    className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[10px] font-medium text-[var(--inbox-intelligence-text)] hover:bg-white/8 disabled:opacity-50"
+                  >
+                    {action.pending ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" aria-hidden="true" />
                     ) : null}
-                    {!canAct ? (
-                      <span
-                        className="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-400/90"
-                        title={m.pendingDecisions.viewOnlyTitle}
-                      >
-                        {m.pendingDecisions.viewOnly}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
+                    {action.ctaLabel}
+                  </button>
+                ))}
               </div>
-              <div className="mt-2 flex flex-wrap justify-end gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canAct || isPending}
-                  onClick={() => {
-                    if (!linkedAction) return
-                    handleSuggestedAction(linkedAction, "dismiss")
-                  }}
-                  className={cn(
-                    "h-6 rounded-md px-2 text-[10px]",
-                    INBOX_GHOST_BUTTON,
-                  )}
-                  aria-label={m.pendingDecisions.dismissAria(task.title)}
-                >
-                  {m.pendingDecisions.dismiss}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canAct || isPending}
-                  onClick={() => {
-                    if (!linkedAction) return
-                    handleSuggestedAction(linkedAction, "approve_and_execute")
-                  }}
-                  className={cn(
-                    "h-6 rounded-md px-2 text-[10px]",
-                    INBOX_GHOST_BUTTON,
-                  )}
-                  aria-label={m.pendingDecisions.primaryAria(primaryCtaLabel, task.title)}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                  ) : (
-                    primaryCtaLabel
-                  )}
-                </Button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
+
+      {actionState ? (
+        <p className="mt-1.5 px-0.5 text-[10px] text-[var(--inbox-intelligence-text-secondary)]">
+          {actionState}
+        </p>
+      ) : null}
     </section>
-  ) : null
+  )
 
   /**
    * Pending items — "what's missing to act?". Hidden when empty so we never
@@ -1362,34 +1348,23 @@ export function ContextPanel({
     <div className="space-y-3 bg-[var(--inbox-intelligence-background)] p-4">
       {/*
         ── Section ordering ──
-        Three zones, top-down, matching how an operator reads a request:
-          ZONE 1 — Who & how: who wrote + their data + handling + tone/mood.
-            1. Client/contact card    (sender name, data; expanded = ALL client context)
-            2. Handling strip         (read-only assignment / status chips)
-            3. Needs attention        (tone/mood strip + missing info / risks)
-          ZONE 2 — What the message says:
-            4. Request                (the message objective)
-          ZONE 3 — Actions:
-            5. Fanny recommends       (advised next step — bridges into the decisions)
-            6. Pending decisions      (approve / dismiss proposed WorkspaceTasks)
-            7. Actions                (review draft, add to calendar, action cards)
-          Then: Ask Fanny, Workflow.
-        Header chrome (the "Fanny" title) stays on top. Each atom keeps its own data
-        gating, so empty cards never render and we never fabricate content. Client
-        context lives ONLY inside the expanded top card — no duplicate block lower.
+        Finesse hierarchy, top-down:
+          1. QUIÉN        — contact/client identity, details + handling state.
+          2. QUÉ QUIERE   — current selected intent/message objective.
+          3. ACCIÓN AHORA — one primary executable action, max two quiet alternatives.
+          4. Context only when useful: attention, pending decisions, Ask Fanny, workflow.
+        There is deliberately no separate AI header/recommendation/actions stack: the
+        right panel is a work surface, not an analytics dashboard. Empty blocks still
+        disappear and no capability is fabricated.
 
         Trashed selected message ⇒ page nullifies effectiveSelectedMessageId, so the panel
         receives `selectedMessageInfo: null` and message-specific affordances fall back to
         conversation-level data automatically. No extra logic needed here.
       */}
-      {headerSection}
       {contactSection}
-      {handlingSection}
-      {needsAttentionSection}
       {messageNeedSection}
-      {recommendsSection}
-      {pendingDecisionsSection}
-      {actionsSection}
+      {actionNowSection}
+      {needsAttentionSection}
       {askFannySection}
       {workflowSection}
 
@@ -1836,24 +1811,6 @@ function safeStringList(value: unknown): string[] {
     }
   }
   return out
-}
-
-/**
- * PR 9 — derive a UI-displayable confidence percentage from a parsed
- * `WorkspaceTask.metadata` blob. Tolerates the values Fanny historically
- * persists:
- *   - 0..1 (canonical) — multiplied by 100 and rounded.
- *   - 0..100 (already a percentage) — passed through and rounded.
- * Returns `null` for anything unrecognisable so the UI can hide the chip
- * rather than render misleading numbers.
- */
-function readConfidencePct(metadata: Record<string, unknown> | null | undefined): number | null {
-  if (!metadata) return null
-  const raw = metadata.confidence
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return null
-  if (raw <= 1 && raw >= 0) return Math.round(raw * 100)
-  if (raw > 1 && raw <= 100) return Math.round(raw)
-  return null
 }
 
 function mapUrgency(urgency: string | null | undefined, m: PanelMessages) {

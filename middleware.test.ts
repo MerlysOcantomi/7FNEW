@@ -52,8 +52,8 @@ test("sevenef.com and www.sevenef.com serve the app (redirect to /login when una
   }
 })
 
-test("getfinesse.app and www.getfinesse.app rewrite the public root to /finesse", async () => {
-  for (const host of ["getfinesse.app", "www.getfinesse.app"]) {
+test("Finesse apex, www and stable preview hosts rewrite the public root to /finesse", async () => {
+  for (const host of ["getfinesse.app", "www.getfinesse.app", "preview.getfinesse.app"]) {
     const res = await middleware(req(host, "/"))
     const target = rewriteTarget(res)
     assert.ok(target.includes("/finesse"), `${host} should rewrite to /finesse, got: ${target}`)
@@ -76,7 +76,7 @@ test("a valid customer subdomain under getfinesse.app rewrites to the matching P
 })
 
 test("reserved Finesse subdomains never become customer Presence slugs", async () => {
-  for (const host of ["app.getfinesse.app", "api.getfinesse.app", "admin.getfinesse.app", "support.getfinesse.app"]) {
+  for (const host of ["app.getfinesse.app", "preview.getfinesse.app", "api.getfinesse.app", "admin.getfinesse.app", "support.getfinesse.app"]) {
     const res = await middleware(req(host, "/"))
     assert.equal(rewritesToPresence(res), false, `${host} must remain reserved`)
   }

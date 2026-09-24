@@ -21,6 +21,7 @@ const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
  * Managed Finesse host namespace.
  *
  * - getfinesse.app / www.getfinesse.app -> public Finesse landing
+ * - preview.getfinesse.app -> stable Finesse preview host
  * - <slug>.getfinesse.app -> SevenF Presence site for that exact slug
  * - reserved labels (app/api/admin/...) never become customer Presence slugs
  *
@@ -31,6 +32,7 @@ const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 const FINESSE_DOMAIN = "getfinesse.app"
 const FINESSE_RESERVED_SUBDOMAINS = new Set([
   "www",
+  "preview",
   "app",
   "api",
   "admin",
@@ -70,7 +72,11 @@ function routeManagedFinesseHost(request: NextRequest, pathname: string): NextRe
 
   const hostname = requestHostname(request)
 
-  if (hostname === FINESSE_DOMAIN || hostname === `www.${FINESSE_DOMAIN}`) {
+  if (
+    hostname === FINESSE_DOMAIN ||
+    hostname === `www.${FINESSE_DOMAIN}` ||
+    hostname === `preview.${FINESSE_DOMAIN}`
+  ) {
     const target = request.nextUrl.clone()
     target.pathname = "/finesse"
     return NextResponse.rewrite(target)
