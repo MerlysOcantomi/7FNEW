@@ -81,8 +81,10 @@ export interface NavMessages {
   closeNavigation: string
   navigationTitle: string
   backToWorkspace: string
-  /** Structural label for the vertical overview item ("My salon" / "Mi salón"). */
+  /** Structural label for the Beauty overview item ("My salon" / "Mi salón"). */
   mySalon: string
+  /** Structural label for a generic vertical business overview. */
+  myBusiness: string
   /** Neutral, function-describing helper subtitles for vertical nav items. */
   helpers: {
     marketing: string
