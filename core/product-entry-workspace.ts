@@ -52,9 +52,22 @@ export async function ensureUserHasProductWorkspace(
     },
   })
 
-  const existing = memberships.find(
-    (membership) => membership.workspace.verticalKey === product.verticalKey,
-  )
+  const existing = memberships.find((membership) => {
+    if (membership.workspace.verticalKey !== product.verticalKey) return false
+    let experienceKey: string | null = null
+    try {
+      const parsed = membership.workspace.config
+        ? (JSON.parse(membership.workspace.config) as { experience?: { key?: unknown } })
+        : null
+      experienceKey =
+        typeof parsed?.experience?.key === "string" ? parsed.experience.key : null
+    } catch {
+      experienceKey = null
+    }
+
+    if (experienceKey === product.experienceKey) return true
+    return product.legacyVerticalOnlyMatch === true && experienceKey === null
+  })
   if (existing) {
     return {
       workspaceId: existing.workspaceId,
