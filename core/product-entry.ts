@@ -1,10 +1,17 @@
-export type EntryProductKey = "finesse"
+export type EntryProductKey = "finesse" | "bonabasto"
 
 export interface EntryProductDefinition {
   key: EntryProductKey
   visibleName: string
-  managedDomain: string
+  /** Optional production/managed product domain; subdomains resolve to the product. */
+  managedDomain?: string
+  /** Exact additional hosts, used for canonical previews before production-domain decisions. */
+  additionalHosts?: readonly string[]
   verticalKey: string
+  /** Commercial experience inside a technical vertical family. */
+  experienceKey: string
+  /** Legacy products may match old workspaces that predate experienceKey persistence. */
+  legacyVerticalOnlyMatch?: boolean
   selfServe: boolean
   defaultUserRole: "admin" | "editor" | "viewer"
   onboardingPath: string
@@ -20,11 +27,25 @@ const ENTRY_PRODUCTS: readonly EntryProductDefinition[] = [
     visibleName: "Finesse",
     managedDomain: "getfinesse.app",
     verticalKey: "beauty",
+    experienceKey: "finesse",
+    legacyVerticalOnlyMatch: true,
     selfServe: true,
     defaultUserRole: "admin",
     onboardingPath: "/onboarding/finesse",
     homePath: "/today",
     themeKey: "petrol-pearl",
+  },
+  {
+    key: "bonabasto",
+    visibleName: "Bonabasto",
+    additionalHosts: ["preview-bonabasto.sevenef.com"],
+    verticalKey: "food-hospitality",
+    experienceKey: "bonabasto",
+    selfServe: false,
+    defaultUserRole: "admin",
+    onboardingPath: "/onboarding/bonabasto",
+    homePath: "/today",
+    themeKey: "midnight",
   },
 ]
 
@@ -45,10 +66,14 @@ export function resolveEntryProductFromHost(host: string | null | undefined): En
   if (!hostname) return null
 
   return (
-    ENTRY_PRODUCTS.find(
-      (product) =>
-        hostname === product.managedDomain || hostname.endsWith(`.${product.managedDomain}`),
-    ) ?? null
+    ENTRY_PRODUCTS.find((product) => {
+      const managedDomain = product.managedDomain
+      const managedMatch =
+        !!managedDomain &&
+        (hostname === managedDomain || hostname.endsWith(`.${managedDomain}`))
+      const exactHostMatch = product.additionalHosts?.includes(hostname) ?? false
+      return managedMatch || exactHostMatch
+    }) ?? null
   )
 }
 
@@ -67,6 +92,9 @@ export function buildInitialEntryWorkspaceConfig(
   entrySource: EntryOnboardingState["entrySource"] = "direct",
 ): string {
   return JSON.stringify({
+    experience: {
+      key: product.experienceKey,
+    },
     onboarding: {
       product: product.key,
       status: "not_started",
