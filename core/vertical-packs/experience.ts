@@ -27,6 +27,7 @@ import { mapVerticalKeyToBusinessType } from "@core/personalization"
 import { resolveNavProfile } from "./nav-profile"
 import { resolveVerticalSpecialist, type VerticalSpecialistAgent } from "./specialists"
 import { BEAUTY_PACK } from "./beauty"
+import { FOOD_HOSPITALITY_PACK } from "./food-hospitality"
 
 /**
  * Whether the vertical has a real, fully-built experience pack or only falls
@@ -40,6 +41,8 @@ export interface WorkspaceExperience {
   experienceState: ExperienceState
   businessType: string
   verticalKey: string
+  /** Commercial experience resolved inside the technical vertical family. */
+  experienceKey: string | null
   verticalName: string | null
   specialistAgentId: string | null
   specialistAgent: VerticalSpecialistAgent | null
@@ -118,6 +121,7 @@ export function resolveWorkspaceExperience(
       experienceState: "complete",
       businessType,
       verticalKey: key,
+      experienceKey: "finesse",
       verticalName: BEAUTY_PACK.verticalName,
       specialistAgentId: specialist?.id ?? null,
       specialistAgent: specialist,
@@ -136,12 +140,37 @@ export function resolveWorkspaceExperience(
     }
   }
 
+  if (businessType === "food-hospitality") {
+    return {
+      experienceState: "complete",
+      businessType,
+      verticalKey: key,
+      experienceKey: FOOD_HOSPITALITY_PACK.defaultExperienceKey,
+      verticalName: FOOD_HOSPITALITY_PACK.verticalName,
+      specialistAgentId: null,
+      specialistAgent: null,
+      brandLine: FOOD_HOSPITALITY_PACK.brandLine,
+      defaultThemeKey: FOOD_HOSPITALITY_PACK.themes.default,
+      availableThemeKeys: FOOD_HOSPITALITY_PACK.themes.available,
+      todayMode: FOOD_HOSPITALITY_PACK.today.mode,
+      todayActivatesRealWorkspaces: FOOD_HOSPITALITY_PACK.today.activateRealForRealWorkspaces,
+      navProfileId: navProfile?.verticalKey ?? FOOD_HOSPITALITY_PACK.navProfileId,
+      recommendedChannels: FOOD_HOSPITALITY_PACK.channels,
+      recommendedModules: FOOD_HOSPITALITY_PACK.recommendedModules,
+      inboxToolbarVariant: "standard",
+      inboxChannels: FOOD_HOSPITALITY_PACK.inbox.channels,
+      inboxFilters: FOOD_HOSPITALITY_PACK.inbox.filters,
+      inboxFilterDefinitions: FOOD_HOSPITALITY_PACK.inbox.filterDefinitions,
+    }
+  }
+
   // Default / agency / unknown, and seeded-but-unbuilt verticals
   // (construction, clinic, law, florals) — all resolve to the default experience.
   return {
     experienceState: "default",
     businessType,
     verticalKey: key,
+    experienceKey: null,
     verticalName: null,
     specialistAgentId: null,
     specialistAgent: null,

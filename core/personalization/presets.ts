@@ -51,6 +51,8 @@ export const BUSINESS_PRESETS: Record<BusinessType, VocabularyOverrides> = {
     campaign:   { singular: "Initiative", plural: "Initiatives" },
   },
 
+  "food-hospitality": {},
+
   /**
    * Beauty — salons, nails, lashes, aesthetics, barbershops. BASE (English)
    * variant: neutral sector nouns that differ from the 7F defaults. Language

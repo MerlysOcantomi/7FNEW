@@ -30,7 +30,7 @@ export type VerticalNavGroup = "primary" | "more"
  * of the i18n `nav` namespace; kept as a local literal union so vertical
  * packs stay decoupled from the i18n type module.
  */
-export type VerticalNavStructuralKey = "today" | "mySalon"
+export type VerticalNavStructuralKey = "today" | "mySalon" | "myBusiness"
 
 /**
  * Helper-subtitle bindings. Values mirror keys of the i18n `nav.helpers`
@@ -183,8 +183,30 @@ export const BEAUTY_NAV_VERTICAL_KEYS: ReadonlySet<string> = new Set([
  * profile represents. Future verticals (construction, cleaning, agency) add an
  * entry here + a `*_NAV_VERTICAL_KEYS` set and a case in `resolveNavProfile`.
  */
+export const FOOD_HOSPITALITY_NAV_PROFILE: VerticalNavProfile = {
+  verticalKey: "food-hospitality",
+  locale: "en",
+  moreLabel: "More",
+  items: [
+    { id: "my-business", label: "My business", href: "/", group: "primary", navLabelKey: "myBusiness" },
+    { id: "today", label: "Today", href: "/today", group: "primary", navLabelKey: "today" },
+    { id: "mensajes", label: "Messages", href: "/inbox", group: "primary", entityKey: "inbox", entityForm: "singular" },
+    { id: "clientes", label: "Clients", href: "/clientes", group: "primary", entityKey: "client", entityForm: "plural" },
+    { id: "marketing", label: "Marketing", href: "/contenido", helperKey: "marketing", group: "more", entityKey: "marketing", entityForm: "singular" },
+    { id: "cobros", label: "Billing", href: "/facturacion", helperKey: "billing", group: "more", entityKey: "billing", entityForm: "plural" },
+    { id: "equipo", label: "Team", href: "/usuarios", group: "more", teamOnly: true, entityKey: "member", entityForm: "singular" },
+    { id: "forte", label: "Mr. Forte Lab", href: "/forte/improvements", helperKey: "forteLab", group: "more" },
+  ],
+  mobile: { primaryIds: ["my-business", "today", "mensajes"] },
+}
+
+export const FOOD_HOSPITALITY_NAV_VERTICAL_KEYS: ReadonlySet<string> = new Set([
+  "food-hospitality",
+])
+
 export const VERTICAL_NAV_PROFILES: Record<string, VerticalNavProfile> = {
   beauty: BEAUTY_NAV_PROFILE,
+  "food-hospitality": FOOD_HOSPITALITY_NAV_PROFILE,
 }
 
 /**
@@ -197,6 +219,7 @@ export function resolveNavProfile(
 ): VerticalNavProfile | null {
   if (!verticalKey) return null
   if (BEAUTY_NAV_VERTICAL_KEYS.has(verticalKey)) return BEAUTY_NAV_PROFILE
+  if (FOOD_HOSPITALITY_NAV_VERTICAL_KEYS.has(verticalKey)) return FOOD_HOSPITALITY_NAV_PROFILE
   return null
 }
 
