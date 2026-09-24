@@ -88,6 +88,12 @@ export type InboxFilterQueryRule =
   | { type: "channel"; values: InboxChannelId[] }
   | { type: "assignment"; value: "assigned" | "unassigned" | "mine" }
   | { type: "unanswered"; minAgeMinutes?: number }
+  /**
+   * Real Pending semantics: at least one open piece of work currently depends
+   * on the operator. This is deliberately independent from read/unread and
+   * from the coarse Conversation.status lifecycle.
+   */
+  | { type: "operator_action" }
   /** Depends on the AI/triage vocabulary — no server support yet (planned rules only). */
   | { type: "intent"; values: string[] }
   | { type: "category"; values: string[] }
@@ -149,7 +155,7 @@ export const CORE_INBOX_FILTERS: readonly InboxFilterDefinition[] = [
     group: "workflow",
     scope: "core",
     availability: "active",
-    queryRule: { type: "status", values: ["new", "assigned", "triaged", "lead_detected"] },
+    queryRule: { type: "operator_action" },
     // The sidebar attention badge already has its own endpoint.
     countStrategy: "dedicated",
     combinable: true,
@@ -358,6 +364,7 @@ export interface CompiledInboxFilterParams {
   channel?: InboxChannelId[]
   assignment?: "assigned" | "unassigned" | "mine"
   unanswered?: { minAgeMinutes?: number }
+  needsOperatorAction?: boolean
   intent?: string[]
   category?: string[]
 }
@@ -391,6 +398,7 @@ function mergeCompiled(
     )
     out.unanswered = minAges.length > 0 ? { minAgeMinutes: Math.max(...minAges) } : {}
   }
+  if (next.needsOperatorAction) out.needsOperatorAction = true
   return out
 }
 
@@ -426,6 +434,8 @@ export function compileInboxFilterRule(
             ? { minAgeMinutes: rule.minAgeMinutes }
             : {},
       }
+    case "operator_action":
+      return { needsOperatorAction: true }
     case "category":
       // Server supports a single exact category value today.
       return rule.values.length === 1 ? { category: [...rule.values] } : null
@@ -466,6 +476,7 @@ export function compiledFilterToSearchParams(
   // assignment toolbar control). "assigned" has no server param yet; callers
   // must not surface an assigned-rule filter as active until it does.
   if (compiled.category?.length === 1) out.category = compiled.category[0]
+  if (compiled.needsOperatorAction) out.needsOperatorAction = "1"
   if (compiled.unanswered) {
     out.unanswered = "1"
     if (compiled.unanswered.minAgeMinutes) {

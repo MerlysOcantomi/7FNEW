@@ -252,6 +252,9 @@ export interface BeautyPack {
    * channel registry.
    */
   inbox: {
+    /** Presentation stays declarative so the shared Inbox Core can expose a simpler
+     * conversation-first chrome for Finesse without branching on verticalKey. */
+    toolbarVariant: "simple" | "standard"
     channels: VerticalInboxChannelsDefaults
     /** Filter ordering/tiering for this vertical (references core/channel filter ids). */
     filters: VerticalInboxFiltersDefaults
@@ -286,7 +289,7 @@ export const BEAUTY_PACK: BeautyPack = {
     default: "petrol-pearl",
     available: ["petrol-pearl", "finesse-rose-cream-gold", "finesse-petrol-champagne"],
   },
-  channels: ["whatsapp", "instagram", "email"],
+  channels: ["whatsapp", "instagram", "messenger", "web_chat"],
   recommendedModules: ["calendar", "clients", "messages", "marketing", "catalog", "services"],
   today: {
     mode: "appointment_first",
@@ -298,119 +301,55 @@ export const BEAUTY_PACK: BeautyPack = {
   appointmentStateLabels: BEAUTY_APPOINTMENT_STATE_LABELS,
   specialistAgent: BEAUTY_SPECIALIST_AGENT,
   /**
-   * Beauty/Finesse channel priority: WhatsApp → Instagram → Messenger →
-   * TikTok → SMS → … → Email. Email stays ENABLED — it is secondary for the
-   * salon conversation flow today but will matter for distributors,
-   * purchasing, inventory, orders, invoices and admin communication. The
-   * utility surfaces (web chat, portal, manual capture) stay enabled between
-   * SMS and Email so nothing existing disappears; Email is deliberately last
-   * in the visual order.
-   *
-   * `defaultChannel` is a DECLARED preference for future compose flows; no
-   * consumer acts on it until a WhatsApp transport exists (capabilities in
-   * the registry gate any real behaviour).
+   * Finesse starts conversation-first: WhatsApp → Instagram → Messenger →
+   * web chat, with TikTok visible as a planned channel. Email/Gmail, SMS,
+   * portal and manual capture remain Core capabilities but are not part of
+   * the initial Finesse messaging experience; higher business plans can
+   * enable them later through entitlement/workspace configuration.
    */
   inbox: {
+    toolbarVariant: "simple",
     channels: {
-      enabled: [
-        "whatsapp",
-        "instagram",
-        "messenger",
-        "tiktok",
-        "sms",
-        "web_chat",
-        "portal",
-        "manual",
-        "email",
-      ],
-      order: [
-        "whatsapp",
-        "instagram",
-        "messenger",
-        "tiktok",
-        "sms",
-        "web_chat",
-        "portal",
-        "manual",
-        "email",
-      ],
+      enabled: ["whatsapp", "instagram", "messenger", "web_chat", "tiktok"],
+      order: ["whatsapp", "instagram", "messenger", "web_chat", "tiktok"],
       primary: ["whatsapp", "instagram"],
-      secondary: ["messenger", "tiktok", "sms", "web_chat", "portal", "manual", "email"],
+      secondary: ["messenger", "web_chat", "tiktok"],
       defaultChannel: "whatsapp",
     },
     /**
-     * Beauty filter priority: work state first, then the vertical's channel
-     * order (channel filters derive from the channel config above — planned
-     * channels surface as disabled "coming soon" chips, never as working
-     * filters), with Waiting/Done closing the row. Email's channel filter
-     * stays ENABLED. The remaining core filters stay available as secondary.
+     * Finesse keeps the primary work choice intentionally small:
+     * All + Pending. Channel is a separate dimension in the toolbar; Waiting,
+     * Resolved, Urgent and storage states live under More.
      */
     filters: {
       enabled: [
         "all",
         "needs_action",
-        "unanswered",
-        "urgent",
-        "channel:whatsapp",
-        "channel:instagram",
-        "channel:messenger",
-        "channel:tiktok",
-        "channel:sms",
-        "channel:email",
         "waiting",
         "done",
+        "unanswered",
+        "urgent",
         "unassigned",
-        "opportunities",
-        "closed",
         "archived",
         "trash",
       ],
       order: [
         "all",
         "needs_action",
-        "unanswered",
-        "urgent",
-        "channel:whatsapp",
-        "channel:instagram",
-        "channel:messenger",
-        "channel:tiktok",
-        "channel:sms",
-        "channel:email",
         "waiting",
         "done",
+        "unanswered",
+        "urgent",
         "unassigned",
-        "opportunities",
-        "closed",
         "archived",
         "trash",
       ],
-      primary: [
-        "all",
-        "needs_action",
-        "unanswered",
-        "urgent",
-        "channel:whatsapp",
-        "channel:instagram",
-        "channel:messenger",
-        "channel:tiktok",
-        "channel:sms",
-        "channel:email",
-        "waiting",
-        "done",
-      ],
-      secondary: ["unassigned", "opportunities", "closed", "archived", "trash"],
+      primary: ["all", "needs_action"],
+      secondary: ["waiting", "done", "unanswered", "urgent", "unassigned", "archived", "trash"],
       defaultFilter: "all",
     },
-    /**
-     * Future Beauty business filters — declared PLANNED on purpose: their
-     * rules reference triage-vocabulary intent tags that do not exist stably
-     * yet, so they are registered conceptually (and excluded from every
-     * ready list by the resolver) instead of shipping filters that would
-     * return misleading empty results. Activation is the triage-vocabulary
-     * mission's job: flip availability once the tags are produced reliably.
-     */
     filterDefinitions: BEAUTY_INBOX_FILTER_DEFINITIONS,
-  },
+  }
 }
 
 /**

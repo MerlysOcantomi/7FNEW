@@ -35,11 +35,20 @@ export async function GET(request: NextRequest) {
      * Unanswered filter (registry filter `unanswered`): flag + optional
      * minimum age. Semantics live in `modules/inbox/unanswered.ts`.
      */
+    const needsOperatorActionParam = searchParams.get("needsOperatorAction")
+    const needsOperatorAction =
+      needsOperatorActionParam === "1" || needsOperatorActionParam === "true"
     const unansweredParam = searchParams.get("unanswered")
     const unanswered = unansweredParam === "1" || unansweredParam === "true"
     const minAgeRaw = Number.parseInt(searchParams.get("unansweredMinAgeMinutes") ?? "", 10)
     const unansweredMinAgeMinutes =
       Number.isFinite(minAgeRaw) && minAgeRaw > 0 ? minAgeRaw : undefined
+    const lastMessageFromRaw = searchParams.get("lastMessageFrom")?.trim()
+    const lastMessageFromParsed = lastMessageFromRaw ? new Date(lastMessageFromRaw) : null
+    const lastMessageFrom =
+      lastMessageFromParsed && !Number.isNaN(lastMessageFromParsed.getTime())
+        ? lastMessageFromParsed
+        : undefined
 
     const whereSummary = {
       workspaceId,
@@ -49,7 +58,9 @@ export async function GET(request: NextRequest) {
       q: q ? "(set)" : "(none)",
       assignedTo: assignedTo ?? "(none)",
       category: category ?? "(none)",
+      needsOperatorAction: needsOperatorAction ? "1" : "(none)",
       unanswered: unanswered ? "1" : "(none)",
+      lastMessageFrom: lastMessageFrom ? "(set)" : "(none)",
     }
 
     const [{ data, total, leads, urgent }, wsResolved] = await Promise.all([
@@ -63,8 +74,10 @@ export async function GET(request: NextRequest) {
         q,
         assignedTo,
         category,
+        needsOperatorAction,
         unanswered,
         unansweredMinAgeMinutes,
+        lastMessageFrom,
       }),
       getWorkspaceWithResolvedConfig(workspaceId),
     ])

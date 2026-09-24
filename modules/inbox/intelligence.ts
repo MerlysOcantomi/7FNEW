@@ -267,6 +267,12 @@ RULES:
 - Do not invent private data or unsupported claims.
 - suggestedActions: only genuinely useful actions; avoid duplicates.
 - If no draft is appropriate: draft.shouldCreate=false, draft.content empty.
+- Acknowledgement/closure rule: when the latest inbound message is only a thanks, acknowledgement,
+  confirmation-with-no-new-request, farewell, reaction, or equivalent low-signal closure AND there
+  is no still-open request that requires the operator to act, return suggestedActions=[], set
+  nextBestAction=null, and set draft.shouldCreate=false. Do not manufacture work just because an
+  inbound message is unread. If an earlier request is genuinely still unresolved, keep only the
+  action needed to resolve that request.
 - detectedLanguage: predominant inbound customer language; if unclear use "en".
 - handoff must be actionable for a human operator.
 - Lines tagged [internal] are PRIVATE operator notes the customer never sees. Use them as

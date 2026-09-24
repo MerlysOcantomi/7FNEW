@@ -75,6 +75,8 @@ export interface WorkspaceExperience {
    * (core defaults apply). Feed this into `resolveInboxChannelsConfig()`
    * together with workspace overrides to get the effective config.
    */
+  /** Shared Inbox chrome variant; verticals select presentation as data. */
+  inboxToolbarVariant: "simple" | "standard"
   inboxChannels: VerticalInboxChannelsDefaults | null
   /**
    * The vertical pack's declarative Inbox filter layer
@@ -127,6 +129,7 @@ export function resolveWorkspaceExperience(
       navProfileId: navProfile?.verticalKey ?? BEAUTY_PACK.navProfileId,
       recommendedChannels: BEAUTY_PACK.channels,
       recommendedModules: BEAUTY_PACK.recommendedModules,
+      inboxToolbarVariant: BEAUTY_PACK.inbox.toolbarVariant,
       inboxChannels: BEAUTY_PACK.inbox.channels,
       inboxFilters: BEAUTY_PACK.inbox.filters,
       inboxFilterDefinitions: BEAUTY_PACK.inbox.filterDefinitions,
@@ -151,6 +154,7 @@ export function resolveWorkspaceExperience(
     navProfileId: navProfile?.verticalKey ?? null,
     recommendedChannels: [],
     recommendedModules: [],
+    inboxToolbarVariant: "standard",
     inboxChannels: null,
     inboxFilters: null,
     inboxFilterDefinitions: [],

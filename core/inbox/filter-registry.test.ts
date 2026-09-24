@@ -39,7 +39,7 @@ test("every ACTIVE core filter compiles; planned ones need not", () => {
 
 test("core filters compile to the exact legacy mapSidebarFilter queries", () => {
   const cases: Array<[string, Record<string, string>]> = [
-    ["needs_action", { status: "new,assigned,triaged,lead_detected" }],
+    ["needs_action", { needsOperatorAction: "1" }],
     ["waiting", { status: "awaiting_response" }],
     ["done", { status: "resolved,closed,converted" }],
     ["opportunities", { status: "lead_detected" }],
@@ -78,10 +78,14 @@ test("legacy aliases keep their historical queries", () => {
 
 // ─── Rule compilation ───────────────────────────────────────────────────────
 
-test("assignment and unanswered rules compile to real params", () => {
+test("assignment, Pending and unanswered rules compile to real params", () => {
   assert.deepEqual(
     compiledFilterToSearchParams(compileInboxFilterRule({ type: "assignment", value: "unassigned" })!),
     { assignedTo: "unassigned" },
+  )
+  assert.deepEqual(
+    compiledFilterToSearchParams(compileInboxFilterRule({ type: "operator_action" })!),
+    { needsOperatorAction: "1" },
   )
   assert.deepEqual(
     compiledFilterToSearchParams(compileInboxFilterRule({ type: "unanswered" })!),

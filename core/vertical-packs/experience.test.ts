@@ -57,7 +57,8 @@ test("beauty: full resolved experience", () => {
   // activate it.
   assert.equal(e.todayActivatesRealWorkspaces, true)
   assert.equal(e.navProfileId, "beauty")
-  assert.deepEqual(e.recommendedChannels, ["whatsapp", "instagram", "email"])
+  assert.equal(e.inboxToolbarVariant, "simple")
+  assert.deepEqual(e.recommendedChannels, ["whatsapp", "instagram", "messenger", "web_chat"])
   assert.deepEqual(e.recommendedModules, [
     "calendar",
     "clients",

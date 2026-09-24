@@ -589,6 +589,7 @@ function InboxPageContent() {
    * counts and pagination just like status/channel/category.
    */
   const [urgencyFilter, setUrgencyFilter] = useState<string>("all")
+  const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d">("all")
   /**
    * Workspace category filter (controlled by `<InboxTaxonomyChips>`).
    * `null` means "all categories"; otherwise the value is one of the
@@ -691,6 +692,7 @@ function InboxPageContent() {
    * the URL filter resolution) because `filterParams` derives from it.
    */
   const { data: effectiveInboxData } = useFetch<{
+    toolbarVariant: "simple" | "standard"
     channels: ResolvedInboxChannelView[]
     defaultChannel: string | null
     filters: ResolvedInboxFilterView[]
@@ -716,6 +718,8 @@ function InboxPageContent() {
     [sidebarFilter, effectiveFilterViews],
   )
   const filterParams = activeUrlFilter.compiled
+  const inboxToolbarVariant = effectiveInboxData?.toolbarVariant ?? "standard"
+  const isSimpleInbox = inboxToolbarVariant === "simple"
   /**
    * Deep-link layout mode (`?layout=triage|reading|focus`). Lets the Daily Overview's
    * "Open Inbox as" cards drop the operator straight into a chosen layout. When present and
@@ -948,6 +952,16 @@ function InboxPageContent() {
 
   const params = new URLSearchParams()
   params.set("pageSize", String(PAGE_SIZE))
+  if (datePreset !== "all") {
+    const now = new Date()
+    const from = new Date(now)
+    if (datePreset === "today") {
+      from.setHours(0, 0, 0, 0)
+    } else {
+      from.setDate(from.getDate() - (datePreset === "7d" ? 7 : 30))
+    }
+    params.set("lastMessageFrom", from.toISOString())
+  }
   if (debouncedSearch) params.set("q", debouncedSearch)
   /**
    * Status precedence: the explicit top filter wins over the sidebar URL filter. If the
@@ -985,6 +999,11 @@ function InboxPageContent() {
   else if (assignmentFilter === "unassigned") params.set("assignedTo", "unassigned")
   else if (filterParams.assignment === "unassigned") params.set("assignedTo", "unassigned")
   else if (filterParams.assignment === "mine" && currentUserId) params.set("assignedTo", currentUserId)
+  /**
+   * Pending is server-side operator work, not a client-side status bucket.
+   * Keeping it in the list query preserves truthful totals + pagination.
+   */
+  if (filterParams.needsOperatorAction) params.set("needsOperatorAction", "1")
   /** Unanswered filter (registry `unanswered`): server-side semantics, see modules/inbox/unanswered.ts. */
   if (filterParams.unanswered) {
     params.set("unanswered", "1")
@@ -1118,7 +1137,7 @@ function InboxPageContent() {
     })
   }, [status, conversations, inboxTerminalRescueActive, sidebarFilter])
 
-  const filterKey = `${debouncedSearch}|${status}|${channel}|${urgencyFilter}|${categoryFilter ?? ""}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
+  const filterKey = `${debouncedSearch}|${status}|${channel}|${urgencyFilter}|${datePreset}|${categoryFilter ?? ""}|${assignmentFilter}|${currentUserId}|${sidebarFilter}|${refreshKey}`
   const filterKeyRef = useRef(filterKey)
   useEffect(() => {
     if (filterKeyRef.current !== filterKey) {
@@ -1939,6 +1958,12 @@ function InboxPageContent() {
           || conversation.intent?.trim()
           || conversation.summary?.trim()
           || null
+        const currentRequestMessage = currentRequest?.messageId
+          ? conversation.messages?.find((message) => message.id === currentRequest.messageId)
+          : null
+        const currentAttachments = currentRequestMessage
+          ? getMessageAttachmentsView(currentRequestMessage)
+          : []
 
         return {
           id: conversation.id,
@@ -1947,6 +1972,7 @@ function InboxPageContent() {
           subject,
           intentSummary,
           currentMessageId: currentRequest?.messageId ?? null,
+          currentAttachments,
           sectorLabel: conversation.classification?.sector?.trim() || null,
           timeLabel: formatRelativeDateCompact(conversation.lastMessageAt || new Date().toISOString(), uiLocale),
           isUnread: conversation.status === "new",
@@ -3403,6 +3429,9 @@ function InboxPageContent() {
             primaryWorkFilter={primaryWorkFilter}
             onPrimaryWorkFilterChange={handlePrimaryWorkFilterChange}
             workFilterOptions={workFilterOptions}
+            variant={inboxToolbarVariant}
+            datePreset={datePreset}
+            onDatePresetChange={setDatePreset}
             channel={channel}
             channelOptions={channelSelectOptions}
             onChannelChange={setChannel}
@@ -3423,17 +3452,21 @@ function InboxPageContent() {
            * filters the conversation list by `Conversation.category` (set
            * manually via `<ConversationCategoryEditor>` on the thread).
            */}
-          <InboxTaxonomyChips
-            selected={categoryFilter}
-            onSelectedChange={setCategoryFilter}
-          />
+          {!isSimpleInbox ? (
+            <InboxTaxonomyChips
+              selected={categoryFilter}
+              onSelectedChange={setCategoryFilter}
+            />
+          ) : null}
           {/*
            * Layout-mode switcher (PR2). Desktop-only (xl+) — layout modes don't apply to the
            * mobile list↔thread flow. Right-aligned, low-profile chrome above the grid.
            */}
-          <div className="hidden shrink-0 xl:flex xl:justify-end">
-            <InboxLayoutSwitcher value={layoutMode} onChange={handleLayoutModeChange} />
-          </div>
+          {!isSimpleInbox ? (
+            <div className="hidden shrink-0 xl:flex xl:justify-end">
+              <InboxLayoutSwitcher value={layoutMode} onChange={handleLayoutModeChange} />
+            </div>
+          ) : null}
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col gap-3",
