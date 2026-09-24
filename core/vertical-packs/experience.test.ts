@@ -92,3 +92,24 @@ test("NO REGRESSION: new pack facets are NOT serialized into defaultConfig", () 
   assert.equal(cfg.nav.profile, "beauty")
   assert.equal(cfg.today.mode, "appointment_first")
 })
+
+
+test("food-hospitality resolves to the Bonabasto experience without fake order data", () => {
+  const e = resolveWorkspaceExperience("food-hospitality")
+  assert.equal(e.experienceState, "complete")
+  assert.equal(e.businessType, "food-hospitality")
+  assert.equal(e.verticalKey, "food-hospitality")
+  assert.equal(e.experienceKey, "bonabasto")
+  assert.equal(e.verticalName, "Bonabasto")
+  assert.equal(e.specialistAgent, null)
+  assert.equal(e.brandLine, "Bonabasto, by sevenef")
+  assert.equal(e.navProfileId, "food-hospitality")
+  assert.equal(e.todayMode, "work_first")
+  assert.equal(e.todayActivatesRealWorkspaces, false)
+  assert.deepEqual(e.recommendedModules, ["clients", "messages", "marketing"])
+})
+
+test("NO REGRESSION: Beauty keeps the Finesse experience key", () => {
+  assert.equal(resolveWorkspaceExperience("beauty").experienceKey, "finesse")
+  assert.equal(resolveWorkspaceExperience("creative-agency").experienceKey, null)
+})
