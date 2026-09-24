@@ -197,7 +197,7 @@ export function DashboardCorePage() {
               }
             />
 
-            <div className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8 sm:space-y-10">
+            <div data-sevenef-overview className="px-4 sm:px-5 md:px-8 py-6 sm:py-7 space-y-8 sm:space-y-10">
               {loading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
@@ -213,7 +213,7 @@ export function DashboardCorePage() {
                   {/* Hero */}
                   <section>
                     <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-                      <div className="rounded-2xl border border-primary/20 bg-accent p-6">
+                      <div data-premium-surface="tinted" className="sevenef-panel rounded-2xl border border-primary/20 bg-accent p-6">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-card px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary">
                             Overview
@@ -230,7 +230,7 @@ export function DashboardCorePage() {
                           move quickly into the right module.
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-border bg-card p-6">
+                      <div data-premium-surface="elevated" className="sevenef-panel rounded-2xl border border-border bg-card p-6">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                           Start here
                         </p>
@@ -263,7 +263,8 @@ export function DashboardCorePage() {
                         <Link
                           key={label}
                           href={href}
-                          className={cn("rounded-xl border border-border p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md", surface)}
+                          data-premium-surface="glass"
+                          className={cn("sevenef-panel rounded-xl border border-border p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md", surface)}
                         >
                           <div className="mb-4 flex items-center justify-between">
                             <Icon size={16} className={accent} strokeWidth={1.75} />
@@ -297,7 +298,8 @@ export function DashboardCorePage() {
                           <Link
                             key={id}
                             href={href}
-                            className={cn("rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md", styles.wrapper)}
+                            data-premium-surface="elevated"
+                            className={cn("sevenef-panel rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md", styles.wrapper)}
                           >
                             <div className="flex items-center justify-between">
                               <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", styles.surface)}>
@@ -327,7 +329,7 @@ export function DashboardCorePage() {
                           View all <ChevronRight size={11} />
                         </Link>
                       </div>
-                      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                      <div data-premium-surface="elevated" className="sevenef-panel bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                         {activity.length === 0 ? (
                           <div className="px-5 py-12 text-center">
                             <Activity size={24} className="text-muted-foreground mx-auto mb-3" strokeWidth={1.5} />
@@ -383,7 +385,7 @@ export function DashboardCorePage() {
                           View {v.finance.singular.toLowerCase()} <ChevronRight size={11} />
                         </Link>
                       </div>
-                      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                      <div data-premium-surface="elevated" className="sevenef-panel bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                         {finance ? (
                           <>
                             <div className="px-5 py-4 border-b border-muted">
@@ -490,7 +492,7 @@ export function DashboardCorePage() {
                     </div>
 
                     {forteInsight ? (
-                      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div data-premium-surface="luminous" className="sevenef-panel rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-4 flex items-center justify-between border-b border-muted">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
@@ -560,7 +562,8 @@ export function DashboardCorePage() {
                             <Link
                               key={id}
                               href={href}
-                              className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+                              data-premium-surface="glass"
+                              className="sevenef-panel rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">

@@ -81,7 +81,7 @@ export function NotificationsBell() {
       <button
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          "relative flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+          "relative flex h-9 w-9 items-center justify-center rounded-[var(--app-control-radius)] border border-[var(--border-dark)] transition-colors",
           open
             ? "bg-accent text-foreground"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"

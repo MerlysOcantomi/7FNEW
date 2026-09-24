@@ -14,7 +14,7 @@ const CLIENT_COOKIE = "7f-client-session"
 // "/finesse" is the public Finesse landing (FINESSE-WEB-01): a static marketing
 // page that reads no workspace/session data. Segment-boundary match only —
 // "/finessex" or any private route stays protected.
-const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites", "/finesse"]
+const PUBLIC_PATHS = ["/login", "/api/auth", "/cliente/login", "/api/cliente/auth", "/api/inbox/public", "/api/inbox/email/inbound", "/api/inbox/webhooks", "/widget", "/sites", "/api/sites", "/finesse", "/design-lab"]
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/public"]
 
 /**

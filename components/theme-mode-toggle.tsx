@@ -1,119 +1,86 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Flower2, Gem, Leaf, Moon, Sun, Waves } from "lucide-react"
+import { Flower2, Gem, Layers3, Moon, Sun, Waves } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isValidThemeKey, THEME_STORAGE_KEY, type AppThemeKey } from "@core/theme-registry"
+import { DEFAULT_APP_MATERIAL, isAppMaterial, MATERIAL_STORAGE_KEY, type AppMaterial } from "@core/material-registry"
 
-/**
- * Minimal, opt-in theme switch for the 7F "Purple" family.
- *
- *   Purple / dark  → midnight       (default — what production ships)
- *   Purple / light → lavender-mist  (the dormant CSS block, opt-in only)
- *
- * This is a deliberate SIDE-CHANNEL to next-themes, not a replacement.
- * next-themes still owns the `class` attribute (and `.dark`); here we only
- * write `data-theme` on <html>, which is what activates the
- * `[data-theme="lavender-mist"]` block in app/globals.css. Because `:root`
- * still carries the Midnight palette, anything we don't set falls back to
- * it — so Midnight stays the default and nothing here can break it.
- *
- * Persistence: localStorage key `7f-theme`. The pre-paint script in
- * app/layout.tsx reads the same key so a refresh keeps the choice with no
- * flash. KEEP THE KEY IN SYNC with that script if you ever change it.
- */
-const THEME_KEY = "7f-theme"
-type ThemeMode =
-  | "midnight"
-  | "lavender-mist"
-  | "rose-nude"
-  | "sage-luxe"
-  | "noir-or"
-  | "petrol-pearl"
-
-/** Allowed palette values — keep in sync with the pre-paint script in app/layout.tsx and @core/theme. */
-const VALID_THEMES: ThemeMode[] = [
-  "midnight",
-  "lavender-mist",
-  "rose-nude",
-  "sage-luxe",
-  "noir-or",
-  "petrol-pearl",
+// Active product directions only. Legacy palette keys remain readable by the
+// registry for migration but are intentionally absent from this selector.
+const OPTIONS: { mode: AppThemeKey; label: string; icon: typeof Moon }[] = [
+  { mode: "midnight", label: "Midnight Blue", icon: Moon },
+  { mode: "sevenef-pearl-blue", label: "sevenef Pearl", icon: Sun },
+  { mode: "petrol-pearl", label: "Finesse Pearl", icon: Waves },
+  { mode: "finesse-rose-cream-gold", label: "Finesse Cream Gold", icon: Flower2 },
+  { mode: "finesse-petrol-champagne", label: "Finesse Petrol Champagne", icon: Gem },
 ]
-
-function readStored(): ThemeMode {
-  if (typeof window === "undefined") return "midnight"
-  const v = window.localStorage.getItem(THEME_KEY)
-  return v && (VALID_THEMES as string[]).includes(v) ? (v as ThemeMode) : "midnight"
-}
-
-function applyMode(mode: ThemeMode) {
-  if (typeof document !== "undefined") {
-    document.documentElement.setAttribute("data-theme", mode)
-  }
-  try {
-    window.localStorage.setItem(THEME_KEY, mode)
-  } catch {
-    /* storage disabled (private mode) — the attribute still applies for this session */
-  }
-}
-
-const OPTIONS: { mode: ThemeMode; label: string; icon: typeof Moon }[] = [
-  { mode: "midnight", label: "Midnight", icon: Moon },
-  { mode: "lavender-mist", label: "Lavender Mist", icon: Sun },
-  // Beauty vertical palettes (foundation v1) — opt-in, dormant by default.
-  { mode: "rose-nude", label: "Rose Nude", icon: Flower2 },
-  { mode: "sage-luxe", label: "Sage Luxe", icon: Leaf },
-  { mode: "noir-or", label: "Noir Or", icon: Gem },
-  // Finesse (Beauty) default — structural petrol blue on a pearl-grey canvas.
-  { mode: "petrol-pearl", label: "Petróleo Perla", icon: Waves },
-]
-
 export function ThemeModeToggle() {
-  const [mode, setMode] = useState<ThemeMode>("midnight")
-  const [mounted, setMounted] = useState(false)
+  const [mode, setMode] = useState<AppThemeKey | null>(null)
+  const [material, setMaterial] = useState<AppMaterial>(DEFAULT_APP_MATERIAL)
 
-  /**
-   * Read the persisted choice after mount. SSR markup assumes the Midnight
-   * default, so we gate the active highlight on `mounted` to avoid a
-   * hydration mismatch — the same pattern next-themes uses.
-   */
   useEffect(() => {
-    setMounted(true)
-    setMode(readStored())
+    // Read the effective palette, including server defaults, not only storage.
+    const sync = () => {
+      const current = document.documentElement.getAttribute("data-theme")
+      setMode(isValidThemeKey(current) ? current : null)
+    }
+    sync()
+    const syncMaterial = () => {
+      const current = document.documentElement.getAttribute("data-material")
+      setMaterial(isAppMaterial(current) ? current : DEFAULT_APP_MATERIAL)
+    }
+    syncMaterial()
+    const observer = new MutationObserver(() => { sync(); syncMaterial() })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-material"] })
+    return () => observer.disconnect()
   }, [])
 
-  function choose(next: ThemeMode) {
+  function choose(next: AppThemeKey) {
+    document.documentElement.setAttribute("data-theme", next)
     setMode(next)
-    applyMode(next)
+    const url = new URL(window.location.href)
+    url.searchParams.delete("theme")
+    window.history.replaceState(window.history.state, "", url)
+    try { window.localStorage.setItem(THEME_STORAGE_KEY, next) } catch { /* Session-only selection. */ }
+  }
+
+  function chooseMaterial(next: AppMaterial) {
+    document.documentElement.setAttribute("data-material", next)
+    setMaterial(next)
+    try { window.localStorage.setItem(MATERIAL_STORAGE_KEY, next) } catch { /* Session-only selection. */ }
   }
 
   return (
-    <div
-      role="group"
-      aria-label="Theme"
-      className="flex flex-wrap gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1"
-    >
-      {OPTIONS.map(({ mode: m, label, icon: Icon }) => {
-        const active = mounted && mode === m
-        return (
-          <button
-            key={m}
-            type="button"
-            onClick={() => choose(m)}
-            aria-pressed={active}
-            className={cn(
-              "flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50",
-              active
-                ? "bg-[var(--app-surface-active)] text-[var(--app-sidebar-text)] shadow-[0_0_0_1px_var(--accent-primary)]"
-                : "text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-hover)] hover:text-[var(--app-sidebar-text)]",
-            )}
-          >
-            <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            {label}
-          </button>
-        )
-      })}
+    <div className="flex flex-col gap-2">
+    <div role="group" aria-label="Theme" className="flex flex-wrap gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1">
+      {OPTIONS.map(({ mode: value, label, icon: Icon }) => (
+        <button key={value} type="button" onClick={() => choose(value)} aria-pressed={mode === value}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-on-dark)]",
+            mode === value
+              ? "bg-[var(--app-surface-active)] text-[var(--app-sidebar-text)] shadow-[0_0_0_1px_var(--accent-primary)]"
+              : "text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-hover)] hover:text-[var(--app-sidebar-text)]",
+          )}>
+          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />{label}
+        </button>
+      ))}
+    </div>
+    <div role="group" aria-label="Surface material" className="flex w-fit gap-1 rounded-lg border border-[var(--border-dark)] bg-[var(--app-surface-subtle)] p-1">
+      {(["solid", "glass"] as AppMaterial[]).map((value) => (
+        <button key={value} type="button" onClick={() => chooseMaterial(value)} aria-pressed={material === value}
+          className={cn(
+            "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+            material === value
+              ? "bg-[var(--app-surface-active)] text-[var(--app-sidebar-text)] shadow-[0_0_0_1px_var(--accent-primary)]"
+              : "text-[var(--text-secondary-light)] hover:bg-[var(--app-surface-hover)] hover:text-[var(--app-sidebar-text)]",
+          )}>
+          <Layers3 className="h-3.5 w-3.5" />
+          {value === "glass" ? "Glass" : "Solid"}
+        </button>
+      ))}
+    </div>
     </div>
   )
 }
