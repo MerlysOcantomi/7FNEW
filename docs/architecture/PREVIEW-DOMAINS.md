@@ -9,7 +9,6 @@ A canonical preview host is bound to one permanent Git branch in the Vercel proj
 | Product / experience | Canonical preview host | Canonical Git branch | Status | Notes |
 |---|---|---|---|---|
 | sevenef platform / core | `preview.sevenef.com` | `preview-sevenef` | active target | General platform/core preview. |
-| SevenEF Design System Lab | `preview-designsystem.sevenef.com` | `preview-designsystem` | reserved | Stable design-system review surface; not a separate product. |
 | Finesse Beauty | `preview.getfinesse.app` | `preview-finesse` | active target | Finesse Beauty preview on its managed product domain. |
 | Finesse Ink | `preview-ink.sevenef.com` | `preview-ink` | reserved | Tattoo vertical / Finesse Ink experience. |
 | Bonabasto (Food / Hospitality) | `preview-bonabasto.sevenef.com` | `preview-bonabasto` | active target | Canonical Bonabasto preview. The technical vertical family remains Food / Hospitality. |
@@ -75,4 +74,3 @@ Examples:
 - Finesse uses the shared Smart Inbox Core with Finesse-specific capabilities/presentation.
 - Smart Inbox standalone is product packaging over that same shared Inbox Core.
 - Scholara may be enabled inside Olojú while also having its own standalone preview/product experience.
-- The SevenEF Design System Lab is an isolated visual validation surface over the same sevenef codebase, not a separate product.
