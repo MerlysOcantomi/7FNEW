@@ -30,4 +30,14 @@ export interface CalendarItem {
   clientName?: string
   projectName?: string
   invoiceTotal?: number
+
+  /** Appointment V2 enrichment — absent for generic events and legacy citas. */
+  serviceId?: string | null
+  serviceNameSnapshot?: string | null
+  servicePrice?: number | null
+  serviceCurrency?: string | null
+  durationMinutes?: number | null
+  assignedUserId?: string | null
+  appointmentStatus?: string | null
+  origin?: string | null
 }
