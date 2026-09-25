@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     const { workspaceId } = await requireWriteAccess()
     const body = await request.json()
     const data = createEventoSchema.parse(body)
-    const record = await service.create(data, workspaceId)
+    const enriched = await resolveAppointmentWrite(data, workspaceId)
+    const record = await service.create(enriched, workspaceId)
     return successResponse(record)
   } catch (error) {
     return handleError(error, "Evento")
