@@ -22,6 +22,14 @@ export const appointments: AppointmentsMessages = {
     current: "En cours",
     upcoming: "À venir",
   },
+  lifecycle: {
+    pending: "En attente",
+    confirmed: "Confirmé",
+    arrived: "Arrivée",
+    completed: "Terminé",
+    noShow: "Absence",
+    cancelled: "Annulé",
+  },
   durationLabel: (minutes) => {
     if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
@@ -69,8 +77,12 @@ export const appointments: AppointmentsMessages = {
   actions: {
     reschedule: "Reprogrammer",
     cancel: "Annuler le rendez-vous",
+    confirm: "Confirmer",
+    markArrived: "Marquer arrivée",
+    complete: "Terminer",
+    noShow: "Absence",
     cancelConfirmHeading: "Annuler ce rendez-vous ?",
-    cancelConfirmBody: "Cela libère le créneau et supprime la réservation. Action irréversible.",
+    cancelConfirmBody: "Le rendez-vous restera dans l’historique et le créneau sera libéré.",
     open: "Ouvrir",
   },
   toast: {
