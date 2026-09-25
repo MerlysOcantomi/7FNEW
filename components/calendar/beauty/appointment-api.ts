@@ -1,27 +1,31 @@
 /**
- * Appointment mutations — thin client wrappers over the EXISTING shared
- * calendar endpoints. No new API surface: create/reschedule/edit/cancel all go
- * through `/api/calendario` (+ `/[id]`), which persist a real `Evento` scoped
- * to the workspace. Every appointment is stamped `tipo: "cita"`.
- *
- * "Reschedule" is a PATCH of `fechaInicio`/`fechaFin` on the SAME record — it
- * keeps the event identity (never a copy). "Cancel" is a DELETE — the honest,
- * persistent operation the model supports today; it frees the slot. There is no
- * confirmed/completed/no-show call because `Evento` has no state column to hold
- * one (documented gap, not a fake button).
+ * Appointment mutations — thin wrappers over the shared Calendar Engine.
+ * Appointment V2 adds structured service/professional/status/origin intent while
+ * snapshots are derived server-side from the canonical service catalog.
  */
+
+export type AppointmentStatus =
+  | "pending"
+  | "confirmed"
+  | "arrived"
+  | "completed"
+  | "no_show"
+  | "cancelled"
 
 export interface AppointmentInput {
   titulo: string
   descripcion?: string | null
   clienteId?: string | null
+  serviceId?: string | null
+  assignedUserId?: string | null
+  appointmentStatus?: AppointmentStatus | null
+  origin?: string | null
   /** ISO 8601 (UTC) start. */
   fechaInicio: string
   /** ISO 8601 (UTC) end, or null for an open-ended cita. */
   fechaFin?: string | null
 }
 
-/** Full record for the detail/edit surface (relations the feed omits). */
 export interface FullAppointment {
   id: string
   titulo: string
@@ -30,6 +34,14 @@ export interface FullAppointment {
   clienteNombre: string | null
   fechaInicio: string
   fechaFin: string | null
+  serviceId: string | null
+  serviceNameSnapshot: string | null
+  servicePrice: number | null
+  serviceCurrency: string | null
+  durationMinutes: number | null
+  assignedUserId: string | null
+  appointmentStatus: AppointmentStatus | null
+  origin: string | null
 }
 
 async function assertOk(res: Response): Promise<Record<string, unknown>> {
@@ -63,11 +75,9 @@ export async function updateAppointment(id: string, input: Partial<AppointmentIn
 }
 
 export async function cancelAppointment(id: string): Promise<void> {
-  const res = await fetch(`/api/calendario/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  })
-  await assertOk(res)
+  // V2 cancellation is a lifecycle transition, not deletion. Keeping the Evento
+  // preserves history, client analytics and the service snapshot.
+  await updateAppointment(id, { appointmentStatus: "cancelled" })
 }
 
 export async function fetchAppointment(id: string): Promise<FullAppointment | null> {
@@ -85,6 +95,14 @@ export async function fetchAppointment(id: string): Promise<FullAppointment | nu
     cliente?: { nombre?: string | null } | null
     fechaInicio: string
     fechaFin?: string | null
+    serviceId?: string | null
+    serviceNameSnapshot?: string | null
+    servicePrice?: number | null
+    serviceCurrency?: string | null
+    durationMinutes?: number | null
+    assignedUserId?: string | null
+    appointmentStatus?: AppointmentStatus | null
+    origin?: string | null
   }
   return {
     id: e.id,
@@ -94,5 +112,13 @@ export async function fetchAppointment(id: string): Promise<FullAppointment | nu
     clienteNombre: e.cliente?.nombre ?? null,
     fechaInicio: e.fechaInicio,
     fechaFin: e.fechaFin ?? null,
+    serviceId: e.serviceId ?? null,
+    serviceNameSnapshot: e.serviceNameSnapshot ?? null,
+    servicePrice: e.servicePrice ?? null,
+    serviceCurrency: e.serviceCurrency ?? null,
+    durationMinutes: e.durationMinutes ?? null,
+    assignedUserId: e.assignedUserId ?? null,
+    appointmentStatus: e.appointmentStatus ?? null,
+    origin: e.origin ?? null,
   }
 }
