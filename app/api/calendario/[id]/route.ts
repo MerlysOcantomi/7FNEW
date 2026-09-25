@@ -29,7 +29,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const existing = await service.getById(id, workspaceId)
     if (!existing) return errorResponse("NOT_FOUND", "Evento no encontrado", 404)
     const enriched = await resolveAppointmentWrite(data, workspaceId, existing)
-    const record = await service.update(id, enriched, workspaceId)
+    const record = await service.update(
+      id,
+      enriched as Prisma.EventoUncheckedUpdateInput,
+      workspaceId,
+    )
     if (!record) return errorResponse("NOT_FOUND", "Evento no encontrado", 404)
     return successResponse(record)
   } catch (error) {
