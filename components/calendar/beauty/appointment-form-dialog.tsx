@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { AlertTriangle } from "lucide-react"
 import {
@@ -30,6 +30,7 @@ import { createAppointment, updateAppointment } from "./appointment-api"
 import { addMinutesISO, localToISO, rangesOverlap } from "./datetime"
 
 const CUSTOM_SERVICE = "__custom__"
+const NO_PROFESSIONAL = "__none__"
 const DEFAULT_DURATION = 60
 
 export type FormMode = "create" | "edit" | "reschedule"
@@ -40,20 +41,12 @@ export interface AppointmentFormSeed {
   time: string
   durationMinutes: number
   serviceTitle: string
+  serviceId: string | null
   clienteId: string | null
+  assignedUserId: string | null
   notes: string | null
 }
 
-/**
- * Create / edit / reschedule an appointment. Every submit persists a real
- * `Evento` (tipo "cita") through the shared endpoints. The Radix dialog gives
- * focus trap, Escape-to-close and focus return for free.
- *
- * Service selection reuses the real `/services` catalog: the chosen (or typed)
- * service name becomes the appointment title — the operator's own text, kept
- * verbatim. There is no service FK on `Evento` today, so only the name is
- * persisted (documented gap).
- */
 export function AppointmentFormDialog({
   open,
   mode,
@@ -66,9 +59,7 @@ export function AppointmentFormDialog({
 }: {
   open: boolean
   mode: FormMode
-  /** Present for edit/reschedule; absent for create. */
   seed: AppointmentFormSeed | null
-  /** yyyy-mm-dd to preselect on create (the focused calendar day). */
   defaultDate: string
   resources: AppointmentResources
   existing: BeautyAppointment[]
@@ -79,28 +70,44 @@ export function AppointmentFormDialog({
   const a = t.appointments
   const { addToast } = useToast()
 
-  const [clienteId, setClienteId] = useState<string>(seed?.clienteId ?? "")
-  const initialService = seed?.serviceTitle ?? ""
-  const serviceIsInCatalog = useMemo(
-    () => resources.services.some((s) => s.name === initialService),
-    [resources.services, initialService],
+  const initialService = seed?.serviceId
+    ? resources.services.find((s) => s.id === seed.serviceId)?.id ?? CUSTOM_SERVICE
+    : seed?.serviceTitle
+      ? resources.services.find((s) => s.name === seed.serviceTitle)?.id ?? CUSTOM_SERVICE
+      : ""
+
+  const [clienteId, setClienteId] = useState(seed?.clienteId ?? "")
+  const [serviceChoice, setServiceChoice] = useState(initialService)
+  const [customService, setCustomService] = useState(
+    seed?.serviceTitle && initialService === CUSTOM_SERVICE ? seed.serviceTitle : "",
   )
-  const [serviceChoice, setServiceChoice] = useState<string>(
-    initialService ? (serviceIsInCatalog ? initialService : CUSTOM_SERVICE) : "",
-  )
-  const [customService, setCustomService] = useState<string>(
-    initialService && !serviceIsInCatalog ? initialService : "",
-  )
-  const [dateStr, setDateStr] = useState<string>(seed?.date ?? defaultDate)
-  const [timeStr, setTimeStr] = useState<string>(seed?.time ?? "")
-  const [duration, setDuration] = useState<number>(seed?.durationMinutes ?? DEFAULT_DURATION)
-  const [notes, setNotes] = useState<string>(seed?.notes ?? "")
+  const [assignedUserId, setAssignedUserId] = useState(seed?.assignedUserId ?? "")
+  const [dateStr, setDateStr] = useState(seed?.date ?? defaultDate)
+  const [timeStr, setTimeStr] = useState(seed?.time ?? "")
+  const [duration, setDuration] = useState(seed?.durationMinutes ?? DEFAULT_DURATION)
+  const [notes, setNotes] = useState(seed?.notes ?? "")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const serviceName = serviceChoice === CUSTOM_SERVICE ? customService.trim() : serviceChoice
-  const hasClients = resources.clients.length > 0
-  const hasServices = resources.services.length > 0
+  const selectedService = useMemo(
+    () => resources.services.find((service) => service.id === serviceChoice) ?? null,
+    [resources.services, serviceChoice],
+  )
+  const serviceName =
+    serviceChoice === CUSTOM_SERVICE ? customService.trim() : selectedService?.name ?? ""
+
+  const allowedProfessionals = useMemo(() => {
+    if (!selectedService?.staffUserIds?.length) return resources.professionals
+    const allowed = new Set(selectedService.staffUserIds)
+    return resources.professionals.filter((member) => allowed.has(member.userId))
+  }, [resources.professionals, selectedService])
+
+  useEffect(() => {
+    if (!open || seed?.assignedUserId) return
+    if (allowedProfessionals.length === 1 && !assignedUserId) {
+      setAssignedUserId(allowedProfessionals[0].userId)
+    }
+  }, [open, seed?.assignedUserId, allowedProfessionals, assignedUserId])
 
   const startISO = localToISO(dateStr, timeStr)
   const endISO = startISO ? addMinutesISO(startISO, duration) : null
@@ -111,11 +118,21 @@ export function AppointmentFormDialog({
     const e = new Date(endISO).getTime()
     return existing.some((appt) => {
       if (seed && appt.id === seed.id) return false
+      // When a professional is selected, only their existing appointments
+      // compete for this slot. Legacy unassigned appointments remain visible
+      // as conflicts because ownership is unknown.
+      if (
+        assignedUserId &&
+        appt.assignedUserId &&
+        appt.assignedUserId !== assignedUserId
+      ) {
+        return false
+      }
       const bs = appt.start.getTime()
       const be = appt.end ? appt.end.getTime() : bs + DEFAULT_DURATION * 60000
       return rangesOverlap(s, e, bs, be)
     })
-  }, [startISO, endISO, existing, seed])
+  }, [startISO, endISO, existing, seed, assignedUserId])
 
   const heading =
     mode === "create"
@@ -123,6 +140,18 @@ export function AppointmentFormDialog({
       : mode === "reschedule"
         ? a.form.rescheduleHeading
         : a.form.editHeading
+
+  function handleServiceChange(value: string) {
+    setServiceChoice(value)
+    const service = resources.services.find((item) => item.id === value)
+    if (service?.durationMinutes) setDuration(service.durationMinutes)
+
+    if (service?.staffUserIds?.length) {
+      if (!assignedUserId || !service.staffUserIds.includes(assignedUserId)) {
+        setAssignedUserId(service.staffUserIds.length === 1 ? service.staffUserIds[0] : "")
+      }
+    }
+  }
 
   function validate(): string | null {
     if (!clienteId) return a.form.clientRequired
@@ -142,26 +171,26 @@ export function AppointmentFormDialog({
       setError(a.form.timeRequired)
       return
     }
+
     setSubmitting(true)
     setError(null)
     try {
+      const payload = {
+        titulo: serviceName,
+        descripcion: notes.trim() || null,
+        clienteId,
+        serviceId: selectedService?.id ?? null,
+        assignedUserId: assignedUserId || null,
+        origin: mode === "create" ? "manual_agenda" : undefined,
+        fechaInicio: startISO,
+        fechaFin: endISO,
+      }
+
       if (mode === "create") {
-        await createAppointment({
-          titulo: serviceName,
-          descripcion: notes.trim() || null,
-          clienteId,
-          fechaInicio: startISO,
-          fechaFin: endISO,
-        })
+        await createAppointment(payload)
         addToast({ type: "success", title: a.toast.created })
       } else {
-        await updateAppointment(seed!.id, {
-          titulo: serviceName,
-          descripcion: notes.trim() || null,
-          clienteId,
-          fechaInicio: startISO,
-          fechaFin: endISO,
-        })
+        await updateAppointment(seed!.id, payload)
         addToast({
           type: "success",
           title: mode === "reschedule" ? a.toast.rescheduled : a.toast.updated,
@@ -186,19 +215,18 @@ export function AppointmentFormDialog({
           <DialogDescription className="sr-only">{a.subtitle}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          {/* Client */}
+        <div className="flex max-h-[68vh] flex-col gap-3 overflow-y-auto pr-1">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="appt-client">{a.form.clientLabel}</Label>
-            {hasClients ? (
+            {resources.clients.length > 0 ? (
               <Select value={clienteId} onValueChange={setClienteId}>
                 <SelectTrigger id="appt-client">
                   <SelectValue placeholder={a.form.clientPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {resources.clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nombre}
+                  {resources.clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -213,18 +241,21 @@ export function AppointmentFormDialog({
             )}
           </div>
 
-          {/* Service */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="appt-service">{a.form.serviceLabel}</Label>
-            {hasServices ? (
-              <Select value={serviceChoice} onValueChange={setServiceChoice}>
+            {resources.services.length > 0 ? (
+              <Select value={serviceChoice} onValueChange={handleServiceChange}>
                 <SelectTrigger id="appt-service">
                   <SelectValue placeholder={a.form.servicePlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {resources.services.map((s) => (
-                    <SelectItem key={s.name} value={s.name}>
-                      {s.name}
+                  {resources.services.map((service) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name}
+                      {service.durationMinutes ? ` · ${a.durationLabel(service.durationMinutes)}` : ""}
+                      {service.price !== undefined
+                        ? ` · ${service.price.toFixed(2)} ${service.currency ?? ""}`
+                        : ""}
                     </SelectItem>
                   ))}
                   <SelectItem value={CUSTOM_SERVICE}>{a.form.customServiceLabel}</SelectItem>
@@ -238,42 +269,52 @@ export function AppointmentFormDialog({
                 </Link>
               </p>
             )}
-            {(serviceChoice === CUSTOM_SERVICE || !hasServices) && (
+            {(serviceChoice === CUSTOM_SERVICE || resources.services.length === 0) && (
               <Input
                 aria-label={a.form.customServiceLabel}
                 placeholder={a.form.customServiceLabel}
                 value={customService}
                 onChange={(e) => {
                   setCustomService(e.target.value)
-                  if (!hasServices) setServiceChoice(CUSTOM_SERVICE)
+                  if (resources.services.length === 0) setServiceChoice(CUSTOM_SERVICE)
                 }}
               />
             )}
           </div>
 
-          {/* Date + time */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="appt-professional">{a.fields.professional}</Label>
+            <Select
+              value={assignedUserId || NO_PROFESSIONAL}
+              onValueChange={(value) =>
+                setAssignedUserId(value === NO_PROFESSIONAL ? "" : value)
+              }
+            >
+              <SelectTrigger id="appt-professional">
+                <SelectValue placeholder={a.fields.professional} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_PROFESSIONAL}>—</SelectItem>
+                {allowedProfessionals.map((member) => (
+                  <SelectItem key={member.userId} value={member.userId}>
+                    {member.nombre || member.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="appt-date">{a.form.dateLabel}</Label>
-              <Input
-                id="appt-date"
-                type="date"
-                value={dateStr}
-                onChange={(e) => setDateStr(e.target.value)}
-              />
+              <Input id="appt-date" type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="appt-time">{a.form.timeLabel}</Label>
-              <Input
-                id="appt-time"
-                type="time"
-                value={timeStr}
-                onChange={(e) => setTimeStr(e.target.value)}
-              />
+              <Input id="appt-time" type="time" value={timeStr} onChange={(e) => setTimeStr(e.target.value)} />
             </div>
           </div>
 
-          {/* Duration */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="appt-duration">{a.form.durationLabel}</Label>
             <Input
@@ -286,7 +327,6 @@ export function AppointmentFormDialog({
             />
           </div>
 
-          {/* Notes */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="appt-notes">{a.form.notesLabel}</Label>
             <Textarea
