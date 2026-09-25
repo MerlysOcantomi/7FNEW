@@ -14,6 +14,7 @@ export const es = {
     confirmed: "Confirmada",
     pending: "Pendiente de confirmar",
     arrived: "Ha llegado",
+    completed: "Completada",
     no_show: "No asistió",
     cancelled: "Cancelada",
   },
