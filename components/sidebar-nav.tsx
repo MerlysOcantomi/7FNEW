@@ -1231,8 +1231,11 @@ export function MobileSidebarNav() {
    * the floating launcher's existing rule.
    */
   const hideTodayTrigger = pathname === "/today" || pathname.startsWith("/today/");
-  /** Same /agents gate as the desktop toolbar — no Agents button on the canonical Agents page. */
-  const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/");
+  /** Finesse Inbox keeps Fanny contextual and removes the separate Agents surface. */
+  const finesseInbox = focused && verticalProfile?.verticalKey === "beauty";
+  /** Same /agents gate as desktop, plus Finesse Inbox where Agents is intentionally hidden. */
+  const hideAgentsTrigger =
+    finesseInbox || pathname === "/agents" || pathname.startsWith("/agents/");
   /** Ask Fanny is Inbox-only for PR1 (mirrors the desktop toolbar gate). */
   const showAskFanny = pathname === "/inbox" || pathname.startsWith("/inbox/");
   /**
@@ -1249,12 +1252,22 @@ export function MobileSidebarNav() {
   return (
     <FinesseAssistantScope>
       <header className="md:hidden flex items-center justify-between h-14 px-4 bg-[var(--app-sidebar-bg)] sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-[var(--app-accent)] flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold">7F</span>
+        {finesseInbox ? (
+          <Link
+            href="/"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-surface)]/70 px-3 text-sm font-medium text-[var(--app-sidebar-text)]"
+          >
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+            <span>{t.nav.backToWorkspace}</span>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-[var(--app-accent)] flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold">7F</span>
+            </div>
+            <span className="text-[var(--app-sidebar-text)] font-semibold text-sm">7F</span>
           </div>
-          <span className="text-[var(--app-sidebar-text)] font-semibold text-sm">7F</span>
-        </div>
+        )}
         {/*
           Header action order: Today | Ask Fanny | Agents | New | Search |
           Menu — the same global action family (and order) as the desktop
