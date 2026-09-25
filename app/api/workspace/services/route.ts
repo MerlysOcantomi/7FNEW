@@ -69,6 +69,24 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
+    // Staff restrictions are workspace-scoped User ids. Reject cross-workspace
+    // or stale ids instead of silently persisting an unusable assignment rule.
+    const requestedStaffIds = [...new Set(catalog.flatMap((item) => item.staffUserIds ?? []))]
+    if (requestedStaffIds.length > 0) {
+      const memberships = await db.workspaceMember.findMany({
+        where: { workspaceId, userId: { in: requestedStaffIds } },
+        select: { userId: true },
+      })
+      const allowed = new Set(memberships.map((m) => m.userId))
+      const invalid = requestedStaffIds.filter((id) => !allowed.has(id))
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: "One or more service professionals are not members of this workspace" },
+          { status: 400 },
+        )
+      }
+    }
+
     const current = parseJsonConfig(ws.config)
     const existingProfile: WorkspaceBusinessProfile = current.businessProfile ?? {}
 
