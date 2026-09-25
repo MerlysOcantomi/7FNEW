@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = createEventoSchema.parse(body)
     const enriched = await resolveAppointmentWrite(data, workspaceId)
-    const record = await service.create(enriched, workspaceId)
+    const record = await service.create(
+      enriched as Prisma.EventoUncheckedCreateInput,
+      workspaceId,
+    )
     return successResponse(record)
   } catch (error) {
     return handleError(error, "Evento")
