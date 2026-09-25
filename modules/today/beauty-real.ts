@@ -233,6 +233,13 @@ export interface BeautyEventRow {
   descripcion?: string | null
   clienteTelefono?: string | null
   clienteNotas?: string | null
+  appointmentStatus?: string | null
+  serviceId?: string | null
+  serviceNameSnapshot?: string | null
+  servicePrice?: number | null
+  serviceCurrency?: string | null
+  assignedUserId?: string | null
+  origin?: string | null
 }
 
 /** Trim free text; empty → `null` so the UI never renders a blank block. */
