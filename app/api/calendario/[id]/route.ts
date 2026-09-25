@@ -25,7 +25,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await request.json()
     const data = updateEventoSchema.parse(body)
-    const record = await service.update(id, data, workspaceId)
+    const existing = await service.getById(id, workspaceId)
+    if (!existing) return errorResponse("NOT_FOUND", "Evento no encontrado", 404)
+    const enriched = await resolveAppointmentWrite(data, workspaceId, existing)
+    const record = await service.update(id, enriched, workspaceId)
     if (!record) return errorResponse("NOT_FOUND", "Evento no encontrado", 404)
     return successResponse(record)
   } catch (error) {
