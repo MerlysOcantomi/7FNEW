@@ -24,6 +24,17 @@ export const services: ServicesMessages = {
     inactive: "Inactive",
     removeAria: (name) => `Remove ${name}`,
   },
+  editor: {
+    descriptionPlaceholder: "Service description (optional)",
+    duration: "Duration (min)",
+    price: "Price",
+    currency: "Currency",
+    bufferBefore: "Prep before (min)",
+    bufferAfter: "Buffer after (min)",
+    professionals: "Professionals",
+    professionalsHint: "Choose who can perform this service. No selection = the whole team.",
+    allProfessionals: "Whole team",
+  },
   save: { button: "Save services", saving: "Saving…", saved: "Saved" },
   errors: {
     load: "Could not load the service catalog",
