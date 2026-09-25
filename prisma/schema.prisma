@@ -198,6 +198,10 @@ model Documento {
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, assignedUserId, fechaInicio])
+  @@index([workspaceId, serviceId, fechaInicio])
+  @@index([workspaceId, appointmentStatus, fechaInicio])
 }
 
 model Transaccion {
