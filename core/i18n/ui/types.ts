@@ -1073,6 +1073,17 @@ export interface ServicesMessages {
     inactive: string
     removeAria: (name: string) => string
   }
+  editor: {
+    descriptionPlaceholder: string
+    duration: string
+    price: string
+    currency: string
+    bufferBefore: string
+    bufferAfter: string
+    professionals: string
+    professionalsHint: string
+    allProfessionals: string
+  }
   save: { button: string; saving: string; saved: string }
   errors: { load: string; save: string }
 }
