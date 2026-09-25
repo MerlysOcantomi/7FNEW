@@ -1029,6 +1029,16 @@ export function SidebarNav() {
    */
   const focused = isInboxFocusedPath(pathname);
 
+  /**
+   * Finesse Inbox uses the full-width three-column work surface.
+   * The global/Inbox-focused desktop sidebar is intentionally removed for
+   * vertical workspaces; navigation remains available through the Finesse
+   * mobile bottom bar and the shared top chrome.
+   */
+  if (focused && verticalProfile) {
+    return null;
+  }
+
   return (
     <aside
       className={cn(
