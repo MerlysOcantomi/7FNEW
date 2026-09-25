@@ -494,3 +494,24 @@ test("attention navigability: from /today, a task pointing at /today is NOT navi
   assert.equal(isAttentionHrefNavigable("/today", "/"), true)
   assert.equal(isAttentionHrefNavigable("", "/today"), false)
 })
+
+test("buildAppointments: cancelled bookings leave Today's active schedule; V2 snapshots survive", () => {
+  const cancelled = row("cancelled", "2026-07-15T13:00:00Z", "2026-07-15T14:00:00Z")
+  cancelled.appointmentStatus = "cancelled"
+  const active = row("active", "2026-07-15T15:00:00Z", "2026-07-15T16:00:00Z")
+  Object.assign(active, {
+    appointmentStatus: "confirmed",
+    serviceId: "svc",
+    serviceNameSnapshot: "Manicura",
+    servicePrice: 35,
+    serviceCurrency: "EUR",
+    assignedUserId: "u1",
+  })
+
+  const out = buildAppointments([cancelled, active], NOW)
+  assert.deepEqual(out.map((a) => a.eventoId), ["active"])
+  assert.equal(out[0].status, "confirmed")
+  assert.equal(out[0].serviceName, "Manicura")
+  assert.equal(out[0].servicePrice, 35)
+  assert.equal(out[0].assignedUserId, "u1")
+})
