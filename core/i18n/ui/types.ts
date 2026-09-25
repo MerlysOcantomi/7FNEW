@@ -1971,11 +1971,19 @@ export interface AppointmentsMessages {
     notes: string
     when: string
   }
-  /** Time-derived phase — never an attendance claim. */
+  /** Time-derived phase for legacy citas without a lifecycle state. */
   phase: {
     past: string
     current: string
     upcoming: string
+  }
+  lifecycle: {
+    pending: string
+    confirmed: string
+    arrived: string
+    completed: string
+    noShow: string
+    cancelled: string
   }
   /** Duration rendered from start/end (never a stored minutes column). */
   durationLabel: (minutes: number) => string
