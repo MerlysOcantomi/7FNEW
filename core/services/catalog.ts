@@ -1,53 +1,49 @@
 /**
- * Service catalog — the generic (core) structured list of "what a business
- * offers". This is CORE infrastructure, not a Beauty feature: every vertical
- * has services (an agency has offerings, a clinic has treatments, a salon has
- * beauty services). A vertical only contributes DATA (a seed + labels); the
- * catalog logic, storage shape and page are the same for everyone.
+ * Service catalog — the generic structured list of what a business offers.
  *
- * Design rules honored here:
- *   - Pure and DB-free — safe on the client, on the server and in tests. No
- *     `@core/db` import (mirrors the vertical-packs + inbox pure-planner pattern).
- *   - Tolerant parse → normalized output: the persisted `serviceCatalog` may come
- *     from a vertical SEED (items shaped `{ name, category, active }`, no id) or
- *     from a workspace that already saved (items with a stable `id`). Both parse
- *     cleanly; missing ids are generated deterministically from the name.
- *   - Stored in `Workspace.config.serviceCatalog` (JSON) — no Prisma migration.
- *     `mergeConfigs` replaces the whole array, so a workspace fully OWNS its
- *     catalog once it saves; before that it sees the vertical seed.
+ * Storage stays in Workspace.config.serviceCatalog so every vertical can reuse
+ * the same contract. Finesse is the first consumer of the richer V2 fields,
+ * but none of them are Beauty-specific.
  *
- * PR1 scope: id (stable), name, category, active. Duration, price, tags,
- * resources, staff, packages and any agenda/billing wiring are deliberately out.
+ * Compatibility rule: every V1 item ({ name, category, active }) still parses.
+ * New fields are optional and normalized defensively so old workspaces need no
+ * config migration.
  */
 
-/** A single catalog service. `id` is stable so agenda/billing can reference it later. */
 export interface ServiceCatalogItem {
   id: string
   name: string
-  /** Optional grouping label (e.g. "Uñas", "Estética"). */
   category?: string
+  description?: string
+  /** Planned service duration. Appointment snapshots may override it. */
+  durationMinutes?: number
+  /** Default public/booking price in major currency units. */
+  price?: number
+  /** ISO 4217 code for the default price (e.g. EUR, CHF, USD). */
+  currency?: string
+  /** Workspace User ids allowed to perform this service. Empty/absent = unrestricted. */
+  staffUserIds?: string[]
+  /** Optional preparation/turnaround windows used by scheduling. */
+  bufferBeforeMinutes?: number
+  bufferAfterMinutes?: number
   active: boolean
 }
 
-/** Hard cap so a workspace config JSON can never grow unbounded. */
 export const MAX_SERVICE_CATALOG_ITEMS = 100
+export const MAX_SERVICE_STAFF = 50
+export const MAX_SERVICE_DURATION_MINUTES = 24 * 60
+export const MAX_SERVICE_BUFFER_MINUTES = 4 * 60
 
-/** Slug a service name into an id-safe token. Empty/non-alphanumeric → "". */
 export function slugifyServiceName(name: string): string {
   return name
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents (Espana)
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
 }
 
-/**
- * Deterministic, collision-free id from a name given the ids already in use.
- * No `Math.random`/`Date.now` — same input always yields the same id, which
- * keeps the layer testable and the persisted catalog reproducible.
- */
 export function makeServiceId(name: string, usedIds: Set<string>): string {
   const base = slugifyServiceName(name) || "service"
   if (!usedIds.has(base)) return base
@@ -56,16 +52,49 @@ export function makeServiceId(name: string, usedIds: Set<string>): string {
   return `${base}-${n}`
 }
 
-function coerceString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : ""
+function coerceString(value: unknown, max = 240): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : ""
 }
 
-/**
- * Normalize one raw JSON entry into a `ServiceCatalogItem`, or `null` when it
- * carries no usable name. Reuses a valid, unused `id` when present; otherwise
- * derives a stable one from the name. `active` defaults to `true` (a seed item
- * without the flag is considered offered).
- */
+function coerceInt(
+  value: unknown,
+  min: number,
+  max: number,
+): number | undefined {
+  if (value === "" || value === null || value === undefined) return undefined
+  const n = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(n)) return undefined
+  const rounded = Math.round(n)
+  if (rounded < min || rounded > max) return undefined
+  return rounded
+}
+
+function coercePrice(value: unknown): number | undefined {
+  if (value === "" || value === null || value === undefined) return undefined
+  const n = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0 || n > 100_000_000) return undefined
+  return Math.round(n * 100) / 100
+}
+
+function coerceCurrency(value: unknown): string | undefined {
+  const code = coerceString(value, 3).toUpperCase()
+  return /^[A-Z]{3}$/.test(code) ? code : undefined
+}
+
+function coerceStaffUserIds(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    const id = coerceString(item, 120)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+    if (out.length >= MAX_SERVICE_STAFF) break
+  }
+  return out.length > 0 ? out : undefined
+}
+
 export function normalizeServiceItem(
   raw: unknown,
   usedIds: Set<string>,
@@ -73,31 +102,38 @@ export function normalizeServiceItem(
   if (!raw || typeof raw !== "object") return null
   const obj = raw as Record<string, unknown>
 
-  const name = coerceString(obj.name)
+  const name = coerceString(obj.name, 160)
   if (!name) return null
 
-  const rawId = coerceString(obj.id)
-  const id =
-    rawId && !usedIds.has(rawId) ? rawId : makeServiceId(name, usedIds)
+  const rawId = coerceString(obj.id, 120)
+  const id = rawId && !usedIds.has(rawId) ? rawId : makeServiceId(name, usedIds)
   usedIds.add(id)
 
-  const category = coerceString(obj.category)
+  const category = coerceString(obj.category, 120)
+  const description = coerceString(obj.description, 1000)
+  const durationMinutes = coerceInt(obj.durationMinutes, 5, MAX_SERVICE_DURATION_MINUTES)
+  const price = coercePrice(obj.price)
+  const currency = coerceCurrency(obj.currency)
+  const staffUserIds = coerceStaffUserIds(obj.staffUserIds)
+  const bufferBeforeMinutes = coerceInt(obj.bufferBeforeMinutes, 0, MAX_SERVICE_BUFFER_MINUTES)
+  const bufferAfterMinutes = coerceInt(obj.bufferAfterMinutes, 0, MAX_SERVICE_BUFFER_MINUTES)
   const active = obj.active === undefined ? true : obj.active !== false
 
   return {
     id,
     name,
     ...(category ? { category } : {}),
+    ...(description ? { description } : {}),
+    ...(durationMinutes !== undefined ? { durationMinutes } : {}),
+    ...(price !== undefined ? { price } : {}),
+    ...(currency ? { currency } : {}),
+    ...(staffUserIds ? { staffUserIds } : {}),
+    ...(bufferBeforeMinutes !== undefined ? { bufferBeforeMinutes } : {}),
+    ...(bufferAfterMinutes !== undefined ? { bufferAfterMinutes } : {}),
     active,
   }
 }
 
-/**
- * Resolve a raw `serviceCatalog` value (already merged defaults+override) into a
- * clean, de-duplicated `ServiceCatalogItem[]`. Tolerant: non-arrays → `[]`,
- * unusable entries are dropped, ids are made unique. Capped at
- * `MAX_SERVICE_CATALOG_ITEMS`.
- */
 export function resolveServiceCatalog(raw: unknown): ServiceCatalogItem[] {
   if (!Array.isArray(raw)) return []
   const usedIds = new Set<string>()
@@ -110,19 +146,10 @@ export function resolveServiceCatalog(raw: unknown): ServiceCatalogItem[] {
   return items
 }
 
-/**
- * Normalize an incoming PUT payload into what gets persisted. Same rules as
- * `resolveServiceCatalog` — the API never trusts the client shape.
- */
 export function normalizeServiceCatalog(raw: unknown): ServiceCatalogItem[] {
   return resolveServiceCatalog(raw)
 }
 
-/**
- * One-way bridge for the agent context: the names of the ACTIVE services only,
- * de-duplicated in order. Inactive services never reach `businessProfile.services`,
- * so Fanny and the other agents only ever see what the business currently offers.
- */
 export function activeServiceNames(catalog: ServiceCatalogItem[]): string[] {
   const seen = new Set<string>()
   const names: string[] = []
@@ -134,4 +161,12 @@ export function activeServiceNames(catalog: ServiceCatalogItem[]): string[] {
     names.push(name)
   }
   return names
+}
+
+export function findServiceById(
+  catalog: ServiceCatalogItem[],
+  serviceId: string | null | undefined,
+): ServiceCatalogItem | null {
+  if (!serviceId) return null
+  return catalog.find((item) => item.id === serviceId) ?? null
 }
