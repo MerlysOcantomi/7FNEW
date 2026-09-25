@@ -1,6 +1,7 @@
 import { db } from "@core/db"
 import { getWorkspaceWithResolvedConfig } from "@core/workspace"
 import { findServiceById, resolveServiceCatalog } from "@core/services/catalog"
+import { PublicApiError } from "@core/errors"
 
 export const APPOINTMENT_STATUSES = [
   "pending",
@@ -12,6 +13,12 @@ export const APPOINTMENT_STATUSES = [
 ] as const
 
 export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number]
+
+class AppointmentValidationError extends PublicApiError {
+  constructor(code: string, message: string) {
+    super(code, message, 400)
+  }
+}
 
 export interface AppointmentWriteInput {
   tipo?: string
@@ -79,7 +86,7 @@ export async function resolveAppointmentWrite(
       where: { id: input.clienteId, workspaceId },
       select: { id: true },
     })
-    if (!client) throw new Error("CLIENT_NOT_IN_WORKSPACE")
+    if (!client) throw new AppointmentValidationError("CLIENT_NOT_IN_WORKSPACE", "Client is not available in this workspace")
   }
 
   if (input.assignedUserId) {
@@ -89,7 +96,7 @@ export async function resolveAppointmentWrite(
       },
       select: { userId: true },
     })
-    if (!member) throw new Error("PROFESSIONAL_NOT_IN_WORKSPACE")
+    if (!member) throw new AppointmentValidationError("PROFESSIONAL_NOT_IN_WORKSPACE", "Professional is not available in this workspace")
   }
 
   const effectiveServiceId =
@@ -101,8 +108,8 @@ export async function resolveAppointmentWrite(
   const catalog = resolveServiceCatalog(workspace?.resolvedConfig.serviceCatalog)
   const service = findServiceById(catalog, effectiveServiceId)
 
-  if (effectiveServiceId && !service) throw new Error("SERVICE_NOT_IN_WORKSPACE")
-  if (service && !service.active) throw new Error("SERVICE_INACTIVE")
+  if (effectiveServiceId && !service) throw new AppointmentValidationError("SERVICE_NOT_IN_WORKSPACE", "Service is not available in this workspace")
+  if (service && !service.active) throw new AppointmentValidationError("SERVICE_INACTIVE", "This service is inactive")
 
   const effectiveAssignedUserId =
     input.assignedUserId === undefined
@@ -114,7 +121,7 @@ export async function resolveAppointmentWrite(
     effectiveAssignedUserId &&
     !service.staffUserIds.includes(effectiveAssignedUserId)
   ) {
-    throw new Error("PROFESSIONAL_NOT_ALLOWED_FOR_SERVICE")
+    throw new AppointmentValidationError("PROFESSIONAL_NOT_ALLOWED_FOR_SERVICE", "This professional is not assigned to the selected service")
   }
 
   const next: AppointmentWriteResult = { ...input }
