@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import type { Prisma } from "@/generated/prisma/client"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
 import { createEventoSchema, queryEventoSchema } from "@modules/calendario/validation"
 import * as service from "@modules/calendario/service"
