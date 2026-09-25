@@ -73,7 +73,7 @@ function coercePrice(value: unknown): number | undefined {
   if (value === "" || value === null || value === undefined) return undefined
   const n = typeof value === "number" ? value : Number(value)
   if (!Number.isFinite(n) || n < 0 || n > 100_000_000) return undefined
-  return Math.round((n + Number.EPSILON) * 100) / 100
+  return Math.round((n + 1e-9) * 100) / 100
 }
 
 function coerceCurrency(value: unknown): string | undefined {
