@@ -251,6 +251,21 @@ model Evento {
   clienteId   String?
   proyectoId  String?
   workspaceId String?
+
+  // Appointment V2. Nullable so generic calendar events and legacy citas remain valid.
+  serviceId            String?
+  serviceNameSnapshot  String?
+  servicePrice         Float?
+  serviceCurrency      String?
+  durationMinutes      Int?
+  assignedUserId       String?
+  appointmentStatus    String?
+  origin               String?
+  confirmedAt          DateTime?
+  cancelledAt          DateTime?
+  completedAt          DateTime?
+  noShowAt             DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
