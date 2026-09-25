@@ -81,6 +81,7 @@ const STATUS_TOKENS: Record<AppointmentStatus, { bg: string; text: string; borde
   confirmed: { bg: "var(--accent-muted)", text: "var(--accent-on-dark)", border: "var(--accent-muted-border)" },
   pending: { bg: "var(--inbox-lead-soft)", text: "var(--inbox-lead)", border: "color-mix(in srgb, var(--inbox-lead) 32%, transparent)" },
   arrived: { bg: "var(--inbox-success-soft)", text: "var(--inbox-success)", border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)" },
+  completed: { bg: "var(--inbox-success-soft)", text: "var(--inbox-success)", border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)" },
   no_show: { bg: "var(--inbox-urgency-soft)", text: "var(--inbox-urgency)", border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)" },
   cancelled: { bg: "var(--inbox-urgency-soft)", text: "var(--inbox-urgency)", border: "color-mix(in srgb, var(--inbox-urgency) 32%, transparent)" },
 }
