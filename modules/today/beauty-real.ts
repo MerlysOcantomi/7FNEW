@@ -265,19 +265,40 @@ export function buildAppointments(
   now: Date,
 ): BeautyTodayAppointment[] {
   return [...rows]
+    // Cancelled bookings remain in history/Agenda but no longer occupy Today's
+    // active operating schedule or create false gaps/conflicts.
+    .filter((row) => row.appointmentStatus !== "cancelled")
     .sort((a, b) => a.fechaInicio.getTime() - b.fechaInicio.getTime())
-    .map((row) => ({
-      eventoId: row.id,
-      title: row.titulo,
-      startsAt: row.fechaInicio.toISOString(),
-      endsAt: row.fechaFin ? row.fechaFin.toISOString() : null,
-      clientId: row.clienteId,
-      clientName: row.clienteNombre,
-      phase: appointmentPhase(row.fechaInicio, row.fechaFin, now),
-      note: cleanText(row.descripcion),
-      clientPhone: cleanText(row.clienteTelefono),
-      clientNotes: cleanText(row.clienteNotas),
-    }))
+    .map((row) => {
+      const status =
+        row.appointmentStatus === "pending" ||
+        row.appointmentStatus === "confirmed" ||
+        row.appointmentStatus === "arrived" ||
+        row.appointmentStatus === "completed" ||
+        row.appointmentStatus === "no_show"
+          ? row.appointmentStatus
+          : null
+
+      return {
+        eventoId: row.id,
+        title: row.titulo,
+        startsAt: row.fechaInicio.toISOString(),
+        endsAt: row.fechaFin ? row.fechaFin.toISOString() : null,
+        clientId: row.clienteId,
+        clientName: row.clienteNombre,
+        phase: appointmentPhase(row.fechaInicio, row.fechaFin, now),
+        note: cleanText(row.descripcion),
+        clientPhone: cleanText(row.clienteTelefono),
+        clientNotes: cleanText(row.clienteNotas),
+        status,
+        serviceId: row.serviceId ?? null,
+        serviceName: cleanText(row.serviceNameSnapshot) ?? row.titulo,
+        servicePrice: row.servicePrice ?? null,
+        serviceCurrency: cleanText(row.serviceCurrency),
+        assignedUserId: row.assignedUserId ?? null,
+        origin: cleanText(row.origin),
+      }
+    })
 }
 
 /** First cita that has not started yet (strictly after `now`), else `null`. */
