@@ -1968,6 +1968,9 @@ export interface AppointmentsMessages {
     date: string
     time: string
     duration: string
+    price: string
+    status: string
+    origin: string
     notes: string
     when: string
   }
