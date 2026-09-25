@@ -22,6 +22,14 @@ export const appointments: AppointmentsMessages = {
     current: "En curso",
     upcoming: "Próxima",
   },
+  lifecycle: {
+    pending: "Pendiente",
+    confirmed: "Confirmada",
+    arrived: "Llegó",
+    completed: "Completada",
+    noShow: "No asistió",
+    cancelled: "Cancelada",
+  },
   durationLabel: (minutes) => {
     if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
@@ -69,8 +77,12 @@ export const appointments: AppointmentsMessages = {
   actions: {
     reschedule: "Reprogramar",
     cancel: "Cancelar cita",
+    confirm: "Confirmar",
+    markArrived: "Marcar llegada",
+    complete: "Completar",
+    noShow: "No asistió",
     cancelConfirmHeading: "¿Cancelar esta cita?",
-    cancelConfirmBody: "Esto libera el hueco y elimina la reserva. No se puede deshacer.",
+    cancelConfirmBody: "La cita se conservará en el historial y el hueco quedará libre.",
     open: "Abrir",
   },
   toast: {
