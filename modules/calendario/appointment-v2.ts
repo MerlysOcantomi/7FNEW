@@ -107,21 +107,37 @@ export async function resolveAppointmentWrite(
   const workspace = await getWorkspaceWithResolvedConfig(workspaceId)
   const catalog = resolveServiceCatalog(workspace?.resolvedConfig.serviceCatalog)
   const service = findServiceById(catalog, effectiveServiceId)
+  const mustValidateService = !existing || serviceChanged
 
-  if (effectiveServiceId && !service) throw new AppointmentValidationError("SERVICE_NOT_IN_WORKSPACE", "Service is not available in this workspace")
-  if (service && !service.active) throw new AppointmentValidationError("SERVICE_INACTIVE", "This service is inactive")
+  if (mustValidateService && effectiveServiceId && !service) {
+    throw new AppointmentValidationError(
+      "SERVICE_NOT_IN_WORKSPACE",
+      "Service is not available in this workspace",
+    )
+  }
+  if (mustValidateService && service && !service.active) {
+    throw new AppointmentValidationError("SERVICE_INACTIVE", "This service is inactive")
+  }
 
   const effectiveAssignedUserId =
     input.assignedUserId === undefined
       ? existing?.assignedUserId ?? null
       : input.assignedUserId
 
+  const assignmentChanged =
+    input.assignedUserId !== undefined &&
+    input.assignedUserId !== existing?.assignedUserId
+
   if (
     service?.staffUserIds?.length &&
     effectiveAssignedUserId &&
+    (mustValidateService || assignmentChanged) &&
     !service.staffUserIds.includes(effectiveAssignedUserId)
   ) {
-    throw new AppointmentValidationError("PROFESSIONAL_NOT_ALLOWED_FOR_SERVICE", "This professional is not assigned to the selected service")
+    throw new AppointmentValidationError(
+      "PROFESSIONAL_NOT_ALLOWED_FOR_SERVICE",
+      "This professional is not assigned to the selected service",
+    )
   }
 
   const next: AppointmentWriteResult = { ...input }
@@ -134,11 +150,18 @@ export async function resolveAppointmentWrite(
     next.serviceId = effectiveServiceId
   }
 
-  if (serviceChanged && service) {
-    next.titulo = input.titulo?.trim() || service.name
-    next.serviceNameSnapshot = service.name
-    next.servicePrice = service.price ?? null
-    next.serviceCurrency = service.currency ?? null
+  if (serviceChanged) {
+    if (service) {
+      next.titulo = input.titulo?.trim() || service.name
+      next.serviceNameSnapshot = service.name
+      next.servicePrice = service.price ?? null
+      next.serviceCurrency = service.currency ?? null
+    } else {
+      // Structured service removed in favour of a custom/manual service.
+      next.serviceNameSnapshot = input.titulo?.trim() || null
+      next.servicePrice = null
+      next.serviceCurrency = null
+    }
   }
 
   const submittedDuration = durationBetween(input.fechaInicio, input.fechaFin)
