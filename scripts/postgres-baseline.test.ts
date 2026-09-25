@@ -142,7 +142,7 @@ test("EMPTY_DATABASE_ASSERTION_SQL is read-only and counts every non-system base
 test("LEDGER_ASSERTION_SQL requires exactly the expected completed, single-step, non-rolled-back rows", () => {
   const sql = LEDGER_ASSERTION_SQL
   assert.match(sql, /FROM "_prisma_migrations"/)
-  assert.match(sql, /migration_name IN \\('0_init', '7_finesse_appointments_v2'\\)/)
+  assert.ok(sql.includes("migration_name IN ('0_init', '7_finesse_appointments_v2')"))
   assert.match(sql, /applied_steps_count = 1/)
   assert.match(sql, /finished_at IS NOT NULL/)
   assert.match(sql, /rolled_back_at IS NULL/)
