@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Search } from "lucide-react"
+import { ArrowLeft, Search } from "lucide-react"
 import { SidebarNav, MobileSidebarNav, SidebarCollapseContext } from "@/components/sidebar-nav"
 import { useGlobalSearch } from "@/components/global-search-provider"
 import { CloseTodayWhenGlobalSearchOpen } from "@/components/close-today-when-global-search-open"
@@ -58,10 +59,12 @@ function AppShellDesktopToolbar({
   hideTodayTrigger,
   hideAgentsTrigger,
   showAskFanny,
+  showBackToWorkspace,
 }: {
   hideTodayTrigger: boolean
   hideAgentsTrigger: boolean
   showAskFanny: boolean
+  showBackToWorkspace: boolean
 }) {
   const { openSearch, searchOpen } = useGlobalSearch()
   const { t } = useI18n()
@@ -71,7 +74,11 @@ function AppShellDesktopToolbar({
   const { open: askOpen } = useAskFanny()
   const isMobileViewport = useIsMobile()
   const eitherOpen =
-    desktopOpen || todayOpen || agentsOpen || askOpen || (searchOpen && !isMobileViewport)
+    desktopOpen ||
+    todayOpen ||
+    (!hideAgentsTrigger && agentsOpen) ||
+    askOpen ||
+    (searchOpen && !isMobileViewport)
 
   return (
     <div data-sevenef-toolbar className="sticky top-0 z-30 shrink-0 bg-[var(--app-shell-bg)]">
@@ -82,6 +89,15 @@ function AppShellDesktopToolbar({
             eitherOpen ? "border-b border-[var(--border-dark)]" : "border-b border-transparent",
           )}
         >
+          {showBackToWorkspace ? (
+            <Link
+              href="/"
+              className="mr-auto inline-flex h-9 items-center gap-2 rounded-[var(--app-control-radius)] border border-[var(--border-dark)] bg-[var(--app-surface-hover)] px-3 text-sm font-medium text-[var(--text-primary-light)] transition-colors hover:bg-[var(--app-surface-active)]"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>{t.nav.backToWorkspace}</span>
+            </Link>
+          ) : null}
           {/*
             Today is the first global action — daily-work surface, mounted
             BEFORE New (capture surface) so the operator's eye lands on
@@ -155,7 +171,7 @@ function AppShellDesktopToolbar({
         DOWN, identical recipe; mutual exclusion at the trigger level
         keeps only one panel open at a time.
       */}
-      <GlobalAgentsDesktopChrome variant="app" />
+      {!hideAgentsTrigger ? <GlobalAgentsDesktopChrome variant="app" /> : null}
       <div
         id="global-search-desktop-root"
         data-search-chrome-variant="app"
@@ -183,7 +199,8 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
    * mic replaces it) and `app/globals.css` reserves the bar height on `<main>`,
    * so the launcher clearance below applies to desktop only.
    */
-  const hasMobileNavBar = resolveNavProfile(workspace?.verticalKey ?? null)?.mobile !== undefined
+  const verticalNavProfile = resolveNavProfile(workspace?.verticalKey ?? null)
+  const hasMobileNavBar = verticalNavProfile?.mobile !== undefined
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   /**
    * Hide the Today trigger on `/today` itself: the operator is already
@@ -197,14 +214,17 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
    * Today trigger gate: a toolbar button pointing back at the canonical
    * Agents page the operator is already on is pure noise.
    */
-  const hideAgentsTrigger = pathname === "/agents" || pathname.startsWith("/agents/")
+  const isInboxRoute = pathname === "/inbox" || pathname.startsWith("/inbox/")
+  const isFinesseInbox = isInboxRoute && verticalNavProfile?.verticalKey === "beauty"
+  const hideAgentsTrigger =
+    isFinesseInbox || pathname === "/agents" || pathname.startsWith("/agents/")
   /**
    * Ask Fanny (assistant entry) is Inbox-only for PR1: it needs the Inbox's
    * selected conversation/message scope to be useful, and route-aware
    * Ask {agent} for other sections is future work. Gating here keeps the
    * trigger + panel off every non-Inbox page that shares this shell.
    */
-  const showAskFanny = pathname === "/inbox" || pathname.startsWith("/inbox/")
+  const showAskFanny = isInboxRoute
 
   useEffect(() => {
     if (!loading && !user) {
@@ -252,6 +272,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
             hideTodayTrigger={hideTodayTrigger}
             hideAgentsTrigger={hideAgentsTrigger}
             showAskFanny={showAskFanny}
+            showBackToWorkspace={isFinesseInbox}
           />
 
           <div
@@ -289,7 +310,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           Desktop Agents surface lives in the top sticky container inside
           `<main>` (see `AppShellDesktopToolbar` above).
         */}
-        <GlobalAgentsChrome />
+        {!hideAgentsTrigger ? <GlobalAgentsChrome /> : null}
 
         {/*
           Global Ask Fanny panel — controlled by AskFannyProvider, opened from
