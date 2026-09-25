@@ -22,13 +22,19 @@ export interface WorkspaceBusinessProfile {
 }
 
 export interface WorkspaceServiceCatalogItem {
-  /** Stable id — added by the service-catalog layer so agenda/billing can reference a service later. */
+  /** Stable id — shared by Agenda/Presence/Billing snapshots. */
   id?: string
   name: string
   active: boolean
   category?: string
   description?: string
   tags?: string[]
+  durationMinutes?: number
+  price?: number
+  currency?: string
+  staffUserIds?: string[]
+  bufferBeforeMinutes?: number
+  bufferAfterMinutes?: number
 }
 
 export interface VerticalConfig {
