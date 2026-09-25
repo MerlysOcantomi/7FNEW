@@ -2033,6 +2033,10 @@ export interface AppointmentsMessages {
   actions: {
     reschedule: string
     cancel: string
+    confirm: string
+    markArrived: string
+    complete: string
+    noShow: string
     cancelConfirmHeading: string
     cancelConfirmBody: string
     open: string
