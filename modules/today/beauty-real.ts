@@ -48,6 +48,14 @@ export interface BeautyTodayAppointment {
   clientPhone: string | null
   /** `Cliente.notas` — the owner's own notes about the client, or `null`. */
   clientNotes: string | null
+  /** Appointment V2 — real persisted lifecycle state, null for legacy citas. */
+  status: "pending" | "confirmed" | "arrived" | "completed" | "no_show" | "cancelled" | null
+  serviceId: string | null
+  serviceName: string | null
+  servicePrice: number | null
+  serviceCurrency: string | null
+  assignedUserId: string | null
+  origin: string | null
 }
 
 /** A free stretch between two consecutive citas with known bounds. */
