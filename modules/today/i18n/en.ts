@@ -13,6 +13,7 @@ export const en = {
     confirmed: "Confirmed",
     pending: "Awaiting confirmation",
     arrived: "Arrived",
+    completed: "Completed",
     no_show: "No-show",
     cancelled: "Cancelled",
   },
