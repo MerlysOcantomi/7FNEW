@@ -63,6 +63,12 @@ const STATUS_STYLE: Record<AppointmentStatus, StatusStyle> = {
     border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)",
     label: "Arrived",
   },
+  completed: {
+    bg: "var(--inbox-success-soft)",
+    text: "var(--inbox-success)",
+    border: "color-mix(in srgb, var(--inbox-success) 32%, transparent)",
+    label: "Completed",
+  },
   no_show: {
     bg: "var(--inbox-urgency-soft)",
     text: "var(--inbox-urgency)",
