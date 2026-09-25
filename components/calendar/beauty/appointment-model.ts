@@ -2,7 +2,6 @@
  * Finesse Beauty appointments — pure projection over the shared Calendar Engine.
  * Appointment V2 enriches Evento without introducing a second calendar entity.
  */
-import { conflictingEventoIds } from "../lenses"
 import type { CalendarItem } from "../types"
 
 export const APPOINTMENT_TIPO = "cita"
@@ -61,12 +60,57 @@ function lifecycleStatus(value: string | null | undefined): AppointmentLifecycle
   }
 }
 
-export function toBeautyAppointments(items: CalendarItem[], now: Date): BeautyAppointment[] {
-  // Cancelled bookings no longer reserve time. Generic events and active
-  // appointments still participate in the shared conflict engine.
-  const conflicts = conflictingEventoIds(
-    items.filter((item) => item.appointmentStatus !== "cancelled"),
+function appointmentConflictIds(items: CalendarItem[]): Set<string> {
+  const timed = items.filter(
+    (item) =>
+      item.type === "evento" &&
+      !item.allDay &&
+      item.appointmentStatus !== "cancelled" &&
+      !Number.isNaN(new Date(item.date).getTime()),
   )
+  const ids = new Set<string>()
+
+  for (let i = 0; i < timed.length; i++) {
+    for (let j = i + 1; j < timed.length; j++) {
+      const a = timed[i]
+      const b = timed[j]
+
+      // Two structured citas assigned to different known professionals are
+      // independently bookable. Generic events and legacy/unassigned citas
+      // remain workspace-wide blockers because their resource is unknown.
+      if (
+        a.status === APPOINTMENT_TIPO &&
+        b.status === APPOINTMENT_TIPO &&
+        a.assignedUserId &&
+        b.assignedUserId &&
+        a.assignedUserId !== b.assignedUserId
+      ) {
+        continue
+      }
+
+      const aStart = new Date(a.date).getTime()
+      const bStart = new Date(b.date).getTime()
+      const aEnd =
+        a.endDate && !Number.isNaN(new Date(a.endDate).getTime())
+          ? new Date(a.endDate).getTime()
+          : aStart + 60 * 60 * 1000
+      const bEnd =
+        b.endDate && !Number.isNaN(new Date(b.endDate).getTime())
+          ? new Date(b.endDate).getTime()
+          : bStart + 60 * 60 * 1000
+
+      if (aStart < bEnd && bStart < aEnd) {
+        ids.add(a.id)
+        ids.add(b.id)
+      }
+    }
+  }
+
+  return ids
+}
+
+export function toBeautyAppointments(items: CalendarItem[], now: Date): BeautyAppointment[] {
+  const conflicts = appointmentConflictIds(items)
 
   return items
     .filter(
