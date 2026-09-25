@@ -4,7 +4,11 @@ import { AlertTriangle, Clock, UserRound } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import { toIntlLocale } from "@core/i18n/format"
 import { cn } from "@/lib/utils"
-import type { AppointmentPhase, BeautyAppointment } from "./appointment-model"
+import type {
+  AppointmentLifecycleStatus,
+  AppointmentPhase,
+  BeautyAppointment,
+} from "./appointment-model"
 
 export function fmtTime(d: Date, intlLocale: string): string {
   return d.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })
@@ -27,6 +31,37 @@ export function AppointmentPhaseBadge({ phase }: { phase: AppointmentPhase }) {
       )}
     >
       {t.appointments.phase[phase]}
+    </span>
+  )
+}
+
+export function AppointmentLifecycleBadge({
+  status,
+}: {
+  status: AppointmentLifecycleStatus
+}) {
+  const { t } = useI18n()
+  const label =
+    status === "no_show"
+      ? t.appointments.lifecycle.noShow
+      : t.appointments.lifecycle[status]
+  const tone =
+    status === "cancelled" || status === "no_show"
+      ? "text-[var(--status-danger-text)]"
+      : status === "completed"
+        ? "text-[var(--status-success-text)]"
+        : status === "confirmed" || status === "arrived"
+          ? "text-[var(--accent-primary)]"
+          : "text-muted-foreground"
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium",
+        tone,
+      )}
+    >
+      {label}
     </span>
   )
 }
@@ -62,6 +97,7 @@ export function AppointmentCard({
         "group flex w-full flex-col gap-0.5 rounded-lg border border-border bg-card px-2.5 text-left transition-colors hover:border-[var(--accent-muted-border)] hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         dense ? "py-1" : "py-1.5",
         appointment.conflict && "border-[var(--status-danger-text)]/50",
+        appointment.lifecycleStatus === "cancelled" && "opacity-55",
       )}
     >
       <div className="flex items-center gap-1.5">
@@ -91,7 +127,11 @@ export function AppointmentCard({
           <span className="shrink-0">· {a.durationLabel(appointment.durationMinutes)}</span>
         )}
         <span className="ml-auto shrink-0">
-          <AppointmentPhaseBadge phase={appointment.phase} />
+          {appointment.lifecycleStatus ? (
+            <AppointmentLifecycleBadge status={appointment.lifecycleStatus} />
+          ) : (
+            <AppointmentPhaseBadge phase={appointment.phase} />
+          )}
         </span>
       </div>
     </button>
