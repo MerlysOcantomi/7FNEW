@@ -120,3 +120,43 @@ test("activeServiceNames excludes inactive services from the agent bridge", () =
   ]
   assert.deepEqual(activeServiceNames(catalog), [])
 })
+
+test("Service V2 normalizes price, duration, currency, buffers and professional ids", () => {
+  const item = normalizeServiceItem(
+    {
+      name: "Manicura",
+      price: "39.995",
+      durationMinutes: "75",
+      currency: "eur",
+      bufferBeforeMinutes: "10",
+      bufferAfterMinutes: 15,
+      staffUserIds: ["u1", "u1", "", "u2"],
+    },
+    new Set(),
+  )
+  assert.deepEqual(item, {
+    id: "manicura",
+    name: "Manicura",
+    durationMinutes: 75,
+    price: 40,
+    currency: "EUR",
+    staffUserIds: ["u1", "u2"],
+    bufferBeforeMinutes: 10,
+    bufferAfterMinutes: 15,
+    active: true,
+  })
+})
+
+test("Service V2 remains backward compatible and drops invalid optional values", () => {
+  const item = normalizeServiceItem(
+    {
+      name: "Legacy",
+      durationMinutes: -10,
+      price: -1,
+      currency: "euro",
+      bufferAfterMinutes: 99999,
+    },
+    new Set(),
+  )
+  assert.deepEqual(item, { id: "legacy", name: "Legacy", active: true })
+})
