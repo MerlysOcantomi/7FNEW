@@ -35,7 +35,10 @@ test("the canonical schema is the PostgreSQL schema (NEON-03) and 0_init on disk
   assert.equal((CANONICAL.match(/provider\s*=\s*"postgresql"/g) ?? []).length, 1)
   assert.equal((CANONICAL.match(/provider\s*=\s*"sqlite"/g) ?? []).length, 0)
   assert.equal(sha256(readFileSync(POSTGRES_INIT_SQL_PATH, "utf8")), BASELINE_SHA256)
-  assert.deepEqual([...EXPECTED_POSTGRES_MIGRATIONS], [BASELINE_MIGRATION_NAME])
+  assert.deepEqual([...EXPECTED_POSTGRES_MIGRATIONS], [
+    BASELINE_MIGRATION_NAME,
+    "7_finesse_appointments_v2",
+  ])
 })
 
 test("assertCanonicalPostgresSchema fails closed on any other provider shape", () => {
