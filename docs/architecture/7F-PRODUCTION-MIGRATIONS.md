@@ -134,21 +134,26 @@ VERCEL_ENV != production
 
 Preview builds never mutate the production database.
 
-## 5. One-time Vercel Production configuration
+## 5. Production target and Vercel secret
 
-The `7-fnew` project must expose these values **only to Production**:
+The non-secret Neon production identity is versioned in:
+
+```text
+scripts/db/production-target.ts
+```
+
+It pins the exact direct host, database, Neon project and Neon branch. Changing
+that file is therefore an explicit, reviewable infrastructure change.
+
+The `7-fnew` Vercel project only needs the existing Production secret:
 
 | Variable | Purpose |
 |---|---|
-| `DIRECT_URL` | existing Neon direct (non-pooler) connection string, secret |
-| `SEVENF_PRODUCTION_DB_HOST` | exact direct Neon hostname |
-| `SEVENF_PRODUCTION_DB_DATABASE` | exact database name |
-| `SEVENF_PRODUCTION_DB_PROJECT` | Neon project id |
-| `SEVENF_PRODUCTION_DB_BRANCH` | Neon branch id |
+| `DIRECT_URL` | Neon direct (non-pooler) connection string used only by Prisma migration tooling |
 
-The last four are identity configuration, not credentials. The runner also
-requires `sslmode=verify-full` for non-loopback production targets and rejects
-a `-pooler` host.
+The runner requires the URL to match the versioned target, requires
+`sslmode=verify-full` for the remote production target, and rejects a
+`-pooler` host. Credentials are never committed.
 
 The live database must already carry the NEON-05 production marker:
 
@@ -160,6 +165,11 @@ sevenf:branch=<branch>
 ```
 
 A missing or mismatched marker stops the deployment.
+
+This means that changing only `DIRECT_URL` cannot silently redirect automatic
+migrations to another Neon project, branch, host or database. The credential
+and the versioned identity must agree, and the live database marker must agree
+with both.
 
 ## 6. Commands
 
