@@ -1,3 +1,4 @@
+-- sevenef:migration-mode=routine
 -- Finesse Appointment V2
 -- Additive only: generic events and legacy appointments remain valid.
 ALTER TABLE "Evento"
