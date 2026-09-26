@@ -57,7 +57,7 @@ export function shouldRunProductionMigration(vercelEnv: string | undefined): boo
 }
 
 export function readProductionMigrationConfig(
-  env: NodeJS.ProcessEnv,
+  env: Record<string, string | undefined>,
 ): ProductionMigrationConfig {
   const directUrl = required("DIRECT_URL", env.DIRECT_URL)
   const { host, database, project, branch } = SEVENF_PRODUCTION_DATABASE_TARGET
