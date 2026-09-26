@@ -7,6 +7,7 @@ import {
   shouldRunProductionMigration,
   validateLedgerRows,
 } from "./production-migrate"
+import { SEVENF_PRODUCTION_DATABASE_TARGET } from "./production-target"
 
 test("production migrator only runs in Vercel production", () => {
   assert.equal(shouldRunProductionMigration("production"), true)
@@ -15,34 +16,32 @@ test("production migrator only runs in Vercel production", () => {
   assert.equal(shouldRunProductionMigration(undefined), false)
 })
 
-test("production config is explicit and refuses pooled or mismatched targets", () => {
+test("production config is pinned to the versioned Neon target and refuses mismatches", () => {
+  const target = SEVENF_PRODUCTION_DATABASE_TARGET
   const env = {
     DIRECT_URL:
-      "postgresql://user:pass@ep-sevenef.example.neon.tech/neondb?sslmode=verify-full",
-    SEVENF_PRODUCTION_DB_HOST: "ep-sevenef.example.neon.tech",
-    SEVENF_PRODUCTION_DB_DATABASE: "neondb",
-    SEVENF_PRODUCTION_DB_PROJECT: "old-wave-11795585",
-    SEVENF_PRODUCTION_DB_BRANCH: "br-broad-river-b2ue75l8",
+      `postgresql://user:pass@${target.host}/${target.database}?sslmode=verify-full`,
   } as NodeJS.ProcessEnv
 
-  assert.equal(readProductionMigrationConfig(env).database, "neondb")
+  const config = readProductionMigrationConfig(env)
+  assert.equal(config.database, target.database)
+  assert.equal(config.project, target.project)
+  assert.equal(config.branch, target.branch)
 
   assert.throws(
     () =>
       readProductionMigrationConfig({
-        ...env,
         DIRECT_URL:
-          "postgresql://user:pass@ep-sevenef-pooler.example.neon.tech/neondb?sslmode=verify-full",
-        SEVENF_PRODUCTION_DB_HOST: "ep-sevenef-pooler.example.neon.tech",
+          `postgresql://user:pass@ep-wrong.example.neon.tech/${target.database}?sslmode=verify-full`,
       }),
-    /DIRECT endpoint|pooled/,
+    /host does not match/,
   )
 
   assert.throws(
     () =>
       readProductionMigrationConfig({
-        ...env,
-        SEVENF_PRODUCTION_DB_DATABASE: "other",
+        DIRECT_URL:
+          `postgresql://user:pass@${target.host}/other?sslmode=verify-full`,
       }),
     /database does not match/,
   )
