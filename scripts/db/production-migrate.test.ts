@@ -21,7 +21,7 @@ test("production config is pinned to the versioned Neon target and refuses misma
   const env = {
     DIRECT_URL:
       `postgresql://user:pass@${target.host}/${target.database}?sslmode=verify-full`,
-  } as NodeJS.ProcessEnv
+  }
 
   const config = readProductionMigrationConfig(env)
   assert.equal(config.database, target.database)
