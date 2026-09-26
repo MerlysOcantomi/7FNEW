@@ -28,6 +28,7 @@ import {
   type ProductionIdentity,
   type TargetExpectation,
 } from "./etl-turso-to-postgres"
+import { SEVENF_PRODUCTION_DATABASE_TARGET } from "./production-target"
 
 export interface ProductionMigrationConfig {
   directUrl: string
@@ -59,19 +60,7 @@ export function readProductionMigrationConfig(
   env: NodeJS.ProcessEnv,
 ): ProductionMigrationConfig {
   const directUrl = required("DIRECT_URL", env.DIRECT_URL)
-  const host = required("SEVENF_PRODUCTION_DB_HOST", env.SEVENF_PRODUCTION_DB_HOST)
-  const database = required(
-    "SEVENF_PRODUCTION_DB_DATABASE",
-    env.SEVENF_PRODUCTION_DB_DATABASE,
-  )
-  const project = required(
-    "SEVENF_PRODUCTION_DB_PROJECT",
-    env.SEVENF_PRODUCTION_DB_PROJECT,
-  )
-  const branch = required(
-    "SEVENF_PRODUCTION_DB_BRANCH",
-    env.SEVENF_PRODUCTION_DB_BRANCH,
-  )
+  const { host, database, project, branch } = SEVENF_PRODUCTION_DATABASE_TARGET
 
   const expectation: TargetExpectation = {
     role: "production",
