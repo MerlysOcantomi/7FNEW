@@ -6,5 +6,8 @@
       "schedule": "*/5 * * * *"
     }
   ],
-  "buildCommand": "npm run vercel-build"
+  "buildCommand": "npm run vercel-build",
+  "regions": [
+    "fra1"
+  ]
 }
