@@ -79,7 +79,10 @@
     "test:presence": "tsx --test engines/presence/sections.test.ts engines/presence/templates.test.ts engines/presence/content-source.test.ts engines/presence/resolve.test.ts engines/presence/freya.test.ts engines/presence/slug.test.ts engines/presence/planning.test.ts engines/presence/no-profile-duplication.test.ts engines/presence/render-plan.test.ts engines/presence/social.test.ts engines/presence/reception.test.ts engines/presence/reception-security.test.ts engines/presence/repository.integration.test.ts engines/presence/public-site.integration.test.ts engines/presence/reception-service.integration.test.ts components/presence/fanny-reception.test.tsx middleware.test.ts",
     "demo:presence:status": "tsx scripts/seed-presence-demo.ts status",
     "demo:presence:seed": "tsx scripts/seed-presence-demo.ts seed",
-    "demo:presence:clean": "tsx scripts/seed-presence-demo.ts clean"
+    "demo:presence:clean": "tsx scripts/seed-presence-demo.ts clean",
+    "db:migration:audit": "tsx scripts/db/migration-policy.ts audit",
+    "db:migrate:production": "tsx scripts/db/production-migrate.ts",
+    "vercel-build": "npm run db:migration:audit && npm run db:migrate:production && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
