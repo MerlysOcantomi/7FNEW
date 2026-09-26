@@ -251,12 +251,31 @@ model Evento {
   clienteId   String?
   proyectoId  String?
   workspaceId String?
+
+  // Appointment V2. Nullable so generic calendar events and legacy citas remain valid.
+  serviceId            String?
+  serviceNameSnapshot  String?
+  servicePrice         Float?
+  serviceCurrency      String?
+  durationMinutes      Int?
+  assignedUserId       String?
+  appointmentStatus    String?
+  origin               String?
+  confirmedAt          DateTime?
+  cancelledAt          DateTime?
+  completedAt          DateTime?
+  noShowAt             DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   cliente   Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   proyecto  Proyecto?  @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, assignedUserId, fechaInicio])
+  @@index([workspaceId, serviceId, fechaInicio])
+  @@index([workspaceId, appointmentStatus, fechaInicio])
 }
 
 model Nota {

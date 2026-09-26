@@ -1,20 +1,15 @@
 /**
  * Appointment-first Today — data contract.
  *
- * There is NO real appointment backend yet: `Evento` carries title + start/end
- * only (no client / service / staff / status / price). This is the small,
- * explicit contract the appointment layout renders against; a real source (a
- * dedicated endpoint or an extended `/api/today`) will populate it later.
- *
- * Until then the ONLY producer is the isolated demo adapter in
- * `components/today/appointments/appointment-mock.ts`. It is never mixed with
- * real production data — the appointment layout is gated and defaults off, so a
- * real operator never sees these mock bookings.
+ * Legacy appointment-first preview contract. The REAL Finesse operator surface
+ * now reads Appointment V2 from Evento through /api/today/beauty; this contract
+ * remains only for the isolated Studio/demo adapters and their visual previews.
  */
 export type AppointmentStatus =
   | "confirmed"
   | "pending"
   | "arrived"
+  | "completed"
   | "no_show"
   | "cancelled"
 

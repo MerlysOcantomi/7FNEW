@@ -13,6 +13,16 @@ export const createEventoSchema = z.object({
   todoElDia: z.boolean().default(false),
   clienteId: z.string().optional().nullable(),
   proyectoId: z.string().optional().nullable(),
+
+  // Appointment V2. Accepted only as operator intent; snapshots such as
+  // servicePrice/serviceNameSnapshot are derived server-side from the catalog.
+  serviceId: z.string().min(1).optional().nullable(),
+  assignedUserId: z.string().min(1).optional().nullable(),
+  appointmentStatus: z
+    .enum(["pending", "confirmed", "arrived", "completed", "no_show", "cancelled"])
+    .optional()
+    .nullable(),
+  origin: z.string().trim().max(80).optional().nullable(),
 })
 
 export const updateEventoSchema = createEventoSchema.partial()

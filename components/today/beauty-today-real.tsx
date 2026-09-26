@@ -49,9 +49,10 @@ import { cn } from "@/lib/utils"
  *     already carried (no new scoring engine, no Inbox duplication);
  *   - inspiration photos are approved `PresenceMedia` originals, read-only.
  *
- * HONESTY RULES ON SCREEN (unchanged from the previous surface):
- *   - no attendance/confirmation claims — "Ahora mismo" is time-derived only;
- *   - no booked-value figure — `Evento` carries no price;
+ * HONESTY RULES ON SCREEN:
+ *   - "Ahora mismo" remains time-derived, while confirmation/attendance labels
+ *     are shown only when Appointment V2 persisted them;
+ *   - booked price is shown only from the immutable appointment snapshot;
  *   - every CTA is a REAL navigation (client, calendar, inbox, billing,
  *     workboard) or a plain `tel:` link — no write buttons are simulated.
  *
@@ -249,7 +250,14 @@ function NextClientSection({
           </p>
         </div>
       ) : (
-        <FocusAppointment appt={focus} t={t} intlLocale={intlLocale} />
+        <FocusAppointment
+          appt={focus}
+          t={t}
+          intlLocale={intlLocale}
+          statusLabels={beauty.statusLabels}
+          locale={beauty.locale}
+          fallbackCurrency={data.currency}
+        />
       )}
 
       {following ? (
@@ -285,10 +293,16 @@ function FocusAppointment({
   appt,
   t,
   intlLocale,
+  statusLabels,
+  locale,
+  fallbackCurrency,
 }: {
   appt: BeautyTodayAppointment
   t: BeautyTodayMessages["real"]
   intlLocale: string
+  statusLabels: BeautyTodayMessages["statusLabels"]
+  locale: BeautyTodayMessages["locale"]
+  fallbackCurrency: string
 }) {
   const clientName = appt.clientName ?? t.nextClient.noClient
   return (
@@ -315,7 +329,24 @@ function FocusAppointment({
           ) : (
             <p className="truncate text-[20px] font-semibold leading-tight text-[var(--text-primary-light)]">{clientName}</p>
           )}
-          <p className="mt-0.5 truncate text-[14px] text-[var(--text-secondary-light)]">{appt.title}</p>
+          <p className="mt-0.5 truncate text-[14px] text-[var(--text-secondary-light)]">
+            {appt.serviceName ?? appt.title}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            {appt.status ? (
+              <span className="rounded-full border border-[var(--border-dark)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--text-secondary-light)]">
+                {statusLabels[appt.status]}
+              </span>
+            ) : null}
+            {appt.servicePrice !== null ? (
+              <span className="text-[12px] font-semibold tabular-nums text-[var(--accent-on-dark)]">
+                {formatCurrency(appt.servicePrice, {
+                  locale,
+                  currency: appt.serviceCurrency ?? fallbackCurrency,
+                })}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 

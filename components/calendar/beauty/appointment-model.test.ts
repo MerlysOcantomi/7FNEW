@@ -91,3 +91,41 @@ test("phaseCounts buckets appointments by time-derived phase", () => {
   const counts = phaseCounts(toBeautyAppointments(items, now))
   assert.deepEqual(counts, { past: 1, current: 1, upcoming: 1 })
 })
+
+test("Appointment V2 projects service snapshot, lifecycle and professional", () => {
+  const item = cita("V2", iso(2026, 5, 24, 15, 0), iso(2026, 5, 24, 16, 15), "Ana")
+  Object.assign(item, {
+    serviceId: "manicura",
+    serviceNameSnapshot: "Manicura premium",
+    servicePrice: 42,
+    serviceCurrency: "EUR",
+    durationMinutes: 75,
+    assignedUserId: "u1",
+    appointmentStatus: "confirmed",
+    origin: "manual_agenda",
+  })
+  const [appt] = toBeautyAppointments([item], now)
+  assert.equal(appt.serviceId, "manicura")
+  assert.equal(appt.serviceName, "Manicura premium")
+  assert.equal(appt.servicePrice, 42)
+  assert.equal(appt.serviceCurrency, "EUR")
+  assert.equal(appt.durationMinutes, 75)
+  assert.equal(appt.assignedUserId, "u1")
+  assert.equal(appt.lifecycleStatus, "confirmed")
+})
+
+test("different known professionals can overlap; cancelled citas do not conflict", () => {
+  const a = cita("A", iso(2026, 5, 24, 10, 0), iso(2026, 5, 24, 11, 0))
+  const b = cita("B", iso(2026, 5, 24, 10, 15), iso(2026, 5, 24, 11, 15))
+  a.assignedUserId = "u1"
+  b.assignedUserId = "u2"
+  let out = toBeautyAppointments([a, b], now)
+  assert.equal(out.find((x) => x.id === "A")?.conflict, false)
+  assert.equal(out.find((x) => x.id === "B")?.conflict, false)
+
+  b.assignedUserId = "u1"
+  b.appointmentStatus = "cancelled"
+  out = toBeautyAppointments([a, b], now)
+  assert.equal(out.find((x) => x.id === "A")?.conflict, false)
+  assert.equal(out.find((x) => x.id === "B")?.lifecycleStatus, "cancelled")
+})

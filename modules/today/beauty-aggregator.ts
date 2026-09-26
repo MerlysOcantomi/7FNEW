@@ -102,6 +102,13 @@ export async function loadBeautyToday(input: {
           fechaInicio: true,
           fechaFin: true,
           clienteId: true,
+          serviceId: true,
+          serviceNameSnapshot: true,
+          servicePrice: true,
+          serviceCurrency: true,
+          assignedUserId: true,
+          appointmentStatus: true,
+          origin: true,
           cliente: { select: { nombre: true, telefono: true, notas: true } },
         },
         orderBy: { fechaInicio: "asc" },
@@ -188,6 +195,13 @@ export async function loadBeautyToday(input: {
     descripcion: cita.descripcion,
     clienteTelefono: cita.cliente?.telefono ?? null,
     clienteNotas: cita.cliente?.notas ?? null,
+    appointmentStatus: cita.appointmentStatus,
+    serviceId: cita.serviceId,
+    serviceNameSnapshot: cita.serviceNameSnapshot,
+    servicePrice: cita.servicePrice,
+    serviceCurrency: cita.serviceCurrency,
+    assignedUserId: cita.assignedUserId,
+    origin: cita.origin,
   }))
 
   const appointments = buildAppointments(eventRows, now)

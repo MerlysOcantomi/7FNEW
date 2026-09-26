@@ -66,7 +66,10 @@ export const BASELINE_MIGRATION_NAME = "0_init"
  * content is pinned by sha256; later schema changes append NEW entries here
  * (and a new directory) — they never touch `0_init`.
  */
-export const EXPECTED_POSTGRES_MIGRATIONS = [BASELINE_MIGRATION_NAME] as const
+export const EXPECTED_POSTGRES_MIGRATIONS = [
+  BASELINE_MIGRATION_NAME,
+  "7_finesse_appointments_v2",
+] as const
 export const BASELINE_SHA256 = "679d9d18e72a3fa101bd96f6c39b2194ba38ae86de35359a3e46be8d662af30e"
 
 export const VERIFY_URL_VAR = "POSTGRES_VERIFY_URL"

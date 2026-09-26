@@ -102,6 +102,126 @@
       "expiresWith": "AUDIT_DECISION:M2"
     },
     {
+      "id": "column:Evento.appointmentStatus",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "appointmentStatus",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.assignedUserId",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "assignedUserId",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.cancelledAt",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "cancelledAt",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.completedAt",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "completedAt",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.confirmedAt",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "confirmedAt",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.durationMinutes",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "durationMinutes",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.noShowAt",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "noShowAt",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.origin",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "origin",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.serviceCurrency",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "serviceCurrency",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.serviceId",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "serviceId",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.serviceNameSnapshot",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "serviceNameSnapshot",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "column:Evento.servicePrice",
+      "kind": "column",
+      "table": "Evento",
+      "identifier": "servicePrice",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
       "id": "foreign-key:Activity:Workspace(workspaceId->id)[update:CASCADE,delete:SET NULL]",
       "kind": "foreign-key",
       "table": "Activity",
@@ -509,6 +629,36 @@
       "direction": "history-lacks",
       "reason": "Prisma-declared FK never deployed: push-turso.ts added workspace/relation columns via ALTER TABLE ADD COLUMN, which cannot attach a constraint in SQLite. FK completion is deferred to the PostgreSQL history (plus an optional audited Turso subset).",
       "source": "CORE-03B-SCHEMA-AUDIT.md #11 (37 missing FKs); CORE-03C-CANONICAL-SCHEMA-DECISIONS.md #8 / D3",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "index:Evento.Evento_workspaceId_appointmentStatus_fechaInicio_idx",
+      "kind": "index",
+      "table": "Evento",
+      "identifier": "Evento_workspaceId_appointmentStatus_fechaInicio_idx",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "index:Evento.Evento_workspaceId_assignedUserId_fechaInicio_idx",
+      "kind": "index",
+      "table": "Evento",
+      "identifier": "Evento_workspaceId_assignedUserId_fechaInicio_idx",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
+      "expiresWith": "NEON_CUTOVER"
+    },
+    {
+      "id": "index:Evento.Evento_workspaceId_serviceId_fechaInicio_idx",
+      "kind": "index",
+      "table": "Evento",
+      "identifier": "Evento_workspaceId_serviceId_fechaInicio_idx",
+      "direction": "history-lacks",
+      "reason": "Appointment V2 was added after PostgreSQL became the canonical schema target. The legacy SQLite migration history remains frozen; this structure is deployed by prisma/migrations-postgres/7_finesse_appointments_v2.",
+      "source": "Finesse Services V2 + Appointment V2 / prisma/migrations-postgres/7_finesse_appointments_v2",
       "expiresWith": "NEON_CUTOVER"
     }
   ]

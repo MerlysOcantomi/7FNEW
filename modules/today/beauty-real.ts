@@ -48,6 +48,14 @@ export interface BeautyTodayAppointment {
   clientPhone: string | null
   /** `Cliente.notas` — the owner's own notes about the client, or `null`. */
   clientNotes: string | null
+  /** Appointment V2 — real persisted lifecycle state, null for legacy citas. */
+  status: "pending" | "confirmed" | "arrived" | "completed" | "no_show" | "cancelled" | null
+  serviceId: string | null
+  serviceName: string | null
+  servicePrice: number | null
+  serviceCurrency: string | null
+  assignedUserId: string | null
+  origin: string | null
 }
 
 /** A free stretch between two consecutive citas with known bounds. */
@@ -225,6 +233,13 @@ export interface BeautyEventRow {
   descripcion?: string | null
   clienteTelefono?: string | null
   clienteNotas?: string | null
+  appointmentStatus?: string | null
+  serviceId?: string | null
+  serviceNameSnapshot?: string | null
+  servicePrice?: number | null
+  serviceCurrency?: string | null
+  assignedUserId?: string | null
+  origin?: string | null
 }
 
 /** Trim free text; empty → `null` so the UI never renders a blank block. */
@@ -250,19 +265,40 @@ export function buildAppointments(
   now: Date,
 ): BeautyTodayAppointment[] {
   return [...rows]
+    // Cancelled bookings remain in history/Agenda but no longer occupy Today's
+    // active operating schedule or create false gaps/conflicts.
+    .filter((row) => row.appointmentStatus !== "cancelled")
     .sort((a, b) => a.fechaInicio.getTime() - b.fechaInicio.getTime())
-    .map((row) => ({
-      eventoId: row.id,
-      title: row.titulo,
-      startsAt: row.fechaInicio.toISOString(),
-      endsAt: row.fechaFin ? row.fechaFin.toISOString() : null,
-      clientId: row.clienteId,
-      clientName: row.clienteNombre,
-      phase: appointmentPhase(row.fechaInicio, row.fechaFin, now),
-      note: cleanText(row.descripcion),
-      clientPhone: cleanText(row.clienteTelefono),
-      clientNotes: cleanText(row.clienteNotas),
-    }))
+    .map((row) => {
+      const status =
+        row.appointmentStatus === "pending" ||
+        row.appointmentStatus === "confirmed" ||
+        row.appointmentStatus === "arrived" ||
+        row.appointmentStatus === "completed" ||
+        row.appointmentStatus === "no_show"
+          ? row.appointmentStatus
+          : null
+
+      return {
+        eventoId: row.id,
+        title: row.titulo,
+        startsAt: row.fechaInicio.toISOString(),
+        endsAt: row.fechaFin ? row.fechaFin.toISOString() : null,
+        clientId: row.clienteId,
+        clientName: row.clienteNombre,
+        phase: appointmentPhase(row.fechaInicio, row.fechaFin, now),
+        note: cleanText(row.descripcion),
+        clientPhone: cleanText(row.clienteTelefono),
+        clientNotes: cleanText(row.clienteNotas),
+        status,
+        serviceId: row.serviceId ?? null,
+        serviceName: cleanText(row.serviceNameSnapshot) ?? row.titulo,
+        servicePrice: row.servicePrice ?? null,
+        serviceCurrency: cleanText(row.serviceCurrency),
+        assignedUserId: row.assignedUserId ?? null,
+        origin: cleanText(row.origin),
+      }
+    })
 }
 
 /** First cita that has not started yet (strictly after `now`), else `null`. */

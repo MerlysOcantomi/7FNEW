@@ -6,15 +6,6 @@ import { formatDateParam } from "../grid"
 import type { CalendarItem, CalendarView } from "../types"
 import { toBeautyAppointments, type BeautyAppointment } from "./appointment-model"
 
-/**
- * Beauty agenda read hook — the SAME shared feed the Core calendar uses
- * (`/api/calendario/feed`, workspace-scoped + range-filtered server-side),
- * projected into Beauty appointments. No second endpoint, model or query.
- *
- * `refreshKey` lets the experience re-read after a create/edit/cancel without a
- * page reload; conflicts are derived by the shared engine inside
- * `toBeautyAppointments`.
- */
 interface FeedEvento {
   id: string
   titulo: string
@@ -23,6 +14,14 @@ interface FeedEvento {
   todoElDia?: boolean
   tipo: string
   cliente?: { nombre?: string | null } | null
+  serviceId?: string | null
+  serviceNameSnapshot?: string | null
+  servicePrice?: number | null
+  serviceCurrency?: string | null
+  durationMinutes?: number | null
+  assignedUserId?: string | null
+  appointmentStatus?: string | null
+  origin?: string | null
 }
 
 interface FeedShape {
@@ -47,17 +46,26 @@ export function useBeautyAgenda(
   const appointments = useMemo(() => {
     const eventos = data?.eventos ?? []
     const items: CalendarItem[] = eventos
-      .filter((e) => e.fechaInicio)
-      .map((e) => ({
-        id: e.id,
+      .filter((event) => event.fechaInicio)
+      .map((event) => ({
+        id: event.id,
         type: "evento",
-        title: e.titulo,
-        date: e.fechaInicio,
-        endDate: e.fechaFin ?? null,
-        allDay: !!e.todoElDia,
-        status: e.tipo,
-        clientName: e.cliente?.nombre ?? undefined,
+        title: event.titulo,
+        date: event.fechaInicio,
+        endDate: event.fechaFin ?? null,
+        allDay: !!event.todoElDia,
+        status: event.tipo,
+        clientName: event.cliente?.nombre ?? undefined,
+        serviceId: event.serviceId ?? null,
+        serviceNameSnapshot: event.serviceNameSnapshot ?? null,
+        servicePrice: event.servicePrice ?? null,
+        serviceCurrency: event.serviceCurrency ?? null,
+        durationMinutes: event.durationMinutes ?? null,
+        assignedUserId: event.assignedUserId ?? null,
+        appointmentStatus: event.appointmentStatus ?? null,
+        origin: event.origin ?? null,
       }))
+
     return toBeautyAppointments(items, new Date())
   }, [data])
 

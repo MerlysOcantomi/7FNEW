@@ -1,26 +1,32 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppShell } from "@/components/app-shell"
 import { SectionPage } from "@/components/section-page"
 import { cn } from "@/lib/utils"
-import { Save, Plus, Trash2, Loader2, CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Loader2, Plus, Save, Trash2, Users } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import type { ServiceCatalogItem } from "@core/services/catalog"
 
-/**
- * Services — the generic (core) catalog surface. Visible text comes from the
- * `services` i18n namespace; the route and code stay English. Beauty only
- * contributes the seed/labels via its vertical pack; this page is the same
- * for every vertical.
- *
- * Canonical source: `serviceCatalog` (structured). Saving here also refreshes
- * `businessProfile.services` (active names only) through the API bridge.
- */
+interface WorkspaceProfessional {
+  userId: string
+  nombre: string | null
+  email: string
+  avatar: string | null
+  role: string
+}
+
+function numberOrUndefined(value: string): number | undefined {
+  if (value.trim() === "") return undefined
+  const n = Number(value)
+  return Number.isFinite(n) ? n : undefined
+}
+
 export default function ServicesPage() {
   const { t } = useI18n()
   const S = t.services
   const [items, setItems] = useState<ServiceCatalogItem[]>([])
+  const [professionals, setProfessionals] = useState<WorkspaceProfessional[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -29,11 +35,22 @@ export default function ServicesPage() {
   const [newCategory, setNewCategory] = useState("")
 
   const fetchCatalog = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      const res = await fetch("/api/workspace/services")
-      if (!res.ok) throw new Error("Failed to load catalog")
-      const data = await res.json()
-      setItems(Array.isArray(data.serviceCatalog) ? data.serviceCatalog : [])
+      const [servicesRes, membersRes] = await Promise.all([
+        fetch("/api/workspace/services"),
+        fetch("/api/inbox/workspace-members"),
+      ])
+      if (!servicesRes.ok) throw new Error("Failed to load catalog")
+      const servicesData = await servicesRes.json()
+      setItems(Array.isArray(servicesData.serviceCatalog) ? servicesData.serviceCatalog : [])
+
+      if (membersRes.ok) {
+        const membersJson = await membersRes.json()
+        const members = Array.isArray(membersJson?.data) ? membersJson.data : []
+        setProfessionals(members)
+      }
     } catch {
       setError("load")
     } finally {
@@ -42,8 +59,10 @@ export default function ServicesPage() {
   }, [])
 
   useEffect(() => {
-    fetchCatalog()
+    void fetchCatalog()
   }, [fetchCatalog])
+
+  const activeCount = useMemo(() => items.filter((item) => item.active).length, [items])
 
   const handleSave = async () => {
     setSaving(true)
@@ -59,7 +78,7 @@ export default function ServicesPage() {
       const data = await res.json()
       if (Array.isArray(data.serviceCatalog)) setItems(data.serviceCatalog)
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      window.setTimeout(() => setSaved(false), 3000)
     } catch {
       setError("save")
     } finally {
@@ -71,25 +90,31 @@ export default function ServicesPage() {
     const name = newName.trim()
     if (!name) return
     const category = newCategory.trim()
-    // Provisional client id; the API assigns the stable id on save.
     const provisionalId = `new-${items.length}-${name.toLowerCase().replace(/\s+/g, "-")}`
     setItems((prev) => [
       ...prev,
-      { id: provisionalId, name, ...(category ? { category } : {}), active: true },
+      {
+        id: provisionalId,
+        name,
+        ...(category ? { category } : {}),
+        durationMinutes: 60,
+        active: true,
+      },
     ])
     setNewName("")
     setNewCategory("")
   }
 
   const updateItem = (id: string, patch: Partial<ServiceCatalogItem>) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((it) => it.id !== id))
+  const toggleProfessional = (item: ServiceCatalogItem, userId: string) => {
+    const selected = new Set(item.staffUserIds ?? [])
+    if (selected.has(userId)) selected.delete(userId)
+    else selected.add(userId)
+    updateItem(item.id, { staffUserIds: selected.size > 0 ? [...selected] : undefined })
   }
-
-  const activeCount = items.filter((it) => it.active).length
 
   if (loading) {
     return (
@@ -107,13 +132,11 @@ export default function ServicesPage() {
   return (
     <AppShell>
       <SectionPage title={S.title} description={S.description}>
-        <div className="flex flex-col gap-6 max-w-2xl">
-          {/* Add a service */}
-          <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex max-w-4xl flex-col gap-6">
+          <section className="rounded-xl border border-border bg-card p-4">
             <p className="text-sm font-medium text-foreground">{S.add.heading}</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
-                type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => {
@@ -126,15 +149,8 @@ export default function ServicesPage() {
                 className="flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
-                type="text"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    addService()
-                  }
-                }}
                 placeholder={S.add.categoryOptionalPlaceholder}
                 className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:w-48"
               />
@@ -142,81 +158,182 @@ export default function ServicesPage() {
                 type="button"
                 onClick={addService}
                 disabled={!newName.trim()}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" /> {S.add.button}
               </button>
             </div>
-          </div>
+          </section>
 
-          {/* Catalog list */}
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground">{S.list.empty}</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {S.list.counts(items.length, activeCount)}
-                </p>
-              </div>
+            <section className="flex flex-col gap-3">
+              <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {S.list.counts(items.length, activeCount)}
+              </p>
+
               {items.map((item) => (
-                <div
+                <article
                   key={item.id}
                   className={cn(
-                    "flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center",
-                    !item.active && "opacity-60",
+                    "rounded-xl border border-border bg-card p-4",
+                    !item.active && "opacity-65",
                   )}
                 >
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                    className="flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-foreground focus:border-border focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <input
-                    type="text"
-                    value={item.category ?? ""}
-                    onChange={(e) => updateItem(item.id, { category: e.target.value })}
-                    placeholder={S.list.categoryPlaceholder}
-                    className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-muted-foreground focus:border-border focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring sm:w-40"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateItem(item.id, { active: !item.active })}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                        item.active
-                          ? "bg-green-500/15 text-green-600 hover:bg-green-500/25 dark:text-green-400"
-                          : "bg-muted text-muted-foreground hover:bg-accent",
-                      )}
-                      aria-pressed={item.active}
-                    >
-                      {item.active ? S.list.active : S.list.inactive}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="text-muted-foreground hover:text-red-500 transition-colors"
-                      aria-label={S.list.removeAria(item.name)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateItem(item.id, { name: e.target.value })}
+                        className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold text-foreground focus:border-border focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <input
+                        value={item.category ?? ""}
+                        onChange={(e) => updateItem(item.id, { category: e.target.value || undefined })}
+                        placeholder={S.list.categoryPlaceholder}
+                        className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-muted-foreground focus:border-border focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring sm:w-44"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateItem(item.id, { active: !item.active })}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                            item.active
+                              ? "bg-[color-mix(in_srgb,var(--status-success-text)_12%,transparent)] text-[var(--status-success-text)]"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                          aria-pressed={item.active}
+                        >
+                          {item.active ? S.list.active : S.list.inactive}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--status-danger-text)]"
+                          aria-label={S.list.removeAria(item.name)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <textarea
+                      value={item.description ?? ""}
+                      onChange={(e) => updateItem(item.id, { description: e.target.value || undefined })}
+                      placeholder={S.editor.descriptionPlaceholder}
+                      rows={2}
+                      className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                      <Field label={S.editor.duration}>
+                        <input
+                          type="number"
+                          min={5}
+                          step={5}
+                          value={item.durationMinutes ?? ""}
+                          onChange={(e) =>
+                            updateItem(item.id, { durationMinutes: numberOrUndefined(e.target.value) })
+                          }
+                          className="field-input"
+                        />
+                      </Field>
+                      <Field label={S.editor.price}>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={item.price ?? ""}
+                          onChange={(e) => updateItem(item.id, { price: numberOrUndefined(e.target.value) })}
+                          className="field-input"
+                        />
+                      </Field>
+                      <Field label={S.editor.currency}>
+                        <input
+                          value={item.currency ?? "EUR"}
+                          maxLength={3}
+                          onChange={(e) =>
+                            updateItem(item.id, { currency: e.target.value.toUpperCase() || undefined })
+                          }
+                          className="field-input uppercase"
+                        />
+                      </Field>
+                      <Field label={S.editor.bufferBefore}>
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={item.bufferBeforeMinutes ?? ""}
+                          onChange={(e) =>
+                            updateItem(item.id, { bufferBeforeMinutes: numberOrUndefined(e.target.value) })
+                          }
+                          className="field-input"
+                        />
+                      </Field>
+                      <Field label={S.editor.bufferAfter}>
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={item.bufferAfterMinutes ?? ""}
+                          onChange={(e) =>
+                            updateItem(item.id, { bufferAfterMinutes: numberOrUndefined(e.target.value) })
+                          }
+                          className="field-input"
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="rounded-lg border border-border bg-[var(--app-surface-subtle)] p-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-foreground">{S.editor.professionals}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{S.editor.professionalsHint}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {professionals.length === 0 ? (
+                          <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+                            {S.editor.allProfessionals}
+                          </span>
+                        ) : (
+                          professionals.map((member) => {
+                            const selected = (item.staffUserIds ?? []).includes(member.userId)
+                            return (
+                              <button
+                                key={member.userId}
+                                type="button"
+                                onClick={() => toggleProfessional(item, member.userId)}
+                                aria-pressed={selected}
+                                className={cn(
+                                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                                  selected
+                                    ? "border-[var(--accent-muted-border)] bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+                                    : "border-border bg-background text-muted-foreground hover:bg-accent",
+                                )}
+                              >
+                                {member.nombre || member.email}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </article>
               ))}
-            </div>
+            </section>
           )}
 
-          {/* Save */}
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleSave}
               disabled={saving}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors",
+                "inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors",
                 saving
-                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  ? "cursor-not-allowed bg-muted text-muted-foreground"
                   : "bg-foreground text-background hover:opacity-90",
               )}
             >
@@ -224,18 +341,43 @@ export default function ServicesPage() {
               {saving ? S.save.saving : S.save.button}
             </button>
             {saved && (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+              <span className="inline-flex items-center gap-1.5 text-sm text-[var(--status-success-text)]">
                 <CheckCircle2 className="h-4 w-4" /> {S.save.saved}
               </span>
             )}
             {error && (
-              <span className="text-sm text-red-500">
+              <span className="text-sm text-[var(--status-danger-text)]">
                 {error === "load" ? S.errors.load : S.errors.save}
               </span>
             )}
           </div>
         </div>
+
+        <style jsx>{`
+          :global(.field-input) {
+            width: 100%;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--background);
+            padding: 0.5rem 0.625rem;
+            font-size: 0.875rem;
+            color: var(--foreground);
+            outline: none;
+          }
+          :global(.field-input:focus) {
+            box-shadow: 0 0 0 1px var(--ring);
+          }
+        `}</style>
       </SectionPage>
     </AppShell>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      {children}
+    </label>
   )
 }

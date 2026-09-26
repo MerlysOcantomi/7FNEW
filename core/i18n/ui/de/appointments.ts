@@ -14,6 +14,9 @@ export const appointments: AppointmentsMessages = {
     date: "Datum",
     time: "Uhrzeit",
     duration: "Dauer",
+    price: "Preis",
+    status: "Status",
+    origin: "Quelle",
     notes: "Notizen",
     when: "Wann",
   },
@@ -21,6 +24,14 @@ export const appointments: AppointmentsMessages = {
     past: "Vergangen",
     current: "Läuft",
     upcoming: "Bevorstehend",
+  },
+  lifecycle: {
+    pending: "Ausstehend",
+    confirmed: "Bestätigt",
+    arrived: "Angekommen",
+    completed: "Abgeschlossen",
+    noShow: "Nicht erschienen",
+    cancelled: "Storniert",
   },
   durationLabel: (minutes) => {
     if (minutes < 60) return `${minutes} Min.`
@@ -69,8 +80,12 @@ export const appointments: AppointmentsMessages = {
   actions: {
     reschedule: "Verschieben",
     cancel: "Termin stornieren",
+    confirm: "Bestätigen",
+    markArrived: "Als angekommen markieren",
+    complete: "Abschließen",
+    noShow: "Nicht erschienen",
     cancelConfirmHeading: "Diesen Termin stornieren?",
-    cancelConfirmBody: "Damit wird der Slot frei und die Buchung entfernt. Dies kann nicht rückgängig gemacht werden.",
+    cancelConfirmBody: "Der Termin bleibt im Verlauf erhalten und der Slot wird frei.",
     open: "Öffnen",
   },
   toast: {

@@ -35,7 +35,10 @@ test("the canonical schema is the PostgreSQL schema (NEON-03) and 0_init on disk
   assert.equal((CANONICAL.match(/provider\s*=\s*"postgresql"/g) ?? []).length, 1)
   assert.equal((CANONICAL.match(/provider\s*=\s*"sqlite"/g) ?? []).length, 0)
   assert.equal(sha256(readFileSync(POSTGRES_INIT_SQL_PATH, "utf8")), BASELINE_SHA256)
-  assert.deepEqual([...EXPECTED_POSTGRES_MIGRATIONS], [BASELINE_MIGRATION_NAME])
+  assert.deepEqual([...EXPECTED_POSTGRES_MIGRATIONS], [
+    BASELINE_MIGRATION_NAME,
+    "7_finesse_appointments_v2",
+  ])
 })
 
 test("assertCanonicalPostgresSchema fails closed on any other provider shape", () => {
@@ -139,11 +142,11 @@ test("EMPTY_DATABASE_ASSERTION_SQL is read-only and counts every non-system base
 test("LEDGER_ASSERTION_SQL requires exactly the expected completed, single-step, non-rolled-back rows", () => {
   const sql = LEDGER_ASSERTION_SQL
   assert.match(sql, /FROM "_prisma_migrations"/)
-  assert.match(sql, new RegExp(`migration_name IN \\('${BASELINE_MIGRATION_NAME}'\\)`))
+  assert.ok(sql.includes("migration_name IN ('0_init', '7_finesse_appointments_v2')"))
   assert.match(sql, /applied_steps_count = 1/)
   assert.match(sql, /finished_at IS NOT NULL/)
   assert.match(sql, /rolled_back_at IS NULL/)
-  assert.match(sql, /IF total <> 1 OR ok <> 1 THEN/)
+  assert.match(sql, /IF total <> 2 OR ok <> 2 THEN/)
   assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b/i)
   // A longer history (a future NEW migration) scales the assertion; 0_init is never rewritten.
   const two = ledgerAssertionSql(["0_init", "1_future"])

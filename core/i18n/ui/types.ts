@@ -1073,6 +1073,17 @@ export interface ServicesMessages {
     inactive: string
     removeAria: (name: string) => string
   }
+  editor: {
+    descriptionPlaceholder: string
+    duration: string
+    price: string
+    currency: string
+    bufferBefore: string
+    bufferAfter: string
+    professionals: string
+    professionalsHint: string
+    allProfessionals: string
+  }
   save: { button: string; saving: string; saved: string }
   errors: { load: string; save: string }
 }
@@ -1957,14 +1968,25 @@ export interface AppointmentsMessages {
     date: string
     time: string
     duration: string
+    price: string
+    status: string
+    origin: string
     notes: string
     when: string
   }
-  /** Time-derived phase — never an attendance claim. */
+  /** Time-derived phase for legacy citas without a lifecycle state. */
   phase: {
     past: string
     current: string
     upcoming: string
+  }
+  lifecycle: {
+    pending: string
+    confirmed: string
+    arrived: string
+    completed: string
+    noShow: string
+    cancelled: string
   }
   /** Duration rendered from start/end (never a stored minutes column). */
   durationLabel: (minutes: number) => string
@@ -2014,6 +2036,10 @@ export interface AppointmentsMessages {
   actions: {
     reschedule: string
     cancel: string
+    confirm: string
+    markArrived: string
+    complete: string
+    noShow: string
     cancelConfirmHeading: string
     cancelConfirmBody: string
     open: string

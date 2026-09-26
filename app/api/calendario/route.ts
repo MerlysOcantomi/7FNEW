@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server"
+import type { Prisma } from "@/generated/prisma/client"
 import { successResponse, handleError, getPaginationParams } from "@/lib/api"
 import { createEventoSchema, queryEventoSchema } from "@modules/calendario/validation"
 import * as service from "@modules/calendario/service"
+import { resolveAppointmentWrite } from "@modules/calendario/appointment-v2"
 import { requireReadAccess, requireWriteAccess } from "@/lib/auth/workspace-auth"
 
 export async function GET(request: NextRequest) {
@@ -22,7 +24,11 @@ export async function POST(request: NextRequest) {
     const { workspaceId } = await requireWriteAccess()
     const body = await request.json()
     const data = createEventoSchema.parse(body)
-    const record = await service.create(data, workspaceId)
+    const enriched = await resolveAppointmentWrite(data, workspaceId)
+    const record = await service.create(
+      enriched as Prisma.EventoUncheckedCreateInput,
+      workspaceId,
+    )
     return successResponse(record)
   } catch (error) {
     return handleError(error, "Evento")

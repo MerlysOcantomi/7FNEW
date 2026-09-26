@@ -83,6 +83,9 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Audit PostgreSQL migration policy
+        run: npm run db:migration:audit
+
       - name: Typecheck
         run: npm run typecheck
 
